@@ -18,18 +18,15 @@ Abstract base class defining time stepping interface.
 """
 
 import abc
-from typing import Protocol, TypeVar, Union
+from typing import Protocol, Union
 
 import jax
 from torax import state as state_module
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 
-# Subclasses override with their own state type
-State = TypeVar('State')
 
-
-class TimeStepCalculator(Protocol[State]):
+class TimeStepCalculator(Protocol):
   """Iterates over time during simulation.
 
   Usage follows this pattern:
@@ -45,15 +42,10 @@ class TimeStepCalculator(Protocol[State]):
       sim_state = <update sim_state with step of size dt>
   """
 
-  @abc.abstractmethod
-  def initial_state(self) -> State:
-    """Returns the initial internal state of the time stepper."""
-
   def not_done(
       self,
       t: Union[float, jax.Array],
       t_final: float,
-      state: State,
   ) -> Union[bool, jax.Array]:
     return t < t_final
 
@@ -63,9 +55,8 @@ class TimeStepCalculator(Protocol[State]):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
-      time_step_calculator_state: State,
       core_transport: state_module.CoreTransport,
-  ) -> tuple[jax.Array, State]:
+  ) -> jax.Array:
     """Returns the next time step duration and internal time stepper state.
 
     Args:
@@ -73,6 +64,5 @@ class TimeStepCalculator(Protocol[State]):
         without triggering a JAX recompilation.
       geo: Geometry for the Tokamak.
       core_profiles: Core plasma profiles in the tokamak.
-      time_step_calculator_state: Internal state of the time stepper.
       core_transport: Transport coefficients.
     """

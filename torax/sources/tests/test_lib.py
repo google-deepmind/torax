@@ -48,8 +48,10 @@ class SourceTestCase(parameterized.TestCase):
       source_name: str,
       source_config_class: Type[base.SourceModelBase],
       needs_source_models: bool = False,
+      model_function_name: str | None = None,
   ):
     self._source_name = source_name
+    self._model_function_name = model_function_name
     self._source_config_class = source_config_class
     self._needs_source_models = needs_source_models
     super().setUp()
@@ -93,7 +95,15 @@ class SingleProfileSourceTestCase(SourceTestCase):
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    if self._model_function_name is not None:
+      sources_dict = {
+          self._source_name: {
+              'model_function_name': self._model_function_name,
+          }
+      }
+    else:
+      sources_dict = {self._source_name: {}}
+    sources = source_pydantic_model.Sources.from_dict(sources_dict)
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
@@ -105,7 +115,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -141,14 +153,22 @@ class SingleProfileSourceTestCase(SourceTestCase):
     self.assertEqual(value.shape, geo.rho.shape)
 
 
-class IonElSourceTestCase(SourceTestCase):
+class MultipleProfileSourceTestCase(SourceTestCase):
   """Base test class for IonElSource subclasses."""
 
   def test_source_values_on_the_cell_grid(self):
     """Tests that the source can provide values on the cell grid."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    if self._model_function_name is not None:
+      sources_dict = {
+          self._source_name: {
+              'model_function_name': self._model_function_name,
+          }
+      }
+    else:
+      sources_dict = {self._source_name: {}}
+    sources = source_pydantic_model.Sources.from_dict(sources_dict)
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
@@ -164,7 +184,9 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -174,13 +196,16 @@ class IonElSourceTestCase(SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
-    ion_and_el = source.get_value(
+    value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
     )
-    self.assertLen(ion_and_el, 2)
-    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
-    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
+    self.assertLen(value, 2)
+    self.assertEqual(value[0].shape, geo.rho.shape)
+    self.assertEqual(value[1].shape, geo.rho.shape)
+
+    self.assertFalse(jnp.any(jnp.isnan(value[0])))
+    self.assertFalse(jnp.any(jnp.isnan(value[1])))

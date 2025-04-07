@@ -23,10 +23,14 @@ This module also provides a method
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
 import chex
+from torax.config import numerics as numerics_lib
+from torax.config import plasma_composition as plasma_composition_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -37,7 +41,9 @@ import typing_extensions
 
 def build_static_runtime_params_slice(
     *,
-    runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+    profile_conditions: profile_conditions_lib.ProfileConditions,
+    numerics: numerics_lib.Numerics,
+    plasma_composition: plasma_composition_lib.PlasmaComposition,
     sources: sources_pydantic_model.Sources,
     torax_mesh: torax_pydantic.Grid1D,
     stepper: stepper_pydantic_model.Stepper | None = None,
@@ -45,8 +51,13 @@ def build_static_runtime_params_slice(
   """Builds a StaticRuntimeParamsSlice.
 
   Args:
-    runtime_params: General runtime params from which static params are taken,
-      which are the choices on equations being solved, and adaptive dt.
+    profile_conditions: Profile conditions from which the profile conditions
+      static variables are taken, which are the boundary conditions for the
+      plasma.
+    numerics: Numerics from which the numerics static variables are taken, which
+      are the equations being solved, adaptive dt, and the fixed dt.
+    plasma_composition: Plasma composition from which the plasma composition
+      static variables are taken, which are the main and impurity ion names.
     sources: data from which the source related static variables are taken,
       which are the explicit/implicit toggle and calculation mode for each
       source.
@@ -69,13 +80,14 @@ def build_static_runtime_params_slice(
       },
       torax_mesh=torax_mesh,
       stepper=stepper.build_static_params(),
-      ion_heat_eq=runtime_params.numerics.ion_heat_eq,
-      el_heat_eq=runtime_params.numerics.el_heat_eq,
-      current_eq=runtime_params.numerics.current_eq,
-      dens_eq=runtime_params.numerics.dens_eq,
-      main_ion_names=runtime_params.plasma_composition.get_main_ion_names(),
-      impurity_names=runtime_params.plasma_composition.get_impurity_names(),
-      adaptive_dt=runtime_params.numerics.adaptive_dt,
+      ion_heat_eq=numerics.ion_heat_eq,
+      el_heat_eq=numerics.el_heat_eq,
+      current_eq=numerics.current_eq,
+      dens_eq=numerics.dens_eq,
+      main_ion_names=plasma_composition.get_main_ion_names(),
+      impurity_names=plasma_composition.get_impurity_names(),
+      adaptive_dt=numerics.adaptive_dt,
+      use_vloop_lcfs_boundary_condition=profile_conditions.use_vloop_lcfs_boundary_condition,
   )
 
 
@@ -127,6 +139,7 @@ class DynamicRuntimeParamsSliceProvider:
       transport: transport_model_pydantic_model.Transport | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
+      mhd: mhd_pydantic_model.MHD | None = None,
       torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
@@ -141,6 +154,8 @@ class DynamicRuntimeParamsSliceProvider:
         defaults to an empty dict (i.e. no sources).
       stepper: The stepper configuration to use. If None, defaults to the
         default stepper configuration.
+      mhd: The mhd configuration to use. If None, defaults to an empty MHD
+        object.
       torax_mesh: The torax mesh to use. If the slice provider doesn't need to
         construct any rho interpolated values, this can be None, else an error
         will be raised within the constructor of the interpolated variable.
@@ -152,6 +167,7 @@ class DynamicRuntimeParamsSliceProvider:
     sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_pydantic_model.Pedestal()
+    mhd = mhd or mhd_pydantic_model.MHD()
     torax_pydantic.set_grid(sources, torax_mesh, mode='relaxed')
     self._torax_mesh = torax_mesh
     self._sources = sources
@@ -159,6 +175,7 @@ class DynamicRuntimeParamsSliceProvider:
     self._transport_model = transport
     self._stepper = stepper
     self._pedestal = pedestal
+    self._mhd = mhd
 
   @property
   def sources(self) -> sources_pydantic_model.Sources:
@@ -195,6 +212,7 @@ class DynamicRuntimeParamsSliceProvider:
         profile_conditions=dynamic_general_runtime_params.profile_conditions,
         numerics=dynamic_general_runtime_params.numerics,
         pedestal=self._pedestal.build_dynamic_params(t),
+        mhd=self._mhd.build_dynamic_params(t),
     )
 
 

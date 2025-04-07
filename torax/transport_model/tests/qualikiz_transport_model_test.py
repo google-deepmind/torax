@@ -19,14 +19,10 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
-from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.torax_pydantic import model_config
 
 
 # pylint: disable=g-import-not-at-top
@@ -41,40 +37,58 @@ except ImportError:
 
 class QualikizTransportModelTest(absltest.TestCase):
 
+  def setUp(self):
+    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
+    super().setUp()
+
+  def tearDown(self):
+    os.environ['TORAX_COMPILATION_ENABLED'] = '1'
+    super().tearDown()
+
   def test_call(self):
     """Tests that the model can be called."""
     # Test prerequisites
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
       self.skipTest('Qualikiz transport model is not available.')
-    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
 
     # Building the model inputs.
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    sources = sources_pydantic_model.Sources()
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+    torax_config = model_config.ToraxConfig.from_dict(
+        dict(
+            runtime_params=dict(),
+            geometry=dict(geometry_type='circular'),
+            pedestal=dict(),
+            sources=dict(),
+            stepper=dict(),
+            transport=dict(transport_model='qualikiz'),
+            time_step_calculator=dict(),
+        )
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources.source_model_config
+    )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            torax_mesh=geo.torax_mesh,
-            transport=transport_pydantic_model.Transport.from_dict(
-                {'transport_model': 'qualikiz'}
-            ),
-            sources=sources,
+            torax_config.runtime_params,
+            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+            transport=torax_config.transport,
+            sources=torax_config.sources,
+            stepper=torax_config.stepper,
+            pedestal=torax_config.pedestal,
         )(
-            t=runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-            stepper=stepper_pydantic_model.Stepper(),
+            profile_conditions=torax_config.profile_conditions,
+            numerics=torax_config.numerics,
+            plasma_composition=torax_config.plasma_composition,
+            sources=torax_config.sources,
+            stepper=torax_config.stepper,
+            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
         )
     )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,

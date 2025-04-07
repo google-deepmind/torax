@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-
+import json
+import logging
 from typing import Any
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+from torax import version
 from torax.config import config_loader
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
@@ -74,12 +75,17 @@ class ConfigTest(parameterized.TestCase):
         else "set_tped_nped",
     )
     # The full model should always be serializable.
-    with self.subTest("json_serialization"):
-      config_json = config_pydantic.model_dump_json()
+    config_json = config_pydantic.model_dump_json()
+    with self.subTest("json_roundtrip"):
       config_pydantic_roundtrip = model_config.ToraxConfig.model_validate_json(
           config_json
       )
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
+
+    with self.subTest("json_has_torax_version"):
+      self.assertEqual(
+          json.loads(config_json)["torax_version"], version.TORAX_VERSION
+      )
 
     with self.subTest("geometry_grid_set"):
       mesh = config_pydantic.geometry.build_provider.torax_mesh
@@ -141,6 +147,56 @@ class ConfigTest(parameterized.TestCase):
       )
       self.assertLen(v1_cell, new_n_rho)
       self.assertLen(v1_face, new_n_rho + 1)
+
+  @parameterized.named_parameters(
+      ("const_lin_no_per", "constant", "linear", None, False, False),
+      ("qlknn_lin_no_per", "qlknn", "linear", None, False, True),
+      ("cgm_lin_no_per", "CGM", "linear", None, False, True),
+      ("qlknn_lin_per", "qlknn", "linear", None, True, False),
+      ("qlknn_newton_no_per_0", "qlknn", "newton_raphson", 0, False, False),
+      ("qlknn_newton_no_per_1", "qlknn", "newton_raphson", 1, False, True),
+      ("qlknn_newton_per_1", "qlknn", "newton_raphson", 1, True, False),
+  )
+  def test_pereverzev_warning(
+      self,
+      transport_model,
+      stepper_type,
+      initial_guess_mode,
+      use_pereverzev,
+      expect_warning,
+  ):
+    # Use a basic config and modify it to test the warning.
+    config_dict = {
+        "sources": {},
+        "runtime_params": {},
+        "geometry": {"geometry_type": "circular"},
+        "stepper": {},
+        "transport": {},
+        "pedestal": {},
+        "time_step_calculator": {},
+    }
+
+    config_dict["transport"] = {"transport_model": transport_model}
+    config_dict["stepper"] = {
+        "stepper_type": stepper_type,
+        "use_pereverzev": use_pereverzev,
+    }
+    if initial_guess_mode is not None:
+      config_dict["stepper"]["initial_guess_mode"] = initial_guess_mode
+
+    warning_snippet = "use_pereverzev=False in a configuration where setting"
+
+    # Avoid assertion failure when no warnings are logged at all.
+    try:
+      with self.assertLogs(level=logging.WARNING) as cm:
+        model_config.ToraxConfig.from_dict(config_dict)
+        warnings = "\n".join(cm.output)
+    except Exception:  # pylint: disable=broad-except
+      warnings = ""
+    if expect_warning:
+      self.assertIn(warning_snippet, warnings)
+    else:
+      self.assertNotIn(warning_snippet, warnings)
 
 
 if __name__ == "__main__":

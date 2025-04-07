@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import pydantic
 from torax import array_typing
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -32,6 +33,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 import typing_extensions
+
+
+# Default value for the model function to be used for the Cyclotron radiation
+# heat sink source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'cyclotron_radiation_albajar'
 
 
 @chex.dataclass(frozen=True)
@@ -217,7 +224,7 @@ def _solve_alpha_t_beta_t_grid_search(
       rho_norm,
       te_data,
   )
-  min_index = jnp.argmin(jnp.array(losses))
+  min_index = jnp.argmin(jnp.array(losses, dtype=jax_utils.get_dtype()))
   best_beta_t = beta_t_trials[min_index]
   best_alpha_t = _alpha_closed_form(
       beta=best_beta_t,
@@ -358,7 +365,6 @@ class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
   SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation_heat_sink'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'cyclotron_radiation_albajar'
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar
 
   @property
@@ -385,9 +391,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
-
-  source_name: Literal['cyclotron_radiation_heat_sink'] = (
-      'cyclotron_radiation_heat_sink'
+  model_function_name: Literal['cyclotron_radiation_albajar'] = (
+      'cyclotron_radiation_albajar'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9

@@ -29,130 +29,13 @@ import time
 
 from absl import logging
 import jax
-import jax.numpy as jnp
 import numpy as np
-from torax import output
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
-from torax.core_profiles import initialization
-from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
-from torax.sources import source_profile_builders
 import tqdm
-import xarray as xr
-
-
-def get_initial_state(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    step_fn: step_function.SimulationStepFn,
-) -> state.ToraxSimState:
-  """Returns the initial state to be used by run_simulation()."""
-  initial_core_profiles = initialization.initial_core_profiles(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      step_fn.stepper.source_models,
-  )
-  # Populate the starting state with source profiles from the implicit sources
-  # before starting the run-loop. The explicit source profiles will be computed
-  # inside the loop and will be merged with these implicit source profiles.
-  initial_core_sources = source_profile_builders.get_initial_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=initial_core_profiles,
-      source_models=step_fn.stepper.source_models,
-  )
-
-  return state.ToraxSimState(
-      t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
-      dt=jnp.zeros(()),
-      core_profiles=initial_core_profiles,
-      # This will be overridden within run_simulation().
-      core_sources=initial_core_sources,
-      core_transport=state.CoreTransport.zeros(geo),
-      post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
-      time_step_calculator_state=step_fn.time_step_calculator.initial_state(),
-      stepper_numeric_outputs=state.StepperNumericOutputs(
-          stepper_error_state=0,
-          outer_stepper_iterations=0,
-          inner_solver_iterations=0,
-      ),
-      geometry=geo,
-  )
-
-
-def _override_initial_runtime_params_from_file(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    t_restart: float,
-    ds: xr.Dataset,
-) -> tuple[
-    runtime_params_slice.DynamicRuntimeParamsSlice,
-    geometry.Geometry,
-]:
-  """Override parts of runtime params slice from state in a file."""
-  # pylint: disable=invalid-name
-  dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
-      output.IP_PROFILE_FACE
-  ].to_numpy()[-1]
-  dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
-      output.TEMP_EL
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = ds.data_vars[
-      output.TEMP_EL_RIGHT_BC
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
-      output.TEMP_ION
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = ds.data_vars[
-      output.TEMP_ION_RIGHT_BC
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
-      output.NE
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = ds.data_vars[
-      output.NE_RIGHT_BC
-  ].to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
-      output.PSI
-  ].to_numpy()
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not fGW).
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
-      True
-  )
-  # Additionally we want to avoid normalizing to nbar.
-  dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
-  # pylint: enable=invalid-name
-
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
-  )
-
-  return dynamic_runtime_params_slice, geo
-
-
-def _override_initial_state_post_processed_outputs_from_file(
-    geo: geometry.Geometry,
-    ds: xr.Dataset,
-) -> state.PostProcessedOutputs:
-  """Override parts of initial state post processed outputs from file."""
-  post_processed_outputs = state.PostProcessedOutputs.zeros(geo)
-  post_processed_outputs = dataclasses.replace(
-      post_processed_outputs,
-      E_cumulative_fusion=ds.data_vars['E_cumulative_fusion'].to_numpy(),
-      E_cumulative_external=ds.data_vars['E_cumulative_external'].to_numpy(),
-  )
-  return post_processed_outputs
 
 
 def _run_simulation(
@@ -160,10 +43,16 @@ def _run_simulation(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
+    initial_post_processed_outputs: state.PostProcessedOutputs,
+    restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
-) -> output.ToraxSimOutputs:
+) -> tuple[
+    tuple[state.ToraxSimState, ...],
+    tuple[state.PostProcessedOutputs, ...],
+    state.SimError,
+]:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -195,6 +84,9 @@ def _run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
+    initial_post_processed_outputs: The post-processed outputs at the start of
+      the simulation. This is used to calculate cumulative quantities.
+    restart_case: If True, the simulation is being restarted from a saved state.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
@@ -204,12 +96,19 @@ def _run_simulation(
     progress_bar: If True, displays a progress bar.
 
   Returns:
-    ToraxSimOutputs, containing information on the sim error state, and the
-    simulation history, consisting of a tuple of ToraxSimState objects, one for
-    each time step. There are N+1 objects returned, where N is the number of
-    simulation steps taken. The first object in the tuple is for the initial
-    state. If the sim error state is 1, then a trunctated simulation history is
-    returned up until the last valid timestep.
+    A tuple of:
+      - the simulation history, consisting of a tuple of ToraxSimState objects,
+        one for each time step. There are N+1 objects returned, where N is the
+        number of simulation steps taken. The first object in the tuple is for
+        the initial state. If the sim error state is 1, then a trunctated
+        simulation history is returned up until the last valid timestep.
+      - the post-processed outputs history, consisting of a tuple of
+        PostProcessedOutputs objects, one for each time step. There are N+1
+        objects returned, where N is the number of simulation steps taken. The
+        first object in the tuple is for the initial state. If the sim error
+        state is 1, then a trunctated simulation history is returned up until
+        the last valid timestep.
+      - The sim error state.
   """
 
   # Provide logging information on precision setting
@@ -227,7 +126,7 @@ def _run_simulation(
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
 
-  dynamic_runtime_params_slice, geo = (
+  dynamic_runtime_params_slice, _ = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=initial_state.t,
           dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
@@ -236,9 +135,8 @@ def _run_simulation(
   )
 
   sim_state = initial_state
-  sim_history = []
-  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
-  sim_history.append(sim_state)
+  state_history = [sim_state]
+  post_processing_history = [initial_post_processed_outputs]
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
@@ -251,22 +149,24 @@ def _run_simulation(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
+    first_step = True if not restart_case else False
     while step_fn.time_step_calculator.not_done(
         sim_state.t,
         dynamic_runtime_params_slice.numerics.t_final,
-        sim_state.time_step_calculator_state,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
       if log_timestep_info:
         _log_timestep(sim_state)
 
-      sim_state, sim_error = step_fn(
+      sim_state, post_processed_outputs, sim_error = step_fn(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
           sim_state,
+          post_processing_history[-1],
       )
+
       wall_clock_step_times.append(time.time() - step_start_time)
 
       # Checks if sim_state is valid. If not, exit simulation early.
@@ -276,7 +176,17 @@ def _run_simulation(
         sim_error.log_error()
         break
       else:
-        sim_history.append(sim_state)
+        if first_step:
+          first_step = False
+          if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition:
+            # For the Ip BC case, set vloop_lcfs[0] to the same value as
+            # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
+            state_history[0].core_profiles = dataclasses.replace(
+                state_history[0].core_profiles,
+                vloop_lcfs=sim_state.core_profiles.vloop_lcfs,
+            )
+        state_history.append(sim_state)
+        post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
             float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
@@ -311,7 +221,7 @@ def _run_simulation(
     long_first_step = False
 
   wall_clock_time_elapsed = time.time() - running_main_loop_start_time
-  simulation_time = sim_history[-1].t - sim_history[0].t
+  simulation_time = state_history[-1].t - state_history[0].t
   if long_first_step:
     # Don't include the long first step in the total time logged.
     wall_clock_time_elapsed -= wall_clock_step_times[0]
@@ -320,9 +230,7 @@ def _run_simulation(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return output.ToraxSimOutputs(
-      sim_error=sim_error, sim_history=tuple(sim_history)
-  )
+  return tuple(state_history), tuple(post_processing_history), sim_error
 
 
 def _log_timestep(
@@ -340,9 +248,9 @@ def _log_timestep(
     case 0:
       pass
     case 1:
-      log_str += 'Solver did not converge in previous step.'
+      log_str += ' Solver did not converge in previous step.'
     case 2:
       log_str += (
-          'Solver converged only within coarse tolerance in previous step.'
+          ' Solver converged only within coarse tolerance in previous step.'
       )
   tqdm.tqdm.write(log_str)

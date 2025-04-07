@@ -13,7 +13,30 @@
 # limitations under the License.
 
 """Utilities to help with testing sources."""
+from typing import Any
+
 from torax.sources import pydantic_model as source_pydantic_model
+
+
+def get_default_source_config() -> dict[str, Any]:
+  """Returns default sources and configurations."""
+  names = [
+      # Current sources (for psi equation)
+      'j_bootstrap',
+      'generic_current_source',
+      # Electron density sources/sink (for the ne equation).
+      'generic_particle_source',
+      'gas_puff_source',
+      'pellet_source',
+      # Ion and electron heat sources (for the temp-ion and temp-el eqs).
+      'generic_ion_el_heat_source',
+      'fusion_heat_source',
+      'qei_source',
+      # Ohmic heat source
+      'ohmic_heat_source',
+      'bremsstrahlung_heat_sink',
+  ]
+  return {name: {} for name in names}
 
 
 def get_default_sources() -> source_pydantic_model.Sources:
@@ -40,23 +63,4 @@ def get_default_sources() -> source_pydantic_model.Sources:
   More examples are located in the test config files under
   `torax/tests/test_data`.
   """
-  names = [
-      # Current sources (for psi equation)
-      'j_bootstrap',
-      'generic_current_source',
-      # Electron density sources/sink (for the ne equation).
-      'generic_particle_source',
-      'gas_puff_source',
-      'pellet_source',
-      # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      'generic_ion_el_heat_source',
-      'fusion_heat_source',
-      'qei_source',
-      # Ohmic heat source
-      'ohmic_heat_source',
-      'bremsstrahlung_heat_sink',
-  ]
-  sources = {}
-  for name in names:
-    sources[name] = {}
-  return source_pydantic_model.Sources.from_dict(sources)
+  return source_pydantic_model.Sources.from_dict(get_default_source_config())

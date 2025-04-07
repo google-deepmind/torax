@@ -80,8 +80,8 @@ class PydanticModelTest(parameterized.TestCase):
         transport_model, qualikiz_transport_model.QualikizTransportModel
     )
 
-  def test_qlknn_flux_ratio_correction_default(self):
-    """Tests that the flux ratio correction is set to 2.0 for QLKNN."""
+  def test_qlknn_defaults(self):
+    """Tests that correct default values are set for QLKNN."""
     transport = transport_pydantic_model.Transport.from_dict(
         {'transport_model': 'qlknn'}
     )
@@ -89,7 +89,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         transport_model_config, transport_pydantic_model.QLKNNTransportModel
     )
-    self.assertEqual(transport_model_config.ITG_flux_ratio_correction, 2.0)
+    self.assertEqual(transport_model_config.smoothing_sigma, 0.1)
     self.assertEqual(transport_model_config.ETG_correction_factor, 1.0 / 3.0)
 
 

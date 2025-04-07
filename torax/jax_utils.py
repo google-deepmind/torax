@@ -15,18 +15,49 @@
 """Commonly repeated jax expressions."""
 
 import contextlib
-import dataclasses
+import functools
 import os
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar
 
 import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+import numpy as np
 
 
 T = TypeVar('T')
 BooleanNumeric = Any  # A bool, or a Boolean array.
+
+
+@functools.cache
+def get_dtype() -> type(jnp.float32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.float64 if precision == 'f64' else jnp.float32
+
+
+@functools.cache
+def get_np_dtype() -> type(np.float32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return np.float64 if precision == 'f64' else np.float32
+
+
+@functools.cache
+def get_int_dtype() -> type(jnp.int32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.int64 if precision == 'f64' else jnp.int32
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -54,12 +85,6 @@ def env_bool(name: str, default: bool) -> bool:
 # Default to False, because host_callbacks are incompatible with the
 # persistent compilation cache.
 _ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', False)
-
-# If True, jax_utils.jit is jax.jit and causes compilation.
-# Otherwise, jax_utils.jit is a no-op for debugging purposes.
-# This setting cannot be changed because it determines the behavior
-# of most torax modules at import time.
-_COMPILATION_ENABLED: bool = env_bool('TORAX_COMPILATION_ENABLED', True)
 
 
 @contextlib.contextmanager
@@ -102,8 +127,6 @@ def error_if(
   Returns:
     var: Identity wrapper that must be used for the check to be included.
   """
-  var = jnp.array(var)
-  cond = jnp.array(cond)
   if not _ERRORS_ENABLED:
     return var
   return eqx.error_if(var, cond, msg)
@@ -132,39 +155,6 @@ def error_if_negative(
   return error_if(to_wrap, min_var < 0, msg)
 
 
-def jax_default(value: chex.Numeric) -> ...:
-  """Define a dataclass field with a jax-type default value.
-
-  Args:
-    value: The default value of the field.
-
-  Returns:
-    field: The dataclass field.
-  """
-  jax_value = lambda: jnp.array(value)
-  return dataclasses.field(default_factory=jax_value)
-
-
-def compat_linspace(
-    start: Union[chex.Numeric, jax.Array], stop: jax.Array, num: jax.Array
-)-> jax.Array:
-  """See np.linspace.
-
-  This implementation of a subset of the linspace API reproduces the
-  output of numpy better (at least when run in float64 mode) than
-  jnp.linspace does.
-
-  Args:
-    start: first value
-    stop: last value
-    num: Number of points in the series
-
-  Returns:
-    linspace: array of shape (num) increasing linearly from `start` to `stop`
-  """
-  return jnp.arange(num) * ((stop - start) / (num - 1)) + start
-
-
 def assert_rank(
     inputs: chex.Numeric | jax.stages.ArgInfo,
     rank: int,
@@ -176,37 +166,9 @@ def assert_rank(
     chex.assert_rank(inputs, rank)
 
 
-def select(
-    cond: jax.Array | bool,
-    true_val: jax.Array,
-    false_val: jax.Array,
-) -> jax.Array:
-  """Wrapper around jnp.where for readability."""
-  return jnp.where(cond, true_val, false_val)
-
-
-def is_tracer(var: jax.Array) -> bool:
-  """Checks whether `var` is a jax tracer.
-
-  Args:
-    var: The jax variable to inspect.
-
-  Returns:
-    output: True `var` is a tracer, False if concrete.
-  """
-
-  try:
-    if var.sum() > 0:
-      return False
-    return False
-  except jax.errors.TracerBoolConversionError:
-    return True
-  assert False  # Should be unreachable
-
-
 def jit(*args, **kwargs) -> Callable[..., Any]:
-  """Calls jax.jit iff TORAX_COMPILATION_ENABLED is True."""
-  if _COMPILATION_ENABLED:
+  """Calls jax.jit if TORAX_COMPILATION_ENABLED is True, otherwise no-op."""
+  if env_bool('TORAX_COMPILATION_ENABLED', True):
     return jax.jit(*args, **kwargs)
   return args[0]
 
@@ -294,6 +256,31 @@ def py_cond(
     return true_fun()
   else:
     return false_fun()
+
+
+def get_number_of_compiles(
+    jitted_function: Callable[..., Any],
+) -> int:
+  """Helper function for debugging JAX compilation.
+
+  This counts the number of times the function has been JIT compiled. This does
+  not include any uses of the AOT compile workflow.
+
+  Args:
+    jitted_function: A function that has been wrapped with `jax.jit`.
+  Returns:
+    The number of times the function has been compiled.
+  Raises:
+    RuntimeError: If the function does not have a _cache_size attribute.
+  """
+  # pylint: disable=protected-access
+  if not hasattr(jitted_function, '_cache_size'):
+    raise RuntimeError(
+        'The function does not have a _cache_size attribute. Possibly because'
+        ' the function was not jitted.'
+    )
+  return jitted_function._cache_size()
+  # pylint: enable=protected-access
 
 
 # pylint: enable=g-bare-generic

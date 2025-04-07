@@ -86,3 +86,16 @@ class PedestalModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
     """Calculate the pedestal values."""
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Hash function for the pedestal model.
+
+    Needed for jax.jit caching to work.
+    """
+    ...
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Equality function for the pedestal model."""
+    ...

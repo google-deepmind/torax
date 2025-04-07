@@ -61,7 +61,9 @@ def _get_model_inputs(
       )
   )
   static_slice = build_runtime_params.build_static_runtime_params_slice(
-      runtime_params=runtime_params,
+      profile_conditions=runtime_params.profile_conditions,
+      numerics=runtime_params.numerics,
+      plasma_composition=runtime_params.plasma_composition,
       sources=sources,
       torax_mesh=geo.torax_mesh,
   )
@@ -271,6 +273,12 @@ class FakeQuasilinearTransportModel(
         gradient_reference_length=3.0,
         gyrobohm_flux_reference_length=1.0,
     )
+
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
 
 
 def _get_dummy_core_profiles(value, right_face_constraint):

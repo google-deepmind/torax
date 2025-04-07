@@ -20,6 +20,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -28,6 +29,12 @@ from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+
+
+# Default value for the model function to be used for the fusion heat
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'fusion_heat_model_func'
 
 
 def calc_fusion(
@@ -55,7 +62,7 @@ def calc_fusion(
   # Otherwise, calculate the fusion power.
   if not {'D', 'T'}.issubset(static_runtime_params_slice.main_ion_names):
     return (
-        jnp.array(0.0),
+        jnp.array(0.0, dtype=jax_utils.get_dtype()),
         jnp.zeros_like(core_profiles.temp_ion.value),
         jnp.zeros_like(core_profiles.temp_ion.value),
     )
@@ -161,7 +168,6 @@ class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
   SOURCE_NAME: ClassVar[str] = 'fusion_heat_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'fusion_heat_model_func'
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
   @property
@@ -178,7 +184,9 @@ class FusionHeatSource(source.Source):
 
 class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
-  source_name: Literal['fusion_heat_source'] = 'fusion_heat_source'
+  model_function_name: Literal['fusion_heat_model_func'] = (
+      'fusion_heat_model_func'
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property

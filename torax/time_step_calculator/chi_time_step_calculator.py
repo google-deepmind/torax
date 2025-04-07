@@ -27,20 +27,13 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.time_step_calculator import time_step_calculator
 
-# Dummy state and type for compatibility with time_step_calculator base class
-STATE = None
-State = type(STATE)
 
-
-class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
+class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   """TimeStepCalculator based on chi_max heuristic.
 
   Attributes:
     config: General configuration parameters.
   """
-
-  def initial_state(self):
-    return STATE
 
   @functools.partial(jax_utils.jit, static_argnames=['self'])
   def next_dt(
@@ -48,9 +41,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
-      time_step_calculator_state: State,
       core_transport: state_module.CoreTransport,
-  ) -> tuple[jax.Array, State]:
+  ) -> jax.Array:
     """Calculates the next time step duration.
 
     This calculation is a heuristic scaling of the maximum stable step
@@ -61,8 +53,6 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
         without triggering a JAX recompilation.
       geo: Geometry for the tokamak being simulated.
       core_profiles: Current core plasma profiles.
-      time_step_calculator_state: None, for compatibility with
-        TimeStepCalculator base class.
       core_transport: Used to calculate maximum step size.
 
     Returns:
@@ -78,4 +68,4 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
         dynamic_runtime_params_slice.numerics.maxdt,
     )
 
-    return dt, STATE
+    return dt

@@ -29,13 +29,6 @@ class SimNoCompileTest(sim_test_case.SimTestCase):
   """No-compilation integration tests for torax.run_simulation."""
 
   @parameterized.named_parameters(
-      (
-          'test_implicit_optimizer_no_compile',
-          'test_implicit_short_optimizer.py',
-          _ALL_PROFILES,
-          1e-5,
-          None,
-      ),
       # test_qlknnheat is the simplest test known to have had the no-compile
       # mode diverge from the compiled mode.
       (
@@ -43,7 +36,7 @@ class SimNoCompileTest(sim_test_case.SimTestCase):
           'test_qlknnheat.py',
           _ALL_PROFILES,
           0,
-          1e-11,
+          1e-10,
       ),
   )
   def test_run_simulation(

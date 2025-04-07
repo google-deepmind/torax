@@ -26,6 +26,7 @@ from jax import numpy as jnp
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -38,6 +39,12 @@ from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
 
 # Internal import.
+
+
+# Default value for the model function to be used for the ion cyclotron
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'icrh_model_func'
 
 
 # Environment variable for the TORIC NN model. Used if the model path
@@ -266,7 +273,7 @@ class ToricNNWrapper:
         inputs.temperature_peaking_factor,
         inputs.density_peaking_factor,
         inputs.B0,
-    ])
+    ], dtype=jax_utils.get_dtype())
     outputs_He3 = self._power_deposition_network.apply(
         self._power_deposition_He3_params, inputs
     )
@@ -288,6 +295,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat
   Ptot: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
   wall_inner: float
   wall_outer: float
 
@@ -406,22 +414,18 @@ def icrh_model_func(
       core_profiles.temp_el.value,
       helium3_mass,
   )
-  source_ion = (
-      power_deposition_he3
-      * frac_ion_heating
-      * dynamic_source_runtime_params.Ptot
+  absorbed_power = (
+      dynamic_source_runtime_params.Ptot
+      * dynamic_source_runtime_params.absorption_fraction
   )
-  source_el = (
-      power_deposition_he3
-      * (1 - frac_ion_heating)
-      * dynamic_source_runtime_params.Ptot
-  )
+  source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
+  source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
 
   # Assume that all the power from the electron power profile goes to electrons.
-  source_el += power_deposition_e * dynamic_source_runtime_params.Ptot
+  source_el += power_deposition_e * absorbed_power
 
   # Assume that all the power from the tritium power profile goes to ions.
-  source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
+  source_ion += power_deposition_2T * absorbed_power
 
   return (source_ion, source_el)
 
@@ -431,7 +435,6 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
   SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'icrh_model_func'
 
   @property
   def source_name(self) -> str:
@@ -457,9 +460,9 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     minority_concentration: He3 minority concentration relative to the electron
       density in %.
     Ptot: Total heating power [W].
+    absorption_fraction: Fraction of absorbed power.
   """
-
-  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
+  model_function_name: Literal['icrh_model_func'] = 'icrh_model_func'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
@@ -469,6 +472,9 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       torax_pydantic.ValidatedDefault(3.0)
   )
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
@@ -489,6 +495,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         frequency=self.frequency.get_value(t),
         minority_concentration=self.minority_concentration.get_value(t),
         Ptot=self.Ptot.get_value(t),
+        absorption_fraction=self.absorption_fraction.get_value(t),
     )
 
   def build_source(self) -> IonCyclotronSource:

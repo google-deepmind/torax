@@ -72,3 +72,9 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         Teped=dynamic_runtime_params_slice.pedestal.Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
     )
+
+  def __hash__(self) -> int:
+    return hash(('SetTemperatureDensityPedestalModel'))
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, SetTemperatureDensityPedestalModel)

@@ -16,12 +16,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.torax_pydantic import model_config
 
 
 class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
@@ -47,38 +44,48 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       # pylint: enable=invalid-name
   ):
     """Test we can build and call the pedestal model with expected outputs."""
-    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+    torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            pedestal_model='set_tped_nped',
-            Tiped=Tiped,
-            Teped=Teped,
-            rho_norm_ped_top=rho_norm_ped_top,
-            neped=neped,
-            neped_is_fGW=neped_is_fGW,
+            runtime_params=dict(),
+            geometry=dict(geometry_type='circular'),
+            pedestal=dict(
+                pedestal_model='set_tped_nped',
+                Tiped=Tiped,
+                Teped=Teped,
+                rho_norm_ped_top=rho_norm_ped_top,
+                neped=neped,
+                neped_is_fGW=neped_is_fGW,
+            ),
+            sources=dict(),
+            stepper=dict(),
+            transport=dict(),
+            time_step_calculator=dict(),
         )
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = source_pydantic_model.Sources()
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
-    )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-        pedestal=pedestal,
+        torax_config.runtime_params,
+        transport=torax_config.transport,
+        sources=torax_config.sources,
+        torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+        pedestal=torax_config.pedestal,
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    dynamic_runtime_params_slice = provider(t=time)
-    pedestal_model = pedestal.build_pedestal_model()
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
+            profile_conditions=torax_config.profile_conditions,
+            numerics=torax_config.numerics,
+            plasma_composition=torax_config.plasma_composition,
+            sources=torax_config.sources,
+            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+            stepper=torax_config.stepper,
         )
     )
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources.source_model_config
+    )
+
+    geo = torax_config.geometry.build_provider(time)
+    dynamic_runtime_params_slice = provider(t=time)
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
     core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,

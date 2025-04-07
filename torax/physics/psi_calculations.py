@@ -32,6 +32,7 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
+from torax import jax_utils
 from torax.fvm import cell_variable
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
@@ -195,7 +196,7 @@ def _calc_bpol2(
       * geo.g2_face[1:]
       / geo.vpr_face[1:] ** 2
   )
-  bpol2_axis = jnp.array([0.0])
+  bpol2_axis = jnp.array([0.0], dtype=jax_utils.get_dtype())
   bpol2_face = jnp.concatenate([bpol2_axis, bpol2_bulk])
   return bpol2_face
 

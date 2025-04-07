@@ -85,7 +85,9 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -264,7 +266,9 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -450,6 +454,12 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
+
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
 
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):

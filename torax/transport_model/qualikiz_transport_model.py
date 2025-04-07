@@ -205,6 +205,15 @@ class QualikizTransportModel(
         gyrobohm_flux_reference_length=geo.Rmin,
     )
 
+  def __hash__(self) -> int:
+    return hash(('QualikizTransportModel' + self._runpath))
+
+  def __eq__(self, other) -> bool:
+    return (
+        isinstance(other, QualikizTransportModel)
+        and self._runpath == other._runpath
+    )
+
 
 def _extract_qualikiz_plan(
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,

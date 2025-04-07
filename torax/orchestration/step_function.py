@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
-import dataclasses
-from typing import Any
 
+import dataclasses
+import functools
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
@@ -26,12 +26,30 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.mhd import base as mhd_base
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+
+
+@functools.partial(jax_utils.jit, static_argnums=(0,))
+def _jitted_transport_model(
+    transport_model: transport_model_lib.TransportModel,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+) -> state.CoreTransport:
+  """Calls the transport model with the given arguments."""
+  return transport_model(
+      dynamic_runtime_params_slice_t,
+      geo_t,
+      core_profiles_t,
+      pedestal_model_output,
+  )
 
 
 class SimulationStepFn:
@@ -52,6 +70,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      mhd_models: mhd_base.MHDModels | None = None,
   ):
     """Initializes the SimulationStepFn.
 
@@ -65,14 +84,13 @@ class SimulationStepFn:
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
       pedestal_model: Calculates pedestal coefficients.
+      mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
     self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
     self._pedestal_model = pedestal_model
-    self._jitted_transport_model = jax_utils.jit(
-        transport_model.__call__,
-    )
+    self._mhd_models = mhd_models
 
   @property
   def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
@@ -87,6 +105,10 @@ class SimulationStepFn:
     return self._transport_model
 
   @property
+  def mhd_models(self) -> mhd_base.MHDModels | None:
+    return self._mhd_models
+
+  @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
@@ -96,7 +118,8 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-  ) -> tuple[state.ToraxSimState, state.SimError]:
+      previous_post_processed_outputs: state.PostProcessedOutputs,
+  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
     """Advances the simulation state one time step.
 
     Args:
@@ -116,6 +139,8 @@ class SimulationStepFn:
         (in order to support time-dependent geometries).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
+      previous_post_processed_outputs: Post-processed outputs from the previous
+        time step.
 
     Returns:
       ToraxSimState containing:
@@ -128,6 +153,9 @@ class SimulationStepFn:
             1 if solver did not converge for this step (was above coarse tol)
             2 if solver converged within coarse tolerance. Allowed to pass with
               a warning. Occasional error=2 has low impact on final sim state.
+      PostProcessedOutputs containing:
+        - post-processed outputs at the end of the time step.
+        - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
@@ -150,7 +178,7 @@ class SimulationStepFn:
         explicit=True,
     )
 
-    dt, time_step_calculator_state = self.init_time_step_calculator(
+    dt = self.init_time_step_calculator(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state,
@@ -172,7 +200,6 @@ class SimulationStepFn:
 
     output_state = self.step(
         dt,
-        time_step_calculator_state,
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt,
@@ -185,7 +212,7 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.stepper_numeric_outputs.stepper_error_state == 0.
-      geo_t_plus_dt, output_state = self.adaptive_step(
+      dynamic_runtime_params_slice_t_plus_dt, output_state = self.adaptive_step(
           output_state,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
@@ -196,20 +223,21 @@ class SimulationStepFn:
           explicit_source_profiles,
       )
 
-    output_state = post_processing.make_outputs(
+    post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=output_state,
-        geo=geo_t_plus_dt,
-        previous_sim_state=input_state,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+        previous_post_processed_outputs=previous_post_processed_outputs,
     )
 
-    return output_state, output_state.check_for_errors()
+    return output_state, post_processed_outputs, state.check_for_errors(
+        output_state, post_processed_outputs)
 
   def init_time_step_calculator(
       self,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       input_state: state.ToraxSimState,
-  ) -> tuple[jnp.ndarray, Any]:
+  ) -> jnp.ndarray:
     """First phase: Initialize the stepper state.
 
     Args:
@@ -222,9 +250,7 @@ class SimulationStepFn:
         profiles which are being evolved.
 
     Returns:
-      Tuple containing:
-        - time step duration (dt)
-        - internal time stepper state
+      Time step duration (dt)
     """
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
@@ -236,7 +262,8 @@ class SimulationStepFn:
     pedestal_model_output = self._pedestal_model(
         dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
     )
-    transport_coeffs = self._jitted_transport_model(
+    transport_coeffs = _jitted_transport_model(
+        self._transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
@@ -244,11 +271,10 @@ class SimulationStepFn:
     )
 
     # initialize new dt and reset stepper iterations.
-    dt, time_step_calculator_state = self._time_step_calculator.next_dt(
+    dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        input_state.time_step_calculator_state,
         transport_coeffs,
     )
 
@@ -269,12 +295,11 @@ class SimulationStepFn:
     if jnp.any(jnp.isnan(dt)):
       raise ValueError('dt is NaN.')
 
-    return (dt, time_step_calculator_state)
+    return dt
 
   def step(
       self,
       dt: jnp.ndarray,
-      time_step_calculator_state: Any,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -290,7 +315,6 @@ class SimulationStepFn:
 
     Args:
       dt: Time step duration.
-      time_step_calculator_state: Internal time stepper state.
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
@@ -347,8 +371,6 @@ class SimulationStepFn:
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
-        time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
         geometry=geo_t_plus_dt,
     )
@@ -363,7 +385,10 @@ class SimulationStepFn:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[geometry.Geometry, state.ToraxSimState]:
+  ) -> tuple[
+      runtime_params_slice.DynamicRuntimeParamsSlice,
+      state.ToraxSimState,
+  ]:
     """Performs adaptive time stepping until stepper converges.
 
     If the initial step has converged (i.e.
@@ -386,14 +411,19 @@ class SimulationStepFn:
 
     Returns:
       A tuple containing:
-        - Geometry at time t + dt, where dt is the actual time step used.
+        - Dynamic runtime params at time t + dt, where dt is the actual time
+          step used.
         - ToraxSimState after adaptive time stepping.
     """
     core_profiles_t = input_state.core_profiles
 
     # Check if stepper converged. If not, proceed to body_fun
-    def cond_fun(updated_output: state.ToraxSimState) -> bool:
-      if updated_output.stepper_numeric_outputs.stepper_error_state == 1:
+    def cond_fun(
+        updated_output: tuple[
+            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+        ],
+    ) -> bool:
+      if updated_output[0].stepper_numeric_outputs.stepper_error_state == 1:
         do_dt_backtrack = True
       else:
         do_dt_backtrack = False
@@ -403,16 +433,19 @@ class SimulationStepFn:
     # profiles.
     # Exit if dt < mindt
     def body_fun(
-        updated_output: state.ToraxSimState,
-    ) -> state.ToraxSimState:
+        updated_output: tuple[
+            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+        ],
+    ) -> tuple[
+        state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+    ]:
+      old_state, old_slice = updated_output
+      numerics = old_slice.numerics
 
-      dt = (
-          updated_output.dt
-          / dynamic_runtime_params_slice_t.numerics.dt_reduction_factor
-      )
+      dt = old_state.dt / numerics.dt_reduction_factor
       if jnp.any(jnp.isnan(dt)):
         raise ValueError('dt is NaN.')
-      if dt < dynamic_runtime_params_slice_t.numerics.mindt:
+      if dt < numerics.mindt:
         raise ValueError('dt below minimum timestep following adaptation')
 
       # Calculate dynamic_runtime_params and geo at t + dt.
@@ -452,37 +485,35 @@ class SimulationStepFn:
           )
       )
       stepper_numeric_outputs.outer_stepper_iterations = (
-          updated_output.stepper_numeric_outputs.outer_stepper_iterations + 1
+          old_state.stepper_numeric_outputs.outer_stepper_iterations + 1
       )
 
       stepper_numeric_outputs.inner_solver_iterations += (
-          updated_output.stepper_numeric_outputs.inner_solver_iterations
+          old_state.stepper_numeric_outputs.inner_solver_iterations
       )
-      return dataclasses.replace(
-          updated_output,
-          t=input_state.t + dt,
-          dt=dt,
-          core_profiles=core_profiles,
-          core_transport=core_transport,
-          core_sources=core_sources,
-          stepper_numeric_outputs=stepper_numeric_outputs,
+      return (
+          state.ToraxSimState(
+              t=input_state.t + dt,
+              dt=dt,
+              core_profiles=core_profiles,
+              core_transport=core_transport,
+              core_sources=core_sources,
+              stepper_numeric_outputs=stepper_numeric_outputs,
+              geometry=geo_t_plus_dt,
+          ),
+          dynamic_runtime_params_slice_t_plus_dt,
       )
 
-    output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
-
-    # Calculate dynamic_runtime_params and geo at t + dt.
-    # Update geos with phibdot.
-    _, _, geo_t_plus_dt = (
-        _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-            input_state.t,
-            output_state.dt,
-            dynamic_runtime_params_slice_provider,
-            geo_t,
-            geometry_provider,
-        )
+    # Note that the initial state provided here uses the dynamic slice at time t
+    # whereas the return value of this function uses the dynamic slice at time
+    # t + dt. The input should technically be the dynamic state at time t + dt,
+    # but we don't have that value here and we also don't use any of the dynamic
+    # state in the cond_fun or body_fun.
+    output_state, dynamic_runtime_params_slice_t_plus_dt = jax_utils.py_while(
+        cond_fun, body_fun, (output_state, dynamic_runtime_params_slice_t)
     )
 
-    return geo_t_plus_dt, output_state
+    return dynamic_runtime_params_slice_t_plus_dt, output_state
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(

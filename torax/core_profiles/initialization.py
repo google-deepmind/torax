@@ -19,6 +19,7 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -92,14 +93,18 @@ def initial_core_profiles(
   s_face = jnp.zeros_like(geo.rho_face)
   currents = state.Currents.zeros(geo)
 
-  # Set vloop_lcfs to 0 for the first time step if not provided
-  # TODO(b/396374895): For Ip_tot BC, introduce a feature for calculating
-  # vloop_lcfs in final post-processing and test to check vloop equivalence
-  # between vloop BC and Ip_tot BC
+  # Set vloop_lcfs. Two branches:
+  # 1. Set the vloop_lcfs from profile_conditions if using the vloop BC option
+  # 2. Initialize vloop_lcfs to 0 if using the Ip boundary condition for psi.
+  # In case 2, vloop_lcfs will be updated every timestep based on the psi_lcfs
+  # values across the time interval. Since there is is one more time value than
+  # time intervals, the vloop_lcfs time-series is underconstrained. Therefore,
+  # after the first timestep we reset vloop_lcfs[0] to vloop_lcfs[1].
+
   vloop_lcfs = (
-      jnp.array(0.0)
-      if dynamic_runtime_params_slice.profile_conditions.vloop_lcfs is None
-      else jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
+      jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
+      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      else jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
 
   core_profiles = state.CoreProfiles(
@@ -336,9 +341,7 @@ def _init_psi_psidot_and_currents(
   Returns:
     Refined core profiles.
   """
-  use_vloop_bc = (
-      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-  )
+  use_vloop_bc = static_runtime_params_slice.use_vloop_lcfs_boundary_condition
 
   source_profiles = source_profiles_lib.SourceProfiles(
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(geo),

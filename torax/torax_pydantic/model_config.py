@@ -16,10 +16,15 @@
 
 import logging
 from typing import Any, Mapping
-
 import pydantic
+from torax import version
+from torax.config import numerics as numerics_lib
+from torax.config import plasma_composition as plasma_composition_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -42,6 +47,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     stepper: Config for the stepper.
     time_step_calculator: Config for the time step calculator.
     transport: Config for the transport model.
+    mhd: Optional config for mhd models. If None, no MHD models are used.
+    restart: Optional config for file restart. If None, no file restart is
+      performed.
   """
 
   # TODO(b/401187494): Flatten the runtime_params config, is this nesting
@@ -53,26 +61,55 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport
+  mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )
 
+  @property
+  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
+    return self.runtime_params.profile_conditions
+
+  @property
+  def numerics(self) -> numerics_lib.Numerics:
+    return self.runtime_params.numerics
+
+  @property
+  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
+    return self.runtime_params.plasma_composition
+
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if (
+    using_nonlinear_transport_model = (
         self.transport.transport_model_config.transport_model
         in ['qlknn', 'CGM']
-        and self.stepper.stepper_config.use_pereverzev
-        and self.stepper.stepper_config.linear_solver
+    )
+    using_linear_solver = isinstance(
+        self.stepper.stepper_config, stepper_pydantic_model.LinearThetaMethod
+    )
+    initial_guess_mode_is_linear = (
+        False  # pylint: disable=g-long-ternary
+        if using_linear_solver
+        else self.stepper.stepper_config.initial_guess_mode
+        == enums.InitialGuessMode.LINEAR
+    )
+
+    if (
+        using_nonlinear_transport_model
+        and (using_linear_solver or initial_guess_mode_is_linear)
+        and not self.stepper.stepper_config.use_pereverzev
     ):
-      logging.warning(
-          'The linear solver is being used: either directly, or to provide an'
-          ' initial guess for a nonlinear solver. Additionally, a stiff'
-          ' nonlinear transport model is being used. For this configuration, it'
-          ' is strongly recommended to set use_pereverzev=True to avoid'
-          ' numerical instability in the linear solver. Furthermore, it is'
-          ' recommend to apply several predictor_corrector steps.'
-      )
+      logging.warning("""
+          use_pereverzev=False in a configuration where setting
+          use_pereverzev=True is recommended.
+
+          A nonlinear transport model is used. However, a linear solver is also
+          being used, either directly, or to provide an initial guess for a
+          nonlinear solver.
+
+          With this configuration, it is strongly recommended to set
+          use_pereverzev=True to avoid numerical instability in the solver.
+          """)
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
@@ -116,6 +153,21 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     # when trying to set it, which is why mode='relaxed'.
     torax_pydantic.set_grid(self, mesh, mode='relaxed')
     return self
+
+  # This is primarily used for serialization, so the importer can check which
+  # version of Torax was used to generate the serialized config.
+  @pydantic.computed_field
+  @property
+  def torax_version(self) -> str:
+    return version.TORAX_VERSION
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _remove_version_field(cls, data: Any) -> Any:
+    if isinstance(data, dict):
+      if 'torax_version' in data:
+        data = {k: v for k, v in data.items() if k != 'torax_version'}
+    return data
 
 
 def _is_nrho_updated(x: Mapping[str, Any]) -> bool:

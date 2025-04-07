@@ -24,6 +24,9 @@ import numpy as np
 import torax
 from torax import fvm
 from torax.config import build_runtime_params
+from torax.config import numerics as numerics_lib
+from torax.config import plasma_composition as plasma_composition_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -51,6 +54,18 @@ class References:
   q: np.ndarray
   s: np.ndarray
   Ip_from_parameters: bool  # pylint: disable=invalid-name
+
+  @property
+  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
+    return self.runtime_params.profile_conditions
+
+  @property
+  def numerics(self) -> numerics_lib.Numerics:
+    return self.runtime_params.numerics
+
+  @property
+  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
+    return self.runtime_params.plasma_composition
 
 
 def build_consistent_dynamic_runtime_params_slice_and_geometry(

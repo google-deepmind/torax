@@ -13,22 +13,34 @@
 # limitations under the License.
 
 
+import copy
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.torax_pydantic import torax_pydantic
+from torax.torax_pydantic import model_config
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    self._python_config = {
+        'runtime_params': {'numerics': {}},
+        'geometry': {
+            'geometry_type': 'circular',
+        },
+        'pedestal': {},
+        'sources': default_sources.get_default_source_config(),
+        'stepper': {},
+        'time_step_calculator': {},
+        'transport': {},
+    }
+    self._torax_config = model_config.ToraxConfig.from_dict(self._python_config)
+    self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
 
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
     """Tests that the slice can be input to a jitted function."""
@@ -39,31 +51,31 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       _ = runtime_params_slice  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
+    runtime_params = self._torax_config.runtime_params
     dynamic_slice = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
-        torax_mesh=self._geo.torax_mesh,
+        torax_mesh=self._torax_mesh,
     )(
-        t=runtime_params.numerics.t_initial,
+        t=self._torax_config.numerics.t_initial,
     )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
 
   def test_static_runtime_params_slice_hash_same_for_same_params(self):
     """Tests that the hash is the same for the same static params."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
-    sources = default_sources.get_default_sources()
     static_slice1 = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=self._geo.torax_mesh,
+        profile_conditions=self._torax_config.profile_conditions,
+        numerics=self._torax_config.numerics,
+        plasma_composition=self._torax_config.plasma_composition,
+        sources=self._torax_config.sources,
+        torax_mesh=self._torax_mesh,
     )
     static_slice2 = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=self._geo.torax_mesh,
+        profile_conditions=self._torax_config.profile_conditions,
+        numerics=self._torax_config.numerics,
+        plasma_composition=self._torax_config.plasma_composition,
+        sources=self._torax_config.sources,
+        torax_mesh=self._torax_mesh,
     )
     self.assertEqual(hash(static_slice1), hash(static_slice2))
 
@@ -71,21 +83,24 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       self,
   ):
     """Test that the hash changes when the static params change."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = default_sources.get_default_sources()
     static_slice1 = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=self._geo.torax_mesh,
+        profile_conditions=self._torax_config.profile_conditions,
+        numerics=self._torax_config.numerics,
+        plasma_composition=self._torax_config.plasma_composition,
+        sources=self._torax_config.sources,
+        torax_mesh=self._torax_mesh,
     )
-    runtime_params_mod = runtime_params.model_copy()
-    runtime_params_mod._update_fields(
-        {'numerics.ion_heat_eq': not runtime_params.numerics.ion_heat_eq}
+    new_config = copy.deepcopy(self._python_config)
+    new_config['runtime_params']['numerics']['ion_heat_eq'] = (
+        not self._torax_config.runtime_params.numerics.ion_heat_eq
     )
+    new_torax_config = model_config.ToraxConfig.from_dict(new_config)
     static_slice2 = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params_mod,
-        sources=sources,
-        torax_mesh=self._geo.torax_mesh,
+        profile_conditions=new_torax_config.profile_conditions,
+        numerics=new_torax_config.numerics,
+        plasma_composition=new_torax_config.plasma_composition,
+        sources=new_torax_config.sources,
+        torax_mesh=self._torax_mesh,
     )
     self.assertNotEqual(hash(static_slice1), hash(static_slice2))
 
