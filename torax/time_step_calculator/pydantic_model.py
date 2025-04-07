@@ -30,14 +30,25 @@ class TimeStepCalculatorType(enum.Enum):
 
 
 class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
-  """Config for a time step calculator."""
+  """Config for a time step calculator.
+
+  Attributes:
+    calculator_type: The type of time step calculator to use.
+    tolerance: The tolerance within the final time for which the simulation
+      will be considered done.
+  """
 
   calculator_type: TimeStepCalculatorType = TimeStepCalculatorType.CHI
+  tolerance: float = 1e-7
 
   @property
   def time_step_calculator(self) -> time_step_calculator.TimeStepCalculator:
     match self.calculator_type:
       case TimeStepCalculatorType.CHI:
-        return chi_time_step_calculator.ChiTimeStepCalculator()
+        return chi_time_step_calculator.ChiTimeStepCalculator(
+            tolerance=self.tolerance
+        )
       case TimeStepCalculatorType.FIXED:
-        return fixed_time_step_calculator.FixedTimeStepCalculator()
+        return fixed_time_step_calculator.FixedTimeStepCalculator(
+            tolerance=self.tolerance
+        )
