@@ -54,6 +54,12 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
 
     return core_profiles
 
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, SimpleRedistribution)
+
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):

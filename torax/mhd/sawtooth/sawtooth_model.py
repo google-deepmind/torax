@@ -37,6 +37,17 @@ class TriggerModel(abc.ABC):
   ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
     """Indicates if a crash is triggered and the radius of the q=1 surface."""
 
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the trigger model.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other: object) -> bool:
+    """Equality method to be implemented to support jax.jit caching."""
+
 
 class RedistributionModel(abc.ABC):
   """Abstract base class for sawtooth redistribution models."""
@@ -51,6 +62,17 @@ class RedistributionModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> state.CoreProfiles:
     """Returns a redistributed core_profiles if sawtooth has been triggered."""
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the redistribution model.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Equality method to be implemented to support jax.jit caching."""
 
 
 class SawtoothModel:
@@ -112,3 +134,13 @@ class SawtoothModel:
     # modify output state with new time, dt, and core_profiles if triggered.
 
     return input_state
+
+  def __hash__(self) -> int:
+    return hash((self.trigger_model, self.redistribution_model))
+
+  def __eq__(self, other: object) -> bool:
+    return (
+        isinstance(other, SawtoothModel)
+        and self.trigger_model == other.trigger_model
+        and self.redistribution_model == other.redistribution_model
+    )

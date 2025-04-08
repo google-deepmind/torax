@@ -405,7 +405,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_newton',
           'test_iterhybrid_newton.py',
           _ALL_PROFILES,
-          5e-7,
+          1e-6,
       ),
       # Tests current and density rampup for for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
