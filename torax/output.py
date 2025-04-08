@@ -90,6 +90,9 @@ SIM_ERROR = "sim_error"
 # Sources.
 CORE_SOURCES = "core_sources"
 
+# Boolean array indicating whether the sawtooth model just crashed.
+SAWTOOTH_JUST_CRASHED = "sawtooth_just_crashed"
+
 # ToraxConfig.
 CONFIG = "config"
 
@@ -220,6 +223,9 @@ class StateHistory:
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_error
     self.source_models = source_models
+    self.sawtooth_just_crashed = np.array(
+        [state.sawtooth_just_crashed for state in state_history]
+    )
     self.torax_config = torax_config
 
   def _pack_into_data_array(
@@ -445,6 +451,9 @@ class StateHistory:
         - rho_face: The toroidal coordinate on the face grid.
         - rho_cell: The toroidal coordinate on the cell grid.
         - sim_error: The simulation error state.
+        - config: The ToraxConfig used to run the simulation serialized to JSON.
+        - sawtooth_just_crashed: Time-series boolean indicating whether the
+            state corresponds to post-sawtooth-crash.
       The child datasets contain the following variables:
         - core_profiles: Contains data variables for quantities in the
           CoreProfiles.
@@ -485,7 +494,12 @@ class StateHistory:
         self._save_post_processed_outputs(), coords=coords
     )
     geometry_ds = xr.Dataset(self._save_geometry(), coords=coords)
-    top_level_xr_dict = {SIM_ERROR: self.sim_error.value}
+    top_level_xr_dict = {
+        SIM_ERROR: self.sim_error.value,
+        SAWTOOTH_JUST_CRASHED: xr.DataArray(
+            self.sawtooth_just_crashed, dims=[TIME], name=SAWTOOTH_JUST_CRASHED
+        ),
+    }
     data_tree = xr.DataTree(
         children={
             CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
