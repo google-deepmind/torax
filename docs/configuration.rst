@@ -651,8 +651,8 @@ transport
 ---------
 
 Select and configure various transport models. The dictionary consists of keys
-common to all transport models, and additional nested dictionaries were parameters
-pertaining to a specific transport model are defined.
+common to all transport models, and additional keys pertaining to a specific
+transport model.
 
 ``transport_model`` (str = 'constant')
   Select the transport model according to the following options:
@@ -664,10 +664,9 @@ pertaining to a specific transport model are defined.
 * ``'bohm-gyrobohm'``
   Bohm-GyroBohm model.
 * ``'qlknn'``
-  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_.
+  A QuaLiKiz Neural Network surrogate model, the default is `QLKNN_7_11 <https://github.com/google-deepmind/fusion_surrogates>`_.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear gyrokinetic transport model.
-
 
 ``chimin`` (float = 0.05)
   Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
@@ -727,12 +726,12 @@ pertaining to a specific transport model are defined.
 
 ``smoothing_sigma`` (float = 0.0)
   Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
+  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1
 
 constant
 ^^^^^^^^
 
-Runtime parameters for the constant chi transport model, defined within a
-``constant_params`` dict nested within the transport dict.
+Runtime parameters for the constant chi transport model.
 
 ``chii_const`` (float = 1.0), **time-varying-scalar**
   Ion heat conductivity. In units of :math:`m^2/s`.
@@ -749,8 +748,7 @@ Runtime parameters for the constant chi transport model, defined within a
 CGM
 ^^^
 
-Runtime parameters for the Critical Gradient Model (CGM), defined within a
-``cgm_params`` dict nested within the transport dict.
+Runtime parameters for the Critical Gradient Model (CGM).
 
 ``alpha`` (float = 2.0)
   Exponent of chi power law: :math:`\chi \propto (R/L_{Ti} - R/L_{Ti_crit})^\alpha`.
@@ -772,8 +770,7 @@ Runtime parameters for the Critical Gradient Model (CGM), defined within a
 Bohm-GyroBohm
 ^^^^^^^^^^^^^
 
-Runtime parameters for the Bohm-GyroBohm model, defined within a
-``bohm-gyrobohm_params`` dict nested within the transport dict.
+Runtime parameters for the Bohm-GyroBohm model.
 
 ``chi_e_bohm_coeff`` (float = 8e-5), **time-varying-scalar**
   Prefactor for Bohm term for electron heat conductivity.
@@ -812,17 +809,31 @@ Runtime parameters for the Bohm-GyroBohm model, defined within a
 qlknn
 ^^^^^
 
-Runtime parameters for the QLKNN10D model, defined within a
-``qlknn_params`` dict nested within the transport dict
+Runtime parameters for the QLKNN model. These parameters determine which model
+to load, as well as model parameters. To determine which model to load,
+TORAX uses the following logic:
+
+* If ``model_path`` is provided, then we load the model from this path.
+* Otherwise, if the ``TORAX_QLKNN_MODEL_PATH`` environment variable is set,
+  then we load the model from this path.
+* Otherwise, if ``model_name`` is provided, we load that model from registered
+  models in the ``fusion_surrogates`` library.
+* If ``model_name`` is not set either, we load the default QLKNN model from
+  ``fusion_surrogates`` (currently ``QLKNN_7_11``).
+
+It is recommended to not set ``model_name``, ``TORAX_QLKNN_MODEL_PATH``  or
+``model_path`` to use the default QLKNN model.
 
 ``model_path`` (str = '')
-  Path to the model. If not provided, the path will be set from
-  the ``TORAX_QLKNN_MODEL_PATH`` environment variable. If this environment
-  variable is not set, then the default is ``~/qlknn_hyper``.
+  Path to the model. Takes precedence over ``model_name`` and ``TORAX_QLKNN_MODEL_PATH``.
 
-``coll_mult`` (float = 0.25)
-  Collisionality multiplier. The default 0.25 is a proxy for the upgraded collision operator
-  in QuaLiKiz, in place since QLKNN10D was developed.
+``model_name`` (str = '')
+  Name of the model. Used to select a model from the ``fusion_surrogates`` library.
+
+``coll_mult`` (float = 1.0)
+  Collisionality multiplier.
+  If using ``QLKNN10D``, the default is 0.25. It is a proxy for the upgraded
+  collision operator in QuaLiKiz, in place since ``QLKNN10D`` was developed.
 
 ``include_ITG`` (bool = True)
   If True, include ITG modes in the total fluxes.
@@ -833,9 +844,10 @@ Runtime parameters for the QLKNN10D model, defined within a
 ``include_ETG`` (bool = True)
   If True, include ETG modes in the total electron heat flux.
 
-``ITG_flux_ratio_correction`` (float = 2.0)
+``ITG_flux_ratio_correction`` (float = 1.0)
   Increase the electron heat flux in ITG modes by this factor.
-  The default 2.0 is a proxy for the impact of the upgraded QuaLiKiz collision operator, in place since QLKNN10D was developed.
+  If using ``QLKNN10D``, the default is 2.0. It is a proxy for the impact of the
+  upgraded QuaLiKiz collision operator, in place since ``QLKNN10D`` was developed.
 
 ``DVeff`` (bool = False)
   If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
@@ -849,18 +861,17 @@ Runtime parameters for the QLKNN10D model, defined within a
 
 ``smag_alpha_correction`` (bool = True)
   If True, reduce input magnetic shear by :math:`0.5*\alpha_{MHD}` to capture the main impact of
-  :math:`\alpha_{MHD}`, which was not itself part of the QLKNN10D training set.
+  :math:`\alpha_{MHD}`, which was not itself part of the ``QLKNN`` training set.
 
 ``q_sawtooth_proxy`` (bool = True)
   To avoid un-physical transport barriers, modify the input q-profile and magnetic shear for zones where
-  :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QLKNN10D inputs are clipped to
+  :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` ``QLKNN`` inputs are clipped to
   :math:`q=1` and :math:`\hat{s}=0.1`.
 
 qualikiz
 ^^^^^^^^
 
-Runtime parameters for the QuaLiKiz model, defined within a
-``qualikiz`` dict nested within the transport dict
+Runtime parameters for the QuaLiKiz model.
 
 ``maxruns`` (int = 2)
   Frequency of full QuaLiKiz contour solutions. For maxruns>1, every maxruns-th

@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy.testing as npt
+from torax.transport_model import qlknn_10d
+from torax.transport_model import qlknn_model_wrapper
 from torax.transport_model import qlknn_transport_model
 
 
@@ -24,16 +28,24 @@ class QlknnTransportModelTest(parameterized.TestCase):
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work
     # correctly with jax's persistent cache
-    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo')
-    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('foo')
+    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo', 'bar')
+    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('foo', 'bar')
     self.assertEqual(qlknn_1, qlknn_2)
     self.assertEqual(hash(qlknn_1), hash(qlknn_2))
     mock_persistent_jax_cache = set([qlknn_1])
     self.assertIn(qlknn_2, mock_persistent_jax_cache)
 
   def test_hash_and_eq_different(self):
-    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo')
-    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('bar')
+    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo', 'bar')
+    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('baz', 'bar')
+    self.assertNotEqual(qlknn_1, qlknn_2)
+    self.assertNotEqual(hash(qlknn_1), hash(qlknn_2))
+    mock_persistent_jax_cache = set([qlknn_1])
+    self.assertNotIn(qlknn_2, mock_persistent_jax_cache)
+
+  def test_hash_and_eq_different_by_name(self):
+    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo', 'bar')
+    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('foo', 'baz')
     self.assertNotEqual(qlknn_1, qlknn_2)
     self.assertNotEqual(hash(qlknn_1), hash(qlknn_2))
     mock_persistent_jax_cache = set([qlknn_1])
@@ -102,6 +114,36 @@ class QlknnTransportModelTest(parameterized.TestCase):
     )
     npt.assert_allclose(clipped_feature_scan, expected)
 
+  @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
+  def test_get_model_with_path(self, mock_qlknn_model_wrapper):
+    """Tests that the model is loaded from the path."""
+    qlknn_transport_model.get_model(path='/my/foo.qlknn', name='bar')
+    mock_qlknn_model_wrapper.assert_called_once_with('/my/foo.qlknn', 'bar')
+
+  @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
+  def test_get_model_with_name_only(self, mock_qlknn_model_wrapper):
+    """Tests that the model is loaded from the path."""
+    qlknn_transport_model.get_model(path='', name='bar')
+    mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
+
+  @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
+  def test_get_model_without_path_or_name(self, mock_qlknn_model_wrapper):
+    """Tests that the model is loaded from the path."""
+    qlknn_transport_model.get_model(path='', name='')
+    mock_qlknn_model_wrapper.assert_called_once_with('', '')
+
+  @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
+  def test_get_model_from_path_qlknn10d(self, mock_qlknn_qlknn10d):
+    """Tests that the model is loaded from the path."""
+    qlknn_transport_model.get_model(path='/foo/qlknn_hyper', name='bar')
+    mock_qlknn_qlknn10d.assert_called_once_with('/foo/qlknn_hyper', 'bar')
+
+  @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
+  def test_get_model_from_name_qlknn10d_fails(self, mock_qlknn_qlknn10d):
+    """Tests that the model is loaded from the path."""
+    with self.assertRaises(ValueError):
+      qlknn_transport_model.get_model(path='', name='qlknn10D')
+    mock_qlknn_qlknn10d.assert_not_called()
 
 if __name__ == '__main__':
   absltest.main()

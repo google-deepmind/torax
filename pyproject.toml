@@ -23,6 +23,7 @@ dependencies = [
     "jaxlib>=0.4.32",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
+    "fusion_surrogates @git+https://github.com/google-deepmind/fusion_surrogates.git",
     "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.10'",

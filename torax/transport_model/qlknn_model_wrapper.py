@@ -15,7 +15,7 @@
 from collections.abc import Mapping
 from typing import Final
 
-from absl import logging
+from fusion_surrogates import qlknn_model
 import immutabledict
 import jax
 import jax.numpy as jnp
@@ -23,18 +23,6 @@ from torax import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 
-
-# pylint: disable=g-import-not-at-top
-try:
-  from fusion_surrogates import qlknn_model
-
-  _FUSION_SURROGATES_AVAILABLE = True
-except ImportError as e:
-  logging.error(
-      'Error importing fusion_surrogates: %s', e, exc_info=True
-  )
-  _FUSION_SURROGATES_AVAILABLE = False
-# pylint: enable=g-import-not-at-top
 
 # Convert flux names from Qualikiz to TORAX.
 _FLUX_NAME_MAP: Final[Mapping[str, str]] = immutabledict.immutabledict({
@@ -49,23 +37,25 @@ _FLUX_NAME_MAP: Final[Mapping[str, str]] = immutabledict.immutabledict({
 
 
 class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
-  """A TORAX wrapper for a QLKNNv2 Model."""
+  """A TORAX wrapper for a QLKNN Model from the fusion_surrogates library."""
 
   def __init__(
       self,
       path: str,
+      name: str = '',
       flux_name_map: Mapping[str, str] | None = None,
   ):
-    if not _FUSION_SURROGATES_AVAILABLE:
-      raise ImportError(
-          'QLKNNModelWrapper requires fusion_surrogates to be installed. '
-          'There was an error importing it.'
-      )
     if flux_name_map is None:
       flux_name_map = _FLUX_NAME_MAP
     self._flux_name_map = flux_name_map
-    self._model = qlknn_model.QLKNNModel.import_model(path)
-    super().__init__(version=self._model.version)
+
+    if path:
+      self._model = qlknn_model.QLKNNModel.load_model_from_path(path, name)
+    elif name:
+      self._model = qlknn_model.QLKNNModel.load_model_from_name(name)
+    else:
+      self._model = qlknn_model.QLKNNModel.load_default_model()
+    super().__init__(path=self._model.path, name=self._model.name)
 
   @property
   def inputs_and_ranges(self) -> base_qlknn_model.InputsAndRanges:

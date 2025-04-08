@@ -32,7 +32,9 @@ import typing_extensions
 # Internal import.
 
 
-# Move this to common lib.
+QLKNN10D_NAME: Final[str] = 'qlknn10D'
+
+
 _ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
     immutabledict.immutabledict({
         'relu': nn.relu,
@@ -126,7 +128,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
   """Class holding QLKNN10D networks.
 
   Attributes:
-    model_path: Path to qlknn-hyper
+    path: Path to qlknn-hyper
     net_itgleading: ITG Qi net
     net_itgqediv: ITG Qe/Qi net
     net_temleading: TEM Qe net
@@ -138,9 +140,10 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     net_itgpfediv: ITG pfe/Qi net
   """
 
-  def __init__(self, model_path: str):
-    super().__init__(version='10D')
-    self.model_path = model_path
+  def __init__(self, path: str, name: str):
+    # Only one version of qlknn10D, so we ignore the name.
+    del name
+    super().__init__(path=path, name=QLKNN10D_NAME)
     self.net_itgleading = self._load('efiitg_gb.json')
     self.net_itgqediv = self._load('efeitg_gb_div_efiitg_gb.json')
     self.net_temleading = self._load('efetem_gb.json')
@@ -150,7 +153,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     self.net_itgpfediv = self._load('pfeitg_gb_div_efiitg_gb.json')
 
   def _load(self, path) -> QuaLiKizNDNN:
-    full_path = os.path.join(self.model_path, path)
+    full_path = os.path.join(self.path, path)
     return QuaLiKizNDNN.from_json(full_path)
 
   def predict(

@@ -13,26 +13,14 @@
 # limitations under the License.
 
 import tempfile
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from fusion_surrogates import qlknn_model
+from fusion_surrogates import qlknn_model_test_utils
 import jax.numpy as jnp
 from torax.transport_model import qlknn_model_wrapper
-# pylint: disable=g-import-not-at-top
-try:
-  from fusion_surrogates import qlknn_model_test_utils
-except ImportError:
-  qlknn_model_test_utils = None
-# pylint: enable=g-import-not-at-top
-
-
-def _get_test_flux_name_map():
-  if qlknn_model_test_utils is None:
-    return {}
-  return dict(
-      (flux_name, f'torax_{flux_name}')
-      for flux_name in qlknn_model_test_utils.get_test_flux_map().keys()
-  )
 
 
 class QlknnModelWrapperTest(parameterized.TestCase):
@@ -49,11 +37,13 @@ class QlknnModelWrapperTest(parameterized.TestCase):
     self._model_file = tempfile.NamedTemporaryFile(
         'wb', suffix='.pkl', delete=False
     )
-    self._flux_name_map = _get_test_flux_name_map()
+    self._flux_name_map = dict(
+        (flux_name, f'torax_{flux_name}')
+        for flux_name in qlknn_model_test_utils.get_test_flux_map().keys()
+    )
     model.export_model(self._model_file.name)
     self._qlknn_model_wrapper = qlknn_model_wrapper.QLKNNModelWrapper(
-        path=self._model_file.name,
-        flux_name_map=self._flux_name_map
+        path=self._model_file.name, name='', flux_name_map=self._flux_name_map
     )
 
   def test_predict_shape(self):
@@ -70,6 +60,30 @@ class QlknnModelWrapperTest(parameterized.TestCase):
     outputs = self._qlknn_model_wrapper.predict(inputs)
     for flux_name in self._flux_name_map.values():
       self.assertIn(flux_name, outputs)
+
+  @mock.patch.object(
+      qlknn_model.QLKNNModel, 'load_model_from_path', autospec=True
+  )
+  def test_load_model_from_path(self, mock_load_model_from_path):
+    """Tests that the model is loaded from the path."""
+    qlknn_model_wrapper.QLKNNModelWrapper(path='/my/foo.qlknn', name='bar')
+    mock_load_model_from_path.assert_called_once_with('/my/foo.qlknn', 'bar')
+
+  @mock.patch.object(
+      qlknn_model.QLKNNModel, 'load_model_from_name', autospec=True
+  )
+  def test_load_model_from_name(self, mock_load_model_from_name):
+    """Tests that the model is loaded from the name."""
+    qlknn_model_wrapper.QLKNNModelWrapper(path='', name='bar')
+    mock_load_model_from_name.assert_called_once_with('bar')
+
+  @mock.patch.object(
+      qlknn_model.QLKNNModel, 'load_default_model', autospec=True
+  )
+  def test_load_default_model(self, mock_load_default_model):
+    """Tests that the default model is loaded."""
+    qlknn_model_wrapper.QLKNNModelWrapper(path='', name='')
+    mock_load_default_model.assert_called_once()
 
   # TODO(b/381134347): Add tests for get_model_inputs_from_qualikiz_inputs
   # and inputs_and_ranges.
