@@ -417,6 +417,16 @@ class SimTest(sim_test_case.SimTestCase):
           0,
           1e-6,
       ),
+      # Modified version of test_iterhybrid_rampup with sawtooth model.
+      # Has an initial peaked current density, no heating, no current drive,
+      # and resistivity is artificially increased to help induce more sawteeth.
+      (
+          'test_iterhybrid_rampup_sawtooth',
+          'test_iterhybrid_rampup_sawtooth.py',
+          _ALL_PROFILES,
+          0,
+          1e-6,
+      ),
       # Tests time-dependent circular geometry.
       (
           'test_time_dependent_circular_geo',

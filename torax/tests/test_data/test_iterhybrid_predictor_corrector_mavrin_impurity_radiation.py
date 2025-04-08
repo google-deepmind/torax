@@ -22,6 +22,8 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 # pylint: disable=invalid-name
 W_frac = 1e-3
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
+
+assert(isinstance(CONFIG['runtime_params']['plasma_composition'], dict))
 CONFIG['runtime_params']['plasma_composition']['impurity'] = {
     'Ne': 1 - W_frac,
     'W': W_frac,

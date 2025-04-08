@@ -70,7 +70,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
-      mhd_models: mhd_base.MHDModels | None = None,
+      mhd_models: mhd_base.MHDModels,
   ):
     """Initializes the SimulationStepFn.
 
@@ -105,7 +105,7 @@ class SimulationStepFn:
     return self._transport_model
 
   @property
-  def mhd_models(self) -> mhd_base.MHDModels | None:
+  def mhd_models(self) -> mhd_base.MHDModels:
     return self._mhd_models
 
   @property
@@ -121,6 +121,11 @@ class SimulationStepFn:
       previous_post_processed_outputs: state.PostProcessedOutputs,
   ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
     """Advances the simulation state one time step.
+
+      If a sawtooth model is provided, it will be checked to see if a sawtooth
+    should trigger. If it does, the sawtooth model will be applied and instead
+    of a full PDE solve, the step_fn will return early with a state following
+    sawtooth redistribution, at a t+dt set by the sawtooth model.
 
     Args:
       static_runtime_params_slice: Static parameters that, if they change,
@@ -165,6 +170,24 @@ class SimulationStepFn:
             geometry_provider=geometry_provider,
         )
     )
+
+    # Check for sawtooth model and see if sawtooth should trigger.
+    # Triggered sawtooth will trigger a redistribution step with early return.
+    if self.mhd_models.sawtooth is not None:
+      sawtooth_triggered, output_state, post_processed_outputs = (
+          self.mhd_models.sawtooth(
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_t,
+              input_state,
+              previous_post_processed_outputs,
+          )
+      )
+      if sawtooth_triggered:
+        return (
+            output_state,
+            post_processed_outputs,
+            state.check_for_errors(output_state, post_processed_outputs),
+        )
 
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
@@ -229,8 +252,11 @@ class SimulationStepFn:
         previous_post_processed_outputs=previous_post_processed_outputs,
     )
 
-    return output_state, post_processed_outputs, state.check_for_errors(
-        output_state, post_processed_outputs)
+    return (
+        output_state,
+        post_processed_outputs,
+        state.check_for_errors(output_state, post_processed_outputs),
+    )
 
   def init_time_step_calculator(
       self,
