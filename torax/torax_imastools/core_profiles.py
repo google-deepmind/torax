@@ -17,8 +17,8 @@
 # from typing import Any
 
 # try:
-#     import imaspy
-#     from imaspy.ids_toplevel import IDSToplevel
+#     import imas
+#     from imas.ids_toplevel import IDSToplevel
 # except ImportError:
 #     IDSToplevel = Any
 
@@ -26,7 +26,7 @@
 # from torax.torax_imastools.util import face_to_cell, requires_module
 
 
-# @requires_module("imaspy")
+# @requires_module("imas")
 # def core_profiles_to_IMAS(
 #     ids: IDSToplevel, state: ToraxSimState, geometry
 # ) -> IDSToplevel:

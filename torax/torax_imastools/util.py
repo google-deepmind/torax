@@ -22,8 +22,8 @@ from typing import Any
 import yaml
 
 try:
-    import imaspy
-    from imaspy.ids_toplevel import IDSToplevel
+    import imas
+    from imas.ids_toplevel import IDSToplevel
 except ImportError:
     IDSToplevel = Any
 
@@ -49,7 +49,7 @@ def requires_module(module_name: str):
     return decorator
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def save_netCDF(
     directory_path: str | None,
     file_name: str | None,
@@ -74,11 +74,11 @@ def save_netCDF(
         date_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         file_name = "IDS_file_" + date_str
     filepath = os.path.join(directory_path, file_name) + ".nc"
-    with imaspy.DBEntry(filepath, "w") as netcdf_entry:
+    with imas.DBEntry(filepath, "w") as netcdf_entry:
         netcdf_entry.put(IDS)
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     """Loads the IDS for a single time slice from a specific data
     entry / scenario using the IMAS Access Layer
@@ -95,10 +95,10 @@ def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     scenario = yaml.load(file, Loader=yaml.CLoader)
     file.close()
     if scenario["scenario_backend"] == "hdf5":
-        sc_backend = imaspy.ids_defs.HDF5_BACKEND
+        sc_backend = imas.ids_defs.HDF5_BACKEND
     else:
-        sc_backend = imaspy.ids_defs.MDSPLUS_BACKEND
-    input = imaspy.DBEntry(
+        sc_backend = imas.ids_defs.MDSPLUS_BACKEND
+    input = imas.DBEntry(
         sc_backend,
         scenario["input_database"],
         scenario["shot"],
@@ -112,27 +112,27 @@ def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     return IMAS_data
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def load_IDS_from_netCDF(file_path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice from an IMAS netCDF
     file path"""
-    input = imaspy.DBEntry(file_path, "r")
+    input = imas.DBEntry(file_path, "r")
     ids = input.get(ids_name)
     return ids
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def load_IDS_from_hdf5(directory_path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice from the path of a
     local directory containing it stored with hdf5 backend. The repository must
     contain the master.h5 file."""
     imasuri = "imas:hdf5?path=" + directory_path
-    input = imaspy.DBEntry(imasuri, "r")
+    input = imas.DBEntry(imasuri, "r")
     ids = input.get(ids_name)
     return ids
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def load_IMAS_data(path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice either from a netCDF
     file path or from an hdf5 file in the given directory path."""

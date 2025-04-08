@@ -20,8 +20,8 @@ import numpy as np
 import scipy
 
 try:
-    import imaspy
-    from imaspy.ids_toplevel import IDSToplevel
+    import imas
+    from imas.ids_toplevel import IDSToplevel
 except ImportError:
     IDSToplevel = Any
 from torax import constants
@@ -29,7 +29,7 @@ from torax import state
 from torax.geometry import geometry_loader
 from torax.torax_imastools.util import requires_module, face_to_cell
 
-@requires_module("imaspy")
+@requires_module("imas")
 def write_ids_equilibrium_into_config(
     config: Dict, equilibrium: IDSToplevel
 ) -> Dict[str, np.ndarray]:
@@ -46,7 +46,7 @@ def write_ids_equilibrium_into_config(
     return config
 
 
-@requires_module("imaspy")
+@requires_module("imas")
 def geometry_from_IMAS(
     equilibrium_object: str | IDSToplevel,
     geometry_dir: str | None = None,
@@ -172,7 +172,7 @@ def geometry_from_IMAS(
         "z_magnetic_axis": z_magnetic_axis,
     }
 
-@requires_module("imaspy")
+@requires_module("imas")
 def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel | None=None) -> IDSToplevel:
     """Constructs an IMAS equilibrium IDS from a StandardGeometry object.
     Takes the cell grid as a basis and converts values on face grid to cell.
@@ -191,7 +191,7 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
     core_profiles = SimState.core_profiles
     post_processed_outputs = SimState.post_processed_outputs
     #Rebuilding the equilibrium from the geometry object (Which should remain unchanged by the transport code), is it needed or do we only need coupling variables ?
-    equilibrium = imaspy.IDSFactory().equilibrium()
+    equilibrium = imas.IDSFactory().equilibrium()
     equilibrium.ids_properties.homogeneous_time = 1 #Should be 0 or 1 ?
     equilibrium.ids_properties.comment = "equilibrium IDS built from ToraxSimState object."
     equilibrium.time.resize(1)
