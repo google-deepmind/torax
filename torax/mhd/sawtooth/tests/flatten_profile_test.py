@@ -48,6 +48,14 @@ class FlattenProfileTest(parameterized.TestCase):
         right_face_constraint=jnp.array(values[-1]),
     )
 
+  def _get_redistribution_mask(self, rho_norm_mixing: float) -> chex.Array:
+    """Helper to create a redistribution mask for testing."""
+    idx_mixing = np.searchsorted(
+        self.geo.rho_norm, rho_norm_mixing, side='left'
+    )
+    indices = np.arange(self.geo.rho_norm.shape[0])
+    return indices < idx_mixing
+
   # pylint: disable=g-unreachable-test-method
   def _check_conservation_within_mixing_radius(
       self,
@@ -167,9 +175,12 @@ class FlattenProfileTest(parameterized.TestCase):
   ):
     initial_profile = self._create_profile(initial_values)
 
+    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)
+
     flattened_profile = flatten_profile.flatten_density_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
         rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=jnp.array(redistribution_mask),
         flattening_factor=jnp.array(flatten_factor),
         original_density_profile=initial_profile,
         geo=self.geo,
@@ -249,9 +260,12 @@ class FlattenProfileTest(parameterized.TestCase):
     rho_norm_mixing = 0.5
     flatten_factor = 1.01
 
+    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)
+
     flattened_density_profile = flatten_profile.flatten_density_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
         rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=jnp.array(redistribution_mask),
         flattening_factor=jnp.array(flatten_factor),
         original_density_profile=initial_density_profile,
         geo=self.geo,
@@ -260,6 +274,7 @@ class FlattenProfileTest(parameterized.TestCase):
     flattened_temperature_profile = flatten_profile.flatten_temperature_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
         rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=redistribution_mask,
         flattening_factor=jnp.array(flatten_factor),
         original_temperature_profile=initial_temperature_profile,
         original_density_profile=initial_density_profile,
@@ -316,9 +331,12 @@ class FlattenProfileTest(parameterized.TestCase):
     rho_norm_q1 = np.interp(1.0, original_q, self.geo.rho_face_norm)
     rho_norm_mixing = rho_norm_q1 * 1.2
 
+    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)
+
     redistributed_psi_profile = flatten_profile.flatten_current_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
         rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=jnp.array(redistribution_mask),
         flattening_factor=jnp.array(flattening_factor),
         original_psi_profile=original_psi_profile,
         original_jtot_profile=original_jtot_profile,

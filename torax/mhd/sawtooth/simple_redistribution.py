@@ -17,6 +17,7 @@
 import dataclasses
 from typing import Literal
 import chex
+from jax import numpy as jnp
 from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
@@ -79,10 +80,20 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
 
     mixing_radius = redistribution_params.mixing_radius_multiplier * rho_norm_q1
 
+    idx_mixing = jnp.searchsorted(geo.rho_norm, mixing_radius, side='left')
+
+    # Construct masks for different profile domains.
+    # The redistribution mask is for all cells up to the mixing radius, since
+    # those are the only locations where the modified values contribute to the
+    # volume integrals.
+    indices = jnp.arange(geo.rho_norm.shape[0])
+    redistribution_mask = indices < idx_mixing
+
     if static_runtime_params_slice.dens_eq:
       ne_redistributed = flatten_profile.flatten_density_profile(
           rho_norm_q1,
           mixing_radius,
+          redistribution_mask,
           redistribution_params.flattening_factor,
           core_profiles.ne,
           geo,
@@ -93,6 +104,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
+          redistribution_mask,
           redistribution_params.flattening_factor,
           core_profiles.temp_el,
           core_profiles.ne,
@@ -126,6 +138,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
+          redistribution_mask,
           redistribution_params.flattening_factor,
           core_profiles.temp_ion,
           core_profiles.ni,
@@ -137,6 +150,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     psi_redistributed = flatten_profile.flatten_current_profile(
         rho_norm_q1,
         mixing_radius,
+        redistribution_mask,
         redistribution_params.flattening_factor,
         core_profiles.psi,
         core_profiles.currents.jtot,

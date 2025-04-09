@@ -26,6 +26,7 @@ from torax.geometry import geometry
 def flatten_density_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
+    redistribution_mask: array_typing.ArrayBool,
     flattening_factor: array_typing.ScalarFloat,
     original_density_profile: cell_variable.CellVariable,
     geo: geometry.Geometry,
@@ -45,6 +46,8 @@ def flatten_density_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution region inside
+      the mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_density_profile: The original density profile to be redistributed.
     geo: The geometry of the simulation at this time slice.
@@ -58,7 +61,7 @@ def flatten_density_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_density, redistribution_mask = _get_trial_profile(
+  trial_density = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
@@ -94,6 +97,7 @@ def flatten_density_profile(
 def flatten_temperature_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
+    redistribution_mask: array_typing.ArrayBool,
     flattening_factor: array_typing.ScalarFloat,
     original_temperature_profile: cell_variable.CellVariable,
     original_density_profile: cell_variable.CellVariable,
@@ -117,6 +121,8 @@ def flatten_temperature_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution region inside
+      the mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_temperature_profile: The original temperature profile to be
       redistributed.
@@ -135,7 +141,7 @@ def flatten_temperature_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_temperature, redistribution_mask = _get_trial_profile(
+  trial_temperature = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
@@ -182,6 +188,7 @@ def flatten_temperature_profile(
 def flatten_current_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
+    redistribution_mask: array_typing.ArrayBool,
     flattening_factor: array_typing.ScalarFloat,
     original_psi_profile: cell_variable.CellVariable,
     original_jtot_profile: array_typing.ArrayFloat,
@@ -203,6 +210,8 @@ def flatten_current_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution region inside
+      the mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_psi_profile: The original poloidal flux profile.
     original_jtot_profile: The original jtot profile already precalculated and
@@ -218,7 +227,7 @@ def flatten_current_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_jtot, redistribution_mask = _get_trial_profile(
+  trial_jtot = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
@@ -275,18 +284,10 @@ def _get_trial_profile(
     flattening_factor: array_typing.ScalarFloat,
     original_profile: array_typing.ArrayFloat,
     geo: geometry.Geometry,
-) -> tuple[array_typing.ArrayFloat, array_typing.ArrayBool]:
+) -> array_typing.ArrayFloat:
   """Returns a trial new value using two linear interpolations."""
 
   rho_norm = geo.rho_norm
-  idx_mixing = jnp.searchsorted(rho_norm, rho_norm_mixing, side='left')
-
-  # Construct masks for different profile domains.
-  # The redistribution mask is for all cells up to the mixing radius, since
-  # those are the only locations where the modified values contribute to the
-  # volume integral.
-  indices = jnp.arange(rho_norm.shape[0])
-  redistribution_mask = indices < idx_mixing
 
   # Construct a trial new value using two linear interpolations in
   # the redistribution region.
@@ -305,7 +306,7 @@ def _get_trial_profile(
   # original_profile to avoid unnecessary slicing operations.
   trial_profile = jnp.interp(rho_norm, interp_rhos, interp_vals)
 
-  return trial_profile, redistribution_mask
+  return trial_profile
 
 
 def _get_scaling_factor(
