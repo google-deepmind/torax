@@ -23,6 +23,8 @@ import eqdsk
 import numpy as np
 import scipy
 
+from torax.torax_imastools.util import load_IMAS_data
+
 # Internal import.
 # Internal import.
 
@@ -34,6 +36,7 @@ class GeometrySource(enum.Enum):
   CHEASE = 0
   FBT = 1
   EQDSK = 2
+  IMAS = 3
 
 
 def _load_CHEASE_data(  # pylint: disable=invalid-name
@@ -117,5 +120,7 @@ def load_geo_data(
       return _load_fbt_data(file_path=filepath)
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
+    case GeometrySource.IMAS:
+      return load_IMAS_data(path=filepath, ids_name='equilibrium')
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
