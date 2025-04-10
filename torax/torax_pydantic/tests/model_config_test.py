@@ -72,7 +72,7 @@ class ConfigTest(parameterized.TestCase):
         config_pydantic.pedestal.pedestal_config.pedestal_model,
         config_dict["pedestal"]["pedestal_model"]
         if "pedestal_model" in config_dict["pedestal"]
-        else "set_tped_nped",
+        else "no_pedestal",
     )
     # The full model should always be serializable.
     config_json = config_pydantic.model_dump_json()

@@ -47,11 +47,12 @@ class CoreProfileSettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(
-                profile_conditions=dict(set_pedestal=set_pedestal),
                 numerics=dict(el_heat_eq=False),
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
-            pedestal=dict(),
+            pedestal=dict(
+                set_pedestal=set_pedestal,
+                pedestal_model='set_tped_nped'),
             sources=sources_config,
             stepper=dict(predictor_corrector=False, theta_imp=theta_imp),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),

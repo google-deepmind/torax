@@ -23,7 +23,6 @@ CONFIG = {
         'profile_conditions': {
             'ne_bound_right': 0.5,
             'Ip_tot': 15,
-            'set_pedestal': False,
         },
         'numerics': {
             't_final': 1,

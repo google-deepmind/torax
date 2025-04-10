@@ -25,7 +25,6 @@ CONFIG = {
             'Zimp_override': {0: 10.0, 1: 30.0},
         },
         'profile_conditions': {
-            'set_pedestal': True,
             'ne_is_fGW': True,
             'ne_bound_right': 0.5,
             'nbar': 0.95,  # initial density (Greenwald fraction units)
@@ -54,7 +53,10 @@ CONFIG = {
             'use_relativistic_correction': True,
         },
     },
-    'pedestal': {},
+    'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
+    },
     'transport': {
         'transport_model': 'constant',
         'chii_const': 0.5,
