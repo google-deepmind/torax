@@ -97,8 +97,8 @@ CONFIG = "config"
 # Exclude q_correction_factor as it is not an interesting quantity to save.
 # TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
 EXCLUDED_GEOMETRY_NAMES = frozenset({
-    RHO_CELL,
     RHO_FACE,
+    RHO_CELL,
     RHO_CELL_NORM,
     RHO_FACE_NORM,
     "rho",
@@ -244,9 +244,9 @@ class StateHistory:
 
     match data:
       case data if is_face_var(data):
-        dims = [TIME, RHO_FACE]
+        dims = [TIME, RHO_FACE_NORM]
       case data if is_cell_var(data):
-        dims = [TIME, RHO_CELL]
+        dims = [TIME, RHO_CELL_NORM]
       case data if is_scalar(data):
         dims = [TIME]
       case data if is_constant(data):
@@ -462,20 +462,16 @@ class StateHistory:
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(self.times, dims=[TIME], name=TIME)
     rho_face_norm = xr.DataArray(
-        self.rho_face_norm, dims=[RHO_FACE], name=RHO_FACE_NORM
+        self.rho_face_norm, dims=[RHO_FACE_NORM], name=RHO_FACE_NORM
     )
     rho_cell_norm = xr.DataArray(
-        self.rho_norm, dims=[RHO_CELL], name=RHO_CELL_NORM
+        self.rho_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
     )
-    rho_face = xr.DataArray(self.rho_face, dims=[RHO_FACE], name=RHO_FACE)
-    rho_cell = xr.DataArray(self.rho, dims=[RHO_CELL], name=RHO_CELL)
 
     coords = {
         TIME: time,
         RHO_FACE_NORM: rho_face_norm,
         RHO_CELL_NORM: rho_cell_norm,
-        RHO_FACE: rho_face,
-        RHO_CELL: rho_cell,
     }
 
     # Update dict with flattened StateHistory dataclass containers
