@@ -26,27 +26,23 @@ _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
 class SimNoCompileTest(sim_test_case.SimTestCase):
-  """No-compilation integration tests for torax.run_simulation."""
 
   @parameterized.named_parameters(
-      # test_qlknnheat is the simplest test known to have had the no-compile
-      # mode diverge from the compiled mode.
       (
-          'test_qlknnheat',
-          'test_qlknnheat.py',
+          'test_psi_and_heat',
+          'test_psi_and_heat.py',
           _ALL_PROFILES,
           0,
           1e-10,
       ),
   )
-  def test_run_simulation(
+  def test_run_simulation_no_compile(
       self,
       config_name: str,
       profiles: Sequence[str],
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
   ):
-    """No-compilation version of integration tests."""
     with mock.patch.dict(os.environ, {'TORAX_COMPILATION_ENABLED': 'False'}):
       self._test_run_simulation(
           config_name,

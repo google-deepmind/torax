@@ -12,19 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_psichease_ip_chease_vloop but with varying vloop_lcfs."""
 
-import copy
+"""Tests CHEASE geometry when setting Ip from config, with varying vloop.
+
+* Ip from parameters
+* implicit
+* psi (current diffusion) only
+* varying v loop boundary condition
+"""
+
 import numpy as np
-from torax.tests.test_data import test_psichease_ip_parameters
 
-
-CONFIG = copy.deepcopy(test_psichease_ip_parameters.CONFIG)
 times = np.linspace(0, 3, 100)
 # 1 Hz frequency
 vloop = 8.7 + 10 * np.sin(2 * np.pi * times)
 
-CONFIG['runtime_params']['profile_conditions'][
-    'use_vloop_lcfs_boundary_condition'
-] = True
-CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = (times, vloop)
+
+CONFIG = {
+    'runtime_params': {
+        'profile_conditions': {
+            'set_pedestal': False,
+            'ne_bound_right': 0.5,
+            'use_vloop_lcfs_boundary_condition': True,
+            'vloop_lcfs': (times, vloop),
+        },
+        'numerics': {
+            'ion_heat_eq': False,
+            'el_heat_eq': False,
+            'current_eq': True,
+            'resistivity_mult': 100,  # to shorten current diffusion time
+            't_final': 3,
+        },
+    },
+    'geometry': {
+        'geometry_type': 'chease',
+        'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+        'Ip_from_parameters': True,
+    },
+    'sources': {
+        'generic_ion_el_heat_source': {
+            'w': 0.18202270915319393,
+        },
+        'generic_current_source': {},
+    },
+    'pedestal': {},
+    'transport': {
+        'transport_model': 'constant',
+    },
+    'stepper': {
+        'stepper_type': 'linear',
+        'predictor_corrector': False,
+    },
+    'time_step_calculator': {
+        'calculator_type': 'chi',
+    },
+}

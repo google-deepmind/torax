@@ -12,14 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_psichease_ip_chease but V-loop boundary condition."""
+"""Tests plasma current obtained from CHEASE geometry file.
 
-import copy
-from torax.tests.test_data import test_psichease_ip_chease
+* Ip from CHEASE
+* implicit
+* psi (current diffusion) only
+* vloop boundary condition
+"""
 
-
-CONFIG = copy.deepcopy(test_psichease_ip_chease.CONFIG)
-CONFIG['runtime_params']['profile_conditions'][
-    'use_vloop_lcfs_boundary_condition'
-] = True
-CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = 7.5
+CONFIG = {
+    'runtime_params': {
+        'profile_conditions': {
+            'set_pedestal': False,
+            'ne_bound_right': 0.5,
+            'use_vloop_lcfs_boundary_condition': True,
+            'vloop_lcfs': 7.5,
+        },
+        'numerics': {
+            'ion_heat_eq': False,
+            'el_heat_eq': False,
+            'current_eq': True,
+            'resistivity_mult': 100,  # to shorten current diffusion time
+            't_final': 3,
+        },
+    },
+    'geometry': {
+        'geometry_type': 'chease',
+        'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+        'Ip_from_parameters': False,
+    },
+    'sources': {
+        'generic_ion_el_heat_source': {
+            'w': 0.18202270915319393,
+        },
+        'generic_current_source': {},
+    },
+    'pedestal': {},
+    'transport': {
+        'transport_model': 'constant',
+    },
+    'stepper': {
+        'stepper_type': 'linear',
+        'predictor_corrector': False,
+    },
+}

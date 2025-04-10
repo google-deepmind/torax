@@ -102,7 +102,7 @@ class ConfigTest(parameterized.TestCase):
   def test_config_safe_update(self):
 
     config_dict = config_loader.import_module(
-        ".tests.test_data.test_iterhybrid_newton",
+        ".tests.test_data.test_iterhybrid_predictor_corrector",
         config_package="torax",
     ).CONFIG
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)

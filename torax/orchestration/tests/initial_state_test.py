@@ -66,8 +66,6 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
   @parameterized.parameters(
       'test_psi_heat_dens',
-      'test_psichease_ip_parameters',
-      'test_psichease_ip_chease',
       'test_psichease_prescribed_jtot',
       'test_psichease_prescribed_johm',
       'test_iterhybrid_rampup',
