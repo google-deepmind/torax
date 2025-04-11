@@ -27,6 +27,7 @@ from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import ion_cyclotron_source
 from torax.sources import pydantic_model as sources_pydantic_model
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
@@ -99,21 +100,66 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     )
     # pytype: enable=signature-mismatch
 
+  def config_raises_if_model_path_does_not_exist(self):
+    os.environ[ion_cyclotron_source._MODEL_PATH_ENV_VAR] = (
+        "/tmp/non_existent_file.json"
+    )
+    with self.assertRaises(FileNotFoundError):
+      ion_cyclotron_source.IonCyclotronSourceConfig.from_dict({})
+
+  @mock.patch.object(
+      ion_cyclotron_source,
+      "_get_default_model_path",
+      autospec=True,
+      return_value=_DUMMY_MODEL_PATH,
+  )
+  def test_build_dynamic_params(self, mock_path: str):
+    del mock_path
+    super().test_build_dynamic_params()
+
+  @parameterized.product(
+      mode=(
+          runtime_params_lib.Mode.ZERO,
+          runtime_params_lib.Mode.MODEL_BASED,
+          runtime_params_lib.Mode.PRESCRIBED,
+      ),
+      is_explicit=(True, False),
+  )
+  def test_runtime_params_builds_static_params(
+      self, mode: runtime_params_lib.Mode, is_explicit: bool
+  ):
+    """Tests that the static params are built correctly."""
+    with mock.patch.object(
+        ion_cyclotron_source,
+        "_get_default_model_path",
+        autospec=True,
+        return_value=_DUMMY_MODEL_PATH,
+    ):
+      source_config = self._source_config_class.from_dict(
+          {"mode": mode, "is_explicit": is_explicit}
+      )
+    static_params = source_config.build_static_params()
+    self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
+    self.assertEqual(static_params.mode, mode.value)
+    self.assertEqual(static_params.is_explicit, is_explicit)
+
   def test_toric_nn_loads_and_predicts_with_dummy_model(self):
     """Test that the ToricNNWrapper loads and predicts consistently."""
     # Load the model and verify the prediction are consistent with the output
     # of the dummy network.
     toric_wrapper = ion_cyclotron_source.ToricNNWrapper(path=_DUMMY_MODEL_PATH)
-    wrapper_output = toric_wrapper.predict(self.dummy_input)
-    np.testing.assert_array_equal(
+    wrapper_output = ion_cyclotron_source._toric_nn_predict(
+        toric_wrapper, self.dummy_input
+    )
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_He3,
         self.dummy_output,
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_2T,
         self.dummy_output,
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_e,
         self.dummy_output,
     )
