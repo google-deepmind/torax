@@ -240,7 +240,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 dynamic_runtime_params_slice.transport.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
+                    dynamic_runtime_params_slice.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm
@@ -254,7 +254,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 dynamic_runtime_params_slice.transport.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
+                    dynamic_runtime_params_slice.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm
@@ -268,7 +268,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 dynamic_runtime_params_slice.transport.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
+                    dynamic_runtime_params_slice.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm
@@ -282,7 +282,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 dynamic_runtime_params_slice.transport.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
+                    dynamic_runtime_params_slice.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm
@@ -373,7 +373,7 @@ def build_smoothing_matrix(
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
           jnp.logical_not(
-              dynamic_runtime_params_slice.profile_conditions.set_pedestal
+              dynamic_runtime_params_slice.pedestal.set_pedestal
           ),
           dynamic_runtime_params_slice.transport.apply_outer_patch,
       ),

@@ -26,7 +26,7 @@ class NoPedestalTest(absltest.TestCase):
     geo = mock.Mock()
     geo.torax_mesh.nx = 10
     dynamic_runtime_params_slice = mock.Mock()
-    dynamic_runtime_params_slice.profile_conditions.set_pedestal = True
+    dynamic_runtime_params_slice.pedestal.set_pedestal = True
     result = no_pedestal_model(
         dynamic_runtime_params_slice, geo, mock.Mock()
     )
@@ -35,13 +35,14 @@ class NoPedestalTest(absltest.TestCase):
 
   def test_from_pydantic(self):
     pydantic = pydantic_model.Pedestal.from_dict(
-        dict(pedestal_config=dict(pedestal_model='no_pedestal'))
+        dict(pedestal_config=dict(pedestal_model='no_pedestal',
+                                  set_pedestal=True))
     )
     no_pedestal_model = pydantic.build_pedestal_model()
     geo = mock.Mock()
     geo.torax_mesh.nx = 10
     dynamic_runtime_params_slice = mock.Mock()
-    dynamic_runtime_params_slice.profile_conditions.set_pedestal = True
+    dynamic_runtime_params_slice.pedestal = pydantic.build_dynamic_params(t=0.0)
     result = no_pedestal_model(
         dynamic_runtime_params_slice, geo, mock.Mock()
     )

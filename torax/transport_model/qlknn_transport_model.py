@@ -104,7 +104,7 @@ class QLKNNRuntimeConfigInputs:
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
-        set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+        set_pedestal=dynamic_runtime_params_slice.pedestal.set_pedestal,
     )
 
 

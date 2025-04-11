@@ -217,7 +217,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(
-                profile_conditions=dict(set_pedestal=False),
                 numerics=dict(el_heat_eq=False),
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
@@ -353,7 +352,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(
-                profile_conditions=dict(set_pedestal=False),
                 numerics=dict(el_heat_eq=False),
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
@@ -489,7 +487,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(
-                profile_conditions=dict(set_pedestal=False),
                 numerics=dict(el_heat_eq=False),
             ),
             geometry=dict(geometry_type='circular', n_rho=num_cells),

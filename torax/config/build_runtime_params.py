@@ -40,6 +40,20 @@ from torax.transport_model import pydantic_model as transport_model_pydantic_mod
 import typing_extensions
 
 
+def build_static_params_from_config(
+    config: model_config.ToraxConfig,
+) -> runtime_params_slice.StaticRuntimeParamsSlice:
+  """Builds a StaticRuntimeParamsSlice from a ToraxConfig."""
+  return build_static_runtime_params_slice(
+      profile_conditions=config.runtime_params.profile_conditions,
+      numerics=config.runtime_params.numerics,
+      plasma_composition=config.runtime_params.plasma_composition,
+      sources=config.sources,
+      torax_mesh=config.geometry.build_provider.torax_mesh,
+      stepper=config.stepper,
+  )
+
+
 def build_static_runtime_params_slice(
     *,
     profile_conditions: profile_conditions_lib.ProfileConditions,

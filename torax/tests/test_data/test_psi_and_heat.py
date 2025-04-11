@@ -47,7 +47,10 @@ CONFIG = {
         'pellet_source': {},
         'generic_current_source': {},
     },
-    'pedestal': {},
+    'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
+    },
     'transport': {
         'transport_model': 'qlknn',
     },

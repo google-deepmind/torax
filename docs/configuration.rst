@@ -365,11 +365,6 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``ne_bound_right_is_fGW`` (bool = False)
   Toggles units of ``ne_bound_right``.
 
-``set_pedestal`` (bool = True), **time-varying-scalar**
-  If True use the configured pedestal model to set internal boundary conditions. Do not set internal boundary conditions if False.
-  Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
-  can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
-
 ``nu`` (float = 3.0)
   Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
   to be consistent with a desired total current. Only used if ``initial_psi_from_j==True``, otherwise the ``psi`` profile from the geometry file is used.
@@ -442,26 +437,33 @@ output_dir
 ^^^^^^^^^^
 
 ``output_dir`` (str)
-  Optional string containing the file directory where the simulation outputs will be saved. If not provided,
-  this will default to ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``
+  Optional string containing the file directory where the simulation outputs
+  will be saved. If not provided, this will default to
+  ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``
 
 .. _time_step_calculator:
 
 pedestal
 --------
-If ``set_pedestal`` is set to True in the ``profile_conditions`` section, then
-a pedestal model config is required.
-
 In TORAX we aim to support different models for computing the pedestal width,
 and electron density, ion temperature and electron temperature at the pedestal
-top. These models will only be used if the ``set_pedestal`` option in the
-``profile_conditions`` section is set to True.
+top. These models will only be used if the ``set_pedestal`` flag is set to True.
 
 The model can be configured by setting the ``pedestal_model`` key in the
 ``pedestal`` section of the configuration. If this field is not set, then
-the default model is ``'set_tped_nped'``.
+the default model is ``no_profile``.
+
+``set_pedestal`` (bool = False), **time-varying-scalar**
+  If True use the configured pedestal model to set internal boundary conditions. Do not set internal boundary conditions if False.
+  Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
+  can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
 
 The following models are currently supported:
+
+``no_profile``
+^^^^^^^^^^^^^
+No pedestal profile is set. This is the default option and the equivalent of
+setting ``set_pedestal`` to False.
 
 set_tped_nped
 ^^^^^^^^^^^^^
@@ -470,7 +472,8 @@ electron temperature.
 
 ``neped`` (float = 0.7) **time-varying-scalar**
   Electron density at the pedestal top.
-  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
+  In units of reference density if ``neped_is_fGW==False``. In units of
+  Greenwald fraction if ``neped_is_fGW==True``.
 
 ``neped_is_fGW`` (bool = False) **time-varying-scalar**
   Toggles units of ``neped``.
@@ -1404,7 +1407,6 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'ne_is_fGW': True,
               'nbar': 1,
               'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-              'set_pedestal': True,
               'Tiped': 1.0,
               'Teped': 1.0,
               'neped_is_fGW': True,
@@ -1480,6 +1482,13 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'An_min': 0.05,
               'ITG_flux_ratio_correction': 1,
           },
+      },
+      'pedestal': {
+          'pedestal_model': 'set_tped_nped',
+          'set_pedestal': True,
+          'Tiped': 1.0,
+          'Teped': 1.0,
+          'rho_norm_ped_top': 0.95,
       },
       'stepper': {
           'stepper_type': 'newton_raphson',
