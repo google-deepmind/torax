@@ -16,7 +16,9 @@
 
 import importlib
 import logging
-
+import pathlib
+import sys
+from typing import Any
 from torax.torax_pydantic import model_config
 
 # Tracks all the modules imported so far. Maps the name to the module object.
@@ -60,3 +62,49 @@ def import_module(module_name: str, config_package: str | None = None):
   except Exception as e:
     logging.info('Exception raised: %s', e)
     raise ValueError('Exception while importing.') from e
+
+
+def example_config_paths() -> tuple[pathlib.Path, ...]:
+  """Returns a tuple of example config paths."""
+  example_dir = pathlib.Path(__file__).parent.parent.joinpath('examples')
+  out = tuple(
+      p for p in example_dir.glob('*.py') if '__init__.py' not in str(p)
+  )
+  assert out  # Should be non-empty.
+  return out
+
+
+# Taken from
+# https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+def _import_from_path(module_name: str, file_path: str):
+  spec = importlib.util.spec_from_file_location(module_name, file_path)
+  module = importlib.util.module_from_spec(spec)
+  sys.modules[module_name] = module
+  if module is None:
+    raise ValueError(f'No loader found for module {module_name}.')
+  else:
+    spec.loader.exec_module(module)  # pytype: disable=attribute-error
+  return module
+
+
+def import_config_dict(path: str | pathlib.Path) -> dict[str, Any]:
+  """Import a Torax config dictionary from a file.
+
+  Args:
+    path: The path to the config file. Can either be a string or a pathlib.Path.
+
+  Returns:
+    The config dictionary.
+  """
+
+  path = pathlib.Path(path) if isinstance(path, str) else path
+  if not path.is_file():
+    raise ValueError(f'Path {path} is not a file.')
+
+  module = _import_from_path('_torax_temp_config_import', path)
+  if not hasattr(module, 'CONFIG'):
+    raise ValueError(
+        f'The file {str(path)} is an invalid Torax config file, as it does not'
+        ' have a `CONFIG` variable defined.'
+    )
+  return module.CONFIG
