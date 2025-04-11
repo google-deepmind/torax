@@ -20,12 +20,10 @@ import numpy as np
 from torax.config import build_runtime_params
 from torax.config import numerics
 from torax.config import plasma_composition
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.torax_pydantic import model_config
 from torax.transport_model import bohm_gyrobohm
 
 
@@ -34,31 +32,34 @@ class BohmGyroBohmTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.model = bohm_gyrobohm.BohmGyroBohmTransportModel()
-    self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = source_pydantic_model.Sources()
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {},
+        'geometry': {'geometry_type': 'circular'},
+        'sources': {},
+        'stepper': {},
+        'transport': {'transport_model': 'bohm-gyrobohm'},
+        'pedestal': {},
+    })
+    self.model = torax_config.transport.build_transport_model()
+    self.geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=self.geo.torax_mesh,
-        )(t=0.0)
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )(
+            t=torax_config.numerics.t_initial,
+        )
     )
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=runtime_params.profile_conditions,
-            numerics=runtime_params.numerics,
-            plasma_composition=runtime_params.plasma_composition,
-            sources=sources,
-            torax_mesh=self.geo.torax_mesh,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     self.core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         self.geo,
-        source_models_lib.SourceModels(sources=sources.source_model_config),
+        source_models_lib.SourceModels(
+            sources=torax_config.sources.source_model_config),
     )
     # pedestal_model_outputs is not used in the transport model; we can mock it.
     self.pedestal_outputs = mock.create_autospec(object)

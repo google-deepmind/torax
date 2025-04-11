@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections.abc import Mapping
 import dataclasses
-from typing import Literal
+from typing import Any, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -21,49 +22,43 @@ import jax.numpy as jnp
 import pydantic
 from torax import state
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import geometry
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import quasilinear_transport_model
 
 
-def _get_model_inputs(
-    transport: transport_pydantic_model.Transport,
+def _get_config_and_model_inputs(
+    transport: Mapping[str, Any],
 ):
   """Returns the model inputs for testing."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams()
-  geo = geometry_pydantic_model.CircularConfig().build_geometry()
-  sources = sources_pydantic_model.Sources()
+  torax_config = model_config.ToraxConfig.from_dict({
+      'runtime_params': {},
+      'geometry': {'geometry_type': 'circular'},
+      'sources': {},
+      'stepper': {},
+      'transport': transport,
+      'pedestal': {},
+  })
   source_models = source_models_lib.SourceModels(
-      sources=sources.source_model_config
+      sources=torax_config.sources.source_model_config
   )
-  pedestal = pedestal_pydantic_model.Pedestal()
   dynamic_runtime_params_slice = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          transport=transport,
-          sources=sources,
-          pedestal=pedestal,
-          torax_mesh=geo.torax_mesh,
+      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          torax_config
       )(
-          t=runtime_params.numerics.t_initial,
+          t=torax_config.numerics.t_initial,
       )
   )
-  static_slice = build_runtime_params.build_static_runtime_params_slice(
-      profile_conditions=runtime_params.profile_conditions,
-      numerics=runtime_params.numerics,
-      plasma_composition=runtime_params.plasma_composition,
-      sources=sources,
-      torax_mesh=geo.torax_mesh,
+  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  static_slice = build_runtime_params.build_static_params_from_config(
+      torax_config
   )
   core_profiles = initialization.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -71,7 +66,8 @@ def _get_model_inputs(
       geo=geo,
       source_models=source_models,
   )
-  return dynamic_runtime_params_slice, geo, core_profiles
+  return torax_config, (
+      dynamic_runtime_params_slice, geo, core_profiles)
 
 
 class QualikizTransportModelTest(parameterized.TestCase):
@@ -83,29 +79,28 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'transport_model_config'
     ].annotation |= QualikizBasedTransportModelConfig
     transport_pydantic_model.Transport.model_rebuild(force=True)
+    model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    transport = transport_pydantic_model.Transport.from_dict({
-        'transport_model': 'qualikiz_based',
-        'coll_mult': 1.0,
-        'avoid_big_negative_s': True,
-        'q_sawtooth_proxy': True,
-    })
-    transport_model = transport.build_transport_model()
-    dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
-        transport
+    torax_config, model_inputs = _get_config_and_model_inputs(
+        {
+            'transport_model': 'qualikiz_based',
+            'coll_mult': 1.0,
+            'avoid_big_negative_s': True,
+            'q_sawtooth_proxy': True,
+        }
     )
-    pedestal = pedestal_pydantic_model.Pedestal()
-    pedestal_model = pedestal.build_pedestal_model()
+    transport_model = torax_config.transport.build_transport_model()
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        dynamic_runtime_params_slice, geo, core_profiles
+        *model_inputs
     )
 
     core_transport = transport_model(
-        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
+        *model_inputs, pedestal_model_outputs
     )
-    expected_shape = geo.rho_face_norm.shape
+    expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
     self.assertEqual(core_transport.d_face_el.shape, expected_shape)
@@ -113,17 +108,17 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""
-    transport = transport_pydantic_model.Transport.from_dict({
-        'transport_model': 'qualikiz_based',
-        'coll_mult': 1.0,
-        'avoid_big_negative_s': True,
-        'q_sawtooth_proxy': True,
-        'smag_alpha_correction': True,
-    })
-    dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
-        transport
+    torax_config, model_inputs = _get_config_and_model_inputs(
+        {
+            'transport_model': 'qualikiz_based',
+            'coll_mult': 1.0,
+            'avoid_big_negative_s': True,
+            'q_sawtooth_proxy': True,
+            'smag_alpha_correction': True,
+        }
     )
-    transport_model = transport.build_transport_model()
+    transport_model = torax_config.transport.build_transport_model()
+    dynamic_runtime_params_slice, geo, core_profiles = model_inputs
     assert isinstance(
         dynamic_runtime_params_slice.transport,
         qualikiz_based_transport_model.DynamicRuntimeParams,
