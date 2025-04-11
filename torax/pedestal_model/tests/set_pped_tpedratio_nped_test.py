@@ -20,12 +20,12 @@ from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
+# pylint: disable=invalid-name
 
 
 class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     parameterized.TestCase
 ):
-  """Tests for the `torax.pedestal_model.set_pped_tpedratio_nped` module."""
 
   @parameterized.product(
       neped=[0.7, {0.0: 0.7, 1.0: 0.9}],
@@ -42,8 +42,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       time,
       ion_electron_temperature_ratio,
   ):
-    # pylint: disable=invalid-name
-    """Test we can build and call the pedestal model with expected outputs."""
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(),
@@ -108,16 +106,14 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     else:
       expected_neped = neped[time]
     if neped_is_fGW:
-      # pylint: disable=invalid-name
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (jnp.pi * geo.Rmin**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )
-      # pylint: enable=invalid-name
       expected_neped *= nGW
-    self.assertEqual(pedestal_model_output.neped, expected_neped)
+    np.testing.assert_allclose(pedestal_model_output.neped, expected_neped)
 
     if isinstance(ion_electron_temperature_ratio, (float, int)):
       np.testing.assert_allclose(

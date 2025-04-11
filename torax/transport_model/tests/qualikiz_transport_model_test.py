@@ -116,7 +116,8 @@ class QualikizTransportModelTest(absltest.TestCase):
             geo,
             core_profiles,
             pedestal_model.PedestalModelOutput(
-                rho_norm_ped_top=0.0, Tiped=0.0, Teped=0.0, neped=0.0
+                rho_norm_ped_top=np.inf, Tiped=0.0, Teped=0.0, neped=0.0,
+                rho_norm_ped_top_idx=geo.torax_mesh.nx,
             ),
         )
 

@@ -18,10 +18,15 @@ The pedestal model calculates quantities relevant to the pedestal.
 """
 import abc
 import chex
+import jax
+import jax.numpy as jnp
 from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+
+# pylint: disable=invalid-name
+# Using physics notation naming convention
 
 
 @chex.dataclass(frozen=True)
@@ -30,15 +35,14 @@ class PedestalModelOutput:
 
   # The location of the pedestal.
   rho_norm_ped_top: array_typing.ScalarFloat
-  # pylint: disable=invalid-name
-  # Using physics notation naming convention
+  # The index of the pedestal in rho_norm.
+  rho_norm_ped_top_idx: array_typing.ScalarInt
   # The ion temperature at the pedestal.
   Tiped: array_typing.ScalarFloat
   # The electron temperature at the pedestal.
   Teped: array_typing.ScalarFloat
   # The electron density at the pedestal in units of nref.
   neped: array_typing.ScalarFloat
-  # pylint: enable=invalid-name
 
 
 class PedestalModel(abc.ABC):
@@ -73,9 +77,19 @@ class PedestalModel(abc.ABC):
           "freeze at the end of __init__."
       )
 
-    # Calculate the pedestal values.
-    return self._call_implementation(
-        dynamic_runtime_params_slice, geo, core_profiles
+    return jax.lax.cond(
+        dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+        lambda: self._call_implementation(
+            dynamic_runtime_params_slice, geo, core_profiles
+        ),
+        # Set the pedestal location to infinite to indicate that the pedestal is
+        # not present.
+        # Set the index to outside of bounds of the mesh to indicate that the
+        # pedestal is not present.
+        lambda: PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf, Tiped=0.0, Teped=0.0, neped=0.0,
+            rho_norm_ped_top_idx=geo.torax_mesh.nx
+        ),
     )
 
   @abc.abstractmethod

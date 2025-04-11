@@ -171,21 +171,16 @@ def _calculate_pereverzev_flux(
   # remove Pereverzev flux from boundary region if pedestal model is on
   # (for PDE stability)
   chi_face_per_ion = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       0.0,
       chi_face_per_ion,
   )
   chi_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       0.0,
       chi_face_per_el,
   )
+
   # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
   v_heat_face_ion = (
       core_profiles.temp_ion.face_grad()
@@ -199,19 +194,13 @@ def _calculate_pereverzev_flux(
   )
 
   d_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       0.0,
       d_face_per_el * geo.g1_over_vpr_face,
   )
 
   v_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       0.0,
       v_face_per_el * geo.g0_face,
   )
@@ -355,24 +344,19 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  pedestal_model_output: pedestal_model_lib.PedestalModelOutput = jax.lax.cond(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      lambda: pedestal_model(dynamic_runtime_params_slice, geo, core_profiles),
-      # TODO(b/380271610): Refactor to avoid needing dummy output.
-      lambda: pedestal_model_lib.PedestalModelOutput(
-          neped=0.0,
-          Tiped=0.0,
-          Teped=0.0,
-          rho_norm_ped_top=0.0,
-      ),
+  pedestal_model_output = pedestal_model(
+      dynamic_runtime_params_slice, geo, core_profiles
   )
 
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
-  mask = _internal_boundary(
-      geo,
-      pedestal_model_output.rho_norm_ped_top,
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+  # If rho_norm_ped_top_idx is outside of bounds of the mesh, the pedestal is
+  # not present and the mask is all False. This is what is used in the case that
+  # set_pedestal is False.
+  mask = (
+      jnp.zeros_like(geo.rho, dtype=bool)
+      .at[pedestal_model_output.rho_norm_ped_top_idx]
+      .set(True)
   )
 
   # Calculate the implicit source profiles and combines with the explicit
@@ -466,18 +450,12 @@ def _calc_coeffs_full(
   # density source vector based both on original and updated core profiles
   source_ne = merged_source_profiles.total_sources('ne', geo)
 
-  source_ne += jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+  source_ne += (
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_n
-      * pedestal_model_output.neped,
-      0.0,
+      * pedestal_model_output.neped
   )
-  source_mat_nn += jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      -(mask * dynamic_runtime_params_slice.numerics.largeValue_n),
-      0.0,
-  )
+  source_mat_nn += -(mask * dynamic_runtime_params_slice.numerics.largeValue_n)
 
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
@@ -562,31 +540,20 @@ def _calc_coeffs_full(
   source_mat_ei = qei.implicit_ei * geo.vpr
 
   # Pedestal
-  source_i += jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+  source_i += (
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_T
-      * pedestal_model_output.Tiped,
-      0.0,
+      * pedestal_model_output.Tiped
   )
-  source_e += jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+  source_e += (
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_T
-      * pedestal_model_output.Teped,
-      0.0,
+      * pedestal_model_output.Teped
   )
 
-  source_mat_ii -= jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      mask * dynamic_runtime_params_slice.numerics.largeValue_T,
-      0.0,
-  )
-  source_mat_ee -= jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      mask * dynamic_runtime_params_slice.numerics.largeValue_T,
-      0.0,
-  )
+  source_mat_ii -= mask * dynamic_runtime_params_slice.numerics.largeValue_T
+
+  source_mat_ee -= mask * dynamic_runtime_params_slice.numerics.largeValue_T
 
   # Add effective phibdot heat source terms
 
@@ -733,18 +700,3 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,
   )
   return coeffs
-
-
-# pylint: disable=invalid-name
-def _internal_boundary(
-    geo: geometry.Geometry,
-    Ped_top: jax.Array,
-    set_pedestal: jax.Array,
-) -> jax.Array:
-  # Create Boolean mask FiPy CellVariable with True where the internal boundary
-  # condition is
-  # find index closest to pedestal top.
-  idx = jnp.abs(geo.rho_norm - Ped_top).argmin()
-  mask_np = jnp.zeros(len(geo.rho), dtype=bool)
-  mask_np = jnp.where(set_pedestal, mask_np.at[idx].set(True), mask_np)
-  return mask_np

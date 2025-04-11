@@ -132,61 +132,45 @@ class TransportModel(abc.ABC):
       pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     """Applies min/max and pedestal region clipping to transport coefficients."""
+    transport = dynamic_runtime_params_slice.transport
 
     # set minimum and maximum transport coefficents for PDE stability
     chi_face_ion = jnp.clip(
-        transport_coeffs.chi_face_ion,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
+        transport_coeffs.chi_face_ion, transport.chimin, transport.chimax,
     )
 
     # set minimum and maximum chi for PDE stability
     chi_face_el = jnp.clip(
-        transport_coeffs.chi_face_el,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
+        transport_coeffs.chi_face_el, transport.chimin, transport.chimax,
     )
 
     d_face_el = jnp.clip(
-        transport_coeffs.d_face_el,
-        dynamic_runtime_params_slice.transport.Demin,
-        dynamic_runtime_params_slice.transport.Demax,
+        transport_coeffs.d_face_el, transport.Demin, transport.Demax,
     )
     v_face_el = jnp.clip(
-        transport_coeffs.v_face_el,
-        dynamic_runtime_params_slice.transport.Vemin,
-        dynamic_runtime_params_slice.transport.Vemax,
+        transport_coeffs.v_face_el, transport.Vemin, transport.Vemax,
     )
 
     # set low transport in pedestal region to facilitate PDE solver
     # (more consistency between desired profile and transport coefficients)
-    # if runtime_params.profile_conditions.set_pedestal:
     mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
     chi_face_ion = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
+        mask,
         dynamic_runtime_params_slice.transport.chimin,
         chi_face_ion,
     )
     chi_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
+        mask,
         dynamic_runtime_params_slice.transport.chimin,
         chi_face_el,
     )
     d_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
+        mask,
         dynamic_runtime_params_slice.transport.Demin,
         d_face_el,
     )
     v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
+        mask,
         0.0,
         v_face_el,
     )
@@ -380,12 +364,12 @@ def build_smoothing_matrix(
   # 2. Masking: we do not want transport coefficients calculated in pedestal
   # region or in inner and outer transport patch regions, to impact
   # transport_model calculated coefficients
-  mask_outer_edge_ped = jax.lax.cond(
-      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      lambda: pedestal_model_outputs.rho_norm_ped_top - consts.eps,
-      lambda: 1.0,
-  )
 
+  # If set pedestal is False and apply_outer_patch is True, we want to mask
+  # according to rho_outer, otherwise we want to mask according to
+  # rho_norm_ped_top. In the case where set_pedestal is False this is inf
+  # which when we use to make the mask means that we will not mask anything.
+  # If set pedestal is True, we want to mask according to rho_norm_ped_top.
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
           jnp.logical_not(
@@ -394,7 +378,7 @@ def build_smoothing_matrix(
           dynamic_runtime_params_slice.transport.apply_outer_patch,
       ),
       lambda: dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-      lambda: mask_outer_edge_ped,
+      lambda: pedestal_model_outputs.rho_norm_ped_top - consts.eps,
   )
 
   mask_inner_edge = jax.lax.cond(

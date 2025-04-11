@@ -35,23 +35,6 @@ from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0,))
-def _jitted_transport_model(
-    transport_model: transport_model_lib.TransportModel,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
-    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-) -> state.CoreTransport:
-  """Calls the transport model with the given arguments."""
-  return transport_model(
-      dynamic_runtime_params_slice_t,
-      geo_t,
-      core_profiles_t,
-      pedestal_model_output,
-  )
-
-
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
@@ -279,21 +262,15 @@ class SimulationStepFn:
       Time step duration (dt)
     """
     # TODO(b/335598388): We call the transport model both here and in the the
-    # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
-    # calls fall within the same jit scope* because can use
-    # functools.lru_cache to avoid building duplicate expressions for the same
-    # transport coeffs. We should still refactor the design to more explicitly
-    # calculate transport coeffs at delta_t = 0 in only one place, so that we
-    # have some flexibility in where to place the jit boundaries.
-    pedestal_model_output = self._pedestal_model(
-        dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
-    )
-    transport_coeffs = _jitted_transport_model(
-        self._transport_model,
+    # Stepper / CoeffsCallback. We should still refactor the design to more
+    # explicitly calculate transport coeffs at delta_t = 0 in only one place,
+    # so that we have some flexibility in where to place the jit boundaries.
+    transport_coeffs = _calculate_transport_coeffs(
+        self.pedestal_model,
+        self.transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        pedestal_model_output,
     )
 
     # initialize new dt and reset stepper iterations.
@@ -540,6 +517,26 @@ class SimulationStepFn:
     )
 
     return dynamic_runtime_params_slice_t_plus_dt, output_state
+
+
+@functools.partial(jax_utils.jit, static_argnums=(0, 1))
+def _calculate_transport_coeffs(
+    pedestal_model: pedestal_model_lib.PedestalModel,
+    transport_model: transport_model_lib.TransportModel,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+) -> state.CoreTransport:
+  """Calculates the transport coefficients."""
+  pedestal_model_output = pedestal_model(
+      dynamic_runtime_params_slice_t, geo_t, core_profiles_t
+  )
+  return transport_model(
+      dynamic_runtime_params_slice_t,
+      geo_t,
+      core_profiles_t,
+      pedestal_model_output,
+  )
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(

@@ -22,6 +22,7 @@ import typeguard
 F = TypeVar("F", bound=Callable)
 ScalarFloat = jt.Float[chex.Array | float, ""]
 ScalarBool = jt.Bool[chex.Array | bool, ""]
+ScalarInt = jt.Int[chex.Array | int, ""]
 ArrayFloat = jt.Float[chex.Array, "rhon"]
 ArrayBool = jt.Bool[chex.Array, "rhon"]
 

@@ -42,9 +42,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
 ):
   """Pedestal model with specification of pressure, temp ratio, and density."""
 
-  def __init__(
-      self,
-  ):
+  def __init__(self):
     super().__init__()
     self._frozen = True
 
@@ -82,9 +80,9 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
-    Zeff_ped = Zeff[ped_idx]
-    Zi_ped = Zi[ped_idx]
-    Zimp_ped = Zimp[ped_idx]
+    Zeff_ped = jnp.take(Zeff, ped_idx)
+    Zi_ped = jnp.take(Zi, ped_idx)
+    Zimp_ped = jnp.take(Zimp, ped_idx)
     dilution_factor_ped = formulas.calculate_main_ion_dilution_factor(
         Zi_ped, Zimp_ped, Zeff_ped
     )
@@ -113,6 +111,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         Tiped=Tiped,
         Teped=Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
+        rho_norm_ped_top_idx=ped_idx,
     )
 
   def __hash__(self) -> int:
