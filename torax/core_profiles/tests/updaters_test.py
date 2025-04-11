@@ -17,17 +17,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import jax_utils
-from torax import state
 from torax.config import build_runtime_params
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
-
-SMALL_VALUE = 1e-6
+from torax.torax_pydantic import model_config
 
 
 # pylint: disable=invalid-name
@@ -36,7 +30,6 @@ class UpdatersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
   @parameterized.named_parameters(
       dict(
@@ -123,45 +116,38 @@ class UpdatersTest(parameterized.TestCase):
       expected_ne_bound_right,
   ):
     """Tests that compute_boundary_conditions_t_plus_dt works."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=ne_is_fGW,
-            nbar=1,
-            normalize_to_nbar=normalize_to_nbar,
-            ne_bound_right=ne_bound_right,
-        ),
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'ne': {0: {0: 1.5, 1: 1}},
+                'ne_is_fGW': ne_is_fGW,
+                'ne_bound_right_is_fGW': ne_bound_right_is_fGW,
+                'nbar': 1,
+                'normalize_to_nbar': normalize_to_nbar,
+                'ne_bound_right': ne_bound_right,
+            },
+        },
+        'sources': {},
+        'stepper': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'transport': {},
+        'pedestal': {},
+    })
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config)
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        torax_config
     )
-    sources = source_pydantic_model.Sources()
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=self.geo.torax_mesh,
-    )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
-    mock_core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-    )
+    dynamic_runtime_params_slice = provider(t=1.0)
+    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
-        dt=runtime_params.numerics.fixed_dt,
+        dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
-        # Unused
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=self.geo,
-        core_profiles_t=mock_core_profiles,  # Unused
+        geo_t_plus_dt=geo,
+        core_profiles_t=mock.ANY,  # Unused
     )
 
     if (ne_is_fGW and ne_bound_right is None) or (
@@ -170,7 +156,7 @@ class UpdatersTest(parameterized.TestCase):
       # Then we expect the boundary condition to be in fGW.
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
-          / (np.pi * self.geo.Rmin**2)
+          / (np.pi * geo.Rmin**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )
@@ -193,43 +179,37 @@ class UpdatersTest(parameterized.TestCase):
       expected_Te_bound_right,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Te."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Te={0: {0: 1.5, 1: 1}},
-            Te_bound_right=Te_bound_right,
-        ),
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'Te': {0: {0: 1.5, 1: 1}},
+                'Te_bound_right': Te_bound_right,
+            },
+        },
+        'sources': {},
+        'stepper': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'transport': {},
+        'pedestal': {},
+    })
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
-    sources = source_pydantic_model.Sources.from_dict({})
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=self.geo.torax_mesh,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
-
-    mock_core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-    )
+    dynamic_runtime_params_slice = provider(t=1.0)
+    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
-        dt=runtime_params.numerics.fixed_dt,
+        dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
-        # Unused
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=self.geo,
-        core_profiles_t=mock_core_profiles,  # Unused
+        geo_t_plus_dt=geo,
+        core_profiles_t=mock.ANY,  # Unused
     )
 
     self.assertEqual(
@@ -246,43 +226,37 @@ class UpdatersTest(parameterized.TestCase):
       expected_Ti_bound_right,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Ti."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti={0: {0: 1.5, 1: 1}},
-            Ti_bound_right=Ti_bound_right,
-        ),
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'Ti': {0: {0: 1.5, 1: 1}},
+                'Ti_bound_right': Ti_bound_right,
+            },
+        },
+        'sources': {},
+        'stepper': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'transport': {},
+        'pedestal': {},
+    })
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
-    sources = source_pydantic_model.Sources.from_dict({})
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=self.geo.torax_mesh,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
-
-    mock_core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-    )
+    dynamic_runtime_params_slice = provider(t=1.0)
+    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
-        dt=runtime_params.numerics.fixed_dt,
+        dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
-        # Unused
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=self.geo,
-        core_profiles_t=mock_core_profiles,  # Unused
+        geo_t_plus_dt=geo,
+        core_profiles_t=mock.ANY,  # Unused
     )
 
     self.assertEqual(
@@ -309,15 +283,16 @@ class UpdatersTest(parameterized.TestCase):
         vloop_lcfs_t_plus_dt_expected,
         psi_lcfs_t,
     )
+    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
     psi_t = cell_variable.CellVariable(
-        value=np.ones_like(self.geo.rho) * 0.5,
-        dr=self.geo.drho_norm,
+        value=np.ones_like(geo.rho) * 0.5,
+        dr=geo.drho_norm,
         right_face_grad_constraint=0.0,
     )
     psi_t_plus_dt = cell_variable.CellVariable(
-        value=np.ones_like(self.geo.rho) * psi_lcfs_t_plus_dt,
-        dr=self.geo.drho_norm,
+        value=np.ones_like(geo.rho) * psi_lcfs_t_plus_dt,
+        dr=geo.drho_norm,
         right_face_grad_constraint=0.0,
     )
 

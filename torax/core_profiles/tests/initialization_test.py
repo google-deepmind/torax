@@ -19,16 +19,13 @@ from absl.testing import parameterized
 import numpy as np
 from torax import jax_utils
 from torax.config import build_runtime_params
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
-from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import torax_refs
+from torax.torax_pydantic import model_config
 
 
 class InitializationTest(torax_refs.ReferenceValueTest):
@@ -36,7 +33,6 @@ class InitializationTest(torax_refs.ReferenceValueTest):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
   def test_update_psi_from_j(self):
     """Compare `update_psi_from_j` function to a reference implementation."""
@@ -49,7 +45,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
             runtime_params,
             references.geometry_provider,
             sources=source_pydantic_model.Sources.from_dict(
-                {"generic_current_source": {}}
+                {'generic_current_source': {}}
             ),
         )
     )
@@ -87,35 +83,34 @@ class InitializationTest(torax_refs.ReferenceValueTest):
       expected_psi,
   ):
     """Tests that runtime params validate boundary conditions."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            psi=psi,
-        )
-    )
-    sources = source_pydantic_model.Sources()
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'psi': psi,
+            },
+        },
+        'sources': {},
+        'stepper': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'transport': {},
+        'pedestal': {},
+    })
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
+    dynamic_runtime_params_slice = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )(t=1.0)
     )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=self.geo.torax_mesh,
+    geo = torax_config.geometry.build_provider(t=1.0)
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
-        self.geo,
+        geo,
         source_models,
     )
 
@@ -124,5 +119,5 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()
