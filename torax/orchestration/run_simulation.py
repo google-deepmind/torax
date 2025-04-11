@@ -66,25 +66,12 @@ def run_simulation(
   )
 
   static_runtime_params_slice = (
-      build_runtime_params.build_static_runtime_params_slice(
-          profile_conditions=torax_config.profile_conditions,
-          numerics=torax_config.numerics,
-          plasma_composition=torax_config.plasma_composition,
-          sources=torax_config.sources,
-          torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-          stepper=torax_config.stepper,
-      )
+      build_runtime_params.build_static_params_from_config(torax_config)
   )
 
   dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params=torax_config.runtime_params,
-          pedestal=torax_config.pedestal,
-          transport=torax_config.transport,
-          sources=torax_config.sources,
-          stepper=torax_config.stepper,
-          mhd=torax_config.mhd,
-          torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          torax_config
       )
   )
 

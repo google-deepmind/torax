@@ -17,7 +17,6 @@ from absl.testing import parameterized
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
-from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.tests.test_lib import default_sources
@@ -38,12 +37,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
     sources_config = default_sources.get_default_source_config()
     sources_config['qei_source']['Qei_mult'] = 0.0
     sources_config['generic_ion_el_heat_source']['Ptot'] = 0.0
-    sources_config['fusion_heat_source']['mode'] = (
-        source_runtime_params.Mode.ZERO
-    )
-    sources_config['ohmic_heat_source']['mode'] = (
-        source_runtime_params.Mode.ZERO
-    )
+    sources_config['fusion_heat_source']['mode'] = 'ZERO'
+    sources_config['ohmic_heat_source']['mode'] = 'ZERO'
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             runtime_params=dict(
@@ -63,26 +58,14 @@ class CoreProfileSettersTest(parameterized.TestCase):
         sources=torax_config.sources.source_model_config
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            torax_config.runtime_params,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            pedestal=torax_config.pedestal,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            sources=torax_config.sources,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-            stepper=torax_config.stepper,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(

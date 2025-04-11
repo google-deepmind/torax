@@ -210,9 +210,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_config = default_sources.get_default_source_config()
     source_config['qei_source']['Qei_mult'] = 0.0
     source_config['generic_ion_el_heat_source']['Ptot'] = 0.0
-    source_config['fusion_heat_source']['mode'] = (
-        source_runtime_params.Mode.ZERO
-    )
+    source_config['fusion_heat_source'][
+        'mode'
+    ] = source_runtime_params.Mode.ZERO
     source_config['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
@@ -231,27 +231,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         sources=torax_config.sources.source_model_config
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            torax_config.runtime_params,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            pedestal=torax_config.pedestal,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
@@ -363,26 +351,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            torax_config.runtime_params,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            pedestal=torax_config.pedestal,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     source_models = source_models_lib.SourceModels(
@@ -498,26 +474,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            torax_config.runtime_params,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            pedestal=torax_config.pedestal,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
     )
     static_runtime_params_slice_theta0 = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     static_runtime_params_slice_theta05 = dataclasses.replace(
         static_runtime_params_slice_theta0,
