@@ -15,6 +15,7 @@ import logging
 import os
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 from torax import output
 from torax.orchestration import run_simulation
@@ -79,12 +80,15 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
-  def test_no_compile_for_second_run(self):
+  @parameterized.named_parameters(
+      ('static geometry', 'test_iterhybrid_rampup.py'),
+  )
+  def test_no_compile_for_second_run(self, config_name: str):
     # Access the jax logger and set its level to DEBUG.
     jax_logger = logging.getLogger('jax')
     jax_logger.setLevel(logging.DEBUG)
     with self.assertLogs(logger=jax_logger, level=logging.DEBUG) as l:
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(config_name)
       run_simulation.run_simulation(torax_config)
       # Check that the messages we expect to see for tracing and compilation
       # are present in the first run.
@@ -95,7 +99,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
       )
     with self.assertLogs(jax_logger, level=logging.DEBUG) as l:
       jax_logger.debug('Second run')
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(config_name)
       run_simulation.run_simulation(torax_config)
       # Check that the same messages are not present in the second run.
       self.assertFalse(any('Finished tracing' in line for line in l.output))
