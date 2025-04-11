@@ -21,6 +21,7 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
     'pedestal_model': 'set_pped_tpedratio_nped',
+    'set_pedestal': True,
     'ion_electron_temperature_ratio': 1.0,
     'Pped': 89300.0,
     'neped': 0.62,

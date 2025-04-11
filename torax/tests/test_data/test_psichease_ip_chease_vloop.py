@@ -23,7 +23,6 @@
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'set_pedestal': False,
             'ne_bound_right': 0.5,
             'use_vloop_lcfs_boundary_condition': True,
             'vloop_lcfs': 7.5,

@@ -40,7 +40,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen):
     chie_inner: inner core electron heat equation diffusion term.
     rho_inner: normalized radius below which inner patch is applied.
     apply_outer_patch: set outer core transport coefficients (ad-hoc MHD/EM
-      transport). Only used when set_pedestal = False Useful for L-mode
+      transport). Only used when pedestal.set_pedestal = False Useful for L-mode
       near-edge region where QLKNN10D is not applicable.
     De_outer: outer core electron density diffusivity.
     Ve_outer: outer core electron density convection.

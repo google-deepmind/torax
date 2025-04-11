@@ -47,6 +47,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular'),
             pedestal=dict(
                 pedestal_model='set_tped_nped',
+                set_pedestal=True,
                 Tiped=Tiped,
                 Teped=Teped,
                 rho_norm_ped_top=rho_norm_ped_top,
@@ -58,12 +59,10 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             transport=dict(),
         )
     )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        torax_config.runtime_params,
-        transport=torax_config.transport,
-        sources=torax_config.sources,
-        torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-        pedestal=torax_config.pedestal,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(

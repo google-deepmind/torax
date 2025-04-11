@@ -78,7 +78,7 @@ class PedestalModel(abc.ABC):
       )
 
     return jax.lax.cond(
-        dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+        dynamic_runtime_params_slice.pedestal.set_pedestal,
         lambda: self._call_implementation(
             dynamic_runtime_params_slice, geo, core_profiles
         ),
