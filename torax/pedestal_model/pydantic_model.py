@@ -17,6 +17,7 @@ import copy
 from typing import Any, Literal
 import chex
 import pydantic
+from torax.pedestal_model import no_pedestal
 from torax.pedestal_model import pedestal_model
 from torax.pedestal_model import runtime_params
 from torax.pedestal_model import set_pped_tpedratio_nped
@@ -120,10 +121,36 @@ class SetTpedNped(torax_pydantic.BaseModelFrozen):
     )
 
 
+class NoPedestal(torax_pydantic.BaseModelFrozen):
+  """A pedestal model for when there is no pedestal.
+
+  This is needed as under jax compilation we have to have a valid value for
+  both branches of the jax.lax.cond. This provides that value whilst being very
+  explicit about the fact that there is no pedestal and simple so minimal
+  compilation time.
+  """
+  pedestal_model: Literal['no_pedestal'] = 'no_pedestal'
+
+  def build_pedestal_model(
+      self,
+  ) -> no_pedestal.NoPedestal:
+    return no_pedestal.NoPedestal()
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.DynamicRuntimeParams:
+    del t  # Unused.
+    return runtime_params.DynamicRuntimeParams()
+
+
 class Pedestal(torax_pydantic.BaseModelFrozen):
   """Config for a pedestal model."""
-  pedestal_config: SetPpedTpedRatioNped | SetTpedNped = pydantic.Field(
-      discriminator='pedestal_model', default_factory=SetTpedNped,
+
+  pedestal_config: SetPpedTpedRatioNped | SetTpedNped | NoPedestal = (
+      pydantic.Field(
+          discriminator='pedestal_model',
+          default_factory=SetTpedNped,
+      )
   )
 
   @pydantic.model_validator(mode='before')
