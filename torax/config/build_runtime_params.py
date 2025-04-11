@@ -34,6 +34,7 @@ from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
@@ -176,6 +177,22 @@ class DynamicRuntimeParamsSliceProvider:
     self._stepper = stepper
     self._pedestal = pedestal
     self._mhd = mhd
+
+  @classmethod
+  def from_config(
+      cls,
+      config: model_config.ToraxConfig,
+  ) -> typing_extensions.Self:
+    """Constructs a DynamicRuntimeParamsSliceProvider from a ToraxConfig."""
+    return cls(
+        runtime_params=config.runtime_params,
+        pedestal=config.pedestal,
+        transport=config.transport,
+        sources=config.sources,
+        stepper=config.stepper,
+        mhd=config.mhd,
+        torax_mesh=config.geometry.build_provider.torax_mesh,
+    )
 
   @property
   def sources(self) -> sources_pydantic_model.Sources:
