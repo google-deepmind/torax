@@ -82,10 +82,11 @@ class QeiSource(source.Source):
 
   def get_value(
       self,
-      source_type: int,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
   ) -> tuple[chex.Array, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 
