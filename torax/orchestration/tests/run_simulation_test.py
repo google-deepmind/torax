@@ -15,6 +15,7 @@ import logging
 import os
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 from torax import output
 from torax.orchestration import run_simulation
@@ -79,29 +80,33 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
-  def test_no_compile_for_second_run(self):
+  @parameterized.named_parameters(
+      ('static geometry, using QLKNN', 'test_iterhybrid_rampup.py'),
+  )
+  def test_no_compile_for_second_run(self, test_config_file: str,):
     # Access the jax logger and set its level to DEBUG.
     jax_logger = logging.getLogger('jax')
     jax_logger.setLevel(logging.DEBUG)
+    compile_logs = ['Finished tracing', 'Compiling', 'Finished XLA compilation']
     with self.assertLogs(logger=jax_logger, level=logging.DEBUG) as l:
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(test_config_file)
       run_simulation.run_simulation(torax_config)
       # Check that the messages we expect to see for tracing and compilation
       # are present in the first run.
-      self.assertTrue(any('Finished tracing' in line for line in l.output))
-      self.assertTrue(any('Compiling' in line for line in l.output))
-      self.assertTrue(
-          any('Finished XLA compilation' in line for line in l.output)
-      )
+      for compile_logs_msg in compile_logs:
+        self.assertTrue(any(compile_logs_msg in line for line in l.output))
     with self.assertLogs(jax_logger, level=logging.DEBUG) as l:
       jax_logger.debug('Second run')
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(test_config_file)
       run_simulation.run_simulation(torax_config)
       # Check that the same messages are not present in the second run.
-      self.assertFalse(any('Finished tracing' in line for line in l.output))
-      self.assertFalse(any('Compiling f' in line for line in l.output))
       self.assertFalse(
-          any('Finished XLA compilation' in line for line in l.output)
+          any('Finished tracing' in line for line in l.output), msg=l
+      )
+      self.assertFalse(any('Compiling f' in line for line in l.output), msg=l)
+      self.assertFalse(
+          any('Finished XLA compilation' in line for line in l.output),
+          msg=l,
       )
 
 
