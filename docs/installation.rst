@@ -54,27 +54,6 @@ Activate the virtual env:
 
 It is convenient to set up an alias for the above command.
 
-.. _install_qlknn_7_11:
-
-Install QLKNN_7_11
------------------------------
-
-.. code-block:: console
-
-  git clone https://github.com/google-deepmind/fusion_surrogates.git
-  pip install -e ./fusion_surrogates
-  export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn
-
-We recommend automating the variable export. If using bash, run:
-
-.. code-block:: console
-
-  echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
-
-The above command only needs to be run once on a given system.
-
-An alternative to QLKNN_7_11 is QLKNN-hyper (See :ref:`install_qlknn_hyper`).
-
 .. install_torax:
 
 Install TORAX
@@ -118,14 +97,33 @@ geometry data directory.
 
   export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
 
-As with the QLKNN dependencies, we recommend automating the variable export. If
-using bash, run:
+We recommend automating the variable export. If using bash, run:
 
 .. code-block:: console
 
   echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
 
 The above command only needs to be run once on a given system.
+
+TORAX uses the QLKNN_7_11 transport model by default. It can be overridden by
+specifying a QLKNN model path through the `TORAX_QLKNN_MODEL_PATH`
+environment variable. To use the default transport model (recommended), keep the
+`TORAX_QLKNN_MODEL_PATH` environment variable empty. Previous versions of
+TORAX required the environment variable to be set. If you set this variable in
+a previous TORAX installation, make sure you do not define it in your
+`~/.bashrc`. You can check if the variable is defined by running:
+
+.. code-block:: console
+
+  echo $TORAX_QLKNN_MODEL_PATH
+
+If the variable is defined, you can clear it by running:
+
+.. code-block:: console
+
+  unset TORAX_QLKNN_MODEL_PATH
+
+For an alternative transport model, see :ref:`install_qlknn_hyper`.
 
 .. _dev_install:
 
@@ -155,12 +153,12 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 -------------------
 
 An alternative to QLKNN_7_11 is to use QLKNN-hyper-10D, also known as QLKNN10D
-[K.L. van de Plassche PoP 2020](https://doi.org/10.1063/1.5134126). QLKNN_7_11
-is based on QuaLiKiz 2.8.1 which has an improved collision operator compared to
-the QLKNN10D training set. QLKNN_7_11 training data includes impurity density
-gradients as an input feature and has better coverage of the near-LCFS region
-compared to QLKNN-hyper-10D. However, it is still widely used in other
-simulators, so it can be useful for comparative studies for instance.
+(`K.L. van de Plassche PoP 2020 <https://doi.org/10.1063/1.5134126>`_).
+QLKNN_7_11 is based on QuaLiKiz 2.8.1 which has an improved collision operator
+compared to the QLKNN10D training set. QLKNN_7_11 training data includes
+impurity density gradients as an input feature and has better coverage of the
+near-LCFS region compared to QLKNN-hyper-10D. However, it is still widely used
+in other simulators, so it can be useful for comparative studies for instance.
 
 Download QLKNN dependencies:
 
@@ -168,16 +166,9 @@ Download QLKNN dependencies:
 
   git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 
+To use this transport model, you need to set the environment variable
+`TORAX_QLKNN_MODEL_PATH` to the path of the cloned repository.
+
 .. code-block:: console
 
   export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
-
-It is recommended to automate the environment variable export. For example, if
-using bash, run:
-
-.. code-block:: console
-
-  echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
-
-The above command only needs to be run once on a given system.
-

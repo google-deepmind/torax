@@ -11,61 +11,69 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections.abc import Mapping
+import dataclasses
+from typing import Any, Literal
+
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+import pydantic
 from torax import constants as constants_module
 from torax import state
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.pedestal_model import set_tped_nped
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import quasilinear_transport_model
+from torax.transport_model import runtime_params
 
 
 constants = constants_module.CONSTANTS
 jax.config.update('jax_enable_x64', True)
 
 
-def _get_model_inputs(
-    transport: transport_pydantic_model.Transport,
+def _get_model_and_model_inputs(
+    transport: Mapping[str, Any],
 ):
   """Returns the model inputs for testing."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams()
-  geo = geometry_pydantic_model.CircularConfig().build_geometry()
-  sources = sources_pydantic_model.Sources()
+  torax_config = model_config.ToraxConfig.from_dict({
+      'runtime_params': {},
+      'geometry': {
+          'geometry_type': 'circular',
+          'n_rho': 4,
+      },
+      'sources': {},
+      'stepper': {},
+      'pedestal': {
+          'pedestal_model': 'set_tped_nped',
+          'set_pedestal': True,
+      },
+      'transport': transport,
+  })
   source_models = source_models_lib.SourceModels(
-      sources=sources.source_model_config
+      sources=torax_config.sources.source_model_config
   )
-  pedestal = pedestal_pydantic_model.Pedestal()
   dynamic_runtime_params_slice = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          transport=transport,
-          sources=sources,
-          torax_mesh=geo.torax_mesh,
-          pedestal=pedestal,
+      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          torax_config
       )(
-          t=runtime_params.numerics.t_initial,
+          t=torax_config.numerics.t_initial,
       )
   )
-  static_slice = build_runtime_params.build_static_runtime_params_slice(
-      profile_conditions=runtime_params.profile_conditions,
-      numerics=runtime_params.numerics,
-      plasma_composition=runtime_params.plasma_composition,
-      sources=sources,
-      torax_mesh=geo.torax_mesh,
+  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  static_slice = build_runtime_params.build_static_params_from_config(
+      torax_config
   )
   core_profiles = initialization.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -73,11 +81,11 @@ def _get_model_inputs(
       geo=geo,
       source_models=source_models,
   )
-  pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
+  pedestal_model = torax_config.pedestal.build_pedestal_model()
   pedestal_model_outputs = pedestal_model(
       dynamic_runtime_params_slice, geo, core_profiles
   )
-  return (
+  return torax_config.transport.build_transport_model(), (
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -86,23 +94,26 @@ def _get_model_inputs(
 
 
 class QuasilinearTransportModelTest(parameterized.TestCase):
-  """Unit tests for the `torax.transport_model.quasilinear_transport_model` module."""
+
+  def setUp(self):
+    super().setUp()
+    # Register the fake transport config.
+    transport_pydantic_model.Transport.model_fields[
+        'transport_model_config'
+    ].annotation |= QuasilinearTransportConfig
+    transport_pydantic_model.Transport.model_rebuild(force=True)
+    model_config.ToraxConfig.model_rebuild(force=True)
 
   # pylint: disable=invalid-name
 
   def test_quasilinear_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'qlknn'}
-    )
-
-    transport_model = FakeQuasilinearTransportModel()
-    (
+    transport_model, (
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
         pedestal_model_outputs,
-    ) = _get_model_inputs(transport)
+    ) = _get_model_and_model_inputs({'transport_model': 'quasilinear'})
     core_transport = transport_model(
         dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
@@ -140,17 +151,14 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
       self, DVeff, An_min, expected_zero_v_face_el, expected_zero_d_face_el
   ):
     """Tests that the DVeff approach options behaves as expected."""
-    transport = transport_pydantic_model.Transport.from_dict({
-        'transport_model': 'qlknn',
+    model, model_inputs = _get_model_and_model_inputs({
+        'transport_model': 'quasilinear',
         'DVeff': DVeff,
         'An_min': An_min,
         'Demin': 0.0,
         'Vemin': 0.0,
     })
-    transport_model = FakeQuasilinearTransportModel()
-    core_transport = transport_model(
-        *_get_model_inputs(transport)
-    )
+    core_transport = model(*model_inputs)
     self.assertEqual(
         (np.sum(np.abs(core_transport.v_face_el)) == 0.0),
         expected_zero_v_face_el,
@@ -311,6 +319,28 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       psidot=dummy_cell_variable,
       vloop_lcfs=1.0,
   )
+
+
+class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
+  """QuasilinearTransportConfig for testing purposes."""
+
+  # pylint: disable=invalid-name
+  transport_model: Literal['quasilinear'] = 'quasilinear'
+  DVeff: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
+
+  def build_transport_model(self) -> FakeQuasilinearTransportModel:
+    return FakeQuasilinearTransportModel()
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return quasilinear_transport_model.DynamicRuntimeParams(
+        DVeff=self.DVeff,
+        An_min=self.An_min,
+        **base_kwargs,
+    )
 
 
 if __name__ == '__main__':

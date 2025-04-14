@@ -36,7 +36,6 @@ CONFIG = {
             'ne_is_fGW': True,
             'nbar': 0.5,
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},
-            'set_pedestal': False,
         },
         'numerics': {
             't_final': 0.5,

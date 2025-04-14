@@ -105,12 +105,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         # profiles.
         'sources': {
             'generic_particle_source': {
-                'prescribed_values': {
+                'prescribed_values': ({
                     0.0: {0: 1.0},
                     1.0: {0: 2.0},
                     2.0: {0: 3.0},
                     3.0: {0: 4.0},
-                },
+                },),
                 'mode': 'PRESCRIBED',
             },
         },
@@ -124,7 +124,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         'stepper': {'stepper_type': 'explicit'},
         'transport': {},
         'pedestal': {},
-        'time_step_calculator': {},
     }
 
     torax_config = model_config.ToraxConfig.from_dict(config)

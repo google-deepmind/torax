@@ -15,6 +15,7 @@ from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 from torax.sources import base
 from torax.sources import bootstrap_current_source
 from torax.sources import fusion_heat_source
@@ -26,6 +27,7 @@ from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
+from torax.torax_pydantic import torax_pydantic
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -149,6 +151,86 @@ class PydanticModelTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertLen(sources.source_model_config, 3)
+
+  def test_adding_a_source_with_prescribed_values(self):
+    """Tests that a source can be added with overriding defaults."""
+    sources = pydantic_model.Sources.from_dict({
+        'generic_current_source': {
+            'mode': 'PRESCRIBED',
+            'prescribed_values': ((
+                np.array([0.0, 1.0, 2.0, 3.0]),
+                np.array([0., 0.5, 1.0]),
+                np.full([4, 3], 42)
+            ),),
+        },
+        'electron_cyclotron_source': {
+            'mode': 'PRESCRIBED',
+            'prescribed_values': (
+                3.,
+                4.,
+            ),
+        }
+    })
+    mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
+    torax_pydantic.set_grid(sources, mesh)
+    source = sources.source_model_config['generic_current_source']
+    self.assertLen(source.prescribed_values, 1)
+    self.assertIsInstance(
+        source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
+    source = sources.source_model_config['electron_cyclotron_source']
+    self.assertLen(source.prescribed_values, 2)
+    self.assertIsInstance(
+        source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
+    self.assertIsInstance(
+        source.prescribed_values[1], torax_pydantic.TimeVaryingArray)
+    value = source.prescribed_values[0].get_value(0.0)
+    np.testing.assert_equal(value, 3.)
+    value = source.prescribed_values[1].get_value(0.0)
+    np.testing.assert_equal(value, 4.)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_bremsstrahlung_zero(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'ZERO'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_mavrin_zero(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'ZERO',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_constant_fraction(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'radially_constant_fraction_of_Pin',
+        },
+    }
+    pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_invalid_config(self):
+    invalid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        'Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink',
+    ):
+      pydantic_model.Sources.from_dict(invalid_config)
 
 
 if __name__ == '__main__':

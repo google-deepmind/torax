@@ -44,7 +44,6 @@ class DynamicProfileConditions:
   ne_bound_right: array_typing.ScalarFloat
   ne_bound_right_is_fGW: bool
   ne_bound_right_is_absolute: bool
-  set_pedestal: array_typing.ScalarBool
   nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
@@ -91,8 +90,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       not `None` then `ne_bound_right_is_absolute` will be set to `True`.
     ne_bound_right_is_fGW: Toggle units of ne_bound_right.
     ne_bound_right_is_absolute: Toggle units of ne_bound_right
-    set_pedestal: Internal boundary condition (pedestal) Do not set internal
-      boundary condition if this is False
     nu: Peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be

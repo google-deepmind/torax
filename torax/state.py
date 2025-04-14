@@ -597,23 +597,18 @@ class ToraxSimState:
     geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
+    sawtooth_crash: True if a sawtooth model is active and the state
+      corresponds to a post-sawtooth-crash state.
   """
 
-  # Time variables.
   t: jax.Array
   dt: jax.Array
-
-  # Profiles evolved or calculated by the simulation.
   core_profiles: CoreProfiles
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
-
-  # Geometry used for the simulation.
   geometry: geometry.Geometry
-
-  # Other "side" states used for logging and feeding to other components of
-  # TORAX.
   stepper_numeric_outputs: StepperNumericOutputs
+  sawtooth_crash: bool = False
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""

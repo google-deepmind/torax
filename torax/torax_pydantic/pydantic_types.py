@@ -76,7 +76,6 @@ NumpyArray1D = Annotated[
 
 
 def _array_is_unit_interval(array: np.ndarray) -> np.ndarray:
-  """Checks if the array is in the unit interval."""
   if not np.all((array >= 0.0) & (array <= 1.0)):
     raise ValueError(
         f'Some array elements are not in the unit interval: {array}'

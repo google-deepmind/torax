@@ -35,23 +35,6 @@ from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0,))
-def _jitted_transport_model(
-    transport_model: transport_model_lib.TransportModel,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
-    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-) -> state.CoreTransport:
-  """Calls the transport model with the given arguments."""
-  return transport_model(
-      dynamic_runtime_params_slice_t,
-      geo_t,
-      core_profiles_t,
-      pedestal_model_output,
-  )
-
-
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
@@ -70,7 +53,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
-      mhd_models: mhd_base.MHDModels | None = None,
+      mhd_models: mhd_base.MHDModels,
   ):
     """Initializes the SimulationStepFn.
 
@@ -105,7 +88,7 @@ class SimulationStepFn:
     return self._transport_model
 
   @property
-  def mhd_models(self) -> mhd_base.MHDModels | None:
+  def mhd_models(self) -> mhd_base.MHDModels:
     return self._mhd_models
 
   @property
@@ -121,6 +104,11 @@ class SimulationStepFn:
       previous_post_processed_outputs: state.PostProcessedOutputs,
   ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
     """Advances the simulation state one time step.
+
+      If a sawtooth model is provided, it will be checked to see if a sawtooth
+    should trigger. If it does, the sawtooth model will be applied and instead
+    of a full PDE solve, the step_fn will return early with a state following
+    sawtooth redistribution, at a t+dt set by the sawtooth model.
 
     Args:
       static_runtime_params_slice: Static parameters that, if they change,
@@ -165,6 +153,36 @@ class SimulationStepFn:
             geometry_provider=geometry_provider,
         )
     )
+
+    # Check for sawtooth model and see if sawtooth should trigger.
+    # Triggered sawtooth will trigger a redistribution step with early return.
+    # Consecutive sawtooth crashes are not allowed since standard PDE steps
+    # may then not take place.
+    # If sawtooth_crash is True, then a normal PDE step will be carried
+    # out. where a ToraxSimState will be returned with the default
+    # sawtooth_crash value of False.
+    if (
+        (self.mhd_models.sawtooth is not None)
+        and (not input_state.sawtooth_crash)
+    ):
+      sawtooth_triggered, output_state, post_processed_outputs = (
+          self.mhd_models.sawtooth(
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_t,
+              input_state,
+              previous_post_processed_outputs,
+          )
+      )
+      output_state = dataclasses.replace(
+          output_state,
+          sawtooth_crash=sawtooth_triggered,
+      )
+      if sawtooth_triggered:
+        return (
+            output_state,
+            post_processed_outputs,
+            state.check_for_errors(output_state, post_processed_outputs),
+        )
 
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
@@ -229,8 +247,11 @@ class SimulationStepFn:
         previous_post_processed_outputs=previous_post_processed_outputs,
     )
 
-    return output_state, post_processed_outputs, state.check_for_errors(
-        output_state, post_processed_outputs)
+    return (
+        output_state,
+        post_processed_outputs,
+        state.check_for_errors(output_state, post_processed_outputs),
+    )
 
   def init_time_step_calculator(
       self,
@@ -253,21 +274,15 @@ class SimulationStepFn:
       Time step duration (dt)
     """
     # TODO(b/335598388): We call the transport model both here and in the the
-    # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
-    # calls fall within the same jit scope* because can use
-    # functools.lru_cache to avoid building duplicate expressions for the same
-    # transport coeffs. We should still refactor the design to more explicitly
-    # calculate transport coeffs at delta_t = 0 in only one place, so that we
-    # have some flexibility in where to place the jit boundaries.
-    pedestal_model_output = self._pedestal_model(
-        dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
-    )
-    transport_coeffs = _jitted_transport_model(
-        self._transport_model,
+    # Stepper / CoeffsCallback. We should still refactor the design to more
+    # explicitly calculate transport coeffs at delta_t = 0 in only one place,
+    # so that we have some flexibility in where to place the jit boundaries.
+    transport_coeffs = _calculate_transport_coeffs(
+        self.pedestal_model,
+        self.transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        pedestal_model_output,
     )
 
     # initialize new dt and reset stepper iterations.
@@ -514,6 +529,26 @@ class SimulationStepFn:
     )
 
     return dynamic_runtime_params_slice_t_plus_dt, output_state
+
+
+@functools.partial(jax_utils.jit, static_argnums=(0, 1))
+def _calculate_transport_coeffs(
+    pedestal_model: pedestal_model_lib.PedestalModel,
+    transport_model: transport_model_lib.TransportModel,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+) -> state.CoreTransport:
+  """Calculates the transport coefficients."""
+  pedestal_model_output = pedestal_model(
+      dynamic_runtime_params_slice_t, geo_t, core_profiles_t
+  )
+  return transport_model(
+      dynamic_runtime_params_slice_t,
+      geo_t,
+      core_profiles_t,
+      pedestal_model_output,
+  )
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(

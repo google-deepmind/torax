@@ -103,6 +103,12 @@ class SimpleTrigger(sawtooth_model.TriggerModel):
         rho_norm_q1,
     )
 
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, SimpleTrigger)
+
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):

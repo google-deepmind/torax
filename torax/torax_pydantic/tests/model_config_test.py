@@ -72,7 +72,7 @@ class ConfigTest(parameterized.TestCase):
         config_pydantic.pedestal.pedestal_config.pedestal_model,
         config_dict["pedestal"]["pedestal_model"]
         if "pedestal_model" in config_dict["pedestal"]
-        else "set_tped_nped",
+        else "no_pedestal",
     )
     # The full model should always be serializable.
     config_json = config_pydantic.model_dump_json()
@@ -102,7 +102,7 @@ class ConfigTest(parameterized.TestCase):
   def test_config_safe_update(self):
 
     config_dict = config_loader.import_module(
-        ".tests.test_data.test_iterhybrid_newton",
+        ".tests.test_data.test_iterhybrid_predictor_corrector",
         config_package="torax",
     ).CONFIG
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)

@@ -18,7 +18,6 @@
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'set_pedestal': False,
             'ne_bound_right': 0.5,
         },
         'numerics': {

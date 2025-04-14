@@ -19,7 +19,6 @@ CHEASE, FBT, etc.
 """
 
 import dataclasses
-import functools
 from collections.abc import Mapping
 from typing import Any
 
@@ -27,9 +26,15 @@ import chex
 import contourpy
 import numpy as np
 import scipy
+from torax import constants
+from torax import interpolated_param
+from torax.geometry import geometry
+from torax.geometry import geometry_loader
+from torax.geometry import geometry_provider
+from torax.torax_pydantic import torax_pydantic
 import typing_extensions
 
-from torax import constants, interpolated_param, jax_utils
+from torax import constants, interpolated_param
 from torax.geometry import geometry, geometry_loader, geometry_provider
 from torax.torax_imastools.equilibrium import geometry_from_IMAS
 from torax.torax_pydantic import torax_pydantic
@@ -95,7 +100,6 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
 
-  @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, StandardGeometry)
@@ -865,6 +869,18 @@ class StandardGeometryIntermediates:
         * rhon
         / (F_eqdsk * flux_surf_avg_1_over_R2_eqdsk)
     )
+
+    # Sense-check the profiles
+    dvolumes = np.diff(volumes)
+    if not np.all(dvolumes > 0):
+      idx = np.where(dvolumes <= 0)
+      raise ValueError(
+          'Volumes are not monotonically increasing (got decrease in volume '
+          f'between surfaces {", ".join([f"{i} -> {i+1}" for i in idx[0]])}). '
+          'This likely means that the contour generation failed to produce a '
+          'closed flux surface at these indices. To fix, try reducing '
+          'last_surface_factor or n_surfaces.'
+      )
 
     return cls(
         geometry_type=geometry.GeometryType.EQDSK,

@@ -35,7 +35,6 @@ generic_current_source_profiles = np.array([
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'set_pedestal': False,
             'nbar': 0.85,
             # set flat Ohmic current to provide larger range of current
             # evolution for test
@@ -57,11 +56,11 @@ CONFIG = {
         # Only drive the external current source
         'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (
+            'prescribed_values': ((
                 times,
                 gauss_r,
                 generic_current_source_profiles,
-            ),
+            ),),
         },
         # Disable density sources/sinks
         'generic_particle_source': {

@@ -158,7 +158,9 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         w=self.w.get_value(t),
         rsource=self.rsource.get_value(t),
         Ptot=self.Ptot.get_value(t),

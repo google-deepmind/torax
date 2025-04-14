@@ -61,6 +61,8 @@ CONFIG = {
         'qei_source': {},
     },
     'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
         'neped': 0.8,
         'neped_is_fGW': True,
     },

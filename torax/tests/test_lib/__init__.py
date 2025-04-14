@@ -20,9 +20,6 @@
 # mappings.
 _REF_MAP_OVERRIDES = {
     'test_crank_nicolson': 'test_implicit.nc',
-    'test_arraytimestepcalculator': 'test_qei.nc',
-    'test_absolute_generic_current_source': 'test_psi_and_heat.nc',
-    'test_newton_raphson_zeroiter': 'test_psi_and_heat.nc',
 }
 
 

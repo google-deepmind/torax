@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
-from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.sources import electron_cyclotron_source
 from torax.sources import generic_current_source
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source_models as source_models_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -29,57 +28,46 @@ class SourceTest(parameterized.TestCase):
 
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""
-    sources = source_pydantic_model.Sources.from_dict({
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: {
-            'mode': runtime_params_lib.Mode.ZERO,
-        }
-    })
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
-    )
-    source = source_models.sources[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ]
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
+    source = generic_current_source.GenericCurrentSource()
+    geo = mock.create_autospec(geometry.Geometry,
+                               rho_norm=np.array([1, 1, 1, 1]))
+    dynamic_source_params = {
+        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+            runtime_params_lib.DynamicRuntimeParams(
+                prescribed_values=np.zeros_like(geo.rho_norm),
+            )
         )
+    }
+    static_source_params = {
+        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+            runtime_params_lib.StaticRuntimeParams(
+                mode=runtime_params_lib.Mode.ZERO.value,
+                is_explicit=False,
+            )
+        )
+    }
+    static_slice = mock.create_autospec(
+        runtime_params_slice.StaticRuntimeParamsSlice,
+        sources=static_source_params,
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
-    core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
+    dynamic_slice = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        sources=dynamic_source_params,
     )
     profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
-        core_profiles=core_profiles,
+        core_profiles=mock.ANY,
         calculated_source_profiles=None,
     )
-    np.testing.assert_allclose(
-        profile[0], np.zeros_like(geo.torax_mesh.cell_centers)
-    )
+    np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))
 
   @parameterized.parameters(
       (runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
       (
           runtime_params_lib.Mode.MODEL_BASED,
-          np.array([2.771899e-01, 9.061386e05, 4.113863e01, 2.593838e-14]),
+          np.array([42, 42, 42, 42]),
       ),
       (runtime_params_lib.Mode.PRESCRIBED, np.array([3, 3, 3, 3])),
   )
@@ -88,47 +76,40 @@ class SourceTest(parameterized.TestCase):
       mode,
       expected_profile,
   ):
-    sources = source_pydantic_model.Sources.from_dict({
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: {
-            'mode': mode,
-            'prescribed_values': 3,
-        }
-    })
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
-    )
-    source = source_models.sources[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ]
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
+    model_func = mock.MagicMock()
+    model_func.return_value = np.full([4], 42.)
+    source = generic_current_source.GenericCurrentSource(model_func=model_func)
+    dynamic_source_params = {
+        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+            runtime_params_lib.DynamicRuntimeParams(
+                prescribed_values=(np.full([4], 3.),),
+            )
         )
+    }
+    static_source_params = {
+        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+            runtime_params_lib.StaticRuntimeParams(
+                mode=mode.value,
+                is_explicit=False,
+            )
+        )
+    }
+    static_slice = mock.create_autospec(
+        runtime_params_slice.StaticRuntimeParamsSlice,
+        sources=static_source_params,
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    dynamic_slice = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        sources=dynamic_source_params,
     )
-    core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
-    )
+    # Make a geo with rho_norm as we need it for the zero profile shape.
+    geo = mock.create_autospec(geometry.Geometry,
+                               rho_norm=np.array([1, 1, 1, 1]))
     profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
-        core_profiles=core_profiles,
+        core_profiles=mock.ANY,
         calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
@@ -138,50 +119,87 @@ class SourceTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
-  def test_bremsstrahlung_and_mavrin_validator_with_bremsstrahlung_zero(self):
-    valid_config = {
-        'bremsstrahlung_heat_sink': {'mode': 'ZERO'},
-        'impurity_radiation_heat_sink': {
-            'mode': 'PRESCRIBED',
-            'model_function_name': 'impurity_radiation_mavrin_fit',
-        },
+  def test_prescribed_values_for_multiple_affected_profiles(self):
+    source = electron_cyclotron_source.ElectronCyclotronSource()
+    dynamic_source_params = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+            runtime_params_lib.DynamicRuntimeParams(
+                prescribed_values=(np.full([4], 3.), np.full([4], 4.)),
+            )
+        )
     }
-    source_pydantic_model.Sources.from_dict(valid_config)
+    static_source_params = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+            runtime_params_lib.StaticRuntimeParams(
+                mode=runtime_params_lib.Mode.PRESCRIBED.value,
+                is_explicit=False,
+            )
+        )
+    }
+    static_slice = mock.create_autospec(
+        runtime_params_slice.StaticRuntimeParamsSlice,
+        sources=static_source_params,
+    )
+    dynamic_slice = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        sources=dynamic_source_params,
+    )
+    profile = source.get_value(
+        dynamic_runtime_params_slice=dynamic_slice,
+        static_runtime_params_slice=static_slice,
+        geo=mock.ANY,
+        core_profiles=mock.ANY,
+        calculated_source_profiles=None,
+    )
+    self.assertLen(profile, 2)
+    np.testing.assert_allclose(
+        profile[0],
+        np.full([4], 3.),
+        atol=1e-6,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        profile[1],
+        np.full([4], 4.),
+        atol=1e-6,
+        rtol=1e-6,
+    )
 
-  def test_bremsstrahlung_and_mavrin_validator_with_mavrin_zero(self):
-    valid_config = {
-        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
-        'impurity_radiation_heat_sink': {
-            'mode': 'ZERO',
-            'model_function_name': 'impurity_radiation_mavrin_fit',
-        },
+  def test_source_with_mismatched_prescribed_values_raises_error(self):
+    source = electron_cyclotron_source.ElectronCyclotronSource()
+    dynamic_source_params = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+            runtime_params_lib.DynamicRuntimeParams(
+                prescribed_values=(np.full([4], 3.),),
+            )
+        )
     }
-    source_pydantic_model.Sources.from_dict(valid_config)
-
-  def test_bremsstrahlung_and_mavrin_validator_with_constant_fraction(self):
-    valid_config = {
-        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
-        'impurity_radiation_heat_sink': {
-            'mode': 'PRESCRIBED',
-            'model_function_name': 'radially_constant_fraction_of_Pin',
-        },
+    static_source_params = {
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME:
+            runtime_params_lib.StaticRuntimeParams(
+                mode=runtime_params_lib.Mode.PRESCRIBED.value,
+                is_explicit=False,
+            )
     }
-    source_pydantic_model.Sources.from_dict(valid_config)
-
-  def test_bremsstrahlung_and_mavrin_validator_with_invalid_config(self):
-    invalid_config = {
-        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
-        'impurity_radiation_heat_sink': {
-            'mode': 'PRESCRIBED',
-            'model_function_name': 'impurity_radiation_mavrin_fit',
-        },
-    }
+    static_slice = mock.create_autospec(
+        runtime_params_slice.StaticRuntimeParamsSlice,
+        sources=static_source_params,
+    )
+    dynamic_slice = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        sources=dynamic_source_params,
+    )
     with self.assertRaisesRegex(
         ValueError,
-        'Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink',
+        'the number of prescribed values must match the number of affected',
     ):
-      source_pydantic_model.Sources.from_dict(invalid_config)
-
+      source.get_value(
+          dynamic_runtime_params_slice=dynamic_slice,
+          static_runtime_params_slice=static_slice,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          calculated_source_profiles=None,
+      )
 
 if __name__ == '__main__':
   absltest.main()

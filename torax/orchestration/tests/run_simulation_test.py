@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections.abc import Sequence
 import logging
 import os
 
@@ -29,48 +28,8 @@ _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 class RunSimulationTest(sim_test_case.SimTestCase):
 
-  @parameterized.named_parameters(
-      # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
-      (
-          'test_iterhybrid_newton',
-          'test_iterhybrid_newton.py',
-          _ALL_PROFILES,
-          5e-7,
-      ),
-      # Tests current and density rampup for for ITER-hybrid-like-config
-      # using Newton-Raphson. Only case which reverts to coarse_tol for several
-      # timesteps (with negligible impact on results compared to full tol).
-      (
-          'test_iterhybrid_rampup',
-          'test_iterhybrid_rampup.py',
-          _ALL_PROFILES,
-          0,
-          1e-6,
-      ),
-      # Tests time-dependent circular geometry.
-      (
-          'test_time_dependent_circular_geo',
-          'test_time_dependent_circular_geo.py',
-          _ALL_PROFILES,
-          0,
-      ),
-  )
-  def test_run_simulation(
-      self,
-      config_name: str,
-      profiles: Sequence[str],
-      rtol: float | None = None,
-      atol: float | None = None,
-  ):
-    self._test_run_simulation(
-        config_name=config_name,
-        profiles=profiles,
-        rtol=rtol,
-        atol=atol,
-    )
-
   def test_change_config(self):
-    torax_config = self._get_torax_config('test_iterhybrid_newton.py')
+    torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
     history = run_simulation.run_simulation(torax_config)
 
     original_value = torax_config.runtime_params.profile_conditions.nbar
@@ -121,12 +80,15 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
-  def test_no_compile_for_second_run(self):
+  @parameterized.named_parameters(
+      ('static geometry', 'test_iterhybrid_rampup.py'),
+  )
+  def test_no_compile_for_second_run(self, config_name: str):
     # Access the jax logger and set its level to DEBUG.
     jax_logger = logging.getLogger('jax')
     jax_logger.setLevel(logging.DEBUG)
     with self.assertLogs(logger=jax_logger, level=logging.DEBUG) as l:
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(config_name)
       run_simulation.run_simulation(torax_config)
       # Check that the messages we expect to see for tracing and compilation
       # are present in the first run.
@@ -137,7 +99,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
       )
     with self.assertLogs(jax_logger, level=logging.DEBUG) as l:
       jax_logger.debug('Second run')
-      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      torax_config = self._get_torax_config(config_name)
       run_simulation.run_simulation(torax_config)
       # Check that the same messages are not present in the second run.
       self.assertFalse(any('Finished tracing' in line for line in l.output))

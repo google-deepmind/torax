@@ -18,13 +18,10 @@ import numpy as np
 from torax import constants
 from torax.config import build_runtime_params
 from torax.config import config_args
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.core_profiles import updaters
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.torax_pydantic import model_config
 
 
 class BoundaryConditionsTest(parameterized.TestCase):
@@ -53,40 +50,41 @@ class BoundaryConditionsTest(parameterized.TestCase):
     """Tests that setting boundary conditions works."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti={0.0: {0.0: 27.7, 1.0: 1.0}},
-            Te={0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
-            Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.1},
-            ne_bound_right=ne_bound_right,
-            ne=ne,
-            ne_is_fGW=False,
-            Ip_tot={0.0: 5, 1.0: 7},
-            normalize_to_nbar=False,
-        ),
-    )
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'Ti': {0.0: {0.0: 27.7, 1.0: 1.0}},
+                'Te': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
+                'Ti_bound_right': 27.7,
+                'Te_bound_right': {0.0: 42.0, 1.0: 0.1},
+                'ne_bound_right': ne_bound_right,
+                'ne': ne,
+                'ne_is_fGW': False,
+                'Ip_tot': {0.0: 5, 1.0: 7},
+                'normalize_to_nbar': False,
+            },
+        },
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'stepper': {},
+        'transport': {},
+        'pedestal': {},
+    })
 
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    sources = source_pydantic_model.Sources()
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    initial_dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    initial_dynamic_runtime_params_slice = provider(
+        t=torax_config.numerics.t_initial)
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,
@@ -94,18 +92,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
         geo,
         source_models=source_models,
     )
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=0.5,
-        )
-    )
+    dynamic_runtime_params_slice = provider(t=0.5)
 
     bc = updaters.compute_boundary_conditions_for_t_plus_dt(
-        dt=runtime_params.numerics.fixed_dt,
+        dt=torax_config.numerics.fixed_dt,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,  # Not used
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
         core_profiles_t=core_profiles,

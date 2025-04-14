@@ -27,8 +27,9 @@ InputsAndRanges: TypeAlias = dict[str, dict[str, float]]
 class BaseQLKNNModel(abc.ABC):
   """Base class for QLKNN Models."""
 
-  def __init__(self, version: str):
-    self.version = version
+  def __init__(self, path: str, name: str):
+    self.path = path
+    self.name = name
 
   @property
   @abc.abstractmethod

@@ -51,31 +51,23 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       _ = runtime_params_slice  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    runtime_params = self._torax_config.runtime_params
-    dynamic_slice = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params,
-        torax_mesh=self._torax_mesh,
-    )(
-        t=self._torax_config.numerics.t_initial,
+    dynamic_slice = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            self._torax_config
+        )(
+            t=self._torax_config.numerics.t_initial,
+        )
     )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
 
   def test_static_runtime_params_slice_hash_same_for_same_params(self):
     """Tests that the hash is the same for the same static params."""
-    static_slice1 = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=self._torax_config.profile_conditions,
-        numerics=self._torax_config.numerics,
-        plasma_composition=self._torax_config.plasma_composition,
-        sources=self._torax_config.sources,
-        torax_mesh=self._torax_mesh,
+    static_slice1 = build_runtime_params.build_static_params_from_config(
+        self._torax_config
     )
-    static_slice2 = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=self._torax_config.profile_conditions,
-        numerics=self._torax_config.numerics,
-        plasma_composition=self._torax_config.plasma_composition,
-        sources=self._torax_config.sources,
-        torax_mesh=self._torax_mesh,
+    static_slice2 = build_runtime_params.build_static_params_from_config(
+        self._torax_config
     )
     self.assertEqual(hash(static_slice1), hash(static_slice2))
 
@@ -83,24 +75,16 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       self,
   ):
     """Test that the hash changes when the static params change."""
-    static_slice1 = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=self._torax_config.profile_conditions,
-        numerics=self._torax_config.numerics,
-        plasma_composition=self._torax_config.plasma_composition,
-        sources=self._torax_config.sources,
-        torax_mesh=self._torax_mesh,
+    static_slice1 = build_runtime_params.build_static_params_from_config(
+        self._torax_config
     )
     new_config = copy.deepcopy(self._python_config)
     new_config['runtime_params']['numerics']['ion_heat_eq'] = (
         not self._torax_config.runtime_params.numerics.ion_heat_eq
     )
     new_torax_config = model_config.ToraxConfig.from_dict(new_config)
-    static_slice2 = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=new_torax_config.profile_conditions,
-        numerics=new_torax_config.numerics,
-        plasma_composition=new_torax_config.plasma_composition,
-        sources=new_torax_config.sources,
-        torax_mesh=self._torax_mesh,
+    static_slice2 = build_runtime_params.build_static_params_from_config(
+        new_torax_config
     )
     self.assertNotEqual(hash(static_slice1), hash(static_slice2))
 

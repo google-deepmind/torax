@@ -18,7 +18,6 @@ Abstract base class defining time stepping interface.
 """
 
 import abc
-from typing import Protocol, Union
 
 import jax
 from torax import state as state_module
@@ -26,7 +25,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 
 
-class TimeStepCalculator(Protocol):
+class TimeStepCalculator(abc.ABC):
   """Iterates over time during simulation.
 
   Usage follows this pattern:
@@ -42,12 +41,15 @@ class TimeStepCalculator(Protocol):
       sim_state = <update sim_state with step of size dt>
   """
 
+  def __init__(self, tolerance: float = 1e-7):
+    self.tolerance = tolerance
+
   def not_done(
       self,
-      t: Union[float, jax.Array],
+      t: float | jax.Array,
       t_final: float,
-  ) -> Union[bool, jax.Array]:
-    return t < t_final
+  ) -> bool | jax.Array:
+    return t < (t_final - self.tolerance)
 
   @abc.abstractmethod
   def next_dt(

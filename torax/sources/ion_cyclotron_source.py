@@ -25,6 +25,7 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 import numpy as np
+import pydantic
 from torax import array_typing
 from torax import jax_utils
 from torax import math_utils
@@ -37,6 +38,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # Internal import.
 
@@ -65,6 +67,8 @@ def _get_default_model_path() -> str:
 
 def _from_json(json_file) -> dict[str, Any]:
   """Load the model config and weights from a JSON file."""
+  if not os.path.exists(json_file):
+    raise FileNotFoundError(f'Model file {json_file} does not exist.')
   with open(json_file) as file_:
     model_dict = json.load(file_)
   return model_dict
@@ -477,11 +481,16 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
+  @pydantic.model_validator(mode='after')
+  def _load_toric_nn(self) -> typing_extensions.Self:
+    self._toric_nn = ToricNNWrapper()
+    return self
+
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return functools.partial(
         icrh_model_func,
-        toric_nn=ToricNNWrapper(),
+        toric_nn=self._toric_nn,
     )
 
   def build_dynamic_params(
@@ -489,7 +498,9 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),

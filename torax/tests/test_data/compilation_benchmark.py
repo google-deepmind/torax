@@ -24,7 +24,6 @@ is infeasible.
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'set_pedestal': True,
             'nbar': 0.85,  # initial density (Greenwald fraction units)
             'ne_bound_right': 0.2,
             'neped': 1.0,
@@ -61,6 +60,10 @@ CONFIG = {
         'generic_particle_source': {
             'S_tot': 0.3e22,
         },
+    },
+    'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
     },
     'transport': {
         'transport_model': 'qlknn',

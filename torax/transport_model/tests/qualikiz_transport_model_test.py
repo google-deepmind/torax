@@ -79,14 +79,7 @@ class QualikizTransportModelTest(absltest.TestCase):
         )
     )
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
@@ -116,7 +109,8 @@ class QualikizTransportModelTest(absltest.TestCase):
             geo,
             core_profiles,
             pedestal_model.PedestalModelOutput(
-                rho_norm_ped_top=0.0, Tiped=0.0, Teped=0.0, neped=0.0
+                rho_norm_ped_top=np.inf, Tiped=0.0, Teped=0.0, neped=0.0,
+                rho_norm_ped_top_idx=geo.torax_mesh.nx,
             ),
         )
 

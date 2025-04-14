@@ -174,6 +174,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       dataclasses.replace(
           initial_state,
           core_profiles=core_profiles,
+          sawtooth_crash=bool(data_tree[output.SAWTOOTH_CRASH]),
       ),
       post_processed_outputs,
   )

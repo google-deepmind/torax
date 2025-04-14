@@ -26,7 +26,6 @@ from torax import output
 from torax import simulation_app
 from torax.fvm import cell_variable
 from torax.orchestration import run_simulation
-from torax.tests import test_lib
 from torax.tests.test_lib import paths
 from torax.torax_pydantic import model_config
 
@@ -204,12 +203,12 @@ class SimTestCase(parameterized.TestCase):
       atol = self.atol
 
     torax_config = self._get_torax_config(config_name)
-    history = run_simulation.run_simulation(torax_config)
+    history = run_simulation.run_simulation(torax_config, progress_bar=False)
     ds = history.simulation_output_to_xr()
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     if ref_name is None:
-      ref_name = test_lib.get_data_file(config_name[:-3])
+      ref_name = f'{config_name[:-3]}.nc'
 
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 

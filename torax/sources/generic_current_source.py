@@ -151,7 +151,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         Iext=self.Iext.get_value(t),
         fext=self.fext.get_value(t),
         wext=self.wext.get_value(t),

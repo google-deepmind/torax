@@ -19,13 +19,11 @@ protocol defined here.
 """
 from collections.abc import Mapping
 import dataclasses
-import functools
 from typing import Protocol, Type
 
 import chex
 import numpy as np
 from torax import interpolated_param
-from torax import jax_utils
 from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 import typing_extensions
@@ -218,7 +216,6 @@ class TimeDependentGeometryProvider:
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
-  @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, geometry.Geometry)

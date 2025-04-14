@@ -18,14 +18,14 @@ from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
 from torax.config import build_runtime_params
+from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.physics import formulas
-from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.torax_pydantic import model_config
+from torax.torax_pydantic import torax_pydantic
 
 SMALL_VALUE = 1e-6
 
@@ -73,25 +73,21 @@ class GettersTest(parameterized.TestCase):
   def test_ne_core_profile_setter(self):
     """Tests that setting ne works."""
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=False,
-            ne_bound_right_is_fGW=False,
-            nbar=1,
-            normalize_to_nbar=False,
-        )
+    profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
+        {
+            'ne': {0: {0: 1.5, 1: 1}},
+            'ne_is_fGW': False,
+            'ne_bound_right_is_fGW': False,
+            'nbar': 1,
+            'normalize_to_nbar': False,
+        },
     )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources_pydantic_model.Sources.from_dict({}),
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    numerics = numerics_lib.Numerics.from_dict({})
+    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
+    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     ne = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice.numerics,
-        dynamic_runtime_params_slice.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -118,29 +114,20 @@ class GettersTest(parameterized.TestCase):
       expected_value: float,
   ):
     """Tests that setting ne right boundary works."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=False,
-            ne_bound_right_is_fGW=False,
-            nbar=1,
-            ne_bound_right=ne_bound_right,
-            normalize_to_nbar=normalize_to_nbar,
-        )
-    )
-
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources_pydantic_model.Sources.from_dict({}),
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
+    profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'ne': {0: {0: 1.5, 1: 1}},
+        'ne_is_fGW': False,
+        'ne_bound_right_is_fGW': False,
+        'nbar': 1,
+        'ne_bound_right': ne_bound_right,
+        'normalize_to_nbar': normalize_to_nbar,
+    })
+    numerics = numerics_lib.Numerics.from_dict({})
+    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
+    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     ne = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice.numerics,
-        dynamic_runtime_params_slice.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -155,43 +142,29 @@ class GettersTest(parameterized.TestCase):
   ):
     """Tests that normalizing vs. not by nbar gives consistent results."""
     nbar = 1.0
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=False,
-            nbar=nbar,
-            normalize_to_nbar=True,
-            ne_bound_right=0.5,
-        ),
-    )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources_pydantic_model.Sources.from_dict({}),
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice_normalized = provider(
-        t=1.0,
-    )
+    numerics = numerics_lib.Numerics.from_dict({})
+    profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'ne': {0: {0: 1.5, 1: 1}},
+        'ne_is_fGW': False,
+        'nbar': nbar,
+        'normalize_to_nbar': True,
+        'ne_bound_right': 0.5,
+    })
+    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
+    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
 
     ne_normalized = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice_normalized.numerics,
-        dynamic_runtime_params_slice_normalized.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
 
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
 
-    runtime_params._update_fields(
-        {'profile_conditions.normalize_to_nbar': False}
-    )
-    dynamic_runtime_params_slice_unnormalized = provider(
-        t=1.0,
-    )
-
+    profile_conditions._update_fields({'normalize_to_nbar': False})
     ne_unnormalized = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice_unnormalized.numerics,
-        dynamic_runtime_params_slice_unnormalized.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
 
@@ -208,38 +181,26 @@ class GettersTest(parameterized.TestCase):
       normalize_to_nbar: bool,
   ):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=True,
-            nbar=1,
-            normalize_to_nbar=normalize_to_nbar,
-            ne_bound_right=0.5,
-        ),
-    )
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources_pydantic_model.Sources.from_dict({}),
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice_fGW = provider(
-        t=1.0,
-    )
+    numerics = numerics_lib.Numerics.from_dict({})
+    profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'ne': {0: {0: 1.5, 1: 1}},
+        'ne_is_fGW': True,
+        'nbar': 1,
+        'normalize_to_nbar': normalize_to_nbar,
+        'ne_bound_right': 0.5,
+    })
+    torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
+    torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     ne_fGW = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice_fGW.numerics,
-        dynamic_runtime_params_slice_fGW.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
-
-    runtime_params._update_fields({'profile_conditions.ne_is_fGW': False})
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
+    profile_conditions._update_fields({'ne_is_fGW': False})
 
     ne = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice.numerics,
-        dynamic_runtime_params_slice.profile_conditions,
+        numerics.build_dynamic_params(1.),
+        profile_conditions.build_dynamic_params(1.),
         self.geo,
     )
 
@@ -249,48 +210,50 @@ class GettersTest(parameterized.TestCase):
 
   def test_get_ion_density_and_charge_states(self):
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=False,
-            ne_bound_right_is_fGW=False,
-            nbar=1,
-            normalize_to_nbar=False,
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {
+            'profile_conditions': {
+                'ne': {0: {0: 1.5, 1: 1}},
+                'ne_is_fGW': False,
+                'ne_bound_right_is_fGW': False,
+                'nbar': 1,
+                'normalize_to_nbar': False,
+            },
+        },
+        'sources': {},
+        'stepper': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'transport': {},
+        'pedestal': {},
+    })
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )
     )
-    sources = sources_pydantic_model.Sources.from_dict({})
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=self.geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     dynamic_runtime_params_slice = provider(t=1.0)
+    geo = torax_config.geometry.build_provider(t=1.0)
 
     temp_el = cell_variable.CellVariable(
-        value=jnp.ones_like(self.geo.rho_norm)
+        value=jnp.ones_like(geo.rho_norm)
         * 100.0,  # ensure full ionization
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(100.0, dtype=jax_utils.get_dtype()),
-        dr=self.geo.drho_norm,
+        dr=geo.drho_norm,
     )
     ne = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
-        self.geo,
+        geo,
     )
     ni, nimp, Zi, _, Zimp, _ = getters.get_ion_density_and_charge_states(
         static_slice,
         dynamic_runtime_params_slice,
-        self.geo,
+        geo,
         ne,
         temp_el,
     )

@@ -32,17 +32,6 @@ from torax.transport_model import qlknn_model_wrapper
 from torax.transport_model import qualikiz_based_transport_model
 import typing_extensions
 
-# Environment variable for the QLKNN model. Used if the model path
-# is not set in the config.
-MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
-# If no path is set in either the config or the environment variable, use
-# this path.
-DEFAULT_MODEL_PATH: Final[str] = '~/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn'  # pylint: disable=line-too-long
-
-
-def get_default_model_path() -> str:
-  return os.environ.get(MODEL_PATH_ENV_VAR, DEFAULT_MODEL_PATH)
-
 
 # pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
@@ -58,22 +47,29 @@ class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
 
 _EPSILON_NN: Final[float] = (
     1 / 3
-)  # fixed inverse aspect ratio used to train QLKNN10D
+)  # fixed inverse aspect ratio used to train QLKNN models
 
 
 # Memoize, but evict the old model if a new path is given.
 @functools.lru_cache(maxsize=1)
-def get_model(path: str) -> base_qlknn_model.BaseQLKNNModel:
+def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
   """Load the model."""
   logging.info('Loading model from %s', path)
   try:
-    # New QLKNN models are encapsulated in a single `.qlknn` file.
-    if path.endswith('.qlknn'):
-      return qlknn_model_wrapper.QLKNNModelWrapper(path)
-    return qlknn_10d.QLKNN10D(path)
+    if path:
+      if path.endswith('qlknn_hyper'):
+        return qlknn_10d.QLKNN10D(path, name)
+      else:
+        return qlknn_model_wrapper.QLKNNModelWrapper(path, name)
+    elif name == qlknn_10d.QLKNN10D_NAME:
+      raise ValueError(
+          'To use QLKNN10D, please provide a path to the qlknn-hyper directory.'
+      )
+    return qlknn_model_wrapper.QLKNNModelWrapper(path, name)
   except FileNotFoundError as fnfe:
     raise FileNotFoundError(
-        f'Failed to load model from {path}. Check that the path exists.'
+        f'Failed to load model with path "{path}" and name "{name}". Check that'
+        ' the path exists.'
     ) from fnfe
 
 
@@ -108,7 +104,7 @@ class QLKNNRuntimeConfigInputs:
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
-        set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+        set_pedestal=dynamic_runtime_params_slice.pedestal.set_pedestal,
     )
 
 
@@ -174,15 +170,21 @@ class QLKNNTransportModel(
 
   def __init__(
       self,
-      model_path: str,
+      path: str,
+      name: str,
   ):
     super().__init__()
-    self._model_path = model_path
+    self._path = path
+    self._name = name
     self._frozen = True
 
   @property
-  def model_path(self) -> str:
-    return self._model_path
+  def path(self) -> str:
+    return self._path
+
+  @property
+  def name(self) -> str:
+    return self._name
 
   def _call_implementation(
       self,
@@ -239,7 +241,7 @@ class QLKNNTransportModel(
         geo=geo,
         core_profiles=core_profiles,
     )
-    model = get_model(self._model_path)
+    model = get_model(self.path, self.name)
 
     # To take into account a different aspect ratio compared to the qlknn
     # training set, the qlknn input normalized radius needs to be rescaled by
@@ -296,10 +298,10 @@ class QLKNNTransportModel(
     )
 
   def __hash__(self) -> int:
-    return hash(('QLKNNTransportModel' + self._model_path))
+    return hash(('QLKNNTransportModel' + self.path + self.name))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
     return (
         isinstance(other, QLKNNTransportModel)
-        and self.model_path == other.model_path
+        and self.path == other.path and self.name == other.name
     )

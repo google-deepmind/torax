@@ -21,6 +21,8 @@ tests/persistent_cache
 
 CONFIG = {
     'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
         'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
         'Teped': 1.0,  # electron pedestal top temperature in keV for Ti and Te
         'neped_is_fGW': True,
@@ -54,9 +56,6 @@ CONFIG = {
             'ne_is_fGW': True,
             'nbar': 1,
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-            # internal boundary condition (pedestal)
-            # do not set internal boundary condition if this is False
-            'set_pedestal': True,
         },
         'numerics': {
             # simulation control

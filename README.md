@@ -104,24 +104,6 @@ Activate the virtual env:
 source toraxvenv/bin/activate
 ```
 
-#### Install QLKNN_7_11
-
-```shell
-git clone https://github.com/google-deepmind/fusion_surrogates.git
-pip install -e ./fusion_surrogates
-export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn
-```
-
-We recommend automating the variable export. If using bash, run:
-
-```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
-```
-
-The above command only needs to be run once on a given system.
-
-An alternative to QLKNN_7_11 is [QLKNN-hyper](#optional-install-qlknn-hyper)
-
 #### Install TORAX
 
 Download and install the TORAX codebase via http:
@@ -147,8 +129,7 @@ geometry data directory.
 export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
 ```
 
-As with the QLKNN dependencies, we recommend automating the variable export. If
-using bash, run:
+We recommend automating the variable export. If using bash, run:
 
 ```shell
 echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
@@ -201,12 +182,38 @@ python3 run_simulation_main.py \
 
 #### Set environment variables
 
-Path to the QuaLiKiz-neural-network parameters. Note: if installation
-instructions above were followed, this may already be set.
+##### Transport model
+
+Path to the QuaLiKiz-neural-network parameters.
 
 ```shell
 $ export TORAX_QLKNN_MODEL_PATH="<myqlknnmodelpath>"
 ```
+
+TORAX will use the QLKNN_7_11 transport model by default. It can be overridden
+by specifying a transport model path through the `TORAX_QLKNN_MODEL_PATH`
+environment variable. It is recommended to not set this variable to use the
+default transport model.
+
+You can check if the variable is set by running:
+
+```shell
+echo TORAX_QLKNN_MODEL_PATH
+```
+
+If you need to clear the variable:
+
+```shell
+unset TORAX_QLKNN_MODEL_PATH
+```
+
+If you set this variable in a previous TORAX installation, make sure you do
+not define it in your `~/.bashrc`
+
+An alternative to QLKNN_7_11 is [QLKNN-hyper](#optional-install-qlknn-hyper),
+a legacy QLKNN model.
+
+##### Geometry
 
 Path to the geometry file directory. This prefixes the path and filename
 provided in the `geometry_file` geometry constructor argument in the run
@@ -217,12 +224,16 @@ config file. If not set, `TORAX_GEOMETRY_DIR` defaults to the relative path
 $ export TORAX_GEOMETRY_DIR="<mygeodir>"
 ```
 
+##### Error checking
+
 If true, error checking is enabled in internal routines. Used for debugging.
 Default is false since it is incompatible with the persistent compilation cache.
 
 ```shell
 $ export TORAX_ERRORS_ENABLED=<True/False>
 ```
+
+##### JAX Compilation and Cache
 
 If false, JAX does not compile internal TORAX functions. Used for debugging.
 Default is true.
@@ -304,19 +315,11 @@ Download QLKNN-hyper dependencies:
 git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 ```
 
-Make QLKNN-hyper the default QLKNN model.
+Set the TORAX QLKNN model to QLKNN-hyper:
 
 ```shell
 export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
 ```
-
-It is recommended to automate the environment variable export. For example, if
-using bash, run:
-
-```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
-```
-The above command only needs to be run once on a given system.
 
 ## Simulation tutorials
 

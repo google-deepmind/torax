@@ -44,9 +44,6 @@ CONFIG = {
             'ne_is_fGW': True,
             'nbar': 0.77,  # original simulation goes up to ~0.92
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-            # internal boundary condition (pedestal)
-            # do not set internal boundary condition if this is False
-            'set_pedestal': True,
         },
         'numerics': {
             # simulation control
@@ -135,6 +132,8 @@ CONFIG = {
         },
     },
     'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
         'Tiped': 5,  # ion pedestal top temperature in keV for Ti and Te
         # electron pedestal top temperature in keV for Ti and Te
         'Teped': 5,

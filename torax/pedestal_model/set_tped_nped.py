@@ -51,9 +51,8 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
-    assert isinstance(
-        dynamic_runtime_params_slice.pedestal, DynamicRuntimeParams
-    )
+    pedestal_params = dynamic_runtime_params_slice.pedestal
+    assert isinstance(pedestal_params, DynamicRuntimeParams)
     nGW = (
         dynamic_runtime_params_slice.profile_conditions.Ip_tot
         / (jnp.pi * geo.Rmin**2)
@@ -62,15 +61,17 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
     )
     # Calculate neped in reference units.
     neped_ref = jnp.where(
-        dynamic_runtime_params_slice.pedestal.neped_is_fGW,
-        dynamic_runtime_params_slice.pedestal.neped * nGW,
-        dynamic_runtime_params_slice.pedestal.neped,
+        pedestal_params.neped_is_fGW,
+        pedestal_params.neped * nGW,
+        pedestal_params.neped,
     )
     return pedestal_model.PedestalModelOutput(
         neped=neped_ref,
-        Tiped=dynamic_runtime_params_slice.pedestal.Tiped,
-        Teped=dynamic_runtime_params_slice.pedestal.Teped,
-        rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
+        Tiped=pedestal_params.Tiped,
+        Teped=pedestal_params.Teped,
+        rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
+        rho_norm_ped_top_idx=jnp.abs(
+            geo.rho_norm - pedestal_params.rho_norm_ped_top).argmin(),
     )
 
   def __hash__(self) -> int:

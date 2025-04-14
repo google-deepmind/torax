@@ -20,7 +20,6 @@ Constant transport coefficient model. Pedestal
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'set_pedestal': True,
             'nbar': 0.85,  # initial density (in Greenwald fraction units)
             'ne_bound_right': 0.5,
             'nu': 0,
@@ -43,7 +42,9 @@ CONFIG = {
         'j_bootstrap': {},
         'generic_current_source': {},
     },
-    'pedestal': {},
+    'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True},
     'transport': {
         'transport_model': 'constant',
         # constant params.

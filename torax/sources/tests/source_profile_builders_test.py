@@ -130,7 +130,7 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=jnp.ones(self.geo.rho.shape)
+                prescribed_values=(jnp.ones(self.geo.rho.shape),)
             )
         },
     )
@@ -191,7 +191,8 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=jnp.ones(self.geo.rho.shape)
+                prescribed_values=(jnp.ones(self.geo.rho.shape),
+                                   jnp.ones(self.geo.rho.shape))
             )
         },
     )
@@ -279,7 +280,7 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=jnp.ones(self.geo.rho.shape)
+                prescribed_values=(jnp.ones(self.geo.rho.shape),)
             )
         },
     )

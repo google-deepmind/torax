@@ -60,6 +60,8 @@ CONFIG = {
         'generic_current_source': {},
     },
     'pedestal': {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
         'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
         'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
     },

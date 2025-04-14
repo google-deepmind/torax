@@ -18,6 +18,7 @@ import contextlib
 import functools
 import os
 from typing import Any, Callable, Optional, TypeVar
+
 import chex
 import equinox as eqx
 import jax
@@ -255,6 +256,31 @@ def py_cond(
     return true_fun()
   else:
     return false_fun()
+
+
+def get_number_of_compiles(
+    jitted_function: Callable[..., Any],
+) -> int:
+  """Helper function for debugging JAX compilation.
+
+  This counts the number of times the function has been JIT compiled. This does
+  not include any uses of the AOT compile workflow.
+
+  Args:
+    jitted_function: A function that has been wrapped with `jax.jit`.
+  Returns:
+    The number of times the function has been compiled.
+  Raises:
+    RuntimeError: If the function does not have a _cache_size attribute.
+  """
+  # pylint: disable=protected-access
+  if not hasattr(jitted_function, '_cache_size'):
+    raise RuntimeError(
+        'The function does not have a _cache_size attribute. Possibly because'
+        ' the function was not jitted.'
+    )
+  return jitted_function._cache_size()
+  # pylint: enable=protected-access
 
 
 # pylint: enable=g-bare-generic
