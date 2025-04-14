@@ -156,7 +156,15 @@ class SimulationStepFn:
 
     # Check for sawtooth model and see if sawtooth should trigger.
     # Triggered sawtooth will trigger a redistribution step with early return.
-    if self.mhd_models.sawtooth is not None:
+    # Consecutive sawtooth crashes are not allowed since standard PDE steps
+    # may then not take place.
+    # If sawtooth_crash is True, then a normal PDE step will be carried
+    # out. where a ToraxSimState will be returned with the default
+    # sawtooth_crash value of False.
+    if (
+        (self.mhd_models.sawtooth is not None)
+        and (not input_state.sawtooth_crash)
+    ):
       sawtooth_triggered, output_state, post_processed_outputs = (
           self.mhd_models.sawtooth(
               static_runtime_params_slice,
@@ -164,6 +172,10 @@ class SimulationStepFn:
               input_state,
               previous_post_processed_outputs,
           )
+      )
+      output_state = dataclasses.replace(
+          output_state,
+          sawtooth_crash=sawtooth_triggered,
       )
       if sawtooth_triggered:
         return (

@@ -98,7 +98,7 @@ class SawtoothModel:
       input_state: state.ToraxSimState,
       input_post_processed_outputs: state.PostProcessedOutputs,
   ) -> tuple[
-      array_typing.ScalarBool, state.PostProcessedOutputs, state.ToraxSimState
+      array_typing.ScalarBool, state.ToraxSimState, state.PostProcessedOutputs
   ]:
     """Applies the sawtooth model and outputs a new state if triggered.
 
@@ -127,7 +127,7 @@ class SawtoothModel:
         input_state.core_profiles,
     )
 
-    def _true_fun_updated_core_profiles() -> state.CoreProfiles:
+    def _redistribute_core_profiles() -> state.CoreProfiles:
       return self.redistribution_model(
           rho_norm_q1,
           static_runtime_params_slice,
@@ -138,7 +138,7 @@ class SawtoothModel:
 
     new_core_profiles = jax.lax.cond(
         trigger_sawtooth,
-        _true_fun_updated_core_profiles,
+        _redistribute_core_profiles,
         lambda: input_state.core_profiles,
     )
 
