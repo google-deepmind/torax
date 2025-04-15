@@ -15,6 +15,7 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import numpy as np
 from torax import output
 from torax.config import build_runtime_params
@@ -59,7 +60,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
     self.assertNotEqual(post_processed.E_cumulative_fusion, 0.0)
     self.assertNotEqual(post_processed.E_cumulative_external, 0.0)
 
-    self.assertNotEqual(result.core_profiles, non_restart.core_profiles)
+    with self.assertRaises(AssertionError):
+      chex.assert_trees_all_equal(result, non_restart)
     self.assertNotEqual(result.t, non_restart.t)
     assert torax_config.restart is not None
     self.assertEqual(result.t, torax_config.restart.time)

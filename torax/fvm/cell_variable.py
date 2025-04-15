@@ -36,8 +36,6 @@ def _zero() -> array_typing.ScalarFloat:
 class CellVariable:
   """A variable representing values of the cells along the radius.
 
-  CellVariables are hashable by id, and compare equal only to themselves.
-
   Attributes:
     value: A jax.Array containing the value of this variable at each cell.
     dr: Distance between cell centers.
@@ -238,12 +236,6 @@ class CellVariable:
           'do not work in history mode.'
       )
       raise AssertionError(msg)
-
-  def __hash__(self):
-    return id(self)
-
-  def __eq__(self, other):
-    return self is other
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
