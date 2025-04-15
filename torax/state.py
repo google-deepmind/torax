@@ -196,19 +196,6 @@ class CoreProfiles:
       if hasattr(value, "sanity_check"):
         value.sanity_check()
 
-  def __hash__(self):
-    """Make CoreProfiles hashable.
-
-    Be careful, if a CoreProfiles gets garbage collected a different
-    CoreProfiles could have the same hash later, so it's important to always
-    store the CoreProfiles (to prevent it from being garbage collected) not just
-    its hash.
-
-    Returns:
-      hash: The hash, in this case, just the `id`, of the CoreProfiles.
-    """
-    return id(self)
-
   def __str__(self) -> str:
     return f"""
       CoreProfiles(

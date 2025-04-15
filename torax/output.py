@@ -219,8 +219,6 @@ class StateHistory:
     # The rho grid does not change in time so we can just take the first one.
     self.rho_norm = state_history[0].geometry.rho_norm
     self.rho_face_norm = state_history[0].geometry.rho_face_norm
-    self.rho_face = state_history[0].geometry.rho_face
-    self.rho = state_history[0].geometry.rho
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_error
     self.source_models = source_models
