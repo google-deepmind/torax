@@ -23,6 +23,7 @@ from torax import constants
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.physics import collisions
 from torax.sources import base
@@ -76,7 +77,7 @@ def calc_fusion(
         product *= fraction
     DT_fraction_product = product  # pylint: disable=invalid-name
 
-  t_face = core_profiles.temp_ion.face_value()
+  t_face = cell_variable.face_value(core_profiles.temp_ion)
 
   # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
   # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
@@ -112,7 +113,7 @@ def calc_fusion(
 
   logPfus = (
       jnp.log(DT_fraction_product * Efus)
-      + 2 * jnp.log(core_profiles.ni.face_value())
+      + 2 * jnp.log(cell_variable.face_value(core_profiles.ni))
       + logsigmav
       + 2 * jnp.log(dynamic_runtime_params_slice.numerics.nref)
   )

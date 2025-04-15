@@ -476,7 +476,7 @@ def _update_vloop_lcfs_from_psi(
   Returns:
     The updated vloop_lcfs for the next timestep.
   """
-  psi_lcfs_t = psi_t.face_value()[-1]
-  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
+  psi_lcfs_t = cell_variable.face_value(psi_t)[-1]
+  psi_lcfs_t_plus_dt = cell_variable.face_value(psi_t_plus_dt)[-1]
   vloop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
   return vloop_lcfs_t_plus_dt

@@ -27,6 +27,7 @@ from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -288,7 +289,9 @@ def cyclotron_radiation_albajar(
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
 
-  ne20_face = core_profiles.ne.face_value() * core_profiles.nref / 1e20
+  ne20_face = (
+      cell_variable.face_value(core_profiles.ne) * core_profiles.nref / 1e20
+  )
   ne20_cell = core_profiles.ne.value * core_profiles.nref / 1e20
 
   # Dimensionless optical thickness parameter, on-axis:
@@ -313,7 +316,7 @@ def cyclotron_radiation_albajar(
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
-      te_data=core_profiles.temp_el.face_value(),
+      te_data=cell_variable.face_value(core_profiles.temp_el),
       beta_scan_parameters=beta_scan_parameters,
   )
 
@@ -334,9 +337,14 @@ def cyclotron_radiation_albajar(
       * geo.elongation_face[-1] ** 0.79
       * geo.B0**2.62
       * ne20_face[0] ** 0.38
-      * core_profiles.temp_el.face_value()[0]
-      * (16 + core_profiles.temp_el.face_value()[0]) ** 2.61
-      * (1 + 0.12 * core_profiles.temp_el.face_value()[0] / p_a_0**0.41)
+      * cell_variable.face_value(core_profiles.temp_el)[0]
+      * (16 + cell_variable.face_value(core_profiles.temp_el)[0]) ** 2.61
+      * (
+          1
+          + 0.12
+          * cell_variable.face_value(core_profiles.temp_el)[0]
+          / p_a_0**0.41
+      )
       ** -1.51
       * K
       * G

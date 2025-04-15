@@ -179,8 +179,8 @@ def calc_sauter_model(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * nref
-  true_ni_face = ni.face_value() * nref
+  true_ne_face = cell_variable.face_value(ne) * nref
+  true_ni_face = cell_variable.face_value(ni) * nref
 
   # # local r/R0 on face grid
   epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
@@ -193,17 +193,23 @@ def calc_sauter_model(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Zeff_face)
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_ne_face) + jnp.log(temp_el.face_value() * 1e3)
+      31.3
+      - 0.5 * jnp.log(true_ne_face)
+      + jnp.log(cell_variable.face_value(temp_el) * 1e3)
   )
   lnLami = (
       30
       - 3 * jnp.log(Zi_face)
       - 0.5 * jnp.log(true_ni_face)
-      + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
+      + 1.5 * jnp.log(cell_variable.face_value(temp_ion) * 1e3)
   )
 
   sigsptz = (
-      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff_face / NZ / lnLame
+      1.9012e04
+      * (cell_variable.face_value(temp_el) * 1e3) ** 1.5
+      / Zeff_face
+      / NZ
+      / lnLame
   )
 
   nuestar = (
@@ -214,7 +220,7 @@ def calc_sauter_model(
       * Zeff_face
       * lnLame
       / (
-          ((temp_el.face_value() * 1e3) ** 2)
+          ((cell_variable.face_value(temp_el) * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -226,7 +232,7 @@ def calc_sauter_model(
       * Zeff_face**4
       * lnLami
       / (
-          ((temp_ion.face_value() * 1e3) ** 2)
+          ((cell_variable.face_value(temp_ion) * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -315,14 +321,18 @@ def calc_sauter_model(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B0
 
-  pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19
-  pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19
+  pe = true_ne_face * (cell_variable.face_value(temp_el)) * 1e3 * 1.6e-19
+  pi = true_ni_face * (cell_variable.face_value(temp_ion)) * 1e3 * 1.6e-19
 
-  dpsi_drnorm = psi.face_grad()
-  dlnne_drnorm = ne.face_grad() / ne.face_value()
-  dlnni_drnorm = ni.face_grad() / ni.face_value()
-  dlnte_drnorm = temp_el.face_grad() / temp_el.face_value()
-  dlnti_drnorm = temp_ion.face_grad() / temp_ion.face_value()
+  dpsi_drnorm = cell_variable.face_grad(psi)
+  dlnne_drnorm = cell_variable.face_grad(ne) / cell_variable.face_value(ne)
+  dlnni_drnorm = cell_variable.face_grad(ni) / cell_variable.face_value(ni)
+  dlnte_drnorm = cell_variable.face_grad(temp_el) / cell_variable.face_value(
+      temp_el
+  )
+  dlnti_drnorm = cell_variable.face_grad(temp_ion) / cell_variable.face_value(
+      temp_ion
+  )
 
   global_coeff = prefactor[1:] / dpsi_drnorm[1:]
   global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])

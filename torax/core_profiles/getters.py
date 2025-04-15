@@ -237,7 +237,7 @@ def _get_charge_states(
   Zi_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.face_value(),
+      Te=cell_variable.face_value(temp_el),
   )
 
   Zimp = charge_states.get_average_charge_state(
@@ -248,7 +248,7 @@ def _get_charge_states(
   Zimp_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.face_value(),
+      Te=cell_variable.face_value(temp_el),
   )
 
   return Zi, Zi_face, Zimp, Zimp_face

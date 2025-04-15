@@ -61,7 +61,7 @@ class CellVariableTest(absltest.TestCase):
         dr=jnp.array(0.1),
     )
 
-    grad = var.face_grad()
+    grad = cell_variable.face_grad(var)
     np.testing.assert_array_equal(grad, jnp.array([0., 10., 30., -20., 0.]))
 
   def test_face_grad_unconstrained_with_input(self):
@@ -70,7 +70,7 @@ class CellVariableTest(absltest.TestCase):
         dr=jnp.array(0.1),
     )
 
-    grad = var.face_grad(x=jnp.array([4.0, 1.0, 5.0, 3.0]))
+    grad = cell_variable.face_grad(var, x=jnp.array([4.0, 1.0, 5.0, 3.0]))
     np.testing.assert_array_equal(
         grad, jnp.array([0., 1.0 / -3.0, 3.0 / 4.0, -2.0 / -2.0, 0.]))
 
@@ -81,7 +81,7 @@ class CellVariableTest(absltest.TestCase):
         left_face_grad_constraint=jnp.array(1.0),
         right_face_grad_constraint=jnp.array(2.0),
     )
-    grad = var.face_grad()
+    grad = cell_variable.face_grad(var)
     np.testing.assert_array_equal(grad, jnp.array([1.0, 10., 30., -20., 2.0]))
 
   def test_face_grad_value_constraint(self):
@@ -94,7 +94,7 @@ class CellVariableTest(absltest.TestCase):
         right_face_constraint=jnp.array(5.0),
         right_face_grad_constraint=None,
     )
-    grad = var.face_grad()
+    grad = cell_variable.face_grad(var)
     left_grad = -1 / (0.5 * dr)
     right_grad = 2 / (0.5 * dr)
     np.testing.assert_array_equal(
@@ -106,7 +106,7 @@ class CellVariableTest(absltest.TestCase):
         value=jnp.array([1.0, 2.0, 5.0, 3.0]),
         dr=jnp.array(0.1),
     )
-    value = var.face_value()
+    value = cell_variable.face_value(var)
     np.testing.assert_array_equal(value, jnp.array([1.0, 1.5, 3.5, 4.0, 3.0]))
 
   def test_face_value_value_constrained(self):
@@ -118,7 +118,7 @@ class CellVariableTest(absltest.TestCase):
         right_face_constraint=jnp.array(5.0),
         right_face_grad_constraint=None,
     )
-    value = var.face_value()
+    value = cell_variable.face_value(var)
     np.testing.assert_array_equal(value, jnp.array([2.0, 1.5, 3.5, 4.0, 5.0]))
 
   def test_grad_unconstrained(self):
@@ -126,7 +126,7 @@ class CellVariableTest(absltest.TestCase):
         value=jnp.array([1.0, 2.0, 5.0, 3.0]),
         dr=jnp.array(0.1),
     )
-    grad = var.grad()
+    grad = cell_variable.grad(var)
     np.testing.assert_array_equal(grad, jnp.array([5., 20., 5., -10.]))
 
 if __name__ == '__main__':

@@ -136,10 +136,12 @@ def _calculate_pereverzev_flux(
 
   consts = constants.CONSTANTS
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+      cell_variable.face_value(core_profiles.ne)
+      * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+      cell_variable.face_value(core_profiles.ni)
+      * dynamic_runtime_params_slice.numerics.nref
   )
 
   geo_factor = jnp.concatenate(
@@ -162,8 +164,8 @@ def _calculate_pereverzev_flux(
 
   d_face_per_el = dynamic_runtime_params_slice.stepper.d_per
   v_face_per_el = (
-      core_profiles.ne.face_grad()
-      / core_profiles.ne.face_value()
+      cell_variable.face_grad(core_profiles.ne)
+      / cell_variable.face_value(core_profiles.ne)
       * d_face_per_el
       * geo_factor
   )
@@ -183,13 +185,13 @@ def _calculate_pereverzev_flux(
 
   # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
   v_heat_face_ion = (
-      core_profiles.temp_ion.face_grad()
-      / core_profiles.temp_ion.face_value()
+      cell_variable.face_grad(core_profiles.temp_ion)
+      / cell_variable.face_value(core_profiles.temp_ion)
       * chi_face_per_ion
   )
   v_heat_face_el = (
-      core_profiles.temp_el.face_grad()
-      / core_profiles.temp_el.face_value()
+      cell_variable.face_grad(core_profiles.temp_el)
+      / cell_variable.face_value(core_profiles.temp_el)
       * chi_face_per_el
   )
 
@@ -380,10 +382,12 @@ def _calc_coeffs_full(
   true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
 
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+      cell_variable.face_value(core_profiles.ne)
+      * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+      cell_variable.face_value(core_profiles.ni)
+      * dynamic_runtime_params_slice.numerics.nref
   )
 
   # Transient term coefficient vector (has radial dependence through r, n)

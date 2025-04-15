@@ -32,6 +32,7 @@ from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import pydantic_model_base
@@ -308,7 +309,9 @@ def _extract_qualikiz_plan(
   Zi1 = core_profiles.Zimp_face
 
   # Calculate main ion dilution
-  ni0 = core_profiles.ni.face_value() / core_profiles.ne.face_value()
+  ni0 = cell_variable.face_value(core_profiles.ni) / cell_variable.face_value(
+      core_profiles.ne
+  )
 
   ion0 = qualikiz_inputtools.Ion(
       T=8,  # will be scan variable
@@ -354,22 +357,22 @@ def _extract_qualikiz_plan(
       'q': np.array(qualikiz_inputs.q),
       'smag': np.array(qualikiz_inputs.smag),
       'alpha': np.array(qualikiz_inputs.alpha),
-      'Te': np.array(core_profiles.temp_el.face_value()),
+      'Te': np.array(cell_variable.face_value(core_profiles.temp_el)),
       'ne': (
           np.array(
-              core_profiles.ne.face_value()
+              cell_variable.face_value(core_profiles.ne)
               * dynamic_runtime_params_slice.numerics.nref
           )
           / 1e19
       ),
       'Ate': np.array(qualikiz_inputs.Ate),
       'Ane': np.array(qualikiz_inputs.Ane),
-      'Ti0': np.array(core_profiles.temp_ion.face_value()),
+      'Ti0': np.array(cell_variable.face_value(core_profiles.temp_ion)),
       'ni0': np.array(ni0),
       'Ati0': np.array(qualikiz_inputs.Ati),
       'Ani0': np.array(qualikiz_inputs.Ani0),
       'Zi0': np.array(Zi0),
-      'Ti1': np.array(core_profiles.temp_ion.face_value()),
+      'Ti1': np.array(cell_variable.face_value(core_profiles.temp_ion)),
       'ni1': np.array(ni1),
       'Ati1': np.array(qualikiz_inputs.Ati),
       'Ani1': np.array(qualikiz_inputs.Ani1),

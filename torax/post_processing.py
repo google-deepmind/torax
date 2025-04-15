@@ -21,6 +21,7 @@ from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.physics import formulas
 from torax.physics import psi_calculations
@@ -206,7 +207,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
   # Calculate normalized poloidal flux.
-  psi_face = sim_state.core_profiles.psi.face_value()
+  psi_face = cell_variable.face_value(sim_state.core_profiles.psi)
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
@@ -350,7 +351,7 @@ def make_post_processed_outputs(
       H20=H20,
       FFprime_face=FFprime_face,
       psi_norm_face=psi_norm_face,
-      psi_face=sim_state.core_profiles.psi.face_value(),
+      psi_face=cell_variable.face_value(sim_state.core_profiles.psi),
       **integrated_sources,
       Q_fusion=Q_fusion,
       P_LH=P_LH,

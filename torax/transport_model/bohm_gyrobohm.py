@@ -19,6 +19,7 @@ from torax import array_typing
 from torax import constants as constants_module
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -83,11 +84,11 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     )
 
     true_ne_face = (
-        core_profiles.ne.face_value()
+        cell_variable.face_value(core_profiles.ne)
         * dynamic_runtime_params_slice.numerics.nref
     )
     true_ne_grad_face = (
-        core_profiles.ne.face_grad()
+        cell_variable.face_grad(core_profiles.ne)
         * dynamic_runtime_params_slice.numerics.nref
     )
 
@@ -97,8 +98,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         * core_profiles.q_face**2
         / (constants_module.CONSTANTS.qe * geo.B0 * true_ne_face)
         * (
-            jnp.abs(true_ne_grad_face) * core_profiles.temp_el.face_value()
-            + jnp.abs(core_profiles.temp_el.face_grad()) * true_ne_face
+            jnp.abs(true_ne_grad_face)
+            * cell_variable.face_value(core_profiles.temp_el)
+            + jnp.abs(cell_variable.face_grad(core_profiles.temp_el))
+            * true_ne_face
         )
         * constants_module.CONSTANTS.keV2J
         / geo.rho_b
@@ -113,9 +116,9 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         jnp.sqrt(
             dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A / 2
         )
-        * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3)
+        * jnp.sqrt(cell_variable.face_value(core_profiles.temp_el) * 1e3)
         / geo.B0**2
-        * jnp.abs(core_profiles.temp_el.face_grad() * 1e3)
+        * jnp.abs(cell_variable.face_grad(core_profiles.temp_el) * 1e3)
         / geo.rho_b
     )
 

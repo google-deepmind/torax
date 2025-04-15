@@ -133,67 +133,6 @@ class CellVariable:
             'right_face_grad_constraint must be set.'
         )
 
-  def face_grad(self, x: jax.Array | None = None) -> jax.Array:
-    """Returns the gradient of this value with respect to the faces.
-
-    Implemented using forward differencing of cells. Leftmost and rightmost
-    gradient entries are determined by user specify constraints, see
-    CellVariable class docstring.
-
-    Args:
-      x: (optional) coordinates over which differentiation is carried out
-
-    Returns:
-      A jax.Array of shape (num_faces,) containing the gradient.
-    """
-    self.assert_not_history()
-    if x is None:
-      forward_difference = jnp.diff(self.value) / self.dr
-    else:
-      forward_difference = jnp.diff(self.value) / jnp.diff(x)
-
-    def constrained_grad(
-        face: jax.Array | None,
-        grad: jax.Array | None,
-        cell: jax.Array,
-        right: bool,
-    ) -> jax.Array:
-      """Calculates the constrained gradient entry for an outer face."""
-
-      if face is not None:
-        if grad is not None:
-          raise ValueError(
-              'Cannot constraint both the value and gradient of '
-              'a face variable.'
-          )
-        if x is None:
-          dx = self.dr
-        else:
-          dx = x[-1] - x[-2] if right else x[1] - x[0]
-        sign = -1 if right else 1
-        return sign * (cell - face) / (0.5 * dx)
-      else:
-        if grad is None:
-          raise ValueError('Must specify one of value or gradient.')
-        return grad
-
-    left_grad = constrained_grad(
-        self.left_face_constraint,
-        self.left_face_grad_constraint,
-        self.value[0],
-        right=False,
-    )
-    right_grad = constrained_grad(
-        self.right_face_constraint,
-        self.right_face_grad_constraint,
-        self.value[-1],
-        right=True,
-    )
-
-    left = jnp.expand_dims(left_grad, axis=0)
-    right = jnp.expand_dims(right_grad, axis=0)
-    return jnp.concatenate([left, forward_difference, right])
-
   def face_value(self) -> jax.Array:
     """Calculates values of this variable at faces."""
     self.assert_not_history()
@@ -212,13 +151,6 @@ class CellVariable:
           self.value[..., -1:] + self.right_face_grad_constraint * self.dr / 2
       )
     return jnp.concatenate([left_face, inner, right_face], axis=-1)
-
-  def grad(self) -> jax.Array:
-    """Returns the gradient of this variable wrt cell centers."""
-
-    self.assert_not_history()
-    face = self.face_value()
-    return jnp.diff(face) / self.dr
 
   def history_elem(self) -> typing_extensions.Self:
     """Return a history entry version of this CellVariable."""
@@ -265,3 +197,97 @@ class CellVariable:
       )
     output_string += ')'
     return output_string
+
+
+def face_grad(cell_var: CellVariable, x: jax.Array | None = None) -> jax.Array:
+  """Returns the gradient of this value with respect to the faces.
+
+  Implemented using forward differencing of cells. Leftmost and rightmost
+  gradient entries are determined by user specify constraints, see
+  CellVariable class docstring.
+
+  Args:
+    cell_var: The CellVariable to calculate the gradient of.
+    x: (optional) coordinates over which differentiation is carried out
+
+  Returns:
+    A jax.Array of shape (num_faces,) containing the gradient.
+  """
+  cell_var.assert_not_history()
+  if x is None:
+    forward_difference = jnp.diff(cell_var.value) / cell_var.dr
+  else:
+    forward_difference = jnp.diff(cell_var.value) / jnp.diff(x)
+
+  def constrained_grad(
+      face: jax.Array | None,
+      grad: jax.Array | None,
+      cell: jax.Array,
+      right: bool,
+  ) -> jax.Array:
+    """Calculates the constrained gradient entry for an outer face."""
+
+    if face is not None:
+      if grad is not None:
+        raise ValueError(
+            'Cannot constraint both the value and gradient of a face variable.'
+        )
+      if x is None:
+        dx = cell_var.dr
+      else:
+        dx = x[-1] - x[-2] if right else x[1] - x[0]
+      sign = -1 if right else 1
+      return sign * (cell - face) / (0.5 * dx)
+    else:
+      if grad is None:
+        raise ValueError('Must specify one of value or gradient.')
+      return grad
+
+  left_grad = constrained_grad(
+      cell_var.left_face_constraint,
+      cell_var.left_face_grad_constraint,
+      cell_var.value[0],
+      right=False,
+  )
+  right_grad = constrained_grad(
+      cell_var.right_face_constraint,
+      cell_var.right_face_grad_constraint,
+      cell_var.value[-1],
+      right=True,
+  )
+
+  left = jnp.expand_dims(left_grad, axis=0)
+  right = jnp.expand_dims(right_grad, axis=0)
+  return jnp.concatenate([left, forward_difference, right])
+
+
+def grad(
+    cell_var: CellVariable,
+) -> jax.Array:
+  """Returns the gradient of this variable wrt cell centers."""
+  cell_var.assert_not_history()
+  face = face_value(cell_var)
+  return jnp.diff(face) / cell_var.dr
+
+
+def face_value(
+    cell_var: CellVariable,
+) -> jax.Array:
+  """Calculates values of this variable at faces."""
+  cell_var.assert_not_history()
+  inner = (cell_var.value[..., :-1] + cell_var.value[..., 1:]) / 2.0
+  if cell_var.left_face_constraint is not None:
+    left_face = jnp.array([cell_var.left_face_constraint])
+  else:
+    # When there is no constraint, leftmost face equals
+    # leftmost cell
+    left_face = cell_var.value[..., 0:1]
+  if cell_var.right_face_constraint is not None:
+    right_face = jnp.array([cell_var.right_face_constraint])
+  else:
+    # Maintain right_face consistent with right_face_grad_constraint
+    right_face = (
+        cell_var.value[..., -1:]
+        + cell_var.right_face_grad_constraint * cell_var.dr / 2
+    )
+  return jnp.concatenate([left_face, inner, right_face], axis=-1)
