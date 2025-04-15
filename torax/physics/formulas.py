@@ -32,6 +32,7 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
 from torax import state
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -63,11 +64,11 @@ def calculate_pressure(
     pressure_thermal_ion_face: Ion thermal pressure [Pa]
     pressure_thermal_tot_face: Total thermal pressure [Pa]
   """
-  ne = core_profiles.ne.face_value()
-  ni = core_profiles.ni.face_value()
-  nimp = core_profiles.nimp.face_value()
-  temp_ion = core_profiles.temp_ion.face_value()
-  temp_el = core_profiles.temp_el.face_value()
+  ne = cell_variable.face_value(core_profiles.ne)
+  ni = cell_variable.face_value(core_profiles.ni)
+  nimp = cell_variable.face_value(core_profiles.nimp)
+  temp_ion = cell_variable.face_value(core_profiles.temp_ion)
+  temp_el = cell_variable.face_value(core_profiles.temp_el)
   prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
   pressure_thermal_el_face = ne * temp_el * prefactor
   pressure_thermal_ion_face = (ni + nimp) * temp_ion * prefactor
@@ -98,18 +99,18 @@ def calc_pprime(
   prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
 
   _, _, p_total = calculate_pressure(core_profiles)
-  psi = core_profiles.psi.face_value()
-  ne = core_profiles.ne.face_value()
-  ni = core_profiles.ni.face_value()
-  nimp = core_profiles.nimp.face_value()
-  temp_ion = core_profiles.temp_ion.face_value()
-  temp_el = core_profiles.temp_el.face_value()
-  dne_drhon = core_profiles.ne.face_grad()
-  dni_drhon = core_profiles.ni.face_grad()
-  dnimp_drhon = core_profiles.nimp.face_grad()
-  dti_drhon = core_profiles.temp_ion.face_grad()
-  dte_drhon = core_profiles.temp_el.face_grad()
-  dpsi_drhon = core_profiles.psi.face_grad()
+  psi = cell_variable.face_value(core_profiles.psi)
+  ne = cell_variable.face_value(core_profiles.ne)
+  ni = cell_variable.face_value(core_profiles.ni)
+  nimp = cell_variable.face_value(core_profiles.nimp)
+  temp_ion = cell_variable.face_value(core_profiles.temp_ion)
+  temp_el = cell_variable.face_value(core_profiles.temp_el)
+  dne_drhon = cell_variable.face_grad(core_profiles.ne)
+  dni_drhon = cell_variable.face_grad(core_profiles.ni)
+  dnimp_drhon = cell_variable.face_grad(core_profiles.nimp)
+  dti_drhon = cell_variable.face_grad(core_profiles.temp_ion)
+  dte_drhon = cell_variable.face_grad(core_profiles.temp_el)
+  dpsi_drhon = cell_variable.face_grad(core_profiles.psi)
 
   dptot_drhon = prefactor * (
       ne * dte_drhon

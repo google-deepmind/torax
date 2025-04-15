@@ -28,6 +28,7 @@ from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
+from torax.fvm import cell_variable
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 from torax.physics import psi_calculations
@@ -83,7 +84,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
 
     nref = dynamic_runtime_params_slice_t.numerics.nref
     true_ni = core_profiles_t.ni.value * nref
-    true_ni_face = core_profiles_t.ni.face_value() * nref
+    true_ni_face = cell_variable.face_value(core_profiles_t.ni) * nref
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)

@@ -19,6 +19,7 @@ from torax import array_typing
 from torax import constants as constants_module
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -91,9 +92,9 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     # (typical assumption for transport models developed in circular geo)
     rmid = (geo.Rout - geo.Rin) * 0.5
 
-    temp_ion_face = core_profiles.temp_ion.face_value()
-    temp_ion_face_grad = core_profiles.temp_ion.face_grad(rmid)
-    temp_el_face = core_profiles.temp_el.face_value()
+    temp_ion_face = cell_variable.face_value(core_profiles.temp_ion)
+    temp_ion_face_grad = cell_variable.face_grad(core_profiles.temp_ion, rmid)
+    temp_el_face = cell_variable.face_value(core_profiles.temp_el)
 
     # set critical gradient
     rlti_crit = (

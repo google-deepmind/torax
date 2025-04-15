@@ -34,6 +34,7 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
 from torax import state
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 
 # pylint: disable=invalid-name
@@ -104,13 +105,14 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   lambda_ei_face = _calculate_lambda_ei(
-      core_profiles.temp_el.face_value(), core_profiles.ne.face_value() * nref
+      cell_variable.face_value(core_profiles.temp_el),
+      cell_variable.face_value(core_profiles.ne) * nref,
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.temp_el.face_value(),
-      core_profiles.ne.face_value() * nref,
+      cell_variable.face_value(core_profiles.temp_el),
+      cell_variable.face_value(core_profiles.ne) * nref,
       lambda_ei_face,
   )
 
@@ -126,7 +128,7 @@ def calc_nu_star(
       / (
           epsilon**1.5
           * jnp.sqrt(
-              core_profiles.temp_el.face_value()
+              cell_variable.face_value(core_profiles.temp_el)
               * constants.CONSTANTS.keV2J
               / constants.CONSTANTS.me
           )

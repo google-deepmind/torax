@@ -50,12 +50,13 @@ def calc_q_face(
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
-      (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
+      (2 * geo.Phib * geo.rho_face_norm[1:]) / cell_variable.face_grad(psi)[1:]
   )
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phib * geo.drho_norm) / psi.face_grad()[1]), 0
+      jnp.abs((2 * geo.Phib * geo.drho_norm) / cell_variable.face_grad(psi)[1]),
+      0,
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -82,7 +83,7 @@ def calc_jtot(
 
   # pylint: disable=invalid-name
   Ip_profile_face = (
-      psi.face_grad()
+      cell_variable.face_grad(psi)
       * geo.g2g3_over_rhon_face
       * geo.F_face
       / geo.Phib
@@ -90,7 +91,7 @@ def calc_jtot(
   )
 
   Ip_profile = (
-      psi.grad()
+      cell_variable.grad(psi)
       * geo.g2g3_over_rhon
       * geo.F
       / geo.Phib
@@ -120,12 +121,14 @@ def calc_s_face(
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
+  iota_scaled = jnp.abs(
+      (cell_variable.face_grad(psi)[1:] / geo.rho_face_norm[1:])
+  )
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(cell_variable.face_grad(psi)[1] / geo.drho_norm), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -157,12 +160,14 @@ def calc_s_rmid(
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
+  iota_scaled = jnp.abs(
+      (cell_variable.face_grad(psi)[1:] / geo.rho_face_norm[1:])
+  )
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(cell_variable.face_grad(psi)[1] / geo.drho_norm), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -192,7 +197,7 @@ def _calc_bpol2(
     bpol2_face: Square of poloidal magnetic field, on the face grid.
   """
   bpol2_bulk = (
-      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2
+      (cell_variable.face_grad(psi)[1:] / (2 * jnp.pi)) ** 2
       * geo.g2_face[1:]
       / geo.vpr_face[1:] ** 2
   )

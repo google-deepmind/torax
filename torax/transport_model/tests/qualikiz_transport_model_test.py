@@ -20,6 +20,7 @@ from absl.testing import absltest
 import numpy as np
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
+from torax.fvm import cell_variable
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
@@ -93,7 +94,7 @@ class QualikizTransportModelTest(absltest.TestCase):
     mock_process = mock.Mock()
     mock_process.communicate.return_value = (b'stdout', b'stderr')
     # The first call is expecting a 2D array, the others should be 1D arrays.
-    num_data = core_profiles.ne.face_value().shape[0]
+    num_data = cell_variable.face_value(core_profiles.ne).shape[0]
     fake_qualikiz_results = [
         np.ones((num_data, 2)),
         np.ones(num_data),

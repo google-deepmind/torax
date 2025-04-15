@@ -24,6 +24,7 @@ from jax import numpy as jnp
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -67,9 +68,9 @@ def calc_bremsstrahlung(
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  ne20 = (nref / 1e20) * core_profiles.ne.face_value()
+  ne20 = (nref / 1e20) * cell_variable.face_value(core_profiles.ne)
 
-  Te_kev = core_profiles.temp_el.face_value()
+  Te_kev = cell_variable.face_value(core_profiles.temp_el)
 
   P_brem_profile_face: jax.Array = (
       5.35e-3 * Zeff_face * ne20**2 * jnp.sqrt(Te_kev)

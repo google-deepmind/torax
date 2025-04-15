@@ -131,20 +131,20 @@ def calculate_alpha(
       * q**2
   )
   alpha = factor_0 * (
-      core_profiles.temp_el.face_value()
-      * core_profiles.ne.face_value()
+      cell_variable.face_value(core_profiles.temp_el)
+      * cell_variable.face_value(core_profiles.ne)
       * (
           normalized_logarithmic_gradients.lref_over_lte
           + normalized_logarithmic_gradients.lref_over_lne
       )
-      + core_profiles.ni.face_value()
-      * core_profiles.temp_ion.face_value()
+      + cell_variable.face_value(core_profiles.ni)
+      * cell_variable.face_value(core_profiles.temp_ion)
       * (
           normalized_logarithmic_gradients.lref_over_lti
           + normalized_logarithmic_gradients.lref_over_lni0
       )
-      + core_profiles.nimp.face_value()
-      * core_profiles.temp_ion.face_value()
+      + cell_variable.face_value(core_profiles.nimp)
+      * cell_variable.face_value(core_profiles.temp_ion)
       * (
           normalized_logarithmic_gradients.lref_over_lti
           + normalized_logarithmic_gradients.lref_over_lni1
@@ -171,9 +171,11 @@ def calculate_normalized_logarithmic_gradient(
   # var ~ 0 is only possible for ions (e.g. zero impurity density), and we
   # guard against possible division by zero.
   result = jnp.where(
-      jnp.abs(var.face_value()) < constants_module.CONSTANTS.eps,
+      jnp.abs(cell_variable.face_value(var)) < constants_module.CONSTANTS.eps,
       constants_module.CONSTANTS.eps,
-      -reference_length * var.face_grad(radial_coordinate) / var.face_value(),
+      -reference_length
+      * cell_variable.face_grad(var, radial_coordinate)
+      / cell_variable.face_value(var),
   )
 
   # to avoid divisions by zero elsewhere in TORAX, if the gradient is zero
@@ -224,7 +226,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     # Convert the electron particle flux from GB (pfe) to SI units.
     pfe_SI = (
         pfe
-        * core_profiles.ne.face_value()
+        * cell_variable.face_value(core_profiles.ne)
         * quasilinear_inputs.chiGB
         / gyrobohm_flux_reference_length
     )
@@ -253,11 +255,15 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     def DVeff_approach() -> tuple[jax.Array, jax.Array]:
       # The geo.rho_b is to unnormalize the face_grad.
       Deff = -pfe_SI / (
-          core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
+          cell_variable.face_grad(core_profiles.ne)
+          * geo.g1_over_vpr2_face
+          * geo.rho_b
           + constants.eps
       )
       Veff = pfe_SI / (
-          core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rho_b
+          cell_variable.face_value(core_profiles.ne)
+          * geo.g0_over_vpr_face
+          * geo.rho_b
       )
       Deff_mask = (
           ((pfe >= 0) & (quasilinear_inputs.lref_over_lne >= 0))
@@ -277,7 +283,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       chex.assert_rank(pfe, 1)
       d_face_el = chi_face_el
       v_face_el = (
-          pfe_SI / core_profiles.ne.face_value()
+          pfe_SI / cell_variable.face_value(core_profiles.ne)
           - quasilinear_inputs.lref_over_lne
           * d_face_el
           / gradient_reference_length

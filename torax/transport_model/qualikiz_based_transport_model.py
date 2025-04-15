@@ -17,6 +17,7 @@ import chex
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import state
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.physics import collisions
 from torax.physics import psi_calculations
@@ -94,7 +95,7 @@ class QualikizBasedTransportModel(
     # gyrobohm diffusivity
     # (defined here with Lref=Rmin due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.temp_ion.face_value(),
+        reference_temperature=cell_variable.face_value(core_profiles.temp_ion),
         reference_magnetic_field=geo.B0,
         reference_mass=core_profiles.Ai,
         reference_length=geo.Rmin,
@@ -128,9 +129,9 @@ class QualikizBasedTransportModel(
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
     # Ion to electron temperature ratio
-    Ti_Te = (
-        core_profiles.temp_ion.face_value() / core_profiles.temp_el.face_value()
-    )
+    Ti_Te = cell_variable.face_value(
+        core_profiles.temp_ion
+    ) / cell_variable.face_value(core_profiles.temp_el)
 
     # logarithm of normalized collisionality
     nu_star = collisions.calc_nu_star(
@@ -186,7 +187,9 @@ class QualikizBasedTransportModel(
         alpha - 0.2,
         smag,
     )
-    normni = core_profiles.ni.face_value() / core_profiles.ne.face_value()
+    normni = cell_variable.face_value(
+        core_profiles.ni
+    ) / cell_variable.face_value(core_profiles.ne)
     return QualikizInputs(
         Zeff_face=Zeff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
