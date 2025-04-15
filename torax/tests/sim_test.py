@@ -390,13 +390,9 @@ class SimTest(sim_test_case.SimTestCase):
     """
     profiles = [
         output.TEMP_ION,
-        output.TEMP_ION_RIGHT_BC,
         output.TEMP_EL,
-        output.TEMP_EL_RIGHT_BC,
         output.NE,
         output.NI,
-        output.NE_RIGHT_BC,
-        output.NI_RIGHT_BC,
         output.PSI,
         output.PSIDOT,
         output.IP_PROFILE_FACE,
@@ -404,11 +400,9 @@ class SimTest(sim_test_case.SimTestCase):
         output.Q_FACE,
         output.S_FACE,
         output.J_BOOTSTRAP,
-        output.J_BOOTSTRAP_FACE,
         output.JOHM,
         output.EXTERNAL_CURRENT,
         output.JTOT,
-        output.JTOT_FACE,
         output.I_BOOTSTRAP,
         output.SIGMA,
     ]
@@ -431,13 +425,14 @@ class SimTest(sim_test_case.SimTestCase):
     ):
       # Load in the reference core profiles.
       Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
-      temp_el = ref_profiles[output.TEMP_EL][index, :]
-      temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
-      temp_ion = ref_profiles[output.TEMP_ION][index, :]
-      temp_ion_bc = ref_profiles[output.TEMP_ION_RIGHT_BC][index]
-      ne = ref_profiles[output.NE][index, :]
-      ne_bound_right = ref_profiles[output.NE_RIGHT_BC][index]
-      psi = ref_profiles[output.PSI][index, :]
+      # All profiles are on a grid with [left_face, cell_grid, right_face]
+      temp_el = ref_profiles[output.TEMP_EL][index, 1:-1]
+      temp_el_bc = ref_profiles[output.TEMP_EL][index, -1]
+      temp_ion = ref_profiles[output.TEMP_ION][index, 1:-1]
+      temp_ion_bc = ref_profiles[output.TEMP_ION][index, -1]
+      ne = ref_profiles[output.NE][index, 1:-1]
+      ne_bound_right = ref_profiles[output.NE][index, -1]
+      psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
       dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total

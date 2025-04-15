@@ -197,25 +197,25 @@ def _override_initial_runtime_params_from_file(
   ].to_numpy()[-1]/1e6  # Convert from A to MA.
   dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
       output.TEMP_EL
-  ].to_numpy()
+  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Te_bound_right = ds.data_vars[
-      output.TEMP_EL_RIGHT_BC
-  ].to_numpy()
+      output.TEMP_EL
+  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
       output.TEMP_ION
-  ].to_numpy()
+  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = ds.data_vars[
-      output.TEMP_ION_RIGHT_BC
-  ].to_numpy()
+      output.TEMP_ION
+  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
       output.NE
-  ].to_numpy()
+  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.ne_bound_right = ds.data_vars[
-      output.NE_RIGHT_BC
-  ].to_numpy()
+      output.NE
+  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
       output.PSI
-  ].to_numpy()
+  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not fGW).
   dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False
