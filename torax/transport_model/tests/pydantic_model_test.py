@@ -26,35 +26,33 @@ class PydanticModelTest(parameterized.TestCase):
 
   @parameterized.parameters(
       dict(
-          transport_model_name='qlknn',
+          pydantic_model=transport_pydantic_model.QLKNNTransportModel,
           expected_dynamic_params=qlknn_transport_model.DynamicRuntimeParams,
           expected_transport_model=qlknn_transport_model.QLKNNTransportModel,
       ),
       dict(
-          transport_model_name='constant',
+          pydantic_model=transport_pydantic_model.ConstantTransportModel,
           expected_dynamic_params=constant.DynamicRuntimeParams,
           expected_transport_model=constant.ConstantTransportModel,
       ),
       dict(
-          transport_model_name='CGM',
+          pydantic_model=transport_pydantic_model.CriticalGradientTransportModel,
           expected_dynamic_params=critical_gradient.DynamicRuntimeParams,
           expected_transport_model=critical_gradient.CriticalGradientTransportModel,
       ),
       dict(
-          transport_model_name='bohm-gyrobohm',
+          pydantic_model=transport_pydantic_model.BohmGyroBohmTransportModel,
           expected_dynamic_params=bohm_gyrobohm.DynamicRuntimeParams,
           expected_transport_model=bohm_gyrobohm.BohmGyroBohmTransportModel,
       ),
   )
   def test_build_transport_model(
       self,
-      transport_model_name: str,
+      pydantic_model: type[transport_pydantic_model.TransportConfig],
       expected_dynamic_params: type[runtime_params.DynamicRuntimeParams],
       expected_transport_model: type[transport_model_lib.TransportModel],
   ):
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': transport_model_name}
-    )
+    transport = pydantic_model()
     dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
     self.assertIsInstance(dynamic_runtime_params, expected_dynamic_params)
     transport_model = transport.build_transport_model()
@@ -68,9 +66,7 @@ class PydanticModelTest(parameterized.TestCase):
     except ImportError:
       self.skipTest('Qualikiz transport model is not available.')
 
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'qualikiz'}
-    )
+    transport = qualikiz_transport_model.QualikizTransportModelConfig()
     dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
     self.assertIsInstance(
         dynamic_runtime_params, qualikiz_transport_model.DynamicRuntimeParams
@@ -82,15 +78,12 @@ class PydanticModelTest(parameterized.TestCase):
 
   def test_qlknn_defaults(self):
     """Tests that correct default values are set for QLKNN."""
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'qlknn'}
-    )
-    transport_model_config = transport.transport_model_config
+    transport = transport_pydantic_model.QLKNNTransportModel()
     self.assertIsInstance(
-        transport_model_config, transport_pydantic_model.QLKNNTransportModel
+        transport, transport_pydantic_model.QLKNNTransportModel
     )
-    self.assertEqual(transport_model_config.smoothing_sigma, 0.1)
-    self.assertEqual(transport_model_config.ETG_correction_factor, 1.0 / 3.0)
+    self.assertEqual(transport.smoothing_sigma, 0.1)
+    self.assertEqual(transport.ETG_correction_factor, 1.0 / 3.0)
 
 
 if __name__ == '__main__':

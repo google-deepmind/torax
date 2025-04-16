@@ -257,23 +257,10 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
-    self.assertEqual(
-        config_dict['transport']['transport_model_config']['transport_model'],
-        'constant',
-    )
-    self.assertEqual(
-        config_dict['transport']['transport_model_config']['chii_const'][
-            'value'
-        ][1][0],
-        2.0,
-    )
+    self.assertEqual(config_dict['transport']['transport_model'], 'constant')
+    self.assertEqual(config_dict['transport']['chii_const']['value'][1][0], 2.0)
     # Default values are expected to be set in the saved config
-    self.assertEqual(
-        config_dict['transport']['transport_model_config']['chie_const'][
-            'value'
-        ][1][0],
-        1.0,
-    )
+    self.assertEqual(config_dict['transport']['chie_const']['value'][1][0], 1.0)
 
   def test_config_round_trip(self):
     """Tests that the serialization/deserialization of the config is correct."""

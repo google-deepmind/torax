@@ -68,12 +68,20 @@ class ConfigTest(parameterized.TestCase):
         config_pydantic.time_step_calculator.calculator_type.value,
         config_dict["time_step_calculator"]["calculator_type"],
     )
-    self.assertEqual(
-        config_pydantic.pedestal.pedestal_model,
-        config_dict["pedestal"]["pedestal_model"]
-        if "pedestal_model" in config_dict["pedestal"]
-        else "no_pedestal",
-    )
+    with self.subTest("pedestal_model_set"):
+      self.assertEqual(
+          config_pydantic.pedestal.pedestal_model,
+          config_dict["pedestal"]["pedestal_model"]
+          if "pedestal_model" in config_dict["pedestal"]
+          else "no_pedestal",
+      )
+    with self.subTest("transport_model_set"):
+      self.assertEqual(
+          config_pydantic.transport.transport_model,
+          config_dict["transport"]["transport_model"]
+          if "transport_model" in config_dict["transport"]
+          else "constant",
+      )
     # The full model should always be serializable.
     config_json = config_pydantic.model_dump_json()
     with self.subTest("json_roundtrip"):

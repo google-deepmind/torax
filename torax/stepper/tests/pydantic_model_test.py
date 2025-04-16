@@ -47,9 +47,7 @@ class PydanticModelTest(parameterized.TestCase):
         'stepper_type': stepper_type,
         'theta_imp': 0.5,
     })
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'constant'}
-    )
+    transport = transport_pydantic_model.ConstantTransportModel()
     transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.NoPedestal()
     pedestal_model = pedestal.build_pedestal_model()

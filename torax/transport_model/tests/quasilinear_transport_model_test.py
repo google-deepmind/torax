@@ -33,7 +33,6 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
-from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params
@@ -98,10 +97,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    transport_pydantic_model.Transport.model_fields[
-        'transport_model_config'
-    ].annotation |= QuasilinearTransportConfig
-    transport_pydantic_model.Transport.model_rebuild(force=True)
+    model_config.ToraxConfig.model_fields['transport'].annotation |= (
+        QuasilinearTransportConfig
+    )
     model_config.ToraxConfig.model_rebuild(force=True)
 
   # pylint: disable=invalid-name

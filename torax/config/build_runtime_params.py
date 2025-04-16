@@ -36,7 +36,8 @@ from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import pydantic_model as transport_model_pydantic_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as base_transport_pydantic_model
 import typing_extensions
 
 
@@ -151,7 +152,7 @@ class DynamicRuntimeParamsSliceProvider:
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
       pedestal: pedestal_pydantic_model.BasePedestal | None = None,
-      transport: transport_model_pydantic_model.Transport | None = None,
+      transport: base_transport_pydantic_model.TransportBase | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
       mhd: mhd_pydantic_model.MHD | None = None,
@@ -176,9 +177,7 @@ class DynamicRuntimeParamsSliceProvider:
         will be raised within the constructor of the interpolated variable.
     """
     torax_pydantic.set_grid(runtime_params, torax_mesh, mode='relaxed')
-    transport = transport or transport_model_pydantic_model.Transport.from_dict(
-        {'transport_model': 'qlknn'}
-    )
+    transport = transport or transport_pydantic_model.QLKNNTransportModel()
     sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_pydantic_model.NoPedestal()

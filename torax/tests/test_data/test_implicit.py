@@ -42,9 +42,7 @@ CONFIG = {
         },
     },
     'pedestal': {},
-    'transport': {
-        'transport_model': 'constant',
-    },
+    'transport': {},
     'stepper': {
         'stepper_type': 'linear',
         'predictor_corrector': False,

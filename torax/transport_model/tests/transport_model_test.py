@@ -25,7 +25,6 @@ from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
-from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -36,10 +35,9 @@ class TransportSmoothingTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    transport_pydantic_model.Transport.model_fields[
-        'transport_model_config'
-    ].annotation |= FakeTransportConfig
-    transport_pydantic_model.Transport.model_rebuild(force=True)
+    model_config.ToraxConfig.model_fields['transport'].annotation |= (
+        FakeTransportConfig
+    )
     model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_smoothing(self):

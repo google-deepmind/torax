@@ -61,7 +61,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
   stepper: stepper_pydantic_model.Stepper
-  transport: transport_model_pydantic_model.Transport
+  transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
+      discriminator='transport_model'
+  )
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field(
       discriminator='pedestal_model'
   )
@@ -91,14 +93,16 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     configurable_data = copy.deepcopy(data)
     if 'pedestal_model' not in configurable_data['pedestal']:
       configurable_data['pedestal']['pedestal_model'] = 'no_pedestal'
+    if 'transport_model' not in configurable_data['transport']:
+      configurable_data['transport']['transport_model'] = 'constant'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    using_nonlinear_transport_model = (
-        self.transport.transport_model_config.transport_model
-        in ['qlknn', 'CGM']
-    )
+    using_nonlinear_transport_model = self.transport.transport_model in [
+        'qlknn',
+        'CGM',
+    ]
     using_linear_solver = isinstance(
         self.stepper.stepper_config, stepper_pydantic_model.LinearThetaMethod
     )

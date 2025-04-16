@@ -48,9 +48,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_pydantic_model.Transport(),
-        sources=sources_pydantic_model.Sources.from_dict({}),
-        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -456,9 +453,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'De_inner': 1.0, 'transport_model': 'constant'}
-    )
+    transport = transport_pydantic_model.ConstantTransportModel(De_inner=1.0)
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
@@ -471,9 +466,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     self.assertEqual(dcs.transport.De_inner, 1.0)
 
     # Update something in transport.
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'De_inner': 2.0, 'transport_model': 'constant'}
-    )
+    transport = transport_pydantic_model.ConstantTransportModel(De_inner=2.0)
+
     # Check pre-update that nothing has changed.
     dcs = provider(
         t=0.0,

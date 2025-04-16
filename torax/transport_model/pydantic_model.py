@@ -29,8 +29,6 @@ from torax.transport_model import critical_gradient
 from torax.transport_model import pydantic_model_base
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_transport_model
-from torax.transport_model import runtime_params
-from torax.transport_model import transport_model as transport_model_lib
 
 
 # Environment variable for the QLKNN model. Used if the model path
@@ -324,7 +322,7 @@ try:
   # pylint: disable=g-import-not-at-top
   from torax.transport_model import qualikiz_transport_model
   # pylint: enable=g-import-not-at-top
-  TransportModelConfig = Union[
+  TransportConfig = Union[
       QLKNNTransportModel,
       ConstantTransportModel,
       CriticalGradientTransportModel,
@@ -332,46 +330,9 @@ try:
       qualikiz_transport_model.QualikizTransportModelConfig,
   ]
 except ImportError:
-  TransportModelConfig = Union[
+  TransportConfig = Union[
       QLKNNTransportModel,
       ConstantTransportModel,
       CriticalGradientTransportModel,
       BohmGyroBohmTransportModel,
   ]
-
-
-class Transport(torax_pydantic.BaseModelFrozen):
-  """Config for a transport model.
-
-  The `from_dict` method of constructing this class supports the config
-  described in: https://torax.readthedocs.io/en/latest/configuration.html
-  """
-  # Pytype does not like the conditional import.
-  # pytype: disable=invalid-annotation
-  transport_model_config: TransportModelConfig = pydantic.Field(
-      discriminator='transport_model'
-  )
-  # pytype: enable=invalid-annotation
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    # If we are running with the standard class constructor we don't need to do
-    # any custom validation.
-    if 'transport_model_config' in data:
-      return data
-
-    if 'transport_model' not in data:
-      data['transport_model'] = 'constant'
-
-    return {'transport_model_config': data}
-
-  def build_transport_model(self) -> transport_model_lib.TransportModel:
-    """Builds a transport model from the config."""
-    return self.transport_model_config.build_transport_model()
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    """Builds a dynamic runtime params from the config."""
-    return self.transport_model_config.build_dynamic_params(t)
