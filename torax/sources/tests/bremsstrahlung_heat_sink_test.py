@@ -18,7 +18,6 @@ from absl.testing import parameterized
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
@@ -48,28 +47,12 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   ):
     references = references_getter()
 
-    runtime_params = references.runtime_params
-    geo_provider = references.geometry_provider
-
-    sources = source_pydantic_model.Sources()
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            geo_provider,
-            sources=sources,
-        )
-    )
+    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=references.profile_conditions,
-            numerics=references.numerics,
-            plasma_composition=references.plasma_composition,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )
+        build_runtime_params.build_static_params_from_config(references.config)
     )
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=references.config.sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -21,14 +21,13 @@ from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import generic_current_source
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
 
 
-class InitializationTest(torax_refs.ReferenceValueTest):
+class InitializationTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -38,17 +37,8 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     """Compare `update_psi_from_j` function to a reference implementation."""
     references = torax_refs.circular_references()
 
-    runtime_params = references.runtime_params
     # Turn on the external current source.
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources=source_pydantic_model.Sources.from_dict(
-                {'generic_current_source': {}}
-            ),
-        )
-    )
+    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
     external_current = generic_current_source.calculate_generic_current(
         mock.ANY,
