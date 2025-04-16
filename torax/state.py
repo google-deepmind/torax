@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
-import dataclasses
 import enum
 from typing import Optional
 
@@ -126,37 +125,6 @@ class CoreProfiles:
   Zimp_face: array_typing.ArrayFloat
   Aimp: array_typing.ScalarFloat
   # pylint: enable=invalid-name
-
-  def history_elem(self) -> typing_extensions.Self:
-    """Returns the current CoreProfiles as a history entry.
-
-    Histories are CoreProfiles with all the tree leaves getting an extra
-    dimension due to stacking, e.g. as the output of `jax.lax.scan`.
-    Some CoreProfiles fields such as `cell_variable.CellVariable` cease to
-    function after becoming histories.
-    """
-
-    return dataclasses.replace(
-        self,
-        temp_ion=self.temp_ion.history_elem(),
-        temp_el=self.temp_el.history_elem(),
-        psi=self.psi.history_elem(),
-        psidot=self.psidot.history_elem(),
-        vloop_lcfs=self.vloop_lcfs,
-        ne=self.ne.history_elem(),
-        ni=self.ni.history_elem(),
-        nimp=self.nimp.history_elem(),
-        currents=self.currents,
-        q_face=self.q_face,
-        s_face=self.s_face,
-        nref=self.nref,
-        Zi=self.Zi,
-        Zi_face=self.Zi_face,
-        Ai=self.Ai,
-        Zimp=self.Zimp,
-        Zimp_face=self.Zimp_face,
-        Aimp=self.Aimp,
-    )
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""

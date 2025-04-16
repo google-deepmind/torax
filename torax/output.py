@@ -195,9 +195,7 @@ class StateHistory:
       source_models: source_models_lib.SourceModels,
       torax_config: model_config.ToraxConfig,
   ):
-    core_profiles = [
-        state.core_profiles.history_elem() for state in state_history
-    ]
+    core_profiles = [state.core_profiles for state in state_history]
     core_sources = [state.core_sources for state in state_history]
     transport = [state.core_transport for state in state_history]
     geometries = [state.geometry for state in state_history]

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import dataclasses
-import functools
 from typing import Callable
 
 from absl.testing import absltest
@@ -24,7 +23,6 @@ import numpy as np
 from torax import math_utils
 from torax import state
 from torax.config import build_runtime_params
-from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
@@ -74,67 +72,6 @@ def make_zero_core_profiles(
 
 class StateTest(torax_refs.ReferenceValueTest):
 
-  def setUp(self):
-    super().setUp()
-
-    # Make a State object in history mode, output by scan
-    self.history_length = 2
-    self.sources = sources_pydantic_model.Sources()
-    source_models = source_models_lib.SourceModels(
-        sources=self.sources.source_model_config
-    )
-
-    def make_hist(geo, dynamic_runtime_params_slice, static_slice):
-      initial_counter = jnp.array(0)
-
-      def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
-        core_profiles = initialization.initial_core_profiles(
-            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-            static_runtime_params_slice=static_slice,
-            geo=geo,
-            source_models=source_models,
-        )
-        # Make one variable in the history track the value of the counter
-        value = jnp.ones_like(core_profiles.temp_ion.value) * counter
-        core_profiles = config_args.recursive_replace(
-            core_profiles, temp_ion={'value': value}
-        )
-        return counter + 1, core_profiles.history_elem()
-
-      _, history = jax.lax.scan(
-          scan_f,
-          initial_counter,
-          xs=None,
-          length=self.history_length,
-      )
-      return history
-
-    def make_history(runtime_params, geo_provider):
-      dynamic_runtime_params_slice, geo = (
-          torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-              runtime_params,
-              geo_provider,
-              sources=self.sources,
-          )
-      )
-      static_slice = build_runtime_params.build_static_runtime_params_slice(
-          profile_conditions=runtime_params.profile_conditions,
-          numerics=runtime_params.numerics,
-          plasma_composition=runtime_params.plasma_composition,
-          sources=self.sources,
-          torax_mesh=geo.torax_mesh,
-      )
-      # Bind non-JAX arguments so it can be jitted
-      bound = functools.partial(
-          make_hist,
-          geo,
-          dynamic_runtime_params_slice,
-          static_slice,
-      )
-      return jax.jit(bound)()
-
-    self._make_history = make_history
-
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
@@ -173,26 +110,6 @@ class StateTest(torax_refs.ReferenceValueTest):
         source_models=source_models,
     )
     basic_core_profiles.sanity_check()
-
-  @parameterized.parameters([
-      dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
-      ),
-  ])
-  def test_index(
-      self,
-      references_getter: Callable[[], torax_refs.References],
-  ):
-    """Test State.index."""
-    references = references_getter()
-    history = self._make_history(
-        references.runtime_params, references.geometry_provider
-    )
-
-    for i in range(self.history_length):
-      self.assertEqual(i, history.index(i).temp_ion.value[0])
 
   def test_nan_check(self,):
     t = jnp.array(0.0)

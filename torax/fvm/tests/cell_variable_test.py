@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax.fvm import cell_variable
@@ -127,7 +128,24 @@ class CellVariableTest(absltest.TestCase):
         dr=jnp.array(0.1),
     )
     grad = var.grad()
-    np.testing.assert_array_equal(grad, jnp.array([5., 20., 5., -10.]))
+    np.testing.assert_array_equal(grad, jnp.array([5.0, 20.0, 5.0, -10.0]))
+
+  def test_batched_core_profiles_raises_error_on_invalid_method_call(self):
+    var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
+        dr=jnp.array(0.1),
+    )
+    batched_var: cell_variable.CellVariable = jax.tree_util.tree_map(
+        lambda *ys: np.stack(ys), *[var, var],
+    )
+    print(batched_var)
+    with self.subTest('raises error on face_grad'):
+      with self.assertRaises(AssertionError):
+        batched_var.face_grad()
+    with self.subTest('raises error on face_value'):
+      with self.assertRaises(AssertionError):
+        batched_var.face_value()
+
 
 if __name__ == '__main__':
   absltest.main()

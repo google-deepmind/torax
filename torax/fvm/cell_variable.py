@@ -24,7 +24,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-import typing_extensions
 
 
 def _zero() -> array_typing.ScalarFloat:
@@ -49,14 +48,7 @@ class CellVariable:
       face, see left_face_constraint.
     right_face_grad_constraint: A jax scalar specifying the undetermined value
       of the gradient on the rightmost face variable.
-    history: If not none, this CellVariable is an entry in a history, or a
-      complete history, made by stacking all the leaves of a CellVariable, e.g.
-      as the output of jax.lax.scan. None of the methods of the class work in
-      this case, the instance exists only to show a history of the evolution of
-      the variable over time. This is None or non-None rather than bool so that
-      if statements work even during Jax tracing.
   """
-
   value: jax.Array
   dr: array_typing.ScalarFloat
   left_face_constraint: array_typing.ScalarFloat | None = None
@@ -67,8 +59,6 @@ class CellVariable:
   right_face_grad_constraint: array_typing.ScalarFloat | None = (
       dataclasses.field(default_factory=_zero)
   )
-  history: bool | None = None
-
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
 
@@ -85,10 +75,6 @@ class CellVariable:
     """
     # Automatically check dtypes of all numeric fields
     for name, value in self.items():
-      if name == 'history':
-        # This is allowed to be a jax Array of bools that are all True, so it
-        # shouldn't go through the same check as the other variables.
-        continue
       if isinstance(value, jax.Array):
         if value.dtype != jnp.float64 and jax.config.read('jax_enable_x64'):
           raise TypeError(
@@ -98,38 +84,44 @@ class CellVariable:
           raise TypeError(
               f'Expected dtype float32, got dtype {value.dtype} for `{name}`'
           )
-    if self.history is None:
-      # jax compilation seems to need to make a dummy version of this class with
-      # (,) passed in for the value, so unfortunately we can't include this
-      # assert.
-      # chex.assert_rank(self.value, 1)
-      chex.assert_rank(self.dr, 0)
-      left_and = (
-          self.left_face_constraint is not None
-          and self.left_face_grad_constraint is not None
+    left_and = (
+        self.left_face_constraint is not None
+        and self.left_face_grad_constraint is not None
+    )
+    left_or = (
+        self.left_face_constraint is not None
+        or self.left_face_grad_constraint is not None
+    )
+    if left_and or not left_or:
+      raise ValueError(
+          'Exactly one of left_face_constraint and '
+          'left_face_grad_constraint must be set.'
       )
-      left_or = (
-          self.left_face_constraint is not None
-          or self.left_face_grad_constraint is not None
+    right_and = (
+        self.right_face_constraint is not None
+        and self.right_face_grad_constraint is not None
+    )
+    right_or = (
+        self.right_face_constraint is not None
+        or self.right_face_grad_constraint is not None
+    )
+    if right_and or not right_or:
+      raise ValueError(
+          'Exactly one of right_face_constraint and '
+          'right_face_grad_constraint must be set.'
       )
-      if left_and or not left_or:
-        raise ValueError(
-            'Exactly one of left_face_constraint and '
-            'left_face_grad_constraint must be set.'
-        )
-      right_and = (
-          self.right_face_constraint is not None
-          and self.right_face_grad_constraint is not None
+
+  def _assert_unbatched(self):
+    if len(self.value.shape) != 1:
+      raise AssertionError(
+          'CellVariable must be unbatched, but has `value` shape '
+          f'{self.value.shape}. Consider using vmap to batch the function call.'
       )
-      right_or = (
-          self.right_face_constraint is not None
-          or self.right_face_grad_constraint is not None
+    if self.dr.shape:
+      raise AssertionError(
+          'CellVariable must be unbatched, but has `dr` shape '
+          f'{self.dr.shape}. Consider using vmap to batch the function call.'
       )
-      if right_and or not right_or:
-        raise ValueError(
-            'Exactly one of right_face_constraint and '
-            'right_face_grad_constraint must be set.'
-        )
 
   def face_grad(self, x: jax.Array | None = None) -> jax.Array:
     """Returns the gradient of this value with respect to the faces.
@@ -144,7 +136,7 @@ class CellVariable:
     Returns:
       A jax.Array of shape (num_faces,) containing the gradient.
     """
-    self.assert_not_history()
+    self._assert_unbatched()
     if x is None:
       forward_difference = jnp.diff(self.value) / self.dr
     else:
@@ -194,7 +186,7 @@ class CellVariable:
 
   def face_value(self) -> jax.Array:
     """Calculates values of this variable at faces."""
-    self.assert_not_history()
+    self._assert_unbatched()
     inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
     if self.left_face_constraint is not None:
       left_face = jnp.array([self.left_face_constraint])
@@ -213,29 +205,8 @@ class CellVariable:
 
   def grad(self) -> jax.Array:
     """Returns the gradient of this variable wrt cell centers."""
-
-    self.assert_not_history()
     face = self.face_value()
     return jnp.diff(face) / self.dr
-
-  def history_elem(self) -> typing_extensions.Self:
-    """Return a history entry version of this CellVariable."""
-    return dataclasses.replace(self, history=True)
-
-  def assert_not_history(self):
-    """Assert that the CellVariable is not a history."""
-    # We must say "is not None" to avoid concretization error
-    if self.history is not None:
-      msg = (
-          'This CellVariable instance is in "history" '
-          'mode in a context that it was not expected to '
-          'be. History mode is when several CellVariables '
-          'have had their leaf values stacked to form a '
-          'new CellVariable with an extra time axis, such as'
-          'by `jax.lax.scan`. Most methods of a CellVariable '
-          'do not work in history mode.'
-      )
-      raise AssertionError(msg)
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
