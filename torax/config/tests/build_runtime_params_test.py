@@ -110,7 +110,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the pedestal runtime params are time dependent."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
-    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+    pedestal = pedestal_pydantic_model.SetTpedNped.from_dict(
         dict(
             pedestal_model='set_tped_nped',
             Tiped={0.0: 0.0, 1.0: 1.0},

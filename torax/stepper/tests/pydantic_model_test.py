@@ -51,7 +51,7 @@ class PydanticModelTest(parameterized.TestCase):
         {'transport_model': 'constant'}
     )
     transport_model = transport.build_transport_model()
-    pedestal = pedestal_pydantic_model.Pedestal()
+    pedestal = pedestal_pydantic_model.NoPedestal()
     pedestal_model = pedestal.build_pedestal_model()
     sources = source_pydantic_model.Sources.from_dict({})
     source_models = source_models_lib.SourceModels(

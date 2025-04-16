@@ -69,7 +69,7 @@ class ConfigTest(parameterized.TestCase):
         config_dict["time_step_calculator"]["calculator_type"],
     )
     self.assertEqual(
-        config_pydantic.pedestal.pedestal_config.pedestal_model,
+        config_pydantic.pedestal.pedestal_model,
         config_dict["pedestal"]["pedestal_model"]
         if "pedestal_model" in config_dict["pedestal"]
         else "no_pedestal",

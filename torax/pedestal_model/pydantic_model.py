@@ -13,10 +13,9 @@
 # limitations under the License.
 
 """Pydantic config for Pedestal."""
-import copy
-from typing import Any, Literal
+import abc
+from typing import Literal
 import chex
-import pydantic
 from torax.pedestal_model import no_pedestal
 from torax.pedestal_model import pedestal_model
 from torax.pedestal_model import runtime_params
@@ -26,17 +25,27 @@ from torax.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class BasePedestal(torax_pydantic.BaseModelFrozen):
+class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for pedestal models.
 
   Attributes:
-    set_pedestal: Whether to use the pedestal model and set the pedestal. Can
-      be time varying. Note that setting this to True with a NoPedestal model
-      is the equivalent of setting it to False.
+    set_pedestal: Whether to use the pedestal model and set the pedestal. Can be
+      time varying.
   """
+
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
+
+  @abc.abstractmethod
+  def build_pedestal_model(self) -> pedestal_model.PedestalModel:
+    """Builds the pedestal model."""
+
+  @abc.abstractmethod
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.DynamicRuntimeParams:
+    """Builds the dynamic params."""
 
 
 class SetPpedTpedRatioNped(BasePedestal):
@@ -142,6 +151,9 @@ class NoPedestal(BasePedestal):
   both branches of the jax.lax.cond. This provides that value whilst being very
   explicit about the fact that there is no pedestal and simple so minimal
   compilation time.
+
+  Note that setting `set_pedestal` to True with a NoPedestal model is the
+  equivalent of setting it to False.
   """
   pedestal_model: Literal['no_pedestal'] = 'no_pedestal'
 
@@ -157,37 +169,4 @@ class NoPedestal(BasePedestal):
         set_pedestal=self.set_pedestal.get_value(t),
     )
 
-
-class Pedestal(torax_pydantic.BaseModelFrozen):
-  """Config for a pedestal model."""
-
-  pedestal_config: SetPpedTpedRatioNped | SetTpedNped | NoPedestal = (
-      pydantic.Field(
-          discriminator='pedestal_model',
-          default_factory=NoPedestal,
-      )
-  )
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    # If we are running with the standard class constructor we don't need to do
-    # any custom validation.
-    if 'pedestal_config' in data:
-      return data
-
-    pedestal_config = copy.deepcopy(data)
-    if 'pedestal_model' not in data:
-      pedestal_config['pedestal_model'] = 'no_pedestal'
-
-    return {'pedestal_config': pedestal_config}
-
-  def build_pedestal_model(
-      self,
-  ) -> pedestal_model.PedestalModel:
-    return self.pedestal_config.build_pedestal_model()
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    return self.pedestal_config.build_dynamic_params(t)
+PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal

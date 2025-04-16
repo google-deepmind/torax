@@ -150,7 +150,7 @@ class DynamicRuntimeParamsSliceProvider:
   def __init__(
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
-      pedestal: pedestal_pydantic_model.Pedestal | None = None,
+      pedestal: pedestal_pydantic_model.BasePedestal | None = None,
       transport: transport_model_pydantic_model.Transport | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
@@ -181,7 +181,7 @@ class DynamicRuntimeParamsSliceProvider:
     )
     sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
-    pedestal = pedestal or pedestal_pydantic_model.Pedestal()
+    pedestal = pedestal or pedestal_pydantic_model.NoPedestal()
     mhd = mhd or mhd_pydantic_model.MHD()
     torax_pydantic.set_grid(sources, torax_mesh, mode='relaxed')
     self._torax_mesh = torax_mesh
