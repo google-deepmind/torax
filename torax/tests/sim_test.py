@@ -341,7 +341,7 @@ class SimTest(sim_test_case.SimTestCase):
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(
-        history.times[-1], torax_config.runtime_params.numerics.t_final
+        history.times[-1], torax_config.numerics.t_final
     )
 
     for torax_profile in _ALL_PROFILES:
