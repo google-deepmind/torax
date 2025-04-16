@@ -18,17 +18,16 @@ These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
 import copy
+import importlib
 from typing import Sequence, Final
 from unittest import mock
 
-from absl.testing import absltest
-from absl.testing import parameterized
-from jax import tree
 import numpy as np
-from torax import output
-from torax import state
-from torax.orchestration import initial_state
-from torax.orchestration import run_simulation
+from absl.testing import absltest, parameterized
+from jax import tree
+
+from torax import output, state
+from torax.orchestration import initial_state, run_simulation
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 
@@ -303,6 +302,21 @@ class SimTest(sim_test_case.SimTestCase):
         ref_name=ref_name,
     )
 
+  @parameterized.parameters([
+      dict(config_name='test_imas.py'),
+      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
+  ])
+  def test_imas(self, config_name):
+    """Integration test comparing to reference output from TORAX."""
+    if importlib.util.find_spec('imaspy') is None:
+      self.skipTest('IMASPy optional dependency')
+    self._test_run_simulation(
+        config_name,
+        _ALL_PROFILES,
+        rtol=0,
+        atol=None,
+    )
+
   def test_fail(self):
     """Test that the integration tests can actually fail."""
 
@@ -549,7 +563,6 @@ class SimTest(sim_test_case.SimTestCase):
         state_history.times[-1],
         torax_config.runtime_params.numerics.t_final,
     )
-
 
 def verify_core_profiles(ref_profiles, index, core_profiles):
   """Verify core profiles matches a reference at given index."""
