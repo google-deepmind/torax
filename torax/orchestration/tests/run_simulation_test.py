@@ -81,7 +81,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
   @parameterized.named_parameters(
-      ('static geometry', 'test_iterhybrid_rampup.py'),
+      ('static_geometry_QLKNN', 'test_iterhybrid_rampup.py'),
   )
   def test_no_compile_for_second_run(self, config_name: str):
     # Access the jax logger and set its level to DEBUG.
@@ -102,10 +102,13 @@ class RunSimulationTest(sim_test_case.SimTestCase):
       torax_config = self._get_torax_config(config_name)
       run_simulation.run_simulation(torax_config)
       # Check that the same messages are not present in the second run.
-      self.assertFalse(any('Finished tracing' in line for line in l.output))
-      self.assertFalse(any('Compiling f' in line for line in l.output))
       self.assertFalse(
-          any('Finished XLA compilation' in line for line in l.output)
+          any('Finished tracing' in line for line in l.output), msg=l
+      )
+      self.assertFalse(any('Compiling f' in line for line in l.output), msg=l)
+      self.assertFalse(
+          any('Finished XLA compilation' in line for line in l.output),
+          msg=l,
       )
 
 

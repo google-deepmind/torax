@@ -24,7 +24,6 @@ import flax.linen as nn
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
-import numpy as np
 import pydantic
 from torax import array_typing
 from torax import jax_utils
@@ -218,17 +217,18 @@ class ToricNNWrapper:
   def __init__(self, path: str | None = None):
     if path is None:
       path = _get_default_model_path()
+    self._path = path
     logging.info('Loading ToricNN model from %s', path)
     model_config = _from_json(path)
     self.model_config = model_config
 
     self._params = {}
-    self._power_deposition_network = self._load_network()
-    self._power_deposition_He3_params = self._load_params(_HELIUM3_ID)
-    self._power_deposition_2T_params = self._load_params(
+    self.power_deposition_network = self._load_network()
+    self.power_deposition_He3_params = self._load_params(_HELIUM3_ID)
+    self.power_deposition_2T_params = self._load_params(
         _TRITIUM_SECOND_HARMONIC_ID
     )
-    self._power_deposition_e_params = self._load_params(_ELECTRON_ID)
+    self.power_deposition_e_params = self._load_params(_ELECTRON_ID)
     logging.info('Loaded ToricNN model from %s', path)
 
   def _load_network(self) -> _ToricNN:
@@ -244,54 +244,68 @@ class ToricNNWrapper:
     params = {}
     params['params'] = self.model_config[f'{network_name}']
     for i in range(len(self.model_config['hidden_sizes']) + 1):
-      params['params'][f'Dense_{i}']['kernel'] = np.array(
+      params['params'][f'Dense_{i}']['kernel'] = jnp.array(
           self.model_config[f'{network_name}'][f'Dense_{i}']['kernel']
       )
-      params['params'][f'Dense_{i}']['bias'] = np.array(
+      params['params'][f'Dense_{i}']['bias'] = jnp.array(
           self.model_config[f'{network_name}'][f'Dense_{i}']['bias']
       )
-    params['params']['pca_components'] = np.array(
+    params['params']['pca_components'] = jnp.array(
         self.model_config[f'{network_name}']['pca_components']
     )
-    params['params']['pca_mean'] = np.array(
+    params['params']['pca_mean'] = jnp.array(
         self.model_config[f'{network_name}']['pca_mean']
     )
-    params['params']['scaler_mean'] = np.array(
+    params['params']['scaler_mean'] = jnp.array(
         self.model_config[f'{network_name}']['scaler_mean']
     )
-    params['params']['scaler_scale'] = np.array(
+    params['params']['scaler_scale'] = jnp.array(
         self.model_config[f'{network_name}']['scaler_scale']
     )
     return params
 
-  def predict(self, inputs: ToricNNInputs) -> ToricNNOutputs:
-    """Make a prediction given the inputs."""
-    inputs = jnp.array([
-        inputs.frequency,
-        inputs.volume_average_temperature,
-        inputs.volume_average_density,
-        inputs.minority_concentration,
-        inputs.gap_inner,
-        inputs.gap_outer,
-        inputs.z0,
-        inputs.temperature_peaking_factor,
-        inputs.density_peaking_factor,
-        inputs.B0,
-    ], dtype=jax_utils.get_dtype())
-    outputs_He3 = self._power_deposition_network.apply(
-        self._power_deposition_He3_params, inputs
-    )
-    outputs_2T = self._power_deposition_network.apply(
-        self._power_deposition_2T_params, inputs
-    )
-    outputs_e = self._power_deposition_network.apply(
-        self._power_deposition_e_params, inputs
-    )
-    return ToricNNOutputs(
-        power_deposition_He3=outputs_He3,
-        power_deposition_2T=outputs_2T,
-        power_deposition_e=outputs_e,
-    )
+  def __hash__(self) -> int:
+    return hash(self._path)
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    return isinstance(other, ToricNNWrapper)
+
+
+@functools.partial(jax_utils.jit, static_argnames='toric_nn')
+def _toric_nn_predict(
+    toric_nn: ToricNNWrapper,
+    inputs: ToricNNInputs,
+) -> ToricNNOutputs:
+  """Make a prediction given the inputs."""
+  inputs = jnp.array(
+      [
+          inputs.frequency,
+          inputs.volume_average_temperature,
+          inputs.volume_average_density,
+          inputs.minority_concentration,
+          inputs.gap_inner,
+          inputs.gap_outer,
+          inputs.z0,
+          inputs.temperature_peaking_factor,
+          inputs.density_peaking_factor,
+          inputs.B0,
+      ],
+      dtype=jax_utils.get_dtype(),
+  )
+  outputs_He3 = toric_nn.power_deposition_network.apply(
+      toric_nn.power_deposition_He3_params, inputs
+  )
+  outputs_2T = toric_nn.power_deposition_network.apply(
+      toric_nn.power_deposition_2T_params, inputs
+  )
+  outputs_e = toric_nn.power_deposition_network.apply(
+      toric_nn.power_deposition_e_params, inputs
+  )
+  return ToricNNOutputs(
+      power_deposition_He3=outputs_He3,
+      power_deposition_2T=outputs_2T,
+      power_deposition_e=outputs_e,
+  )
 
 
 @chex.dataclass(frozen=True)
@@ -375,7 +389,7 @@ def icrh_model_func(
       B0=geo.B0,
   )
 
-  toric_nn_outputs = toric_nn.predict(toric_inputs)
+  toric_nn_outputs = _toric_nn_predict(toric_nn, toric_inputs)
   toric_grid = jnp.linspace(0.0, 1.0, _TORIC_GRID_SIZE)
 
   # Ideally total ICRH power should equal one but normalise if not.
@@ -452,6 +466,22 @@ class IonCyclotronSource(source.Source):
     )
 
 
+# Cache the result of this function to avoid re-creating the partial function
+# every time it is called and ensure we hit the same JAX compile cache (as
+# model_func) is part of the key.
+# maxsize=1 is sufficient as the ToricNNWrapper only changes if a new path
+# is provided. This is not expected to happen very often.
+@functools.lru_cache(maxsize=1)
+def _icrh_model_func_with_toric_nn(
+    toric_nn: ToricNNWrapper,
+) -> source.SourceProfileFunction:
+  """Returns a function that computes the ICRH source terms given a ToricNN."""
+  return functools.partial(
+      icrh_model_func,
+      toric_nn=toric_nn,
+  )
+
+
 class IonCyclotronSourceConfig(base.SourceModelBase):
   """Configuration for the IonCyclotronSource.
 
@@ -488,10 +518,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return functools.partial(
-        icrh_model_func,
-        toric_nn=self._toric_nn,
-    )
+    return _icrh_model_func_with_toric_nn(self._toric_nn)
 
   def build_dynamic_params(
       self,

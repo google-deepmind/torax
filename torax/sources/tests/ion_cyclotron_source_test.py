@@ -146,16 +146,18 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     # Load the model and verify the prediction are consistent with the output
     # of the dummy network.
     toric_wrapper = ion_cyclotron_source.ToricNNWrapper(path=_DUMMY_MODEL_PATH)
-    wrapper_output = toric_wrapper.predict(self.dummy_input)
-    np.testing.assert_array_equal(
+    wrapper_output = ion_cyclotron_source._toric_nn_predict(
+        toric_wrapper, self.dummy_input
+    )
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_He3,
         self.dummy_output,
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_2T,
         self.dummy_output,
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         wrapper_output.power_deposition_e,
         self.dummy_output,
     )
