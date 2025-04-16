@@ -24,19 +24,7 @@ from absl.testing import flagsaver
 from absl.testing import parameterized
 import numpy as np
 from torax import output as output_lib
-import torax
-# run_simulation_main.py is in the repo root, which is the parent directory
-# of the actual module
-torax_path, = torax.__path__ # Not sure why this is a length 1 list
-torax_repo_path = os.path.abspath(os.path.join(torax_path, os.pardir))
-# We need to add the repo path to the sys.path or the import will fail.
-# It is not clear why the import fails, because the file should also
-# get picked up due to being in the cwd.
-sys.path.append(torax_repo_path)
-try:
-  import run_simulation_main
-finally:
- del sys.path[-1]
+from torax import run_simulation_main
 from torax import simulation_app
 from torax.tests.test_lib import paths
 import xarray as xr
