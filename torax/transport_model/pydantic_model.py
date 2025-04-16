@@ -109,8 +109,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     model = qlknn_transport_model.get_model(
         path=model_path, name=data.get('model_name', '')
     )
-    # Update name and path from the loaded model.
-    data['model_path'] = model.path
+    # Update name from the loaded model.
     data['model_name'] = model.name
 
     if data['model_name'] == qlknn_10d.QLKNN10D_NAME:
