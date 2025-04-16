@@ -12,14 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to help with testing sources."""
+"""Gets a set of default sources and configurations."""
 from typing import Any
-
-from torax.sources import pydantic_model as source_pydantic_model
 
 
 def get_default_source_config() -> dict[str, Any]:
-  """Returns default sources and configurations."""
+  """Returns default sources and configurations.
+
+  This set of sources and params are used by most of the TORAX test
+  configurations, including ITER-inspired configs, with additional changes to
+  their runtime configurations on top.
+
+  To use, load the dict, update as needed, and then convert to a Sources object:
+  .. code-block:: python
+
+    sources_dict = get_default_source_config()
+    sources_dict = sources_dict['source_model_config']
+    sources_dict['qei_source']['Qei_mult'] = 0.0
+    sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
+    sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+    sources_dict['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+    default_sources = sources_pydantic_model.Sources.from_dict(sources_dict)
+  """
   names = [
       # Current sources (for psi equation)
       'j_bootstrap',
@@ -37,30 +51,3 @@ def get_default_source_config() -> dict[str, Any]:
       'bremsstrahlung_heat_sink',
   ]
   return {name: {} for name in names}
-
-
-def get_default_sources() -> source_pydantic_model.Sources:
-  """Returns default sources and configurations.
-
-  This set of sources and params are used by most of the TORAX test
-  configurations, including ITER-inspired configs, with additional changes to
-  their runtime configurations on top.
-
-  If you plan to use them, please remember to update the default configuration
-  as needed. Here is an example of how to do so:
-
-  .. code-block:: python
-
-    default_sources = get_default_sources()
-    sources_dict = default_sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
-    sources_dict['qei_source']['Qei_mult'] = 0.0
-    sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
-    sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
-    sources_dict['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
-    default_sources = sources_pydantic_model.Sources.from_dict(sources_dict)
-
-  More examples are located in the test config files under
-  `torax/tests/test_data`.
-  """
-  return source_pydantic_model.Sources.from_dict(get_default_source_config())
