@@ -26,6 +26,7 @@ import numpy as np
 from torax import state as state_module
 from torax.orchestration import run_simulation
 from torax.orchestration import step_function
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -46,7 +47,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
     torax_mesh = torax_pydantic.Grid1D(nx=10, dx=0.1)
-    sources = default_sources.get_default_sources()
+    sources = sources_pydantic_model.Sources.from_dict(
+        default_sources.get_default_source_config()
+    )
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
