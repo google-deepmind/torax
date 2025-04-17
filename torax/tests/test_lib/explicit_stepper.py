@@ -173,9 +173,3 @@ class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
         source_models=source_models,
         pedestal_model=pedestal_model,
     )
-
-
-class ExplicitStepperModel(stepper_pydantic_model.Stepper):
-  """Config for a stepper."""
-
-  stepper_config: ExplicitStepperConfig

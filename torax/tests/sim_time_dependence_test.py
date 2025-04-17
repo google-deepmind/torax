@@ -23,7 +23,6 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pydantic
 from torax import sim
 from torax import state
 from torax.config import build_runtime_params
@@ -41,7 +40,6 @@ from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
-from typing_extensions import Annotated
 
 
 class SimWithTimeDependenceTest(parameterized.TestCase):
@@ -53,12 +51,9 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     model_config.ToraxConfig.model_fields['transport'].annotation |= (
         FakeTransportConfig
     )
-
-    stepper_pydantic_model.Stepper.model_fields[
-        'stepper_config'
-    ].annotation |= Annotated[FakeStepperConfig, pydantic.Tag('fake')]
-    stepper_pydantic_model.Stepper.model_rebuild(force=True)
-
+    model_config.ToraxConfig.model_fields[
+        'stepper'
+    ].annotation |= FakeStepperConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(

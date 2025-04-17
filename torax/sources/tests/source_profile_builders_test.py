@@ -29,7 +29,6 @@ from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
-from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 class SourceModelsTest(parameterized.TestCase):
@@ -67,7 +66,6 @@ class SourceModelsTest(parameterized.TestCase):
         geo=self.geo,
         source_models=source_models,
     )
-    stepper_params = stepper_pydantic_model.Stepper()
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             profile_conditions=runtime_params.profile_conditions,
@@ -75,7 +73,6 @@ class SourceModelsTest(parameterized.TestCase):
             plasma_composition=runtime_params.plasma_composition,
             sources=sources,
             torax_mesh=self.geo.torax_mesh,
-            stepper=stepper_params,
         )
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(

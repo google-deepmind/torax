@@ -23,7 +23,6 @@ from unittest import mock
 from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
-import pydantic
 from torax import state as state_module
 from torax.orchestration import run_simulation
 from torax.orchestration import step_function
@@ -31,13 +30,11 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
-from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper as explicit_stepper_lib
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
-from typing_extensions import Annotated
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -91,12 +88,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_source_profiles(self):
     """Tests that the source profiles contain correct data."""
-    stepper_pydantic_model.Stepper.model_fields[
-        'stepper_config'
-    ].annotation |= Annotated[
-        explicit_stepper_lib.ExplicitStepperConfig, pydantic.Tag('explicit')
-    ]
-    stepper_pydantic_model.Stepper.model_rebuild(force=True)
+    model_config.ToraxConfig.model_fields[
+        'stepper'
+    ].annotation |= explicit_stepper_lib.ExplicitStepperConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
     config = {

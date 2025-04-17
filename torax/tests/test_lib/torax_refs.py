@@ -33,7 +33,6 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
 
 # Internal import.
 
@@ -81,7 +80,6 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
       dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params,
           sources=sources,
-          stepper=stepper_pydantic_model.Stepper(),
           torax_mesh=geometry_provider.torax_mesh,
       ),
       geometry_provider=geometry_provider,

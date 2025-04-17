@@ -26,7 +26,6 @@ from torax.sources import generic_current_source
 from torax.sources import generic_particle_source as generic_particle_source_lib
 from torax.sources import pellet_source as pellet_source_lib
 from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_pydantic_model
@@ -221,7 +220,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs_provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         sources=sources,
-        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.

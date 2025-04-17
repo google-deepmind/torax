@@ -62,7 +62,7 @@ def build_static_runtime_params_slice(
     plasma_composition: plasma_composition_lib.PlasmaComposition,
     sources: sources_pydantic_model.Sources,
     torax_mesh: torax_pydantic.Grid1D,
-    stepper: stepper_pydantic_model.Stepper | None = None,
+    stepper: stepper_pydantic_model.StepperConfig | None = None,
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice.
 
@@ -88,7 +88,7 @@ def build_static_runtime_params_slice(
   Returns:
     A runtime_params_slice.StaticRuntimeParamsSlice.
   """
-  stepper = stepper or stepper_pydantic_model.Stepper()
+  stepper = stepper or stepper_pydantic_model.LinearThetaMethod()
   return runtime_params_slice.StaticRuntimeParamsSlice(
       sources={
           source_name: source_config.build_static_params()
@@ -154,7 +154,7 @@ class DynamicRuntimeParamsSliceProvider:
       pedestal: pedestal_pydantic_model.BasePedestal | None = None,
       transport: base_transport_pydantic_model.TransportBase | None = None,
       sources: sources_pydantic_model.Sources | None = None,
-      stepper: stepper_pydantic_model.Stepper | None = None,
+      stepper: stepper_pydantic_model.StepperConfig | None = None,
       mhd: mhd_pydantic_model.MHD | None = None,
       torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
@@ -179,7 +179,7 @@ class DynamicRuntimeParamsSliceProvider:
     torax_pydantic.set_grid(runtime_params, torax_mesh, mode='relaxed')
     transport = transport or transport_pydantic_model.QLKNNTransportModel()
     sources = sources or sources_pydantic_model.Sources()
-    stepper = stepper or stepper_pydantic_model.Stepper()
+    stepper = stepper or stepper_pydantic_model.LinearThetaMethod()
     pedestal = pedestal or pedestal_pydantic_model.NoPedestal()
     mhd = mhd or mhd_pydantic_model.MHD()
     torax_pydantic.set_grid(sources, torax_mesh, mode='relaxed')

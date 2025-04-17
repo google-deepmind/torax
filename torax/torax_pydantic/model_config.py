@@ -46,8 +46,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     pedestal: Config for the pedestal model. If an empty dictionary is passed
       in, the pedestal model will be set to `no_pedestal`.
     sources: Config for the sources.
-    stepper: Config for the stepper.
-    transport: Config for the transport model.
+    stepper: Config for the stepper. If an empty dictionary is passed in, the
+      stepper model will be set to `linear`.
+    transport: Config for the transport model. If an empty dictionary is passed
+      in, the transport model will be set to `constant`.
     mhd: Optional config for mhd models. If None, no MHD models are used.
     time_step_calculator: Optional config for the time step calculator. If not
       provided the default chi time step calculator is used.
@@ -60,7 +62,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   runtime_params: general_runtime_params.GeneralRuntimeParams
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
-  stepper: stepper_pydantic_model.Stepper
+  stepper: stepper_pydantic_model.StepperConfig = pydantic.Field(
+      discriminator='stepper_type'
+  )
   transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
       discriminator='transport_model'
   )
@@ -95,6 +99,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       configurable_data['pedestal']['pedestal_model'] = 'no_pedestal'
     if 'transport_model' not in configurable_data['transport']:
       configurable_data['transport']['transport_model'] = 'constant'
+    if 'stepper_type' not in configurable_data['stepper']:
+      configurable_data['stepper']['stepper_type'] = 'linear'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
@@ -104,19 +110,19 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         'CGM',
     ]
     using_linear_solver = isinstance(
-        self.stepper.stepper_config, stepper_pydantic_model.LinearThetaMethod
+        self.stepper, stepper_pydantic_model.LinearThetaMethod
     )
     initial_guess_mode_is_linear = (
         False  # pylint: disable=g-long-ternary
         if using_linear_solver
-        else self.stepper.stepper_config.initial_guess_mode
+        else self.stepper.initial_guess_mode
         == enums.InitialGuessMode.LINEAR
     )
 
     if (
         using_nonlinear_transport_model
         and (using_linear_solver or initial_guess_mode_is_linear)
-        and not self.stepper.stepper_config.use_pereverzev
+        and not self.stepper.use_pereverzev
     ):
       logging.warning("""
           use_pereverzev=False in a configuration where setting

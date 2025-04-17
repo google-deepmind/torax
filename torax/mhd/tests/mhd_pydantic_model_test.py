@@ -22,7 +22,6 @@ from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.mhd.sawtooth import sawtooth_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.torax_pydantic import model_config
 
@@ -35,7 +34,6 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
     self.runtime_params = general_runtime_params.GeneralRuntimeParams()
     self.sources = default_sources.get_default_sources()
-    self.stepper = stepper_pydantic_model.Stepper()
 
   def test_no_mhd_config(self):
     """Tests the case where the 'mhd' key is entirely absent."""
@@ -54,7 +52,6 @@ class MHDPydanticModelTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=self.runtime_params,
         sources=self.sources,
-        stepper=self.stepper,
         torax_mesh=self.geo.torax_mesh,
         mhd=torax_config.mhd,
     )
@@ -85,7 +82,6 @@ class MHDPydanticModelTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=self.runtime_params,
         sources=self.sources,
-        stepper=self.stepper,
         torax_mesh=self.geo.torax_mesh,
         mhd=torax_config.mhd,
     )
@@ -132,7 +128,6 @@ class MHDPydanticModelTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=self.runtime_params,
         sources=self.sources,
-        stepper=self.stepper,
         torax_mesh=self.geo.torax_mesh,
         mhd=torax_config.mhd,
     )
