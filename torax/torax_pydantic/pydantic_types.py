@@ -76,6 +76,9 @@ NumpyArray1D = Annotated[
 
 
 def _array_is_unit_interval(array: np.ndarray) -> np.ndarray:
+  # Check for strings that can be converted to floats.
+  if array.dtype.kind in {'U', 'S'}:
+    array = array.astype(float)
   if not np.all((array >= 0.0) & (array <= 1.0)):
     raise ValueError(
         f'Some array elements are not in the unit interval: {array}'
