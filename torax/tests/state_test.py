@@ -25,9 +25,9 @@ from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -36,7 +36,39 @@ from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
 
 
-class StateTest(torax_refs.ReferenceValueTest):
+def make_zero_core_profiles(
+    geo: geometry.Geometry,
+) -> state.CoreProfiles:
+  """Returns a dummy CoreProfiles object."""
+  zero_cell_variable = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho),
+      dr=geo.drho_norm,
+      right_face_constraint=jnp.ones(()),
+      right_face_grad_constraint=None,
+  )
+  return state.CoreProfiles(
+      currents=state.Currents.zeros(geo),
+      temp_ion=zero_cell_variable,
+      temp_el=zero_cell_variable,
+      psi=zero_cell_variable,
+      psidot=zero_cell_variable,
+      ne=zero_cell_variable,
+      ni=zero_cell_variable,
+      nimp=zero_cell_variable,
+      q_face=jnp.zeros_like(geo.rho_face),
+      s_face=jnp.zeros_like(geo.rho_face),
+      nref=jnp.array(0.0),
+      vloop_lcfs=jnp.array(0.0),
+      Zi=jnp.zeros_like(geo.rho),
+      Zi_face=jnp.zeros_like(geo.rho_face),
+      Ai=jnp.zeros(()),
+      Zimp=jnp.zeros_like(geo.rho),
+      Zimp_face=jnp.zeros_like(geo.rho_face),
+      Aimp=jnp.zeros(()),
+  )
+
+
+class StateTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -51,24 +83,12 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
-    sources = sources_pydantic_model.Sources()
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=references.config.sources.source_model_config
     )
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            references.runtime_params,
-            references.geometry_provider,
-            sources=sources,
-        )
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=references.profile_conditions,
-        numerics=references.numerics,
-        plasma_composition=references.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
+    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    static_slice = build_runtime_params.build_static_params_from_config(
+        references.config)
     basic_core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -426,7 +446,7 @@ class InitialStatesTest(parameterized.TestCase):
 
     # Calculate bootstrap current for config3 which doesn't zero it out
     source_models = source_models_lib.SourceModels(
-        sources_pydantic_model.Sources.from_dict({}).source_model_config
+        sources=torax_config.sources.source_model_config
     )
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dcs3,

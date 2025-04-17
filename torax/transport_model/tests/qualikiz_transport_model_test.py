@@ -67,13 +67,8 @@ class QualikizTransportModelTest(absltest.TestCase):
         sources=torax_config.sources.source_model_config
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            torax_config.runtime_params,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            pedestal=torax_config.pedestal,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
