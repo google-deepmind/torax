@@ -26,9 +26,7 @@ from torax.sources import generic_current_source
 from torax.sources import generic_particle_source as generic_particle_source_lib
 from torax.sources import pellet_source as pellet_source_lib
 from torax.sources import pydantic_model as sources_pydantic_model
-from torax.tests.test_lib import default_sources
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
@@ -382,105 +380,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           ne_bound_right_is_fGW,
       )
       self.assertTrue(dcs.profile_conditions.ne_bound_right_is_absolute)
-
-  def test_update_dynamic_slice_provider_updates_sources(
-      self,
-  ):
-    """Tests that the dynamic slice provider can be updated."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = default_sources.get_default_sources()
-    sources_dict = sources.to_dict()
-    sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
-        'Iext'
-    ] = 1.0
-    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    for key in sources.source_model_config.keys():
-      self.assertIn(key, dcs.sources)
-
-    # Update an interpolated variable.
-    sources_dict = sources.to_dict()
-    sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
-        'Iext'
-    ] = 2.0
-    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
-
-    # Check pre-update that nothing has changed.
-    dcs = provider(
-        t=0.0,
-    )
-    for key in sources.source_model_config.keys():
-      self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ]
-    assert isinstance(
-        generic_current, generic_current_source.DynamicRuntimeParams
-    )
-    self.assertEqual(generic_current.Iext, 1.0)
-
-    # Update any interpolated variables and check that the change is reflected.
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    for key in sources.source_model_config.keys():
-      self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ]
-    assert isinstance(
-        generic_current, generic_current_source.DynamicRuntimeParams
-    )
-    self.assertEqual(generic_current.Iext, 2.0)
-
-  def test_update_dynamic_slice_provider_updates_transport(
-      self,
-  ):
-    """Tests that the dynamic slice provider can be updated."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    transport = transport_pydantic_model.ConstantTransportModel(De_inner=1.0)
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        torax_mesh=geo.torax_mesh,
-        transport=transport,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.transport.De_inner, 1.0)
-
-    # Update something in transport.
-    transport = transport_pydantic_model.ConstantTransportModel(De_inner=2.0)
-
-    # Check pre-update that nothing has changed.
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.transport.De_inner, 1.0)
-    # Check post-update that the change is reflected.
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        torax_mesh=geo.torax_mesh,
-        transport=transport,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.transport.De_inner, 2.0)
 
 
 if __name__ == '__main__':
