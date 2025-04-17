@@ -14,21 +14,17 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax.config import build_runtime_params
 from torax.config import plasma_composition
-from torax.config import runtime_params as general_runtime_params
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import generic_ion_el_heat_source
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.sources.tests import test_lib
+from torax.torax_pydantic import torax_pydantic
 
 
-class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
-  """Tests impurity_radiation_mavrin_fit implementation of ImpurityRadiationHeatSink."""
+class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
@@ -36,54 +32,29 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
     )
 
-  def test_source_value(self):
-    """Tests that the source value is correct."""
-    # Runtime params
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-
+  def test_correct_dynamic_params_built(self):
     # Source models
     sources = sources_pydantic_model.Sources.from_dict({
-        generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: {},
         impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {
         },
     })
+    # Set the grid to allows the dynamic params to be built without making the
+    # full config.
+    torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4, dx=0.25))
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
+    runtime_params = sources.source_model_config[
+        self._source_name
+    ].build_dynamic_params(t=0.0)
 
     # Extract the source we're testing and check that it's been built correctly
     impurity_radiation_sink = source_models.sources[self._source_name]
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
-    # Geometry, profiles, and dynamic runtime params
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    impurity_radiation_sink_dynamic_runtime_params_slice = (
-        dynamic_runtime_params_slice.sources[self._source_name]
-    )
-
-    heat_source_dynamic_runtime_params_slice = (
-        dynamic_runtime_params_slice.sources[
-            generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME
-        ]
-    )
-
     assert isinstance(
-        impurity_radiation_sink_dynamic_runtime_params_slice,
+        runtime_params,
         impurity_radiation_mavrin_fit.DynamicRuntimeParams,
-    )
-    assert isinstance(
-        heat_source_dynamic_runtime_params_slice,
-        generic_ion_el_heat_source.DynamicRuntimeParams,
     )
 
   # pylint: disable=invalid-name
