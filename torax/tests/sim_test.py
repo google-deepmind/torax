@@ -17,8 +17,9 @@
 These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
+
 import copy
-from typing import Sequence, Final
+from typing import Final, Sequence
 from unittest import mock
 
 from absl.testing import absltest
@@ -29,8 +30,10 @@ from torax import output
 from torax import state
 from torax.orchestration import initial_state
 from torax.orchestration import run_simulation
+from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
+
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     'temp_ion',
@@ -479,12 +482,16 @@ class SimTest(sim_test_case.SimTestCase):
     initial_core_profiles = tree.map(
         lambda x: x[0] if x is not None else None, sim_outputs.core_profiles
     )
-    verify_core_profiles(ref_profiles, index, initial_core_profiles)
+    core_profile_helpers.verify_core_profiles(
+        ref_profiles, index, initial_core_profiles
+    )
 
     final_core_profiles = tree.map(
         lambda x: x[-1] if x is not None else None, sim_outputs.core_profiles
     )
-    verify_core_profiles(ref_profiles, -1, final_core_profiles)
+    core_profile_helpers.verify_core_profiles(
+        ref_profiles, -1, final_core_profiles
+    )
     # pylint: enable=invalid-name
 
   def test_ip_bc_vloop_bc_equivalence(self):
@@ -549,75 +556,6 @@ class SimTest(sim_test_case.SimTestCase):
         state_history.times[-1],
         torax_config.runtime_params.numerics.t_final,
     )
-
-
-def verify_core_profiles(ref_profiles, index, core_profiles):
-  """Verify core profiles matches a reference at given index."""
-  np.testing.assert_allclose(
-      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.NE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ne.right_face_constraint,
-      ref_profiles[output.NE_RIGHT_BC][index],
-  )
-  np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.NI][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ni.right_face_constraint,
-      ref_profiles[output.NI_RIGHT_BC][index],
-  )
-
-  np.testing.assert_allclose(
-      core_profiles.q_face, ref_profiles[output.Q_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.s_face, ref_profiles[output.S_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.nref, ref_profiles[output.NREF][index]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap,
-      ref_profiles[output.J_BOOTSTRAP][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.external_current_source,
-      ref_profiles[output.EXTERNAL_CURRENT][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.I_bootstrap,
-      ref_profiles[output.I_BOOTSTRAP][index],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.Ip_profile_face,
-      ref_profiles[output.IP_PROFILE_FACE][index, :],
-  )
 
 
 if __name__ == '__main__':
