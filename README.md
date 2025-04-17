@@ -84,6 +84,30 @@ pip install --upgrade pip
 pip install virtualenv
 ```
 
+Create and activate a virtual environment
+
+```shell
+python3 -m venv toraxvenv
+source toraxvenv/bin/activate
+```
+
+#### Install from PyPI
+
+The simplest way to use TORAX is to install it via PyPI:
+
+```shell
+pip install torax
+```
+
+You can check that everything runs as it should:
+
+```shell
+run_torax --config='torax.examples.iterhybrid_rampup' --quit
+```
+
+#### Clone the GitHub repository
+If you plan to do development work on TORAX, you can clone the repository.
+
 Create a code directory where you will install the virtual env and other TORAX
 dependencies.
 
@@ -92,19 +116,7 @@ mkdir /path/to/torax_dir && cd "$_"
 ```
 Where `/path/to/torax_dir` should be replaced by a path of your choice.
 
-Create a TORAX virtual env:
-
-```shell
-python3 -m venv toraxvenv
-```
-
-Activate the virtual env:
-
-```shell
-source toraxvenv/bin/activate
-```
-
-#### Install TORAX
+Create a TORAX virtual env (see instructions above).
 
 Download and install the TORAX codebase via http:
 
@@ -122,20 +134,6 @@ Enter the TORAX directory and pip install the dependencies.
 cd torax; pip install -e .
 ```
 
-From within the top level directory where you `pip install` from, also set the
-geometry data directory.
-
-```shell
-export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
-```
-
-We recommend automating the variable export. If using bash, run:
-
-```shell
-echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
-```
-The above command only needs to be run once on a given system.
-
 If you want to install with the dev dependencies (useful for running `pytest`
 and installing `pyink` for lint checking), then run with the `[dev]`:
 
@@ -152,7 +150,7 @@ The following command will run TORAX using the default configuration file
 `examples/basic_config.py`.
 
 ```shell
-python3 run_simulation_main.py --config='torax.examples.basic_config'
+run_torax --config='torax.examples.basic_config'
 ```
 
 Simulation progress is shown by a progress bar in the terminal, displaying
@@ -162,13 +160,13 @@ completed.
 To run more involved, ITER-inspired simulations, run:
 
 ```shell
-python3 run_simulation_main.py --config='torax.examples.iterhybrid_rampup'
+run_torax --config='torax.examples.iterhybrid_rampup'
 ```
 
 and
 
 ```shell
-python3 run_simulation_main.py --config='torax.examples.iterhybrid_predictor_corrector'
+run_torax --config='torax.examples.iterhybrid_predictor_corrector'
 ```
 
 Additional configuration is provided through flags which append the above
@@ -176,8 +174,7 @@ run command, and environment variables. For example, for increased output
 verbosity, can run with the `--log_progress` flag.
 
 ```shell
-python3 run_simulation_main.py \
-   --config='torax.examples.iterhybrid_rampup' --log_progress
+run_torax  --config='torax.examples.iterhybrid_rampup' --log_progress
 ```
 
 #### Set environment variables
@@ -256,7 +253,7 @@ Output simulation time, dt, and number of stepper iterations (dt backtracking
 with nonlinear solver) carried out at each timestep.
 
 ```shell
-python3 run_simulation_main.py \
+run_torax \
    --config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress
 ```
@@ -264,7 +261,7 @@ python3 run_simulation_main.py \
 Live plotting of simulation state and derived quantities.
 
 ```shell
-python3 run_simulation_main.py \
+run_torax \
    --config='torax.examples.iterhybrid_predictor_corrector' \
    --plot_progress
 ```
@@ -272,7 +269,7 @@ python3 run_simulation_main.py \
 Combination of the above.
 
 ```shell
-python3 run_simulation_main.py \
+run_torax \
    --config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress --plot_progress
 ```

@@ -116,7 +116,7 @@ the TORAX repository. Using ``test_qlknnheat`` as an example:
 
 .. code-block:: console
 
-  python3 torax/plotting/plotruns.py --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat/state_history.nc
+  plot_torax --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat/state_history.nc
 
 If it is deemed that the new outputs should replace the ground-truth files,
 they can be copied over using the following command, again with this example working

@@ -56,21 +56,22 @@ It is convenient to set up an alias for the above command.
 
 .. install_torax:
 
-Install TORAX
--------------
+Install TORAX from PyPI
+-----------------------
 
-The following may optionally be added to ~/.bashrc and will cause jax to
-store compiled programs to the filesystem, avoiding recompilation in
-some cases:
+This is the simplest way to install TORAX. If you don't plan to do any
+development work, this is the recommended method.
 
 .. code-block:: console
 
-  export JAX_COMPILATION_CACHE_DIR=<path of your choice, such as ~/jax_cache>
-  export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
-  export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
+  pip install torax
 
-For more information see :ref:`cache`.
 
+
+Install TORAX from Github
+-----------------------
+
+If you plan to develop TORAX, we recommend installing from source.
 
 Download and install the TORAX codebase via http:
 
@@ -88,22 +89,7 @@ Enter the TORAX directory and pip install the dependencies.
 
 .. code-block:: console
 
-  cd torax; pip install .
-
-From within the top level directory where you `pip install` from, also set the
-geometry data directory.
-
-.. code-block:: console
-
-  export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
-
-We recommend automating the variable export. If using bash, run:
-
-.. code-block:: console
-
-  echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
-
-The above command only needs to be run once on a given system.
+  cd torax; pip install -e .[dev]
 
 TORAX uses the QLKNN_7_11 transport model by default. It can be overridden by
 specifying a QLKNN model path through the `TORAX_QLKNN_MODEL_PATH`
@@ -125,20 +111,23 @@ If the variable is defined, you can clear it by running:
 
 For an alternative transport model, see :ref:`install_qlknn_hyper`.
 
-.. _dev_install:
+The same applies to `TORAX_GEOMETRY_DIR`. Previous versions of TORAX
+required it to be set. It is now recommended to leave the variable empty if
+using the default geometry. Make sure the definition is removed from
+`~/.bashrc` if you set it in a previous installation.
 
-(Optional) Install TORAX in development mode
---------------------------------------------
 
-**Recommended** for developers. Instead of the above, install optional dependencies
-for (parallel) pytest and documentation generation. Also install in editable mode to
-not require reinstallation for every change.
+The following may optionally be added to ~/.bashrc and will cause jax to
+store compiled programs to the filesystem, avoiding recompilation in
+some cases:
 
 .. code-block:: console
 
-  cd torax; pip install -e .[dev]
+  export JAX_COMPILATION_CACHE_DIR=<path of your choice, such as ~/jax_cache>
+  export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
+  export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
 
-.. _dev_install:
+For more information see :ref:`cache`.
 
 (Optional) GPU support
 -------------------

@@ -64,5 +64,10 @@ def main(args):
     plotruns_lib.plot_run(plot_config, args.outfile[0], args.outfile[1])
 
 
-if __name__ == '__main__':
+# Method used by the `plot_torax` binary.
+def run():
   app.run(main, flags_parser=parse_flags)
+
+
+if __name__ == '__main__':
+  run()

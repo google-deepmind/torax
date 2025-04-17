@@ -47,6 +47,10 @@ dynamic = ["version"]
 [tool.setuptools.dynamic]
 version = {attr = "torax.version.TORAX_VERSION"}
 
+[project.scripts]
+run_torax = "torax.run_simulation_main:run"
+plot_torax = "torax.plotting.plotruns:run"
+
 [project.urls]
 homepage = "https://github.com/google-deepmind/torax"
 repository = "https://github.com/google-deepmind/torax"

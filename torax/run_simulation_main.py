@@ -541,5 +541,10 @@ def _call_sim_app_main(
   )
 
 
-if __name__ == '__main__':
+# Method used by the `run_torax` binary.
+def run():
   app.run(main)
+
+
+if __name__ == '__main__':
+  run()

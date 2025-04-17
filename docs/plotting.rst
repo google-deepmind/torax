@@ -7,10 +7,10 @@ TORAX provides plotting functionalities to visualize simulation outputs and
 compare different runs. The plots include a time slider for interactive
 manipulation.
 
-Using the plotruns.py Script
+Using the plot_torax Script
 ============================
 
-To visualize simulation results, use the ``plotting/plotruns.py`` script.
+To visualize simulation results, use the ``plot_torax`` script.
 This script offers flexibility in plotting single runs, comparing two runs, and
 customizing plot configurations.
 
@@ -22,7 +22,7 @@ TORAX root directory:
 
 .. code-block:: console
 
-  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output> \\
+  plot_torax --outfile <full_path_to_simulation_output> \
    --plot_config <module_path_to_plot_config>
 
 Replace <full_path_to_simulation_output> with the full path to your simulation's
@@ -38,7 +38,7 @@ To compare the output of two simulations, provide both output file paths:
 
 .. code-block:: console
 
-  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output1> \\
+  plot_torax --outfile <full_path_to_simulation_output1> \
    <full_path_to_simulation_output2>
 
 This overlays the plots of the two runs, allowing for direct comparison.
@@ -161,7 +161,7 @@ torax/plotting/configs/*.py.
 Interactive Time Slider
 =======================
 
-When plotting with ``plotruns.py``, an interactive time slider appears below the plots.
+When plotting with ``plot_torax``, an interactive time slider appears below the plots.
 This slider allows you to scroll through the simulation output at different timesteps.
 The spatial profile plots defined above are dynamically updated when the slider is
 manipulated. The time series plots, defined with `plot_type=PlotType.TIME_SERIES`

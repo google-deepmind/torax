@@ -12,7 +12,7 @@ of all input configuration fields.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py --config='torax.examples.basic_config'
+  run_torax --config='torax.examples.basic_config'
 
 Simulation progress is shown by a progress bar in the terminal, displaying the current
 simulation time, and the percentage of the total simulation time completed.
@@ -78,7 +78,7 @@ time, dt, and number of outer stepper iterations carried out during the step.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py
+  run_torax
   --config='torax.examples.basic_config' \
    --log_progress
 
@@ -88,7 +88,7 @@ Live plotting of simulation state and derived quantities as the simulation progr
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
+  run_torax \
    --config='torax.examples.basic_config' \
    --plot_progress
 
@@ -96,7 +96,7 @@ For a combination of the above:
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
+  run_torax \
   --config='torax.examples.basic_config' \
   --log_progress --plot_progress
 
@@ -106,7 +106,7 @@ Provide a reference run to compare against in post-simulation plotting.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
+  run_torax \
   --config='torax.examples.basic_config' \
   --reference_run=<path_to_reference_run>
 
@@ -118,7 +118,7 @@ Override the default output directory. If not provided, it will be set to
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
+  run_torax \
   --config='torax.examples.basic_config' \
   --output_dir=<output_dir>
 
@@ -133,7 +133,7 @@ plot config is shown below.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
+  run_torax \
   --config='torax.examples.basic_config' \
   --plot_config=torax.plotting.configs.simple_plot_config
 
@@ -167,7 +167,7 @@ root directory:
 
 .. code-block:: console
 
-  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output> \\
+  plot_torax --outfile <full_path_to_simulation_output> \
    --plot_config <module_path_to_plot_config>
 
 Replace <full_path_to_simulation_output> with the full path to your simulation's
@@ -182,7 +182,7 @@ To plot the output of two simulations on top of each other, run the following co
 
 .. code-block:: console
 
-  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output1> \\
+  plot_torax --outfile <full_path_to_simulation_output1> \
    <full_path_to_simulation_output2> --plot_config <module_path_to_plot_config>
 
 
