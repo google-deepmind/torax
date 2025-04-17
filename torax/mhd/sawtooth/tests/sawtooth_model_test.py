@@ -101,26 +101,12 @@ class SawtoothModelTest(parameterized.TestCase):
     self.geometry_provider = torax_config.geometry.build_provider
 
     self.static_runtime_params_slice = (
-        build_runtime_params.build_static_runtime_params_slice(
-            profile_conditions=torax_config.profile_conditions,
-            numerics=torax_config.numerics,
-            plasma_composition=torax_config.plasma_composition,
-            sources=torax_config.sources,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-            stepper=torax_config.stepper,
-        )
+        build_runtime_params.build_static_params_from_config(torax_config)
     )
 
     self.dynamic_runtime_params_slice_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=torax_config.runtime_params,
-            pedestal=torax_config.pedestal,
-            transport=torax_config.transport,
-            sources=torax_config.sources,
-            stepper=torax_config.stepper,
-            mhd=torax_config.mhd,
-            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
-        )
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config)
     )
 
     self.step_fn = step_function.SimulationStepFn(
@@ -133,7 +119,7 @@ class SawtoothModelTest(parameterized.TestCase):
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
-            t=torax_config.runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
             static_runtime_params_slice=self.static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
             geometry_provider=self.geometry_provider,

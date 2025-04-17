@@ -32,7 +32,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
     history = run_simulation.run_simulation(torax_config)
 
-    original_value = torax_config.runtime_params.profile_conditions.nbar
+    original_value = torax_config.profile_conditions.nbar
     new_value = original_value.value * 1.1
 
     torax_config.update_fields(

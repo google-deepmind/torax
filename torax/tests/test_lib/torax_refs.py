@@ -14,98 +14,70 @@
 
 """Shared setup code for unit tests using reference values."""
 
-import os
-
-from absl.testing import absltest
-from absl.testing import parameterized
 import chex
 from jax import numpy as jnp
 import numpy as np
-import torax
 from torax import fvm
 from torax.config import build_runtime_params
-from torax.config import numerics as numerics_lib
-from torax.config import plasma_composition as plasma_composition_lib
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import pydantic_model as sources_pydantic_model
-
-# Internal import.
-
-
-_GEO_DIRECTORY = 'torax/data/third_party/geo'
+from torax.torax_pydantic import model_config
 
 
 @chex.dataclass(frozen=True)
 class References:
   """Collection of reference values useful for unit tests."""
 
-  runtime_params: general_runtime_params.GeneralRuntimeParams
-  geometry_provider: geometry_provider_lib.GeometryProvider
+  config: model_config.ToraxConfig
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
   jtot: np.ndarray
   q: np.ndarray
   s: np.ndarray
-  Ip_from_parameters: bool  # pylint: disable=invalid-name
 
   @property
-  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
-    return self.runtime_params.profile_conditions
+  def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
+    return self.config.geometry.build_provider
 
-  @property
-  def numerics(self) -> numerics_lib.Numerics:
-    return self.runtime_params.numerics
-
-  @property
-  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
-    return self.runtime_params.plasma_composition
-
-
-def build_consistent_dynamic_runtime_params_slice_and_geometry(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-    sources: sources_pydantic_model.Sources,
-    t: chex.Numeric | None = None,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
-  """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
-  t = runtime_params.numerics.t_initial if t is None else t
-  return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-      t=t,
-      dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params,
-          sources=sources,
-          torax_mesh=geometry_provider.torax_mesh,
-      ),
-      geometry_provider=geometry_provider,
-  )
+  def get_dynamic_slice_and_geo(
+      self,
+  ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+    t = self.config.numerics.t_initial
+    dynamic_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            self.config
+        )
+    )
+    return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        t=t,
+        dynamic_runtime_params_slice_provider=dynamic_provider,
+        geometry_provider=self.config.geometry.build_provider)
 
 
 def circular_references() -> References:
   """Reference values for circular geometry."""
   # Hard-code the parameters relevant to the tests, so the reference values
   # will stay valid even if we change the Config constructor defaults
-  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate(
+  torax_config = model_config.ToraxConfig.from_dict(
       {
-          'profile_conditions': {
-              'Ip_tot': 15,
-              'nu': 3,
-          }
+          'runtime_params': {
+              'profile_conditions': {
+                  'Ip_tot': 15,
+                  'nu': 3,
+              }
+          },
+          'geometry': {
+              'geometry_type': 'circular',
+          },
+          'transport': {},
+          'stepper': {},
+          'pedestal': {},
+          'sources': {},
       }
   )
-  geo = geometry_pydantic_model.CircularConfig(
-      n_rho=25,
-      elongation_LCFS=1.72,
-      hires_fac=4,
-      Rmaj=6.2,
-      Rmin=2.0,
-      B0=5.3,
-  ).build_geometry()
+
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -139,7 +111,7 @@ def circular_references() -> References:
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(47.64848792277505),
-      dr=geo.drho_norm,
+      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
   )
   psi_face_grad = np.array([
       0.0,
@@ -280,36 +252,36 @@ def circular_references() -> References:
       3.09841616536076,
   ])
   return References(
-      runtime_params=runtime_params,
-      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
+      config=torax_config,
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=True,
   )
 
 
 def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the file."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate({
-      'profile_conditions': {
-          'Ip_tot': 15,
-          'nu': 3,
-      },
-  })
-
-  geo = geometry_pydantic_model.CheaseConfig(
-      geometry_dir=_GEO_DIRECTORY,
-      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      n_rho=25,
-      Ip_from_parameters=False,
-      Rmaj=6.2,
-      Rmin=2.0,
-      B0=5.3,
-  ).build_geometry()
+  torax_config = model_config.ToraxConfig.from_dict(
+      {
+          'runtime_params': {
+              'profile_conditions': {
+                  'Ip_tot': 15,
+                  'nu': 3,
+              }
+          },
+          'geometry': {
+              'geometry_type': 'chease',
+              'Ip_from_parameters': False,
+          },
+          'transport': {},
+          'stepper': {},
+          'pedestal': {},
+          'sources': {},
+      }
+  )
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -343,7 +315,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(50.417485084359726),
-      dr=geo.drho_norm,
+      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
   )
   psi_face_grad = np.array([
       0.0,
@@ -484,36 +456,36 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       1.25337716370375,
   ])
   return References(
-      runtime_params=runtime_params,
-      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
+      config=torax_config,
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=False,
   )
 
 
 def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the config."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate({
-      'profile_conditions': {
-          'Ip_tot': 15,
-          'nu': 3,
-      },
-  })
-
-  geo = geometry_pydantic_model.CheaseConfig(
-      geometry_dir=_GEO_DIRECTORY,
-      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      n_rho=25,
-      Ip_from_parameters=True,
-      Rmaj=6.2,
-      Rmin=2.0,
-      B0=5.3,
-  ).build_geometry()
+  torax_config = model_config.ToraxConfig.from_dict(
+      {
+          'runtime_params': {
+              'profile_conditions': {
+                  'Ip_tot': 15,
+                  'nu': 3,
+              }
+          },
+          'geometry': {
+              'geometry_type': 'chease',
+              'Ip_from_parameters': True,
+          },
+          'transport': {},
+          'stepper': {},
+          'pedestal': {},
+          'sources': {},
+      }
+  )
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -547,7 +519,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(64.25482269382654),
-      dr=geo.drho_norm,
+      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
   )
   psi_face_grad = np.array([
       0.0,
@@ -688,36 +660,11 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       1.2533771637032,
   ])
   return References(
-      runtime_params=runtime_params,
-      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
+      config=torax_config,
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=True,
   )
-
-
-class ReferenceValueTest(parameterized.TestCase):
-  """Unit using reference values from previous executions."""
-
-  def setUp(self):
-    super().setUp()
-    torax.set_jax_precision()
-    # Some pre-calculated reference values are used in more than one test.
-    # These are loaded here.
-    self.circular_references = circular_references()
-    # pylint: disable=invalid-name
-    self.chease_references_with_Ip_from_chease = (
-        chease_references_Ip_from_chease()
-    )
-    self.chease_references_with_Ip_from_config = (
-        chease_references_Ip_from_runtime_params()
-    )
-    # pylint: enable=invalid-name
-
-
-if __name__ == '__main__':
-  absltest.main()

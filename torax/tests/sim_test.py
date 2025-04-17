@@ -338,7 +338,7 @@ class SimTest(sim_test_case.SimTestCase):
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(
-        history.times[-1], torax_config.runtime_params.numerics.t_final
+        history.times[-1], torax_config.numerics.t_final
     )
 
     for torax_profile in _ALL_PROFILES:
@@ -545,10 +545,7 @@ class SimTest(sim_test_case.SimTestCase):
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
-    self.assertLess(
-        state_history.times[-1],
-        torax_config.runtime_params.numerics.t_final,
-    )
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

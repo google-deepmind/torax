@@ -21,15 +21,13 @@ import chex
 import jax
 import jax.numpy as jnp
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import base
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
 
@@ -94,7 +92,6 @@ class SingleProfileSourceTestCase(SourceTestCase):
 
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
     if self._model_function_name is not None:
       sources_dict = {
           self._source_name: {
@@ -103,26 +100,27 @@ class SingleProfileSourceTestCase(SourceTestCase):
       }
     else:
       sources_dict = {self._source_name: {}}
-    sources = source_pydantic_model.Sources.from_dict(sources_dict)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': sources_dict,
+        'stepper': {},
+        'transport': {},
+        'pedestal': {},
+    })
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
-            t=runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -158,8 +156,6 @@ class MultipleProfileSourceTestCase(SourceTestCase):
 
   def test_source_values_on_the_cell_grid(self):
     """Tests that the source can provide values on the cell grid."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     if self._model_function_name is not None:
       sources_dict = {
           self._source_name: {
@@ -168,27 +164,31 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       }
     else:
       sources_dict = {self._source_name: {}}
-    sources = source_pydantic_model.Sources.from_dict(sources_dict)
+    torax_config = model_config.ToraxConfig.from_dict(
+        {
+            'runtime_params': {},
+            'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+            'sources': sources_dict,
+            'stepper': {},
+            'transport': {},
+            'pedestal': {},
+        }
+    )
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
     source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )(
-            t=runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
