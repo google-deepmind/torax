@@ -376,11 +376,7 @@ def main(_):
             config_module_str, _PYTHON_CONFIG_PACKAGE.value
         )
     )
-    output_dir = (
-        _OUTPUT_DIR.value
-        if _OUTPUT_DIR.value is not None
-        else torax_config.runtime_params.output_dir
-    )
+    output_dir = _OUTPUT_DIR.value
     build_time = time.time() - start_time
     start_time = time.time()
     output_file = _call_sim_app_main(

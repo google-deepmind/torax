@@ -158,6 +158,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     """
 
     self._update_fields(x)
+    # Update the grid in any submodels that have been updated.
+    torax_pydantic.set_grid(
+        self, self.geometry.build_provider.torax_mesh, mode='relaxed')
 
     # If the nrho is updated, all model caches need to be invalidated and the
     # geometry mesh reset.

@@ -78,7 +78,7 @@ def run_simulation(
   if torax_config.restart and torax_config.restart.do_restart:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
-            t_initial=torax_config.runtime_params.numerics.t_initial,
+            t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
@@ -90,7 +90,7 @@ def run_simulation(
   else:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
-            t=torax_config.runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
