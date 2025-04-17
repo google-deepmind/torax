@@ -24,7 +24,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax import output
 from torax import simulation_app
-from torax.fvm import cell_variable
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import paths
 from torax.torax_pydantic import model_config
@@ -83,7 +82,6 @@ class SimTestCase(parameterized.TestCase):
 
   def _check_profiles_vs_expected(
       self,
-      core_profiles,
       t,
       ref_time,
       ref_profiles,
@@ -96,7 +94,6 @@ class SimTestCase(parameterized.TestCase):
     """Raises an error if the input states and time do not match the refs."""
     chex.assert_rank(t, 1)
     history_length = t.shape[0]
-    self.assertEqual(core_profiles.temp_el.value.shape[0], t.shape[0])
 
     msgs = []
     mismatch_found = False
@@ -111,13 +108,11 @@ class SimTestCase(parameterized.TestCase):
       ref = [jnp.expand_dims(ref_t, axis=0)]
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
-        torax_var_history = core_profiles[profile_name]
-        if isinstance(torax_var_history, cell_variable.CellVariable):
-          actual_value_history = torax_var_history.value
-        else:
-          actual_value_history = torax_var_history
-        self.assertEqual(actual_value_history.shape[0], history_length)
-        actual_value = actual_value_history[step, :]
+        actual_value = (
+            ds.children[output.CORE_PROFILES]
+            .dataset[profile_name]
+            .to_numpy()[step, :]
+        )
         ref_value = ref_profile[step, :]
         with self.subTest(step=step, ref_profile=ref_profile):
           self.assertEqual(actual_value.shape, ref_value.shape)
@@ -213,7 +208,6 @@ class SimTestCase(parameterized.TestCase):
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 
     self._check_profiles_vs_expected(
-        core_profiles=history.core_profiles,
         t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
