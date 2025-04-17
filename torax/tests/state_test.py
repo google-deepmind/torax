@@ -23,12 +23,9 @@ import numpy as np
 from torax import math_utils
 from torax import state
 from torax.config import build_runtime_params
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
 from torax.sources import pydantic_model as sources_pydantic_model
@@ -36,6 +33,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+from torax.torax_pydantic import model_config
 
 
 def make_zero_core_profiles(
@@ -111,7 +109,7 @@ class StateTest(torax_refs.ReferenceValueTest):
     )
     basic_core_profiles.sanity_check()
 
-  def test_nan_check(self,):
+  def test_nan_check(self):
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
@@ -163,7 +161,8 @@ class StateTest(torax_refs.ReferenceValueTest):
       error = new_sim_state_core_profiles.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
       error = state.check_for_errors(
-          new_sim_state_core_profiles, post_processed_outputs)
+          new_sim_state_core_profiles, post_processed_outputs
+      )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
 
     with self.subTest('NaN in post processed outputs'):
@@ -199,38 +198,45 @@ class StateTest(torax_refs.ReferenceValueTest):
 
 class InitialStatesTest(parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    self.config_dict = {
+        'runtime_params': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'stepper': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.001},
-            ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
-            normalize_to_nbar=False,
-        ),
-    )
-    sources = sources_pydantic_model.Sources.from_dict({})
+    self.config_dict['runtime_params']['profile_conditions'] = {
+        'Ti_bound_right': 27.7,
+        'Te_bound_right': {0.0: 42.0, 1.0: 0.001},
+        'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
+        'normalize_to_nbar': False,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry_pydantic_model.CircularConfig().build_geometry()
-    )
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            geo_provider,
-            sources=sources,
+    dynamic_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    dynamic_runtime_params_slice, geo = (
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=dynamic_provider,
+            geometry_provider=torax_config.geometry.build_provider,
+        )
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -248,27 +254,24 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = sources_pydantic_model.Sources.from_dict({})
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry_pydantic_model.CircularConfig().build_geometry()
-    )
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            geo_provider,
-            sources=sources,
+    dynamic_runtime_params_slice_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    dynamic_runtime_params_slice, geo = (
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=torax_config.geometry.build_provider,
+        )
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -292,64 +295,55 @@ class InitialStatesTest(parameterized.TestCase):
       geometry_name: str,
   ):
     """Tests expected behaviour of initial psi and current options."""
-    config1 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_j_is_total_current=True,
-            initial_psi_from_j=True,
-            nu=2,
-            ne_bound_right=0.5,
-        ),
-    )
-    config2 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_j_is_total_current=False,
-            initial_psi_from_j=True,
-            nu=2,
-            ne_bound_right=0.5,
-        ),
-    )
-    config3 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_j_is_total_current=False,
-            initial_psi_from_j=True,
-            nu=2,
-            ne_bound_right=0.5,
-        ),
-    )
-    # Needed to generate psi for bootstrap calculation
-    config3_helper = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_j_is_total_current=True,
-            initial_psi_from_j=True,
-            nu=2,
-            ne_bound_right=0.5,
-        ),
-    )
-    geo_provider = geometry_pydantic_model.Geometry.from_dict(
-        {'geometry_type': geometry_name}
-    ).build_provider
-    sources = sources_pydantic_model.Sources.from_dict({
+    self.config_dict['geometry']['geometry_type'] = geometry_name
+    self.config_dict['sources'] = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
         'generic_current_source': {},
-    })
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+    }
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    config1 = dict(
+        initial_j_is_total_current=True,
+        initial_psi_from_j=True,
+        nu=2,
+        ne_bound_right=0.5,
     )
+    config2 = dict(
+        initial_j_is_total_current=False,
+        initial_psi_from_j=True,
+        nu=2,
+        ne_bound_right=0.5,
+    )
+    config3 = dict(
+        initial_j_is_total_current=False,
+        initial_psi_from_j=True,
+        nu=2,
+        ne_bound_right=0.5,
+    )
+    # Needed to generate psi for bootstrap calculation
+    config3_helper = dict(
+        initial_j_is_total_current=True,
+        initial_psi_from_j=True,
+        nu=2,
+        ne_bound_right=0.5,
+    )
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources.source_model_config
+    )
+
+    torax_config.update_fields({'runtime_params.profile_conditions': config1})
     dcs1, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            config1,
-            geo_provider,
-            sources=sources,
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+                torax_config
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config1.profile_conditions,
-        numerics=config1.numerics,
-        plasma_composition=config1.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles1 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
@@ -357,19 +351,19 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
+
+    torax_config.update_fields({'runtime_params.profile_conditions': config2})
     dcs2, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            config2,
-            geo_provider,
-            sources=sources,
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+                torax_config
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config2.profile_conditions,
-        numerics=config2.numerics,
-        plasma_composition=config2.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles2 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
@@ -377,7 +371,8 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
-    sources = sources_pydantic_model.Sources.from_dict({
+
+    new_source_config = {
         'j_bootstrap': {
             'bootstrap_mult': 1.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
@@ -386,23 +381,25 @@ class InitialStatesTest(parameterized.TestCase):
             'fext': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
+    }
+    torax_config.update_fields({
+        'runtime_params.profile_conditions': config3,
+        'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
     dcs3, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            config3,
-            geo_provider,
-            sources=sources,
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+                torax_config
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config3.profile_conditions,
-        numerics=config3.numerics,
-        plasma_composition=config3.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles3 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3,
@@ -410,30 +407,35 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
-    sources = sources_pydantic_model.Sources.from_dict({
+
+    new_source_config = {
         'j_bootstrap': {
-            'bootstrap_mult': 0.0, 'mode': runtime_params_lib.Mode.MODEL_BASED
+            'bootstrap_mult': 0.0,
+            'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
         'generic_current_source': {
-            'fext': 0.0, 'mode': runtime_params_lib.Mode.MODEL_BASED
-        }
+            'fext': 0.0,
+            'mode': runtime_params_lib.Mode.MODEL_BASED,
+        },
+    }
+    torax_config.update_fields({
+        'runtime_params.profile_conditions': config3_helper,
+        'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
     dcs3_helper, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            config3_helper,
-            geo_provider,
-            sources=sources,
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+                torax_config
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config3_helper.profile_conditions,
-        numerics=config3_helper.numerics,
-        plasma_composition=config3_helper.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles3_helper = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3_helper,
@@ -445,7 +447,7 @@ class InitialStatesTest(parameterized.TestCase):
     # calculate total and Ohmic current profiles arising from nu=2
     jformula = (1 - geo.rho_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = config1.profile_conditions.Ip_tot.value[0] * 1e6 / denom
+    ctot = torax_config.profile_conditions.Ip_tot.value[0] * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
         1
@@ -465,7 +467,7 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
-        config3.profile_conditions.Ip_tot.value[0] * 1e6
+        torax_config.profile_conditions.Ip_tot.value[0] * 1e6
     )
 
     np.testing.assert_raises(
@@ -515,61 +517,45 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_initial_psi_from_geo_noop_circular(self):
     """Tests expected behaviour of initial psi and current options."""
-    sources = sources_pydantic_model.Sources.from_dict({})
+    self.config_dict['runtime_params']['profile_conditions'] = {
+        'initial_psi_from_j': False,
+        'ne_bound_right': 0.5,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    config1 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_psi_from_j=False,
-            ne_bound_right=0.5,
-        ),
-    )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    dcs1 = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        config1,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    dcs1 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        torax_config
     )(
-        t=config1.numerics.t_initial,
+        t=torax_config.numerics.t_initial,
     )
-    config2 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            initial_psi_from_j=True,
-            ne_bound_right=0.5,
-        ),
-    )
-    dcs2 = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        config2,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )(
-        t=config2.numerics.t_initial,
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config1.profile_conditions,
-        numerics=config1.numerics,
-        plasma_composition=config1.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles1 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         static_runtime_params_slice=static_slice,
-        geo=geometry_pydantic_model.CircularConfig().build_geometry(),
+        geo=geo,
         source_models=source_models,
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=config2.profile_conditions,
-        numerics=config2.numerics,
-        plasma_composition=config2.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
+
+    torax_config.update_fields(
+        {'runtime_params.profile_conditions.initial_psi_from_j': True}
+    )
+    dcs2 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
     )
     core_profiles2 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         static_runtime_params_slice=static_slice,
-        geo=geometry_pydantic_model.CircularConfig().build_geometry(),
+        geo=geo,
         source_models=source_models,
     )
     np.testing.assert_allclose(

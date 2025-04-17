@@ -16,10 +16,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax.config import build_runtime_params
-from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model
 from torax.geometry import standard_geometry
+from torax.torax_pydantic import model_config
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -128,28 +128,27 @@ class PydanticModelTest(parameterized.TestCase):
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
     """Tests that the Ip is updated when using chease geometry."""
-    runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    original_Ip_tot = runtime_params.profile_conditions.Ip_tot
-    geo_provider = pydantic_model.Geometry.from_dict({
-        'geometry_type': 'chease',
-        'Ip_from_parameters': (
-            False
-        ),  # this will force update runtime_params.Ip_tot
-    }).build_provider
+    torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {},
+        'geometry': {'geometry_type': 'chease', 'Ip_from_parameters': False},
+        'sources': {},
+        'stepper': {},
+        'transport': {},
+        'pedestal': {},
+    })
     runtime_params_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources={},
-            torax_mesh=geo_provider.torax_mesh,
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
         )
     )
     dynamic_slice, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=0,
             dynamic_runtime_params_slice_provider=runtime_params_provider,
-            geometry_provider=geo_provider,
+            geometry_provider=torax_config.geometry.build_provider,
         )
     )
+    original_Ip_tot = torax_config.profile_conditions.Ip_tot
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
     self.assertNotEqual(

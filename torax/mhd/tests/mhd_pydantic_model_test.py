@@ -15,25 +15,16 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.mhd.sawtooth import sawtooth_model
-from torax.tests.test_lib import default_sources
 from torax.torax_pydantic import model_config
 
 
 class MHDPydanticModelTest(parameterized.TestCase):
   """Tests for the MHD Pydantic model and dynamic params construction."""
-
-  def setUp(self):
-    super().setUp()
-    self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    self.runtime_params = general_runtime_params.GeneralRuntimeParams()
-    self.sources = default_sources.get_default_sources()
 
   def test_no_mhd_config(self):
     """Tests the case where the 'mhd' key is entirely absent."""
@@ -49,11 +40,10 @@ class MHDPydanticModelTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=self.runtime_params,
-        sources=self.sources,
-        torax_mesh=self.geo.torax_mesh,
-        mhd=torax_config.mhd,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
     dynamic_slice = provider(t=0.0)
     self.assertIsInstance(
@@ -79,11 +69,10 @@ class MHDPydanticModelTest(parameterized.TestCase):
     assert isinstance(torax_config.mhd, mhd_pydantic_model.MHD)
     mhd_models = torax_config.mhd.build_mhd_models()
     self.assertIs(mhd_models.sawtooth, None)
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=self.runtime_params,
-        sources=self.sources,
-        torax_mesh=self.geo.torax_mesh,
-        mhd=torax_config.mhd,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
     dynamic_slice = provider(t=0.0)
     self.assertIsInstance(
@@ -125,11 +114,10 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.assertIn('sawtooth', mhd_models)
     self.assertIsInstance(mhd_models['sawtooth'], sawtooth_model.SawtoothModel)
 
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=self.runtime_params,
-        sources=self.sources,
-        torax_mesh=self.geo.torax_mesh,
-        mhd=torax_config.mhd,
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
     dynamic_slice = provider(t=0.0)
     self.assertIn('sawtooth', dynamic_slice.mhd)
