@@ -23,6 +23,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+import jaxtyping as jt
 from torax import array_typing
 
 
@@ -49,14 +50,15 @@ class CellVariable:
     right_face_grad_constraint: A jax scalar specifying the undetermined value
       of the gradient on the rightmost face variable.
   """
-  value: jax.Array
-  dr: array_typing.ScalarFloat
-  left_face_constraint: array_typing.ScalarFloat | None = None
-  right_face_constraint: array_typing.ScalarFloat | None = None
-  left_face_grad_constraint: array_typing.ScalarFloat | None = (
+  # t* means match 0 or more leading time dimensions.
+  value: jt.Float[chex.Array, 't* cell']
+  dr: jt.Float[chex.Array, 't*']
+  left_face_constraint: jt.Float[chex.Array, 't*'] | None = None
+  right_face_constraint: jt.Float[chex.Array, 't*'] | None = None
+  left_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
       dataclasses.field(default_factory=_zero)
   )
-  right_face_grad_constraint: array_typing.ScalarFloat | None = (
+  right_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
       dataclasses.field(default_factory=_zero)
   )
   # Can't make the above default values be jax zeros because that would be a
@@ -123,7 +125,9 @@ class CellVariable:
           f'{self.dr.shape}. Consider using vmap to batch the function call.'
       )
 
-  def face_grad(self, x: jax.Array | None = None) -> jax.Array:
+  def face_grad(
+      self, x: jt.Float[chex.Array, 'cell'] | None = None
+  ) -> jt.Float[chex.Array, 'face']:
     """Returns the gradient of this value with respect to the faces.
 
     Implemented using forward differencing of cells. Leftmost and rightmost
@@ -184,29 +188,45 @@ class CellVariable:
     right = jnp.expand_dims(right_grad, axis=0)
     return jnp.concatenate([left, forward_difference, right])
 
-  def face_value(self) -> jax.Array:
-    """Calculates values of this variable at faces."""
-    self._assert_unbatched()
-    inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
+  def _left_face_value(self) -> jt.Float[chex.Array, '#t']:
+    """Calculates the value of the leftmost face."""
     if self.left_face_constraint is not None:
-      left_face = jnp.array([self.left_face_constraint])
+      value = self.left_face_constraint
+      # Boundary value has one fewer dim than cell value, expand to concat with.
+      value = jnp.expand_dims(value, axis=-1)
     else:
       # When there is no constraint, leftmost face equals
       # leftmost cell
-      left_face = self.value[..., 0:1]
+      value = self.value[..., 0:1]
+    return value
+
+  def _right_face_value(self) -> jt.Float[chex.Array, '#t']:
+    """Calculates the value of the rightmost face."""
     if self.right_face_constraint is not None:
-      right_face = jnp.array([self.right_face_constraint])
+      value = self.right_face_constraint
+      # Boundary value has one fewer dim than cell value, expand to concat with.
+      value = jnp.expand_dims(value, axis=-1)
     else:
       # Maintain right_face consistent with right_face_grad_constraint
-      right_face = (
-          self.value[..., -1:] + self.right_face_grad_constraint * self.dr / 2
+      value = (
+          self.value[..., -1:]
+          + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)
+          * jnp.expand_dims(self.dr, axis=-1)
+          / 2
       )
-    return jnp.concatenate([left_face, inner, right_face], axis=-1)
+    return value
 
-  def grad(self) -> jax.Array:
+  def face_value(self) -> jt.Float[jax.Array, 't* face']:
+    """Calculates values of this variable on the face grid."""
+    inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
+    return jnp.concatenate(
+        [self._left_face_value(), inner, self._right_face_value()], axis=-1
+    )
+
+  def grad(self) -> jt.Float[jax.Array, 't* face']:
     """Returns the gradient of this variable wrt cell centers."""
     face = self.face_value()
-    return jnp.diff(face) / self.dr
+    return jnp.diff(face) / jnp.expand_dims(self.dr, axis=-1)
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
@@ -228,3 +248,12 @@ class CellVariable:
       )
     output_string += ')'
     return output_string
+
+  def cell_plus_boundaries(self) -> jt.Float[jax.Array, 't* cell+2']:
+    """Returns the value of this variable plus left and right boundaries."""
+    right_value = self._right_face_value()
+    left_value = self._left_face_value()
+    return jnp.concatenate(
+        [left_value, self.value, right_value],
+        axis=-1,
+    )

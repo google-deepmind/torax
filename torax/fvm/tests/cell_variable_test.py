@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
+from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
 from torax.fvm import cell_variable
 
 
-class CellVariableTest(absltest.TestCase):
+class CellVariableTest(parameterized.TestCase):
 
   def test_unconstrained_left_raises_an_error(self):
     with self.assertRaisesRegex(ValueError, 'left_face_constraint'):
@@ -102,34 +103,6 @@ class CellVariableTest(absltest.TestCase):
         grad, jnp.array([left_grad, 10.0, 30.0, -20.0, right_grad])
     )
 
-  def test_face_value_unconstrained(self):
-    var = cell_variable.CellVariable(
-        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
-        dr=jnp.array(0.1),
-    )
-    value = var.face_value()
-    np.testing.assert_array_equal(value, jnp.array([1.0, 1.5, 3.5, 4.0, 3.0]))
-
-  def test_face_value_value_constrained(self):
-    var = cell_variable.CellVariable(
-        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
-        dr=jnp.array(0.1),
-        left_face_constraint=jnp.array(2.0),
-        left_face_grad_constraint=None,
-        right_face_constraint=jnp.array(5.0),
-        right_face_grad_constraint=None,
-    )
-    value = var.face_value()
-    np.testing.assert_array_equal(value, jnp.array([2.0, 1.5, 3.5, 4.0, 5.0]))
-
-  def test_grad_unconstrained(self):
-    var = cell_variable.CellVariable(
-        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
-        dr=jnp.array(0.1),
-    )
-    grad = var.grad()
-    np.testing.assert_array_equal(grad, jnp.array([5.0, 20.0, 5.0, -10.0]))
-
   def test_batched_core_profiles_raises_error_on_invalid_method_call(self):
     var = cell_variable.CellVariable(
         value=jnp.array([1.0, 2.0, 5.0, 3.0]),
@@ -138,13 +111,225 @@ class CellVariableTest(absltest.TestCase):
     batched_var: cell_variable.CellVariable = jax.tree_util.tree_map(
         lambda *ys: np.stack(ys), *[var, var],
     )
-    print(batched_var)
     with self.subTest('raises error on face_grad'):
       with self.assertRaises(AssertionError):
         batched_var.face_grad()
-    with self.subTest('raises error on face_value'):
-      with self.assertRaises(AssertionError):
-        batched_var.face_value()
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='_unconstrained_unbatched',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_grad_constraint=0.0,
+          right_face_grad_constraint=0.0,
+          expected_value=[1.0, 1.5, 3.5, 4.0, 3.0],
+      ),
+      dict(
+          testcase_name='_unconstrained_batched',
+          value=[[1.0, 2.0, 5.0, 3.0], [0.0, 1.0, 0.0, 1.0]],
+          dr=[0.1, 0.2],
+          left_face_grad_constraint=[0.0, 0.0],
+          right_face_grad_constraint=[0.0, 0.0],
+          expected_value=[
+              [1.0, 1.5, 3.5, 4.0, 3.0],
+              [0.0, 0.5, 0.5, 0.5, 1.0],
+          ],
+      ),
+      dict(
+          testcase_name='_constrained_unbatched',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_constraint=2.0,
+          right_face_constraint=5.0,
+          expected_value=[2.0, 1.5, 3.5, 4.0, 5.0],
+      ),
+      dict(
+          testcase_name='_constrained_batched',
+          value=[[1.0, 2.0, 5.0, 3.0], [0.0, 1.0, 0.0, 1.0]],
+          dr=[0.1, 0.2],
+          left_face_constraint=[2.0, -1.0],
+          right_face_constraint=[5.0, 10.0],
+          expected_value=[
+              [2.0, 1.5, 3.5, 4.0, 5.0],
+              [-1.0, 0.5, 0.5, 0.5, 10.0],
+          ],
+      ),
+  )
+  def test_face_value(
+      self,
+      value,
+      dr,
+      expected_value,
+      left_face_constraint=None,
+      right_face_constraint=None,
+      left_face_grad_constraint=None,
+      right_face_grad_constraint=None,
+  ):
+    """Tests face_value method for unbatched and batched cases."""
+    var = cell_variable.CellVariable(
+        value=jnp.array(value),
+        dr=jnp.array(dr),
+        left_face_constraint=jnp.array(left_face_constraint)
+        if left_face_constraint is not None
+        else None,
+        right_face_constraint=jnp.array(right_face_constraint)
+        if right_face_constraint is not None
+        else None,
+        left_face_grad_constraint=jnp.array(left_face_grad_constraint)
+        if left_face_grad_constraint is not None
+        else None,
+        right_face_grad_constraint=jnp.array(right_face_grad_constraint)
+        if right_face_grad_constraint is not None
+        else None,
+    )
+    face_val = var.face_value()
+    np.testing.assert_allclose(face_val, jnp.array(expected_value))
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='_unconstrained_unbatched',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_constraint=None,
+          right_face_constraint=None,
+          left_face_grad_constraint=0.0,
+          right_face_grad_constraint=0.0,
+          expected_grad=[5.0, 20.0, 5.0, -10.0],
+      ),
+      dict(
+          testcase_name='_unconstrained_batched',
+          value=[[1.0, 2.0, 5.0, 3.0], [0.0, 1.0, 0.0, 1.0]],
+          dr=[0.1, 0.2],
+          left_face_constraint=None,
+          right_face_constraint=None,
+          left_face_grad_constraint=0.0,
+          right_face_grad_constraint=0.0,
+          expected_grad=[
+              [5.0, 20.0, 5.0, -10.0],
+              [2.5, 0.0, 0.0, 2.5],
+          ],
+      ),
+      dict(
+          testcase_name='_constrained_unbatched',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_constraint=None,
+          right_face_constraint=None,
+          left_face_grad_constraint=1.0,
+          right_face_grad_constraint=2.0,
+          expected_grad=[5.0, 20.0, 5.0, -9.0],
+      ),
+      dict(
+          testcase_name='_constrained_batched',
+          value=[[1.0, 2.0, 5.0, 3.0], [0.0, 1.0, 0.0, 1.0]],
+          dr=[0.1, 0.2],
+          left_face_constraint=None,
+          right_face_constraint=None,
+          left_face_grad_constraint=[1.0, -1.0],
+          right_face_grad_constraint=[2.0, 3.0],
+          expected_grad=[
+              [5.0, 20.0, 5.0, -9.0],
+              [2.5, 0.0, 0.0, 4.0],
+          ],
+      ),
+  )
+  def test_grad(
+      self,
+      value,
+      dr,
+      expected_grad,
+      left_face_constraint=None,
+      right_face_constraint=None,
+      left_face_grad_constraint=None,
+      right_face_grad_constraint=None,
+  ):
+    """Tests grad method for unbatched and batched cases."""
+    var = cell_variable.CellVariable(
+        value=jnp.array(value),
+        dr=jnp.array(dr),
+        left_face_constraint=jnp.array(left_face_constraint)
+        if left_face_constraint is not None
+        else None,
+        left_face_grad_constraint=jnp.array(left_face_grad_constraint)
+        if left_face_grad_constraint is not None
+        else None,
+        right_face_constraint=jnp.array(right_face_constraint)
+        if right_face_constraint is not None
+        else None,
+        right_face_grad_constraint=jnp.array(right_face_grad_constraint)
+        if right_face_grad_constraint is not None
+        else None,
+    )
+    grad_val = var.grad()
+    np.testing.assert_allclose(grad_val, jnp.array(expected_grad), rtol=1e-6)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='unbatched',
+          value=[1.0, 2.0, 5.0, 3.0],
+          left_face_constraint=2.0,
+          right_face_constraint=5.0,
+          expected_output=[2.0, 1.0, 2.0, 5.0, 3.0, 5.0],
+          dr=0.1,
+      ),
+      dict(
+          testcase_name='batched',
+          value=[[1.0, 2.0, 5.0, 3.0], [2.0, 3.0, 4.0, 5.0]],
+          left_face_constraint=[2.0, 8.0],
+          right_face_constraint=[5.0, 1.0],
+          expected_output=[
+              [2.0, 1.0, 2.0, 5.0, 3.0, 5.0],
+              [8.0, 2.0, 3.0, 4.0, 5.0, 1.0],
+          ],
+          dr=[0.1, 0.1],
+      ),
+      dict(
+          testcase_name='batch_of_one',
+          value=[[1.0, 2.0, 5.0, 3.0]],
+          left_face_constraint=[2.0],
+          right_face_constraint=[5.0],
+          expected_output=[
+              [2.0, 1.0, 2.0, 5.0, 3.0, 5.0],
+          ],
+          dr=[0.1],
+      ),
+      dict(
+          testcase_name='batch_with_right_face_grad_constraint',
+          value=[[1.0, 2.0, 5.0, 3.0]],
+          left_face_constraint=[2.0],
+          right_face_constraint=None,
+          right_face_grad_constraint=[1.0],
+          dr=[2.0],
+          expected_output=[
+              [2.0, 1.0, 2.0, 5.0, 3.0, 4.0],
+          ],
+      ),
+  )
+  def test_cell_plus_boundaries(
+      self,
+      value,
+      left_face_constraint,
+      right_face_constraint,
+      expected_output,
+      dr,
+      right_face_grad_constraint=None,
+  ):
+    var = cell_variable.CellVariable(
+        value=jnp.array((value)),
+        left_face_constraint=jnp.array((left_face_constraint)),
+        left_face_grad_constraint=None,
+        right_face_constraint=jnp.array((right_face_constraint))
+        if right_face_constraint is not None
+        else None,
+        right_face_grad_constraint=jnp.array(right_face_grad_constraint)
+        if right_face_grad_constraint is not None
+        else None,
+        dr=jnp.array(dr),
+    )
+    cell_plus_boundaries = var.cell_plus_boundaries()
+    np.testing.assert_array_equal(
+        cell_plus_boundaries, np.array(expected_output)
+    )
 
 
 if __name__ == '__main__':
