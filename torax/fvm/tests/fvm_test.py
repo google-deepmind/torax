@@ -30,11 +30,10 @@ from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.tests.test_lib import default_sources
-from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
 
 
-class FVMTest(torax_refs.ReferenceValueTest):
+class FVMTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(num_cells=2, theta_imp=0, time_steps=29),

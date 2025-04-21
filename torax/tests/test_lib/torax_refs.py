@@ -14,12 +14,9 @@
 
 """Shared setup code for unit tests using reference values."""
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import chex
 from jax import numpy as jnp
 import numpy as np
-import torax
 from torax import fvm
 from torax.config import build_runtime_params
 from torax.config import numerics as numerics_lib
@@ -718,26 +715,3 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       s=s,
       Ip_from_parameters=True,
   )
-
-
-class ReferenceValueTest(parameterized.TestCase):
-  """Unit using reference values from previous executions."""
-
-  def setUp(self):
-    super().setUp()
-    torax.set_jax_precision()
-    # Some pre-calculated reference values are used in more than one test.
-    # These are loaded here.
-    self.circular_references = circular_references()
-    # pylint: disable=invalid-name
-    self.chease_references_with_Ip_from_chease = (
-        chease_references_Ip_from_chease()
-    )
-    self.chease_references_with_Ip_from_config = (
-        chease_references_Ip_from_runtime_params()
-    )
-    # pylint: enable=invalid-name
-
-
-if __name__ == '__main__':
-  absltest.main()
