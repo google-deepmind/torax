@@ -23,7 +23,6 @@ from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
 from torax.physics import psi_calculations
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -32,7 +31,7 @@ from torax.tests.test_lib import torax_refs
 _trapz = jax.scipy.integrate.trapezoid
 
 
-class PsiCalculationsTest(torax_refs.ReferenceValueTest):
+class PsiCalculationsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -44,14 +43,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
   def test_calc_q(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
 
-    runtime_params = references.runtime_params
-    _, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources=sources_pydantic_model.Sources.from_dict({}),
-        )
-    )
+    _, geo = references.get_dynamic_slice_and_geo()
 
     q_face_calculated = psi_calculations.calc_q_face(geo, references.psi)
     np.testing.assert_allclose(q_face_calculated, references.q, rtol=1e-5)
@@ -78,13 +70,13 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
     # pylint: enable=invalid-name
     np.testing.assert_allclose(j, references.jtot, rtol=1e-5)
 
-    if not references.Ip_from_parameters:
-      assert isinstance(geo, standard_geometry.StandardGeometry)
-      np.testing.assert_allclose(
-          Ip_profile_face[-1],
-          geo.Ip_profile_face[-1],
-          rtol=1e-6,
-      )
+    if isinstance(geo, standard_geometry.StandardGeometry):
+      if not geo.Ip_from_parameters:
+        np.testing.assert_allclose(
+            Ip_profile_face[-1],
+            geo.Ip_profile_face[-1],
+            rtol=1e-6,
+        )
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -113,34 +105,21 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-
-    runtime_params = references.runtime_params
-    sources = sources_pydantic_model.Sources.from_dict(
-        {'generic_current_source': {'mode': 'MODEL_BASED'}}
-    )
+    references.config.update_fields({
+        'sources.generic_current_source.mode': 'MODEL_BASED'
+    })
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=references.config.sources.source_model_config
     )
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources=sources,
-        )
-    )
+    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        references.config)
     initial_core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
