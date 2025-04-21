@@ -159,13 +159,18 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
     self._update_fields(x)
 
-    # If the nrho is updated, all model caches need to be invalidated and the
-    # geometry mesh reset.
+    mesh = self.geometry.build_provider.torax_mesh
     if _is_nrho_updated(x):
+      # Clear the cached properties of all submodels, as the n_rho may have
+      # changed. Also force the grid to be set, as the grid is dependent on the
+      # n_rho.
       for model in self.submodels:
         model.clear_cached_properties()
-      mesh = self.geometry.build_provider.torax_mesh
       torax_pydantic.set_grid(self, mesh, mode='force')
+    else:
+      # Update the grid on any new models which are added and have not had their
+      # grid set yet.
+      torax_pydantic.set_grid(self, mesh, mode='relaxed')
 
   @pydantic.model_validator(mode='after')
   def _set_grid(self) -> Self:
