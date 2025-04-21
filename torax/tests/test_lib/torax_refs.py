@@ -19,18 +19,10 @@ from jax import numpy as jnp
 import numpy as np
 from torax import fvm
 from torax.config import build_runtime_params
-from torax.config import numerics as numerics_lib
-from torax.config import plasma_composition as plasma_composition_lib
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.torax_pydantic import model_config
-
-
-_GEO_DIRECTORY = 'torax/data/third_party/geo'
 
 
 @chex.dataclass(frozen=True)
@@ -44,23 +36,6 @@ class References:
   jtot: np.ndarray
   q: np.ndarray
   s: np.ndarray
-  Ip_from_parameters: bool  # pylint: disable=invalid-name
-
-  @property
-  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
-    return self.config.profile_conditions
-
-  @property
-  def numerics(self) -> numerics_lib.Numerics:
-    return self.config.numerics
-
-  @property
-  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
-    return self.config.plasma_composition
-
-  @property
-  def runtime_params(self) -> general_runtime_params.GeneralRuntimeParams:
-    return self.config.runtime_params
 
   @property
   def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
@@ -79,25 +54,6 @@ class References:
         t=t,
         dynamic_runtime_params_slice_provider=dynamic_provider,
         geometry_provider=self.config.geometry.build_provider)
-
-
-def build_consistent_dynamic_runtime_params_slice_and_geometry(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-    sources: sources_pydantic_model.Sources,
-    t: chex.Numeric | None = None,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
-  """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
-  t = runtime_params.numerics.t_initial if t is None else t
-  return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-      t=t,
-      dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params,
-          sources=sources,
-          torax_mesh=geometry_provider.torax_mesh,
-      ),
-      geometry_provider=geometry_provider,
-  )
 
 
 def circular_references() -> References:
@@ -303,7 +259,6 @@ def circular_references() -> References:
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=True,
   )
 
 
@@ -508,7 +463,6 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=False,
   )
 
 
@@ -713,5 +667,4 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       jtot=jtot,
       q=q,
       s=s,
-      Ip_from_parameters=True,
   )

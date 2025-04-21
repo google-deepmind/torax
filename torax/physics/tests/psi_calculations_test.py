@@ -59,9 +59,7 @@ class PsiCalculationsTest(parameterized.TestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-    geo = references.geometry_provider(
-        references.runtime_params.numerics.t_initial
-    )
+    geo = references.geometry_provider(references.config.numerics.t_initial)
     # pylint: disable=invalid-name
     j, _, Ip_profile_face = psi_calculations.calc_jtot(
         geo,
@@ -87,9 +85,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   ])
   def test_calc_s(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
-    geo = references.geometry_provider(
-        references.runtime_params.numerics.t_initial
-    )
+    geo = references.geometry_provider(references.config.numerics.t_initial)
 
     s = psi_calculations.calc_s_face(geo, references.psi)
     np.testing.assert_allclose(s, references.s, rtol=1e-5)
