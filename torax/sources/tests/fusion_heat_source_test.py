@@ -20,7 +20,6 @@ from torax import constants
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import fusion_heat_source
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
@@ -48,28 +47,18 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
-
-    runtime_params = references.runtime_params
-
-    sources = sources_pydantic_model.Sources.from_dict({
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {},
+    references.config.update_fields({
+        'sources.fusion_heat_source': {
+            'model_function_name': (
+                fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
+            )
+        }
     })
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources=sources,
-        )
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
+    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    static_slice = build_runtime_params.build_static_params_from_config(
+        references.config)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=references.config.sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -86,7 +75,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     )
 
     reference_fusion_power = reference_calc_fusion(
-        runtime_params, geo, core_profiles
+        references.config.numerics, geo, core_profiles
     )
 
     np.testing.assert_allclose(torax_fusion_power, reference_fusion_power)
@@ -105,33 +94,19 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
     references = torax_refs.chease_references_Ip_from_chease()
+    references.config.update_fields(
+        {'runtime_params.plasma_composition.main_ion': main_ion_input,
+         'sources.fusion_heat_source': {
+             'model_function_name': (
+                 fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
+             )
+         }})
 
-    runtime_params = references.runtime_params
-
-    runtime_params._update_fields(
-        {'plasma_composition.main_ion': main_ion_input}
-    )
-
-    sources = sources_pydantic_model.Sources.from_dict({
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {},
-    })
-    dynamic_runtime_params_slice_t, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources=sources,
-            t=0.0,  # arbitrary since we don't use time-dependent params
-        )
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        profile_conditions=runtime_params.profile_conditions,
-        numerics=runtime_params.numerics,
-        plasma_composition=runtime_params.plasma_composition,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
+    dynamic_runtime_params_slice_t, geo = references.get_dynamic_slice_and_geo()
+    static_slice = build_runtime_params.build_static_params_from_config(
+        references.config)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=references.config.sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
@@ -148,7 +123,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     )
 
     reference_fusion_power = reference_calc_fusion(
-        runtime_params, geo, core_profiles
+        references.config.numerics, geo, core_profiles
     )
 
     np.testing.assert_allclose(
@@ -156,7 +131,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     )
 
 
-def reference_calc_fusion(runtime_params, geo, core_profiles):
+def reference_calc_fusion(numerics, geo, core_profiles):
   """Reference implementation from PINT. We still use TORAX state here."""
   # PINT doesn't follow Google style
   # pylint:disable=invalid-name
@@ -190,10 +165,10 @@ def reference_calc_fusion(runtime_params, geo, core_profiles):
   Pfus = (
       Efus
       * 0.25
-      * (core_profiles.ni.face_value() * runtime_params.numerics.nref) ** 2
+      * (core_profiles.ni.face_value() * numerics.nref) ** 2
       * sigmav
   )  # [W/m^3]
-  Ptot = np.trapz(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
+  Ptot = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
 
   return Ptot
 
