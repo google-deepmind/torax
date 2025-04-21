@@ -121,10 +121,10 @@ class ConfigTest(parameterized.TestCase):
     )
 
     # Check that the caches are invalidated.
-    config_pydantic.runtime_params.plasma_composition.Zeff.get_value(
+    config_pydantic.plasma_composition.Zeff.get_value(
         t=0.2, grid_type="cell"
     )
-    config_pydantic.runtime_params.plasma_composition.Zeff.get_value(
+    config_pydantic.plasma_composition.Zeff.get_value(
         t=0.2, grid_type="face"
     )
 
@@ -144,12 +144,12 @@ class ConfigTest(parameterized.TestCase):
 
     with self.subTest("nrho_updated_reset_mesh_cache"):
       v1_cell = (
-          config_pydantic.runtime_params.plasma_composition.Zeff.get_value(
+          config_pydantic.plasma_composition.Zeff.get_value(
               t=0.2, grid_type="cell"
           )
       )
       v1_face = (
-          config_pydantic.runtime_params.plasma_composition.Zeff.get_value(
+          config_pydantic.plasma_composition.Zeff.get_value(
               t=0.2, grid_type="face"
           )
       )

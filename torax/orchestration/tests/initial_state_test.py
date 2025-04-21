@@ -39,7 +39,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     static, dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
 
     non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
-        t=torax_config.runtime_params.numerics.t_initial,
+        t=torax_config.numerics.t_initial,
         static_runtime_params_slice=static,
         dynamic_runtime_params_slice_provider=dynamic,
         geometry_provider=geo,
@@ -48,7 +48,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     result, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
-            t_initial=torax_config.runtime_params.numerics.t_initial,
+            t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
             static_runtime_params_slice=static,
             dynamic_runtime_params_slice_provider=dynamic,
@@ -177,7 +177,7 @@ def _get_geo_and_runtime_params_slice(torax_config):
   )
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=torax_config.runtime_params.numerics.t_initial,
+          t=torax_config.numerics.t_initial,
           dynamic_runtime_params_slice_provider=dynamic_provider,
           geometry_provider=geo_provider,
       )

@@ -119,7 +119,7 @@ class SawtoothModelTest(parameterized.TestCase):
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
-            t=torax_config.runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
             static_runtime_params_slice=self.static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
             geometry_provider=self.geometry_provider,

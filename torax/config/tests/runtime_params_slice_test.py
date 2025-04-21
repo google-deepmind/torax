@@ -80,7 +80,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     new_config = copy.deepcopy(self._python_config)
     new_config['runtime_params']['numerics']['ion_heat_eq'] = (
-        not self._torax_config.runtime_params.numerics.ion_heat_eq
+        not self._torax_config.numerics.ion_heat_eq
     )
     new_torax_config = model_config.ToraxConfig.from_dict(new_config)
     static_slice2 = build_runtime_params.build_static_params_from_config(

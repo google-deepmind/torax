@@ -552,10 +552,7 @@ class SimTest(sim_test_case.SimTestCase):
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
-    self.assertLess(
-        state_history.times[-1],
-        torax_config.runtime_params.numerics.t_final,
-    )
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
 
 
 if __name__ == '__main__':
