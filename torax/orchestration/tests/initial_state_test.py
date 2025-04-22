@@ -74,28 +74,22 @@ class InitialStateTest(sim_test_case.SimTestCase):
   )
   def test_core_profile_final_step(self, test_config):
     profiles = [
-        output.TEMP_ION,
-        output.TEMP_ION_RIGHT_BC,
-        output.TEMP_EL,
-        output.TEMP_EL_RIGHT_BC,
-        output.NE,
-        output.NI,
-        output.NE_RIGHT_BC,
-        output.NI_RIGHT_BC,
+        output.TEMPERATURE_ION,
+        output.TEMPERATURE_ELECTRON,
+        output.N_E,
+        output.N_I,
         output.PSI,
-        output.PSIDOT,
-        output.IP_PROFILE_FACE,
-        output.NREF,
-        output.Q_FACE,
-        output.S_FACE,
+        output.V_LOOP,
+        output.I_TOTAL,
+        output.N_REF,
+        output.Q,
+        output.MAGNETIC_SHEAR,
         output.J_BOOTSTRAP,
-        output.J_BOOTSTRAP_FACE,
-        output.JOHM,
-        output.EXTERNAL_CURRENT,
-        output.JTOT,
-        output.JTOT_FACE,
+        output.J_OHMIC,
+        output.J_EXTERNAL,
+        output.J_TOTAL,
         output.I_BOOTSTRAP,
-        output.SIGMA,
+        output.SIGMA_PARALLEL,
     ]
     index = -1
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
@@ -109,14 +103,15 @@ class InitialStateTest(sim_test_case.SimTestCase):
     step_fn = _get_step_fn(torax_config)
 
     # Load in the reference core profiles.
-    Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
-    temp_el = ref_profiles[output.TEMP_EL][index, :]
-    temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
-    temp_ion = ref_profiles[output.TEMP_ION][index, :]
-    temp_ion_bc = ref_profiles[output.TEMP_ION_RIGHT_BC][index]
-    ne = ref_profiles[output.NE][index, :]
-    ne_bound_right = ref_profiles[output.NE_RIGHT_BC][index]
-    psi = ref_profiles[output.PSI][index, :]
+    Ip_total = ref_profiles[output.I_TOTAL][index, -1] / 1e6
+    # All profiles are on a grid with [left_face, cell_grid, right_face]
+    temp_el = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
+    temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
+    temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
+    temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+    ne = ref_profiles[output.N_E][index, 1:-1]
+    ne_bound_right = ref_profiles[output.N_E][index, -1]
+    psi = ref_profiles[output.PSI][index, 1:-1]
 
     # Override the dynamic runtime params with the loaded values.
     dynamic.profile_conditions.Ip_tot = Ip_total
@@ -192,61 +187,72 @@ def _get_geo_and_runtime_params_slice(torax_config):
 def _verify_core_profiles(ref_profiles, index, core_profiles):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
-      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, :]
+      core_profiles.temp_el.value,
+      ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, :]
+      core_profiles.temp_ion.value,
+      ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.NE][index, :]
+      core_profiles.ne.value, ref_profiles[output.N_E][index, 1:-1]
   )
   np.testing.assert_allclose(
       core_profiles.ne.right_face_constraint,
-      ref_profiles[output.NE_RIGHT_BC][index],
+      ref_profiles[output.N_E][index, -1],
   )
   np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, :]
+      core_profiles.psi.value, ref_profiles[output.PSI][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, :]
+      core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.NI][index, :]
+      core_profiles.ni.value, ref_profiles[output.N_I][index, 1:-1]
   )
   np.testing.assert_allclose(
       core_profiles.ni.right_face_constraint,
-      ref_profiles[output.NI_RIGHT_BC][index],
+      ref_profiles[output.N_I][index, -1],
   )
 
   np.testing.assert_allclose(
-      core_profiles.q_face, ref_profiles[output.Q_FACE][index, :]
+      core_profiles.q_face, ref_profiles[output.Q][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.s_face, ref_profiles[output.S_FACE][index, :]
+      core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.nref, ref_profiles[output.NREF][index]
+      core_profiles.nref, ref_profiles[output.N_REF][index]
   )
   np.testing.assert_allclose(
       core_profiles.currents.j_bootstrap,
-      ref_profiles[output.J_BOOTSTRAP][index, :],
+      ref_profiles[output.J_BOOTSTRAP][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
+      core_profiles.currents.jtot, ref_profiles[output.J_TOTAL][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
+      core_profiles.currents.jtot_face[0],
+      ref_profiles[output.J_TOTAL][index, 0],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
+      core_profiles.currents.jtot_face[-1],
+      ref_profiles[output.J_TOTAL][index, -1],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face[0],
+      ref_profiles[output.J_BOOTSTRAP][index, 0],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face[-1],
+      ref_profiles[output.J_BOOTSTRAP][index, -1],
   )
   np.testing.assert_allclose(
       core_profiles.currents.external_current_source,
-      ref_profiles[output.EXTERNAL_CURRENT][index, :],
+      ref_profiles[output.J_EXTERNAL][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
+      core_profiles.currents.johm, ref_profiles[output.J_OHMIC][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.I_bootstrap,
@@ -254,7 +260,7 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
   )
   np.testing.assert_allclose(
       core_profiles.currents.Ip_profile_face,
-      ref_profiles[output.IP_PROFILE_FACE][index, :],
+      ref_profiles[output.I_TOTAL][index, :],
   )
 
 

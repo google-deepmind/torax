@@ -19,10 +19,18 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax import output
 from torax.tests.test_lib import sim_test_case
 
 
-_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
+_ALL_PROFILES = (
+    output.TEMPERATURE_ION,
+    output.TEMPERATURE_ELECTRON,
+    output.PSI,
+    output.Q,
+    output.MAGNETIC_SHEAR,
+    output.N_E,
+)
 
 
 class SimNoCompileTest(sim_test_case.SimTestCase):

@@ -45,22 +45,23 @@ will be surrounded by parentheses, e.g. (time, rho_cell).
 Coordinates
 ===========
 
-All the ``Dataset``s in the output contains the following Coordinates.
+All the ``Dataset``s in the output contains the following Coordinates. In order
+for users of TORAX outputs to not have to worry about TORAX internals we provide
+outputs on the following coordinates. Some TORAX outputs are only computed on
+the face grid, some only on the cell and some are computed on both. In cases
+where both are computed we merge the computed quantities into a single output
+with on the cell grid as well as the left and right face values.
 
 * ``time`` (time)
     Times corresponding to each simulation timestep, in units of [s].
 
-* ``rho_cell`` (rho_cell)
-    Toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid, in units of [m].
-    The array size is set in the input config by ``geometry['nrho']``.
+* ``rho_norm`` (rho_cell + boundary values)
+   Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid.
+   The array size is set in the input config by ``geometry['nrho']``.
 
 * ``rho_cell_norm`` (rho_cell)
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid.
     The array size is set in the input config by ``geometry['nrho']``.
-
-* ``rho_face`` (rho_face)
-    Toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid, in units of [m].
-    The array size is ``geometry['nrho']+1``.
 
 * ``rho_face_norm`` (rho_face)
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid.
@@ -92,25 +93,25 @@ the child ``DataTree``.
 core_profiles
 -------------
 
-``temp_el`` (time, rho_cell)
+``temp_el`` (time, rho_cell + boundary values)
   Electron temperature in :math:`[keV]`.
 
-``temp_ion`` (time, rho_cell)
+``temp_ion`` (time, rho_cell + boundary values)
   Ion temperature in :math:`[keV]`.
 
-``ne`` (time, rho_cell)
+``ne`` (time, rho_cell + boundary values)
   Electron density in units of ``nref``.
 
-``ni`` (time, rho_cell)
+``ni`` (time, rho_cell + boundary values)
   Main ion density in units of ``nref``.
 
 ``nref`` (time)
   Reference density in :math:`[m^{-3}]`.
 
-``psi`` (time, rho_cell)
+``psi`` (time, rho_cell + boundary values)
   Poloidal flux :math:`(\psi)` in :math:`[Wb]`.
 
-``psidot`` (time, rho_cell)
+``psidot`` (time, rho_cell + boundary values)
   Loop voltage :math:`V_{loop}=\frac{\partial\psi}{\partial t}`.
 
 ``q_face`` (time, rho_face)
@@ -122,11 +123,8 @@ core_profiles
 ``sigma`` (time, rho_cell)
   Plasma conductivity on cell grid, in :math:`[S/m]`.
 
-``j_bootstrap`` (time, rho_cell)
-  Bootstrap current density on cell grid, in :math:`[A/m^2]`
-
-``j_bootstrap_face`` (time, rho_face)
-  Bootstrap current density on face grid, in :math:`[A/m^2]`
+``j_bootstrap`` (time, rho_cell + boundary values)
+  Bootstrap current density on cell grid plus boundary values, in :math:`[A/m^2]`
 
 ``core_profiles_generic_current_source`` (time, rho_cell)
   External non-inductive current density on cell grid, as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
@@ -134,11 +132,8 @@ core_profiles
 ``johm`` (time, rho_cell)
   Ohmic current density on cell grid in :math:`[A/m^2]`.
 
-``jtot`` (time, rho_cell)
-  Total current density on cell grid in :math:`[A/m^2]`.
-
-``jtot_face`` (time, rho_face)
-  Total current density on face grid in :math:`[A/m^2]`.
+``jtot`` (time, rho_cell + boundary values)
+  Total current density on cell grid plus boundary values in :math:`[A/m^2]`.
 
 ``Ip_profile_face`` (time, rho_face)
   Current profile on face grid, in :math:`[A]`.
