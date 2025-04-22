@@ -116,12 +116,17 @@ def geometry_from_IMAS(
         # dpsidrhotor = -1 * IMAS_data.profiles_1d.dpsi_drho_tor #ddv3
         dpsidrhotor = 1 * IMAS_data.profiles_1d.dpsi_drho_tor  # ddv4
     else:
+        rho_tor = IMAS_data.profiles_1d.rho_tor
+        if len(rho_tor) == 0:
+            if B0 is None or len(IMAS_data.profiles_1d.phi) == 0:
+                raise ValueError("rho_tor not provided and cannot be calculated from given equilibrium IDS")
+            rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B0))
         # dpsidrhotor = -1 * np.gradient(IMAS_data.profiles_1d.psi) \
-        #    / np.gradient(IMAS_data.profiles_1d.rho_tor)           #ddv3
+        #    / np.gradient(rho_tor)           #ddv3
         dpsidrhotor = (
             1
             * np.gradient(IMAS_data.profiles_1d.psi)
-            / np.gradient(IMAS_data.profiles_1d.rho_tor)
+            / np.gradient(rho_tor)
         )  # ddv4
     flux_surf_avg_RBp = (
         IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi)
