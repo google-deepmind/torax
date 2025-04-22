@@ -287,6 +287,9 @@ class BaseModelFrozen(pydantic.BaseModel):
     """Returns the model at the given path."""
     value = self
     for path in paths:
+      if path == 'runtime_params':
+        # TODO(b/401187494): Remove this once the test configs are updated.
+        continue
       if isinstance(value, BaseModelFrozen):
         if path not in value.model_fields:
           raise ValueError(

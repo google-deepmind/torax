@@ -22,7 +22,6 @@ from torax import version
 from torax.config import numerics as numerics_lib
 from torax.config import plasma_composition as plasma_composition_lib
 from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import pydantic_model as mhd_pydantic_model
@@ -41,7 +40,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   """Base config class for Torax.
 
   Attributes:
-    runtime_params: Config for the runtime parameters.
+    profile_conditions: Config for the profile conditions.
+    numerics: Config for the numerics.
+    plasma_composition: Config for the plasma composition.
     geometry: Config for the geometry.
     pedestal: Config for the pedestal model. If an empty dictionary is passed
       in, the pedestal model will be set to `no_pedestal`.
@@ -56,10 +57,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     restart: Optional config for file restart. If None, no file restart is
       performed.
   """
-
-  # TODO(b/401187494): Flatten the runtime_params config, is this nesting
-  # doesn't add much value.
-  runtime_params: general_runtime_params.GeneralRuntimeParams
+  profile_conditions: profile_conditions_lib.ProfileConditions
+  numerics: numerics_lib.Numerics
+  plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
   stepper: stepper_pydantic_model.StepperConfig = pydantic.Field(
@@ -79,17 +79,22 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       default=None
   )
 
-  @property
-  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
-    return self.runtime_params.profile_conditions
-
-  @property
-  def numerics(self) -> numerics_lib.Numerics:
-    return self.runtime_params.numerics
-
-  @property
-  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
-    return self.runtime_params.plasma_composition
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _unpack_runtime_params(cls, data: dict[str, Any]) -> dict[str, Any]:
+    # # TODO(b/401187494): Remove this once the test configs are updated.
+    if 'runtime_params' in data:
+      new_data = copy.deepcopy(data)
+      runtime_params = new_data.pop('runtime_params')
+      new_data['profile_conditions'] = runtime_params.get(
+          'profile_conditions', {}
+      )
+      new_data['numerics'] = runtime_params.get('numerics', {})
+      new_data['plasma_composition'] = runtime_params.get(
+          'plasma_composition', {}
+      )
+      return new_data
+    return data
 
   @pydantic.model_validator(mode='before')
   @classmethod

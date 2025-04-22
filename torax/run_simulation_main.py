@@ -523,7 +523,7 @@ def use_jax_profiler_if_enabled(f):
 @use_jax_profiler_if_enabled
 def _call_sim_app_main(
     torax_config,
-    output_dir: str,
+    output_dir: str | None,
     log_sim_progress: bool,
     plot_sim_progress: bool,
     log_sim_output: bool,
