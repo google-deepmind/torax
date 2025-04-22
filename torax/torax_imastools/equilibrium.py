@@ -254,7 +254,7 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
     eq.profiles_1d.q = face_to_cell(core_profiles.q_face)
 
     #Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
-    if equilibrium_in != None:
+    if equilibrium_in is not None:
       eq.boundary.outline.r = equilibrium_in.time_slice[0].boundary.outline.r
       eq.boundary.outline.z = equilibrium_in.time_slice[0].boundary.outline.z
 
