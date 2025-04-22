@@ -85,8 +85,8 @@ class AnsiColors(enum.Enum):
 
 _ANSI_END = '\033[0m'
 
-_DEFAULT_OUTPUT_DIR_PREFIX = '/tmp/torax_results_'
-_STATE_HISTORY_FILENAME = 'state_history.nc'
+_DEFAULT_OUTPUT_DIR: Final[str] = '/tmp/torax_results'
+_STATE_HISTORY_FILENAME: Final[str] = 'state_history'
 
 
 def log_to_stdout(
@@ -102,20 +102,23 @@ def log_to_stdout(
     )
 
 
-def write_simulation_output_to_file(
+def _write_simulation_output_to_dir(
     output_dir: str, data_tree: xr.DataTree
 ) -> str:
   """Writes the state history and some geometry information to a NetCDF file."""
+  filename = f'{_STATE_HISTORY_FILENAME}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.nc'  # pylint: disable=g-inconsistent-quotes
+  output_file = os.path.join(output_dir, filename)
+  return write_output_to_file(output_file, data_tree)
 
-  if os.path.exists(output_dir):
-    shutil.rmtree(output_dir)
-  os.makedirs(output_dir)
 
-  output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
-  data_tree.to_netcdf(output_file)
-  log_to_stdout(f'{WRITE_PREFIX}{output_file}', AnsiColors.GREEN)
+def write_output_to_file(path: str, data_tree: xr.DataTree):
+  directory = '/'.join(path.split('/')[:-1])
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+  data_tree.to_netcdf(path)
+  log_to_stdout(f'{WRITE_PREFIX}{path}', AnsiColors.GREEN)
 
-  return output_file
+  return path
 
 
 def _log_single_state(
@@ -143,16 +146,6 @@ def log_simulation_output_to_stdout(
   _log_single_state(core_profile_history.index(-1), t[-1])
 
 
-def _get_output_dir(
-    output_dir: str | None,
-) -> str:
-  if output_dir:
-    return output_dir
-  return _DEFAULT_OUTPUT_DIR_PREFIX + datetime.datetime.now().strftime(
-      '%Y%m%d_%H%M%S'
-  )
-
-
 def can_plot() -> bool:
   # TODO(b/335596567): Find way to detect displays that works on all OS's.
   return True
@@ -169,17 +162,14 @@ def main(
   """Runs a simulation obtained via `get_config`.
 
   This function will always write files to a directory containing the
-  simulation output and the input config. If the output directory exists, that
-  folder will be deleted before writing new results. If it does not exist, then
-  a new folder will be created.
+  simulation output and the input config. Results will be stored as a file
+  `state_history_[timestamp].nc`. If the output directory does not exist it will
+  be created.
 
   Args:
     get_config: Callable that returns a ToraxConfig.
-    output_dir: Path to an output directory. If not provided, then a folder in
-      /tmp is created with a timestamp of this run. If the chosen directory
-      already exists, then it will be deleted before writing new results to
-      file. If not provided here, this function will try to use the value from
-      the flag.
+    output_dir: Path to an output directory. If not provided, then results will
+      be written to `/tmp/torax_results`
     log_sim_progress: If True, then the times for each step of the simulation
       are written out as they execute. The logging might be deferred or
       asynchronous depending on whether JAX compilation is enabled. If False,
@@ -192,7 +182,6 @@ def main(
   Returns:
     The output state file path.
   """
-  output_dir = _get_output_dir(output_dir)
 
   torax_config = get_config()
 
@@ -205,7 +194,8 @@ def main(
 
   data_tree = state_history.simulation_output_to_xr(torax_config.restart)
 
-  output_file = write_simulation_output_to_file(output_dir, data_tree)
+  output_dir = output_dir if output_dir else _DEFAULT_OUTPUT_DIR
+  output_file = _write_simulation_output_to_dir(output_dir, data_tree)
 
   if log_sim_output:
     log_simulation_output_to_stdout(

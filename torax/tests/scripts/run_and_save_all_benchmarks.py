@@ -22,9 +22,12 @@ import time
 from absl import app
 from absl import flags
 from torax import simulation_app
+from torax.orchestration import run_simulation
 from torax.tests.test_lib import paths
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
+
+import shutil
 
 import multiprocessing
 
@@ -84,10 +87,12 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' or a CONFIG dictionary.'
     )
   try:
-    output_file = simulation_app.main(
-        lambda: torax_config,
-        output_dir=os.path.join(output_dir, config_name),
-    )
+    state_history = run_simulation.run_simulation(
+        torax_config, progress_bar=False)
+    output_file = os.path.join(output_dir, f'{config_name}.nc')
+    simulation_app.write_output_to_file(
+        output_file,
+        state_history.simulation_output_to_xr())
     print(f'Finished running {config_name}, output saved to {output_file}')
   except Exception as e:  # pylint: disable=broad-except
     print(f'Failed to run {config_name}: {e}')
@@ -107,6 +112,9 @@ def main(argv: Sequence[str]) -> None:
       config_name, _ = basename.split('.')
       configs.append(config_name)
   print(f'Found {len(configs)} config experiments to run.')
+  output_dir = _OUTPUT_DIR.value
+  if os.path.exists(output_dir):
+    shutil.rmtree(output_dir)
   run_sim = functools.partial(
       _run_sim,
       test_data_dir=test_data_dir,

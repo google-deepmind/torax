@@ -369,6 +369,7 @@ def main(_):
   log_sim_output = _LOG_SIM_OUTPUT.value
   torax_config = None
   output_files = []
+  output_dir = _OUTPUT_DIR.value
   try:
     start_time = time.time()
     torax_config = (
@@ -376,7 +377,6 @@ def main(_):
             config_module_str, _PYTHON_CONFIG_PACKAGE.value
         )
     )
-    output_dir = _OUTPUT_DIR.value
     build_time = time.time() - start_time
     start_time = time.time()
     output_file = _call_sim_app_main(
@@ -421,7 +421,7 @@ def main(_):
           start_time = time.time()
           output_file = _call_sim_app_main(
               torax_config,
-              output_dir=torax_config.runtime_params.output_dir,
+              output_dir=output_dir,
               log_sim_progress=log_sim_progress,
               plot_sim_progress=plot_sim_progress,
               log_sim_output=log_sim_output,

@@ -16,6 +16,7 @@ import io
 import os
 import shutil
 import sys
+from typing import Final
 from unittest import mock
 from absl import app
 from absl import logging
@@ -28,6 +29,8 @@ from torax import run_simulation_main
 from torax import simulation_app
 from torax.tests.test_lib import paths
 import xarray as xr
+
+_TMP_DIR: Final[str] = "/tmp/torax_test_output"
 
 
 class RunSimulationMainTest(parameterized.TestCase):
@@ -68,7 +71,7 @@ class RunSimulationMainTest(parameterized.TestCase):
       ),
       (
           run_simulation_main._OUTPUT_DIR,
-          "/tmp/torax_test_output",
+          _TMP_DIR,
       ),
   )
   @mock.patch("builtins.input", side_effect=["q"])
@@ -86,9 +89,10 @@ class RunSimulationMainTest(parameterized.TestCase):
     # Make sure the app ran successfully
     self.assertIsNone(cm.exception.code)
 
-    output = output_lib.load_state_file(
-        "/tmp/torax_test_output/state_history.nc"
-    )
+    output_file = os.listdir(_TMP_DIR)[-1]
+    output_path = os.path.join(_TMP_DIR, output_file)
+
+    output = output_lib.load_state_file(output_path)
     reference = output_lib.load_state_file(
         os.path.join(paths.test_data_dir(), "test_implicit.nc")
     )

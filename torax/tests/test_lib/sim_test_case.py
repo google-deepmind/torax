@@ -89,7 +89,7 @@ class SimTestCase(parameterized.TestCase):
       ref_profiles,
       rtol,
       atol,
-      output_dir=None,
+      output_file=None,
       ds=None,
       write_output=True,
   ):
@@ -182,8 +182,8 @@ class SimTestCase(parameterized.TestCase):
       final_msg = '\n'.join(msgs)
       # Write all outputs to tmp dirs, used for automated comparisons and
       # updates of references.
-      if output_dir is not None and ds is not None and write_output:
-        _ = simulation_app.write_simulation_output_to_file(output_dir, ds)
+      if output_file is not None and ds is not None and write_output:
+        _ = simulation_app.write_output_to_file(output_file, ds)
 
       raise AssertionError(final_msg)
 
@@ -205,7 +205,7 @@ class SimTestCase(parameterized.TestCase):
     torax_config = self._get_torax_config(config_name)
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
     ds = history.simulation_output_to_xr()
-    output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
+    output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
 
     if ref_name is None:
       ref_name = f'{config_name[:-3]}.nc'
@@ -219,7 +219,7 @@ class SimTestCase(parameterized.TestCase):
         ref_profiles=ref_profiles,
         rtol=rtol,
         atol=atol,
-        output_dir=output_dir,
+        output_file=output_file,
         ds=ds,
         write_output=write_output,
     )

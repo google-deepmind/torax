@@ -59,24 +59,26 @@ def _compare_all_failed_sim_test_outputs() -> None:
         'Make sure failed tests exist in output directory.'
     )
 
-  for failed_test_dir in os.listdir(failed_test_output_dir):
-    _compare_sim_test_outputs(failed_test_dir)
+  for failed_test_file in os.listdir(failed_test_output_dir):
+    _compare_sim_test_outputs(failed_test_file)
 
 
-def _compare_sim_test_outputs(failed_test_dir: str) -> None:
+def _compare_sim_test_outputs(failed_test_file: str) -> None:
   """Compares xarray outputs of failed sim tests to their references.
 
   Args:
-    failed_test_dir: Name of the failed test directory.
+    failed_test_file: Name of the failed test file, this is corresponds to the
+      test which failed.
   """
+  test_name = failed_test_file.split('.')[0]
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
   reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
 
   old_file = os.path.join(
-      reference_test_data_dir, test_lib.get_data_file(failed_test_dir)
+      reference_test_data_dir, test_lib.get_data_file(test_name)
   )
   new_file = os.path.join(
-      failed_test_output_dir, failed_test_dir, 'state_history.nc'
+      failed_test_output_dir, failed_test_file
   )
 
   # The variables in the nc files which to compare and print out the diffs
