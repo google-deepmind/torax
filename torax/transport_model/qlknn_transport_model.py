@@ -57,7 +57,7 @@ def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
   logging.info('Loading model from %s', path)
   try:
     if path:
-      if path.endswith('qlknn_hyper'):
+      if not path.endswith('.qlknn'):
         return qlknn_10d.QLKNN10D(path, name)
       else:
         return qlknn_model_wrapper.QLKNNModelWrapper(path, name)
