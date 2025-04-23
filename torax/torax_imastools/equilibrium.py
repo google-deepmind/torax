@@ -177,8 +177,13 @@ def geometry_from_IMAS(
         "z_magnetic_axis": z_magnetic_axis,
     }
 
+
 @requires_module("imas")
-def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel | None=None) -> IDSToplevel:
+def geometry_to_IMAS(
+    SimState: state.ToraxSimState,
+    post_processed_outputs: state.PostProcessedOutputs,
+    equilibrium_in: IDSToplevel | None = None,
+) -> IDSToplevel:
     """Constructs an IMAS equilibrium IDS from a StandardGeometry object.
     Takes the cell grid as a basis and converts values on face grid to cell.
     Args:
@@ -194,13 +199,12 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
 
     geometry = SimState.geometry
     core_profiles = SimState.core_profiles
-    post_processed_outputs = SimState.post_processed_outputs
-    #Rebuilding the equilibrium from the geometry object (Which should remain unchanged by the transport code), is it needed or do we only need coupling variables ?
+    # Rebuilding the equilibrium from the geometry object (Which should remain unchanged by the transport code), is it needed or do we only need coupling variables ?
     equilibrium = imas.IDSFactory().equilibrium()
-    equilibrium.ids_properties.homogeneous_time = 1 #Should be 0 or 1 ?
+    equilibrium.ids_properties.homogeneous_time = 1  # Should be 0 or 1 ?
     equilibrium.ids_properties.comment = "equilibrium IDS built from ToraxSimState object."
     equilibrium.time.resize(1)
-    equilibrium.time = [SimState.t] #What time should be set ? Needed for B0
+    equilibrium.time = [SimState.t]  # What time should be set ? Needed for B0
     equilibrium.vacuum_toroidal_field.r0 = geometry.Rmaj
     equilibrium.vacuum_toroidal_field.b0.resize(1)
     equilibrium.vacuum_toroidal_field.b0[0] = -1 * geometry.B0
@@ -230,7 +234,7 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
           1
           * np.gradient(eq.profiles_1d.volume)
           / np.gradient(eq.profiles_1d.psi)
-      )
+    )
     dpsidrhotor = (
         1
         * np.gradient(eq.profiles_1d.psi)
@@ -243,19 +247,19 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
     eq.profiles_1d.gm3 = geometry.g1 / (dpsidrhotor ** 2 * dvoldpsi**2)
     eq.profiles_1d.gm2 = geometry.g2 / (dpsidrhotor ** 2 * dvoldpsi**2)
 
-    #Quantities computed by the transport code useful for coupling with equilibrium code
+    # Quantities computed by the transport code useful for coupling with equilibrium code
     eq.profiles_1d.pressure = face_to_cell(post_processed_outputs.pressure_thermal_tot_face)
     eq.profiles_1d.dpressure_dpsi = face_to_cell(post_processed_outputs.pprime_face)
 
-    #<j.B>/B0, could be useful to calculate and use instead of FF'
+    # <j.B>/B0, could be useful to calculate and use instead of FF'
     # determine sign how?
-    eq.profiles_1d.f = -1 * geometry.F #Is probably not self-consistent due to the evolution of the state by the solver.
+    eq.profiles_1d.f = -1 * geometry.F  # Is probably not self-consistent due to the evolution of the state by the solver.
     eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime_face)
     eq.profiles_1d.q = face_to_cell(core_profiles.q_face)
 
-    #Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
+    # Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
     if equilibrium_in is not None:
-      eq.boundary.outline.r = equilibrium_in.time_slice[0].boundary.outline.r
-      eq.boundary.outline.z = equilibrium_in.time_slice[0].boundary.outline.z
+        eq.boundary.outline.r = equilibrium_in.time_slice[0].boundary.outline.r
+        eq.boundary.outline.z = equilibrium_in.time_slice[0].boundary.outline.z
 
     return equilibrium
