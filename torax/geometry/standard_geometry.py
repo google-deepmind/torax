@@ -522,7 +522,7 @@ class StandardGeometryIntermediates:
         'deltau',
         'deltal',
         'kappa',
-        'FtPQ',
+        'FtPVQ',
         'zA',
     ]
     LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
@@ -556,7 +556,7 @@ class StandardGeometryIntermediates:
     Rmaj = LY['rgeom'][-1]  # Major radius
     B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
     Rmin = LY['aminor'][-1]  # Minor radius
-    Phi = LY['FtPQ']  # Toroidal flux including plasma contribution
+    Phi = LY['FtPVQ']  # Toroidal flux including plasma contribution
     rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
     psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
     # To avoid possible divisions by zero in diverted geometry. Value of what
@@ -1174,7 +1174,7 @@ def _validate_fbt_data(
       'deltau': psi_and_time_shape,
       'deltal': psi_and_time_shape,
       'kappa': psi_and_time_shape,
-      'FtPQ': psi_and_time_shape,
+      'FtPVQ': psi_and_time_shape,
       'zA': time_only_shape,
   }
 
