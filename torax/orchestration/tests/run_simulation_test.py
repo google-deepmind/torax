@@ -36,7 +36,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     new_value = original_value.value * 1.1
 
     torax_config.update_fields(
-        {'runtime_params.profile_conditions.nbar': new_value}
+        {'profile_conditions.nbar': new_value}
     )
     new_history = run_simulation.run_simulation(torax_config)
 

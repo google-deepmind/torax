@@ -320,7 +320,7 @@ class InitialStatesTest(parameterized.TestCase):
         sources=torax_config.sources.source_model_config
     )
 
-    torax_config.update_fields({'runtime_params.profile_conditions': config1})
+    torax_config.update_fields({'profile_conditions': config1})
     dcs1, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=torax_config.numerics.t_initial,
@@ -340,7 +340,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
 
-    torax_config.update_fields({'runtime_params.profile_conditions': config2})
+    torax_config.update_fields({'profile_conditions': config2})
     dcs2, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=torax_config.numerics.t_initial,
@@ -371,7 +371,7 @@ class InitialStatesTest(parameterized.TestCase):
         },
     }
     torax_config.update_fields({
-        'runtime_params.profile_conditions': config3,
+        'profile_conditions': config3,
         'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
@@ -407,7 +407,7 @@ class InitialStatesTest(parameterized.TestCase):
         },
     }
     torax_config.update_fields({
-        'runtime_params.profile_conditions': config3_helper,
+        'profile_conditions': config3_helper,
         'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
@@ -530,7 +530,7 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     torax_config.update_fields(
-        {'runtime_params.profile_conditions.initial_psi_from_j': True}
+        {'profile_conditions.initial_psi_from_j': True}
     )
     dcs2 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
         torax_config
