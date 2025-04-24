@@ -13,6 +13,7 @@
 # limitations under the License.
 """Helpers for tests using core profiles."""
 import chex
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import output
@@ -21,8 +22,12 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 
 
+# pylint: disable=invalid-name
 def make_zero_core_profiles(
     geo: geometry.Geometry,
+    temp_el: cell_variable.CellVariable | None = None,
+    Zimp: jax.Array | None = None,
+    Zimp_face: jax.Array | None = None,
 ) -> state.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
@@ -34,7 +39,7 @@ def make_zero_core_profiles(
   return state.CoreProfiles(
       currents=state.Currents.zeros(geo),
       temp_ion=zero_cell_variable,
-      temp_el=zero_cell_variable,
+      temp_el=temp_el if temp_el is not None else zero_cell_variable,
       psi=zero_cell_variable,
       psidot=zero_cell_variable,
       ne=zero_cell_variable,
@@ -47,8 +52,10 @@ def make_zero_core_profiles(
       Zi=jnp.zeros_like(geo.rho),
       Zi_face=jnp.zeros_like(geo.rho_face),
       Ai=jnp.zeros(()),
-      Zimp=jnp.zeros_like(geo.rho),
-      Zimp_face=jnp.zeros_like(geo.rho_face),
+      Zimp=Zimp if Zimp is not None else jnp.zeros_like(geo.rho),
+      Zimp_face=Zimp_face
+      if Zimp_face is not None
+      else jnp.zeros_like(geo.rho_face),
       Aimp=jnp.zeros(()),
   )
 
@@ -60,30 +67,30 @@ def verify_core_profiles(
 ):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
-      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, :]
+      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, :]
+      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.NE][index, :]
+      core_profiles.ne.value, ref_profiles[output.NE][index, 1:-1]
   )
   np.testing.assert_allclose(
       core_profiles.ne.right_face_constraint,
-      ref_profiles[output.NE_RIGHT_BC][index],
+      ref_profiles[output.NE][index, -1],
   )
   np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, :]
+      core_profiles.psi.value, ref_profiles[output.PSI][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, :]
+      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.NI][index, :]
+      core_profiles.ni.value, ref_profiles[output.NI][index, 1:-1]
   )
   np.testing.assert_allclose(
       core_profiles.ni.right_face_constraint,
-      ref_profiles[output.NI_RIGHT_BC][index],
+      ref_profiles[output.NI][index, -1],
   )
 
   np.testing.assert_allclose(
@@ -97,17 +104,24 @@ def verify_core_profiles(
   )
   np.testing.assert_allclose(
       core_profiles.currents.j_bootstrap,
-      ref_profiles[output.J_BOOTSTRAP][index, :],
+      ref_profiles[output.J_BOOTSTRAP][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
+      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
+      core_profiles.currents.jtot_face[0], ref_profiles[output.JTOT][index, 0]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
+      core_profiles.currents.jtot_face[-1], ref_profiles[output.JTOT][index, -1]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face[0],
+      ref_profiles[output.J_BOOTSTRAP][index, 0],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face[-1],
+      ref_profiles[output.J_BOOTSTRAP][index, -1],
   )
   np.testing.assert_allclose(
       core_profiles.currents.external_current_source,

@@ -25,8 +25,10 @@ from torax import output
 from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
+from torax.fvm import cell_variable
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import default_sources
 from torax.torax_pydantic import model_config
 import xarray as xr
@@ -49,7 +51,7 @@ class StateHistoryTest(parameterized.TestCase):
                 'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
             },
         },
-        'geometry': {'geometry_type': 'circular'},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'stepper': {},
         'transport': {
@@ -60,6 +62,7 @@ class StateHistoryTest(parameterized.TestCase):
     })
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
+    print(self.geo.rho_norm)
     ones = jnp.ones_like(self.geo.rho)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -268,6 +271,49 @@ class StateHistoryTest(parameterized.TestCase):
     config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
     rebuilt_torax_config = model_config.ToraxConfig.from_dict(config_dict)
     self.assertEqual(rebuilt_torax_config, self.torax_config)
+
+  def test_cell_plus_boundaries_output(self):
+    sim_state = self.sim_state
+    temp_el = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho),
+        dr=self.geo.drho_norm,
+        right_face_constraint=2,
+        left_face_constraint=18,
+        left_face_grad_constraint=None,
+        right_face_grad_constraint=None,
+    )
+    # pylint: disable=invalid-name
+    Zimp = jnp.ones_like(self.geo.rho) * 2
+    Zimp_face = jnp.ones_like(self.geo.rho_face) * 3
+    # pylint: enable=invalid-name
+    core_profiles = core_profile_helpers.make_zero_core_profiles(
+        self.geo, temp_el=temp_el, Zimp=Zimp, Zimp_face=Zimp_face
+    )
+    sim_state = dataclasses.replace(sim_state, core_profiles=core_profiles)
+    post_processed_outputs = state.PostProcessedOutputs.zeros(self.geo)
+    state_history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=(sim_state, sim_state),
+        post_processed_outputs_history=(
+            post_processed_outputs,
+            post_processed_outputs,
+        ),
+        source_models=self.source_models,
+        torax_config=self.torax_config,
+    )
+    output_xr = state_history.simulation_output_to_xr()
+    np.testing.assert_equal(
+        output_xr.children[output.CORE_PROFILES]
+        .dataset.data_vars['Zimp']
+        .values,
+        np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
+    )
+    np.testing.assert_equal(
+        output_xr.children[output.CORE_PROFILES]
+        .dataset.data_vars['temp_el']
+        .values,
+        np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
+    )
 
 
 if __name__ == '__main__':

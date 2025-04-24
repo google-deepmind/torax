@@ -35,19 +35,12 @@ import os
 # Core profiles.
 CORE_PROFILES = "core_profiles"
 TEMP_EL = "temp_el"
-TEMP_EL_RIGHT_BC = "temp_el_right_bc"
 TEMP_ION = "temp_ion"
-TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
 PSI = "psi"
 PSIDOT = "psidot"
-PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
-PSI_RIGHT_BC = "psi_right_bc"
 NE = "ne"
-NE_RIGHT_BC = "ne_right_bc"
 NI = "ni"
-NI_RIGHT_BC = "ni_right_bc"
 JTOT = "jtot"
-JTOT_FACE = "jtot_face"
 JOHM = "johm"
 EXTERNAL_CURRENT = "external_current_source"
 J_BOOTSTRAP = "j_bootstrap"
@@ -76,6 +69,7 @@ GEOMETRY = "geometry"
 # Coordinates.
 RHO_FACE_NORM = "rho_face_norm"
 RHO_CELL_NORM = "rho_cell_norm"
+RHO_NORM = "rho_norm"
 RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
@@ -163,6 +157,16 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
+def _merge_face_and_cell_grids(
+    cell_var: chex.Array, face_var: chex.Array
+) -> chex.Array:
+  """Merge face+cell grids into single [left_face, cells, right_face] grid."""
+  left_value = np.expand_dims(face_var[:, 0], axis=-1)
+  right_value = np.expand_dims(face_var[:, -1], axis=-1)
+
+  return np.concatenate([left_value, cell_var, right_value], axis=-1)
+
+
 def stitch_state_files(
     file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
 ) -> xr.DataTree:
@@ -215,8 +219,11 @@ class StateHistory:
     )
     self.times = np.array([state.t for state in state_history])
     # The rho grid does not change in time so we can just take the first one.
-    self.rho_norm = state_history[0].geometry.rho_norm
+    self.rho_cell_norm = state_history[0].geometry.rho_norm
     self.rho_face_norm = state_history[0].geometry.rho_face_norm
+    self.rho_norm = np.concatenate(
+        [[0.0], self.rho_cell_norm, [1.0]]
+    )
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_error
     self.source_models = source_models
@@ -240,6 +247,10 @@ class StateHistory:
     )
     is_cell_var = lambda x: x.ndim == 2 and x.shape == (
         len(self.times),
+        len(self.rho_cell_norm),
+    )
+    is_cell_plus_boundaries_var = lambda x: x.ndim == 2 and x.shape == (
+        len(self.times),
         len(self.rho_norm),
     )
     is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
@@ -254,6 +265,8 @@ class StateHistory:
         dims = [TIME]
       case data if is_constant(data):
         dims = []
+      case data if is_cell_plus_boundaries_var(data):
+        dims = [TIME, RHO_NORM]
       case _:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
@@ -269,46 +282,39 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
     xr_dict = {}
+    core_profiles = self.core_profiles
 
-    xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
-    xr_dict[TEMP_EL_RIGHT_BC] = self.core_profiles.temp_el.right_face_constraint
-    xr_dict[TEMP_ION] = self.core_profiles.temp_ion.value
-    xr_dict[TEMP_ION_RIGHT_BC] = (
-        self.core_profiles.temp_ion.right_face_constraint
+    xr_dict[TEMP_EL] = core_profiles.temp_el.cell_plus_boundaries()
+    xr_dict[TEMP_ION] = core_profiles.temp_ion.cell_plus_boundaries()
+    xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
+    xr_dict[PSIDOT] = core_profiles.psidot.cell_plus_boundaries()
+    xr_dict[NE] = core_profiles.ne.cell_plus_boundaries()
+    xr_dict[NI] = core_profiles.ni.cell_plus_boundaries()
+    xr_dict[NIMP] = core_profiles.nimp.cell_plus_boundaries()
+    xr_dict[ZIMP] = _merge_face_and_cell_grids(
+        core_profiles.Zimp, core_profiles.Zimp_face
     )
-    xr_dict[PSI] = self.core_profiles.psi.value
-    xr_dict[PSI_RIGHT_GRAD_BC] = (
-        self.core_profiles.psi.right_face_grad_constraint
-    )
-    xr_dict[PSI_RIGHT_BC] = self.core_profiles.psi.right_face_constraint
-    xr_dict[PSIDOT] = self.core_profiles.psidot.value
-    xr_dict[NE] = self.core_profiles.ne.value
-    xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
-    xr_dict[NI] = self.core_profiles.ni.value
-    xr_dict[NI_RIGHT_BC] = self.core_profiles.ni.right_face_constraint
-    xr_dict[ZIMP] = self.core_profiles.Zimp
-    xr_dict[NIMP] = self.core_profiles.nimp.value
 
     # Currents.
-    xr_dict[JTOT] = self.core_profiles.currents.jtot
-    xr_dict[JTOT_FACE] = self.core_profiles.currents.jtot_face
-    xr_dict[JOHM] = self.core_profiles.currents.johm
-    xr_dict[EXTERNAL_CURRENT] = (
-        self.core_profiles.currents.external_current_source
+    xr_dict[JTOT] = _merge_face_and_cell_grids(
+        core_profiles.currents.jtot, core_profiles.currents.jtot_face
     )
+    xr_dict[JOHM] = core_profiles.currents.johm
+    xr_dict[EXTERNAL_CURRENT] = core_profiles.currents.external_current_source
+    xr_dict[J_BOOTSTRAP] = _merge_face_and_cell_grids(
+        core_profiles.currents.j_bootstrap,
+        core_profiles.currents.j_bootstrap_face,
+    )
+    xr_dict[IP_PROFILE_FACE] = core_profiles.currents.Ip_profile_face
+    xr_dict[IP_TOTAL] = core_profiles.currents.Ip_total
+    xr_dict[I_BOOTSTRAP] = core_profiles.currents.I_bootstrap
+    xr_dict[SIGMA] = core_profiles.currents.sigma
 
-    xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
-    xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
-    xr_dict[IP_PROFILE_FACE] = self.core_profiles.currents.Ip_profile_face
-    xr_dict[IP_TOTAL] = self.core_profiles.currents.Ip_total
-    xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
-    xr_dict[SIGMA] = self.core_profiles.currents.sigma
+    xr_dict[Q_FACE] = core_profiles.q_face
+    xr_dict[S_FACE] = core_profiles.s_face
+    xr_dict[NREF] = core_profiles.nref
 
-    xr_dict[Q_FACE] = self.core_profiles.q_face
-    xr_dict[S_FACE] = self.core_profiles.s_face
-    xr_dict[NREF] = self.core_profiles.nref
-
-    xr_dict[VLOOP_LCFS] = self.core_profiles.vloop_lcfs
+    xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
 
     xr_dict = {
         name: self._pack_into_data_array(
@@ -443,10 +449,10 @@ class StateHistory:
       A xr.DataTree containing a single top level xr.Dataset and four child
       datasets. The top level dataset contains the following variables:
         - time: The time of the simulation.
+        - rho_norm: The normalized toroidal coordinate on the cell grid with the
+            left and right face boundaries added.
         - rho_face_norm: The normalized toroidal coordinate on the face grid.
         - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
-        - rho_face: The toroidal coordinate on the face grid.
-        - rho_cell: The toroidal coordinate on the cell grid.
         - sawtooth_crash: Time-series boolean indicating whether the
             state corresponds to a post-sawtooth-crash state.
         - sim_error: The simulation error state.
@@ -471,13 +477,19 @@ class StateHistory:
         self.rho_face_norm, dims=[RHO_FACE_NORM], name=RHO_FACE_NORM
     )
     rho_cell_norm = xr.DataArray(
-        self.rho_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
+        self.rho_cell_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
+    )
+    rho_norm = xr.DataArray(
+        self.rho_norm,
+        dims=[RHO_NORM],
+        name=RHO_NORM,
     )
 
     coords = {
         TIME: time,
         RHO_FACE_NORM: rho_face_norm,
         RHO_CELL_NORM: rho_cell_norm,
+        RHO_NORM: rho_norm,
     }
 
     # Update dict with flattened StateHistory dataclass containers
