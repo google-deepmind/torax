@@ -158,6 +158,7 @@ def main(
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
+    log_sim_progress_bar: bool = True,
 ) -> str:
   """Runs a simulation obtained via `get_config`.
 
@@ -178,6 +179,7 @@ def main(
       end of the run. If False, nothing happens.
     plot_sim_progress: If True, then a plotting spectator will be attached to
       the sim.
+    log_sim_progress_bar: If True, then a progress bar will be logged.
 
   Returns:
     The output state file path.
@@ -186,7 +188,9 @@ def main(
   torax_config = get_config()
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
-  state_history = run_simulation.run_simulation(torax_config, log_sim_progress)
+  state_history = run_simulation.run_simulation(
+      torax_config, log_sim_progress, progress_bar=log_sim_progress_bar,
+  )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
   if plot_sim_progress:
