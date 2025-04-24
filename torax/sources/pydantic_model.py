@@ -44,16 +44,13 @@ class Sources(torax_pydantic.BaseModelFrozen):
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
-
   j_bootstrap: bootstrap_current_source_lib.BootstrapCurrentSourceConfig = (
       torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
   )
-  generic_current_source: (
-      generic_current_source_lib.GenericCurrentSourceConfig
-  ) = torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
   qei_source: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
       {'mode': 'ZERO'}
   )
+  # keep-sorted start
   bremsstrahlung_heat_sink: (
       bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig | None
   ) = pydantic.Field(
@@ -72,30 +69,29 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_function_name',
       default=None,
   )
-  gas_puff_source: gas_puff_source_lib.GasPuffSourceConfig | None = (
-      pydantic.Field(
-          discriminator='model_function_name',
-          default=None,
-      )
-  )
-  generic_particle_source: (
-      generic_particle_source_lib.GenericParticleSourceConfig | None
-  ) = pydantic.Field(
-      discriminator='model_function_name',
-      default=None,
-  )
-  pellet_source: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
-      discriminator='model_function_name',
-      default=None,
-  )
   fusion_heat_source: fusion_heat_source_lib.FusionHeatSourceConfig | None = (
       pydantic.Field(
           discriminator='model_function_name',
           default=None,
       )
   )
+  gas_puff_source: gas_puff_source_lib.GasPuffSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
+  )
+  generic_current_source: (
+      generic_current_source_lib.GenericCurrentSourceConfig
+  ) = torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
   generic_ion_el_heat_source: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  generic_particle_source: (
+      generic_particle_source_lib.GenericParticleSourceConfig | None
   ) = pydantic.Field(
       discriminator='model_function_name',
       default=None,
@@ -120,6 +116,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
           default=None,
       )
   )
+  pellet_source: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  # keep-sorted end
 
   @pydantic.model_validator(mode='before')
   @classmethod
