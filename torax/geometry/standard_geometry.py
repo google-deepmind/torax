@@ -19,6 +19,7 @@ CHEASE, FBT, etc.
 """
 from collections.abc import Mapping
 import dataclasses
+import logging
 
 import chex
 import contourpy
@@ -522,10 +523,21 @@ class StandardGeometryIntermediates:
         'deltau',
         'deltal',
         'kappa',
-        'FtPQ',
         'zA',
     ]
     LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
+
+    # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.
+    if 'FtPVQ' in LY_bundle:
+      LY_single_slice['FtPVQ'] = LY_bundle['FtPVQ'][..., idx]
+    else:
+      # TODO(b/412965439) remove support for LY files that don't contain FtPVQ.
+      logging.warning(
+          'FtPVQ not found in LY bundle, using FtPQ instead. Please upgrade to'
+          ' a newer version of MEQ as the source of the LY data. This will'
+          ' throw an error in a future version.'
+      )
+      LY_single_slice['FtPVQ'] = LY_bundle['FtPQ'][..., idx]
     return LY_single_slice
 
   @classmethod
@@ -556,7 +568,19 @@ class StandardGeometryIntermediates:
     Rmaj = LY['rgeom'][-1]  # Major radius
     B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
     Rmin = LY['aminor'][-1]  # Minor radius
-    Phi = LY['FtPQ']  # Toroidal flux including plasma contribution
+    # Toroidal flux including plasma contribution
+    # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.
+    if 'FtPVQ' in LY:
+      Phi = LY['FtPVQ']
+    else:
+      # TODO(b/412965439)
+      logging.warning(
+          'FtPVQ not found in LY, using FtPQ instead. Please upgrade to'
+          ' a newer version of MEQ as the source of the LY data. This will'
+          ' throw an error in a future version.'
+      )
+      Phi = LY['FtPQ']
+
     rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
     psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
     # To avoid possible divisions by zero in diverted geometry. Value of what
@@ -1174,8 +1198,11 @@ def _validate_fbt_data(
       'deltau': psi_and_time_shape,
       'deltal': psi_and_time_shape,
       'kappa': psi_and_time_shape,
-      'FtPQ': psi_and_time_shape,
       'zA': time_only_shape,
+  }
+  toroidal_flux_spec = {
+      'FtPVQ': psi_and_time_shape,
+      'FtPQ': psi_and_time_shape,
   }
 
   missing_LY_keys = required_LY_spec.keys() - LY.keys()
@@ -1183,9 +1210,23 @@ def _validate_fbt_data(
     raise ValueError(
         f'LY data is missing the following keys: {missing_LY_keys}'
     )
+  missing_toroidal_flux = 'FtPVQ' not in LY.keys() and 'FtPQ' not in LY.keys()
+  if missing_toroidal_flux:
+    raise ValueError(
+        'LY data is missing a toroidal flux-related key '
+        'provide either FtPVQ or FtPQ.'
+    )
 
   for key, shape in required_LY_spec.items():
+    # all keys should be present to check them all
     if LY[key].shape != shape:
+      raise ValueError(
+          f"Incorrect shape for key '{key}' in LY data. "
+          f'Expected {shape}:, got {LY[key].shape}.'
+      )
+  for key, shape in toroidal_flux_spec.items():
+    # only check the shape if the key is present
+    if key in LY and LY[key].shape != shape:
       raise ValueError(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'

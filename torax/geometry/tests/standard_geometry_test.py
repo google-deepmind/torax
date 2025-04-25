@@ -100,7 +100,7 @@ class GeometryTest(parameterized.TestCase):
       dict(invalid_key='deltau', invalid_shape=(10, 3)),
       dict(invalid_key='deltal', invalid_shape=(10, 3)),
       dict(invalid_key='kappa', invalid_shape=(10, 3)),
-      dict(invalid_key='FtPQ', invalid_shape=(20, 2)),
+      dict(invalid_key='FtPVQ', invalid_shape=(20, 2)),
       dict(invalid_key='zA', invalid_shape=(2,)),
       dict(invalid_key='t', invalid_shape=(2,)),
   ])
@@ -131,17 +131,22 @@ class GeometryTest(parameterized.TestCase):
       'deltau',
       'deltal',
       'kappa',
-      'FtPQ',
+      'FtPQ',       # TODO(b/412965439)  remove support for LY files w/o FtPVQ.
       'zA',
       't',
   )
   def test_validate_fbt_data_missing_LY_key(self, missing_key):
     len_psinorm = 20
     len_times = 3
-
     L, LY = _get_example_L_LY_data(len_psinorm, len_times)
     del LY[missing_key]
-    with self.assertRaisesRegex(ValueError, 'LY data is missing'):
+
+    if missing_key == 'FtPQ':
+      errmsg = 'LY data is missing a toroidal flux-related key'
+    else:
+      errmsg = 'LY data is missing the'
+
+    with self.assertRaisesRegex(ValueError, errmsg):
       standard_geometry._validate_fbt_data(LY, L)
 
   def test_validate_fbt_data_missing_L_key(self):
