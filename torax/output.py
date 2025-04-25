@@ -60,10 +60,14 @@ VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
 CORE_TRANSPORT = "core_transport"
-CHI_FACE_ION = "chi_face_ion"
-CHI_FACE_EL = "chi_face_el"
-D_FACE_EL = "d_face_el"
-V_FACE_EL = "v_face_el"
+CHI_TURB_I = "chi_turb_i"
+CHI_TURB_E = "chi_turb_e"
+D_TURB_E = "D_turb_e"
+V_TURB_E = "V_turb_e"
+CHI_BOHM_E = "chi_bohm_e"
+CHI_GYROBOHM_E = "chi_gyrobohm_e"
+CHI_BOHM_I = "chi_bohm_i"
+CHI_GYROBOHM_I = "chi_gyrobohm_i"
 
 # Geometry.
 GEOMETRY = "geometry"
@@ -338,10 +342,10 @@ class StateHistory:
     """Saves the core transport to a dict."""
     xr_dict = {}
 
-    xr_dict[CHI_FACE_ION] = self.core_transport.chi_face_ion
-    xr_dict[CHI_FACE_EL] = self.core_transport.chi_face_el
-    xr_dict[D_FACE_EL] = self.core_transport.d_face_el
-    xr_dict[V_FACE_EL] = self.core_transport.v_face_el
+    xr_dict[CHI_TURB_I] = self.core_transport.chi_face_ion
+    xr_dict[CHI_TURB_E] = self.core_transport.chi_face_el
+    xr_dict[D_TURB_E] = self.core_transport.d_face_el
+    xr_dict[V_TURB_E] = self.core_transport.v_face_el
 
     # Save optional BohmGyroBohm attributes if nonzero.
     core_transport = self.core_transport
@@ -351,10 +355,10 @@ class StateHistory:
         or np.any(core_transport.chi_face_ion_bohm != 0)
         or np.any(core_transport.chi_face_ion_gyrobohm != 0)
     ):
-      xr_dict["chi_face_el_bohm"] = core_transport.chi_face_el_bohm
-      xr_dict["chi_face_el_gyrobohm"] = core_transport.chi_face_el_gyrobohm
-      xr_dict["chi_face_ion_bohm"] = core_transport.chi_face_ion_bohm
-      xr_dict["chi_face_ion_gyrobohm"] = core_transport.chi_face_ion_gyrobohm
+      xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
+      xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
+      xr_dict[CHI_BOHM_I] = core_transport.chi_face_ion_bohm
+      xr_dict[CHI_GYROBOHM_I] = core_transport.chi_face_ion_gyrobohm
 
     xr_dict = {
         name: self._pack_into_data_array(
