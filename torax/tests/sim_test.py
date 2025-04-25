@@ -36,12 +36,12 @@ from torax.torax_pydantic import model_config
 
 
 _ALL_PROFILES: Final[Sequence[str]] = (
-    'temp_ion',
-    'temp_el',
-    'psi',
-    'q_face',
-    's_face',
-    'ne',
+    output.TEMPERATURE_ION,
+    output.TEMPERATURE_ELECTRON,
+    output.PSI,
+    output.Q,
+    output.MAGNETIC_SHEAR,
+    output.N_E,
 )
 
 
@@ -57,7 +57,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          ('temp_ion', 'temp_el'),
+          (output.TEMPERATURE_ION, output.TEMPERATURE_ELECTRON),
           2e-1,
           1e-10,
           'test_implicit.nc',
@@ -340,12 +340,17 @@ class SimTest(sim_test_case.SimTestCase):
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
-    self.assertGreater(
-        history.times[-1], torax_config.numerics.t_final
+    self.assertGreater(history.times[-1], torax_config.numerics.t_final)
+    profiles_to_check = (
+        (output.TEMPERATURE_ION, history.core_profiles.temp_ion),
+        (output.TEMPERATURE_ELECTRON, history.core_profiles.temp_el),
+        (output.N_E, history.core_profiles.ne),
+        (output.PSI, history.core_profiles.psi),
+        (output.Q, history.core_profiles.q_face),
+        (output.MAGNETIC_SHEAR, history.core_profiles.s_face),
     )
 
-    for torax_profile in _ALL_PROFILES:
-      profile_history = history.core_profiles[torax_profile]
+    for profile_name, profile_history in profiles_to_check:
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
@@ -360,7 +365,7 @@ class SimTest(sim_test_case.SimTestCase):
             msg = (
                 'Profile changed over time despite all equations being '
                 'disabled.\n'
-                f'Profile name: {torax_profile}\n'
+                f'Profile name: {profile_name}\n'
                 f'Initial value: {first_profile}\n'
                 f'Failing time index: {i}\n'
                 f'Failing value: {profile_history[i]}\n'
@@ -389,22 +394,22 @@ class SimTest(sim_test_case.SimTestCase):
       test_config: the config id under test.
     """
     profiles = [
-        output.TEMP_ION,
-        output.TEMP_EL,
-        output.NE,
-        output.NI,
+        output.TEMPERATURE_ION,
+        output.TEMPERATURE_ELECTRON,
+        output.N_E,
+        output.N_I,
         output.PSI,
-        output.PSIDOT,
-        output.IP_PROFILE_FACE,
-        output.NREF,
-        output.Q_FACE,
-        output.S_FACE,
+        output.V_LOOP,
+        output.IP_PROFILE,
+        output.N_REF,
+        output.Q,
+        output.MAGNETIC_SHEAR,
         output.J_BOOTSTRAP,
-        output.JOHM,
-        output.EXTERNAL_CURRENT,
-        output.JTOT,
+        output.J_OHMIC,
+        output.J_EXTERNAL,
+        output.J_TOTAL,
         output.I_BOOTSTRAP,
-        output.SIGMA,
+        output.SIGMA_PARALLEL,
     ]
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
     index = len(ref_time) // 2
@@ -424,14 +429,14 @@ class SimTest(sim_test_case.SimTestCase):
         step_fn,
     ):
       # Load in the reference core profiles.
-      Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
+      Ip_total = ref_profiles[output.IP_PROFILE][index, -1] / 1e6
       # All profiles are on a grid with [left_face, cell_grid, right_face]
-      temp_el = ref_profiles[output.TEMP_EL][index, 1:-1]
-      temp_el_bc = ref_profiles[output.TEMP_EL][index, -1]
-      temp_ion = ref_profiles[output.TEMP_ION][index, 1:-1]
-      temp_ion_bc = ref_profiles[output.TEMP_ION][index, -1]
-      ne = ref_profiles[output.NE][index, 1:-1]
-      ne_bound_right = ref_profiles[output.NE][index, -1]
+      temp_el = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
+      temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
+      temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
+      temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+      ne = ref_profiles[output.N_E][index, 1:-1]
+      ne_bound_right = ref_profiles[output.N_E][index, -1]
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
@@ -501,12 +506,6 @@ class SimTest(sim_test_case.SimTestCase):
     close. This is a strong test that the VLoop BC is working as expected.
     """
     test_config = 'test_timedependence'
-    profiles = [
-        output.TEMP_ION,
-        output.TEMP_EL,
-        output.NE,
-        output.PSI,
-    ]
 
     # Run the first sim
     config_ip_bc = self._get_config_dict(test_config + '.py')
@@ -527,15 +526,22 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
     sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
 
-    for profile in profiles:
+    profiles_to_check = (
+        sim_outputs_vloop_bc.core_profiles.temp_ion,
+        sim_outputs_vloop_bc.core_profiles.temp_el,
+        sim_outputs_vloop_bc.core_profiles.psi,
+        sim_outputs_vloop_bc.core_profiles.ne,
+    )
+
+    for profile in profiles_to_check:
       np.testing.assert_allclose(
-          sim_outputs_ip_bc.core_profiles[profile].value[middle_index, :],
-          sim_outputs_vloop_bc.core_profiles[profile].value[middle_index, :],
+          profile.value[middle_index, :],
+          profile.value[middle_index, :],
           rtol=1e-3,
       )
       np.testing.assert_allclose(
-          sim_outputs_ip_bc.core_profiles[profile].value[-1, :],
-          sim_outputs_vloop_bc.core_profiles[profile].value[-1, :],
+          profile.value[-1, :],
+          profile.value[-1, :],
           rtol=1e-3,
       )
 

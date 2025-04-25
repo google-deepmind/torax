@@ -34,26 +34,28 @@ import os
 
 # Core profiles.
 CORE_PROFILES = "core_profiles"
-TEMP_EL = "temp_el"
-TEMP_ION = "temp_ion"
+TEMPERATURE_ELECTRON = "T_e"
+TEMPERATURE_ION = "T_i"
 PSI = "psi"
-PSIDOT = "psidot"
-NE = "ne"
-NI = "ni"
-JTOT = "jtot"
-JOHM = "johm"
-EXTERNAL_CURRENT = "external_current_source"
+V_LOOP = "v_loop"
+N_E = "n_e"
+N_I = "n_i"
+Q = "q"
+MAGNETIC_SHEAR = "magnetic_shear"
+N_IMPURITY = "n_impurity"
+N_REF = "n_ref"
+Z_IMPURITY = "Z_impurity"
+
+# Currents.
+J_TOTAL = "j_total"
+J_OHMIC = "j_ohmic"
+J_EXTERNAL = "j_external"
 J_BOOTSTRAP = "j_bootstrap"
-J_BOOTSTRAP_FACE = "j_bootstrap_face"
 I_BOOTSTRAP = "I_bootstrap"
-SIGMA = "sigma"
-Q_FACE = "q_face"
-S_FACE = "s_face"
-NREF = "nref"
-ZIMP = "Zimp"
-NIMP = "nimp"
-IP_PROFILE_FACE = "Ip_profile_face"
-IP_TOTAL = "Ip_total"
+IP_PROFILE = "Ip_profile"
+SIGMA_PARALLEL = "sigma_parallel"
+
+IP = "Ip"
 VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
@@ -284,35 +286,35 @@ class StateHistory:
     xr_dict = {}
     core_profiles = self.core_profiles
 
-    xr_dict[TEMP_EL] = core_profiles.temp_el.cell_plus_boundaries()
-    xr_dict[TEMP_ION] = core_profiles.temp_ion.cell_plus_boundaries()
+    xr_dict[TEMPERATURE_ELECTRON] = core_profiles.temp_el.cell_plus_boundaries()
+    xr_dict[TEMPERATURE_ION] = core_profiles.temp_ion.cell_plus_boundaries()
     xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
-    xr_dict[PSIDOT] = core_profiles.psidot.cell_plus_boundaries()
-    xr_dict[NE] = core_profiles.ne.cell_plus_boundaries()
-    xr_dict[NI] = core_profiles.ni.cell_plus_boundaries()
-    xr_dict[NIMP] = core_profiles.nimp.cell_plus_boundaries()
-    xr_dict[ZIMP] = _merge_face_and_cell_grids(
+    xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
+    xr_dict[N_E] = core_profiles.ne.cell_plus_boundaries()
+    xr_dict[N_I] = core_profiles.ni.cell_plus_boundaries()
+    xr_dict[N_IMPURITY] = core_profiles.nimp.cell_plus_boundaries()
+    xr_dict[Z_IMPURITY] = _merge_face_and_cell_grids(
         core_profiles.Zimp, core_profiles.Zimp_face
     )
 
     # Currents.
-    xr_dict[JTOT] = _merge_face_and_cell_grids(
+    xr_dict[J_TOTAL] = _merge_face_and_cell_grids(
         core_profiles.currents.jtot, core_profiles.currents.jtot_face
     )
-    xr_dict[JOHM] = core_profiles.currents.johm
-    xr_dict[EXTERNAL_CURRENT] = core_profiles.currents.external_current_source
+    xr_dict[J_OHMIC] = core_profiles.currents.johm
+    xr_dict[J_EXTERNAL] = core_profiles.currents.external_current_source
     xr_dict[J_BOOTSTRAP] = _merge_face_and_cell_grids(
         core_profiles.currents.j_bootstrap,
         core_profiles.currents.j_bootstrap_face,
     )
-    xr_dict[IP_PROFILE_FACE] = core_profiles.currents.Ip_profile_face
-    xr_dict[IP_TOTAL] = core_profiles.currents.Ip_total
+    xr_dict[IP_PROFILE] = core_profiles.currents.Ip_profile_face
+    xr_dict[IP] = core_profiles.currents.Ip_total
     xr_dict[I_BOOTSTRAP] = core_profiles.currents.I_bootstrap
-    xr_dict[SIGMA] = core_profiles.currents.sigma
+    xr_dict[SIGMA_PARALLEL] = core_profiles.currents.sigma
 
-    xr_dict[Q_FACE] = core_profiles.q_face
-    xr_dict[S_FACE] = core_profiles.s_face
-    xr_dict[NREF] = core_profiles.nref
+    xr_dict[Q] = core_profiles.q_face
+    xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
+    xr_dict[N_REF] = core_profiles.nref
 
     xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
 

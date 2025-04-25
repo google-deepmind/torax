@@ -189,25 +189,25 @@ def _override_initial_runtime_params_from_file(
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
   dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
-      output.IP_PROFILE_FACE
+      output.IP_PROFILE
   ].to_numpy()[-1]/1e6  # Convert from A to MA.
   dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
-      output.TEMP_EL
+      output.TEMPERATURE_ELECTRON
   ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Te_bound_right = ds.data_vars[
-      output.TEMP_EL
+      output.TEMPERATURE_ELECTRON
   ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
-      output.TEMP_ION
+      output.TEMPERATURE_ION
   ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = ds.data_vars[
-      output.TEMP_ION
+      output.TEMPERATURE_ION
   ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
-      output.NE
+      output.N_E
   ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.ne_bound_right = ds.data_vars[
-      output.NE
+      output.N_E
   ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
   dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
       output.PSI

@@ -262,13 +262,13 @@ def load_data(filename: str) -> PlotData:
     ds = ds.copy()
 
     transformations = {
-        output.JTOT: 1e6,  # A/m^2 to MA/m^2
-        output.JOHM: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOTAL: 1e6,  # A/m^2 to MA/m^2
+        output.J_OHMIC: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        output.J_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
         'generic_current_source': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
-        output.IP_PROFILE_FACE: 1e6,  # A to MA
+        output.IP_PROFILE: 1e6,  # A to MA
         'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
         'ion_cyclotron_source_ion': 1e6,  # W/m^3 to MW/m^3
         'ion_cyclotron_source_el': 1e6,  # W/m^3 to MW/m^3
@@ -302,10 +302,10 @@ def load_data(filename: str) -> PlotData:
 
     # For density transformations we need nref which is only available in the
     # core_profiles dataset. Do these separately.
-    if output.NREF in ds:
-      ds[output.NE] *= ds[output.NREF][0].values / 1e20
-      ds[output.NI] *= ds[output.NREF][0].values / 1e20
-      ds[output.NIMP] *= ds[output.NREF][0].values / 1e20
+    if output.N_REF in ds:
+      ds[output.N_E] *= ds[output.N_REF][0].values / 1e20
+      ds[output.N_I] *= ds[output.N_REF][0].values / 1e20
+      ds[output.N_IMPURITY] *= ds[output.N_REF][0].values / 1e20
 
     return ds
 
@@ -319,19 +319,19 @@ def load_data(filename: str) -> PlotData:
   dataset = data_tree.dataset
 
   return PlotData(
-      ti=core_profiles_dataset[output.TEMP_ION].to_numpy(),
-      te=core_profiles_dataset[output.TEMP_EL].to_numpy(),
-      ne=core_profiles_dataset[output.NE].to_numpy(),
-      ni=core_profiles_dataset[output.NI].to_numpy(),
-      nimp=core_profiles_dataset[output.NIMP].to_numpy(),
-      zimp=core_profiles_dataset[output.ZIMP].to_numpy(),
+      ti=core_profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
+      te=core_profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
+      ne=core_profiles_dataset[output.N_E].to_numpy(),
+      ni=core_profiles_dataset[output.N_I].to_numpy(),
+      nimp=core_profiles_dataset[output.N_IMPURITY].to_numpy(),
+      zimp=core_profiles_dataset[output.Z_IMPURITY].to_numpy(),
       psi=core_profiles_dataset[output.PSI].to_numpy(),
-      psidot=core_profiles_dataset[output.PSIDOT].to_numpy(),
-      j=core_profiles_dataset[output.JTOT].to_numpy(),
-      johm=core_profiles_dataset[output.JOHM].to_numpy(),
+      psidot=core_profiles_dataset[output.V_LOOP].to_numpy(),
+      j=core_profiles_dataset[output.J_TOTAL].to_numpy(),
+      johm=core_profiles_dataset[output.J_OHMIC].to_numpy(),
       j_bootstrap=core_profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
       external_current_source=core_profiles_dataset[
-          output.EXTERNAL_CURRENT
+          output.J_EXTERNAL
       ].to_numpy(),
       j_ecrh=get_optional_data(
           core_sources_dataset, 'electron_cyclotron_source_j', 'cell'
@@ -339,8 +339,8 @@ def load_data(filename: str) -> PlotData:
       generic_current_source=get_optional_data(
           core_sources_dataset, 'generic_current_source', 'cell'
       ),
-      q=core_profiles_dataset[output.Q_FACE].to_numpy(),
-      s=core_profiles_dataset[output.S_FACE].to_numpy(),
+      q=core_profiles_dataset[output.Q].to_numpy(),
+      s=core_profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
       chi_i=core_transport_dataset[output.CHI_FACE_ION].to_numpy(),
       chi_e=core_transport_dataset[output.CHI_FACE_EL].to_numpy(),
       d_e=core_transport_dataset[output.D_FACE_EL].to_numpy(),
@@ -387,7 +387,7 @@ def load_data(filename: str) -> PlotData:
           core_sources_dataset, 'generic_particle_source', 'cell'
       ),
       s_pellet=get_optional_data(core_sources_dataset, 'pellet_source', 'cell'),
-      i_total=core_profiles_dataset[output.IP_PROFILE_FACE].to_numpy()[:, -1],
+      i_total=core_profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
       i_bootstrap=core_profiles_dataset[output.I_BOOTSTRAP].to_numpy(),
       i_generic=post_processed_outputs_dataset['I_generic'].to_numpy(),
       i_ecrh=post_processed_outputs_dataset['I_ecrh'].to_numpy(),

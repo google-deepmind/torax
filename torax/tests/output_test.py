@@ -304,13 +304,13 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = state_history.simulation_output_to_xr()
     np.testing.assert_equal(
         output_xr.children[output.CORE_PROFILES]
-        .dataset.data_vars['Zimp']
+        .dataset.data_vars[output.Z_IMPURITY]
         .values,
         np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
     )
     np.testing.assert_equal(
         output_xr.children[output.CORE_PROFILES]
-        .dataset.data_vars['temp_el']
+        .dataset.data_vars[output.TEMPERATURE_ELECTRON]
         .values,
         np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
     )
