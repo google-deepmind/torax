@@ -201,6 +201,12 @@ class StateHistory:
       source_models: source_models_lib.SourceModels,
       torax_config: model_config.ToraxConfig,
   ):
+    self._state_history = state_history
+    self._post_processed_outputs_history = post_processed_outputs_history
+    self._source_models = source_models
+    self.sim_error = sim_error
+    self.torax_config = torax_config
+
     core_profiles = [state.core_profiles for state in state_history]
     core_sources = [state.core_sources for state in state_history]
     transport = [state.core_transport for state in state_history]
@@ -227,12 +233,10 @@ class StateHistory:
         [[0.0], self.rho_cell_norm, [1.0]]
     )
     chex.assert_rank(self.times, 1)
-    self.sim_error = sim_error
-    self.source_models = source_models
+
     self.sawtooth_crash = np.array(
         [state.sawtooth_crash for state in state_history]
     )
-    self.torax_config = torax_config
 
   def _pack_into_data_array(
       self,
@@ -368,7 +372,7 @@ class StateHistory:
     """Saves the core sources to a dict."""
     xr_dict = {}
 
-    xr_dict[self.source_models.qei_source_name] = (
+    xr_dict[self._source_models.qei_source_name] = (
         self.core_sources.qei.qei_coef
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )
