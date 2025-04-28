@@ -156,7 +156,7 @@ class UpdatersTest(parameterized.TestCase):
       # Then we expect the boundary condition to be in fGW.
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
-          / (np.pi * geo.Rmin**2)
+          / (np.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )

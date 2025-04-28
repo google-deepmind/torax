@@ -88,16 +88,16 @@ class QualikizBasedTransportModel(
 
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    rmid = (geo.Rout - geo.Rin) * 0.5
-    rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
+    rmid = (geo.R_out - geo.R_in) * 0.5
+    rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
 
     # gyrobohm diffusivity
     # (defined here with Lref=Rmin due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
         reference_temperature=core_profiles.temp_ion.face_value(),
-        reference_magnetic_field=geo.B0,
+        reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.Ai,
-        reference_length=geo.Rmin,
+        reference_length=geo.a_minor,
     )
 
     # transport coefficients from the qlknn-hyper-10D model
@@ -109,7 +109,7 @@ class QualikizBasedTransportModel(
     normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
         radial_coordinate=rmid,
-        reference_length=geo.Rmaj,
+        reference_length=geo.R_major,
     )
 
     q = core_profiles.q_face
@@ -122,7 +122,7 @@ class QualikizBasedTransportModel(
     )
 
     # Inverse aspect ratio at LCFS.
-    epsilon_lcfs = rmid_face[-1] / geo.Rmaj
+    epsilon_lcfs = rmid_face[-1] / geo.R_major
     # Local normalized radius.
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
@@ -147,7 +147,7 @@ class QualikizBasedTransportModel(
         core_profiles=core_profiles,
         nref=nref,
         q=q,
-        reference_magnetic_field=geo.B0,
+        reference_magnetic_field=geo.B_0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
     )
 
@@ -201,8 +201,8 @@ class QualikizBasedTransportModel(
         log_nu_star_face=log_nu_star_face,
         normni=normni,
         chiGB=chiGB,
-        Rmaj=geo.Rmaj,
-        Rmin=geo.Rmin,
+        Rmaj=geo.R_major,
+        Rmin=geo.a_minor,
         alpha=alpha,
         epsilon_lcfs=epsilon_lcfs,
     )

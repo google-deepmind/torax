@@ -201,8 +201,8 @@ class QualikizTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        gradient_reference_length=geo.Rmaj,
-        gyrobohm_flux_reference_length=geo.Rmin,
+        gradient_reference_length=geo.R_major,
+        gyrobohm_flux_reference_length=geo.a_minor,
     )
 
   def __hash__(self) -> int:
@@ -280,9 +280,9 @@ def _extract_qualikiz_plan(
   qlk_geometry = qualikiz_inputtools.QuaLiKizXpoint.Geometry(
       x=0.5,  # will be scan variable
       rho=0.5,  # will be scan variable
-      Ro=np.array(geo.Rmaj),
-      Rmin=np.array(geo.Rmin),
-      Bo=np.array(geo.B0),
+      Ro=np.array(geo.R_major),
+      Rmin=np.array(geo.a_minor),
+      Bo=np.array(geo.B_0),
       q=2,  # will be scan variable
       smag=1,  # will be scan variable
       alpha=0,  # will be scan variable

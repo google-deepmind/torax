@@ -112,9 +112,9 @@ class TimeDependentGeometryProvider:
   drho_norm: interpolated_param.InterpolatedVarSingleAxis
   Phi: interpolated_param.InterpolatedVarSingleAxis
   Phi_face: interpolated_param.InterpolatedVarSingleAxis
-  Rmaj: interpolated_param.InterpolatedVarSingleAxis
-  Rmin: interpolated_param.InterpolatedVarSingleAxis
-  B0: interpolated_param.InterpolatedVarSingleAxis
+  R_major: interpolated_param.InterpolatedVarSingleAxis
+  a_minor: interpolated_param.InterpolatedVarSingleAxis
+  B_0: interpolated_param.InterpolatedVarSingleAxis
   volume: interpolated_param.InterpolatedVarSingleAxis
   volume_face: interpolated_param.InterpolatedVarSingleAxis
   area: interpolated_param.InterpolatedVarSingleAxis
@@ -140,10 +140,10 @@ class TimeDependentGeometryProvider:
   F: interpolated_param.InterpolatedVarSingleAxis
   F_face: interpolated_param.InterpolatedVarSingleAxis
   F_hires: interpolated_param.InterpolatedVarSingleAxis
-  Rin: interpolated_param.InterpolatedVarSingleAxis
-  Rin_face: interpolated_param.InterpolatedVarSingleAxis
-  Rout: interpolated_param.InterpolatedVarSingleAxis
-  Rout_face: interpolated_param.InterpolatedVarSingleAxis
+  R_in: interpolated_param.InterpolatedVarSingleAxis
+  R_in_face: interpolated_param.InterpolatedVarSingleAxis
+  R_out: interpolated_param.InterpolatedVarSingleAxis
+  R_out_face: interpolated_param.InterpolatedVarSingleAxis
   spr_hires: interpolated_param.InterpolatedVarSingleAxis
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
@@ -206,7 +206,7 @@ class TimeDependentGeometryProvider:
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
-      if attr.name == 'Phibdot':
+      if attr.name == 'Phi_b_dot':
         kwargs[attr.name] = 0.0
         continue
       if attr.name == '_z_magnetic_axis':

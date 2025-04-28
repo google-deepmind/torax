@@ -93,9 +93,9 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     # Bohm term of heat transport
     chi_e_B = (
-        geo.rmid_face
+        geo.r_mid_face
         * core_profiles.q_face**2
-        / (constants_module.CONSTANTS.qe * geo.B0 * true_ne_face)
+        / (constants_module.CONSTANTS.qe * geo.B_0 * true_ne_face)
         * (
             jnp.abs(true_ne_grad_face) * core_profiles.temp_el.face_value()
             + jnp.abs(core_profiles.temp_el.face_grad()) * true_ne_face
@@ -114,7 +114,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
             dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A / 2
         )
         * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3)
-        / geo.B0**2
+        / geo.B_0**2
         * jnp.abs(core_profiles.temp_el.face_grad() * 1e3)
         / geo.rho_b
     )

@@ -71,9 +71,9 @@ class Geometry:
     torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
     Phi: Toroidal magnetic flux at each radial grid point [:math:`\mathrm{Wb}`].
     Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
-    Rmaj: Tokamak major radius (geometric center) [:math:`\mathrm{m}`].
-    Rmin: Tokamak minor radius [:math:`\mathrm{m}`].
-    B0: Vacuum toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    R_major: Tokamak major radius (geometric center) [:math:`\mathrm{m}`].
+    a_minor: Tokamak minor radius [:math:`\mathrm{m}`].
+    B_0: Vacuum toroidal magnetic field on axis [:math:`\mathrm{T}`].
     volume: Plasma volume enclosed by each flux surface on cell grid
       [:math:`\mathrm{m}^3`].
     volume_face: Plasma volume enclosed by each flux surface on face grid
@@ -132,15 +132,15 @@ class Geometry:
       [:math:`\mathrm{T m}`].
     F_hires: Toroidal field flux function, :math:`F \equiv RB_\phi` on the high
       resolution grid [:math:`\mathrm{T m}`].
-    Rin: Radius of the flux surface at the inboard side at midplane
+    R_in: Radius of the flux surface at the inboard side at midplane
       [:math:`\mathrm{m}`] on cell grid. Inboard side is defined as the minimum
       radial extent of the flux surface.
-    Rin_face: Radius of the flux surface at the inboard side at midplane
+    R_in_face: Radius of the flux surface at the inboard side at midplane
       [:math:`\mathrm{m}`] on face grid.
-    Rout: Radius of the flux surface at the outboard side at midplane
+    R_out: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`] on cell grid. Outboard side is defined as the maximum
       radial extent of the flux surface.
-    Rout_face: Radius of the flux surface at the outboard side at midplane
+    R_out_face: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`] on face grid.
     delta_face: Average of upper and lower triangularity of each flux surface at
       the faces [dimensionless]. Upper triangularity is defined as (Rmaj_local -
@@ -154,7 +154,7 @@ class Geometry:
       Z_upper and Z_lower are the Z coordinates of the upper and lower extent of
       the flux surface.
     elongation_face: Plasma elongation profile on face grid [dimensionless].
-    Phibdot: Time derivative of the toroidal magnetic flux
+    Phi_b_dot: Time derivative of the toroidal magnetic flux
       [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``
       from the Geometry objects at time t and t + dt. See
       ``torax.orchestration.step_function`` for more details.
@@ -166,9 +166,9 @@ class Geometry:
   torax_mesh: torax_pydantic.Grid1D
   Phi: chex.Array
   Phi_face: chex.Array
-  Rmaj: chex.Array
-  Rmin: chex.Array
-  B0: chex.Array
+  R_major: chex.Array
+  a_minor: chex.Array
+  B_0: chex.Array
   volume: chex.Array
   volume_face: chex.Array
   area: chex.Array
@@ -194,14 +194,14 @@ class Geometry:
   F: chex.Array
   F_face: chex.Array
   F_hires: chex.Array
-  Rin: chex.Array
-  Rin_face: chex.Array
-  Rout: chex.Array
-  Rout_face: chex.Array
+  R_in: chex.Array
+  R_in_face: chex.Array
+  R_out: chex.Array
+  R_out_face: chex.Array
   spr_hires: chex.Array
   rho_hires_norm: chex.Array
   rho_hires: chex.Array
-  Phibdot: chex.Array
+  Phi_b_dot: chex.Array
   _z_magnetic_axis: chex.Array | None
 
   @property
@@ -248,14 +248,14 @@ class Geometry:
     return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
-  def rmid(self) -> chex.Array:
+  def r_mid(self) -> chex.Array:
     """Midplane radius of the plasma [m], defined as (Rout-Rin)/2."""
-    return (self.Rout - self.Rin) / 2
+    return (self.R_out - self.R_in) / 2
 
   @property
-  def rmid_face(self) -> chex.Array:
+  def r_mid_face(self) -> chex.Array:
     """Midplane radius of the plasma on the face grid [m]."""
-    return (self.Rout_face - self.Rin_face) / 2
+    return (self.R_out_face - self.R_in_face) / 2
 
   @property
   def drho(self) -> chex.Array:
@@ -265,10 +265,10 @@ class Geometry:
   @property
   def rho_b(self) -> chex.Array:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
-    return jnp.sqrt(self.Phib / np.pi / self.B0)
+    return jnp.sqrt(self.Phi_b / np.pi / self.B_0)
 
   @property
-  def Phib(self) -> chex.Array:
+  def Phi_b(self) -> chex.Array:
     r"""Toroidal flux at boundary (LCFS) :math:`\mathrm{Wb}`."""
     return self.Phi_face[..., -1]
 
@@ -384,7 +384,7 @@ def update_geometries_with_Phibdot(
       - The geometry of the torus during this time step of the simulation.
       - The geometry of the torus during the next time step of the simulation.
   """
-  Phibdot = (geo_t_plus_dt.Phib - geo_t.Phib) / dt
-  geo_t = dataclasses.replace(geo_t, Phibdot=Phibdot)
-  geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phibdot=Phibdot)
+  Phibdot = (geo_t_plus_dt.Phi_b - geo_t.Phi_b) / dt
+  geo_t = dataclasses.replace(geo_t, Phi_b_dot=Phibdot)
+  geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phi_b_dot=Phibdot)
   return geo_t, geo_t_plus_dt

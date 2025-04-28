@@ -293,8 +293,8 @@ class QLKNNTransportModel(
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,
-        gradient_reference_length=geo.Rmaj,
-        gyrobohm_flux_reference_length=geo.Rmin,
+        gradient_reference_length=geo.R_major,
+        gyrobohm_flux_reference_length=geo.a_minor,
     )
 
   def __hash__(self) -> int:

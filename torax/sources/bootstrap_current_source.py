@@ -183,7 +183,7 @@ def calc_sauter_model(
   true_ni_face = ni.face_value() * nref
 
   # # local r/R0 on face grid
-  epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
+  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
   epseff = (
       0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
   )
@@ -209,7 +209,7 @@ def calc_sauter_model(
   nuestar = (
       6.921e-18
       * q_face
-      * geo.Rmaj
+      * geo.R_major
       * true_ne_face
       * Zeff_face
       * lnLame
@@ -221,7 +221,7 @@ def calc_sauter_model(
   nuistar = (
       4.9e-18
       * q_face
-      * geo.Rmaj
+      * geo.R_major
       * true_ni_face
       * Zeff_face**4
       * lnLami
@@ -313,7 +313,7 @@ def calc_sauter_model(
   ) / (1 + 0.15 * nuistar**2 * ftrap**6)
 
   # calculate bootstrap current
-  prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B0
+  prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
   pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19
   pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19

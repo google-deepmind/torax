@@ -100,7 +100,7 @@ def calc_heating_and_current(
   # )
   # pylint: disable=invalid-name
   log_j_ec_dot_B = (
-      jnp.log(2 * jnp.pi / geo.Rmaj)
+      jnp.log(2 * jnp.pi / geo.R_major)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)
       - 3 * jnp.log(constants.CONSTANTS.qe)
       + jnp.log(geo.F)

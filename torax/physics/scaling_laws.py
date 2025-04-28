@@ -69,9 +69,9 @@ def calculate_plh_scaling_factor(
   P_LH_hi_dens_D = (
       2.15
       * (line_avg_ne / 1e20) ** 0.782
-      * geo.B0**0.772
-      * geo.Rmin**0.975
-      * geo.Rmaj**0.999
+      * geo.B_0**0.772
+      * geo.a_minor**0.975
+      * geo.R_major**0.999
       * 1e6
   )
 
@@ -83,9 +83,9 @@ def calculate_plh_scaling_factor(
   ne_min_P_LH = (
       0.7
       * (core_profiles.currents.Ip_total / 1e6) ** 0.34
-      * geo.Rmin**-0.95
-      * geo.B0**0.62
-      * (geo.Rmaj / geo.Rmin) ** 0.4
+      * geo.a_minor**-0.95
+      * geo.B_0**0.62
+      * (geo.R_major / geo.a_minor) ** 0.4
       * 1e19
       / core_profiles.nref
   )
@@ -93,9 +93,9 @@ def calculate_plh_scaling_factor(
   P_LH_min_D = (
       0.36
       * (core_profiles.currents.Ip_total / 1e6) ** 0.27
-      * geo.B0**1.25
-      * geo.Rmaj**1.23
-      * (geo.Rmaj / geo.Rmin) ** 0.08
+      * geo.B_0**1.25
+      * geo.R_major**1.23
+      * (geo.R_major / geo.a_minor) ** 0.08
       * 1e6
   )
   P_LH_min = P_LH_min_D * A_deuterium / core_profiles.Ai
@@ -187,18 +187,18 @@ def calculate_scaling_law_confinement_time(
 
   scaled_Ip = core_profiles.currents.Ip_total / 1e6  # convert to MA
   scaled_Ploss = Ploss / 1e6  # convert to MW
-  B = geo.B0
+  B = geo.B_0
   line_avg_ne = (
       math_utils.line_average(core_profiles.ne.value, geo)
       * core_profiles.nref
       / 1e19
   )
-  R = geo.Rmaj
-  inverse_aspect_ratio = geo.Rmin / geo.Rmaj
+  R = geo.R_major
+  inverse_aspect_ratio = geo.a_minor / geo.R_major
 
   # Effective elongation definition. This is a different definition than
   # the standard definition used in geo.elongation.
-  elongation = geo.area_face[-1] / (jnp.pi * geo.Rmin**2)
+  elongation = geo.area_face[-1] / (jnp.pi * geo.a_minor**2)
   # TODO(b/317360834): extend when multiple ions are supported.
   effective_mass = core_profiles.Ai
   triangularity = geo.delta_face[-1]

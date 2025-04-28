@@ -35,21 +35,21 @@ class GeometryTest(parameterized.TestCase):
 
     @jax.jit
     def foo(geo: geometry.Geometry):
-      return geo.Rmaj
+      return geo.R_major
 
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
-        Rmaj=6.2,
-        Rmin=2.0,
+        R_major=6.2,
+        a_minor=2.0,
         B=5.3,
         # Use the same dummy value for the rest.
         psi=np.arange(0, 1.0, 0.01),
         Ip_profile=np.arange(0, 1.0, 0.01),
         Phi=np.arange(0, 1.0, 0.01),
-        Rin=np.arange(1, 2, 0.01),
-        Rout=np.arange(1, 2, 0.01),
+        R_in=np.arange(1, 2, 0.01),
+        R_out=np.arange(1, 2, 0.01),
         F=np.arange(0, 1.0, 0.01),
         int_dl_over_Bp=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),

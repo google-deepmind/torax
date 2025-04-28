@@ -294,10 +294,10 @@ def cyclotron_radiation_albajar(
   # Dimensionless optical thickness parameter, on-axis:
   # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
   # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.Rmin * ne20_face[0] / geo.B0
+  p_a_0 = 6.04e3 * geo.a_minor * ne20_face[0] / geo.B_0
 
   # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
-  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.Rmaj / geo.Rmin))
+  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major / geo.a_minor))
 
   # Calculate profile fit parameters
   alpha_n = _alpha_closed_form(
@@ -329,10 +329,10 @@ def cyclotron_radiation_albajar(
   P_cycl_total = (
       3.84e-2
       * jnp.sqrt(1 - dynamic_source_runtime_params.wall_reflection_coeff)
-      * geo.Rmaj
-      * geo.Rmin**1.38
+      * geo.R_major
+      * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
-      * geo.B0**2.62
+      * geo.B_0**2.62
       * ne20_face[0] ** 0.38
       * core_profiles.temp_el.face_value()[0]
       * (16 + core_profiles.temp_el.face_value()[0]) ** 2.61
@@ -345,9 +345,9 @@ def cyclotron_radiation_albajar(
   # Calculate the radial profile on the cell grid,
   # according to the Artaud formula (A.45)
   Q_cycl_shape = (
-      geo.Rmaj
+      geo.R_major
       * geo.elongation**0.79
-      * (geo.F / geo.Rmaj) ** 2.62
+      * (geo.F / geo.R_major) ** 2.62
       * ne20_cell**0.38
       * core_profiles.temp_el.value**3.61
   )

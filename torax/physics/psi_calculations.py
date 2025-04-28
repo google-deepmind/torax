@@ -50,12 +50,12 @@ def calc_q_face(
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
-      (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
+      (2 * geo.Phi_b * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
   )
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phib * geo.drho_norm) / psi.face_grad()[1]), 0
+      jnp.abs((2 * geo.Phi_b * geo.drho_norm) / psi.face_grad()[1]), 0
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -85,7 +85,7 @@ def calc_jtot(
       psi.face_grad()
       * geo.g2g3_over_rhon_face
       * geo.F_face
-      / geo.Phib
+      / geo.Phi_b
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
@@ -93,7 +93,7 @@ def calc_jtot(
       psi.grad()
       * geo.g2g3_over_rhon
       * geo.F
-      / geo.Phib
+      / geo.Phi_b
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
@@ -167,7 +167,7 @@ def calc_s_rmid(
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
 
-  rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
+  rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
 
   s_face = -rmid_face * jnp.gradient(iota_scaled, rmid_face) / iota_scaled
 
@@ -267,7 +267,7 @@ def calculate_psi_grad_constraint_from_Ip_tot(
   return (
       Ip_tot
       * 1e6
-      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
 
@@ -293,7 +293,7 @@ def calculate_psidot_from_psi_sources(
       * consts.mu0
       * 16
       * jnp.pi**2
-      * geo.Phib**2
+      * geo.Phi_b**2
       / geo.F**2
   )
   # Calculate diffusion term coefficient
@@ -303,8 +303,8 @@ def calculate_psidot_from_psi_sources(
       -8.0
       * jnp.pi**2
       * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
+      * geo.Phi_b_dot
+      * geo.Phi_b
       * sigma_face
       * geo.rho_face_norm**2
       / geo.F_face**2
@@ -319,8 +319,8 @@ def calculate_psidot_from_psi_sources(
       -8.0
       * jnp.pi**2
       * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
+      * geo.Phi_b_dot
+      * geo.Phi_b
       * ddrnorm_sigma_rnorm2_over_f2
   )
 

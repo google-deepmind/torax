@@ -71,7 +71,7 @@ def get_updated_electron_density(
 
   nGW = (
       dynamic_profile_conditions.Ip_tot
-      / (jnp.pi * geo.Rmin**2)
+      / (jnp.pi * geo.a_minor**2)
       * 1e20
       / dynamic_numerics.nref
   )
@@ -102,7 +102,7 @@ def get_updated_electron_density(
     # geometry information beyond what is available in StandardGeometry.
     # In lieu of a better solution, we use line-averaged electron density
     # defined on the outer midplane.
-    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+    Rmin_out = geo.R_out_face[-1] - geo.R_out_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(
         dynamic_profile_conditions.ne_is_fGW,
@@ -111,16 +111,16 @@ def get_updated_electron_density(
     )
     if not dynamic_profile_conditions.ne_bound_right_is_absolute:
       # In this case, ne_bound_right is taken from ne and we also normalize it.
-      C = target_nbar / (_trapz(ne_face, geo.Rout_face) / Rmin_out)
+      C = target_nbar / (_trapz(ne_face, geo.R_out_face) / Rmin_out)
       ne_bound_right = C * ne_bound_right
     else:
       # If ne_bound_right is absolute, subtract off contribution from outer
       # face to get C we need to multiply the inner values with.
       nbar_from_ne_face_inner = (
-          _trapz(ne_face[:-1], geo.Rout_face[:-1]) / Rmin_out
+          _trapz(ne_face[:-1], geo.R_out_face[:-1]) / Rmin_out
       )
 
-      dr_edge = geo.Rout_face[-1] - geo.Rout_face[-2]
+      dr_edge = geo.R_out_face[-1] - geo.R_out_face[-2]
 
       C = (target_nbar - 0.5 * ne_face[-1] * dr_edge / Rmin_out) / (
           nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out

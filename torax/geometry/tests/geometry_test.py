@@ -86,8 +86,8 @@ class GeometryTest(parameterized.TestCase):
     self.assertEqual(stacked_geo.torax_mesh, geo0.torax_mesh)
 
     # Check some specific stacked values
-    np.testing.assert_allclose(stacked_geo.Rmaj, np.array([1.0, 1.5, 2.0]))
-    np.testing.assert_allclose(stacked_geo.B0, np.array([2.0, 2.5, 3.0]))
+    np.testing.assert_allclose(stacked_geo.R_major, np.array([1.0, 1.5, 2.0]))
+    np.testing.assert_allclose(stacked_geo.B_0, np.array([2.0, 2.5, 3.0]))
     np.testing.assert_allclose(
         stacked_geo.Phi_face[:, -1],
         np.array([geo0.Phi_face[-1], geo1.Phi_face[-1], geo2.Phi_face[-1]]),
@@ -156,8 +156,8 @@ class GeometryTest(parameterized.TestCase):
     geo0_updated, geo1_updated = geometry.update_geometries_with_Phibdot(
         dt=0.1, geo_t=geo0, geo_t_plus_dt=geo1
     )
-    np.testing.assert_allclose(geo0_updated.Phibdot, 10.)
-    np.testing.assert_allclose(geo1_updated.Phibdot, 10.)
+    np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.)
+    np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.)
 
 
 def _pint_face_to_cell(n_rho, face):

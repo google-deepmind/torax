@@ -57,9 +57,9 @@ class StandardGeometry(geometry.Geometry):
       calculated from the plasma current profile in the geometry file.
     psi_from_Ip_face: Poloidal flux profile on the face grid [Wb], calculated
       from the plasma current profile in the geometry file.
-    jtot: Total toroidal current density profile on the cell grid
+    j_total: Total toroidal current density profile on the cell grid
       [:math:`\mathrm{A/m^2}`].
-    jtot_face: Total toroidal current density profile on the face grid
+    j_total_face: Total toroidal current density profile on the face grid
       [:math:`\mathrm{A/m^2}`].
     delta_upper_face: Upper triangularity on the face grid [dimensionless]. See
       `Geometry` docstring for definition of `delta_upper_face`.
@@ -72,8 +72,8 @@ class StandardGeometry(geometry.Geometry):
   psi: chex.Array
   psi_from_Ip: chex.Array
   psi_from_Ip_face: chex.Array
-  jtot: chex.Array
-  jtot_face: chex.Array
+  j_total: chex.Array
+  j_total_face: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
 
@@ -87,8 +87,8 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip_face: interpolated_param.InterpolatedVarSingleAxis
-  jtot: interpolated_param.InterpolatedVarSingleAxis
-  jtot_face: interpolated_param.InterpolatedVarSingleAxis
+  j_total: interpolated_param.InterpolatedVarSingleAxis
+  j_total_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
@@ -120,15 +120,15 @@ class StandardGeometryIntermediates:
       EQDSK).
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
-    Rmaj: major radius on the magnetic axis in [:math:`\mathrm{m}`].
-    Rmin: minor radius (a) in [:math:`\mathrm{m}`].
+    R_major: major radius on the magnetic axis in [:math:`\mathrm{m}`].
+    a_minor: minor radius (a) in [:math:`\mathrm{m}`].
     B: Toroidal magnetic field on axis [:math:`\mathrm{T}`].
     psi: Poloidal flux profile [:math:`\mathrm{Wb}`].
     Ip_profile: Plasma current profile [:math:`\mathrm{A}`].
     Phi: Toroidal flux profile [:math:`\mathrm{Wb}`].
-    Rin: Radius of the flux surface at the inboard side at midplane
+    R_in: Radius of the flux surface at the inboard side at midplane
       [:math:`\mathrm{m}`]. Inboard side is defined as the innermost radius.
-    Rout: Radius of the flux surface at the outboard side at midplane
+    R_out: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`]. Outboard side is defined as the outermost radius.
     F: Toroidal field flux function (:math:`F = R B_{\phi}`) [:math:`\mathrm{m
       T}`].
@@ -160,14 +160,14 @@ class StandardGeometryIntermediates:
 
   geometry_type: geometry.GeometryType
   Ip_from_parameters: bool
-  Rmaj: chex.Numeric
-  Rmin: chex.Numeric
+  R_major: chex.Numeric
+  a_minor: chex.Numeric
   B: chex.Numeric
   psi: chex.Array
   Ip_profile: chex.Array
   Phi: chex.Array
-  Rin: chex.Array
-  Rout: chex.Array
+  R_in: chex.Array
+  R_out: chex.Array
   F: chex.Array
   int_dl_over_Bp: chex.Array
   flux_surf_avg_1_over_R2: chex.Array
@@ -321,14 +321,14 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.CHEASE,
         Ip_from_parameters=Ip_from_parameters,
-        Rmaj=np.array(Rmaj),
-        Rmin=np.array(Rmin),
+        R_major=np.array(Rmaj),
+        a_minor=np.array(Rmin),
         B=np.array(B0),
         psi=psi,
         Ip_profile=Ip_chease,
         Phi=Phi,
-        Rin=Rin_chease,
-        Rout=Rout_chease,
+        R_in=Rin_chease,
+        R_out=Rout_chease,
         F=F,
         int_dl_over_Bp=int_dl_over_Bp,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
@@ -590,14 +590,14 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
-        Rmaj=Rmaj,
-        Rmin=Rmin,
+        R_major=Rmaj,
+        a_minor=Rmin,
         B=B0,
         psi=psi[0] - psi,
         Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
-        Rin=LY['rgeom'] - LY['aminor'],
-        Rout=LY['rgeom'] + LY['aminor'],
+        R_in=LY['rgeom'] - LY['aminor'],
+        R_out=LY['rgeom'] + LY['aminor'],
         F=np.abs(LY['TQ']),
         int_dl_over_Bp=1 / LY_Q1Q,
         flux_surf_avg_1_over_R2=LY['Q2Q'],
@@ -902,15 +902,15 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.EQDSK,
         Ip_from_parameters=Ip_from_parameters,
-        Rmaj=Rmaj,
-        Rmin=Rmin,
+        R_major=Rmaj,
+        a_minor=Rmin,
         B=B0,
         # TODO(b/335204606): handle COCOS shenanigans
         psi=psi_interpolant * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
-        Rin=R_inboard,
-        Rout=R_outboard,
+        R_in=R_inboard,
+        R_out=R_outboard,
         F=F_eqdsk,
         int_dl_over_Bp=int_dl_over_Bp_eqdsk,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
@@ -959,7 +959,7 @@ def build_standard_geometry(
   g1 = C1 * C4 * 4 * np.pi**2  # <(\nabla psi)**2> * (dV/dpsi) ** 2
   g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
   g3 = C2[1:] / C1[1:]  # <1/R**2>
-  g3 = np.concatenate((np.array([1 / intermediate.Rin[0] ** 2]), g3))
+  g3 = np.concatenate((np.array([1 / intermediate.R_in[0] ** 2]), g3))
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
@@ -987,13 +987,13 @@ def build_standard_geometry(
 
   # dV/drhon, dS/drhon
   vpr = intermediate.vpr
-  spr = vpr / (2 * np.pi * intermediate.Rmaj)
+  spr = vpr / (2 * np.pi * intermediate.R_major)
 
   # Volume and area
   volume_intermediate = scipy.integrate.cumulative_trapezoid(
       y=vpr, x=rho_norm_intermediate, initial=0.0
   )
-  area_intermediate = volume_intermediate / (2 * np.pi * intermediate.Rmaj)
+  area_intermediate = volume_intermediate / (2 * np.pi * intermediate.R_major)
 
   # plasma current density
   dI_tot_drhon = np.gradient(intermediate.Ip_profile, rho_norm_intermediate)
@@ -1069,11 +1069,11 @@ def build_standard_geometry(
       rho_face_norm, intermediate.Ip_profile
   )
 
-  Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.Rin)
-  Rin = rhon_interpolation_func(rho_norm, intermediate.Rin)
+  Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.R_in)
+  Rin = rhon_interpolation_func(rho_norm, intermediate.R_in)
 
-  Rout_face = rhon_interpolation_func(rho_face_norm, intermediate.Rout)
-  Rout = rhon_interpolation_func(rho_norm, intermediate.Rout)
+  Rout_face = rhon_interpolation_func(rho_face_norm, intermediate.R_out)
+  Rout = rhon_interpolation_func(rho_norm, intermediate.R_out)
 
   g0_face = rhon_interpolation_func(rho_face_norm, g0)
   g0 = rhon_interpolation_func(rho_norm, g0)
@@ -1102,9 +1102,9 @@ def build_standard_geometry(
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,
-      Rmaj=intermediate.Rmaj,
-      Rmin=intermediate.Rmin,
-      B0=intermediate.B,
+      R_major=intermediate.R_major,
+      a_minor=intermediate.a_minor,
+      B_0=intermediate.B,
       volume=volume,
       volume_face=volume_face,
       area=area,
@@ -1128,17 +1128,17 @@ def build_standard_geometry(
       F=F,
       F_face=F_face,
       F_hires=F_hires,
-      Rin=Rin,
-      Rin_face=Rin_face,
-      Rout=Rout,
-      Rout_face=Rout_face,
+      R_in=Rin,
+      R_in_face=Rin_face,
+      R_out=Rout,
+      R_out_face=Rout_face,
       Ip_from_parameters=intermediate.Ip_from_parameters,
       Ip_profile_face=Ip_profile_face,
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       psi_from_Ip_face=psi_from_Ip_face,
-      jtot=jtot,
-      jtot_face=jtot_face,
+      j_total=jtot,
+      j_total_face=jtot_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,
@@ -1149,7 +1149,7 @@ def build_standard_geometry(
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
-      Phibdot=np.asarray(0.0),
+      Phi_b_dot=np.asarray(0.0),
       _z_magnetic_axis=intermediate.z_magnetic_axis,
   )
 

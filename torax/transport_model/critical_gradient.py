@@ -89,7 +89,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    rmid = (geo.Rout - geo.Rin) * 0.5
+    rmid = (geo.R_out - geo.R_in) * 0.5
 
     temp_ion_face = core_profiles.temp_ion.face_value()
     temp_ion_face_grad = core_profiles.temp_ion.face_grad(rmid)
@@ -110,13 +110,13 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
             * constants.mp
         )
         ** 0.5
-        / (constants.qe * geo.B0) ** 2
+        / (constants.qe * geo.B_0) ** 2
         * (temp_ion_face * constants.keV2J) ** 1.5
-        / geo.Rmaj
+        / geo.R_major
     )
 
     # R/LTi profile from current timestep temp_ion
-    rlti = -geo.Rmaj * temp_ion_face_grad / temp_ion_face
+    rlti = -geo.R_major * temp_ion_face_grad / temp_ion_face
 
     # build CGM model ion heat transport coefficient
     chi_face_ion = jnp.where(
@@ -141,7 +141,9 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
     # User-provided convection coefficient
     v_face_el = (
-        d_face_el * dynamic_runtime_params_slice.transport.VR_D_ratio / geo.Rmaj
+        d_face_el
+        * dynamic_runtime_params_slice.transport.VR_D_ratio
+        / geo.R_major
     )
 
     return state.CoreTransport(

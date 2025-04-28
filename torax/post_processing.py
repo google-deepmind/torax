@@ -329,7 +329,7 @@ def make_post_processed_outputs(
       sim_state.geometry, sim_state.core_profiles.psi
   )
   li3 = psi_calculations.calc_li3(
-      sim_state.geometry.Rmaj,
+      sim_state.geometry.R_major,
       Wpol,
       sim_state.core_profiles.currents.Ip_profile_face[-1],
   )

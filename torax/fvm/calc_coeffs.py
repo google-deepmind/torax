@@ -409,7 +409,7 @@ def _calc_coeffs_full(
       * consts.mu0
       * 16
       * jnp.pi**2
-      * geo.Phib**2
+      * geo.Phi_b**2
       / geo.F**2
   )
   tic_psi = jnp.ones_like(toc_psi)
@@ -485,12 +485,12 @@ def _calc_coeffs_full(
   full_d_face_el += d_face_per_el
   full_v_face_el += v_face_per_el
 
-  # Add phibdot terms to heat transport convection
+  # Add Phi_b_dot terms to heat transport convection
   v_heat_face_ion += (
       -3.0
       / 4.0
-      * geo.Phibdot
-      / geo.Phib
+      * geo.Phi_b_dot
+      / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
       * true_ni_face
@@ -500,26 +500,26 @@ def _calc_coeffs_full(
   v_heat_face_el += (
       -3.0
       / 4.0
-      * geo.Phibdot
-      / geo.Phib
+      * geo.Phi_b_dot
+      / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
       * true_ne_face
       * consts.keV2J
   )
 
-  # Add phibdot terms to particle transport convection
+  # Add Phi_b_dot terms to particle transport convection
   full_v_face_el += (
-      -1.0 / 2.0 * geo.Phibdot / geo.Phib * geo.rho_face_norm * geo.vpr_face
+      -1.0 / 2.0 * geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   )
 
-  # Add phibdot terms to poloidal flux convection
+  # Add Phi_b_dot terms to poloidal flux convection
   v_face_psi = (
       -8.0
       * jnp.pi**2
       * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
+      * geo.Phi_b_dot
+      * geo.Phi_b
       * merged_source_profiles.j_bootstrap.sigma_face
       * geo.rho_face_norm**2
       / geo.F_face**2
@@ -555,7 +555,7 @@ def _calc_coeffs_full(
 
   source_mat_ee -= mask * dynamic_runtime_params_slice.numerics.largeValue_T
 
-  # Add effective phibdot heat source terms
+  # Add effective Phi_b_dot heat source terms
 
   # second derivative of volume profile with respect to r_norm
   vprpr_norm = jnp.gradient(geo.vpr, geo.rho_norm)
@@ -564,8 +564,8 @@ def _calc_coeffs_full(
       1.0
       / 2.0
       * vprpr_norm
-      * geo.Phibdot
-      / geo.Phib
+      * geo.Phi_b_dot
+      / geo.Phi_b
       * geo.rho_norm
       * true_ni
       * core_profiles.temp_ion.value
@@ -576,15 +576,15 @@ def _calc_coeffs_full(
       1.0
       / 2.0
       * vprpr_norm
-      * geo.Phibdot
-      / geo.Phib
+      * geo.Phi_b_dot
+      / geo.Phi_b
       * geo.rho_norm
       * true_ne
       * core_profiles.temp_el.value
       * consts.keV2J
   )
 
-  # Add effective phibdot poloidal flux source term
+  # Add effective Phi_b_dot poloidal flux source term
 
   ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
       merged_source_profiles.j_bootstrap.sigma * geo.rho_norm**2 / geo.F**2,
@@ -595,8 +595,8 @@ def _calc_coeffs_full(
       -8.0
       * jnp.pi**2
       * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
+      * geo.Phi_b_dot
+      * geo.Phi_b
       * ddrnorm_sigma_rnorm2_over_f2
   )
 

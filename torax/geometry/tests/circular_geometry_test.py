@@ -44,14 +44,14 @@ class CircularGeometryTest(absltest.TestCase):
         {0.0: geo_0, 10.0: geo_1}
     )
     geo = provider(5.0)
-    np.testing.assert_allclose(geo.Rmaj, 6.7)
-    np.testing.assert_allclose(geo.Rmin, 1.5)
+    np.testing.assert_allclose(geo.R_major, 6.7)
+    np.testing.assert_allclose(geo.a_minor, 1.5)
 
   def test_circular_geometry_can_be_input_to_jitted_function(self):
 
     @jax.jit
     def foo(geo: geometry.Geometry):
-      return geo.Rmaj
+      return geo.R_major
 
     geo = circular_geometry.build_circular_geometry(
         n_rho=25,

@@ -108,7 +108,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     if neped_is_fGW:
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
-          / (jnp.pi * geo.Rmin**2)
+          / (jnp.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )

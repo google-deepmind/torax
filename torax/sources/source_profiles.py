@@ -149,7 +149,7 @@ class SourceProfiles:
     total = self.j_bootstrap.j_bootstrap
     total += sum(self.psi.values())
     mu0 = constants.CONSTANTS.mu0
-    prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+    prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B_0 * mu0 * geo.Phi_b / geo.F**2
     return -total * prefactor
 
   def total_sources(

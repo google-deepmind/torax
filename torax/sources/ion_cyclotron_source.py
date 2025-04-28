@@ -369,8 +369,8 @@ def icrh_model_func(
       core_profiles.temp_el.value[0] / volume_average_temperature
   )
   density_peaking_factor = core_profiles.ne.value[0] / volume_average_density
-  Router = geo.Rmaj + geo.Rmin
-  Rinner = geo.Rmaj - geo.Rmin
+  Router = geo.R_major + geo.a_minor
+  Rinner = geo.R_major - geo.a_minor
   # Assumption: inner and outer gaps are not functions of z0.
   # This is a good assumption for the inner gap but perhaps less good for the
   # outer gap where there is significant curvature to the outer limiter.
@@ -386,7 +386,7 @@ def icrh_model_func(
       z0=geo.z_magnetic_axis(),
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
-      B0=geo.B0,
+      B0=geo.B_0,
   )
 
   toric_nn_outputs = _toric_nn_predict(toric_nn, toric_inputs)

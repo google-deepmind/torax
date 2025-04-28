@@ -41,7 +41,7 @@ class PydanticModelTest(parameterized.TestCase):
     )
     geo = geo_provider(t=0)
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
-    np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
+    np.testing.assert_array_equal(geo.B_0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
     geo_provider = pydantic_model.Geometry.from_dict(

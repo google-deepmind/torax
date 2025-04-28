@@ -183,9 +183,9 @@ def build_circular_geometry(
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,
-      Rmaj=Rmaj,
-      Rmin=rho_b,
-      B0=B0,
+      R_major=Rmaj,
+      a_minor=rho_b,
+      B_0=B0,
       volume=volume,
       volume_face=volume_face,
       area=area,
@@ -209,10 +209,10 @@ def build_circular_geometry(
       F=F,
       F_face=F_face,
       F_hires=F_hires,
-      Rin=Rin,
-      Rin_face=Rin_face,
-      Rout=Rout,
-      Rout_face=Rout_face,
+      R_in=Rin,
+      R_in_face=Rin_face,
+      R_out=Rout,
+      R_out_face=Rout_face,
       # Set the circular geometry-specific params.
       elongation=elongation,
       elongation_face=elongation_face,
@@ -222,6 +222,6 @@ def build_circular_geometry(
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
-      Phibdot=np.asarray(0.0),
+      Phi_b_dot=np.asarray(0.0),
       _z_magnetic_axis=np.asarray(0.0),
   )

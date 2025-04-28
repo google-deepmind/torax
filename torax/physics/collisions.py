@@ -117,12 +117,12 @@ def calc_nu_star(
   nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * coll_mult
 
   # calculate bounce time
-  epsilon = geo.rho_face / geo.Rmaj
+  epsilon = geo.rho_face / geo.R_major
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (
       core_profiles.q_face
-      * geo.Rmaj
+      * geo.R_major
       / (
           epsilon**1.5
           * jnp.sqrt(

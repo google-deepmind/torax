@@ -133,7 +133,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.sim_state_t2 = dataclasses.replace(
         self.sim_state,
         geometry=dataclasses.replace(
-            self.sim_state.geometry, Rmaj=self.sim_state.geometry.Rmaj * 2
+            self.sim_state.geometry, R_major=self.sim_state.geometry.R_major * 2
         ),
     )
     state_history = output.StateHistory(
@@ -148,12 +148,14 @@ class StateHistoryTest(parameterized.TestCase):
     )
     output_xr = state_history.simulation_output_to_xr()
     print(output_xr.children[output.GEOMETRY].dataset.data_vars)
-    saved_rmaj = output_xr.children[output.GEOMETRY].dataset.data_vars['Rmaj']
+    saved_rmaj = output_xr.children[output.GEOMETRY].dataset.data_vars[
+        'R_major'
+    ]
     np.testing.assert_allclose(
-        saved_rmaj.values[0, ...], self.sim_state.geometry.Rmaj
+        saved_rmaj.values[0, ...], self.sim_state.geometry.R_major
     )
     np.testing.assert_allclose(
-        saved_rmaj.values[1, ...], self.sim_state_t2.geometry.Rmaj
+        saved_rmaj.values[1, ...], self.sim_state_t2.geometry.R_major
     )
 
   def test_state_history_saves_ion_el_source(self):

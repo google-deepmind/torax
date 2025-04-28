@@ -41,9 +41,9 @@ class GeometryProviderTest(absltest.TestCase):
         {0.0: geo_0, 10.0: geo_1}
     )
     geo = provider(5.0)
-    np.testing.assert_allclose(geo.Rmaj, 6.8)
-    np.testing.assert_allclose(geo.Rmin, 1.5)
-    np.testing.assert_allclose(geo.B0, 5.9)
+    np.testing.assert_allclose(geo.R_major, 6.8)
+    np.testing.assert_allclose(geo.a_minor, 1.5)
+    np.testing.assert_allclose(geo.B_0, 5.9)
 
   def test_time_dependent_different_types(self):
     geo_0 = geometry_pydantic_model.CircularConfig().build_geometry()

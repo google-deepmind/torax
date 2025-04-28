@@ -124,7 +124,7 @@ class FormulasTest(parameterized.TestCase):
     geo = mock.create_autospec(
         geometry.Geometry,
         instance=True,
-        Rmin=1.0,
+        a_minor=1.0,
     )
 
     fgw_ne_volume_avg_calculated = formulas.calculate_greenwald_fraction(

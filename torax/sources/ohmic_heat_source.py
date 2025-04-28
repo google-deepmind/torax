@@ -64,7 +64,7 @@ def ohmic_model_func(
       psi=core_profiles.psi,
       geo=geo,
   )
-  pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
+  pohm = jtot * psidot / (2 * jnp.pi * geo.R_major)
   return (pohm,)
 
 

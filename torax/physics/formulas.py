@@ -165,7 +165,7 @@ def calc_FFprime(
   pprime = calc_pprime(core_profiles)
   # g3 = <1/R^2>
   g3 = geo.g3_face
-  jtor_over_R = core_profiles.currents.jtot_face / geo.Rmaj
+  jtor_over_R = core_profiles.currents.jtot_face / geo.R_major
 
   FFprime_face = -(jtor_over_R / (2 * jnp.pi) + pprime) * mu0 / g3
   return FFprime_face
@@ -216,6 +216,6 @@ def calculate_greenwald_fraction(
     fgw: Greenwald density fraction
   """
   # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
-  gw_limit = core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.Rmin**2)
+  gw_limit = core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.a_minor**2)
   fgw = ne_avg * core_profiles.nref / (gw_limit * 1e20)
   return fgw
