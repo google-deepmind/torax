@@ -163,7 +163,7 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
-def _merge_face_and_cell_grids(
+def _extend_cell_grid_to_boundaries(
     cell_var: chex.Array, face_var: chex.Array
 ) -> chex.Array:
   """Merge face+cell grids into single [left_face, cells, right_face] grid."""
@@ -301,17 +301,17 @@ class StateHistory:
     xr_dict[N_E] = core_profiles.ne.cell_plus_boundaries()
     xr_dict[N_I] = core_profiles.ni.cell_plus_boundaries()
     xr_dict[N_IMPURITY] = core_profiles.nimp.cell_plus_boundaries()
-    xr_dict[Z_IMPURITY] = _merge_face_and_cell_grids(
+    xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
         core_profiles.Zimp, core_profiles.Zimp_face
     )
 
     # Currents.
-    xr_dict[J_TOTAL] = _merge_face_and_cell_grids(
+    xr_dict[J_TOTAL] = _extend_cell_grid_to_boundaries(
         core_profiles.currents.jtot, core_profiles.currents.jtot_face
     )
     xr_dict[J_OHMIC] = core_profiles.currents.johm
     xr_dict[J_EXTERNAL] = core_profiles.currents.external_current_source
-    xr_dict[J_BOOTSTRAP] = _merge_face_and_cell_grids(
+    xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
         core_profiles.currents.j_bootstrap,
         core_profiles.currents.j_bootstrap_face,
     )
@@ -414,16 +414,22 @@ class StateHistory:
   ) -> dict[str, xr.DataArray]:
     """Save geometry to a dict. We skip over hires and non-array quantities."""
     xr_dict = {}
+    geometry_attributes = dataclasses.asdict(self.geometry)
 
     # Get the variables from dataclass fields.
-    for field_name, data in dataclasses.asdict(self.geometry).items():
+    for field_name, data in geometry_attributes.items():
       if (
           "hires" in field_name
+          or "face" in field_name
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or not isinstance(data, jax.Array)
       ):
         continue
+      if f"{field_name}_face" in geometry_attributes:
+        data = _extend_cell_grid_to_boundaries(
+            data, geometry_attributes[f"{field_name}_face"]
+        )
       data_array = self._pack_into_data_array(
           field_name,
           data,

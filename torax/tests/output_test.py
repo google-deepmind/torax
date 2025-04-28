@@ -18,6 +18,7 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
@@ -157,6 +158,24 @@ class StateHistoryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         saved_rmaj.values[1, ...], self.sim_state_t2.geometry.R_major
     )
+
+  def test_geometry_is_saved_with_cell_and_face_vars_merged(self):
+    """Tests that the geometry is saved correctly."""
+    output_xr = self.history.simulation_output_to_xr()
+    # Check that the face and cell var for "volume" was merged.
+    self.assertIn(
+        'volume', output_xr.children[output.GEOMETRY].dataset.data_vars
+    )
+    self.assertNotIn(
+        'volume_face', output_xr.children[output.GEOMETRY].dataset.data_vars
+    )
+    volume_values = (
+        output_xr.children[output.GEOMETRY].dataset.data_vars['volume'].values
+    )
+    chex.assert_shape(volume_values, (1, len(self.geo.rho_norm) + 2),)
+    np.testing.assert_equal(volume_values[0, 0], self.geo.volume_face[0])
+    np.testing.assert_equal(volume_values[0, -1], self.geo.volume_face[-1])
+    np.testing.assert_equal(volume_values[0, 1:-1], self.geo.volume)
 
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
