@@ -266,24 +266,24 @@ def load_data(filename: str) -> PlotData:
         output.J_OHMIC: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
         output.J_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
-        'generic_current': 1e6,  # A/m^2 to MA/m^2
+        'j_generic_current': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE: 1e6,  # A to MA
-        'ecrh_j': 1e6,  # A/m^2 to MA/m^2
-        'icrh_ion': 1e6,  # W/m^3 to MW/m^3
-        'icrh_el': 1e6,  # W/m^3 to MW/m^3
+        'j_ecrh': 1e6,  # A/m^2 to MA/m^2
+        'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
+        'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
-        'generic_heat_ion': 1e6,  # W/m^3 to MW/m^3
-        'generic_heat_el': 1e6,  # W/m^3 to MW/m^3
-        'ecrh_el': 1e6,  # W/m^3 to MW/m^3
-        'fusion_ion': 1e6,  # W/m^3 to MW/m^3
-        'fusion_el': 1e6,  # W/m^3 to MW/m^3
-        'ohmic': 1e6,  # W/m^3 to MW/m^3
-        'bremsstrahlung': 1e6,  # W/m^3 to MW/m^3
-        'cyclotron_radiation': 1e6,  # W/m^3 to MW/m^3
-        'impurity_radiation': 1e6,  # W/m^3 to MW/m^3
-        'ei_exchange': 1e6,  # W/m^3 to MW/m^3
+        'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
+        'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
+        'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
+        'p_fusion_i': 1e6,  # W/m^3 to MW/m^3
+        'p_fusion_e': 1e6,  # W/m^3 to MW/m^3
+        'p_ohmic_e': 1e6,  # W/m^3 to MW/m^3
+        'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
+        'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
+        'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
+        'p_ei_exchange': 1e6,  # W/m^3 to MW/m^3
         'P_ohmic': 1e6,  # W to MW
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
@@ -334,10 +334,10 @@ def load_data(filename: str) -> PlotData:
           output.J_EXTERNAL
       ].to_numpy(),
       j_ecrh=get_optional_data(
-          core_sources_dataset, 'ecrh_j', 'cell'
+          core_sources_dataset, 'j_ecrh', 'cell'
       ),
       generic_current=get_optional_data(
-          core_sources_dataset, 'generic_current', 'cell'
+          core_sources_dataset, 'j_generic_current', 'cell'
       ),
       q=core_profiles_dataset[output.Q].to_numpy(),
       s=core_profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
@@ -348,45 +348,45 @@ def load_data(filename: str) -> PlotData:
       rho_cell_coord=dataset[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=dataset[output.RHO_FACE_NORM].to_numpy(),
       q_icrh_i=get_optional_data(
-          core_sources_dataset, 'icrh_ion', 'cell'
+          core_sources_dataset, 'p_icrh_i', 'cell'
       ),
       q_icrh_e=get_optional_data(
-          core_sources_dataset, 'icrh_el', 'cell'
+          core_sources_dataset, 'p_icrh_e', 'cell'
       ),
       q_gen_i=get_optional_data(
-          core_sources_dataset, 'generic_heat_ion', 'cell'
+          core_sources_dataset, 'p_generic_heat_i', 'cell'
       ),
       q_gen_e=get_optional_data(
-          core_sources_dataset, 'generic_heat_el', 'cell'
+          core_sources_dataset, 'p_generic_heat_e', 'cell'
       ),
       q_ecrh=get_optional_data(
-          core_sources_dataset, 'ecrh_el', 'cell'
+          core_sources_dataset, 'p_ecrh_e', 'cell'
       ),
       q_alpha_i=get_optional_data(
-          core_sources_dataset, 'fusion_ion', 'cell'
+          core_sources_dataset, 'p_fusion_i', 'cell'
       ),
       q_alpha_e=get_optional_data(
-          core_sources_dataset, 'fusion_el', 'cell'
+          core_sources_dataset, 'p_fusion_e', 'cell'
       ),
       q_ohmic=get_optional_data(
-          core_sources_dataset, 'ohmic', 'cell'
+          core_sources_dataset, 'p_ohmic_e', 'cell'
       ),
       q_brems=get_optional_data(
-          core_sources_dataset, 'bremsstrahlung', 'cell'
+          core_sources_dataset, 'p_bremsstrahlung_e', 'cell'
       ),
       q_cycl=get_optional_data(
-          core_sources_dataset, 'cyclotron_radiation', 'cell'
+          core_sources_dataset, 'p_cyclotron_radiation_e', 'cell'
       ),
       q_rad=get_optional_data(
-          core_sources_dataset, 'impurity_radiation', 'cell'
+          core_sources_dataset, 'p_impurity_radiation_e', 'cell'
       ),
       q_ei=core_sources_dataset['ei_exchange'].to_numpy(),  # ion heating/sink
       Q_fusion=post_processed_outputs_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
       s_puff=get_optional_data(core_sources_dataset, 'gas_puff', 'cell'),
       s_generic=get_optional_data(
-          core_sources_dataset, 'generic_particle', 'cell'
+          core_sources_dataset, 's_generic_particle', 'cell'
       ),
-      s_pellet=get_optional_data(core_sources_dataset, 'pellet', 'cell'),
+      s_pellet=get_optional_data(core_sources_dataset, 's_pellet', 'cell'),
       i_total=core_profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
       i_bootstrap=core_profiles_dataset[output.I_BOOTSTRAP].to_numpy(),
       i_generic=post_processed_outputs_dataset['I_aux_generic'].to_numpy(),
