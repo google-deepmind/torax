@@ -94,31 +94,31 @@ class PostProcessingTest(parameterized.TestCase):
     # pylint: enable=protected-access
 
     expected_keys = {
-        'P_ei_exchange_ion',
-        'P_ei_exchange_el',
-        'P_generic_ion',
-        'P_generic_el',
-        'P_generic_tot',
-        'P_alpha_ion',
-        'P_alpha_el',
-        'P_alpha_tot',
-        'P_ohmic',
-        'P_brems',
-        'P_ecrh',
-        'P_icrh_ion',
-        'P_icrh_el',
-        'P_icrh_tot',
-        'P_rad',
-        'P_cycl',
-        'P_sol_ion',
-        'P_sol_el',
-        'P_sol_tot',
+        'P_ei_exchange_i',
+        'P_ei_exchange_e',
+        'P_aux_generic_i',
+        'P_aux_generic_e',
+        'P_aux_generic_total',
+        'P_alpha_i',
+        'P_alpha_e',
+        'P_alpha_total',
+        'P_ohmic_e',
+        'P_bremsstrahlung_e',
+        'P_ecrh_e',
+        'P_icrh_i',
+        'P_icrh_e',
+        'P_icrh_total',
+        'P_radiation_e',
+        'P_cyclotron_e',
+        'P_SOL_i',
+        'P_SOL_e',
+        'P_SOL_total',
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
         'P_external_injected',
         'I_ecrh',
-        'I_generic',
+        'I_aux_generic',
     }
 
     self.assertSameElements(expected_keys, integrated_sources.keys())
@@ -128,25 +128,25 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
-        integrated_sources['P_generic_ion']
-        + integrated_sources['P_alpha_ion']
-        + integrated_sources['P_ei_exchange_ion'],
-        integrated_sources['P_sol_ion'],
+        integrated_sources['P_aux_generic_i']
+        + integrated_sources['P_alpha_i']
+        + integrated_sources['P_ei_exchange_i'],
+        integrated_sources['P_SOL_i'],
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_generic_el']
-        + integrated_sources['P_ohmic']
-        + integrated_sources['P_brems']
-        + integrated_sources['P_ecrh']
-        + integrated_sources['P_alpha_el']
-        + integrated_sources['P_ei_exchange_el'],
-        integrated_sources['P_sol_el'],
+        integrated_sources['P_aux_generic_e']
+        + integrated_sources['P_ohmic_e']
+        + integrated_sources['P_bremsstrahlung_e']
+        + integrated_sources['P_ecrh_e']
+        + integrated_sources['P_alpha_e']
+        + integrated_sources['P_ei_exchange_e'],
+        integrated_sources['P_SOL_e'],
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_sol_el'] + integrated_sources['P_sol_ion'],
-        integrated_sources['P_sol_tot'],
+        integrated_sources['P_SOL_e'] + integrated_sources['P_SOL_i'],
+        integrated_sources['P_SOL_total'],
     )
 
     np.testing.assert_allclose(
@@ -156,35 +156,37 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_external_tot'] + integrated_sources['P_brems'],
-        +integrated_sources['P_alpha_tot'],
-        integrated_sources['P_sol_tot'],
+        integrated_sources['P_external_tot']
+        + integrated_sources['P_bremsstrahlung_e'],
+        +integrated_sources['P_alpha_total'],
+        integrated_sources['P_SOL_total'],
     )
 
     # Check expected values.
-    np.testing.assert_allclose(integrated_sources['P_generic_ion'], 2 * volume)
-
-    np.testing.assert_allclose(integrated_sources['P_generic_el'], 3 * volume)
-
-    np.testing.assert_allclose(integrated_sources['P_generic_tot'], 5 * volume)
-
     np.testing.assert_allclose(
-        integrated_sources['P_alpha_ion'],
-        integrated_sources['P_alpha_el'],
+        integrated_sources['P_aux_generic_i'], 2 * volume
     )
-
     np.testing.assert_allclose(
-        integrated_sources['P_ohmic'],
+        integrated_sources['P_aux_generic_e'], 3 * volume
+    )
+    np.testing.assert_allclose(
+        integrated_sources['P_aux_generic_total'], 5 * volume
+    )
+    np.testing.assert_allclose(
+        integrated_sources['P_alpha_i'],
+        integrated_sources['P_alpha_e'],
+    )
+    np.testing.assert_allclose(
+        integrated_sources['P_ohmic_e'],
         5 * volume,
     )
     np.testing.assert_allclose(
-        integrated_sources['P_brems'],
+        integrated_sources['P_bremsstrahlung_e'],
         -volume,
     )
-
     np.testing.assert_allclose(
-        integrated_sources['P_ei_exchange_ion'],
-        -integrated_sources['P_ei_exchange_el'],
+        integrated_sources['P_ei_exchange_i'],
+        -integrated_sources['P_ei_exchange_e'],
     )
 
 
@@ -199,10 +201,10 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config(config_name)
 
     state_history = run_simulation.run_simulation(torax_config)
-    p_alpha = state_history.post_processed_outputs.P_alpha_tot
+    p_alpha = state_history.post_processed_outputs.P_alpha_total
     p_external = state_history.post_processed_outputs.P_external_tot
-    e_fusion = state_history.post_processed_outputs.E_cumulative_fusion
-    e_external = state_history.post_processed_outputs.E_cumulative_external
+    e_fusion = state_history.post_processed_outputs.E_fusion
+    e_external = state_history.post_processed_outputs.E_aux
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.

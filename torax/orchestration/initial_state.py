@@ -155,12 +155,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
-      E_cumulative_fusion=post_processed_dataset.data_vars[
-          'E_cumulative_fusion'
-      ].to_numpy(),
-      E_cumulative_external=post_processed_dataset.data_vars[
-          'E_cumulative_external'
-      ].to_numpy(),
+      E_fusion=post_processed_dataset.data_vars['E_fusion'].to_numpy(),
+      E_aux=post_processed_dataset.data_vars['E_aux'].to_numpy(),
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,

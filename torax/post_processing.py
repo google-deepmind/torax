@@ -31,16 +31,16 @@ _trapz = jax.scipy.integrate.trapezoid
 
 # TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'generic_ion_el_heat_source': 'P_generic',
+    'generic_ion_el_heat_source': 'P_aux_generic',
     'fusion_heat_source': 'P_alpha',
     'ion_cyclotron_source': 'P_icrh',
 }
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'ohmic_heat_source': 'P_ohmic',
-    'bremsstrahlung_heat_sink': 'P_brems',
-    'cyclotron_radiation_heat_sink': 'P_cycl',
-    'electron_cyclotron_source': 'P_ecrh',
-    'impurity_radiation_heat_sink': 'P_rad',
+    'ohmic_heat_source': 'P_ohmic_e',
+    'bremsstrahlung_heat_sink': 'P_bremsstrahlung_e',
+    'cyclotron_radiation_heat_sink': 'P_cyclotron_e',
+    'electron_cyclotron_source': 'P_ecrh_e',
+    'impurity_radiation_heat_sink': 'P_radiation_e',
 }
 EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
@@ -49,7 +49,7 @@ EXTERNAL_HEATING_SOURCES = [
     'ion_cyclotron_source',
 ]
 CURRENT_SOURCE_TRANSFORMATIONS = {
-    'generic_current_source': 'I_generic',
+    'generic_current_source': 'I_aux_generic',
     'electron_cyclotron_source': 'I_ecrh',
 }
 
@@ -80,22 +80,22 @@ def _calculate_integrated_sources(
   integrated = {}
 
   # Initialize total alpha power to zero. Needed for Q calculation.
-  integrated['P_alpha_tot'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  integrated['P_alpha_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   # electron-ion heat exchange always exists, and is not in
   # core_sources.profiles, so we calculate it here.
   qei = core_sources.qei.qei_coef * (
       core_profiles.temp_el.value - core_profiles.temp_ion.value
   )
-  integrated['P_ei_exchange_ion'] = math_utils.volume_integration(qei, geo)
-  integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
+  integrated['P_ei_exchange_i'] = math_utils.volume_integration(qei, geo)
+  integrated['P_ei_exchange_e'] = -integrated['P_ei_exchange_i']
 
   # Initialize total electron and ion powers
   # TODO(b/380848256): P_sol is now correct for stationary state. However,
   # for generality need to add dWth/dt to the equation (time dependence of
   # stored energy).
-  integrated['P_sol_ion'] = integrated['P_ei_exchange_ion']
-  integrated['P_sol_el'] = integrated['P_ei_exchange_el']
+  integrated['P_SOL_i'] = integrated['P_ei_exchange_i']
+  integrated['P_SOL_e'] = integrated['P_ei_exchange_e']
   integrated['P_external_ion'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
   integrated['P_external_el'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
   integrated['P_external_injected'] = jnp.array(
@@ -109,39 +109,41 @@ def _calculate_integrated_sources(
     el_profiles = core_sources.temp_el
     if key in ion_profiles and key in el_profiles:
       profile_ion, profile_el = ion_profiles[key], el_profiles[key]
-      integrated[f'{value}_ion'] = math_utils.volume_integration(
+      integrated[f'{value}_i'] = math_utils.volume_integration(
           profile_ion, geo
       )
-      integrated[f'{value}_el'] = math_utils.volume_integration(profile_el, geo)
-      integrated[f'{value}_tot'] = (
-          integrated[f'{value}_ion'] + integrated[f'{value}_el']
+      integrated[f'{value}_e'] = math_utils.volume_integration(profile_el, geo)
+      integrated[f'{value}_total'] = (
+          integrated[f'{value}_i'] + integrated[f'{value}_e']
       )
-      integrated['P_sol_ion'] += integrated[f'{value}_ion']
-      integrated['P_sol_el'] += integrated[f'{value}_el']
+      integrated['P_SOL_i'] += integrated[f'{value}_i']
+      integrated['P_SOL_e'] += integrated[f'{value}_e']
       if key in EXTERNAL_HEATING_SOURCES:
-        integrated['P_external_ion'] += integrated[f'{value}_ion']
-        integrated['P_external_el'] += integrated[f'{value}_el']
+        integrated['P_external_ion'] += integrated[f'{value}_i']
+        integrated['P_external_el'] += integrated[f'{value}_e']
 
         # Track injected power for heating sources that have absorption_fraction
         # These are only for sources like ICRH or NBI that are
         # ion_el_heat_sources.
         source_params = dynamic_runtime_params_slice.sources[key]
         if hasattr(source_params, 'absorption_fraction'):
-          total_absorbed = integrated[f'{value}_tot']
+          total_absorbed = integrated[f'{value}_total']
           injected_power = total_absorbed / source_params.absorption_fraction
           integrated['P_external_injected'] += injected_power
         else:
-          integrated['P_external_injected'] += integrated[f'{value}_tot']
+          integrated['P_external_injected'] += integrated[f'{value}_total']
     else:
-      integrated[f'{value}_ion'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
-      integrated[f'{value}_el'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
-      integrated[f'{value}_tot'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      integrated[f'{value}_i'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      integrated[f'{value}_e'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      integrated[f'{value}_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     profiles = core_sources.temp_el
     if key in profiles:
-      integrated[f'{value}'] = math_utils.volume_integration(profiles[key], geo)
-      integrated['P_sol_el'] += integrated[f'{value}']
+      integrated[f'{value}'] = math_utils.volume_integration(
+          profiles[key], geo
+      )
+      integrated['P_SOL_e'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
         integrated['P_external_injected'] += integrated[f'{value}']
@@ -155,7 +157,7 @@ def _calculate_integrated_sources(
     else:
       integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
-  integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
+  integrated['P_SOL_total'] = integrated['P_SOL_i'] + integrated['P_SOL_e']
   integrated['P_external_tot'] = (
       integrated['P_external_ion'] + integrated['P_external_el']
   )
@@ -217,7 +219,7 @@ def make_post_processed_outputs(
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
-      integrated_sources['P_alpha_tot']
+      integrated_sources['P_alpha_total']
       * 5.0
       / (integrated_sources['P_external_injected'] + constants.CONSTANTS.eps)
   )
@@ -236,12 +238,12 @@ def make_post_processed_outputs(
   # Therefore highly radiative scenarios can lead to skewed results.
 
   Ploss = (
-      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
+      integrated_sources['P_alpha_total'] + integrated_sources['P_external_tot']
   )
 
   if previous_post_processed_outputs is not None:
     dW_th_dt = (
-        W_thermal_tot - previous_post_processed_outputs.W_thermal_tot
+        W_thermal_tot - previous_post_processed_outputs.W_thermal_total
     ) / sim_state.dt
   else:
     dW_th_dt = 0.0
@@ -271,17 +273,17 @@ def make_post_processed_outputs(
   if previous_post_processed_outputs is not None:
     # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
     E_cumulative_fusion = (
-        previous_post_processed_outputs.E_cumulative_fusion
+        previous_post_processed_outputs.E_fusion
         + 5.0
         * sim_state.dt
         * (
-            integrated_sources['P_alpha_tot']
-            + previous_post_processed_outputs.P_alpha_tot
+            integrated_sources['P_alpha_total']
+            + previous_post_processed_outputs.P_alpha_total
         )
         / 2.0
     )
     E_cumulative_external = (
-        previous_post_processed_outputs.E_cumulative_external
+        previous_post_processed_outputs.E_aux
         + sim_state.dt
         * (
             integrated_sources['P_external_tot']
@@ -336,39 +338,38 @@ def make_post_processed_outputs(
 
   # pylint: enable=invalid-name
   return state.PostProcessedOutputs(
-      pressure_thermal_ion_face=pressure_thermal_ion_face,
-      pressure_thermal_el_face=pressure_thermal_el_face,
-      pressure_thermal_tot_face=pressure_thermal_tot_face,
-      pprime_face=pprime_face,
-      W_thermal_ion=W_thermal_ion,
-      W_thermal_el=W_thermal_el,
-      W_thermal_tot=W_thermal_tot,
-      tauE=tauE,
+      pressure_thermal_i=pressure_thermal_ion_face,
+      pressure_thermal_e=pressure_thermal_el_face,
+      pressure_thermal_total=pressure_thermal_tot_face,
+      pprime=pprime_face,
+      W_thermal_i=W_thermal_ion,
+      W_thermal_e=W_thermal_el,
+      W_thermal_total=W_thermal_tot,
+      tau_E=tauE,
       H89P=H89P,
       H98=H98,
       H97L=H97L,
       H20=H20,
-      FFprime_face=FFprime_face,
-      psi_norm_face=psi_norm_face,
-      psi_face=sim_state.core_profiles.psi.face_value(),
+      FFprime=FFprime_face,
+      psi_norm=psi_norm_face,
       **integrated_sources,
       Q_fusion=Q_fusion,
       P_LH=P_LH,
       P_LH_min=P_LH_min,
-      P_LH_hi_dens=P_LH_hi_dens,
-      ne_min_P_LH=ne_min_P_LH,
-      E_cumulative_fusion=E_cumulative_fusion,
-      E_cumulative_external=E_cumulative_external,
-      te_volume_avg=te_volume_avg,
-      ti_volume_avg=ti_volume_avg,
-      ne_volume_avg=ne_volume_avg,
-      ni_volume_avg=ni_volume_avg,
-      ne_line_avg=ne_line_avg,
-      ni_line_avg=ni_line_avg,
-      fgw_ne_volume_avg=fgw_ne_volume_avg,
-      fgw_ne_line_avg=fgw_ne_line_avg,
+      P_LH_high_density=P_LH_hi_dens,
+      n_e_min_P_LH=ne_min_P_LH,
+      E_fusion=E_cumulative_fusion,
+      E_aux=E_cumulative_external,
+      T_e_volume_avg=te_volume_avg,
+      T_i_volume_avg=ti_volume_avg,
+      n_e_volume_avg=ne_volume_avg,
+      n_i_volume_avg=ni_volume_avg,
+      n_e_line_avg=ne_line_avg,
+      n_i_line_avg=ni_line_avg,
+      fgw_n_e_volume_avg=fgw_ne_volume_avg,
+      fgw_n_e_line_avg=fgw_ne_line_avg,
       q95=q95,
-      Wpol=Wpol,
+      W_pol=Wpol,
       li3=li3,
-      dW_th_dt=dW_th_dt,
+      dW_thermal_dt=dW_th_dt,
   )

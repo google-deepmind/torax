@@ -262,15 +262,15 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
-    pressure_thermal_ion_face: Ion thermal pressure on the face grid [Pa]
-    pressure_thermal_el_face: Electron thermal pressure on the face grid [Pa]
-    pressure_thermal_tot_face: Total thermal pressure on the face grid [Pa]
-    pprime_face: Derivative of total pressure with respect to poloidal flux on
+    pressure_thermal_i: Ion thermal pressure on the face grid [Pa]
+    pressure_thermal_e: Electron thermal pressure on the face grid [Pa]
+    pressure_thermal_total: Total thermal pressure on the face grid [Pa]
+    pprime: Derivative of total pressure with respect to poloidal flux on
       the face grid [Pa/Wb]
-    W_thermal_ion: Ion thermal stored energy [J]
-    W_thermal_el: Electron thermal stored energy [J]
-    W_thermal_tot: Total thermal stored energy [J]
-    tauE: Thermal energy confinement time [s]
+    W_thermal_i: Ion thermal stored energy [J]
+    W_thermal_e: Electron thermal stored energy [J]
+    W_thermal_total: Total thermal stored energy [J]
+    tau_E: Thermal energy confinement time [s]
     H89P: L-mode confinement quality factor with respect to the ITER89P scaling
       law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
@@ -279,191 +279,189 @@ class PostProcessedOutputs:
       law derived from the ITER L-mode confinement database
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
-    FFprime_face: FF' on the face grid, where F is the toroidal flux function
-    psi_norm_face: Normalized poloidal flux on the face grid [Wb]
-    psi_face: Poloidal flux on the face grid [Wb]
-    P_sol_ion: Total ion heating power exiting the plasma with all sources:
+    FFprime: FF' on the face grid, where F is the toroidal flux function
+    psi_norm: Normalized poloidal flux on the face grid [Wb]
+    P_SOL_i: Total ion heating power exiting the plasma with all sources:
       auxiliary heating + ion-electron exchange + fusion [W]
-    P_sol_el: Total electron heating power exiting the plasma with all sources
+    P_SOL_e: Total electron heating power exiting the plasma with all sources
       and sinks: auxiliary heating + ion-electron exchange + Ohmic + fusion +
       radiation sinks [W]
-    P_sol_tot: Total heating power exiting the plasma with all sources and sinks
+    P_SOL_total: Total heating power exiting the plasma with all sources and
+      sinks
     P_external_ion: Total external ion heating power: auxiliary heating + Ohmic
       [W]
     P_external_el: Total external electron heating power: auxiliary heating +
       Ohmic [W]
     P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
     P_external_injected: Total external injected power before absorption [W]
-    P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
-    P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
-    P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
-    P_generic_el: Total generic_ion_el_heat_source power to electrons [W]
-    P_generic_tot: Total generic_ion_el_heat power [W]
-    P_alpha_ion: Total fusion power to ions [W]
-    P_alpha_el: Total fusion power to electrons [W]
-    P_alpha_tot: Total fusion power to plasma [W]
-    P_ohmic: Ohmic heating power to electrons [W]
-    P_brems: Bremsstrahlung electron heat sink [W]
-    P_cycl: Cyclotron radiation electron heat sink [W]
-    P_ecrh: Total electron cyclotron source power [W]
-    P_rad: Impurity radiation heat sink [W]
+    P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
+    P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
+    P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
+    P_aux_generic_e: Total generic_ion_el_heat_source power to electrons [W]
+    P_aux_generic_total: Total generic_ion_el_heat power [W]
+    P_alpha_i: Total fusion power to ions [W]
+    P_alpha_e: Total fusion power to electrons [W]
+    P_alpha_total: Total fusion power to plasma [W]
+    P_ohmic_e: Ohmic heating power to electrons [W]
+    P_bremsstrahlung_e: Bremsstrahlung electron heat sink [W]
+    P_cyclotron_e: Cyclotron radiation electron heat sink [W]
+    P_ecrh_e: Total electron cyclotron source power [W]
+    P_radiation_e: Impurity radiation heat sink [W]
     I_ecrh: Total electron cyclotron source current [A]
-    I_generic: Total generic source current [A]
+    I_aux_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
-    P_icrh_el: Ion cyclotron resonance heating to electrons [W]
-    P_icrh_ion: Ion cyclotron resonance heating to ions [W]
-    P_icrh_tot: Total ion cyclotron resonance heating power [W]
-    P_LH_hi_dens: H-mode transition power for high density branch [W]
+    P_icrh_e: Ion cyclotron resonance heating to electrons [W]
+    P_icrh_i: Ion cyclotron resonance heating to ions [W]
+    P_icrh_total: Total ion cyclotron resonance heating power [W]
+    P_LH_high_density: H-mode transition power for high density branch [W]
     P_LH_min: Minimum H-mode transition power for at ne_min_P_LH [W]
-    P_LH: H-mode transition power from maximum of P_LH_hi_dens and P_LH_min [W]
-    ne_min_P_LH: Density corresponding to the P_LH_min [nref]
-    E_cumulative_fusion: Total cumulative fusion energy [J]
-    E_cumulative_external: Total external injected energy (Ohmic + auxiliary
-      heating) [J]
-    te_volume_avg: Volume average electron temperature [keV]
-    ti_volume_avg: Volume average ion temperature [keV]
-    ne_volume_avg: Volume average electron density [nref m^-3]
-    ni_volume_avg: Volume average main ion density [nref m^-3]
-    ne_line_avg: Line averaged electron density [nref m^-3]
-    ni_line_avg: Line averaged main ion density [nref m^-3]
-    fgw_ne_volume_avg: Greenwald fraction from volume-averaged electron density
+    P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
+      [W]
+    n_e_min_P_LH: Density corresponding to the P_LH_min [nref]
+    E_fusion: Total cumulative fusion energy [J]
+    E_aux: Total external injected energy (Ohmic + auxiliary heating)
+      [J]
+    T_e_volume_avg: Volume average electron temperature [keV]
+    T_i_volume_avg: Volume average ion temperature [keV]
+    n_e_volume_avg: Volume average electron density [nref m^-3]
+    n_e_volume_avg: Volume average electron density [nref m^-3]
+    n_i_volume_avg: Volume average main ion density [nref m^-3]
+    n_e_line_avg: Line averaged electron density [nref m^-3]
+    n_i_line_avg: Line averaged main ion density [nref m^-3]
+    fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
       [dimensionless]
-    fgw_ne_line_avg: Greenwald fraction from line-averaged electron density
+    fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density
       [dimensionless]
     q95: q at 95% of the normalized poloidal flux
-    Wpol: Total magnetic energy [J]
+    W_pol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
-    dW_th_dt: Time derivative of the total stored thermal energy [W]
+    dW_thermal_dt: Time derivative of the total stored thermal energy [W]
   """
 
-  pressure_thermal_ion_face: array_typing.ArrayFloat
-  pressure_thermal_el_face: array_typing.ArrayFloat
-  pressure_thermal_tot_face: array_typing.ArrayFloat
-  pprime_face: array_typing.ArrayFloat
+  pressure_thermal_i: array_typing.ArrayFloat
+  pressure_thermal_e: array_typing.ArrayFloat
+  pressure_thermal_total: array_typing.ArrayFloat
+  pprime: array_typing.ArrayFloat
   # pylint: disable=invalid-name
-  W_thermal_ion: array_typing.ScalarFloat
-  W_thermal_el: array_typing.ScalarFloat
-  W_thermal_tot: array_typing.ScalarFloat
-  tauE: array_typing.ScalarFloat
+  W_thermal_i: array_typing.ScalarFloat
+  W_thermal_e: array_typing.ScalarFloat
+  W_thermal_total: array_typing.ScalarFloat
+  tau_E: array_typing.ScalarFloat
   H89P: array_typing.ScalarFloat
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
-  FFprime_face: array_typing.ArrayFloat
-  psi_norm_face: array_typing.ArrayFloat
-  # psi_face included in post_processed output for convenience, since the
-  # CellVariable history method destroys class methods like `face_value`.
-  psi_face: array_typing.ArrayFloat
+  FFprime: array_typing.ArrayFloat
+  psi_norm: array_typing.ArrayFloat
   # Integrated heat sources
-  P_sol_ion: array_typing.ScalarFloat  # SOL stands for "Scrape Off Layer"
-  P_sol_el: array_typing.ScalarFloat
-  P_sol_tot: array_typing.ScalarFloat
+  P_SOL_i: array_typing.ScalarFloat
+  P_SOL_e: array_typing.ScalarFloat
+  P_SOL_total: array_typing.ScalarFloat
   P_external_ion: array_typing.ScalarFloat
   P_external_el: array_typing.ScalarFloat
   P_external_tot: array_typing.ScalarFloat
   P_external_injected: array_typing.ScalarFloat
-  P_ei_exchange_ion: array_typing.ScalarFloat
-  P_ei_exchange_el: array_typing.ScalarFloat
-  P_generic_ion: array_typing.ScalarFloat
-  P_generic_el: array_typing.ScalarFloat
-  P_generic_tot: array_typing.ScalarFloat
-  P_alpha_ion: array_typing.ScalarFloat
-  P_alpha_el: array_typing.ScalarFloat
-  P_alpha_tot: array_typing.ScalarFloat
-  P_ohmic: array_typing.ScalarFloat
-  P_brems: array_typing.ScalarFloat
-  P_cycl: array_typing.ScalarFloat
-  P_ecrh: array_typing.ScalarFloat
-  P_rad: array_typing.ScalarFloat
+  P_ei_exchange_i: array_typing.ScalarFloat
+  P_ei_exchange_e: array_typing.ScalarFloat
+  P_aux_generic_i: array_typing.ScalarFloat
+  P_aux_generic_e: array_typing.ScalarFloat
+  P_aux_generic_total: array_typing.ScalarFloat
+  P_alpha_i: array_typing.ScalarFloat
+  P_alpha_e: array_typing.ScalarFloat
+  P_alpha_total: array_typing.ScalarFloat
+  P_ohmic_e: array_typing.ScalarFloat
+  P_bremsstrahlung_e: array_typing.ScalarFloat
+  P_cyclotron_e: array_typing.ScalarFloat
+  P_ecrh_e: array_typing.ScalarFloat
+  P_radiation_e: array_typing.ScalarFloat
   I_ecrh: array_typing.ScalarFloat
-  I_generic: array_typing.ScalarFloat
+  I_aux_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
-  P_icrh_el: array_typing.ScalarFloat
-  P_icrh_ion: array_typing.ScalarFloat
-  P_icrh_tot: array_typing.ScalarFloat
-  P_LH_hi_dens: array_typing.ScalarFloat
+  P_icrh_e: array_typing.ScalarFloat
+  P_icrh_i: array_typing.ScalarFloat
+  P_icrh_total: array_typing.ScalarFloat
+  P_LH_high_density: array_typing.ScalarFloat
   P_LH_min: array_typing.ScalarFloat
   P_LH: array_typing.ScalarFloat
-  ne_min_P_LH: array_typing.ScalarFloat
-  E_cumulative_fusion: array_typing.ScalarFloat
-  E_cumulative_external: array_typing.ScalarFloat
-  te_volume_avg: array_typing.ScalarFloat
-  ti_volume_avg: array_typing.ScalarFloat
-  ne_volume_avg: array_typing.ScalarFloat
-  ni_volume_avg: array_typing.ScalarFloat
-  ne_line_avg: array_typing.ScalarFloat
-  ni_line_avg: array_typing.ScalarFloat
-  fgw_ne_volume_avg: array_typing.ScalarFloat
-  fgw_ne_line_avg: array_typing.ScalarFloat
+  n_e_min_P_LH: array_typing.ScalarFloat
+  E_fusion: array_typing.ScalarFloat
+  E_aux: array_typing.ScalarFloat
+  T_e_volume_avg: array_typing.ScalarFloat
+  T_i_volume_avg: array_typing.ScalarFloat
+  n_e_volume_avg: array_typing.ScalarFloat
+  n_i_volume_avg: array_typing.ScalarFloat
+  n_e_line_avg: array_typing.ScalarFloat
+  n_i_line_avg: array_typing.ScalarFloat
+  fgw_n_e_volume_avg: array_typing.ScalarFloat
+  fgw_n_e_line_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
-  Wpol: array_typing.ScalarFloat
+  W_pol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
-  dW_th_dt: array_typing.ScalarFloat
+  dW_thermal_dt: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
-        pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
-        pprime_face=jnp.zeros(geo.rho_face.shape),
-        W_thermal_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        tauE=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        pressure_thermal_i=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_e=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_total=jnp.zeros(geo.rho_face.shape),
+        pprime=jnp.zeros(geo.rho_face.shape),
+        W_thermal_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        tau_E=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H20=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        FFprime_face=jnp.zeros(geo.rho_face.shape),
-        psi_norm_face=jnp.zeros(geo.rho_face.shape),
-        psi_face=jnp.zeros(geo.rho_face.shape),
-        P_sol_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_sol_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_sol_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        FFprime=jnp.zeros(geo.rho_face.shape),
+        psi_norm=jnp.zeros(geo.rho_face.shape),
+        P_SOL_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_SOL_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_SOL_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ei_exchange_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ei_exchange_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ohmic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_brems=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_cycl=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_rad=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_generic_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_generic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_generic_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ohmic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_bremsstrahlung_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_cyclotron_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ecrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        I_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_aux_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_hi_dens=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        E_cumulative_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        E_cumulative_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        te_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ti_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ni_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ni_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_aux=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_i_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_i_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_i_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        Wpol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_thermal_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
   def check_for_errors(self):

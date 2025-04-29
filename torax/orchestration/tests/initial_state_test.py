@@ -57,8 +57,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
         )
     )
 
-    self.assertNotEqual(post_processed.E_cumulative_fusion, 0.0)
-    self.assertNotEqual(post_processed.E_cumulative_external, 0.0)
+    self.assertNotEqual(post_processed.E_fusion, 0.0)
+    self.assertNotEqual(post_processed.E_aux, 0.0)
 
     with self.assertRaises(AssertionError):
       chex.assert_trees_all_equal(result, non_restart)

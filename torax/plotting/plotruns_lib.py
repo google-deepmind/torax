@@ -292,7 +292,7 @@ def load_data(filename: str) -> PlotData:
         'P_ecrh': 1e6,  # W to MW
         'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
-        'I_generic': 1e6,  # A to MA
+        'I_aux_generic': 1e6,  # A to MA
         'W_thermal_tot': 1e6,  # J to MJ
     }
 
@@ -389,25 +389,27 @@ def load_data(filename: str) -> PlotData:
       s_pellet=get_optional_data(core_sources_dataset, 'pellet_source', 'cell'),
       i_total=core_profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
       i_bootstrap=core_profiles_dataset[output.I_BOOTSTRAP].to_numpy(),
-      i_generic=post_processed_outputs_dataset['I_generic'].to_numpy(),
+      i_generic=post_processed_outputs_dataset['I_aux_generic'].to_numpy(),
       i_ecrh=post_processed_outputs_dataset['I_ecrh'].to_numpy(),
-      p_ohmic=post_processed_outputs_dataset['P_ohmic'].to_numpy(),
+      p_ohmic=post_processed_outputs_dataset['P_ohmic_e'].to_numpy(),
       p_auxiliary=(
           post_processed_outputs_dataset['P_external_tot']
-          - post_processed_outputs_dataset['P_ohmic']
+          - post_processed_outputs_dataset['P_ohmic_e']
       ).to_numpy(),
-      p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
-      p_sink=post_processed_outputs_dataset['P_brems'].to_numpy()
-      + post_processed_outputs_dataset['P_rad'].to_numpy()
-      + post_processed_outputs_dataset['P_cycl'].to_numpy(),
-      p_brems=post_processed_outputs_dataset['P_brems'].to_numpy(),
-      p_rad=post_processed_outputs_dataset['P_rad'].to_numpy(),
-      p_cycl=post_processed_outputs_dataset['P_cycl'].to_numpy(),
-      te_volume_avg=post_processed_outputs_dataset['te_volume_avg'].to_numpy(),
-      ti_volume_avg=post_processed_outputs_dataset['ti_volume_avg'].to_numpy(),
-      ne_volume_avg=post_processed_outputs_dataset['ne_volume_avg'].to_numpy(),
-      ni_volume_avg=post_processed_outputs_dataset['ni_volume_avg'].to_numpy(),
-      W_thermal_tot=post_processed_outputs_dataset['W_thermal_tot'].to_numpy(),
+      p_alpha=post_processed_outputs_dataset['P_alpha_total'].to_numpy(),
+      p_sink=post_processed_outputs_dataset['P_bremsstrahlung_e'].to_numpy()
+      + post_processed_outputs_dataset['P_radiation_e'].to_numpy()
+      + post_processed_outputs_dataset['P_cyclotron_e'].to_numpy(),
+      p_brems=post_processed_outputs_dataset['P_bremsstrahlung_e'].to_numpy(),
+      p_rad=post_processed_outputs_dataset['P_radiation_e'].to_numpy(),
+      p_cycl=post_processed_outputs_dataset['P_cyclotron_e'].to_numpy(),
+      te_volume_avg=post_processed_outputs_dataset['T_e_volume_avg'].to_numpy(),
+      ti_volume_avg=post_processed_outputs_dataset['T_i_volume_avg'].to_numpy(),
+      ne_volume_avg=post_processed_outputs_dataset['n_e_volume_avg'].to_numpy(),
+      ni_volume_avg=post_processed_outputs_dataset['n_i_volume_avg'].to_numpy(),
+      W_thermal_tot=post_processed_outputs_dataset[
+          'W_thermal_total'
+      ].to_numpy(),
       q95=post_processed_outputs_dataset['q95'].to_numpy(),
       t=time,
   )
