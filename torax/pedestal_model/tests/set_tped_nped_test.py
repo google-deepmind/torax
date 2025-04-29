@@ -18,6 +18,7 @@ from jax import numpy as jnp
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 # pylint: disable=invalid-name
 
@@ -41,24 +42,17 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       neped_is_fGW,
       time,
   ):
-    torax_config = model_config.ToraxConfig.from_dict(
-        dict(
-            runtime_params=dict(),
-            geometry=dict(geometry_type='circular'),
-            pedestal=dict(
-                pedestal_model='set_tped_nped',
-                set_pedestal=True,
-                Tiped=Tiped,
-                Teped=Teped,
-                rho_norm_ped_top=rho_norm_ped_top,
-                neped=neped,
-                neped_is_fGW=neped_is_fGW,
-            ),
-            sources=dict(),
-            stepper=dict(),
-            transport=dict(),
-        )
-    )
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
+        'Tiped': Tiped,
+        'Teped': Teped,
+        'rho_norm_ped_top': rho_norm_ped_top,
+        'neped': neped,
+        'neped_is_fGW': neped_is_fGW,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

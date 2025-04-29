@@ -22,6 +22,7 @@ from torax.core_profiles import initialization
 from torax.orchestration import run_simulation
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
@@ -31,14 +32,9 @@ class PostProcessingTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': default_sources.get_default_source_config(),
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['sources'] = default_sources.get_default_source_config()
+    torax_config = model_config.ToraxConfig.from_dict(config)
     self.dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

@@ -27,6 +27,7 @@ from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -38,14 +39,8 @@ class SourceModelsTest(parameterized.TestCase):
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': {},
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    })
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict())
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
     )

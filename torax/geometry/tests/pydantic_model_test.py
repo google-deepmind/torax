@@ -19,6 +19,7 @@ from torax.config import build_runtime_params
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model
 from torax.geometry import standard_geometry
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -128,14 +129,13 @@ class PydanticModelTest(parameterized.TestCase):
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
     """Tests that the Ip is updated when using chease geometry."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'chease', 'Ip_from_parameters': False},
-        'sources': {},
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['geometry'] = {
+        'geometry_type': 'chease',
+        'Ip_from_parameters': False,
+        'n_rho': 4,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     runtime_params_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

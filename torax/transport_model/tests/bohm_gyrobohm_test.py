@@ -23,6 +23,7 @@ from torax.config import plasma_composition
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.transport_model import bohm_gyrobohm
 
@@ -32,14 +33,9 @@ class BohmGyroBohmTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': {},
-        'stepper': {},
-        'transport': {'transport_model': 'bohm-gyrobohm'},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {'transport_model': 'bohm-gyrobohm'}
+    torax_config = model_config.ToraxConfig.from_dict(config)
     self.model = torax_config.transport.build_transport_model()
     self.geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -59,7 +55,8 @@ class BohmGyroBohmTest(absltest.TestCase):
         dynamic_runtime_params_slice,
         self.geo,
         source_models_lib.SourceModels(
-            sources=torax_config.sources.source_model_config),
+            sources=torax_config.sources.source_model_config
+        ),
     )
     # pedestal_model_outputs is not used in the transport model; we can mock it.
     self.pedestal_outputs = mock.create_autospec(object)

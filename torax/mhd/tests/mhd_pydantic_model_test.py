@@ -20,6 +20,7 @@ from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.mhd.sawtooth import sawtooth_model
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -28,16 +29,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
 
   def test_no_mhd_config(self):
     """Tests the case where the 'mhd' key is entirely absent."""
-    config_dict = {
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'pedestal': {},
-        'sources': {},
-        'stepper': {},
-        'time_step_calculator': {},
-        'transport': {},
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict())
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     provider = (
@@ -53,17 +46,9 @@ class MHDPydanticModelTest(parameterized.TestCase):
 
   def test_empty_mhd_config(self):
     """Tests the case where 'mhd' key exists but is an empty dict."""
-    config_dict = {
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'pedestal': {},
-        'sources': {},
-        'stepper': {},
-        'time_step_calculator': {},
-        'transport': {},
-        'mhd': {},
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    config = default_configs.get_default_config_dict()
+    config['mhd'] = {}
+    torax_config = model_config.ToraxConfig.from_dict(config)
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     assert isinstance(torax_config.mhd, mhd_pydantic_model.MHD)
@@ -82,27 +67,19 @@ class MHDPydanticModelTest(parameterized.TestCase):
 
   def test_mhd_config_with_sawtooth(self):
     """Tests the case with a valid sawtooth configuration."""
-    config_dict = {
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular'},
-        'pedestal': {},
-        'sources': {},
-        'stepper': {},
-        'time_step_calculator': {},
-        'transport': {},
-        'mhd': {
-            'sawtooth': {
-                'trigger_model_config': {
-                    'trigger_model_type': 'simple',
-                    'minimum_radius': 0.06,
-                },
-                'redistribution_model_config': {
-                    'redistribution_model_type': 'simple'
-                },
-            }
-        },
+    config = default_configs.get_default_config_dict()
+    config['mhd'] = {
+        'sawtooth': {
+            'trigger_model_config': {
+                'trigger_model_type': 'simple',
+                'minimum_radius': 0.06,
+            },
+            'redistribution_model_config': {
+                'redistribution_model_type': 'simple'
+            },
+        }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(config)
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     assert torax_config.mhd is not None

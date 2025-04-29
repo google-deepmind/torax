@@ -32,6 +32,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import core_profile_helpers
+from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
 
@@ -186,28 +187,18 @@ class StateTest(parameterized.TestCase):
 
 class InitialStatesTest(parameterized.TestCase):
 
-  def setUp(self):
-    super().setUp()
-    self.config_dict = {
-        'runtime_params': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'sources': {},
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    }
-
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
+    config = default_configs.get_default_config_dict()
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
-    self.config_dict['runtime_params']['profile_conditions'] = {
+    config['profile_conditions'] = {
         'Ti_bound_right': 27.7,
         'Te_bound_right': {0.0: 42.0, 1.0: 0.001},
         'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
         'normalize_to_nbar': False,
     }
-    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
     )
@@ -242,7 +233,9 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""
-    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
     )
@@ -283,14 +276,15 @@ class InitialStatesTest(parameterized.TestCase):
       geometry_name: str,
   ):
     """Tests expected behaviour of initial psi and current options."""
-    self.config_dict['geometry']['geometry_type'] = geometry_name
-    self.config_dict['sources'] = {
+    config = default_configs.get_default_config_dict()
+    config['geometry']['geometry_type'] = geometry_name
+    config['sources'] = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
         'generic_current': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(config)
     config1 = dict(
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
@@ -505,11 +499,12 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_initial_psi_from_geo_noop_circular(self):
     """Tests expected behaviour of initial psi and current options."""
-    self.config_dict['runtime_params']['profile_conditions'] = {
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
         'initial_psi_from_j': False,
         'ne_bound_right': 0.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
     )

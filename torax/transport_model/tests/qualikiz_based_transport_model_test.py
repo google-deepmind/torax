@@ -27,6 +27,7 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
@@ -37,14 +38,9 @@ def _get_config_and_model_inputs(
     transport: Mapping[str, Any],
 ):
   """Returns the model inputs for testing."""
-  torax_config = model_config.ToraxConfig.from_dict({
-      'runtime_params': {},
-      'geometry': {'geometry_type': 'circular'},
-      'sources': {},
-      'stepper': {},
-      'transport': transport,
-      'pedestal': {},
-  })
+  config = default_configs.get_default_config_dict()
+  config['transport'] = transport
+  torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = source_models_lib.SourceModels(
       sources=torax_config.sources.source_model_config
   )

@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import chex
 from torax import version
 from torax.config import config_loader
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
@@ -174,15 +175,7 @@ class ConfigTest(parameterized.TestCase):
       expect_warning,
   ):
     # Use a basic config and modify it to test the warning.
-    config_dict = {
-        "sources": {},
-        "runtime_params": {},
-        "geometry": {"geometry_type": "circular"},
-        "stepper": {},
-        "transport": {},
-        "pedestal": {},
-        "time_step_calculator": {},
-    }
+    config_dict = default_configs.get_default_config_dict()
 
     config_dict["transport"] = {"transport_model": transport_model}
     config_dict["stepper"] = {

@@ -20,7 +20,9 @@
 
 
 CONFIG = {
-    'runtime_params': {},
+    'profile_conditions': {},
+    'plasma_composition': {},
+    'numerics': {},
     'geometry': {
         'geometry_type': 'circular',
     },
