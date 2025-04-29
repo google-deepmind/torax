@@ -65,7 +65,7 @@ def calc_pellet_source(
 class PelletSource(source.Source):
   """Pellet source for the ne equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'pellet_source'
+  SOURCE_NAME: ClassVar[str] = 'pellet'
   model_func: source.SourceProfileFunction = calc_pellet_source
 
   @property

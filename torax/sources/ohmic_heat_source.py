@@ -75,7 +75,7 @@ class OhmicHeatSource(source_lib.Source):
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
+  SOURCE_NAME: ClassVar[str] = 'ohmic'
   model_func: source_lib.SourceProfileFunction = ohmic_model_func
 
   @property

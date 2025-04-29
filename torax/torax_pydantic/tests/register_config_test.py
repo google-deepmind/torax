@@ -120,31 +120,31 @@ class RegisterConfigTest(parameterized.TestCase):
     config = copy.deepcopy(config_module.CONFIG)
     # Register the new source model config against the gas puff source.
     register_config.register_source_model_config(
-        NewGasPuffSourceModelConfig, 'gas_puff_source'
+        NewGasPuffSourceModelConfig, 'gas_puff'
     )
 
     # Load the original config and check the gas puff source is expected type.
     config_pydantic = model_config.ToraxConfig.from_dict(config)
-    gas_puff_source_config = config_pydantic.sources.gas_puff_source
+    gas_puff_config = config_pydantic.sources.gas_puff
     self.assertIsInstance(
-        gas_puff_source_config, gas_puff_source_lib.GasPuffSourceConfig
+        gas_puff_config, gas_puff_source_lib.GasPuffSourceConfig
     )
-    gas_puff_source = gas_puff_source_config.build_source()
-    self.assertIsInstance(gas_puff_source, gas_puff_source_lib.GasPuffSource)
-    dynamic_params = gas_puff_source_config.build_dynamic_params(t=0.0)
+    gas_puff = gas_puff_config.build_source()
+    self.assertIsInstance(gas_puff, gas_puff_source_lib.GasPuffSource)
+    dynamic_params = gas_puff_config.build_dynamic_params(t=0.0)
     self.assertIsInstance(
         dynamic_params, gas_puff_source_lib.DynamicGasPuffRuntimeParams
     )
 
     # Now modify the original config to use the new config.
-    del config['sources']['gas_puff_source']
-    config['sources']['gas_puff_source'] = {
+    del config['sources']['gas_puff']
+    config['sources']['gas_puff'] = {
         'model_function_name': 'test_model_function',  # new registered name.
         'a': 2.0,
     }
     config_pydantic = model_config.ToraxConfig.from_dict(config)
     # Check we build the correct config.
-    new_gas_puff_config = config_pydantic.sources.gas_puff_source
+    new_gas_puff_config = config_pydantic.sources.gas_puff
     self.assertIsInstance(new_gas_puff_config, NewGasPuffSourceModelConfig)
     # Check the dynamic params are built correctly.
     new_dynamic_params = new_gas_puff_config.build_dynamic_params(t=0.0)
@@ -155,7 +155,7 @@ class RegisterConfigTest(parameterized.TestCase):
   def test_error_thrown_if_model_function_name_is_already_registered(self):
     with self.assertRaises(ValueError):
       register_config.register_source_model_config(
-          DuplicateGasPuffSourceModelConfig, 'gas_puff_source'
+          DuplicateGasPuffSourceModelConfig, 'gas_puff'
       )
 
   @parameterized.parameters('qei', 'j_bootstrap')

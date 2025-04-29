@@ -76,12 +76,12 @@ class StateHistoryTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         temp_ion={
-            'fusion_heat_source': ones,
+            'fusion': ones,
         },
         temp_el={
-            'bremsstrahlung_heat_sink': -ones,
-            'ohmic_heat_source': ones * 5,
-            'fusion_heat_source': ones,
+            'bremsstrahlung': -ones,
+            'ohmic': ones * 5,
+            'fusion': ones,
         },
         ne={},
         psi={},
@@ -181,15 +181,15 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that an ion electron source is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     sources_dataset = output_xr.children[output.CORE_SOURCES].dataset
-    self.assertIn('fusion_heat_source_ion', sources_dataset.data_vars)
-    self.assertIn('fusion_heat_source_el', sources_dataset.data_vars)
+    self.assertIn('fusion_ion', sources_dataset.data_vars)
+    self.assertIn('fusion_el', sources_dataset.data_vars)
     np.testing.assert_allclose(
-        sources_dataset.data_vars['fusion_heat_source_ion'].values[0, ...],
-        self.source_profiles.temp_ion['fusion_heat_source'],
+        sources_dataset.data_vars['fusion_ion'].values[0, ...],
+        self.source_profiles.temp_ion['fusion'],
     )
     np.testing.assert_allclose(
-        sources_dataset.data_vars['fusion_heat_source_el'].values[0, ...],
-        self.source_profiles.temp_el['fusion_heat_source'],
+        sources_dataset.data_vars['fusion_el'].values[0, ...],
+        self.source_profiles.temp_el['fusion'],
     )
 
   def test_state_history_to_xr(self):

@@ -68,7 +68,7 @@ def calc_generic_particle_source(
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
+  SOURCE_NAME: ClassVar[str] = 'generic_particle'
   model_func: source.SourceProfileFunction = calc_generic_particle_source
 
   @property

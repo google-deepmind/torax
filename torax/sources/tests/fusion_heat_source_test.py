@@ -48,7 +48,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
     references.config.update_fields({
-        'sources.fusion_heat_source': {
+        'sources.fusion': {
             'model_function_name': (
                 fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
             )
@@ -96,7 +96,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = torax_refs.chease_references_Ip_from_chease()
     references.config.update_fields(
         {'runtime_params.plasma_composition.main_ion': main_ion_input,
-         'sources.fusion_heat_source': {
+         'sources.fusion': {
              'model_function_name': (
                  fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
              )

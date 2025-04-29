@@ -37,10 +37,10 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
         'j_bootstrap': {},
-        'generic_current_source': {},
+        'generic_current': {},
     },
     'pedestal': {
         'pedestal_model': 'set_tped_nped',

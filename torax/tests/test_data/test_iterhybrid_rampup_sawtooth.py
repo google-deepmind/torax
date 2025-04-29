@@ -21,9 +21,9 @@ CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
 assert(isinstance(CONFIG['runtime_params']['profile_conditions'], dict))
 CONFIG['runtime_params']['profile_conditions']['initial_psi_from_j'] = True
 CONFIG['runtime_params']['profile_conditions']['nu'] = 2.0
-CONFIG['sources']['generic_current_source']['fext'] = 0.0
-CONFIG['sources']['generic_ion_el_heat_source']['Ptot'] = 0.0
-CONFIG['sources']['ohmic_heat_source'] = {}
+CONFIG['sources']['generic_current']['fext'] = 0.0
+CONFIG['sources']['generic_heat']['Ptot'] = 0.0
+CONFIG['sources']['ohmic'] = {}
 CONFIG['runtime_params']['numerics']['resistivity_mult'] = 10.0
 CONFIG['runtime_params']['numerics']['fixed_dt'] = 1.0
 CONFIG['transport']['chii_inner'] = 0.2

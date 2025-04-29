@@ -33,14 +33,14 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current_source': {},
+        'generic_current': {},
         # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {},
-        'gas_puff_source': {},
-        'pellet_source': {},
+        'generic_particle': {},
+        'gas_puff': {},
+        'pellet': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {},
-        'qei_source': {
+        'generic_heat': {},
+        'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 0.0,
         },

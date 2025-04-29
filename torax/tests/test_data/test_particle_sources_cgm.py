@@ -40,19 +40,19 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'generic_particle_source': {
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_particle': {
             'S_tot': 0.3e22,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             'S_puff_tot': 0.5e22,
         },
-        'pellet_source': {
+        'pellet': {
             'S_pellet_tot': 1.0e22,
         },
         'j_bootstrap': {},
-        'generic_current_source': {},
+        'generic_current': {},
     },
     'pedestal': {
         'pedestal_model': 'set_tped_nped',

@@ -452,7 +452,7 @@ def icrh_model_func(
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
-  SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
+  SOURCE_NAME: ClassVar[str] = 'icrh'
 
   @property
   def source_name(self) -> str:

@@ -364,7 +364,7 @@ def cyclotron_radiation_albajar(
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation_heat_sink'
+  SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation'
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar
 
   @property

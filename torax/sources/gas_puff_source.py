@@ -71,7 +71,7 @@ def calc_puff_source(
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
+  SOURCE_NAME: ClassVar[str] = 'gas_puff'
   model_func: source.SourceProfileFunction = calc_puff_source
 
   @property
@@ -87,7 +87,6 @@ class GasPuffSourceConfig(base.SourceModelBase):
   """Gas puff source for the ne equation.
 
   Attributes:
-    source_name: Name of the source, hardcoded to 'gas_puff_source'
     puff_decay_length: exponential decay length of gas puff ionization
       [normalized radial coord]
     S_puff_tot: total gas puff particles/s

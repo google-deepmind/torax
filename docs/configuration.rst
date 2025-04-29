@@ -909,13 +909,13 @@ dict with nested dicts containing the runtime parameters of all TORAX heat, part
 are common to all sources, with defaults depending on the specific source. See :ref:`physics_models` For details on the source physics models.
 
 Any source which is not explicitly included in the sources dict, is set to zero. To include a source with default
-options, the source dict should contain an empty dict. For example, for setting ``qei_source``, with default options,
+options, the source dict should contain an empty dict. For example, for setting ``ei_exchange``, with default options,
 as the only active source in ``sources``, set:
 
 .. code-block:: python
 
     'sources': {
-        'qei_source': {},
+        'ei_exchange': {},
     }
 
 The configurable runtime parameters of each source are as follows:
@@ -947,7 +947,7 @@ For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purp
 .. code-block:: python
 
     'sources': {
-        'fusion_heat_source': {'mode': 'ZERO'},
+        'fusion': {'mode': 'ZERO'},
     }
 
 To set 'j_ext' to a prescribed value based on a tuple of numpy arrays, e.g. as defined or loaded from a file in the
@@ -956,7 +956,7 @@ preamble to the CONFIG dict within config module, set:
 .. code-block:: python
 
     'sources': {
-        'generic_current_source': {
+        'generic_current': {
             'mode': 'PRESCRIBED',
             'prescribed_values': ((times, rhon, current_profiles),),
         },
@@ -972,8 +972,8 @@ and can be set to anything convenient.
   course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
 
 
-generic_ion_el_heat_source
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+generic_heat
+^^^^^^^^^^^^
 
 A utility source module that allows for a time dependent Gaussian ion and electron heat source.
 
@@ -991,8 +991,8 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
 
-qei_source
-^^^^^^^^^^
+ei_exchange
+^^^^^^^^^^^
 
 Ion-electron heat exchange.
 
@@ -1001,22 +1001,22 @@ Ion-electron heat exchange.
 ``Qei_mult`` (float = 1.0)
   Multiplication factor for ion-electron heat exchange term for testing purposes.
 
-ohmic_heat_source
-^^^^^^^^^^^^^^^^^
+ohmic
+^^^^^
 
 Ohmic power.
 
 ``mode`` (str = 'model')
 
-fusion_heat_source
-^^^^^^^^^^^^^^^^^^
+fusion
+^^^^^^
 
 Fusion power assuming a 50-50 D-T ion distribution.
 
 ``mode`` (str = 'model')
 
-gas_puff_source
-^^^^^^^^^^^^^^^
+gas_puff
+^^^^^^^^
 
 Exponential based gas puff source. No first-principle-based model is yet implemented in TORAX.
 
@@ -1028,8 +1028,8 @@ Exponential based gas puff source. No first-principle-based model is yet impleme
 ``S_puff_tot`` (float = 1e22), **time-varying-scalar**
   Total number of particle source in units of particles/s.
 
-pellet_source
-^^^^^^^^^^^^^
+pellet
+^^^^^^
 
 Time dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
 
@@ -1044,8 +1044,8 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
-generic_particle_source
-^^^^^^^^^^^^^^^^^^^^^^^
+generic_particle
+^^^^^^^^^^^^^^^^
 
 Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
@@ -1070,8 +1070,8 @@ Bootstrap current calculated with the Sauter model.
 ``bootstrap_mult`` (float = 1.0)
   Multiplication factor for bootstrap current for testing purposes.
 
-generic_current_source
-^^^^^^^^^^^^^^^^^^^^^^
+generic_current
+^^^^^^^^^^^^^^^
 
 Generic external current profile, parameterized as a Gaussian.
 
@@ -1093,8 +1093,8 @@ Generic external current profile, parameterized as a Gaussian.
 ``use_absolute_current`` (bool = False)
   Toggles relative vs absolute external current setting.
 
-bremsstrahlung_heat_sink
-^^^^^^^^^^^^^^^^^^^^^^^^
+bremsstrahlung
+^^^^^^^^^^^^^^
 
 Bremsstrahlung model from Wesson, with an optional correction for relativistic effects from Stott PPCF 2005.
 
@@ -1102,8 +1102,8 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 ``use_relativistic_correction`` (bool = False)
 
-impurity_radiation_heat_sink
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+impurity_radiation
+^^^^^^^^^^^^^^^^^^
 
 Various models for impurity radiation. Runtime params for each available model are listed separately
 
@@ -1123,8 +1123,8 @@ The following models are available:
 
     ``fraction_of_total_power_density`` (float = 1.0). Fraction of total external input power to use for impurity radiation.
 
-cyclotron_radiation_heat_sink
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+cyclotron_radiation
+^^^^^^^^^^^^^^^^^^^
 
 Cyclotron radiation model from Albajar NF 2001 with a deposition profile from Artaud NF 2018.
 
@@ -1143,8 +1143,8 @@ Cyclotron radiation model from Albajar NF 2001 with a deposition profile from Ar
   in the Albajar model. The parameter is fit with simple grid search performed over
   the range ``[beta_min, beta_max]``, with ``beta_grid_size`` uniformly spaced steps.
 
-electron_cyclotron_source
-^^^^^^^^^^^^^^^^^^^^^^^^^
+ecrh
+^^^^
 Electron-cyclotron heating and current drive, based on the local efficiency model in `Lin-Liu et al., 2003 <https://doi.org/10.1063/1.1610472>`_.
 Given an EC power density profile and efficiency profile, the model produces the corresponding EC-driven current density profile.
 The user has three options:
@@ -1172,8 +1172,8 @@ By default, both the manual and Gaussian profiles are zero. The manual and Gauss
     ``cd_efficiency`` **time-varying-scalar**
         Dimensionless local efficiency profile for conversion of EC power to current.
 
-ion_cyclotron_source
-^^^^^^^^^^^^^^^^^^^^
+icrh
+^^^^
 Ion cyclotron heating using a surrogate model of the TORIC ICRH spectrum
 solver simulation https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
 This source is currently SPARC specific.
@@ -1435,25 +1435,25 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       },
       'sources': {
           'j_bootstrap': {},
-          'generic_current_source': {
+          'generic_current': {
               'fext': 0.15,
               'wext': 0.075,
               'rext': 0.36,
           },
-          'pellet_source': {
+          'pellet': {
               'S_pellet_tot': 0.0e22,
               'pellet_width': 0.1,
               'pellet_deposition_location': 0.85,
           },
-          'generic_ion_el_heat_source': {
+          'generic_heat': {
               'rsource': 0.12741589640723575,
               'w': 0.07280908366127758,
               # total heating (with a rough assumption of radiation reduction)
               'Ptot': 20.0e6,
               'el_heat_fraction': 1.0,
           },
-          'fusion_heat_source': {},
-          'qei_source': {},
+          'fusion': {},
+          'ei_exchange': {},
       },
       'transport': {
           'transport_model': 'qlknn',

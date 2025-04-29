@@ -43,13 +43,13 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'w': 0.18202270915319393,
         },
-        'qei_source': {},
-        'ohmic_heat_source': {},
-        'generic_current_source': {},
-        'bremsstrahlung_heat_sink': {
+        'ei_exchange': {},
+        'ohmic': {},
+        'generic_current': {},
+        'bremsstrahlung': {
             'use_relativistic_correction': True,
         },
     },

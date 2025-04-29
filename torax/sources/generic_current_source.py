@@ -111,7 +111,7 @@ def _calculate_Iext(
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_current_source'
+  SOURCE_NAME: ClassVar[str] = 'generic_current'
   model_func: source.SourceProfileFunction = calculate_generic_current
 
   @property

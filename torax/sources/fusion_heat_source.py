@@ -167,7 +167,7 @@ def fusion_heat_model_func(
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
-  SOURCE_NAME: ClassVar[str] = 'fusion_heat_source'
+  SOURCE_NAME: ClassVar[str] = 'fusion'
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
   @property

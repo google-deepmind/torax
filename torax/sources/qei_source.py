@@ -43,7 +43,7 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'qei_source'
+  SOURCE_NAME: ClassVar[str] = 'ei_exchange'
 
   @property
   def source_name(self) -> str:

@@ -78,7 +78,7 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 1.0,
         },
-        'generic_current_source': {
+        'generic_current': {
             # total "external" current fraction
             'fext': 0.15,
             # width of "external" Gaussian current profile (normalized radial
@@ -89,7 +89,7 @@ CONFIG = {
             'rext': 0.36,
         },
         # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {
+        'generic_particle': {
             # total particle source
             'S_tot': 0.0,
             # particle source Gaussian central location (normalized radial
@@ -98,7 +98,7 @@ CONFIG = {
             # particle source Gaussian width (normalized radial coordinate)
             'particle_width': 0.25,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             # pellets behave like a gas puff for this simulation with
             # exponential decay therefore use the puff structure for pellets
             # exponential decay length of gas puff ionization (normalized radial
@@ -107,7 +107,7 @@ CONFIG = {
             # total pellet particles/s
             'S_puff_tot': 0.0,
         },
-        'pellet_source': {
+        'pellet': {
             # total pellet particles/s (continuous pellet model)
             'S_pellet_tot': 0.0e22,
             # Gaussian width of pellet deposition (normalized radial coordinate)
@@ -118,7 +118,7 @@ CONFIG = {
             'pellet_deposition_location': 0.85,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'rsource': 0.12741589640723575,
             # Gaussian width in normalized radial coordinate r
             'w': 0.07280908366127758,
@@ -127,8 +127,8 @@ CONFIG = {
             # electron heating fraction r
             'el_heat_fraction': 1.0,
         },
-        'fusion_heat_source': {},
-        'qei_source': {
+        'fusion': {},
+        'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 1.0,
         },
@@ -172,7 +172,7 @@ CONFIG = {
         'include_ITG': True,  # to toggle ITG modes on or off
         'include_TEM': True,  # to toggle TEM modes on or off
         'include_ETG': True,  # to toggle ETG modes on or off
-        # ensure that smag - alpha > -0.2 always, to compensate for no slab
+        # ensure that smag - fusion > -0.2 always, to compensate for no slab
         # modes
         'avoid_big_negative_s': True,
         # minimum |R/Lne| below which effective V is used instead of

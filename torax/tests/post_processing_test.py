@@ -53,19 +53,19 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         temp_ion={
-            'fusion_heat_source': ones,
-            'generic_ion_el_heat_source': 2 * ones,
+            'fusion': ones,
+            'generic_heat': 2 * ones,
         },
         temp_el={
-            'bremsstrahlung_heat_sink': -ones,
-            'ohmic_heat_source': ones * 5,
-            'fusion_heat_source': ones,
-            'generic_ion_el_heat_source': 3 * ones,
-            'electron_cyclotron_source': 7 * ones,
+            'bremsstrahlung': -ones,
+            'ohmic': ones * 5,
+            'fusion': ones,
+            'generic_heat': 3 * ones,
+            'ecrh': 7 * ones,
         },
         psi={
-            'generic_current_source': 2 * ones,
-            'electron_cyclotron_source': 2 * ones,
+            'generic_current': 2 * ones,
+            'ecrh': 2 * ones,
         },
         ne={},
     )
@@ -201,7 +201,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config(config_name)
 
     state_history = run_simulation.run_simulation(torax_config)
-    p_alpha = state_history.post_processed_outputs.P_alpha_total
+    p_fusion = state_history.post_processed_outputs.P_alpha_total
     p_external = state_history.post_processed_outputs.P_external_tot
     e_fusion = state_history.post_processed_outputs.E_fusion
     e_external = state_history.post_processed_outputs.E_aux
@@ -209,7 +209,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
 
     # Calculate the cumulative energies from the powers.
     e_fusion_expected = scipy.integrate.cumulative_trapezoid(
-        p_alpha * 5, t, initial=0.0
+        p_fusion * 5, t, initial=0.0
     )
 
     e_external_expected = scipy.integrate.cumulative_trapezoid(

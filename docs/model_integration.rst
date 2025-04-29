@@ -125,7 +125,7 @@ parameters format and what is supported by TORAX.)
   ) -> chex.ArrayTree:
     # To access the new runtime parameter, we index into the dynamic runtime
     # params slice.
-    dynamic_source_params = dynamic_runtime_params_slice.sources['ion_cyclotron_source']
+    dynamic_source_params = dynamic_runtime_params_slice.sources['icrh']
     # Check the dynamic runtime params are the custom type we just defined.
     assert isinstance(dynamic_source_params, CustomDynamicRuntimeParams)
     my_new_param = dynamic_source_params.my_new_param
@@ -141,7 +141,7 @@ Then we register the new model function and runtime parameters.
   # run so that the new model is discoverable to TORAX.
   register_sources.register_model_function(
       # Matches IonCyclotronSource.SOURCE_NAME.
-      source_name='ion_cyclotron_source',
+      source_name='icrh',
       # The model function name is arbitrary, but must be unique for a source.
       # It is used to identify the model function for a given source by TORAX.
       # We follow the convention of using the name of the model function as the
@@ -166,7 +166,7 @@ it as you would the existing source model implementations.
 
   CONFIG = {
       'sources': {
-          'ion_cyclotron_source': {
+          'icrh': {
             'mode': 'model',  # use the source in model mode.
             'model_func': 'my_new_model',  # matches name of registered model function.
             'my_new_param': 2.0,  # must match name of the runtime parameter.

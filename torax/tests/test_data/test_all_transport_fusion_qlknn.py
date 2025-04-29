@@ -45,23 +45,23 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 1.0,
         },
-        'generic_current_source': {},
+        'generic_current': {},
         # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {
+        'generic_particle': {
             'S_tot': 0.3e22,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             'S_puff_tot': 0.5e22,
         },
-        'pellet_source': {
+        'pellet': {
             'S_pellet_tot': 1.0e22,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'Ptot': 53.0e6,
         },
-        'fusion_heat_source': {},
-        'qei_source': {
+        'fusion': {},
+        'ei_exchange': {
             'Qei_mult': 1.0,
         },
     },

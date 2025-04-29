@@ -81,7 +81,7 @@ below as an example.
               ylim_min_zero=False,
           ),
           plotruns_lib.PlotProperties(
-              attrs=('j', 'johm', 'j_bootstrap', 'generic_current_source'),
+              attrs=('j', 'johm', 'j_bootstrap', 'generic_current'),
               labels=(r'$j_{tot}$', r'$j_{ohm}$', r'$j_{bs}$', r'$j_{ext}$'),
               ylabel=r'Toroidal current $[MA~m^{-2}]$',
               legend_fontsize=8,  # Smaller fontsize for this plot

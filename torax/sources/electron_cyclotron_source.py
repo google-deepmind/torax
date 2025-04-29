@@ -123,7 +123,7 @@ def calc_heating_and_current(
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
 
-  SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
+  SOURCE_NAME: ClassVar[str] = "ecrh"
   model_func: source.SourceProfileFunction = calc_heating_and_current
 
   @property

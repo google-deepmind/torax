@@ -110,7 +110,7 @@ TORAX currently offers three transport models:
     .. math::
 
       \chi_i = \begin{cases}
-      \chi_{GB} \text{C} (\frac{R}{L_{Ti}} - \frac{R}{L_{Ti,\textit{crit}}})^{\alpha} & \text{if } \frac{R}{L_{Ti}} \ge \frac{R}{L_{Ti,\textit{crit}}} \\
+      \chi_{GB} \text{C} (\frac{R}{L_{Ti}} - \frac{R}{L_{Ti,\textit{crit}}})^{\fusion} & \text{if } \frac{R}{L_{Ti}} \ge \frac{R}{L_{Ti,\textit{crit}}} \\
       \chi_{min}  & \text{if } \frac{R}{L_{Ti}} < \frac{R}{L_{Ti,\textit{crit}}}
       \end{cases}
 
@@ -131,7 +131,7 @@ TORAX currently offers three transport models:
     :math:`\chi`, :math:`L_{Ti}\equiv-\frac{T_i}{\nabla T_i}` is the ion temperature gradient length,
     :math:`A_i` is the main ion atomic mass number, :math:`m_p` the proton mass, :math:`e`
     the electron charge, :math:`B_0` the magnetic field on axis, and :math:`R_\mathrm{maj}` the major radius.
-    The stiffness factor :math:`C` and the exponent :math:`\alpha` are user-configurable model parameters.
+    The stiffness factor :math:`C` and the exponent :math:`\fusion` are user-configurable model parameters.
 
     Regarding additional transport coefficient outputs, the electron heat conductivity, :math:`\chi_e`,
     and particle diffusivity, :math:`D_e`, are scaled to :math:`\chi_i` using user-configurable model parameters.
@@ -144,15 +144,15 @@ TORAX currently offers three transport models:
 
     .. math::
 
-      \chi_e = \alpha_{e, \text{B}} \chi_{e, \text{B}} + \alpha_{e, \text{gB}}
+      \chi_e = \fusion_{e, \text{B}} \chi_{e, \text{B}} + \fusion_{e, \text{gB}}
       \chi_{e, \text{gB}}
 
     .. math::
 
-      \chi_i = \alpha_{i, \text{B}} \chi_{i, \text{B}} + \alpha_{i, \text{gB}}
+      \chi_i = \fusion_{i, \text{B}} \chi_{i, \text{B}} + \fusion_{i, \text{gB}}
       \chi_{i, \text{gB}}
 
-    where :math:`\alpha_{s, \text{B}}` and :math:`\alpha_{s, \text{gB}}` are the
+    where :math:`\fusion_{s, \text{B}}` and :math:`\fusion_{s, \text{gB}}` are the
     coefficients for the Bohm and gyro-Bohm contribution for species :math:`s`
     respectively. These are given by:
 
@@ -204,9 +204,9 @@ TORAX currently offers three transport models:
 
     The default values for the model parameters are as follows:
 
-    :math:`\alpha_{e,i,\text{B}} = 8e^{-5}`
+    :math:`\fusion_{e,i,\text{B}} = 8e^{-5}`
 
-    :math:`\alpha_{e,i,\text{gB}} = 5e^{-6}`
+    :math:`\fusion_{e,i,\text{gB}} = 5e^{-6}`
 
     :math:`c_1 = 1.0`
 
@@ -362,7 +362,7 @@ The values of :math:`m_rc^2`, the Gamov constant :math:`B_G`, and the constants 
 are provided in the Bosch-Hale paper.
 
 TORAX partitions the fusion power between ions and electrons using the parameterized
-alpha particle slowing down model of Mikkelsen, which neglects the slowing down time itself.
+fusion particle slowing down model of Mikkelsen, which neglects the slowing down time itself.
 
 Ohmic power
 -----------

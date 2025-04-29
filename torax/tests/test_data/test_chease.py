@@ -35,26 +35,26 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current_source': {},
+        'generic_current': {},
         # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {
+        'generic_particle': {
             # total particle source
             'S_tot': 0.0,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             # total pellet particles/s
             'S_puff_tot': 0.0,
         },
-        'pellet_source': {
+        'pellet': {
             # total pellet particles/s (continuous pellet model)
             'S_pellet_tot': 0.0,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             # Gaussian width in normalized radial coordinate r
             'w': 0.18202270915319393,
         },
-        'qei_source': {
+        'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 0.0,
         },

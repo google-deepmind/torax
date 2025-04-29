@@ -102,7 +102,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   ):
     references = references_getter()
     references.config.update_fields({
-        'sources.generic_current_source.mode': 'MODEL_BASED'
+        'sources.generic_current.mode': 'MODEL_BASED'
     })
     source_models = source_models_lib.SourceModels(
         sources=references.config.sources.source_model_config

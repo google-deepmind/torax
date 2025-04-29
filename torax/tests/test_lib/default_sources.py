@@ -28,26 +28,26 @@ def get_default_source_config() -> dict[str, Any]:
 
     sources_dict = get_default_source_config()
     sources_dict = sources_dict['source_model_config']
-    sources_dict['qei_source']['Qei_mult'] = 0.0
-    sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
-    sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
-    sources_dict['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+    sources_dict['ei_exchange']['Qei_mult'] = 0.0
+    sources_dict['generic_heat']['Ptot'] = 0.0
+    sources_dict['fusion']['mode'] = source_runtime_params.Mode.ZERO
+    sources_dict['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     default_sources = sources_pydantic_model.Sources.from_dict(sources_dict)
   """
   names = [
       # Current sources (for psi equation)
       'j_bootstrap',
-      'generic_current_source',
+      'generic_current',
       # Electron density sources/sink (for the ne equation).
-      'generic_particle_source',
-      'gas_puff_source',
-      'pellet_source',
+      'generic_particle',
+      'gas_puff',
+      'pellet',
       # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      'generic_ion_el_heat_source',
-      'fusion_heat_source',
-      'qei_source',
+      'generic_heat',
+      'fusion',
+      'ei_exchange',
       # Ohmic heat source
-      'ohmic_heat_source',
-      'bremsstrahlung_heat_sink',
+      'ohmic',
+      'bremsstrahlung',
   ]
   return {name: {} for name in names}

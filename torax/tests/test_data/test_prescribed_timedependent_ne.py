@@ -51,7 +51,7 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'w': 0.18202270915319393,
             'Ptot': {
                 0: 20e6,
@@ -60,8 +60,8 @@ CONFIG = {
                 15: 120e6,
             },  # in W
         },
-        'qei_source': {},
-        'generic_current_source': {},
+        'ei_exchange': {},
+        'generic_current': {},
     },
     'transport': {
         'transport_model': 'qlknn',

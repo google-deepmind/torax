@@ -150,41 +150,41 @@ Any source which is not included in the input config, will `not` have a correspo
 output in ``state_history.nc``. This needs to be taken into account in analysis scripts and plotting tools.
 In future we aim to populate core_sources in a more structured way.
 
-``generic_ion_el_heat_source_el`` (time, rho_cell)
-  External electron heat source density, as defined by the generic ``generic_ion_el_heat_source``, in :math:`[W/m^3]`.
+``generic_heat_el`` (time, rho_cell)
+  External electron heat source density, as defined by the generic ``generic_heat``, in :math:`[W/m^3]`.
 
-``generic_ion_el_heat_source_ion`` (time, rho_cell)
-  External ion heat source density, as defined by the generic ``generic_ion_el_heat_source``, in :math:`[W/m^3]`.
+``generic_heat_ion`` (time, rho_cell)
+  External ion heat source density, as defined by the generic ``generic_heat``, in :math:`[W/m^3]`.
 
-``generic_current_source`` (time, rho_cell)
+``generic_current`` (time, rho_cell)
   Generic externl current source density in :math:`[A/m^2]`.
 
-``fusion_heat_source_el`` (time, rho_cell)
+``fusion_el`` (time, rho_cell)
   Fusion electron heat source density in :math:`[W/m^3]`.
 
-``fusion_heat_source_ion`` (time, rho_cell)
+``fusion_ion`` (time, rho_cell)
   Fusion ion heat source density in :math:`[W/m^3]`.
 
-``ohmic_heat_source`` (time, rho_cell)
+``ohmic`` (time, rho_cell)
   Ohmic electron heat source density in :math:`[W/m^3]`.
 
-``qei_source`` (time, rho_cell)
+``ei_exchange`` (time, rho_cell)
   Ion-electron heat exchange density in :math:`[W/m^3]`.
   Positive values means heat source for ions, and heat sink for electrons.
 
-``gas_puff_source`` (time, rho_cell)
+``gas_puff`` (time, rho_cell)
   Gas puff particle source density  in :math:`[s^{-1} m^{-3}]`.
 
-``generic_particle_source`` (time, rho_cell)
+``generic_particle`` (time, rho_cell)
   Generic particle source density  in :math:`[s^{-1} m^{-3}]`.
 
-``pellet_source`` (time, rho_cell)
+``pellet`` (time, rho_cell)
   Pellet particle source density  in :math:`[s^{-1} m^{-3}]`.
 
-``electron_cyclotron_source_el`` (time, rho_cell) [:math:`W/m^3`]:
+``ecrh_el`` (time, rho_cell) [:math:`W/m^3`]:
   Electron cyclotron heating power density.
 
-``electron_cyclotron_source_j`` (time, rho_cell) [:math:`A/m^2`]:
+``ecrh_j`` (time, rho_cell) [:math:`A/m^2`]:
   Electron cyclotron current.
 
 
@@ -314,13 +314,13 @@ analysis and inspection.
   Electron-ion heat exchange power to electrons.
 
 ``P_generic_ion`` (time) [W]:
-  Total `generic_ion_el_heat_source` power to ions.
+  Total `generic_heat` power to ions.
 
 ``P_generic_el`` (time) [W]:
-  Total `generic_ion_el_heat_source` power to electrons.
+  Total `generic_heat` power to electrons.
 
 ``P_generic_tot`` (time) [W]:
-  Total `generic_ion_el_heat_source` power.
+  Total `generic_heat` power.
 
 ``P_alpha_ion`` (time) [W]:
   Total fusion power to ions.
@@ -491,8 +491,8 @@ Examples
 ========
 
 To demonstrate xarray and numpy manipulations of output data, the following code carries out
-volume integration of ``fusion_heat_source_el`` and ``fusion_heat_source_ion`` at the time closest to t=1. The result equals
-the input config ``sources['fusion_heat_source']['Ptot']`` at the time closest to t=1.
+volume integration of ``alpha_el`` and ``alpha_ion`` at the time closest to t=1. The result equals
+the input config ``sources['alpha']['Ptot']`` at the time closest to t=1.
 
 ``dt`` is the xarray.DataTree. The netCDF file is assumed to be in the working directory. ``vpr``
 is assumed to not be time varying.
@@ -503,10 +503,10 @@ is assumed to not be time varying.
   from torax import output
 
   data_tree = output.load_state_file('state_history.nc').sel(time=1.0, method='nearest')
-  fusion_heat_source_el = data_tree.children['core_sources'].dataset['fusion_heat_source_el']
-  fusion_heat_source_ion = data_tree.children['core_sources'].dataset['fusion_heat_source_ion']
+  alpha_el = data_tree.children['core_sources'].dataset['alpha_el']
+  alpha_ion = data_tree.children['core_sources'].dataset['alpha_ion']
 
-  Ptot = np.trapz((fusion_heat_source_el + fusion_heat_source_ion) * data_tree.vpr, data_tree.rho_cell_norm)
+  Ptot = np.trapz((alpha_el + alpha_ion) * data_tree.vpr, data_tree.rho_cell_norm)
 
 
 It is possible to retrieve the input config from the output for debugging

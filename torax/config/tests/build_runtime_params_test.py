@@ -127,19 +127,19 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     })
     torax_pydantic.set_grid(sources, self._torax_mesh)
     # While wext is positive, this should be fine.
-    generic_current = sources.generic_current_source.build_dynamic_params(
+    generic_current = sources.generic_current.build_dynamic_params(
         t=0.0,
     )
     np.testing.assert_allclose(generic_current.wext, 1.0)
 
     # Even 0 should be fine.
-    generic_current = sources.generic_current_source.build_dynamic_params(
+    generic_current = sources.generic_current.build_dynamic_params(
         t=0.5,
     )
     np.testing.assert_allclose(generic_current.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(RuntimeError):
-      sources.generic_current_source.build_dynamic_params(
+      sources.generic_current.build_dynamic_params(
           t=1.0,
       )
 

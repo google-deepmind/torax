@@ -41,10 +41,10 @@ CONFIG = {
         'Ip_from_parameters': False,
     },
     'sources': {
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'w': 0.18202270915319393,
         },
-        'generic_current_source': {},
+        'generic_current': {},
     },
     'pedestal': {},
     'transport': {

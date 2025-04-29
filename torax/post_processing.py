@@ -31,26 +31,26 @@ _trapz = jax.scipy.integrate.trapezoid
 
 # TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'generic_ion_el_heat_source': 'P_aux_generic',
-    'fusion_heat_source': 'P_alpha',
-    'ion_cyclotron_source': 'P_icrh',
+    'generic_heat': 'P_aux_generic',
+    'fusion': 'P_alpha',
+    'icrh': 'P_icrh',
 }
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'ohmic_heat_source': 'P_ohmic_e',
-    'bremsstrahlung_heat_sink': 'P_bremsstrahlung_e',
-    'cyclotron_radiation_heat_sink': 'P_cyclotron_e',
-    'electron_cyclotron_source': 'P_ecrh_e',
-    'impurity_radiation_heat_sink': 'P_radiation_e',
+    'ohmic': 'P_ohmic_e',
+    'bremsstrahlung': 'P_bremsstrahlung_e',
+    'cyclotron_radiation': 'P_cyclotron_e',
+    'ecrh': 'P_ecrh_e',
+    'impurity_radiation': 'P_radiation_e',
 }
 EXTERNAL_HEATING_SOURCES = [
-    'generic_ion_el_heat_source',
-    'electron_cyclotron_source',
-    'ohmic_heat_source',
-    'ion_cyclotron_source',
+    'generic_heat',
+    'ecrh',
+    'ohmic',
+    'icrh',
 ]
 CURRENT_SOURCE_TRANSFORMATIONS = {
-    'generic_current_source': 'I_aux_generic',
-    'electron_cyclotron_source': 'I_ecrh',
+    'generic_current': 'I_aux_generic',
+    'ecrh': 'I_ecrh',
 }
 
 

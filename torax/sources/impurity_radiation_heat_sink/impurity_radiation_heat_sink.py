@@ -27,7 +27,7 @@ from torax.sources import source as source_lib
 class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 
-  SOURCE_NAME = "impurity_radiation_heat_sink"
+  SOURCE_NAME = "impurity_radiation"
   model_func: source_lib.SourceProfileFunction
 
   @property

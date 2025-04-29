@@ -58,7 +58,7 @@ class SawtoothModelTest(parameterized.TestCase):
         },
         'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},
         'pedestal': {},
-        'sources': {'ohmic_heat_source': {}},
+        'sources': {'ohmic': {}},
         'stepper': {
             'stepper_type': 'linear',
             'use_pereverzev': False,

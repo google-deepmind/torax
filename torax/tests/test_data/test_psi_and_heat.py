@@ -40,12 +40,12 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'generic_particle_source': {},
-        'gas_puff_source': {},
-        'pellet_source': {},
-        'generic_current_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_particle': {},
+        'gas_puff': {},
+        'pellet': {},
+        'generic_current': {},
     },
     'pedestal': {
         'pedestal_model': 'set_tped_nped',

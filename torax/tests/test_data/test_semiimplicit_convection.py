@@ -35,9 +35,9 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'generic_current_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_current': {},
     },
     'pedestal': {},
     'transport': {

@@ -85,7 +85,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       np.testing.assert_allclose(profile, 3.0)
     np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
     # Make sure the combo ion-el heat sources are present.
-    for name in ['generic_ion_el_heat_source', 'fusion_heat_source']:
+    for name in ['generic_heat', 'fusion']:
       self.assertIn(name, merged_profiles.temp_ion)
       self.assertIn(name, merged_profiles.temp_el)
 
@@ -101,7 +101,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         # built in a special way that combines the implicit and explicit
         # profiles.
         'sources': {
-            'generic_particle_source': {
+            'generic_particle': {
                 'prescribed_values': ({
                     0.0: {0: 1.0},
                     1.0: {0: 2.0},
@@ -160,7 +160,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       state_history = run_simulation.run_simulation(torax_config)
 
     for i, v in enumerate(
-        state_history.core_sources.ne['generic_particle_source']):
+        state_history.core_sources.ne['generic_particle']):
       np.testing.assert_allclose(v, i + 1)
 
 

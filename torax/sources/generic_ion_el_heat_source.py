@@ -108,7 +108,7 @@ def default_formula(
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
+  SOURCE_NAME: ClassVar[str] = 'generic_heat'
   model_func: source.SourceProfileFunction = default_formula
 
   @property

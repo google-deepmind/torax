@@ -61,14 +61,14 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 0.5,
         },
-        'ohmic_heat_source': {},
-        'qei_source': {},
-        'generic_particle_source': {
+        'ohmic': {},
+        'ei_exchange': {},
+        'generic_particle': {
             'S_tot': 2.0e19,
             'deposition_location': 0.3,
             'particle_width': 0.25,
         },
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'rsource': 0.3,
             'w': 0.2,
             'Ptot': 3e6,

@@ -42,22 +42,22 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'qei_source': {
+        'ei_exchange': {
             'Qei_mult': 1.0,
         },
         'j_bootstrap': {
             'bootstrap_mult': 1.0,
         },
-        'generic_ion_el_heat_source': {
+        'generic_heat': {
             'Ptot': 53.0e6,
         },
-        'pellet_source': {
+        'pellet': {
             'S_pellet_tot': 1.0e22,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             'S_puff_tot': 0.5e22,
         },
-        'generic_particle_source': {
+        'generic_particle': {
             'S_tot': 0.3e22,
         },
     },

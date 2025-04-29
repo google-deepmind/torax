@@ -288,7 +288,7 @@ class InitialStatesTest(parameterized.TestCase):
         'j_bootstrap': {
             'bootstrap_mult': 0.0,
         },
-        'generic_current_source': {},
+        'generic_current': {},
     }
     torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
     config1 = dict(
@@ -365,7 +365,7 @@ class InitialStatesTest(parameterized.TestCase):
             'bootstrap_mult': 1.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
-        'generic_current_source': {
+        'generic_current': {
             'fext': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
@@ -401,7 +401,7 @@ class InitialStatesTest(parameterized.TestCase):
             'bootstrap_mult': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
-        'generic_current_source': {
+        'generic_current': {
             'fext': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },

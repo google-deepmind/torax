@@ -43,7 +43,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 'j',
                 'johm',
                 'j_bootstrap',
-                'generic_current_source',
+                'generic_current',
                 'j_ecrh',
             ),
             labels=(
