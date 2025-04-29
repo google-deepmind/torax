@@ -81,23 +81,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _unpack_runtime_params(cls, data: dict[str, Any]) -> dict[str, Any]:
-    # # TODO(b/401187494): Remove this once the test configs are updated.
-    if 'runtime_params' in data:
-      new_data = copy.deepcopy(data)
-      runtime_params = new_data.pop('runtime_params')
-      new_data['profile_conditions'] = runtime_params.get(
-          'profile_conditions', {}
-      )
-      new_data['numerics'] = runtime_params.get('numerics', {})
-      new_data['plasma_composition'] = runtime_params.get(
-          'plasma_composition', {}
-      )
-      return new_data
-    return data
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
     if 'pedestal_model' not in configurable_data['pedestal']:
