@@ -70,9 +70,20 @@ def import_module(module_name: str, config_package: str | None = None):
     raise ValueError('Exception while importing.') from e
 
 
+def torax_path() -> pathlib.Path:
+  """Returns the absolute path to the Torax directory."""
+
+  path = pathlib.Path(__file__).parent.parent
+  assert path.is_dir(), f'Path {path} is not a directory.'
+  assert path.parts[-1] == 'torax', f'Path {path} is not a Torax directory.'
+  return path
+
+
 def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
   """Returns a tuple of example config paths."""
-  example_dir = pathlib.Path(__file__).parent.parent.joinpath('examples')
+
+  example_dir = torax_path().joinpath('examples')
+  assert example_dir.is_dir()
 
   def _get_path(path):
     path = example_dir.joinpath(path + '.py')
