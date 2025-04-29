@@ -33,22 +33,21 @@ generic_current_profiles = np.array([
 
 # Create the config
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            # 'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 5,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,
+        # set flat Ohmic current to provide larger range of current
+        # evolution for test
+        # 'nu': 0,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 5,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
@@ -56,11 +55,13 @@ CONFIG = {
         # Only drive the external current source
         'generic_current': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': ((
-                times,
-                gauss_r,
-                generic_current_profiles,
-            ),),
+            'prescribed_values': (
+                (
+                    times,
+                    gauss_r,
+                    generic_current_profiles,
+                ),
+            ),
         },
         # Disable density sources/sinks
         'generic_particle': {

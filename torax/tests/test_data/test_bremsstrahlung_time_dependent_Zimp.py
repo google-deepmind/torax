@@ -19,20 +19,18 @@ Ip from parameters. implicit, Ti+Te, Pei low dens, no pedestal, constant chi
 
 
 CONFIG = {
-    'runtime_params': {
-        'plasma_composition': {
-            'Zeff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
-            'Zimp_override': {0: 10.0, 1: 30.0},
-        },
-        'profile_conditions': {
-            'ne_is_fGW': True,
-            'ne_bound_right': 0.5,
-            'nbar': 0.95,  # initial density (Greenwald fraction units)
-        },
-        'numerics': {
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 1,
-        },
+    'plasma_composition': {
+        'Zeff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
+        'Zimp_override': {0: 10.0, 1: 30.0},
+    },
+    'profile_conditions': {
+        'ne_is_fGW': True,
+        'ne_bound_right': 0.5,
+        'nbar': 0.95,  # initial density (Greenwald fraction units)
+    },
+    'numerics': {
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 1,
     },
     'geometry': {
         'geometry_type': 'chease',

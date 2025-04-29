@@ -96,7 +96,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     t = int(ref_time[index])
 
     config = self._get_config_dict(test_config + '.py')
-    config['runtime_params']['numerics']['t_initial'] = t
+    config['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     static, dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)

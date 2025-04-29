@@ -23,12 +23,12 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 W_frac = 1e-3
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-assert(isinstance(CONFIG['runtime_params']['plasma_composition'], dict))
-CONFIG['runtime_params']['plasma_composition']['impurity'] = {
+assert(isinstance(CONFIG['plasma_composition'], dict))
+CONFIG['plasma_composition']['impurity'] = {
     'Ne': 1 - W_frac,
     'W': W_frac,
 }
-CONFIG['runtime_params']['plasma_composition']['Zeff'] = 3.0
+CONFIG['plasma_composition']['Zeff'] = 3.0
 CONFIG['sources']['impurity_radiation'] = {
     'model_function_name': 'impurity_radiation_mavrin_fit',
 }

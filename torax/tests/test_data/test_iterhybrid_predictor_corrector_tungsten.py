@@ -19,6 +19,5 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-# Needed to avoid an odd pytype error
-assert isinstance(CONFIG['runtime_params']['plasma_composition'], dict)
-CONFIG['runtime_params']['plasma_composition']['impurity'] = {'W': 1.0}
+assert isinstance(CONFIG['plasma_composition'], dict)
+CONFIG['plasma_composition']['impurity'] = {'W': 1.0}

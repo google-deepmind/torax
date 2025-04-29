@@ -18,21 +18,20 @@ Ip from parameters. implicit, psi (current diffusion) only
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-            'initial_psi_from_j': True,
-            'initial_j_is_total_current': True,
-            'nu': 2,
-        },
-        'numerics': {
-            'ion_heat_eq': False,
-            'el_heat_eq': False,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 3,
-        },
+    'profile_conditions': {
+        'ne_bound_right': 0.5,
+        'initial_psi_from_j': True,
+        'initial_j_is_total_current': True,
+        'nu': 2,
     },
+    'numerics': {
+        'ion_heat_eq': False,
+        'el_heat_eq': False,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 3,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

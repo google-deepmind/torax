@@ -19,23 +19,22 @@ CGM transport model. Pedestal. Particle sources
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,
-            'ne_bound_right': 0.2,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,
+        'ne_bound_right': 0.2,
+        # set flat Ohmic current to provide larger range of current
+        # evolution for test
+        'nu': 0,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
@@ -63,7 +62,7 @@ CONFIG = {
         'transport_model': 'CGM',
         # cgm params.
         'chi_D_ratio': 8,
-        'VR_D_ratio': {0: -3.0, 1: 0.0}
+        'VR_D_ratio': {0: -3.0, 1: 0.0},
     },
     'stepper': {
         'stepper_type': 'linear',

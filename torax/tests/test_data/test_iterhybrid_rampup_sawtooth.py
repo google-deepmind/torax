@@ -18,14 +18,14 @@ from torax.tests.test_data import test_iterhybrid_rampup
 
 
 CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
-assert(isinstance(CONFIG['runtime_params']['profile_conditions'], dict))
-CONFIG['runtime_params']['profile_conditions']['initial_psi_from_j'] = True
-CONFIG['runtime_params']['profile_conditions']['nu'] = 2.0
+assert(isinstance(CONFIG['profile_conditions'], dict))
+CONFIG['profile_conditions']['initial_psi_from_j'] = True
+CONFIG['profile_conditions']['nu'] = 2.0
 CONFIG['sources']['generic_current']['fext'] = 0.0
 CONFIG['sources']['generic_heat']['Ptot'] = 0.0
 CONFIG['sources']['ohmic'] = {}
-CONFIG['runtime_params']['numerics']['resistivity_mult'] = 10.0
-CONFIG['runtime_params']['numerics']['fixed_dt'] = 1.0
+CONFIG['numerics']['resistivity_mult'] = 10.0
+CONFIG['numerics']['fixed_dt'] = 1.0
 CONFIG['transport']['chii_inner'] = 0.2
 CONFIG['transport']['chie_inner'] = 0.2
 CONFIG['transport']['De_inner'] = 0.02

@@ -27,4 +27,4 @@ zeff_max = 2.8
 zeff_diff = zeff_max - zeff_min
 zeff = -4 * zeff_diff * rhon**2 + 4 * zeff_diff * rhon + zeff_min
 
-CONFIG['runtime_params']['plasma_composition']['Zeff'] = (rhon, zeff)
+CONFIG['plasma_composition']['Zeff'] = (rhon, zeff)

@@ -15,14 +15,13 @@
 """test_implicit_short_optimizer: basic test of implicit solver."""
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-        },
-        'numerics': {
-            't_final': 0.1,
-        },
+    'profile_conditions': {
+        'ne_bound_right': 0.5,
     },
+    'numerics': {
+        't_final': 0.1,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },

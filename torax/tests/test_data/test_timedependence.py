@@ -20,24 +20,23 @@ pedestal, mocking up current-overshoot and an LH transition
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
-            'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
-            'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
-            'ne_bound_right': 0.5,
-            'ne_is_fGW': False,
-            'nbar': 0.33820425407,  # fGW=0.85 for Ip_tot(t=0)
-        },
-        'numerics': {
-            'current_eq': True,
-            # to shorten current diffusion time for the test
-            'resistivity_mult': 50,
-            'dtmult': 150,
-            'maxdt': 0.5,
-            't_final': 10,
-        },
+    'profile_conditions': {
+        'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
+        'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
+        'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
+        'ne_bound_right': 0.5,
+        'ne_is_fGW': False,
+        'nbar': 0.33820425407,  # fGW=0.85 for Ip_tot(t=0)
     },
+    'numerics': {
+        'current_eq': True,
+        # to shorten current diffusion time for the test
+        'resistivity_mult': 50,
+        'dtmult': 150,
+        'maxdt': 0.5,
+        't_final': 10,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

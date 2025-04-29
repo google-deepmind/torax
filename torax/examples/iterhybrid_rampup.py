@@ -20,50 +20,44 @@ With Newton-Raphson stepper and adaptive timestep (backtracking)
 
 
 CONFIG = {
-    'runtime_params': {
-        'plasma_composition': {
-            'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
-            'impurity': 'Ne',
-            'Zeff': 1.6,  # sets impurity density
-        },
-        'profile_conditions': {
-            'Ip_tot': {0: 3, 80: 10.5},  # total plasma current in MA
-            # boundary + initial conditions for T and n
-            # initial condition ion temperature for r=0 and r=Rmin
-            'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
-            'Ti_bound_right': (
-                0.1
-            ),  # boundary condition ion temperature for r=Rmin
-            # initial condition electron temperature for r=0 and r=Rmin
-            'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
-            'Te_bound_right': (
-                0.1
-            ),  # boundary condition electron temp for r=Rmin
-            'ne_bound_right_is_fGW': True,
-            # boundary condition density for r=Rmin
-            'ne_bound_right': {0: 0.1, 80: 0.3},
-            # set initial condition density according to Greenwald fraction.
-            'ne_is_fGW': True,
-            'nbar': 1,
-            'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profil
-        },
-        'numerics': {
-            # simulation control
-            't_final': 80,  # length of simulation time in seconds
-            'fixed_dt': 2,
-            # 1/multiplication factor for sigma (conductivity) to reduce current
-            # diffusion timescale to be closer to heat diffusion timescale.
-            'resistivity_mult': 1,
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'current_eq': True,
-            'dens_eq': True,
-            'maxdt': 0.5,
-            # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-            # likely be increased further beyond this default.
-            'dtmult': 30,
-            'dt_reduction_factor': 3,
-        },
+    'plasma_composition': {
+        'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
+        'impurity': 'Ne',
+        'Zeff': 1.6,  # sets impurity density
+    },
+    'profile_conditions': {
+        'Ip_tot': {0: 3, 80: 10.5},  # total plasma current in MA
+        # boundary + initial conditions for T and n
+        # initial condition ion temperature for r=0 and r=Rmin
+        'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
+        'Ti_bound_right': 0.1,  # boundary condition ion temperature for r=Rmin
+        # initial condition electron temperature for r=0 and r=Rmin
+        'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
+        'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
+        'ne_bound_right_is_fGW': True,
+        # boundary condition density for r=Rmin
+        'ne_bound_right': {0: 0.1, 80: 0.3},
+        # set initial condition density according to Greenwald fraction.
+        'ne_is_fGW': True,
+        'nbar': 1,
+        'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profil
+    },
+    'numerics': {
+        # simulation control
+        't_final': 80,  # length of simulation time in seconds
+        'fixed_dt': 2,
+        # 1/multiplication factor for sigma (conductivity) to reduce current
+        # diffusion timescale to be closer to heat diffusion timescale.
+        'resistivity_mult': 1,
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'current_eq': True,
+        'dens_eq': True,
+        'maxdt': 0.5,
+        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
+        # likely be increased further beyond this default.
+        'dtmult': 30,
+        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',

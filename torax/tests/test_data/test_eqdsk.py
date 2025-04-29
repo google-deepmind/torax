@@ -20,34 +20,32 @@ Rmaj~0.9m , Rmin~0.2m, B0~1.4T, Ip~170kA.
 
 
 CONFIG = {
-    'runtime_params': {
-        'plasma_composition': {
-            'main_ion': 'D',
-            'impurity': 'Ne',
-            'Zeff': 1.6,
-        },
-        'profile_conditions': {
-            'Ip_tot': 0.25,
-            'Ti': {0.0: {0.0: 3.0, 1.0: 0.2}},
-            'Ti_bound_right': 0.2,
-            'Te': {0.0: {0.0: 3.0, 1.0: 0.2}},
-            'Te_bound_right': 0.2,
-            'ne_bound_right': 0.25,
-            'ne_is_fGW': True,
-            'nbar': 0.5,
-            'ne': {0: {0.0: 1.5, 1.0: 1.0}},
-        },
-        'numerics': {
-            't_final': 0.5,
-            'resistivity_mult': 1,
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'current_eq': True,
-            'dens_eq': True,
-            'maxdt': 0.5,
-            'dtmult': 500,
-            'dt_reduction_factor': 3,
-        },
+    'plasma_composition': {
+        'main_ion': 'D',
+        'impurity': 'Ne',
+        'Zeff': 1.6,
+    },
+    'profile_conditions': {
+        'Ip_tot': 0.25,
+        'Ti': {0.0: {0.0: 3.0, 1.0: 0.2}},
+        'Ti_bound_right': 0.2,
+        'Te': {0.0: {0.0: 3.0, 1.0: 0.2}},
+        'Te_bound_right': 0.2,
+        'ne_bound_right': 0.25,
+        'ne_is_fGW': True,
+        'nbar': 0.5,
+        'ne': {0: {0.0: 1.5, 1.0: 1.0}},
+    },
+    'numerics': {
+        't_final': 0.5,
+        'resistivity_mult': 1,
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'current_eq': True,
+        'dens_eq': True,
+        'maxdt': 0.5,
+        'dtmult': 500,
+        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'EQDSK',

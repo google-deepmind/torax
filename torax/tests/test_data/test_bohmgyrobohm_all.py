@@ -30,21 +30,20 @@
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.8,
-            'ne_bound_right': 0.5,
-            'ne_bound_right_is_fGW': True,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.8,
+        'ne_bound_right': 0.5,
+        'ne_bound_right_is_fGW': True,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },

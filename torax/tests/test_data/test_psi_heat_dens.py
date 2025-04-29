@@ -18,21 +18,20 @@ Constant transport coefficient model. Pedestal
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,  # initial density (in Greenwald fraction units)
-            'ne_bound_right': 0.5,
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,  # initial density (in Greenwald fraction units)
+        'ne_bound_right': 0.5,
+        'nu': 0,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
@@ -42,9 +41,7 @@ CONFIG = {
         'j_bootstrap': {},
         'generic_current': {},
     },
-    'pedestal': {
-        'pedestal_model': 'set_tped_nped',
-        'set_pedestal': True},
+    'pedestal': {'pedestal_model': 'set_tped_nped', 'set_pedestal': True},
     'transport': {
         'transport_model': 'constant',
         # constant params.

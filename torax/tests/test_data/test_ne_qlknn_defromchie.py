@@ -20,23 +20,22 @@ scaled from chi_e
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,  # initial density (Greenwald fraction units)
-            'ne_bound_right': 0.2,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'ne_bound_right': 0.2,
+        # set flat Ohmic current to provide larger range of current
+        # evolution for test
+        'nu': 0,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

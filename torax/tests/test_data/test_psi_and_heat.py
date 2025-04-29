@@ -19,20 +19,19 @@ pedestal, chi from qlknn.
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            # initial condition ion temperature for r=0 and r=Rmin
-            'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
-            'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
-            'ne_bound_right': 0.5,
-            'nu': 0,
-        },
-        'numerics': {
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        # initial condition ion temperature for r=0 and r=Rmin
+        'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
+        'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
+        'ne_bound_right': 0.5,
+        'nu': 0,
     },
+    'numerics': {
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },

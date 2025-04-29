@@ -19,15 +19,14 @@ Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-            'Ip_tot': 15,
-        },
-        'numerics': {
-            't_final': 1,
-        },
+    'profile_conditions': {
+        'ne_bound_right': 0.5,
+        'Ip_tot': 15,
     },
+    'numerics': {
+        't_final': 1,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

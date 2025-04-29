@@ -26,22 +26,21 @@ CONFIG = {
         'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
         'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
-    'runtime_params': {
-        'profile_conditions': {
-            'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
-            'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
-            'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
-            'ne_bound_right': 0.5,
-        },
-        'numerics': {
-            'current_eq': True,
-            # to shorten current diffusion time for the test
-            'resistivity_mult': 50,
-            'dtmult': 150,
-            'maxdt': 0.5,
-            't_final': 10,
-        },
+    'profile_conditions': {
+        'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
+        'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
+        'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
+        'ne_bound_right': 0.5,
     },
+    'numerics': {
+        'current_eq': True,
+        # to shorten current diffusion time for the test
+        'resistivity_mult': 50,
+        'dtmult': 150,
+        'maxdt': 0.5,
+        't_final': 10,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

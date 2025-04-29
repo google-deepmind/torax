@@ -21,20 +21,19 @@
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-            'use_vloop_lcfs_boundary_condition': True,
-            'vloop_lcfs': 7.5,
-        },
-        'numerics': {
-            'ion_heat_eq': False,
-            'el_heat_eq': False,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 3,
-        },
+    'profile_conditions': {
+        'ne_bound_right': 0.5,
+        'use_vloop_lcfs_boundary_condition': True,
+        'vloop_lcfs': 7.5,
     },
+    'numerics': {
+        'ion_heat_eq': False,
+        'el_heat_eq': False,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 3,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',

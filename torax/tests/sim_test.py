@@ -290,7 +290,7 @@ class SimTest(sim_test_case.SimTestCase):
       self,
       config_name: str,
       profiles: Sequence[str] = _ALL_PROFILES,
-      rtol: float | None = 0.,
+      rtol: float | None = 0.0,
       atol: float | None = None,
       ref_name: str | None = None,
   ):
@@ -417,7 +417,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Build the sim and runtime params at t=`loading_time`.
     config = self._get_config_dict(test_config + '.py')
-    config['runtime_params']['numerics']['t_initial'] = loading_time
+    config['numerics']['t_initial'] = loading_time
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     original_get_initial_state = initial_state._get_initial_state
@@ -477,7 +477,8 @@ class SimTest(sim_test_case.SimTestCase):
         initial_state, '_get_initial_state', wraps=wrapped_get_initial_state
     ):
       sim_outputs = run_simulation.run_simulation(
-          torax_config, progress_bar=False)
+          torax_config, progress_bar=False
+      )
 
     initial_core_profiles = tree.map(
         lambda x: x[0] if x is not None else None, sim_outputs.core_profiles
@@ -516,10 +517,10 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Run the second sim
     config_vloop_bc = copy.deepcopy(config_ip_bc)
-    config_vloop_bc['runtime_params']['profile_conditions'][
+    config_vloop_bc['profile_conditions'][
         'use_vloop_lcfs_boundary_condition'
     ] = True
-    config_vloop_bc['runtime_params']['profile_conditions']['vloop_lcfs'] = (
+    config_vloop_bc['profile_conditions']['vloop_lcfs'] = (
         times,
         sim_outputs_ip_bc.core_profiles.vloop_lcfs,
     )
