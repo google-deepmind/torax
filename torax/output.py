@@ -383,9 +383,15 @@ class StateHistory:
 
     # Add source profiles with suffixes indicating which profile they affect.
     for profile in self.core_sources.temp_ion:
-      xr_dict[f"p_{profile}_i"] = self.core_sources.temp_ion[profile]
+      if profile == "fusion":
+        xr_dict["p_alpha_i"] = self.core_sources.temp_ion[profile]
+      else:
+        xr_dict[f"p_{profile}_i"] = self.core_sources.temp_ion[profile]
     for profile in self.core_sources.temp_el:
-      xr_dict[f"p_{profile}_e"] = self.core_sources.temp_el[profile]
+      if profile == "fusion":
+        xr_dict["p_alpha_e"] = self.core_sources.temp_el[profile]
+      else:
+        xr_dict[f"p_{profile}_e"] = self.core_sources.temp_el[profile]
     for profile in self.core_sources.psi:
       xr_dict[f"j_{profile}"] = self.core_sources.psi[profile]
     for profile in self.core_sources.ne:

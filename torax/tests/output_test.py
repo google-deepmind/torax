@@ -181,14 +181,14 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that an ion electron source is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     sources_dataset = output_xr.children[output.CORE_SOURCES].dataset
-    self.assertIn('p_fusion_i', sources_dataset.data_vars)
-    self.assertIn('p_fusion_e', sources_dataset.data_vars)
+    self.assertIn('p_alpha_i', sources_dataset.data_vars)
+    self.assertIn('p_alpha_e', sources_dataset.data_vars)
     np.testing.assert_allclose(
-        sources_dataset.data_vars['p_fusion_i'].values[0, ...],
+        sources_dataset.data_vars['p_alpha_i'].values[0, ...],
         self.source_profiles.temp_ion['fusion'],
     )
     np.testing.assert_allclose(
-        sources_dataset.data_vars['p_fusion_e'].values[0, ...],
+        sources_dataset.data_vars['p_alpha_e'].values[0, ...],
         self.source_profiles.temp_el['fusion'],
     )
 
