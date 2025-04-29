@@ -151,6 +151,8 @@ def geometry_from_IMAS(
 
     # To check
     z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
+    z_boundary_outline = np.asarray(IMAS_data.boundary.outline.z)
+    r_boundary_outline = np.asarray(IMAS_data.boundary.outline.r)
 
     return {
         "Ip_from_parameters": Ip_from_parameters,
@@ -175,6 +177,8 @@ def geometry_from_IMAS(
         "n_rho": n_rho,
         "hires_fac": hires_fac,
         "z_magnetic_axis": z_magnetic_axis,
+        "z_boundary_outline": z_boundary_outline,
+        "r_boundary_outline": r_boundary_outline,
     }
 
 
@@ -257,9 +261,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime_face)
     eq.profiles_1d.q = face_to_cell(core_profiles.q_face)
 
-    # Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
-    if equilibrium_in is not None:
-        eq.boundary.outline.r = equilibrium_in.time_slice[0].boundary.outline.r
-        eq.boundary.outline.z = equilibrium_in.time_slice[0].boundary.outline.z
+    eq.boundary.outline.z = geometry._z_boundary_outline
+    eq.boundary.outline.r = geometry._r_boundary_outline
 
     return equilibrium
