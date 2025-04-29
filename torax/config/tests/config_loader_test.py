@@ -17,6 +17,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import config_loader
+from torax.torax_pydantic import model_config
 
 
 class ConfigLoaderTest(parameterized.TestCase):
@@ -51,9 +52,9 @@ class ConfigLoaderTest(parameterized.TestCase):
       use_string=[True, False],
       path=list(config_loader.example_config_paths().values()),
   )
-  def test_import_config_dict(self, use_string: bool, path: pathlib.Path):
+  def test_import_config(self, use_string: bool, path: pathlib.Path):
     path = str(path) if use_string else path
-    config_dict = config_loader.import_config_dict(path)
+    config_dict = config_loader.import_config(path)
 
     with self.subTest("is_valid_dict"):
       self.assertIsInstance(config_dict, dict)
@@ -61,12 +62,19 @@ class ConfigLoaderTest(parameterized.TestCase):
 
     with self.subTest("mutation_safe"):
       config_dict["new_invalid_key"] = True
-      config_dict_2 = config_loader.import_config_dict(path)
+      config_dict_2 = config_loader.import_config(path)
       self.assertNotIn("new_invalid_key", config_dict_2)
 
-  def test_import_config_dict_invalid_path(self):
+  def test_import_config_invalid_path(self):
     with self.assertRaises(ValueError):
-      config_loader.import_config_dict("/invalid/path/not_a_file.py")
+      config_loader.import_config("/invalid/path/not_a_file.py")
+
+  @parameterized.product(
+      path=list(config_loader.example_config_paths().values()),
+  )
+  def test_build_torax_config_from_file(self, path: pathlib.Path):
+    config = config_loader.build_torax_config_from_file(path)
+    self.assertIsInstance(config, model_config.ToraxConfig)
 
 
 if __name__ == "__main__":

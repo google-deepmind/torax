@@ -107,26 +107,61 @@ def _import_from_path(module_name: str, file_path: str) -> types.ModuleType:
   return module
 
 
-def import_config_dict(path: str | pathlib.Path) -> dict[str, Any]:
-  """Import a Torax config dictionary from a file.
+def import_config(path: str | pathlib.Path) -> dict[str, Any]:
+  """Import a Torax config from a file.
 
   Args:
-    path: The path to the config file. The path can be represented as a string
-      or a `pathlib.Path` object.
+    path: The absolute path to the config file. The path can be represented as a
+      string or a `pathlib.Path` object.
 
   Returns:
-    The config dictionary.
+    A dictionary of config values.
   """
 
   path = pathlib.Path(path) if isinstance(path, str) else path
   if not path.is_file():
     raise ValueError(f'Path {path} is not a file.')
 
+  # An arbitrary module name is needed to import the config file.
   arbitrary_module_name = '_torax_temp_config_import'
   module = _import_from_path(arbitrary_module_name, path)
-  if not hasattr(module, 'CONFIG'):
-    raise ValueError(
-        f'The file {str(path)} is an invalid Torax config file, as it does not'
-        ' have a `CONFIG` variable defined.'
-    )
-  return module.CONFIG
+  return vars(module)
+
+
+def build_torax_config_from_file(
+    path: str | pathlib.Path,
+) -> model_config.ToraxConfig:
+  """Returns a ToraxConfig object from a config file.
+
+  The config file is either a Python file containing a `CONFIG` dictionary, or
+  a JSON file obtained via `ToraxConfig(...).model_dump_json`.
+
+  Args:
+    path: The absolute path to the config file. The path can be represented as a
+      string or a `pathlib.Path` object.
+  """
+
+  path = pathlib.Path(path) if isinstance(path, str) else path
+
+  if not path.is_file():
+    raise ValueError(f'Path {path} is not a file.')
+
+  match path.suffix:
+    case '.json':
+      raise NotImplementedError(
+          'Loading ToraxConfig from JSON is not implemented yet.'
+      )
+    case '.nc':
+      raise NotImplementedError(
+          'Loading ToraxConfig from serialized JSON is not implemented yet.'
+      )
+    case '.py':
+      cfg = import_config(path)
+      if 'CONFIG' not in cfg:
+        raise ValueError(
+            f'The file {str(path)} is an invalid Torax config file, as it does'
+            ' not have a `CONFIG` variable defined.'
+        )
+      return model_config.ToraxConfig.from_dict(cfg['CONFIG'])
+    case _:
+      raise ValueError(f'Path {path} is not a valid Torax config file.')

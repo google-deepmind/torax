@@ -35,8 +35,8 @@ class ExamplesTest(parameterized.TestCase):
   def test_validation_of_configs(self, config_name_no_py: str):
     example_config_paths = config_loader.example_config_paths()
     example_config_path = example_config_paths[config_name_no_py]
-    config = config_loader.import_config_dict(example_config_path)
-    model_config.ToraxConfig.from_dict(config)
+    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    self.assertIsInstance(cfg, model_config.ToraxConfig)
 
 
 if __name__ == '__main__':
