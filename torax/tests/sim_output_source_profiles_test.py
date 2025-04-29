@@ -102,21 +102,23 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         # profiles.
         'sources': {
             'generic_particle': {
-                'prescribed_values': ({
-                    0.0: {0: 1.0},
-                    1.0: {0: 2.0},
-                    2.0: {0: 3.0},
-                    3.0: {0: 4.0},
-                },),
+                'prescribed_values': (
+                    {
+                        0.0: {0: 1.0},
+                        1.0: {0: 2.0},
+                        2.0: {0: 3.0},
+                        3.0: {0: 4.0},
+                    },
+                ),
                 'mode': 'PRESCRIBED',
             },
         },
-        'runtime_params': {
-            'numerics': {
-                't_final': 2.0,
-                'fixed_dt': 1.0,
-            }
+        'numerics': {
+            't_final': 2.0,
+            'fixed_dt': 1.0,
         },
+        'profile_conditions': {},
+        'plasma_composition': {},
         'geometry': {'geometry_type': 'circular'},
         'stepper': {'stepper_type': 'explicit'},
         'transport': {},
@@ -154,13 +156,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
           previous_post_processed_outputs,
           state_module.SimError.NO_ERROR,
       )
+
     with mock.patch.object(
         step_function.SimulationStepFn, '__call__', new=mock_step_fn
     ):
       state_history = run_simulation.run_simulation(torax_config)
 
-    for i, v in enumerate(
-        state_history.core_sources.ne['generic_particle']):
+    for i, v in enumerate(state_history.core_sources.ne['generic_particle']):
       np.testing.assert_allclose(v, i + 1)
 
 

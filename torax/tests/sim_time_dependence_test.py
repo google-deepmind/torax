@@ -48,9 +48,9 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields['transport'].annotation |= (
-        FakeTransportConfig
-    )
+    model_config.ToraxConfig.model_fields[
+        'transport'
+    ].annotation |= FakeTransportConfig
     model_config.ToraxConfig.model_fields[
         'stepper'
     ].annotation |= FakeStepperConfig
@@ -71,19 +71,18 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
 
     config = {
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti_bound_right': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-                'ne_bound_right': 0.5,
-            },
-            'numerics': {
-                'adaptive_dt': adaptive_dt,
-                # 1 time step in, the Ti_bound_right will be 2.0
-                'fixed_dt': 1.0,
-                'dt_reduction_factor': 1.5,
-                't_final': 1.0,
-            },
+        'profile_conditions': {
+            'Ti_bound_right': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+            'ne_bound_right': 0.5,
         },
+        'numerics': {
+            'adaptive_dt': adaptive_dt,
+            # 1 time step in, the Ti_bound_right will be 2.0
+            'fixed_dt': 1.0,
+            'dt_reduction_factor': 1.5,
+            't_final': 1.0,
+        },
+        'plasma_composition': {},
         'geometry': {
             'geometry_type': 'circular',
         },
@@ -150,6 +149,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 
 class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
   """Fake stepper config that allows us to hook into the error logic."""
+
   stepper_type: Literal['fake'] = 'fake'
   param: str = 'Ti_bound_right'
   max_value: float = 2.5

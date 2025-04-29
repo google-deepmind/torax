@@ -22,22 +22,21 @@ is infeasible.
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,  # initial density (Greenwald fraction units)
-            'ne_bound_right': 0.2,
-            'neped': 1.0,
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 0.0007944 * 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'ne_bound_right': 0.2,
+        'neped': 1.0,
+        'nu': 0,
     },
+    'numerics': {
+        'ion_heat_eq': True,
+        'el_heat_eq': True,
+        'dens_eq': True,
+        'current_eq': True,
+        'resistivity_mult': 100,  # to shorten current diffusion time
+        't_final': 0.0007944 * 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },

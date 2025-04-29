@@ -1388,42 +1388,40 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
 .. code-block:: python
 
   CONFIG = {
-      'runtime_params': {
-          'plasma_composition': {
-              'main_ion': {'D': 0.5, 'T': 0.5},
-              'impurity': 'Ne',
-              'Zeff': 1.6,
-          },
-          'profile_conditions': {
-              'Ip_tot': {0: 3, 80: 10.5},
-              # initial condition ion temperature for r=0 and r=Rmin
-              'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
-              'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
-              # initial condition electron temperature between r=0 and r=Rmin
-              'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
-              'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
-              'ne_bound_right_is_fGW': True,
-              'ne_bound_right': {0: 0.1, 80: 0.3},
-              'ne_is_fGW': True,
-              'nbar': 1,
-              'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-              'Tiped': 1.0,
-              'Teped': 1.0,
-              'neped_is_fGW': True,
-              'neped': {0: 0.3, 80: 0.7},
-              'Ped_top': 0.9,
-          },
-          'numerics': {
-              't_final': 80,
-              'fixed_dt': 2,
-              'ion_heat_eq': True,
-              'el_heat_eq': True,
-              'current_eq': True,
-              'dens_eq': True,
-              'dt_reduction_factor': 3,
-              'largeValue_T': 1.0e10,
-              'largeValue_n': 1.0e8,
-          },
+      'plasma_composition': {
+          'main_ion': {'D': 0.5, 'T': 0.5},
+          'impurity': 'Ne',
+          'Zeff': 1.6,
+      },
+      'profile_conditions': {
+          'Ip_tot': {0: 3, 80: 10.5},
+          # initial condition ion temperature for r=0 and r=Rmin
+          'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
+          'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
+          # initial condition electron temperature between r=0 and r=Rmin
+          'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
+          'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
+          'ne_bound_right_is_fGW': True,
+          'ne_bound_right': {0: 0.1, 80: 0.3},
+          'ne_is_fGW': True,
+          'nbar': 1,
+          'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+          'Tiped': 1.0,
+          'Teped': 1.0,
+          'neped_is_fGW': True,
+          'neped': {0: 0.3, 80: 0.7},
+          'Ped_top': 0.9,
+      },
+      'numerics': {
+          't_final': 80,
+          'fixed_dt': 2,
+          'ion_heat_eq': True,
+          'el_heat_eq': True,
+          'current_eq': True,
+          'dens_eq': True,
+          'dt_reduction_factor': 3,
+          'largeValue_T': 1.0e10,
+          'largeValue_n': 1.0e8,
       },
       'geometry': {
           'geometry_type': 'chease',

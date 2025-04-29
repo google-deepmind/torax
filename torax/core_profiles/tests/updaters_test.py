@@ -21,6 +21,7 @@ from torax.config import build_runtime_params
 from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -116,27 +117,23 @@ class UpdatersTest(parameterized.TestCase):
       expected_ne_bound_right,
   ):
     """Tests that compute_boundary_conditions_t_plus_dt works."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'ne': {0: {0: 1.5, 1: 1}},
-                'ne_is_fGW': ne_is_fGW,
-                'ne_bound_right_is_fGW': ne_bound_right_is_fGW,
-                'nbar': 1,
-                'normalize_to_nbar': normalize_to_nbar,
-                'ne_bound_right': ne_bound_right,
-            },
-        },
-        'sources': {},
-        'stepper': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'ne': {0: {0: 1.5, 1: 1}},
+        'ne_is_fGW': ne_is_fGW,
+        'ne_bound_right_is_fGW': ne_bound_right_is_fGW,
+        'nbar': 1,
+        'normalize_to_nbar': normalize_to_nbar,
+        'ne_bound_right': ne_bound_right,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config)
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
         torax_config
+    )
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
     dynamic_runtime_params_slice = provider(t=1.0)
     geo = torax_config.geometry.build_provider(t=1.0)
@@ -179,19 +176,12 @@ class UpdatersTest(parameterized.TestCase):
       expected_Te_bound_right,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Te."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'Te': {0: {0: 1.5, 1: 1}},
-                'Te_bound_right': Te_bound_right,
-            },
-        },
-        'sources': {},
-        'stepper': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'Te': {0: {0: 1.5, 1: 1}},
+        'Te_bound_right': Te_bound_right,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config
     )
@@ -226,19 +216,12 @@ class UpdatersTest(parameterized.TestCase):
       expected_Ti_bound_right,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Ti."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti': {0: {0: 1.5, 1: 1}},
-                'Ti_bound_right': Ti_bound_right,
-            },
-        },
-        'sources': {},
-        'stepper': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'Ti': {0: {0: 1.5, 1: 1}},
+        'Ti_bound_right': Ti_bound_right,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config
     )

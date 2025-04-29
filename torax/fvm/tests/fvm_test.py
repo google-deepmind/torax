@@ -215,9 +215,9 @@ class FVMTest(parameterized.TestCase):
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            runtime_params=dict(
-                numerics=dict(el_heat_eq=False),
-            ),
+            numerics=dict(el_heat_eq=False),
+            plasma_composition=dict(),
+            profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
@@ -338,9 +338,9 @@ class FVMTest(parameterized.TestCase):
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            runtime_params=dict(
-                numerics=dict(el_heat_eq=False),
-            ),
+            numerics=dict(el_heat_eq=False),
+            plasma_composition=dict(),
+            profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
@@ -461,9 +461,9 @@ class FVMTest(parameterized.TestCase):
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            runtime_params=dict(
-                numerics=dict(el_heat_eq=False),
-            ),
+            numerics=dict(el_heat_eq=False),
+            profile_conditions=dict(),
+            plasma_composition=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,

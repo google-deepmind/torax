@@ -24,6 +24,7 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
@@ -42,28 +43,20 @@ class TransportSmoothingTest(parameterized.TestCase):
 
   def test_smoothing(self):
     """Tests that smoothing works as expected."""
-    # Set up default config and geo
-    torax_config = model_config.ToraxConfig.from_dict(
-        dict(
-            runtime_params=dict(
-                profile_conditions=dict(
-                    ne_bound_right=0.5,
-                ),
-            ),
-            transport=dict(
-                transport_model='fake',
-                apply_inner_patch=True,
-                apply_outer_patch=True,
-                rho_inner=0.3,
-                rho_outer=0.8,
-                smoothing_sigma=0.05,
-            ),
-            geometry=dict(geometry_type='circular'),
-            sources=dict(),
-            pedestal=dict(),
-            stepper=dict(),
-        )
-    )
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'transport_model': 'fake',
+        'apply_inner_patch': True,
+        'apply_outer_patch': True,
+        'rho_inner': 0.3,
+        'rho_outer': 0.8,
+        'smoothing_sigma': 0.05,
+    }
+    config['profile_conditions'] = {
+        'ne_bound_right': 0.5,
+    }
+    config['geometry'] = {'geometry_type': 'circular'}
+    torax_config = model_config.ToraxConfig.from_dict(config)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -221,30 +214,25 @@ class TransportSmoothingTest(parameterized.TestCase):
 
   def test_smoothing_everywhere(self):
     """Tests that smoothing everywhere works as expected."""
-    # Set up default config and geo
-    torax_config = model_config.ToraxConfig.from_dict(
-        dict(
-            runtime_params=dict(
-                profile_conditions=dict(
-                    ne_bound_right=0.5,
-                ),
-            ),
-            transport=dict(
-                transport_model='fake',
-                apply_inner_patch=True,
-                apply_outer_patch=True,
-                rho_inner=0.3,
-                rho_outer=0.8,
-                smoothing_sigma=0.05,
-                smooth_everywhere=True,
-            ),
-            geometry=dict(geometry_type='circular'),
-            sources=dict(),
-            pedestal=dict(pedestal_model='set_tped_nped',
-                          set_pedestal=True),
-            stepper=dict(),
-        )
-    )
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'transport_model': 'fake',
+        'apply_inner_patch': True,
+        'apply_outer_patch': True,
+        'rho_inner': 0.3,
+        'rho_outer': 0.8,
+        'smoothing_sigma': 0.05,
+        'smooth_everywhere': True,
+    }
+    config['profile_conditions'] = {
+        'ne_bound_right': 0.5,
+    }
+    config['pedestal'] = {
+        'pedestal_model': 'set_tped_nped',
+        'set_pedestal': True,
+    }
+    config['geometry'] = {'geometry_type': 'circular'}
+    torax_config = model_config.ToraxConfig.from_dict(config)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

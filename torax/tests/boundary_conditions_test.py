@@ -21,6 +21,7 @@ from torax.config import config_args
 from torax.core_profiles import initialization
 from torax.core_profiles import updaters
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -50,26 +51,19 @@ class BoundaryConditionsTest(parameterized.TestCase):
     """Tests that setting boundary conditions works."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti': {0.0: {0.0: 27.7, 1.0: 1.0}},
-                'Te': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
-                'Ti_bound_right': 27.7,
-                'Te_bound_right': {0.0: 42.0, 1.0: 0.1},
-                'ne_bound_right': ne_bound_right,
-                'ne': ne,
-                'ne_is_fGW': False,
-                'Ip_tot': {0.0: 5, 1.0: 7},
-                'normalize_to_nbar': False,
-            },
-        },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'sources': {},
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'Ti': {0.0: {0.0: 27.7, 1.0: 1.0}},
+        'Te': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
+        'Ti_bound_right': 27.7,
+        'Te_bound_right': {0.0: 42.0, 1.0: 0.1},
+        'ne_bound_right': ne_bound_right,
+        'ne': ne,
+        'ne_is_fGW': False,
+        'Ip_tot': {0.0: 5, 1.0: 7},
+        'normalize_to_nbar': False,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
 
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial)

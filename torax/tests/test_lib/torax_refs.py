@@ -53,30 +53,29 @@ class References:
     return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
         t=t,
         dynamic_runtime_params_slice_provider=dynamic_provider,
-        geometry_provider=self.config.geometry.build_provider)
+        geometry_provider=self.config.geometry.build_provider,
+    )
 
 
 def circular_references() -> References:
   """Reference values for circular geometry."""
   # Hard-code the parameters relevant to the tests, so the reference values
   # will stay valid even if we change the Config constructor defaults
-  torax_config = model_config.ToraxConfig.from_dict(
-      {
-          'runtime_params': {
-              'profile_conditions': {
-                  'Ip_tot': 15,
-                  'nu': 3,
-              }
-          },
-          'geometry': {
-              'geometry_type': 'circular',
-          },
-          'transport': {},
-          'stepper': {},
-          'pedestal': {},
-          'sources': {},
-      }
-  )
+  torax_config = model_config.ToraxConfig.from_dict({
+      'profile_conditions': {
+          'Ip_tot': 15,
+          'nu': 3,
+      },
+      'numerics': {},
+      'plasma_composition': {},
+      'geometry': {
+          'geometry_type': 'circular',
+      },
+      'transport': {},
+      'stepper': {},
+      'pedestal': {},
+      'sources': {},
+  })
 
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
@@ -264,24 +263,22 @@ def circular_references() -> References:
 
 def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the file."""
-  torax_config = model_config.ToraxConfig.from_dict(
-      {
-          'runtime_params': {
-              'profile_conditions': {
-                  'Ip_tot': 15,
-                  'nu': 3,
-              }
-          },
-          'geometry': {
-              'geometry_type': 'chease',
-              'Ip_from_parameters': False,
-          },
-          'transport': {},
-          'stepper': {},
-          'pedestal': {},
-          'sources': {},
-      }
-  )
+  torax_config = model_config.ToraxConfig.from_dict({
+      'profile_conditions': {
+          'Ip_tot': 15,
+          'nu': 3,
+      },
+      'numerics': {},
+      'plasma_composition': {},
+      'geometry': {
+          'geometry_type': 'chease',
+          'Ip_from_parameters': False,
+      },
+      'transport': {},
+      'stepper': {},
+      'pedestal': {},
+      'sources': {},
+  })
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -468,24 +465,22 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
 
 def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the config."""
-  torax_config = model_config.ToraxConfig.from_dict(
-      {
-          'runtime_params': {
-              'profile_conditions': {
-                  'Ip_tot': 15,
-                  'nu': 3,
-              }
-          },
-          'geometry': {
-              'geometry_type': 'chease',
-              'Ip_from_parameters': True,
-          },
-          'transport': {},
-          'stepper': {},
-          'pedestal': {},
-          'sources': {},
-      }
-  )
+  torax_config = model_config.ToraxConfig.from_dict({
+      'profile_conditions': {
+          'Ip_tot': 15,
+          'nu': 3,
+      },
+      'numerics': {},
+      'plasma_composition': {},
+      'geometry': {
+          'geometry_type': 'chease',
+          'Ip_from_parameters': True,
+      },
+      'transport': {},
+      'stepper': {},
+      'pedestal': {},
+      'sources': {},
+  })
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(

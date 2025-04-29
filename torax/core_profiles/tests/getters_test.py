@@ -24,6 +24,7 @@ from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.physics import formulas
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
@@ -210,22 +211,15 @@ class GettersTest(parameterized.TestCase):
 
   def test_get_ion_density_and_charge_states(self):
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'ne': {0: {0: 1.5, 1: 1}},
-                'ne_is_fGW': False,
-                'ne_bound_right_is_fGW': False,
-                'nbar': 1,
-                'normalize_to_nbar': False,
-            },
-        },
-        'sources': {},
-        'stepper': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'ne': {0: {0: 1.5, 1: 1}},
+        'ne_is_fGW': False,
+        'ne_bound_right_is_fGW': False,
+        'nbar': 1,
+        'normalize_to_nbar': False,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

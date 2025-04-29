@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import copy
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.tests.test_lib import default_sources
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 
 
@@ -28,18 +25,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._python_config = {
-        'runtime_params': {'numerics': {}},
-        'geometry': {
-            'geometry_type': 'circular',
-        },
-        'pedestal': {},
-        'sources': default_sources.get_default_source_config(),
-        'stepper': {},
-        'time_step_calculator': {},
-        'transport': {},
-    }
-    self._torax_config = model_config.ToraxConfig.from_dict(self._python_config)
+    self._torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict())
     self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
 
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
@@ -78,8 +65,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     static_slice1 = build_runtime_params.build_static_params_from_config(
         self._torax_config
     )
-    new_config = copy.deepcopy(self._python_config)
-    new_config['runtime_params']['numerics']['ion_heat_eq'] = (
+    new_config = default_configs.get_default_config_dict()
+    new_config['numerics']['ion_heat_eq'] = (
         not self._torax_config.numerics.ion_heat_eq
     )
     new_torax_config = model_config.ToraxConfig.from_dict(new_config)

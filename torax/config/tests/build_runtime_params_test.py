@@ -22,6 +22,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import generic_current_source
 from torax.sources import pydantic_model as sources_pydantic_model
+from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
@@ -34,18 +35,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params slice provider is time dependent."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti_bound_right': {0.0: 2.0, 4.0: 4.0},
-            }
-        },
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'sources': {},
-        'stepper': {},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {'Ti_bound_right': {0.0: 2.0, 4.0: 4.0}}
+    torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

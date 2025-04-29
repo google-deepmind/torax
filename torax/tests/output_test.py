@@ -45,13 +45,13 @@ class StateHistoryTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self.torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti_bound_right': 27.7,
-                'Te_bound_right': {0.0: 42.0, 1.0: 0.0001},
-                'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
-            },
+        'profile_conditions': {
+            'Ti_bound_right': 27.7,
+            'Te_bound_right': {0.0: 42.0, 1.0: 0.0001},
+            'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
         },
+        'numerics': {},
+        'plasma_composition': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'stepper': {},
@@ -172,7 +172,10 @@ class StateHistoryTest(parameterized.TestCase):
     volume_values = (
         output_xr.children[output.GEOMETRY].dataset.data_vars['volume'].values
     )
-    chex.assert_shape(volume_values, (1, len(self.geo.rho_norm) + 2),)
+    chex.assert_shape(
+        volume_values,
+        (1, len(self.geo.rho_norm) + 2),
+    )
     np.testing.assert_equal(volume_values[0, 0], self.geo.volume_face[0])
     np.testing.assert_equal(volume_values[0, -1], self.geo.volume_face[-1])
     np.testing.assert_equal(volume_values[0, 1:-1], self.geo.volume)

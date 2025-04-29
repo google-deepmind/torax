@@ -40,22 +40,21 @@ class SawtoothModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     test_config_dict = {
-        'runtime_params': {
-            'numerics': {
-                'current_eq': True,
-                'dens_eq': True,
-                'ion_heat_eq': True,
-                'el_heat_eq': True,
-                'fixed_dt': _FIXED_DT,
-            },
-            # Default initial current will lead to a sawtooth being triggered.
-            'profile_conditions': {
-                'Ip_tot': 13,
-                'initial_j_is_total_current': True,
-                'initial_psi_from_j': True,
-                'nu': 3,
-            },
+        'numerics': {
+            'current_eq': True,
+            'dens_eq': True,
+            'ion_heat_eq': True,
+            'el_heat_eq': True,
+            'fixed_dt': _FIXED_DT,
         },
+        # Default initial current will lead to a sawtooth being triggered.
+        'profile_conditions': {
+            'Ip_tot': 13,
+            'initial_j_is_total_current': True,
+            'initial_psi_from_j': True,
+            'nu': 3,
+        },
+        'plasma_composition': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},
         'pedestal': {},
         'sources': {'ohmic': {}},
@@ -106,7 +105,8 @@ class SawtoothModelTest(parameterized.TestCase):
 
     self.dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config)
+            torax_config
+        )
     )
 
     self.step_fn = step_function.SimulationStepFn(

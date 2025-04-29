@@ -95,7 +95,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
     references = torax_refs.chease_references_Ip_from_chease()
     references.config.update_fields(
-        {'runtime_params.plasma_composition.main_ion': main_ion_input,
+        {'plasma_composition.main_ion': main_ion_input,
          'sources.fusion': {
              'model_function_name': (
                  fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME

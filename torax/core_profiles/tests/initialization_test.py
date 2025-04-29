@@ -23,6 +23,7 @@ from torax.core_profiles import initialization
 from torax.sources import generic_current_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
 
@@ -73,18 +74,9 @@ class InitializationTest(parameterized.TestCase):
       expected_psi,
   ):
     """Tests that runtime params validate boundary conditions."""
-    torax_config = model_config.ToraxConfig.from_dict({
-        'runtime_params': {
-            'profile_conditions': {
-                'psi': psi,
-            },
-        },
-        'sources': {},
-        'stepper': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
-        'transport': {},
-        'pedestal': {},
-    })
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions']['psi'] = psi
+    torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
     )
