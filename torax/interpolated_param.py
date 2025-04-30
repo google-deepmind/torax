@@ -293,19 +293,19 @@ def convert_input_to_xs_ys(
     is_bool_param = False
 
   if isinstance(interp_input, xr.DataArray):
-    if len(interp_input.coords) != 1:
+    if len(interp_input.coords) != 1:  # pytype: disable=attribute-error
       raise ValueError(
-          f'Loaded values must have 1 coordinate. Given: {interp_input.coords}'
+          f'Loaded values must have 1 coordinate. Given: {interp_input.coords}'  # pytype: disable=attribute-error
       )
-    if len(interp_input.values.shape) != 1:
+    if len(interp_input.values.shape) != 1:  # pytype: disable=attribute-error
       raise ValueError(
-          f'Loaded values for {interp_input.name} must be 1D. Given:'
-          f' {interp_input.values.shape}.'
+          f'Loaded values for {interp_input.name} must be 1D. Given:'  # pytype: disable=attribute-error
+          f' {interp_input.values.shape}.'  # pytype: disable=attribute-error
       )
-    index = list(interp_input.coords)[0]
-    return (
+    index = list(interp_input.coords)[0]  # pytype: disable=attribute-error
+    return (  # pytype: disable=bad-return-type
         interp_input[index].data,
-        interp_input.values,
+        interp_input.values,  # pytype: disable=attribute-error
         interpolation_mode,
         is_bool_param,
     )
@@ -323,7 +323,7 @@ def convert_input_to_xs_ys(
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')
-    sorted_keys = sorted(interp_input.keys())
+    sorted_keys = sorted(interp_input.keys())  # pytype: disable=attribute-error
     values = [interp_input[key] for key in sorted_keys]
     return (
         np.array(sorted_keys),
