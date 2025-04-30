@@ -27,23 +27,23 @@ class PydanticModelTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='linear',
-          stepper_model=stepper_pydantic_model.LinearThetaMethod,
+          solver_model=stepper_pydantic_model.LinearThetaMethod,
           expected_type=linear_theta_method.LinearThetaMethod,
       ),
       dict(
           testcase_name='newton_raphson',
-          stepper_model=stepper_pydantic_model.NewtonRaphsonThetaMethod,
+          solver_model=stepper_pydantic_model.NewtonRaphsonThetaMethod,
           expected_type=nonlinear_theta_method.NewtonRaphsonThetaMethod,
       ),
       dict(
           testcase_name='optimizer',
-          stepper_model=stepper_pydantic_model.OptimizerThetaMethod,
+          solver_model=stepper_pydantic_model.OptimizerThetaMethod,
           expected_type=nonlinear_theta_method.OptimizerThetaMethod,
       ),
   )
-  def test_build_stepper_from_config(self, stepper_model, expected_type):
-    """Builds a stepper from the config."""
-    stepper = stepper_model(theta_imp=0.5)
+  def test_build_solver_from_config(self, solver_model, expected_type):
+    """Builds a solver from the config."""
+    solver_pydantic = solver_model(theta_imp=0.5)
     transport = transport_pydantic_model.ConstantTransportModel()
     transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.NoPedestal()
@@ -52,13 +52,13 @@ class PydanticModelTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
-    stepper_model = stepper.build_stepper(
+    solver = solver_pydantic.build_solver(
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
     )
-    self.assertIsInstance(stepper_model, expected_type)
-    self.assertEqual(stepper.theta_imp, 0.5)
+    self.assertIsInstance(solver, expected_type)
+    self.assertEqual(solver_pydantic.theta_imp, 0.5)
 
 
 if __name__ == '__main__':

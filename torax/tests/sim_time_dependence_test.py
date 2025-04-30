@@ -53,7 +53,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     ].annotation |= FakeTransportConfig
     model_config.ToraxConfig.model_fields[
         'stepper'
-    ].annotation |= FakeStepperConfig
+    ].annotation |= FakeSolverConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
@@ -147,15 +147,15 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     mock_run_simulation.assert_called_once()
 
 
-class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
-  """Fake stepper config that allows us to hook into the error logic."""
+class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):
+  """Fake solver config that allows us to hook into the error logic."""
 
   stepper_type: Literal['fake'] = 'fake'
   param: str = 'Ti_bound_right'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None
 
-  def build_stepper(
+  def build_solver(
       self, transport_model, source_models, pedestal_model
   ) -> 'FakeStepper':
     return FakeStepper(

@@ -30,7 +30,7 @@ from torax.transport_model import transport_model as transport_model_lib
 # pylint: disable=invalid-name
 
 
-class BaseStepper(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for stepper configs.
 
   Attributes:
@@ -76,7 +76,7 @@ class BaseStepper(torax_pydantic.BaseModelFrozen, abc.ABC):
     )
 
   @abc.abstractmethod
-  def build_stepper(
+  def build_solver(
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
@@ -90,7 +90,7 @@ class BaseStepper(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Returns True if the stepper is a linear solver."""
 
 
-class LinearThetaMethod(BaseStepper):
+class LinearThetaMethod(BaseSolver):
   """Model for the linear stepper.
 
   Attributes:
@@ -107,7 +107,7 @@ class LinearThetaMethod(BaseStepper):
         corrector_steps=self.corrector_steps,
     )
 
-  def build_stepper(
+  def build_solver(
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
@@ -124,7 +124,7 @@ class LinearThetaMethod(BaseStepper):
     return True
 
 
-class NewtonRaphsonThetaMethod(BaseStepper):
+class NewtonRaphsonThetaMethod(BaseSolver):
   """Model for nonlinear Newton-Raphson stepper.
 
   Attributes:
@@ -169,7 +169,7 @@ class NewtonRaphsonThetaMethod(BaseStepper):
         tau_min=self.tau_min,
     )
 
-  def build_stepper(
+  def build_solver(
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
@@ -182,7 +182,7 @@ class NewtonRaphsonThetaMethod(BaseStepper):
     )
 
 
-class OptimizerThetaMethod(BaseStepper):
+class OptimizerThetaMethod(BaseSolver):
   """Model for nonlinear OptimizerThetaMethod stepper.
 
   Attributes:
@@ -214,7 +214,7 @@ class OptimizerThetaMethod(BaseStepper):
         corrector_steps=self.corrector_steps,
     )
 
-  def build_stepper(
+  def build_solver(
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
@@ -227,6 +227,6 @@ class OptimizerThetaMethod(BaseStepper):
     )
 
 
-StepperConfig = (
+SolverConfig = (
     LinearThetaMethod | NewtonRaphsonThetaMethod | OptimizerThetaMethod
 )

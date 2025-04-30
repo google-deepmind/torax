@@ -165,7 +165,7 @@ class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
 
   stepper_type: Literal['explicit'] = 'explicit'
 
-  def build_stepper(
+  def build_solver(
       self, transport_model, source_models, pedestal_model
   ) -> 'ExplicitStepper':
     return ExplicitStepper(

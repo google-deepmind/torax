@@ -62,7 +62,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
-  stepper: stepper_pydantic_model.StepperConfig = pydantic.Field(
+  stepper: stepper_pydantic_model.SolverConfig = pydantic.Field(
       discriminator='stepper_type'
   )
   transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
