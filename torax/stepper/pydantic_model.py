@@ -81,8 +81,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> stepper_lib.Stepper:
-    """Builds a stepper from the config."""
+  ) -> stepper_lib.Solver:
+    """Builds a solver from the config."""
 
   @property
   @abc.abstractmethod
@@ -112,7 +112,7 @@ class LinearThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> stepper_lib.Stepper:
+  ) -> stepper_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
         transport_model=transport_model,
         source_models=source_models,

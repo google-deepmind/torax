@@ -49,7 +49,7 @@ class SimulationStepFn:
 
   def __init__(
       self,
-      stepper: stepper_lib.Stepper,
+      stepper: stepper_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
@@ -80,7 +80,7 @@ class SimulationStepFn:
     return self._pedestal_model
 
   @property
-  def stepper(self) -> stepper_lib.Stepper:
+  def stepper(self) -> stepper_lib.Solver:
     return self._stepper_fn
 
   @property

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The LinearThetaMethodStepper class."""
+"""The LinearThetaMethod solver class."""
 import jax
 from torax import state
 from torax.config import runtime_params_slice
@@ -24,7 +24,7 @@ from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper as stepper_lib
 
 
-class LinearThetaMethod(stepper_lib.Stepper):
+class LinearThetaMethod(stepper_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
   def _x_new(
@@ -45,7 +45,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
       state.CoreTransport,
       state.StepperNumericOutputs,
   ]:
-    """See Stepper._x_new docstring."""
+    """See Solver._x_new docstring."""
 
     x_old = tuple([core_profiles_t[name] for name in evolving_names])
     x_new_guess = tuple(

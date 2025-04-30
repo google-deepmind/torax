@@ -48,7 +48,7 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   tau_min: float
 
 
-class NonlinearThetaMethod(stepper.Stepper):
+class NonlinearThetaMethod(stepper.Solver):
   """Time step update using theta method.
 
   Attributes:
@@ -56,7 +56,7 @@ class NonlinearThetaMethod(stepper.Stepper):
     source_models: All TORAX sources used to compute both the explicit and
       implicit source profiles used for each time step as terms in the state
       evolution equations. Though the explicit profiles are computed outside the
-      call to Stepper, the same sources should be used to compute those. The
+      call to Solver, the same sources should be used to compute those. The
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
   """
@@ -79,7 +79,7 @@ class NonlinearThetaMethod(stepper.Stepper):
       state.CoreTransport,
       state.StepperNumericOutputs,
   ]:
-    """See Stepper._x_new docstring."""
+    """See Solver._x_new docstring."""
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,

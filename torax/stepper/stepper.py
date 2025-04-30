@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The Stepper class.
+"""The Solver class.
 
 Abstract base class defining updates to State.
 """
@@ -32,15 +32,15 @@ from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
 
 
-class Stepper(abc.ABC):
-  """Calculates a single time step's update to State.
+class Solver(abc.ABC):
+  """Solves for a single time steps update to State.
 
   Attributes:
     transport_model: A TransportModel subclass, calculates transport coeffs.
     source_models: All TORAX sources used to compute both the explicit and
       implicit source profiles used for each time step as terms in the state
       evolution equations. Though the explicit profiles are computed outside the
-      call to Stepper, the same sources should be used to compute those. The
+      call to Solver, the same sources should be used to compute those. The
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
@@ -97,7 +97,7 @@ class Stepper(abc.ABC):
         set to 0 in this object. These explicit source profiles were calculated
         either based on the original core profiles at the start of the time step
         or were independent of the core profiles. Because they were calculated
-        outside the possibly-JAX-jitted JointStateStepperCallable, they can be
+        outside the possibly-JAX-jitted solver logic, they can be
         calculated in non-JAX-friendly ways.
 
     Returns:
