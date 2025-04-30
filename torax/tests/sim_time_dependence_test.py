@@ -121,15 +121,15 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           initial_post_processed_outputs,
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.outer_stepper_iterations,
+          output_state.solver_numeric_outputs.outer_solver_iterations,
           expected_outer_stepper_iterations,
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.inner_solver_iterations,
+          output_state.solver_numeric_outputs.inner_solver_iterations,
           np.sum(inner_solver_iterations),
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.stepper_error_state,
+          output_state.solver_numeric_outputs.solver_error_state,
           expected_error_state,
       )
       np.testing.assert_allclose(
@@ -219,7 +219,7 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
@@ -259,9 +259,9 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
           core_profiles_t,
           core_sources,
           transport,
-          state.StepperNumericOutputs(
-              outer_stepper_iterations=1,
-              stepper_error_state=error_code,
+          state.SolverNumericOutputs(
+              outer_solver_iterations=1,
+              solver_error_state=error_code,
               inner_solver_iterations=current_inner_solver_iterations,
           ),
       )

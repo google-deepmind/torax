@@ -135,8 +135,8 @@ class SimulationStepFn:
         - the core profiles at the end of the time step.
         - time and time step calculator state info.
         - core_sources and core_transport at the end of the time step.
-        - stepper_numeric_outputs. This contains the number of iterations
-          performed in the stepper and the error state. The error states are:
+        - solver_numeric_outputs. This contains the number of iterations
+          performed in the solver and the error state. The error states are:
             0 if solver converged with fine tolerance for this step
             1 if solver did not converge for this step (was above coarse tol)
             2 if solver converged within coarse tolerance. Allowed to pass with
@@ -229,7 +229,7 @@ class SimulationStepFn:
 
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
-      # output_state.stepper_numeric_outputs.stepper_error_state == 0.
+      # output_state.solver_numeric_outputs.solver_error_state == 0.
       dynamic_runtime_params_slice_t_plus_dt, output_state = self.adaptive_step(
           output_state,
           static_runtime_params_slice,
@@ -362,7 +362,7 @@ class SimulationStepFn:
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
+    core_profiles, core_sources, core_transport, solver_numeric_outputs = (
         self._stepper_fn(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
@@ -375,7 +375,7 @@ class SimulationStepFn:
             explicit_source_profiles=explicit_source_profiles,
         )
     )
-    stepper_numeric_outputs.outer_stepper_iterations = 1
+    solver_numeric_outputs.outer_solver_iterations = 1
 
     # post_processed_outputs set to zero since post-processing is done at the
     # end of the simulation step following recalculation of explicit
@@ -386,7 +386,7 @@ class SimulationStepFn:
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
-        stepper_numeric_outputs=stepper_numeric_outputs,
+        solver_numeric_outputs=solver_numeric_outputs,
         geometry=geo_t_plus_dt,
     )
 
@@ -407,7 +407,7 @@ class SimulationStepFn:
     """Performs adaptive time stepping until stepper converges.
 
     If the initial step has converged (i.e.
-    output_state.stepper_numeric_outputs.stepper_error_state == 0), this
+    output_state.solver_numeric_outputs.stepper_error_state == 0), this
     function is a no-op.
 
     Args:
@@ -438,7 +438,7 @@ class SimulationStepFn:
             state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
         ],
     ) -> bool:
-      if updated_output[0].stepper_numeric_outputs.stepper_error_state == 1:
+      if updated_output[0].solver_numeric_outputs.solver_error_state == 1:
         do_dt_backtrack = True
       else:
         do_dt_backtrack = False
@@ -486,7 +486,7 @@ class SimulationStepFn:
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
       )
-      core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
+      core_profiles, core_sources, core_transport, solver_numeric_outputs = (
           self._stepper_fn(
               dt=dt,
               static_runtime_params_slice=static_runtime_params_slice,
@@ -499,12 +499,12 @@ class SimulationStepFn:
               explicit_source_profiles=explicit_source_profiles,
           )
       )
-      stepper_numeric_outputs.outer_stepper_iterations = (
-          old_state.stepper_numeric_outputs.outer_stepper_iterations + 1
+      solver_numeric_outputs.outer_solver_iterations = (
+          old_state.solver_numeric_outputs.outer_solver_iterations + 1
       )
 
-      stepper_numeric_outputs.inner_solver_iterations += (
-          old_state.stepper_numeric_outputs.inner_solver_iterations
+      solver_numeric_outputs.inner_solver_iterations += (
+          old_state.solver_numeric_outputs.inner_solver_iterations
       )
       return (
           state.ToraxSimState(
@@ -513,7 +513,7 @@ class SimulationStepFn:
               core_profiles=core_profiles,
               core_transport=core_transport,
               core_sources=core_sources,
-              stepper_numeric_outputs=stepper_numeric_outputs,
+              solver_numeric_outputs=solver_numeric_outputs,
               geometry=geo_t_plus_dt,
           ),
           dynamic_runtime_params_slice_t_plus_dt,

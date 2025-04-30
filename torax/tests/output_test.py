@@ -110,9 +110,9 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            outer_solver_iterations=1,
+            solver_error_state=1,
             inner_solver_iterations=1,
         ),
         geometry=self.geo,

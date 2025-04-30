@@ -71,7 +71,7 @@ class Solver(abc.ABC):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Applies a time step update.
 
@@ -108,7 +108,7 @@ class Solver(abc.ABC):
         sources, this is the same as the explicit_source_profiles input. For
         the implicit sources, this is the most recent guess for time t+dt.
       core_transport: Transport coefficients for time t+dt.
-      stepper_numeric_output: Error and iteration info.
+      solver_numeric_output: Error and iteration info.
     """
 
     # This base class method can be completely overriden by a subclass, but
@@ -128,7 +128,7 @@ class Solver(abc.ABC):
 
     # Don't call solver functions on an empty list
     if evolving_names:
-      x_new, core_sources, core_transport, stepper_numeric_output = self._x_new(
+      x_new, core_sources, core_transport, solver_numeric_output = self._x_new(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -154,7 +154,7 @@ class Solver(abc.ABC):
           explicit_source_profiles=explicit_source_profiles,
       )
       core_transport = state.CoreTransport.zeros(geo_t)
-      stepper_numeric_output = state.StepperNumericOutputs()
+      solver_numeric_output = state.SolverNumericOutputs()
 
     # x_new contains the new cell-grid values of the evolving variables.
     # Update the core profiles with the new values of the evolving variables and
@@ -175,7 +175,7 @@ class Solver(abc.ABC):
         core_profiles_t_plus_dt,
         core_sources,
         core_transport,
-        stepper_numeric_output,
+        solver_numeric_output,
     )
 
   def _x_new(
@@ -194,7 +194,7 @@ class Solver(abc.ABC):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Calculates new values of the changing variables.
 
@@ -225,7 +225,7 @@ class Solver(abc.ABC):
       x_new: The values of the evolving variables at time t + dt.
       core_sources: see the docstring of __call__
       core_transport: Transport coefficients for time t+dt.
-      stepper_numeric_output: Error and iteration info.
+      solver_numeric_output: Error and iteration info.
     """
 
     raise NotImplementedError(

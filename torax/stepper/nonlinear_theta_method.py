@@ -77,7 +77,7 @@ class NonlinearThetaMethod(stepper.Solver):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
 
@@ -89,7 +89,7 @@ class NonlinearThetaMethod(stepper.Solver):
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
     )
-    x_new, core_sources, core_transport, stepper_numeric_outputs = self._x_new_helper(
+    x_new, core_sources, core_transport, solver_numeric_outputs = self._x_new_helper(
         dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -103,7 +103,7 @@ class NonlinearThetaMethod(stepper.Solver):
         evolving_names=evolving_names,
     )
 
-    return x_new, core_sources, core_transport, stepper_numeric_outputs
+    return x_new, core_sources, core_transport, solver_numeric_outputs
 
   @abc.abstractmethod
   def _x_new_helper(
@@ -123,7 +123,7 @@ class NonlinearThetaMethod(stepper.Solver):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Final implementation of x_new after callback has been created etc."""
     ...
@@ -157,13 +157,13 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Final implementation of x_new after callback has been created etc."""
     stepper_params = dynamic_runtime_params_slice_t.stepper
     assert isinstance(stepper_params, DynamicOptimizerRuntimeParams)
     # Unpack the outputs of the optimizer_solve_block.
-    x_new, stepper_numeric_outputs, (core_sources, core_transport) = (
+    x_new, solver_numeric_outputs, (core_sources, core_transport) = (
         optimizer_solve_block.optimizer_solve_block(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
@@ -187,7 +187,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             tol=stepper_params.tol,
         )
     )
-    return x_new, core_sources, core_transport, stepper_numeric_outputs
+    return x_new, core_sources, core_transport, solver_numeric_outputs
 
 
 class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
@@ -215,7 +215,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Final implementation of x_new after callback has been created etc."""
     stepper_params = dynamic_runtime_params_slice_t.stepper
@@ -224,7 +224,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # error checking based on result of each linear step
 
     # Unpack the outputs of the newton_raphson_solve_block.
-    x_new, stepper_numeric_outputs, (core_sources, core_transport) = (
+    x_new, solver_numeric_outputs, (core_sources, core_transport) = (
         newton_raphson_solve_block.newton_raphson_solve_block(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
@@ -252,4 +252,4 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             tau_min=stepper_params.tau_min,
         )
     )
-    return x_new, core_sources, core_transport, stepper_numeric_outputs
+    return x_new, core_sources, core_transport, solver_numeric_outputs

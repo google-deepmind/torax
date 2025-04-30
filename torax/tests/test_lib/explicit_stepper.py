@@ -65,7 +65,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
@@ -133,9 +133,9 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
     # // TODO(b/312454528) - add timestep check such that error=0 is appropriate
-    stepper_numeric_outputs = state.StepperNumericOutputs(
-        outer_stepper_iterations=1,
-        stepper_error_state=0,
+    solver_numeric_outputs = state.SolverNumericOutputs(
+        outer_solver_iterations=1,
+        solver_error_state=0,
         inner_solver_iterations=1,
     )
 
@@ -156,7 +156,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
             explicit_source_profiles=explicit_source_profiles,
         ),
         state.CoreTransport.zeros(geo_t),
-        stepper_numeric_outputs,
+        solver_numeric_outputs,
     )
 
 

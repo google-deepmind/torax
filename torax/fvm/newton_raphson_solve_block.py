@@ -105,7 +105,7 @@ def newton_raphson_solve_block(
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
-    state_module.StepperNumericOutputs,
+    state_module.SolverNumericOutputs,
     block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
@@ -184,7 +184,7 @@ def newton_raphson_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    stepper_numeric_outputs: state_module.StepperNumericOutputs. Iteration and
+    solver_numeric_outputs: state_module.SolverNumericOutputs. Iteration and
       error info. For the error, 0 signifies residual < tol at exit, 1 signifies
       residual > tol, steps became small.
     aux_output: Extra auxiliary output from calc_coeffs.
@@ -329,10 +329,10 @@ def newton_raphson_solve_block(
           lambda: 1,  # Called when False
       ),
   )
-  stepper_numeric_outputs = state_module.StepperNumericOutputs(
+  solver_numeric_outputs = state_module.SolverNumericOutputs(
       inner_solver_iterations=int(output_state['iterations']),
-      stepper_error_state=error,
-      outer_stepper_iterations=1,
+      solver_error_state=error,
+      outer_solver_iterations=1,
   )
 
   coeffs_final = coeffs_callback(
@@ -343,7 +343,7 @@ def newton_raphson_solve_block(
       allow_pereverzev=True,
   )
 
-  return x_new, stepper_numeric_outputs, coeffs_final.auxiliary_outputs
+  return x_new, solver_numeric_outputs, coeffs_final.auxiliary_outputs
 
 
 def residual_scalar(x):

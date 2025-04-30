@@ -472,22 +472,22 @@ class PostProcessedOutputs:
 
 
 @chex.dataclass
-class StepperNumericOutputs:
-  """Numerical quantities related to the stepper.
+class SolverNumericOutputs:
+  """Numerical quantities related to the solver.
 
   Attributes:
-    outer_stepper_iterations: Number of iterations performed in the outer loop
-      of the stepper.
-    stepper_error_state: 0 if solver converged with fine tolerance for this step
+    outer_solver_iterations: Number of iterations performed in the outer loop
+      of the solver.
+    solver_error_state: 0 if solver converged with fine tolerance for this step
       1 if solver did not converge for this step (was above coarse tol) 2 if
       solver converged within coarse tolerance. Allowed to pass with a warning.
       Occasional error=2 has low impact on final sim state.
     inner_solver_iterations: Total number of iterations performed in the solver
-      across all iterations of the stepper.
+      across all iterations of the solver.
   """
 
-  outer_stepper_iterations: int = 0
-  stepper_error_state: int = 0
+  outer_solver_iterations: int = 0
+  solver_error_state: int = 0
   inner_solver_iterations: int = 0
 
 
@@ -549,7 +549,7 @@ class ToraxSimState:
       for overarching workflows, calculated after each simulation step.
     geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
-    stepper_numeric_outputs: Numerical quantities related to the stepper.
+    solver_numeric_outputs: Numerical quantities related to the solver.
     sawtooth_crash: True if a sawtooth model is active and the state
       corresponds to a post-sawtooth-crash state.
   """
@@ -560,7 +560,7 @@ class ToraxSimState:
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
   geometry: geometry.Geometry
-  stepper_numeric_outputs: StepperNumericOutputs
+  solver_numeric_outputs: SolverNumericOutputs
   sawtooth_crash: bool = False
 
   def check_for_errors(self) -> SimError:

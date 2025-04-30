@@ -43,7 +43,7 @@ class LinearThetaMethod(stepper_lib.Solver):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.StepperNumericOutputs,
+      state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
 
@@ -101,9 +101,9 @@ class LinearThetaMethod(stepper_lib.Solver):
     )
     core_sources, core_transport = coeffs_final.auxiliary_outputs
 
-    stepper_numeric_outputs = state.StepperNumericOutputs(
+    solver_numeric_outputs = state.SolverNumericOutputs(
         inner_solver_iterations=1,
-        stepper_error_state=0,  # linear method always works
+        solver_error_state=0,  # linear method always works
     )
 
-    return x_new, core_sources, core_transport, stepper_numeric_outputs
+    return x_new, core_sources, core_transport, solver_numeric_outputs

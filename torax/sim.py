@@ -240,11 +240,11 @@ def _log_timestep(
   log_str = (
       f'Simulation time: {sim_state.t:.5f}, previous dt: {sim_state.dt:.6f},'
       ' previous stepper iterations:'
-      f' {sim_state.stepper_numeric_outputs.outer_stepper_iterations}'
+      f' {sim_state.solver_numeric_outputs.outer_solver_iterations}'
   )
   # TODO(b/330172917): once tol and coarse_tol are configurable in the
   # runtime_params, also log the value of tol and coarse_tol below
-  match sim_state.stepper_numeric_outputs.stepper_error_state:
+  match sim_state.solver_numeric_outputs.solver_error_state:
     case 0:
       pass
     case 1:

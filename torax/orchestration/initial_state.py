@@ -89,9 +89,9 @@ def _get_initial_state(
       # This will be overridden within run_simulation().
       core_sources=initial_core_sources,
       core_transport=state.CoreTransport.zeros(geo),
-      stepper_numeric_outputs=state.StepperNumericOutputs(
-          stepper_error_state=0,
-          outer_stepper_iterations=0,
+      solver_numeric_outputs=state.SolverNumericOutputs(
+          solver_error_state=0,
+          outer_solver_iterations=0,
           inner_solver_iterations=0,
       ),
       geometry=geo,

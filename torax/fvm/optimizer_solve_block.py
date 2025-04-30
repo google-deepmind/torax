@@ -59,7 +59,7 @@ def optimizer_solve_block(
     tol: float,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
-    state.StepperNumericOutputs,
+    state.SolverNumericOutputs,
     block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
@@ -119,7 +119,7 @@ def optimizer_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    stepper_numeric_outputs: StepperNumericOutputs. Info about iterations and
+    solver_numeric_outputs: SolverNumericOutputs. Info about iterations and
       errors
     aux_output: Extra auxiliary output from the calc_coeffs.
   """
@@ -171,14 +171,14 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  stepper_numeric_outputs = state.StepperNumericOutputs()
+  solver_numeric_outputs = state.SolverNumericOutputs()
 
   # Advance jaxopt_solver by one timestep
   (
       x_new_vec,
       final_loss,
       _,
-      stepper_numeric_outputs.inner_solver_iterations,
+      solver_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
@@ -205,7 +205,7 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  stepper_numeric_outputs.stepper_error_state = jax.lax.cond(
+  solver_numeric_outputs.solver_error_state = jax.lax.cond(
       final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
@@ -219,4 +219,4 @@ def optimizer_solve_block(
       allow_pereverzev=True,
   )
 
-  return x_new, stepper_numeric_outputs, coeffs_final.auxiliary_outputs
+  return x_new, solver_numeric_outputs, coeffs_final.auxiliary_outputs
