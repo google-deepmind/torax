@@ -83,12 +83,12 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
 
   # The variables in the nc files which to compare and print out the diffs
   profile_names = [
-      'temp_ion',
-      'temp_el',
-      'ne',
+      'T_i',
+      'T_e',
+      'n_e',
       'psi',
-      'q_face',
-      's_face',
+      'q',
+      'magnetic_shear',
   ]
   # Load the Datasets
   ds_old = output.safe_load_dataset(old_file).children['core_profiles']
