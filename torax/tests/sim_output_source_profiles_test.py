@@ -32,7 +32,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
-from torax.tests.test_lib import explicit_stepper as explicit_solver_lib
+from torax.tests.test_lib import explicit_solver as explicit_solver_lib
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
