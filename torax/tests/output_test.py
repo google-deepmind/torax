@@ -192,15 +192,15 @@ class StateHistoryTest(parameterized.TestCase):
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
-    sources_dataset = output_xr.children[output.CORE_SOURCES].dataset
-    self.assertIn('p_alpha_i', sources_dataset.data_vars)
-    self.assertIn('p_alpha_e', sources_dataset.data_vars)
+    profiles_dataset = output_xr.children[output.PROFILES].dataset
+    self.assertIn('p_alpha_i', profiles_dataset.data_vars)
+    self.assertIn('p_alpha_e', profiles_dataset.data_vars)
     np.testing.assert_allclose(
-        sources_dataset.data_vars['p_alpha_i'].values[0, ...],
+        profiles_dataset.data_vars['p_alpha_i'].values[0, ...],
         self.source_profiles.temp_ion['fusion'],
     )
     np.testing.assert_allclose(
-        sources_dataset.data_vars['p_alpha_e'].values[0, ...],
+        profiles_dataset.data_vars['p_alpha_e'].values[0, ...],
         self.source_profiles.temp_el['fusion'],
     )
 
@@ -222,7 +222,6 @@ class StateHistoryTest(parameterized.TestCase):
     data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
         output.CORE_PROFILES,
-        output.CORE_SOURCES,
         output.POST_PROCESSED_OUTPUTS,
         output.PROFILES,
         output.SCALARS,
@@ -429,10 +428,6 @@ class StateHistoryTest(parameterized.TestCase):
     with self.subTest('core_profiles_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(
           output_xr.children[output.CORE_PROFILES].dataset
-      )
-    with self.subTest('core_sources_are_saved'):
-      check_data_vars_saved_in_profiles_or_scalars(
-          output_xr.children[output.CORE_SOURCES].dataset
       )
     with self.subTest('post_processed_outputs_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(

@@ -313,7 +313,6 @@ def load_data(filename: str) -> PlotData:
 
   data_tree = xr.map_over_datasets(_transform_data, data_tree)
   core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
-  core_sources_dataset = data_tree.children[output.CORE_SOURCES].dataset
   profiles_dataset = data_tree.children[output.PROFILES].dataset
   post_processed_outputs_dataset = data_tree.children[
       output.POST_PROCESSED_OUTPUTS
@@ -335,11 +334,9 @@ def load_data(filename: str) -> PlotData:
       external_current_source=core_profiles_dataset[
           output.J_EXTERNAL
       ].to_numpy(),
-      j_ecrh=get_optional_data(
-          core_sources_dataset, 'j_ecrh', 'cell'
-      ),
+      j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
       generic_current=get_optional_data(
-          core_sources_dataset, 'j_generic_current', 'cell'
+          profiles_dataset, 'j_generic_current', 'cell'
       ),
       q=core_profiles_dataset[output.Q].to_numpy(),
       s=core_profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
@@ -349,46 +346,28 @@ def load_data(filename: str) -> PlotData:
       v_e=profiles_dataset[output.V_TURB_E].to_numpy(),
       rho_cell_coord=dataset[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=dataset[output.RHO_FACE_NORM].to_numpy(),
-      q_icrh_i=get_optional_data(
-          core_sources_dataset, 'p_icrh_i', 'cell'
-      ),
-      q_icrh_e=get_optional_data(
-          core_sources_dataset, 'p_icrh_e', 'cell'
-      ),
-      q_gen_i=get_optional_data(
-          core_sources_dataset, 'p_generic_heat_i', 'cell'
-      ),
-      q_gen_e=get_optional_data(
-          core_sources_dataset, 'p_generic_heat_e', 'cell'
-      ),
-      q_ecrh=get_optional_data(
-          core_sources_dataset, 'p_ecrh_e', 'cell'
-      ),
-      q_alpha_i=get_optional_data(
-          core_sources_dataset, 'p_fusion_i', 'cell'
-      ),
-      q_alpha_e=get_optional_data(
-          core_sources_dataset, 'p_fusion_e', 'cell'
-      ),
-      q_ohmic=get_optional_data(
-          core_sources_dataset, 'p_ohmic_e', 'cell'
-      ),
-      q_brems=get_optional_data(
-          core_sources_dataset, 'p_bremsstrahlung_e', 'cell'
-      ),
+      q_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
+      q_icrh_e=get_optional_data(profiles_dataset, 'p_icrh_e', 'cell'),
+      q_gen_i=get_optional_data(profiles_dataset, 'p_generic_heat_i', 'cell'),
+      q_gen_e=get_optional_data(profiles_dataset, 'p_generic_heat_e', 'cell'),
+      q_ecrh=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
+      q_alpha_i=get_optional_data(profiles_dataset, 'p_fusion_i', 'cell'),
+      q_alpha_e=get_optional_data(profiles_dataset, 'p_fusion_e', 'cell'),
+      q_ohmic=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
+      q_brems=get_optional_data(profiles_dataset, 'p_bremsstrahlung_e', 'cell'),
       q_cycl=get_optional_data(
-          core_sources_dataset, 'p_cyclotron_radiation_e', 'cell'
+          profiles_dataset, 'p_cyclotron_radiation_e', 'cell'
       ),
       q_rad=get_optional_data(
-          core_sources_dataset, 'p_impurity_radiation_e', 'cell'
+          profiles_dataset, 'p_impurity_radiation_e', 'cell'
       ),
-      q_ei=core_sources_dataset['ei_exchange'].to_numpy(),  # ion heating/sink
+      q_ei=profiles_dataset['ei_exchange'].to_numpy(),  # ion heating/sink
       Q_fusion=post_processed_outputs_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
-      s_puff=get_optional_data(core_sources_dataset, 'gas_puff', 'cell'),
+      s_puff=get_optional_data(profiles_dataset, 'gas_puff', 'cell'),
       s_generic=get_optional_data(
-          core_sources_dataset, 's_generic_particle', 'cell'
+          profiles_dataset, 's_generic_particle', 'cell'
       ),
-      s_pellet=get_optional_data(core_sources_dataset, 's_pellet', 'cell'),
+      s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
       i_total=core_profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
       i_bootstrap=core_profiles_dataset[output.I_BOOTSTRAP].to_numpy(),
       i_generic=post_processed_outputs_dataset['I_aux_generic'].to_numpy(),

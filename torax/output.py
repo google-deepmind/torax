@@ -90,9 +90,6 @@ Q_FUSION = "Q_fusion"
 # Simulation error state.
 SIM_ERROR = "sim_error"
 
-# Sources.
-CORE_SOURCES = "core_sources"
-
 # Boolean array indicating whether the state corresponds to a
 # post-sawtooth-crash state.
 SAWTOOTH_CRASH = "sawtooth_crash"
@@ -543,10 +540,6 @@ class StateHistory:
       else:
         raise ValueError(f"Duplicate key: {key}")
     core_profiles_ds = xr.Dataset(core_profiles_dict, coords=coords)
-    core_sources_ds = xr.Dataset(
-        core_sources_dict,
-        coords=coords,
-    )
     post_processed_outputs_ds = xr.Dataset(
         post_processed_outputs_dict, coords=coords
     )
@@ -581,7 +574,6 @@ class StateHistory:
             PROFILES: xr.DataTree(dataset=profiles),
             SCALARS: xr.DataTree(dataset=scalars),
             CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
-            CORE_SOURCES: xr.DataTree(dataset=core_sources_ds),
             POST_PROCESSED_OUTPUTS: xr.DataTree(
                 dataset=post_processed_outputs_ds
             ),
