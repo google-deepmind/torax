@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The ExplicitStepper class.
+"""The ExplicitSolver class.
 
-The explicit stepper is not intended to perform well; it is included only for
+The explicit solver is not intended to perform well; it is included only for
 testing purposes. The implementation is intentionally flat with relatively
 few configuration options, etc., to ensure reliability for testing purposes.
 """
@@ -34,11 +34,11 @@ from torax.physics import psi_calculations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import linear_theta_method
-from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.stepper import pydantic_model as solver_pydantic_model
 from torax.transport_model import constant as constant_transport_model
 
 
-class ExplicitStepper(linear_theta_method.LinearThetaMethod):
+class ExplicitSolver(linear_theta_method.LinearThetaMethod):
   """Explicit time step update.
 
   Coefficients of the various terms are computed at each timestep even though it
@@ -67,7 +67,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
-    """Applies a time step update. See Stepper.__call__ docstring."""
+    """Applies a time step update. See Solver.__call__ docstring."""
 
     # pylint: disable=invalid-name
 
@@ -160,15 +160,15 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
     )
 
 
-class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
-  """Fake stepper config that allows us to hook into the error logic."""
+class ExplicitSolverConfig(solver_pydantic_model.LinearThetaMethod):
+  """Fake solver config that allows us to hook into the error logic."""
 
   solver_type: Literal['explicit'] = 'explicit'
 
   def build_solver(
       self, transport_model, source_models, pedestal_model
-  ) -> 'ExplicitStepper':
-    return ExplicitStepper(
+  ) -> 'ExplicitSolver':
+    return ExplicitSolver(
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,

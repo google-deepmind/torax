@@ -93,7 +93,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     """Tests that the source profiles contain correct data."""
     model_config.ToraxConfig.model_fields[
         'solver'
-    ].annotation |= explicit_solver_lib.ExplicitStepperConfig
+    ].annotation |= explicit_solver_lib.ExplicitSolverConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
     config = {
