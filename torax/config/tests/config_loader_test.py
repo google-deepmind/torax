@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import pathlib
 import typing
 from unittest import mock
@@ -50,10 +51,20 @@ class ConfigLoaderTest(parameterized.TestCase):
 
   @parameterized.product(
       use_string=[True, False],
+      relative_to=[None, "working", "torax"],
       path=list(config_loader.example_config_paths().values()),
   )
-  def test_import_config(self, use_string: bool, path: pathlib.Path):
-    path = str(path) if use_string else path
+  def test_import_config(
+      self, use_string: bool, relative_to: str | None, path: pathlib.Path
+  ):
+    if relative_to == "working":
+      path = path.relative_to(os.getcwd())
+    if relative_to == "torax":
+      path = path.relative_to(config_loader.torax_path())
+
+    if use_string:
+      path = str(path)
+
     config_dict = config_loader.import_config(path)
 
     with self.subTest("is_valid_dict"):
@@ -66,8 +77,11 @@ class ConfigLoaderTest(parameterized.TestCase):
       self.assertNotIn("new_invalid_key", config_dict_2)
 
   def test_import_config_invalid_path(self):
+    fake_file = pathlib.Path("/invalid/path/not_a_file.py")
+    self.assertFalse(fake_file.is_file())
+
     with self.assertRaises(ValueError):
-      config_loader.import_config("/invalid/path/not_a_file.py")
+      config_loader.import_config(fake_file)
 
   @parameterized.product(
       path=list(config_loader.example_config_paths().values()),

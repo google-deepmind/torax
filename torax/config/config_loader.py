@@ -16,6 +16,7 @@
 
 import importlib
 import logging
+import os
 import pathlib
 import sys
 import types
@@ -95,7 +96,9 @@ def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
 
 # Taken from
 # https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
-def _import_from_path(module_name: str, file_path: str) -> types.ModuleType:
+def _import_from_path(
+    module_name: str, file_path: pathlib.Path
+) -> types.ModuleType:
 
   spec = importlib.util.spec_from_file_location(module_name, file_path)
   module = importlib.util.module_from_spec(spec)
@@ -108,19 +111,34 @@ def _import_from_path(module_name: str, file_path: str) -> types.ModuleType:
 
 
 def import_config(path: str | pathlib.Path) -> dict[str, Any]:
-  """Import a Torax config from a file.
+  """Import a Python module from a file path as a dictionary.
+
+  Relative paths are first resolved relative to the working directory, and then
+  relative to the Torax directory.
 
   Args:
-    path: The absolute path to the config file. The path can be represented as a
-      string or a `pathlib.Path` object.
+    path: The absolute or relative path to the Python module. The path can be
+      represented as a string or a `pathlib.Path` object.
 
   Returns:
-    A dictionary of config values.
+    All variables in the module as a dictionary.
   """
 
   path = pathlib.Path(path) if isinstance(path, str) else path
+
   if not path.is_file():
-    raise ValueError(f'Path {path} is not a file.')
+    # path.is_file() will return True if either path is an absolute path and it
+    # exists, or if it is a relative path and it exists relative to the working
+    # directory. In this case, neither was successful, so check whether this
+    # path exists relative to the Torax directory.
+    new_path = torax_path().joinpath(path)
+    if not new_path.is_file():
+      raise ValueError(
+          f'The file {path} could not be found. If it is a relative path, it'
+          ' could not be resolved relative to the working directory'
+          f' { os.getcwd()} or the Torax directory {torax_path()}.'
+      )
+    path = new_path
 
   # An arbitrary module name is needed to import the config file.
   arbitrary_module_name = '_torax_temp_config_import'
