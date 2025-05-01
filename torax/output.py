@@ -75,9 +75,6 @@ CHI_GYROBOHM_E = "chi_gyrobohm_e"
 CHI_BOHM_I = "chi_bohm_i"
 CHI_GYROBOHM_I = "chi_gyrobohm_i"
 
-# Geometry.
-GEOMETRY = "geometry"
-
 # Coordinates.
 RHO_FACE_NORM = "rho_face_norm"
 RHO_CELL_NORM = "rho_cell_norm"
@@ -557,7 +554,6 @@ class StateHistory:
     post_processed_outputs_ds = xr.Dataset(
         post_processed_outputs_dict, coords=coords
     )
-    geometry_ds = xr.Dataset(geometry_dict, coords=coords)
     top_level_xr_dict = {
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
@@ -594,7 +590,6 @@ class StateHistory:
             POST_PROCESSED_OUTPUTS: xr.DataTree(
                 dataset=post_processed_outputs_ds
             ),
-            GEOMETRY: xr.DataTree(dataset=geometry_ds),
         },
         dataset=xr.Dataset(
             top_level_xr_dict,

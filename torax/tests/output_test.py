@@ -147,7 +147,7 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
-    saved_rmaj = output_xr.children[output.GEOMETRY].dataset.data_vars[
+    saved_rmaj = output_xr.children[output.SCALARS].dataset.data_vars[
         'R_major'
     ]
     np.testing.assert_allclose(
@@ -162,13 +162,13 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = self.history.simulation_output_to_xr()
     # Check that the face and cell var for "volume" was merged.
     self.assertIn(
-        'volume', output_xr.children[output.GEOMETRY].dataset.data_vars
+        'volume', output_xr.children[output.PROFILES].dataset.data_vars
     )
     self.assertNotIn(
-        'volume_face', output_xr.children[output.GEOMETRY].dataset.data_vars
+        'volume_face', output_xr.children[output.PROFILES].dataset.data_vars
     )
     volume_values = (
-        output_xr.children[output.GEOMETRY].dataset.data_vars['volume'].values
+        output_xr.children[output.PROFILES].dataset.data_vars['volume'].values
     )
     chex.assert_shape(
         volume_values,
@@ -214,7 +214,6 @@ class StateHistoryTest(parameterized.TestCase):
         output.CORE_TRANSPORT,
         output.CORE_SOURCES,
         output.POST_PROCESSED_OUTPUTS,
-        output.GEOMETRY,
         output.PROFILES,
         output.SCALARS,
         output.NUMERICS,
@@ -432,10 +431,6 @@ class StateHistoryTest(parameterized.TestCase):
     with self.subTest('post_processed_outputs_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(
           output_xr.children[output.POST_PROCESSED_OUTPUTS].dataset
-      )
-    with self.subTest('geometry_are_saved'):
-      check_data_vars_saved_in_profiles_or_scalars(
-          output_xr.children[output.GEOMETRY].dataset
       )
 
 
