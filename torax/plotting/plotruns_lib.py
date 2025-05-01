@@ -257,8 +257,14 @@ def load_data(filename: str) -> PlotData:
           else np.zeros((len(time), len(ds[output.RHO_FACE_NORM].to_numpy())))
       )
 
+  nref = np.expand_dims(
+      data_tree.children[output.SCALARS].dataset[output.N_REF].to_numpy(),
+      axis=1,
+  )
+
   def _transform_data(ds: xr.Dataset):
     """Transforms data in-place to the desired units."""
+    # TODO(b/414755419)
     ds = ds.copy()
 
     transformations = {
@@ -294,18 +300,14 @@ def load_data(filename: str) -> PlotData:
         'I_ecrh': 1e6,  # A to MA
         'I_aux_generic': 1e6,  # A to MA
         'W_thermal_tot': 1e6,  # J to MJ
+        output.N_E: nref / 1e20,
+        output.N_I: nref / 1e20,
+        output.N_IMPURITY: nref / 1e20,
     }
 
     for var_name, scale in transformations.items():
       if var_name in ds:
         ds[var_name] /= scale
-
-    # For density transformations we need nref which is only available in the
-    # core_profiles dataset. Do these separately.
-    if output.N_REF in ds:
-      ds[output.N_E] *= ds[output.N_REF][0].values / 1e20
-      ds[output.N_I] *= ds[output.N_REF][0].values / 1e20
-      ds[output.N_IMPURITY] *= ds[output.N_REF][0].values / 1e20
 
     return ds
 

@@ -16,6 +16,7 @@
 
 import dataclasses
 import inspect
+import itertools
 
 from absl import logging
 import chex
@@ -31,6 +32,11 @@ import xarray as xr
 
 import os
 
+
+# Dataset names.
+PROFILES = "profiles"
+SCALARS = "scalars"
+NUMERICS = "numerics"
 
 # Core profiles.
 CORE_PROFILES = "core_profiles"
@@ -84,6 +90,7 @@ TIME = "time"
 POST_PROCESSED_OUTPUTS = "post_processed_outputs"
 Q_FUSION = "Q_fusion"
 
+# Numerics.
 # Simulation error state.
 SIM_ERROR = "sim_error"
 
@@ -429,6 +436,7 @@ class StateHistory:
           or "face" in field_name
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
+          or field_name == "j_total"
           or not isinstance(data, jax.Array)
       ):
         continue
@@ -436,6 +444,9 @@ class StateHistory:
         data = _extend_cell_grid_to_boundaries(
             data, geometry_attributes[f"{field_name}_face"]
         )
+      if field_name == "psi":
+        # Psi also exists in core profiles so rename to avoid duplicate.
+        field_name = "psi_from_geo"
       data_array = self._pack_into_data_array(
           field_name,
           data,
@@ -489,6 +500,10 @@ class StateHistory:
         - post_processed_outputs: Contains data variables for quantities in the
           PostProcessedOutputs.
         - geometry: Contains data variables for quantities in the Geometry.
+        - numerics: Contains data variables for numeric quantities to do with
+            the simulation.
+        - profiles: Contains data variables for 1D profiles.
+        - scalars: Contains data variables for scalars.
     """
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
@@ -515,24 +530,64 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    core_profiles_ds = xr.Dataset(self._get_core_profiles(), coords=coords)
-    core_transport_ds = xr.Dataset(self._save_core_transport(), coords=coords)
+    core_profiles_dict = self._get_core_profiles()
+    core_transport_dict = self._save_core_transport()
+    core_sources_dict = self._save_core_sources()
+    post_processed_outputs_dict = self._save_post_processed_outputs()
+    geometry_dict = self._save_geometry()
+    all_dicts = [
+        core_profiles_dict,
+        core_transport_dict,
+        core_sources_dict,
+        post_processed_outputs_dict,
+        geometry_dict,
+    ]
+    flat_dict = {}
+    for key, value in itertools.chain(*(d.items() for d in all_dicts)):
+      if key not in flat_dict:
+        flat_dict[key] = value
+      else:
+        raise ValueError(f"Duplicate key: {key}")
+    core_profiles_ds = xr.Dataset(core_profiles_dict, coords=coords)
+    core_transport_ds = xr.Dataset(core_transport_dict, coords=coords)
     core_sources_ds = xr.Dataset(
-        self._save_core_sources(),
+        core_sources_dict,
         coords=coords,
     )
     post_processed_outputs_ds = xr.Dataset(
-        self._save_post_processed_outputs(), coords=coords
+        post_processed_outputs_dict, coords=coords
     )
-    geometry_ds = xr.Dataset(self._save_geometry(), coords=coords)
+    geometry_ds = xr.Dataset(geometry_dict, coords=coords)
     top_level_xr_dict = {
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
             self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
         ),
     }
+    numerics_dict = {
+        SIM_ERROR: self.sim_error.value,
+        SAWTOOTH_CRASH: xr.DataArray(
+            self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
+        ),
+    }
+    numerics = xr.Dataset(numerics_dict)
+    profiles_dict = {
+        k: v
+        for k, v in flat_dict.items()
+        if v is not None and v.values.ndim == 2  # pytype: disable=attribute-error
+    }
+    profiles = xr.Dataset(profiles_dict)
+    scalars_dict = {
+        k: v
+        for k, v in flat_dict.items()
+        if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
+    }
+    scalars = xr.Dataset(scalars_dict)
     data_tree = xr.DataTree(
         children={
+            NUMERICS: xr.DataTree(dataset=numerics),
+            PROFILES: xr.DataTree(dataset=profiles),
+            SCALARS: xr.DataTree(dataset=scalars),
             CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
             CORE_TRANSPORT: xr.DataTree(dataset=core_transport_ds),
             CORE_SOURCES: xr.DataTree(dataset=core_sources_ds),

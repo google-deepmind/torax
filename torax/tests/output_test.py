@@ -63,7 +63,6 @@ class StateHistoryTest(parameterized.TestCase):
     })
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
-    print(self.geo.rho_norm)
     ones = jnp.ones_like(self.geo.rho)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -148,7 +147,6 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
-    print(output_xr.children[output.GEOMETRY].dataset.data_vars)
     saved_rmaj = output_xr.children[output.GEOMETRY].dataset.data_vars[
         'R_major'
     ]
@@ -217,6 +215,9 @@ class StateHistoryTest(parameterized.TestCase):
         output.CORE_SOURCES,
         output.POST_PROCESSED_OUTPUTS,
         output.GEOMETRY,
+        output.PROFILES,
+        output.SCALARS,
+        output.NUMERICS,
     ]
     for key in expected_child_keys:
       self.assertIn(key, data_tree.children)
@@ -338,6 +339,104 @@ class StateHistoryTest(parameterized.TestCase):
         .values,
         np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
     )
+
+  def test_output_profiles_are_correct_shape(self):
+    output_xr = self.history.simulation_output_to_xr()
+    profile_output_dataset = output_xr.children[output.PROFILES].dataset
+    self.assertCountEqual(
+        profile_output_dataset.coords,
+        {
+            output.TIME,
+            output.RHO_NORM,
+            output.RHO_FACE_NORM,
+            output.RHO_CELL_NORM,
+        },
+    )
+    for data_var, data_array in profile_output_dataset.data_vars.items():
+      # Check the shape of the underlying data.
+      data_array_shape = data_array.values.shape
+      self.assertLen(
+          data_array_shape,
+          2,
+          msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+      )
+      data_array_dims = data_array.dims
+      self.assertEqual(data_array_dims[0], output.TIME)
+      self.assertIn(
+          data_array_dims[1],
+          [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+      )
+
+  def test_output_scalars_are_correct_shape(self):
+    output_xr = self.history.simulation_output_to_xr()
+    scalar_output_dataset = output_xr.children[output.SCALARS].dataset
+    # Check coordinates are inherited from top level dataset.
+    self.assertCountEqual(
+        scalar_output_dataset.coords,
+        {
+            output.TIME,
+            output.RHO_NORM,
+            output.RHO_FACE_NORM,
+            output.RHO_CELL_NORM,
+        },
+    )
+    for data_var, data_array in scalar_output_dataset.data_vars.items():
+      # Check the shape of the underlying data.
+      data_array_shape = data_array.values.shape
+      self.assertIn(
+          len(data_array_shape),
+          [0, 1],
+          msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+      )
+      data_array_dims = data_array.dims
+      if data_array_dims:
+        self.assertEqual(data_array_dims[0], output.TIME)
+
+  def test_profiles_and_scalars_are_all_saved(self):
+    """Temporary test to check profiles and scalars are saved equivalently."""
+    output_xr = self.history.simulation_output_to_xr()
+
+    def check_data_vars_saved_in_profiles_or_scalars(ds: xr.Dataset):
+      for data_var, data_array in ds.data_vars.items():
+        in_profiles = (
+            data_var in output_xr.children[output.PROFILES].dataset.data_vars
+        )
+        in_scalars = (
+            data_var in output_xr.children[output.SCALARS].dataset.data_vars
+        )
+        self.assertTrue(
+            in_profiles or in_scalars,
+            msg=f'Data var {data_var} is not in profiles or scalars.',
+        )
+        if in_profiles:
+          data_array = output_xr.children[output.PROFILES].dataset.data_vars[
+              data_var
+          ]
+        elif in_scalars:
+          data_array = output_xr.children[output.SCALARS].dataset.data_vars[
+              data_var
+          ]
+        xr.testing.assert_equal(data_array, ds[data_var])
+    with self.subTest('core_profiles_are_saved'):
+      check_data_vars_saved_in_profiles_or_scalars(
+          output_xr.children[output.CORE_PROFILES].dataset
+      )
+    with self.subTest('core_transport_are_saved'):
+      check_data_vars_saved_in_profiles_or_scalars(
+          output_xr.children[output.CORE_TRANSPORT].dataset
+      )
+    with self.subTest('core_sources_are_saved'):
+      check_data_vars_saved_in_profiles_or_scalars(
+          output_xr.children[output.CORE_SOURCES].dataset
+      )
+    with self.subTest('post_processed_outputs_are_saved'):
+      check_data_vars_saved_in_profiles_or_scalars(
+          output_xr.children[output.POST_PROCESSED_OUTPUTS].dataset
+      )
+    with self.subTest('geometry_are_saved'):
+      check_data_vars_saved_in_profiles_or_scalars(
+          output_xr.children[output.GEOMETRY].dataset
+      )
 
 
 if __name__ == '__main__':
