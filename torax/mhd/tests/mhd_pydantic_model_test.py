@@ -70,11 +70,11 @@ class MHDPydanticModelTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['mhd'] = {
         'sawtooth': {
-            'trigger_model_config': {
+            'trigger_model': {
                 'trigger_model_type': 'simple',
                 'minimum_radius': 0.06,
             },
-            'redistribution_model_config': {
+            'redistribution_model': {
                 'redistribution_model_type': 'simple'
             },
         }

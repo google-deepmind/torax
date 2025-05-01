@@ -28,16 +28,16 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for sawtooth configuration.
 
   Attributes:
-    trigger_model_config: Configuration for the trigger model.
-    redistribution_model_config: Configuration for the redistribution model.
+    trigger_model: Configuration for the trigger model.
+    redistribution_model: Configuration for the redistribution model.
     crash_step_duration: Sawteeth crash period for extra timestep generated.
   """
 
-  trigger_model_config: Union[simple_trigger.SimpleTriggerConfig] = (
+  trigger_model: Union[simple_trigger.SimpleTriggerConfig] = (
       pydantic.Field(discriminator='trigger_model_type')
   )
 
-  redistribution_model_config: (
+  redistribution_model: (
       simple_redistribution.SimpleRedistributionConfig
   ) = pydantic.Field(discriminator='redistribution_model_type')
 
@@ -45,8 +45,8 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
 
   def build_model(self) -> sawtooth_model.SawtoothModel:
     return sawtooth_model.SawtoothModel(
-        trigger_model=self.trigger_model_config.build_trigger_model(),
-        redistribution_model=self.redistribution_model_config.build_redistribution_model(),
+        trigger_model=self.trigger_model.build_trigger_model(),
+        redistribution_model=self.redistribution_model.build_redistribution_model(),
     )
 
   def build_dynamic_params(
@@ -54,8 +54,8 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
   ) -> sawtooth_runtime_params.DynamicRuntimeParams:
     return sawtooth_runtime_params.DynamicRuntimeParams(
         crash_step_duration=self.crash_step_duration,
-        trigger_params=self.trigger_model_config.build_dynamic_params(t),
-        redistribution_params=self.redistribution_model_config.build_dynamic_params(
+        trigger_params=self.trigger_model.build_dynamic_params(t),
+        redistribution_params=self.redistribution_model.build_dynamic_params(
             t
         ),
     )
