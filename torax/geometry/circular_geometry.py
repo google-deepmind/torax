@@ -224,4 +224,6 @@ def build_circular_geometry(
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
       _z_magnetic_axis=np.asarray(0.0),
+      _z_boundary_outline=None,
+      _r_boundary_outline=None,
   )
