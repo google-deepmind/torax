@@ -65,7 +65,6 @@ IP = "Ip"
 VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
-CORE_TRANSPORT = "core_transport"
 CHI_TURB_I = "chi_turb_i"
 CHI_TURB_E = "chi_turb_e"
 D_TURB_E = "D_turb_e"
@@ -490,8 +489,6 @@ class StateHistory:
       The child datasets contain the following variables:
         - core_profiles: Contains data variables for quantities in the
           CoreProfiles.
-        - core_transport: Contains data variables for quantities in the
-          CoreTransport.
         - core_sources: Contains data variables for quantities in the
           CoreSources.
         - post_processed_outputs: Contains data variables for quantities in the
@@ -546,7 +543,6 @@ class StateHistory:
       else:
         raise ValueError(f"Duplicate key: {key}")
     core_profiles_ds = xr.Dataset(core_profiles_dict, coords=coords)
-    core_transport_ds = xr.Dataset(core_transport_dict, coords=coords)
     core_sources_ds = xr.Dataset(
         core_sources_dict,
         coords=coords,
@@ -585,7 +581,6 @@ class StateHistory:
             PROFILES: xr.DataTree(dataset=profiles),
             SCALARS: xr.DataTree(dataset=scalars),
             CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
-            CORE_TRANSPORT: xr.DataTree(dataset=core_transport_ds),
             CORE_SOURCES: xr.DataTree(dataset=core_sources_ds),
             POST_PROCESSED_OUTPUTS: xr.DataTree(
                 dataset=post_processed_outputs_ds

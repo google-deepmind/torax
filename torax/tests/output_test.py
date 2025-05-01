@@ -127,6 +127,17 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
 
+  def test_core_transport_is_saved(self):
+    """Tests that the core transport is saved correctly."""
+    output_xr = self.history.simulation_output_to_xr()
+    core_transport_dataset = output_xr.children[output.PROFILES].dataset
+    self.assertIn(output.CHI_TURB_I, core_transport_dataset.data_vars)
+    # Spot check one of the expected variables.
+    self.assertEqual(
+        core_transport_dataset[output.CHI_TURB_I].values.shape,
+        (1, len(self.geo.rho_face_norm)),
+    )
+
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
     # Construct a second state with a slightly different geometry.
@@ -211,7 +222,6 @@ class StateHistoryTest(parameterized.TestCase):
     data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
         output.CORE_PROFILES,
-        output.CORE_TRANSPORT,
         output.CORE_SOURCES,
         output.POST_PROCESSED_OUTPUTS,
         output.PROFILES,
@@ -419,10 +429,6 @@ class StateHistoryTest(parameterized.TestCase):
     with self.subTest('core_profiles_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(
           output_xr.children[output.CORE_PROFILES].dataset
-      )
-    with self.subTest('core_transport_are_saved'):
-      check_data_vars_saved_in_profiles_or_scalars(
-          output_xr.children[output.CORE_TRANSPORT].dataset
       )
     with self.subTest('core_sources_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(

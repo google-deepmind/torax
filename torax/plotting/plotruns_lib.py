@@ -314,7 +314,7 @@ def load_data(filename: str) -> PlotData:
   data_tree = xr.map_over_datasets(_transform_data, data_tree)
   core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
   core_sources_dataset = data_tree.children[output.CORE_SOURCES].dataset
-  core_transport_dataset = data_tree.children[output.CORE_TRANSPORT].dataset
+  profiles_dataset = data_tree.children[output.PROFILES].dataset
   post_processed_outputs_dataset = data_tree.children[
       output.POST_PROCESSED_OUTPUTS
   ].dataset
@@ -343,10 +343,10 @@ def load_data(filename: str) -> PlotData:
       ),
       q=core_profiles_dataset[output.Q].to_numpy(),
       s=core_profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
-      chi_i=core_transport_dataset[output.CHI_TURB_I].to_numpy(),
-      chi_e=core_transport_dataset[output.CHI_TURB_E].to_numpy(),
-      d_e=core_transport_dataset[output.D_TURB_E].to_numpy(),
-      v_e=core_transport_dataset[output.V_TURB_E].to_numpy(),
+      chi_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
+      chi_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
+      d_e=profiles_dataset[output.D_TURB_E].to_numpy(),
+      v_e=profiles_dataset[output.V_TURB_E].to_numpy(),
       rho_cell_coord=dataset[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=dataset[output.RHO_FACE_NORM].to_numpy(),
       q_icrh_i=get_optional_data(
