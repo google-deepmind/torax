@@ -15,7 +15,7 @@
 """Carries out the predictor corrector method for the PDE solution.
 
 Picard iterations to approximate the nonlinear solution. If
-static_runtime_params_slice.stepper.predictor_corrector is False, reverts to a
+static_runtime_params_slice.solver.predictor_corrector is False, reverts to a
 standard linear solution.
 """
 from typing import Any
@@ -82,12 +82,12 @@ def predictor_corrector_method(
         x_new_guess=x_new_guess,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
-        theta_imp=static_runtime_params_slice.stepper.theta_imp,
+        theta_imp=static_runtime_params_slice.solver.theta_imp,
         convection_dirichlet_mode=(
-            static_runtime_params_slice.stepper.convection_dirichlet_mode
+            static_runtime_params_slice.solver.convection_dirichlet_mode
         ),
         convection_neumann_mode=(
-            static_runtime_params_slice.stepper.convection_neumann_mode
+            static_runtime_params_slice.solver.convection_neumann_mode
         ),
     )
 
@@ -96,10 +96,10 @@ def predictor_corrector_method(
   # TORAX_COMPILATION_ENABLED=False. This logic is in jax.utils_py_fori_loop.
   # If the static predictor_corrector=False, then compilation is faster, so
   # we maintain this option.
-  if static_runtime_params_slice.stepper.predictor_corrector:
+  if static_runtime_params_slice.solver.predictor_corrector:
     x_new = jax_utils.py_fori_loop(
         0,
-        dynamic_runtime_params_slice_t_plus_dt.stepper.corrector_steps + 1,
+        dynamic_runtime_params_slice_t_plus_dt.solver.corrector_steps + 1,
         loop_body,
         x_new_guess,
     )

@@ -40,7 +40,7 @@ def build_static_params_from_config(
           for source_name, source_config in config.sources.source_model_config.items()
       },
       torax_mesh=config.geometry.build_provider.torax_mesh,
-      stepper=config.stepper.build_static_params(),
+      solver=config.stepper.build_static_params(),
       ion_heat_eq=config.numerics.ion_heat_eq,
       el_heat_eq=config.numerics.el_heat_eq,
       current_eq=config.numerics.current_eq,
@@ -83,7 +83,7 @@ class DynamicRuntimeParamsSliceProvider:
     self._profile_conditions = torax_config.profile_conditions
     self._plasma_composition = torax_config.plasma_composition
     self._transport_model = torax_config.transport
-    self._stepper = torax_config.stepper
+    self._solver = torax_config.stepper
     self._pedestal = torax_config.pedestal
     self._mhd = torax_config.mhd
 
@@ -102,7 +102,7 @@ class DynamicRuntimeParamsSliceProvider:
     """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
     return runtime_params_slice.DynamicRuntimeParamsSlice(
         transport=self._transport_model.build_dynamic_params(t),
-        stepper=self._stepper.build_dynamic_params,
+        solver=self._solver.build_dynamic_params,
         sources={
             source_name: input_source_config.build_dynamic_params(t)
             for source_name, input_source_config in self._sources.source_model_config.items()

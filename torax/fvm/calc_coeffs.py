@@ -33,16 +33,7 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 class CoeffsCallback:
-  """Calculates Block1DCoeffs for a state.
-
-  Attributes:
-    static_runtime_params_slice: See the docstring for `stepper.Stepper`.
-    transport_model: See the docstring for `stepper.Stepper`.
-    explicit_source_profiles: See the docstring for `stepper.Stepper`.
-    source_models: See the docstring for `stepper.Stepper`.
-    evolving_names: The names of the evolving variables.
-    pedestal_model: See the docstring for `stepper.Stepper`.
-  """
+  """Calculates Block1DCoeffs for a state."""
 
   def __init__(
       self,
@@ -107,7 +98,7 @@ class CoeffsCallback:
         self.evolving_names,
     )
     if allow_pereverzev:
-      use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
+      use_pereverzev = self.static_runtime_params_slice.solver.use_pereverzev
     else:
       use_pereverzev = False
 
@@ -150,17 +141,17 @@ def _calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ni_face
       * consts.keV2J
-      * dynamic_runtime_params_slice.stepper.chi_per
+      * dynamic_runtime_params_slice.solver.chi_per
   )
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
-      * dynamic_runtime_params_slice.stepper.chi_per
+      * dynamic_runtime_params_slice.solver.chi_per
   )
 
-  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per
+  d_face_per_el = dynamic_runtime_params_slice.solver.d_per
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -268,7 +259,7 @@ def calc_coeffs(
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
-  if explicit_call and static_runtime_params_slice.stepper.theta_imp == 1.0:
+  if explicit_call and static_runtime_params_slice.solver.theta_imp == 1.0:
     return _calc_coeffs_reduced(
         geo,
         core_profiles,

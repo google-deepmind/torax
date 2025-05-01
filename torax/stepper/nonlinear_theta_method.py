@@ -160,8 +160,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       state.SolverNumericOutputs,
   ]:
     """Final implementation of x_new after callback has been created etc."""
-    stepper_params = dynamic_runtime_params_slice_t.stepper
-    assert isinstance(stepper_params, DynamicOptimizerRuntimeParams)
+    solver_params = dynamic_runtime_params_slice_t.solver
+    assert isinstance(solver_params, DynamicOptimizerRuntimeParams)
     # Unpack the outputs of the optimizer_solve_block.
     x_new, solver_numeric_outputs, (core_sources, core_transport) = (
         optimizer_solve_block.optimizer_solve_block(
@@ -181,10 +181,10 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
             initial_guess_mode=enums.InitialGuessMode(
-                stepper_params.initial_guess_mode,
+                solver_params.initial_guess_mode,
             ),
-            maxiter=stepper_params.maxiter,
-            tol=stepper_params.tol,
+            maxiter=solver_params.maxiter,
+            tol=solver_params.tol,
         )
     )
     return x_new, core_sources, core_transport, solver_numeric_outputs
@@ -218,8 +218,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       state.SolverNumericOutputs,
   ]:
     """Final implementation of x_new after callback has been created etc."""
-    stepper_params = dynamic_runtime_params_slice_t.stepper
-    assert isinstance(stepper_params, DynamicNewtonRaphsonRuntimeParams)
+    solver_params = dynamic_runtime_params_slice_t.solver
+    assert isinstance(solver_params, DynamicNewtonRaphsonRuntimeParams)
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
 
@@ -241,15 +241,15 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            log_iterations=stepper_params.log_iterations,
+            log_iterations=solver_params.log_iterations,
             initial_guess_mode=enums.InitialGuessMode(
-                stepper_params.initial_guess_mode
+                solver_params.initial_guess_mode
             ),
-            maxiter=stepper_params.maxiter,
-            tol=stepper_params.tol,
-            coarse_tol=stepper_params.coarse_tol,
-            delta_reduction_factor=stepper_params.delta_reduction_factor,
-            tau_min=stepper_params.tau_min,
+            maxiter=solver_params.maxiter,
+            tol=solver_params.tol,
+            coarse_tol=solver_params.coarse_tol,
+            delta_reduction_factor=solver_params.delta_reduction_factor,
+            tau_min=solver_params.tau_min,
         )
     )
     return x_new, core_sources, core_transport, solver_numeric_outputs

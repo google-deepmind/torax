@@ -484,8 +484,8 @@ class FVMTest(parameterized.TestCase):
     )
     static_runtime_params_slice_theta05 = dataclasses.replace(
         static_runtime_params_slice_theta0,
-        stepper=dataclasses.replace(
-            static_runtime_params_slice_theta0.stepper, theta_imp=0.5
+        solver=dataclasses.replace(
+            static_runtime_params_slice_theta0.solver, theta_imp=0.5
         ),
     )
 

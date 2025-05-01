@@ -437,7 +437,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
                   vloop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.vloop_lcfs,
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
-                  theta=static_runtime_params_slice.stepper.theta_imp,
+                  theta=static_runtime_params_slice.solver.theta_imp,
               )
               if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None

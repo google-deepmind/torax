@@ -46,7 +46,7 @@ from torax.geometry import standard_geometry
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
-from torax.stepper import runtime_params as stepper_params
+from torax.stepper import runtime_params as solver_params
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
 import typing_extensions
@@ -91,7 +91,7 @@ class DynamicRuntimeParamsSlice:
   """
 
   transport: transport_model_params.DynamicRuntimeParams
-  stepper: stepper_params.DynamicRuntimeParams
+  solver: solver_params.DynamicRuntimeParams
   plasma_composition: plasma_composition.DynamicPlasmaComposition
   profile_conditions: profile_conditions.DynamicProfileConditions
   numerics: numerics.DynamicNumerics
@@ -115,8 +115,8 @@ class StaticRuntimeParamsSlice:
   TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
-
-  stepper: stepper_params.StaticRuntimeParams
+  # Solver-specific static runtime params.
+  solver: solver_params.StaticRuntimeParams
   # Mapping of source name to source-specific static runtime params.
   sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Torax mesh used to construct the geometry.
@@ -147,7 +147,7 @@ class StaticRuntimeParamsSlice:
 
   def __hash__(self):
     return hash((
-        self.stepper,
+        self.solver,
         tuple(sorted(self.sources.items())),  # Hashable version of sources
         hash(self.torax_mesh),  # Grid1D has a hash method defined.
         self.ion_heat_eq,
