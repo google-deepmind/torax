@@ -86,7 +86,7 @@ CONFIG = {
         # convection coefficient in electron density equation in m^2/s
         'Ve_const': -0.2,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
     },

@@ -162,7 +162,7 @@ CONFIG = {
         'maxruns': 2,
         'numprocs': 24,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': True,
         'corrector_steps': 1,

@@ -22,7 +22,7 @@ def get_default_config_dict() -> dict[str, Any]:
       'numerics': {},
       'geometry': {'geometry_type': 'circular', 'n_rho': 4},
       'sources': {},
-      'stepper': {},
+      'solver': {},
       'transport': {},
       'pedestal': {},
   }

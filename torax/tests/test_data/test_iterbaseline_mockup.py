@@ -161,7 +161,7 @@ CONFIG = {
         'An_min': 0.05,
         'ITG_flux_ratio_correction': 1,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,

@@ -58,7 +58,7 @@ class SawtoothModelTest(parameterized.TestCase):
         'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},
         'pedestal': {},
         'sources': {'ohmic': {}},
-        'stepper': {
+        'solver': {
             'solver_type': 'linear',
             'use_pereverzev': False,
         },
@@ -89,7 +89,7 @@ class SawtoothModelTest(parameterized.TestCase):
         torax_config.sources.source_model_config
     )
 
-    solver = torax_config.stepper.build_solver(
+    solver = torax_config.solver.build_solver(
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,

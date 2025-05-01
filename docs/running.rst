@@ -17,13 +17,13 @@ Simulation progress is shown by a progress bar in the terminal, displaying the c
 simulation time, and the percentage of the total simulation time completed.
 
 Increased logging verbosity is set by the  :ref:`log progress<log_progress_running>` flag and the
-:ref:`log_iterations<log_iterations>` variable in the ``stepper`` section of the config (for the Newton-Raphson solver).
+:ref:`log_iterations<log_iterations>` variable in the ``solver`` section of the config (for the Newton-Raphson solver).
 
 More involved examples in ``torax/examples`` include non-rigorous mockups of the ITER hybrid scenario:
 
-* ``iterhybrid_predictor_corrector.py``: flattop phase with the linear stepper using predictor-corrector iterations.
+* ``iterhybrid_predictor_corrector.py``: flattop phase with the linear solver using predictor-corrector iterations.
 
-* ``iterhybrid_rampup.py``: time-dependent ramppup phase with the nonlinear Newton-Raphson stepper.
+* ``iterhybrid_rampup.py``: time-dependent ramppup phase with the nonlinear Newton-Raphson solver.
 
 Additional configuration is provided through flags which append the above run command, and environment variables.
 
@@ -76,10 +76,10 @@ Set flags
 log_progress
 ^^^^^^^^^^^^
 Log progress for each timestep (dt) the current simulation time, dt, and number of
-outer stepper iterations carried out during the step. For the Newton-Raphson solver,
-the outer stepper iterations can be more than 1 due to dt backtracking
-(enabled by ``adaptive_dt=True`` in the ``stepper`` config dict) when the solver
-does not converge within a set number of inner stepper iterations.
+outer solver iterations carried out during the step. For the Newton-Raphson solver,
+the outer solver iterations can be more than 1 due to dt backtracking
+(enabled by ``adaptive_dt=True`` in the ``solver`` config dict) when the solver
+does not converge within a set number of inner solver iterations.
 
 .. code-block:: console
 

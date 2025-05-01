@@ -178,12 +178,12 @@ class ConfigTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
 
     config_dict["transport"] = {"transport_model": transport_model}
-    config_dict["stepper"] = {
+    config_dict["solver"] = {
         "solver_type": solver_type,
         "use_pereverzev": use_pereverzev,
     }
     if initial_guess_mode is not None:
-      config_dict["stepper"]["initial_guess_mode"] = initial_guess_mode
+      config_dict["solver"]["initial_guess_mode"] = initial_guess_mode
 
     warning_snippet = "use_pereverzev=False in a configuration where setting"
 

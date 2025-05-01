@@ -64,7 +64,7 @@ CONFIG = {
         'chi_D_ratio': 8,
         'VR_D_ratio': {0: -3.0, 1: 0.0},
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,

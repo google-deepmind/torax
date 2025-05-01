@@ -52,7 +52,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'transport'
     ].annotation |= FakeTransportConfig
     model_config.ToraxConfig.model_fields[
-        'stepper'
+        'solver'
     ].annotation |= FakeSolverConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
@@ -87,7 +87,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             'geometry_type': 'circular',
         },
         'transport': {'transport_model': 'fake'},
-        'stepper': {
+        'solver': {
             'solver_type': 'fake',
             'inner_solver_iterations': inner_solver_iterations,
         },

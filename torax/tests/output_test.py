@@ -54,7 +54,7 @@ class StateHistoryTest(parameterized.TestCase):
         'plasma_composition': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
-        'stepper': {},
+        'solver': {},
         'transport': {
             'transport_model': 'constant',
             'chii_const': 2.0,

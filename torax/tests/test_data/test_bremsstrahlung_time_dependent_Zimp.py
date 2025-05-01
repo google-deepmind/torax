@@ -60,7 +60,7 @@ CONFIG = {
         'chii_const': 0.5,
         'chie_const': 0.5,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
     },

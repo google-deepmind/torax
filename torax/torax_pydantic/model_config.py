@@ -27,7 +27,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.stepper import pydantic_model as solver_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.torax_pydantic import torax_pydantic
@@ -47,8 +47,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     pedestal: Config for the pedestal model. If an empty dictionary is passed
       in, the pedestal model will be set to `no_pedestal`.
     sources: Config for the sources.
-    stepper: Config for the stepper. If an empty dictionary is passed in, the
-      stepper model will be set to `linear`.
+    solver: Config for the solver. If an empty dictionary is passed in, the
+      solver model will be set to `linear`.
     transport: Config for the transport model. If an empty dictionary is passed
       in, the transport model will be set to `constant`.
     mhd: Optional config for mhd models. If None, no MHD models are used.
@@ -62,7 +62,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
-  stepper: stepper_pydantic_model.SolverConfig = pydantic.Field(
+  solver: solver_pydantic_model.SolverConfig = pydantic.Field(
       discriminator='solver_type'
   )
   transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
@@ -87,8 +87,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       configurable_data['pedestal']['pedestal_model'] = 'no_pedestal'
     if 'transport_model' not in configurable_data['transport']:
       configurable_data['transport']['transport_model'] = 'constant'
-    if 'solver_type' not in configurable_data['stepper']:
-      configurable_data['stepper']['solver_type'] = 'linear'
+    if 'solver_type' not in configurable_data['solver']:
+      configurable_data['solver']['solver_type'] = 'linear'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
@@ -98,19 +98,19 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         'CGM',
     ]
     using_linear_solver = isinstance(
-        self.stepper, stepper_pydantic_model.LinearThetaMethod
+        self.solver, solver_pydantic_model.LinearThetaMethod
     )
     initial_guess_mode_is_linear = (
         False  # pylint: disable=g-long-ternary
         if using_linear_solver
-        else self.stepper.initial_guess_mode
+        else self.solver.initial_guess_mode
         == enums.InitialGuessMode.LINEAR
     )
 
     if (
         using_nonlinear_transport_model
         and (using_linear_solver or initial_guess_mode_is_linear)
-        and not self.stepper.use_pereverzev
+        and not self.solver.use_pereverzev
     ):
       logging.warning("""
           use_pereverzev=False in a configuration where setting

@@ -11,17 +11,13 @@ General notes
 TORAX's configuration system allows for fine-grained control over various aspects of the simulation.
 The top layer ``config`` file is passed as input into a simulation, and contains a dictionary with the following keys:
 
-* **runtime_params**. Dictionary containing nested dictionaries describing the following sets of simulation parameters.
-
-  * **plasma_composition**: Configures the distribution of ion species.
-  * **profile_conditions**: Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
-  * **numerics**: Configures time stepping settings and numerical parameters.
-  * **output_dir**: Selects the output directory.
-
+* **plasma_composition**: Configures the distribution of ion species.
+* **profile_conditions**: Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
+* **numerics**: Configures time stepping settings and numerical parameters.
 * **geometry**: Configures geometry setup and constructs the Geometry object.
 * **transport**: Selects and configures the transport model, and constructs the TransportModel object.
 * **sources**: Selects and configures parameters of the various heat source, particle source, and non-inductive current models.
-* **stepper**: Selects and configures the PDE solver.
+* **solver**: Selects and configures the PDE solver.
 * **time_step_calculator**: Selects the method used to calculate the timestep `dt`.
 
 This configuration structure maps to objects instantiated and manipulated within TORAX.
@@ -40,7 +36,7 @@ Time-varying scalars
 For fields labelled with **time-varying-scalar** time dependence is set by assigning a dict to the parameter,
 instead of a single value. The dict defines a time-series with ``{time: value}`` pairs.
 The keys do not need to be sorted in order of time. Ordering is carried out internally.
-For each evaluation of the TORAX stepper (PDE solver), time-dependent variables
+For each evaluation of the TORAX solver (PDE solver), time-dependent variables
 are interpolated at both time :math:`t` and time :math:`t+dt`.
 There are two interpolation modes:
 
@@ -116,7 +112,7 @@ It behaves similarly to the **time-varying-scalar** but any interpolation will h
 Note: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
 
 None of the keys need to be sorted in order of time. Ordering is carried out internally.
-In the case of non-evolving parameters for each evaluation of the TORAX stepper (PDE solver), time-dependent variables
+In the case of non-evolving parameters for each evaluation of the TORAX solver (PDE solver), time-dependent variables
 are interpolated first along the :math:`\hat{\rho}` axis at the cell grid centers and then linearly interpolated in time
 at both time :math:`t` and time :math:`t+dt`..
 
@@ -1203,12 +1199,12 @@ environment variable which should point to a compatible JSON file.
 
 See :ref:`physics_models` for more detail.
 
-stepper
+solver
 -------
 
-Select and configure the ``Stepper`` object, which evolves the PDE system by one timestep. See :ref:`solver_details` for further details.
-The dictionary consists of keys common to all steppers. Additional fields for
-parameters pertaining to a specific stepper are defined in the relevant section below.
+Select and configure the ``Solver`` object, which evolves the PDE system by one timestep. See :ref:`solver_details` for further details.
+The dictionary consists of keys common to all solvers. Additional fields for
+parameters pertaining to a specific solver are defined in the relevant section below.
 
 ``solver_type`` (str = 'linear')
   Selected PDE solver algorithm. The current options are:
@@ -1229,11 +1225,11 @@ parameters pertaining to a specific stepper are defined in the relevant section 
 
 ``adaptive_dt`` (bool = True)
   If true, then turns on dt backtracking, where dt is iteratively reduced by ``dt_reduction_factor`` in a new attempt step
-  if the stepper does not converge. Only relevant for nonlinear steppers.
+  if the solver does not converge. Only relevant for nonlinear solvers.
 
 ``dt_reduction_factor`` (float = 3.0)
-  dt reduction factor if the stepper does not converge following a call, and ``adaptive_dt=True``. Only relevant
-  for nonlinear steppers.
+  dt reduction factor if the solver does not converge following a call, and ``adaptive_dt=True``. Only relevant
+  for nonlinear solvers.
 
 ``predictor_corrector`` (bool = True)
   Enables predictor_corrector iterations with the linear solver.
@@ -1256,7 +1252,7 @@ linear
 ^^^^^^
 
 Runtime parameters relevant for the ``LinearThetaMethod``, e.g. ``predictor_corrector``, are not defined in the child class but in the parent
-``Stepper`` class and hence in the upper layer of the ``stepper`` config dict. Since the nonlinear steppers also have the option of using
+``Stepper`` class and hence in the upper layer of the ``solver`` config dict. Since the nonlinear solvers also have the option of using
 a linear solver for calculating an initial guess, it is more appropriate for these shared linear runtime parameters to be defined in the
 parent ``Stepper`` class.
 
@@ -1273,7 +1269,7 @@ newton_raphson
   which is the relative reduction in Newton step size compared to the original
   Newton step size. If the solver does not converge, then these inner iterations
   will restart at a smaller timestep size if ``adaptive_dt=True`` in the
-  ``stepper`` config dict.
+  ``solver`` config dict.
 
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
@@ -1373,7 +1369,7 @@ Examples include the number of grid points or the choice of transport model. A p
 * ``runtime_params['numerics']['current_eq']``
 * ``runtime_params['numerics']['dens_eq']``
 * ``transport['transport_model']``
-* ``stepper['solver_type']``
+* ``solver['solver_type']``
 * ``time_step_calculator['time_step_calculator_type']``
 * ``sources['source_name']['is_explicit']``
 * ``sources['source_name']['mode']``
@@ -1488,7 +1484,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'Teped': 1.0,
           'rho_norm_ped_top': 0.95,
       },
-      'stepper': {
+      'solver': {
           'solver_type': 'newton_raphson',
           'predictor_corrector': True,
           'corrector_steps': 10,

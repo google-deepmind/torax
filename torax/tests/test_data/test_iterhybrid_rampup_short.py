@@ -173,7 +173,7 @@ CONFIG = {
         'An_min': 0.05,
         'ITG_flux_ratio_correction': 1,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'newton_raphson',
         'predictor_corrector': True,
         'corrector_steps': 10,

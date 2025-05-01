@@ -74,7 +74,7 @@ Set flags
 log_progress
 ^^^^^^^^^^^^
 Increased output verbosity. Logs, for each timestep (dt), the current simulation
-time, dt, and number of outer stepper iterations carried out during the step.
+time, dt, and number of outer solver iterations carried out during the step.
 
 .. code-block:: console
 

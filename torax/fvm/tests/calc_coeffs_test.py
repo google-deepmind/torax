@@ -49,7 +49,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
                 set_pedestal=set_pedestal,
                 pedestal_model='set_tped_nped'),
             sources=sources_config,
-            stepper=dict(predictor_corrector=False, theta_imp=theta_imp),
+            solver=dict(predictor_corrector=False, theta_imp=theta_imp),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )

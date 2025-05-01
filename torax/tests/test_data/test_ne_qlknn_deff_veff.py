@@ -68,7 +68,7 @@ CONFIG = {
         # qlknn params.
         'DVeff': True,
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,

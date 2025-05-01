@@ -221,7 +221,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            stepper=dict(predictor_corrector=False, theta_imp=theta_imp),
+            solver=dict(predictor_corrector=False, theta_imp=theta_imp),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )
@@ -344,7 +344,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            stepper=dict(predictor_corrector=False, theta_imp=1.0),
+            solver=dict(predictor_corrector=False, theta_imp=1.0),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )
@@ -467,7 +467,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            stepper=dict(predictor_corrector=False, theta_imp=0.0),
+            solver=dict(predictor_corrector=False, theta_imp=0.0),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )

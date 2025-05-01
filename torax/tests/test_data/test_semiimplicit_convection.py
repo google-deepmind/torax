@@ -42,7 +42,7 @@ CONFIG = {
     'transport': {
         'transport_model': 'CGM',
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'convection_dirichlet_mode': 'semi-implicit',

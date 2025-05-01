@@ -70,7 +70,7 @@ CONFIG = {
             'DVeff': False,
         },
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'newton_raphson',
         'use_pereverzev': False,
     },

@@ -42,7 +42,7 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {},
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'theta_imp': 1.0,

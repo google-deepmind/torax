@@ -79,7 +79,7 @@ or scaled to the Greenwald density :math:`n_\mathrm{GW}=\frac{I_p}{\pi a^2}~[10^
 and the initial peaking factor. The initial :math:`n_e` profile, including the edge boundary
 condition, is then a linear function scaled to match the desired line-averaged density and peaking.
 
-If any of the :math:`T_{i,e}`, :math:`n_e` equations are set to be non-evolving (i.e., not evolved by the PDE stepper),
+If any of the :math:`T_{i,e}`, :math:`n_e` equations are set to be non-evolving (i.e., not evolved by the PDE solver),
 then time-dependent prescribed profiles are user-configurable.
 
 For the poloidal flux :math:`\psi(\hat{\rho})`, the user specifies if the initial condition
@@ -240,8 +240,8 @@ TORAX currently offers three transport models:
     running with QuaLiKiz requires disabling JAX compilation by setting ``TORAX_COMPILATION_ENABLED=False``.
     While other solutions exist, this is the simplest and most straightforward approach. In any case QuaLiKiz
     becomes the simulation bottleneck and limits the overall simulation speed regardless of JAX compilation in the
-    rest of the stack. Furthermore, QuaLiKiz must be run with the ``linear`` stepper, ideally with the
-    ``predictor_corrector`` stepper option, since ``newton_raphson`` requires autodiff which is not supported
+    rest of the stack. Furthermore, QuaLiKiz must be run with the ``linear`` solver, ideally with the
+    ``predictor_corrector`` solver option, since ``newton_raphson`` requires autodiff which is not supported
     for QuaLiKiz. Running with QuaLiKiz is not a typical workflow due to its computational expense (2-3 orders of
     magnitude slower than with QLKNN). Its use-cases are:
 
@@ -294,7 +294,7 @@ source/sink terms. Each of these terms can be configured to be either:
 
 Explicit treatment is less accurate, but can be justified and computationally beneficial for
 sources with complex but slow-evolving physics. Furthermore, explicit source calculations do
-not need to be JAX-compatible, since explicit sources are an input into the PDE stepper,
+not need to be JAX-compatible, since explicit sources are an input into the PDE solver,
 and do not require JIT compilation. Conversely, implicit treatment can be important for accurately
 resolving the impact of fast-evolving source terms.
 

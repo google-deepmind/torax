@@ -42,13 +42,13 @@ For reference, the standard control flow while using TORAX is:
    |torax.sim.Sim|_ internally calls |torax.sim.run_simulation()|_, which is an
    entrypoint for running an entire TORAX time loop, Technically, the above
    steps are optional (though useful standards). The API is designed to enable
-   users to customize TORAX with purpose-built timeloops calling the |Stepper|_.
+   users to customize TORAX with purpose-built timeloops calling the |Solver|_.
    Tutorials illustrating how to customize TORAX timeloops are coming soon.
 
 #.
    |torax.sim.run_simulation()|_ steps the simulation in a loop, the duration of
    each time step coming from a |TimeStepCalculator|_, and the state updates
-   coming from a |Stepper|_, which internally uses |SourceModels|_, a
+   coming from a |Solver|_, which internally uses |SourceModels|_, a
    |TransportModel|_ and a |Geometry|_ to help evolve the state.
 
 
@@ -75,7 +75,7 @@ Broadly, ``run_simulation()`` takes the following inputs:
   recompilation if changed.
 * A dynamic runtime parameters provider, which interpolates dynamic runtime
   parameters at each time step.
-* |Stepper|_ (via the ``step_fn`` argument), the solver method.
+* |Solver|_ (via the ``step_fn`` argument), the solver method.
 * |TimeStepCalculator|_ (via the ``step_fn`` argument)
 * |TransportModel|_ (via the ``step_fn`` argument)
 * |PedestalModel|_ (via the ``step_fn`` argument)
@@ -84,7 +84,7 @@ The following sections cover these inputs.
 
 Note that, while the standard flow detailed above uses the "config", and then
 builds a |torax.sim.Sim|_ object, these steps are optional. Users who wish to
-customize TORAX with purpose-built transport models or steppers may call
+customize TORAX with purpose-built transport models or solvers may call
 ``run_simulation()`` directly, or use the API to build customized timeloops
 and not run ```run_simulation()`` at all.
 
@@ -139,20 +139,20 @@ also fed into the simulation. All these runtime params are packaged together and
 interpolated to a specific time, referred to as a params "slice",
 |torax.config.runtime_params_slice|_.
 
-Stepper
+Solver
 ^^^^^^^
 
-|torax.stepper|_ contains PDE time steppers that discretize the PDE in time and
+|torax.solver|_ contains PDE time solvers that discretize the PDE in time and
 solve for the next time step with linear or nonlinear methods.
 
-Inside the |Stepper|_ implementations is where JAX is actually used to compute
+Inside the |Solver|_ implementations is where JAX is actually used to compute
 Jacobians or do optimization-based solving. See the implementations for more
 details.
 
-Most |Stepper|_\ s are built with |SourceModels|_ , a |TransportModel|_, and a
+Most |Solver|_\ s are built with |SourceModels|_ , a |TransportModel|_, and a
 |PedestalModel|_, described below.
 
-The |Stepper|_ class is abstract and can be extended. Users may provide their
+The |Solver|_ class is abstract and can be extended. Users may provide their
 own implementation and feed it to |torax.sim.run_simulation()|_.
 
 .. _structure-sources:
@@ -219,8 +219,8 @@ extending |TimeStepCalculator|_.
 .. _torax.sim.run_simulation(): https://github.com/google-deepmind/torax/blob/main/torax/sim.py
 .. |TimeStepCalculator| replace:: ``TimeStepCalculator``
 .. _TimeStepCalculator: https://github.com/google-deepmind/torax/blob/main/torax/time_step_calculator/time_step_calculator.py
-.. |Stepper| replace:: ``Stepper``
-.. _Stepper: https://github.com/google-deepmind/torax/blob/main/torax/stepper/stepper.py
+.. |Solver| replace:: ``Solver``
+.. _Solver: https://github.com/google-deepmind/torax/blob/main/torax/solver/solver.py
 .. |SourceModels| replace:: ``SourceModels``
 .. _SourceModels: https://github.com/google-deepmind/torax/blob/main/torax/sources/source_models.py
 .. |TransportModel| replace:: ``TransportModel``
@@ -243,8 +243,8 @@ extending |TimeStepCalculator|_.
 .. _torax.interpolated_param: https://github.com/google-deepmind/torax/blob/main/torax/interpolated_param.py
 .. |torax.config.runtime_params_slice| replace:: ``torax.config.runtime_params_slice``
 .. _torax.config.runtime_params_slice: https://github.com/google-deepmind/torax/blob/main/torax/config/runtime_params_slice.py
-.. |torax.stepper| replace:: ``torax.stepper``
-.. _torax.stepper: https://github.com/google-deepmind/torax/tree/main/torax/stepper
+.. |torax.solver| replace:: ``torax.solver``
+.. _torax.solver: https://github.com/google-deepmind/torax/tree/main/torax/solver
 .. |torax.sources| replace:: ``torax.sources``
 .. _torax.sources: https://github.com/google-deepmind/torax/tree/main/torax/sources
 .. |QLKNN| replace:: ``QLKNN``

@@ -68,7 +68,7 @@ CONFIG = {
     'transport': {
         'transport_model': 'bohm-gyrobohm',
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,

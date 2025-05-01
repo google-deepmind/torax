@@ -32,7 +32,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
-from torax.tests.test_lib import explicit_stepper as explicit_stepper_lib
+from torax.tests.test_lib import explicit_stepper as explicit_solver_lib
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
@@ -92,8 +92,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
   def test_source_profiles(self):
     """Tests that the source profiles contain correct data."""
     model_config.ToraxConfig.model_fields[
-        'stepper'
-    ].annotation |= explicit_stepper_lib.ExplicitStepperConfig
+        'solver'
+    ].annotation |= explicit_solver_lib.ExplicitStepperConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
     config = {
@@ -120,7 +120,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         'profile_conditions': {},
         'plasma_composition': {},
         'geometry': {'geometry_type': 'circular'},
-        'stepper': {'solver_type': 'explicit'},
+        'solver': {'solver_type': 'explicit'},
         'transport': {},
         'pedestal': {},
     }

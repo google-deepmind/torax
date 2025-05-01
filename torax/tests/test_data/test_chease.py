@@ -62,7 +62,7 @@ CONFIG = {
     'transport': {
         'transport_model': 'constant',
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
     },

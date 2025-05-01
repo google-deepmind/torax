@@ -43,7 +43,7 @@ CONFIG = {
     'transport': {
         'transport_model': 'constant',
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
     },
     'time_step_calculator': {

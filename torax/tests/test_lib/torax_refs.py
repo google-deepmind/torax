@@ -72,7 +72,7 @@ def circular_references() -> References:
           'geometry_type': 'circular',
       },
       'transport': {},
-      'stepper': {},
+      'solver': {},
       'pedestal': {},
       'sources': {},
   })
@@ -275,7 +275,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           'Ip_from_parameters': False,
       },
       'transport': {},
-      'stepper': {},
+      'solver': {},
       'pedestal': {},
       'sources': {},
   })
@@ -477,7 +477,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           'Ip_from_parameters': True,
       },
       'transport': {},
-      'stepper': {},
+      'solver': {},
       'pedestal': {},
       'sources': {},
   })

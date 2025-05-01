@@ -53,7 +53,7 @@ CONFIG = {
     'transport': {
         'transport_model': 'qlknn',
     },
-    'stepper': {
+    'solver': {
         'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,
