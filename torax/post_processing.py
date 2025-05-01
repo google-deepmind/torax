@@ -22,6 +22,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.output_tools import safety_factor_fit
 from torax.physics import formulas
 from torax.physics import psi_calculations
 from torax.physics import scaling_laws
@@ -336,6 +337,13 @@ def make_post_processed_outputs(
       sim_state.core_profiles.currents.Ip_profile_face[-1],
   )
 
+  safety_factor_fit_outputs = (
+      safety_factor_fit.find_min_q_and_q_surface_intercepts(
+          sim_state.geometry.rho_face_norm,
+          sim_state.core_profiles.q_face,
+      )
+  )
+
   # pylint: enable=invalid-name
   return state.PostProcessedOutputs(
       pressure_thermal_i=pressure_thermal_ion_face,
@@ -372,4 +380,12 @@ def make_post_processed_outputs(
       W_pol=Wpol,
       li3=li3,
       dW_thermal_dt=dW_th_dt,
+      rho_q_min=safety_factor_fit_outputs.rho_q_min,
+      q_min=safety_factor_fit_outputs.q_min,
+      rho_q_3_2_first=safety_factor_fit_outputs.rho_q_3_2_first,
+      rho_q_2_1_first=safety_factor_fit_outputs.rho_q_2_1_first,
+      rho_q_3_1_first=safety_factor_fit_outputs.rho_q_3_1_first,
+      rho_q_3_2_second=safety_factor_fit_outputs.rho_q_3_2_second,
+      rho_q_2_1_second=safety_factor_fit_outputs.rho_q_2_1_second,
+      rho_q_3_1_second=safety_factor_fit_outputs.rho_q_3_1_second,
   )

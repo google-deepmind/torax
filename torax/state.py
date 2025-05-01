@@ -336,6 +336,20 @@ class PostProcessedOutputs:
     W_pol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
     dW_thermal_dt: Time derivative of the total stored thermal energy [W]
+    q_min: Minimum q value
+    rho_q_min: rho_norm at the minimum q
+    rho_q_3_2_first: First outermost rho_norm value that intercepts the
+      q=3/2 plane. If no intercept is found, set to -inf.
+    rho_q_2_1_first: First outermost rho_norm value that intercepts the q=2/1
+      plane. If no intercept is found, set to -inf.
+    rho_q_3_1_first: First outermost rho_norm value that intercepts the q=3/1
+      plane. If no intercept is found, set to -inf.
+    rho_q_3_2_second: Second outermost rho_norm value that intercepts the
+      q=3/2 plane. If no intercept is found, set to -inf.
+    rho_q_2_1_second: Second outermost rho_norm value that intercepts the q=2/1
+      plane. If no intercept is found, set to -inf.
+    rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
+      plane. If no intercept is found, set to -inf.
   """
 
   pressure_thermal_i: array_typing.ArrayFloat
@@ -398,6 +412,14 @@ class PostProcessedOutputs:
   W_pol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
   dW_thermal_dt: array_typing.ScalarFloat
+  rho_q_min: array_typing.ScalarFloat
+  q_min: array_typing.ScalarFloat
+  rho_q_3_2_first: array_typing.ScalarFloat
+  rho_q_3_2_second: array_typing.ScalarFloat
+  rho_q_2_1_first: array_typing.ScalarFloat
+  rho_q_2_1_second: array_typing.ScalarFloat
+  rho_q_3_1_first: array_typing.ScalarFloat
+  rho_q_3_1_second: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -462,6 +484,14 @@ class PostProcessedOutputs:
         W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         dW_thermal_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_3_2_first=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_2_1_first=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_3_1_first=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_3_2_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
   def check_for_errors(self):
