@@ -163,7 +163,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
 class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
   """Fake stepper config that allows us to hook into the error logic."""
 
-  stepper_type: Literal['explicit'] = 'explicit'
+  solver_type: Literal['explicit'] = 'explicit'
 
   def build_solver(
       self, transport_model, source_models, pedestal_model

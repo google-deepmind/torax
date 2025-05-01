@@ -43,7 +43,7 @@ CONFIG = {
         'transport_model': 'CGM',
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'convection_dirichlet_mode': 'semi-implicit',
         'convection_neumann_mode': 'semi-implicit',

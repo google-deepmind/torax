@@ -169,7 +169,7 @@ class ConfigTest(parameterized.TestCase):
   def test_pereverzev_warning(
       self,
       transport_model,
-      stepper_type,
+      solver_type,
       initial_guess_mode,
       use_pereverzev,
       expect_warning,
@@ -179,7 +179,7 @@ class ConfigTest(parameterized.TestCase):
 
     config_dict["transport"] = {"transport_model": transport_model}
     config_dict["stepper"] = {
-        "stepper_type": stepper_type,
+        "solver_type": solver_type,
         "use_pereverzev": use_pereverzev,
     }
     if initial_guess_mode is not None:

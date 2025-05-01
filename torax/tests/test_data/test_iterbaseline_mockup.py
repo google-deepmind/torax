@@ -162,7 +162,7 @@ CONFIG = {
         'ITG_flux_ratio_correction': 1,
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,
         'chi_per': 20,

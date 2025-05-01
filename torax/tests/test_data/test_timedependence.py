@@ -72,7 +72,7 @@ CONFIG = {
         'rho_inner': 0.3,
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,
     },

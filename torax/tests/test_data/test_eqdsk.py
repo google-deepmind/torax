@@ -99,7 +99,7 @@ CONFIG = {
         'ITG_flux_ratio_correction': 1,
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': True,
         'corrector_steps': 1,
         'chi_per': 100,

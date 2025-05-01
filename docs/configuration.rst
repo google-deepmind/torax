@@ -1210,7 +1210,7 @@ Select and configure the ``Stepper`` object, which evolves the PDE system by one
 The dictionary consists of keys common to all steppers. Additional fields for
 parameters pertaining to a specific stepper are defined in the relevant section below.
 
-``stepper_type`` (str = 'linear')
+``solver_type`` (str = 'linear')
   Selected PDE solver algorithm. The current options are:
 
 * ``'linear'``
@@ -1373,7 +1373,7 @@ Examples include the number of grid points or the choice of transport model. A p
 * ``runtime_params['numerics']['current_eq']``
 * ``runtime_params['numerics']['dens_eq']``
 * ``transport['transport_model']``
-* ``stepper['stepper_type']``
+* ``stepper['solver_type']``
 * ``time_step_calculator['time_step_calculator_type']``
 * ``sources['source_name']['is_explicit']``
 * ``sources['source_name']['mode']``
@@ -1489,7 +1489,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'rho_norm_ped_top': 0.95,
       },
       'stepper': {
-          'stepper_type': 'newton_raphson',
+          'solver_type': 'newton_raphson',
           'predictor_corrector': True,
           'corrector_steps': 10,
           'chi_per': 30,

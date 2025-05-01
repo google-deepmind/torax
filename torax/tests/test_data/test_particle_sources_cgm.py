@@ -65,7 +65,7 @@ CONFIG = {
         'VR_D_ratio': {0: -3.0, 1: 0.0},
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,
         'd_per': 0.0,

@@ -44,7 +44,7 @@ CONFIG = {
         'transport_model': 'constant',
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

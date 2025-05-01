@@ -69,7 +69,7 @@ CONFIG = {
         'DVeff': False,
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': True,
         'use_pereverzev': True,
     },

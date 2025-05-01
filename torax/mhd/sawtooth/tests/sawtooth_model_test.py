@@ -59,7 +59,7 @@ class SawtoothModelTest(parameterized.TestCase):
         'pedestal': {},
         'sources': {'ohmic': {}},
         'stepper': {
-            'stepper_type': 'linear',
+            'solver_type': 'linear',
             'use_pereverzev': False,
         },
         'time_step_calculator': {'calculator_type': 'fixed'},

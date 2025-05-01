@@ -24,14 +24,14 @@ from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import runtime_params
-from torax.stepper import stepper as stepper_lib
+from torax.stepper import stepper as solver_lib
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import transport_model as transport_model_lib
 # pylint: disable=invalid-name
 
 
 class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base class for stepper configs.
+  """Base class for solver configs.
 
   Attributes:
     theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
@@ -81,23 +81,23 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> stepper_lib.Solver:
+  ) -> solver_lib.Solver:
     """Builds a solver from the config."""
 
   @property
   @abc.abstractmethod
   def linear_solver(self) -> bool:
-    """Returns True if the stepper is a linear solver."""
+    """Returns True if the solver is a linear solver."""
 
 
 class LinearThetaMethod(BaseSolver):
-  """Model for the linear stepper.
+  """Model for the linear solver.
 
   Attributes:
-    stepper_type: The type of stepper to use, hardcoded to 'linear'.
+    solver_type: The type of solver to use, hardcoded to 'linear'.
   """
 
-  stepper_type: Literal['linear'] = 'linear'
+  solver_type: Literal['linear'] = 'linear'
 
   @functools.cached_property
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
@@ -112,7 +112,7 @@ class LinearThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> stepper_lib.Solver:
+  ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
         transport_model=transport_model,
         source_models=source_models,
@@ -125,10 +125,10 @@ class LinearThetaMethod(BaseSolver):
 
 
 class NewtonRaphsonThetaMethod(BaseSolver):
-  """Model for nonlinear Newton-Raphson stepper.
+  """Model for nonlinear Newton-Raphson solver.
 
   Attributes:
-    stepper_type: The type of stepper to use, hardcoded to 'newton_raphson'.
+    solver_type: The type of solver to use, hardcoded to 'newton_raphson'.
     log_iterations: If True, log internal iterations in Newton-Raphson solver.
     initial_guess_mode: The initial guess mode for the Newton-Raphson solver.
     maxiter: The maximum number of iterations for the Newton-Raphson solver.
@@ -139,7 +139,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     tau_min: The minimum value of tau for the Newton-Raphson solver.
   """
 
-  stepper_type: Literal['newton_raphson'] = 'newton_raphson'
+  solver_type: Literal['newton_raphson'] = 'newton_raphson'
   log_iterations: bool = False
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 30
@@ -183,16 +183,16 @@ class NewtonRaphsonThetaMethod(BaseSolver):
 
 
 class OptimizerThetaMethod(BaseSolver):
-  """Model for nonlinear OptimizerThetaMethod stepper.
+  """Model for nonlinear OptimizerThetaMethod solver.
 
   Attributes:
-    stepper_type: The type of stepper to use, hardcoded to 'optimizer'.
+    solver_type: The type of solver to use, hardcoded to 'optimizer'.
     initial_guess_mode: The initial guess mode for the optimizer.
     maxiter: The maximum number of iterations for the optimizer.
     tol: The tolerance for the optimizer.
   """
 
-  stepper_type: Literal['optimizer'] = 'optimizer'
+  solver_type: Literal['optimizer'] = 'optimizer'
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 100
   tol: float = 1e-12

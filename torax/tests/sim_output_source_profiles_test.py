@@ -120,7 +120,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         'profile_conditions': {},
         'plasma_composition': {},
         'geometry': {'geometry_type': 'circular'},
-        'stepper': {'stepper_type': 'explicit'},
+        'stepper': {'solver_type': 'explicit'},
         'transport': {},
         'pedestal': {},
     }

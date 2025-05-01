@@ -71,7 +71,7 @@ CONFIG = {
         },
     },
     'stepper': {
-        'stepper_type': 'newton_raphson',
+        'solver_type': 'newton_raphson',
         'use_pereverzev': False,
     },
     'time_step_calculator': {

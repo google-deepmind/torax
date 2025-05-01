@@ -49,7 +49,7 @@ CONFIG = {
         'transport_model': 'constant',
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'theta_imp': 0.5,
     },

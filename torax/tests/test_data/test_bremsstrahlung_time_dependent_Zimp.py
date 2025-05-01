@@ -61,7 +61,7 @@ CONFIG = {
         'chie_const': 0.5,
     },
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
     },
     'time_step_calculator': {

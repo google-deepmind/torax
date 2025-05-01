@@ -63,7 +63,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
   stepper: stepper_pydantic_model.SolverConfig = pydantic.Field(
-      discriminator='stepper_type'
+      discriminator='solver_type'
   )
   transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
       discriminator='transport_model'
@@ -87,8 +87,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       configurable_data['pedestal']['pedestal_model'] = 'no_pedestal'
     if 'transport_model' not in configurable_data['transport']:
       configurable_data['transport']['transport_model'] = 'constant'
-    if 'stepper_type' not in configurable_data['stepper']:
-      configurable_data['stepper']['stepper_type'] = 'linear'
+    if 'solver_type' not in configurable_data['stepper']:
+      configurable_data['stepper']['solver_type'] = 'linear'
     return configurable_data
 
   @pydantic.model_validator(mode='after')

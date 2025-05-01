@@ -88,7 +88,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         },
         'transport': {'transport_model': 'fake'},
         'stepper': {
-            'stepper_type': 'fake',
+            'solver_type': 'fake',
             'inner_solver_iterations': inner_solver_iterations,
         },
         'pedestal': {},
@@ -150,7 +150,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):
   """Fake solver config that allows us to hook into the error logic."""
 
-  stepper_type: Literal['fake'] = 'fake'
+  solver_type: Literal['fake'] = 'fake'
   param: str = 'Ti_bound_right'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None

@@ -44,7 +44,7 @@ CONFIG = {
         'transport_model': 'constant',
     },
     'stepper': {
-        'stepper_type': 'optimizer',
+        'solver_type': 'optimizer',
         'predictor_corrector': False,
         'theta_imp': 1.0,
     },

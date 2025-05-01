@@ -43,7 +43,7 @@ CONFIG = {
     'pedestal': {},
     'transport': {},
     'stepper': {
-        'stepper_type': 'linear',
+        'solver_type': 'linear',
         'predictor_corrector': False,
         'theta_imp': 1.0,
     },
