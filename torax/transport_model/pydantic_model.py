@@ -16,10 +16,11 @@
 
 import copy
 import dataclasses
-import os
-from typing import Any, Final, Literal, Union
+from typing import Any, Literal, Union
 
+from absl import logging
 import chex
+from fusion_surrogates.qlknn.models import registry
 import pydantic
 from torax.torax_pydantic import interpolated_param_1d
 from torax.torax_pydantic import torax_pydantic
@@ -31,9 +32,34 @@ from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_transport_model
 
 
-# Environment variable for the QLKNN model. Used if the model path
-# is not set in the config.
-_MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
+def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
+  """Resolve the model name."""
+  if model_name:
+    if model_name == qlknn_10d.QLKNN10D_NAME:
+      if not model_path:
+        raise ValueError(
+            'QLKNN10D requires a model path to be provided.'
+        )
+      if model_path.endswith('.qlknn'):
+        raise ValueError(
+            f'Model path "{model_path}" is not a valid path for a'
+            f' {qlknn_10d.QLKNN10D_NAME} model.',
+        )
+    return model_name
+
+  if not model_path:
+    model_name = registry.DEFAULT_MODEL_NAME
+  elif not model_path.endswith('.qlknn'):
+    logging.info(
+        'QLKNN model path "%s"does not end with ".qlknn", we assume this is'
+        ' pointing to a qlknn-hyper (QLKNN10D) directory.',
+        model_path,
+    )
+    model_name = qlknn_10d.QLKNN10D_NAME
+  else:
+    # We cannot resolve the model name. We are likely using a custom model.
+    model_name = ''
+  return model_name
 
 
 # pylint: disable=invalid-name
@@ -102,13 +128,10 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
     data = copy.deepcopy(data)
 
-    # Get the model path and update the config with the final path.
-    model_path = data.get('model_path', os.environ.get(_MODEL_PATH_ENV_VAR, ''))
-    model = qlknn_transport_model.get_model(
-        path=model_path, name=data.get('model_name', '')
+    data['model_name'] = _resolve_qlknn_model_name(
+        model_name=data.get('model_name', ''),
+        model_path=data.get('model_path', ''),
     )
-    # Update name from the loaded model.
-    data['model_name'] = model.name
 
     if data['model_name'] == qlknn_10d.QLKNN10D_NAME:
       if 'coll_mult' not in data:

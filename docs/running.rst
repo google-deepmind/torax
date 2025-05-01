@@ -31,16 +31,6 @@ Set environment variables
 -------------------------
 All environment variables can be set in shell configuration scripts, e.g. ``.bashrc``, or by shell prompt commands.
 
-TORAX_QLKNN_MODEL_PATH
-^^^^^^^^^^^^^^^^^^^^^^^
-Path to the QuaLiKiz-neural-network parameters. The path specified here
-will be ignored if the ``model_path`` field in the ``qlknn_params`` section of
-the run config file is set.
-
-.. code-block:: console
-
-  export TORAX_QLKNN_MODEL_PATH="<myqlknnmodelpath>"
-
 TORAX_GEOMETRY_DIR
 ^^^^^^^^^^^^^^^^^^
 Path to the geometry file directory. This prefixes the path and filename provided in the ``geometry_file``

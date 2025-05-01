@@ -54,10 +54,10 @@ _EPSILON_NN: Final[float] = (
 @functools.lru_cache(maxsize=1)
 def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
   """Load the model."""
-  logging.info('Loading model from %s', path)
   try:
     if path:
       if not path.endswith('.qlknn'):
+        logging.info('Loading QLKNN10D model from path %s.', path)
         return qlknn_10d.QLKNN10D(path, name)
       else:
         return qlknn_model_wrapper.QLKNNModelWrapper(path, name)

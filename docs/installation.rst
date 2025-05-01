@@ -91,31 +91,18 @@ Enter the TORAX directory and pip install the dependencies.
 
   cd torax; pip install -e .[dev]
 
-TORAX uses the QLKNN_7_11 transport model by default. It can be overridden by
-specifying a QLKNN model path through the `TORAX_QLKNN_MODEL_PATH`
-environment variable. To use the default transport model (recommended), keep the
-`TORAX_QLKNN_MODEL_PATH` environment variable empty. Previous versions of
-TORAX required the environment variable to be set. If you set this variable in
-a previous TORAX installation, make sure you do not define it in your
-`~/.bashrc`. You can check if the variable is defined by running:
-
-.. code-block:: console
-
-  echo $TORAX_QLKNN_MODEL_PATH
-
-If the variable is defined, you can clear it by running:
-
-.. code-block:: console
-
-  unset TORAX_QLKNN_MODEL_PATH
-
+TORAX uses the QLKNN_7_11 transport model by default.
 For an alternative transport model, see :ref:`install_qlknn_hyper`.
 
-The same applies to `TORAX_GEOMETRY_DIR`. Previous versions of TORAX
-required it to be set. It is now recommended to leave the variable empty if
-using the default geometry. Make sure the definition is removed from
-`~/.bashrc` if you set it in a previous installation.
+You may want to set the `TORAX_GEOMETRY_DIR` environment variable to the
+directory containing the geometry files you intend to use.
 
+.. code-block:: console
+
+  export TORAX_GEOMETRY_DIR=/path/to/my/geometry/files
+
+You can set this variable in your ~/.bashrc to avoid having to set it every
+time you start a new terminal.
 
 The following may optionally be added to ~/.bashrc and will cause jax to
 store compiled programs to the filesystem, avoiding recompilation in
@@ -155,9 +142,5 @@ Download QLKNN dependencies:
 
   git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 
-To use this transport model, you need to set the environment variable
-`TORAX_QLKNN_MODEL_PATH` to the path of the cloned repository.
-
-.. code-block:: console
-
-  export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+To use this transport model, you need to set ``model_path`` in the
+``transport`` section of your TORAX config to the path of the cloned repository.

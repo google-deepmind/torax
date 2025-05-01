@@ -179,37 +179,6 @@ run_torax  --config='torax.examples.iterhybrid_rampup' --log_progress
 
 #### Set environment variables
 
-##### Transport model
-
-Path to the QuaLiKiz-neural-network parameters.
-
-```shell
-$ export TORAX_QLKNN_MODEL_PATH="<myqlknnmodelpath>"
-```
-
-TORAX will use the QLKNN_7_11 transport model by default. It can be overridden
-by specifying a transport model path through the `TORAX_QLKNN_MODEL_PATH`
-environment variable. It is recommended to not set this variable to use the
-default transport model.
-
-You can check if the variable is set by running:
-
-```shell
-echo TORAX_QLKNN_MODEL_PATH
-```
-
-If you need to clear the variable:
-
-```shell
-unset TORAX_QLKNN_MODEL_PATH
-```
-
-If you set this variable in a previous TORAX installation, make sure you do
-not define it in your `~/.bashrc`
-
-An alternative to QLKNN_7_11 is [QLKNN-hyper](#optional-install-qlknn-hyper),
-a legacy QLKNN model.
-
 ##### Geometry
 
 Path to the geometry file directory. This prefixes the path and filename
@@ -312,11 +281,8 @@ Download QLKNN-hyper dependencies:
 git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 ```
 
-Set the TORAX QLKNN model to QLKNN-hyper:
-
-```shell
-export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
-```
+To use QLKNN10D, set `model_path` in the `transport` section of your TORAX
+config to the path of the cloned repository.
 
 ## Simulation tutorials
 

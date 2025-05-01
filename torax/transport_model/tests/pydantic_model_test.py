@@ -13,10 +13,12 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+from fusion_surrogates.qlknn.models import registry
 from torax.transport_model import bohm_gyrobohm
 from torax.transport_model import constant
 from torax.transport_model import critical_gradient
 from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_transport_model
 from torax.transport_model import runtime_params
 from torax.transport_model import transport_model as transport_model_lib
@@ -84,6 +86,57 @@ class PydanticModelTest(parameterized.TestCase):
     )
     self.assertEqual(transport.smoothing_sigma, 0.1)
     self.assertEqual(transport.ETG_correction_factor, 1.0 / 3.0)
+
+  @parameterized.parameters(
+      dict(
+          model_name='',
+          model_path='',
+          expected_model_name=registry.DEFAULT_MODEL_NAME,
+      ),
+      dict(
+          model_name='foo',
+          model_path='',
+          expected_model_name='foo',
+      ),
+      dict(
+          model_name='foo',
+          model_path='/path/to/model.qlknn',
+          expected_model_name='foo',
+      ),
+      dict(
+          model_name='',
+          model_path='/path/to/model.qlknn',
+          expected_model_name='',
+      ),
+      dict(
+          model_name='',
+          model_path='/path/to/qlknn-hyper-directory',
+          expected_model_name=qlknn_10d.QLKNN10D_NAME,
+      ),
+  )
+  def test_qlknn_model_name(
+      self, model_name, model_path, expected_model_name
+  ):
+    """Tests that the model name is resolved correctly."""
+    transport = transport_pydantic_model.QLKNNTransportModel(
+        model_name=model_name,
+        model_path=model_path,
+    )
+    self.assertEqual(transport.model_name, expected_model_name)
+
+  @parameterized.parameters(
+      {'model_name': qlknn_10d.QLKNN10D_NAME, 'model_path': ''},
+      {
+          'model_name': qlknn_10d.QLKNN10D_NAME,
+          'model_path': '/path/to/qlknn_7_11.qlknn',
+      },
+  )
+  def test_qlknn_model_errors(self, model_name, model_path):
+    with self.assertRaises(ValueError):
+      transport_pydantic_model.QLKNNTransportModel(
+          model_name=model_name,
+          model_path=model_path,
+      )
 
 
 if __name__ == '__main__':

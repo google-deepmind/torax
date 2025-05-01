@@ -145,5 +145,15 @@ class QlknnTransportModelTest(parameterized.TestCase):
       qlknn_transport_model.get_model(path='', name='qlknn10D')
     mock_qlknn_qlknn10d.assert_not_called()
 
+  @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
+  def test_get_model_caching(self, mock_qlknn_model_wrapper):
+    """Tests that the model is loaded only once."""
+    qlknn_transport_model.get_model(path='', name='bar')
+    qlknn_transport_model.get_model(path='', name='bar')
+    qlknn_transport_model.get_model(path='', name='bar')
+    qlknn_transport_model.get_model(path='', name='bar')
+    mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
+
+
 if __name__ == '__main__':
   absltest.main()
