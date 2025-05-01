@@ -30,7 +30,7 @@ from torax.mhd import base as mhd_base
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
-from torax.stepper import stepper as stepper_lib
+from torax.stepper import stepper as solver_lib
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -38,18 +38,18 @@ from torax.transport_model import transport_model as transport_model_lib
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
-  Unlike the Stepper class, which updates certain parts of the state, a
+  Unlike the Solver class, which updates certain parts of the state, a
   SimulationStepFn takes in the ToraxSimState and outputs the updated
   ToraxSimState, which contains not only the CoreProfiles but also extra
   simulation state useful for stepping as well as extra outputs useful for
   inspection inside the main run loop in `run_simulation()`. It wraps calls to
-  Stepper with useful features to increase robustness for convergence, like
+  Solver with useful features to increase robustness for convergence, like
   dt-backtracking.
   """
 
   def __init__(
       self,
-      stepper: stepper_lib.Solver,
+      solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
@@ -57,19 +57,14 @@ class SimulationStepFn:
   ):
     """Initializes the SimulationStepFn.
 
-    If you wish to run a simulation with new versions of any of these arguments
-    (i.e. want to change to a new stepper), then you will need to build a new
-    SimulationStepFn. These arguments are fixed for the lifetime
-    of the SimulationStepFn and cannot change even with JAX recompiles.
-
     Args:
-      stepper: Evolves the core profiles.
+      solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
       pedestal_model: Calculates pedestal coefficients.
       mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
-    self._stepper_fn = stepper
+    self._solver = solver
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
     self._pedestal_model = pedestal_model
@@ -80,8 +75,8 @@ class SimulationStepFn:
     return self._pedestal_model
 
   @property
-  def stepper(self) -> stepper_lib.Solver:
-    return self._stepper_fn
+  def solver(self) -> solver_lib.Solver:
+    return self._solver
 
   @property
   def transport_model(self) -> transport_model_lib.TransportModel:
@@ -192,7 +187,7 @@ class SimulationStepFn:
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
-        source_models=self.stepper.source_models,
+        source_models=self.solver.source_models,
         explicit=True,
     )
 
@@ -202,7 +197,7 @@ class SimulationStepFn:
         input_state,
     )
 
-    # The stepper needs the geo and dynamic_runtime_params_slice at time t + dt
+    # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
     # for implicit computations in the solver. Once geo_t_plus_dt is calculated
     # we can use it to calculate Phibdot for both geo_t and geo_t_plus_dt, which
     # then update the initialized Phibdot=0 in the geo instances.
@@ -259,13 +254,13 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       input_state: state.ToraxSimState,
   ) -> jnp.ndarray:
-    """First phase: Initialize the stepper state.
+    """First phase: Initialize the solver state.
 
     Args:
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
       geo_t: The geometry of the torus during this time step of the simulation.
         While the geometry may change, any changes to the grid size can trigger
-        recompilation of the stepper (if it is jitted) or an error (assuming it
+        recompilation of the solver (if it is jitted) or an error (assuming it
         is JAX-compiled and lowered).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
@@ -285,7 +280,7 @@ class SimulationStepFn:
         input_state.core_profiles,
     )
 
-    # initialize new dt and reset stepper iterations.
+    # initialize new dt and reset solver iterations.
     dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
@@ -360,10 +355,10 @@ class SimulationStepFn:
         core_profiles_t=core_profiles_t,
     )
 
-    # Initial trial for stepper. If did not converge (can happen for nonlinear
+    # Initial trial for solver. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
     core_profiles, core_sources, core_transport, solver_numeric_outputs = (
-        self._stepper_fn(
+        self._solver(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -404,10 +399,10 @@ class SimulationStepFn:
       runtime_params_slice.DynamicRuntimeParamsSlice,
       state.ToraxSimState,
   ]:
-    """Performs adaptive time stepping until stepper converges.
+    """Performs adaptive time stepping until solver converges.
 
     If the initial step has converged (i.e.
-    output_state.solver_numeric_outputs.stepper_error_state == 0), this
+    output_state.solver_numeric_outputs.solver_error_state == 0), this
     function is a no-op.
 
     Args:
@@ -432,7 +427,7 @@ class SimulationStepFn:
     """
     core_profiles_t = input_state.core_profiles
 
-    # Check if stepper converged. If not, proceed to body_fun
+    # Check if solver converged. If not, proceed to body_fun
     def cond_fun(
         updated_output: tuple[
             state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
@@ -487,7 +482,7 @@ class SimulationStepFn:
           core_profiles_t=core_profiles_t,
       )
       core_profiles, core_sources, core_transport, solver_numeric_outputs = (
-          self._stepper_fn(
+          self._solver(
               dt=dt,
               static_runtime_params_slice=static_runtime_params_slice,
               dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,

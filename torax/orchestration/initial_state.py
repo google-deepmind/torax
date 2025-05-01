@@ -69,7 +69,7 @@ def _get_initial_state(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
-      step_fn.stepper.source_models,
+      step_fn.solver.source_models,
   )
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -79,7 +79,7 @@ def _get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=initial_core_profiles,
-      source_models=step_fn.stepper.source_models,
+      source_models=step_fn.solver.source_models,
   )
 
   return state.ToraxSimState(

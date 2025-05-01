@@ -143,11 +143,11 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
 
 def _get_step_fn(torax_config):
-  stepper = mock.MagicMock()
-  stepper.source_models = source_models_lib.SourceModels(
+  solver = mock.MagicMock()
+  solver.source_models = source_models_lib.SourceModels(
       torax_config.sources.source_model_config
   )
-  return mock.create_autospec(step_function.SimulationStepFn, stepper=stepper)
+  return mock.create_autospec(step_function.SimulationStepFn, solver=solver)
 
 
 def _get_geo_and_runtime_params_providers(torax_config):
