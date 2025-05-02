@@ -160,11 +160,13 @@ def get_initial_state_and_post_processed_outputs_from_file(
       initial_state.core_profiles,
       vloop_lcfs=scalars_dataset.vloop_lcfs.values,
   )
+  numerics_dataset = data_tree.children[output.NUMERICS].dataset
+  numerics_dataset = numerics_dataset.squeeze()
   return (
       dataclasses.replace(
           initial_state,
           core_profiles=core_profiles,
-          sawtooth_crash=bool(data_tree[output.SAWTOOTH_CRASH]),
+          sawtooth_crash=bool(numerics_dataset[output.SAWTOOTH_CRASH]),
       ),
       post_processed_outputs,
   )

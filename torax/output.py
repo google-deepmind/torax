@@ -280,7 +280,7 @@ class StateHistory:
 
     return xr.DataArray(data, dims=dims, name=name)
 
-  def _get_core_profiles(
+  def _save_core_profiles(
       self,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
@@ -514,17 +514,12 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    core_profiles_dict = self._get_core_profiles()
-    core_transport_dict = self._save_core_transport()
-    core_sources_dict = self._save_core_sources()
-    post_processed_outputs_dict = self._save_post_processed_outputs()
-    geometry_dict = self._save_geometry()
     all_dicts = [
-        core_profiles_dict,
-        core_transport_dict,
-        core_sources_dict,
-        post_processed_outputs_dict,
-        geometry_dict,
+        self._save_core_profiles(),
+        self._save_core_transport(),
+        self._save_core_sources(),
+        self._save_post_processed_outputs(),
+        self._save_geometry(),
     ]
     flat_dict = {}
     for key, value in itertools.chain(*(d.items() for d in all_dicts)):
@@ -532,12 +527,6 @@ class StateHistory:
         flat_dict[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
-    top_level_xr_dict = {
-        SIM_ERROR: self.sim_error.value,
-        SAWTOOTH_CRASH: xr.DataArray(
-            self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
-        ),
-    }
     numerics_dict = {
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
@@ -564,7 +553,7 @@ class StateHistory:
             SCALARS: xr.DataTree(dataset=scalars),
         },
         dataset=xr.Dataset(
-            top_level_xr_dict,
+            data_vars=None,
             coords=coords,
             attrs={CONFIG: self.torax_config.model_dump_json()},
         ),
