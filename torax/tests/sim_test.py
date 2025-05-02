@@ -401,14 +401,12 @@ class SimTest(sim_test_case.SimTestCase):
         output.PSI,
         output.V_LOOP,
         output.IP_PROFILE,
-        output.N_REF,
         output.Q,
         output.MAGNETIC_SHEAR,
         output.J_BOOTSTRAP,
         output.J_OHMIC,
         output.J_EXTERNAL,
         output.J_TOTAL,
-        output.I_BOOTSTRAP,
         output.SIGMA_PARALLEL,
     ]
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)

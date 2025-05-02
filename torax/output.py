@@ -39,7 +39,6 @@ SCALARS = "scalars"
 NUMERICS = "numerics"
 
 # Core profiles.
-CORE_PROFILES = "core_profiles"
 TEMPERATURE_ELECTRON = "T_e"
 TEMPERATURE_ION = "T_i"
 PSI = "psi"
@@ -534,7 +533,6 @@ class StateHistory:
         flat_dict[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
-    core_profiles_ds = xr.Dataset(core_profiles_dict, coords=coords)
     post_processed_outputs_ds = xr.Dataset(
         post_processed_outputs_dict, coords=coords
     )
@@ -568,7 +566,6 @@ class StateHistory:
             NUMERICS: xr.DataTree(dataset=numerics),
             PROFILES: xr.DataTree(dataset=profiles),
             SCALARS: xr.DataTree(dataset=scalars),
-            CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
             POST_PROCESSED_OUTPUTS: xr.DataTree(
                 dataset=post_processed_outputs_ds
             ),

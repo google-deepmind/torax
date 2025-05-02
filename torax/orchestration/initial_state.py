@@ -111,10 +111,10 @@ def get_initial_state_and_post_processed_outputs_from_file(
   # Find the closest time in the given dataset.
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
-  core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
+  profiles_dataset = data_tree.children[output.PROFILES].dataset
   # Remap coordinates in saved file to be consistent with expectations of
   # how config_args parses xarrays.
-  core_profiles_dataset = core_profiles_dataset.squeeze()
+  profiles_dataset = profiles_dataset.squeeze()
   if t_restart != t_initial:
     logging.warning(
         'Requested restart time %f not exactly available in state file %s.'
@@ -136,7 +136,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
           dynamic_runtime_params_slice_for_init,
           geo_for_init,
           t_restart,
-          core_profiles_dataset,
+          profiles_dataset,
       )
   )
   initial_state = _get_initial_state(
@@ -158,9 +158,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
       E_fusion=post_processed_dataset.data_vars['E_fusion'].to_numpy(),
       E_aux=post_processed_dataset.data_vars['E_aux'].to_numpy(),
   )
+  scalars_dataset = data_tree.children[output.SCALARS].dataset
+  scalars_dataset = scalars_dataset.squeeze()
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      vloop_lcfs=core_profiles_dataset.vloop_lcfs.values,
+      vloop_lcfs=scalars_dataset.vloop_lcfs.values,
   )
   return (
       dataclasses.replace(
@@ -176,7 +178,7 @@ def _override_initial_runtime_params_from_file(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     t_restart: float,
-    ds: xr.Dataset,
+    profiles_ds: xr.Dataset,
 ) -> tuple[
     runtime_params_slice.DynamicRuntimeParamsSlice,
     geometry.Geometry,
@@ -184,30 +186,44 @@ def _override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
-      output.IP_PROFILE
-  ].to_numpy()[-1]/1e6  # Convert from A to MA.
-  dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
-      output.TEMPERATURE_ELECTRON
-  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = ds.data_vars[
-      output.TEMPERATURE_ELECTRON
-  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
-      output.TEMPERATURE_ION
-  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = ds.data_vars[
-      output.TEMPERATURE_ION
-  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
-      output.N_E
-  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = ds.data_vars[
-      output.N_E
-  ].sel(rho_norm=ds.rho_face_norm[-1]).to_numpy()
-  dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
-      output.PSI
-  ].sel(rho_norm=ds.rho_cell_norm).to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Ip_tot = (
+      profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1] / 1e6
+  )  # Convert from A to MA.
+  dynamic_runtime_params_slice.profile_conditions.Te = (
+      profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+      profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.Ti = (
+      profiles_ds.data_vars[output.TEMPERATURE_ION]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+      profiles_ds.data_vars[output.TEMPERATURE_ION]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.ne = (
+      profiles_ds.data_vars[output.N_E]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+      profiles_ds.data_vars[output.N_E]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      .to_numpy()
+  )
+  dynamic_runtime_params_slice.profile_conditions.psi = (
+      profiles_ds.data_vars[output.PSI]
+      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      .to_numpy()
+  )
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not fGW).
   dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False

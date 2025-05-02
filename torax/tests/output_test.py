@@ -219,7 +219,6 @@ class StateHistoryTest(parameterized.TestCase):
   def test_expected_keys_in_child_nodes(self):
     data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
-        output.CORE_PROFILES,
         output.POST_PROCESSED_OUTPUTS,
         output.PROFILES,
         output.SCALARS,
@@ -333,13 +332,13 @@ class StateHistoryTest(parameterized.TestCase):
     )
     output_xr = state_history.simulation_output_to_xr()
     np.testing.assert_equal(
-        output_xr.children[output.CORE_PROFILES]
+        output_xr.children[output.PROFILES]
         .dataset.data_vars[output.Z_IMPURITY]
         .values,
         np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
     )
     np.testing.assert_equal(
-        output_xr.children[output.CORE_PROFILES]
+        output_xr.children[output.PROFILES]
         .dataset.data_vars[output.TEMPERATURE_ELECTRON]
         .values,
         np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
@@ -422,10 +421,6 @@ class StateHistoryTest(parameterized.TestCase):
               data_var
           ]
         xr.testing.assert_equal(data_array, ds[data_var])
-    with self.subTest('core_profiles_are_saved'):
-      check_data_vars_saved_in_profiles_or_scalars(
-          output_xr.children[output.CORE_PROFILES].dataset
-      )
     with self.subTest('post_processed_outputs_are_saved'):
       check_data_vars_saved_in_profiles_or_scalars(
           output_xr.children[output.POST_PROCESSED_OUTPUTS].dataset

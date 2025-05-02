@@ -312,34 +312,34 @@ def load_data(filename: str) -> PlotData:
     return ds
 
   data_tree = xr.map_over_datasets(_transform_data, data_tree)
-  core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
   profiles_dataset = data_tree.children[output.PROFILES].dataset
+  scalars_dataset = data_tree.children[output.SCALARS].dataset
   post_processed_outputs_dataset = data_tree.children[
       output.POST_PROCESSED_OUTPUTS
   ].dataset
   dataset = data_tree.dataset
 
   return PlotData(
-      ti=core_profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
-      te=core_profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
-      ne=core_profiles_dataset[output.N_E].to_numpy(),
-      ni=core_profiles_dataset[output.N_I].to_numpy(),
-      nimp=core_profiles_dataset[output.N_IMPURITY].to_numpy(),
-      zimp=core_profiles_dataset[output.Z_IMPURITY].to_numpy(),
-      psi=core_profiles_dataset[output.PSI].to_numpy(),
-      psidot=core_profiles_dataset[output.V_LOOP].to_numpy(),
-      j=core_profiles_dataset[output.J_TOTAL].to_numpy(),
-      johm=core_profiles_dataset[output.J_OHMIC].to_numpy(),
-      j_bootstrap=core_profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      external_current_source=core_profiles_dataset[
+      ti=profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
+      te=profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
+      ne=profiles_dataset[output.N_E].to_numpy(),
+      ni=profiles_dataset[output.N_I].to_numpy(),
+      nimp=profiles_dataset[output.N_IMPURITY].to_numpy(),
+      zimp=profiles_dataset[output.Z_IMPURITY].to_numpy(),
+      psi=profiles_dataset[output.PSI].to_numpy(),
+      psidot=profiles_dataset[output.V_LOOP].to_numpy(),
+      j=profiles_dataset[output.J_TOTAL].to_numpy(),
+      johm=profiles_dataset[output.J_OHMIC].to_numpy(),
+      j_bootstrap=profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
+      external_current_source=profiles_dataset[
           output.J_EXTERNAL
       ].to_numpy(),
       j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
       generic_current=get_optional_data(
           profiles_dataset, 'j_generic_current', 'cell'
       ),
-      q=core_profiles_dataset[output.Q].to_numpy(),
-      s=core_profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
+      q=profiles_dataset[output.Q].to_numpy(),
+      s=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
       chi_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
       chi_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
       d_e=profiles_dataset[output.D_TURB_E].to_numpy(),
@@ -368,8 +368,8 @@ def load_data(filename: str) -> PlotData:
           profiles_dataset, 's_generic_particle', 'cell'
       ),
       s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
-      i_total=core_profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
-      i_bootstrap=core_profiles_dataset[output.I_BOOTSTRAP].to_numpy(),
+      i_total=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
+      i_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
       i_generic=post_processed_outputs_dataset['I_aux_generic'].to_numpy(),
       i_ecrh=post_processed_outputs_dataset['I_ecrh'].to_numpy(),
       p_ohmic=post_processed_outputs_dataset['P_ohmic_e'].to_numpy(),

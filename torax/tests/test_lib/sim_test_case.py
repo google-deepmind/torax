@@ -70,13 +70,13 @@ class SimTestCase(parameterized.TestCase):
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
     data_tree = output.safe_load_dataset(expected_results_path)
-    core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
+    profiles_dataset = data_tree.children[output.PROFILES].dataset
     self.assertNotEmpty(profiles)
     ref_profiles = {
-        profile: core_profiles_dataset[profile].to_numpy()
+        profile: profiles_dataset[profile].to_numpy()
         for profile in profiles
     }
-    ref_time = core_profiles_dataset[output.TIME].to_numpy()
+    ref_time = profiles_dataset[output.TIME].to_numpy()
     self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
     return ref_profiles, ref_time
 
@@ -109,7 +109,7 @@ class SimTestCase(parameterized.TestCase):
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
         actual_value = (
-            ds.children[output.CORE_PROFILES]
+            ds.children[output.PROFILES]
             .dataset[profile_name]
             .to_numpy()[step, :]
         )

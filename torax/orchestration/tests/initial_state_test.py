@@ -81,14 +81,12 @@ class InitialStateTest(sim_test_case.SimTestCase):
         output.PSI,
         output.V_LOOP,
         output.IP_PROFILE,
-        output.N_REF,
         output.Q,
         output.MAGNETIC_SHEAR,
         output.J_BOOTSTRAP,
         output.J_OHMIC,
         output.J_EXTERNAL,
         output.J_TOTAL,
-        output.I_BOOTSTRAP,
         output.SIGMA_PARALLEL,
     ]
     index = -1
@@ -222,9 +220,6 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.nref, ref_profiles[output.N_REF][index]
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.j_bootstrap,
       ref_profiles[output.J_BOOTSTRAP][index, 1:-1],
   )
@@ -253,10 +248,6 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.J_OHMIC][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.I_bootstrap,
-      ref_profiles[output.I_BOOTSTRAP][index],
   )
   np.testing.assert_allclose(
       core_profiles.currents.Ip_profile_face,
