@@ -24,7 +24,7 @@ import jax
 import numpy as np
 from torax import state
 from torax.geometry import geometry as geometry_lib
-from torax.sources import source_models as source_models_lib
+from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.torax_pydantic import model_config
@@ -202,15 +202,10 @@ class StateHistory:
       state_history: tuple[state.ToraxSimState, ...],
       post_processed_outputs_history: tuple[state.PostProcessedOutputs, ...],
       sim_error: state.SimError,
-      source_models: source_models_lib.SourceModels,
       torax_config: model_config.ToraxConfig,
   ):
-    self._state_history = state_history
-    self._post_processed_outputs_history = post_processed_outputs_history
-    self._source_models = source_models
     self.sim_error = sim_error
     self.torax_config = torax_config
-
     core_profiles = [state.core_profiles for state in state_history]
     core_sources = [state.core_sources for state in state_history]
     transport = [state.core_transport for state in state_history]
@@ -376,7 +371,7 @@ class StateHistory:
     """Saves the core sources to a dict."""
     xr_dict = {}
 
-    xr_dict[self._source_models.qei_source_name] = (
+    xr_dict[qei_source_lib.QeiSource.SOURCE_NAME] = (
         self.core_sources.qei.qei_coef
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )

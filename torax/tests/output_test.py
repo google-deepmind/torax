@@ -123,7 +123,6 @@ class StateHistoryTest(parameterized.TestCase):
         sim_error=sim_error,
         state_history=(self.sim_state,),
         post_processed_outputs_history=(self._output_state,),
-        source_models=self.source_models,
         torax_config=self.torax_config,
     )
 
@@ -154,7 +153,6 @@ class StateHistoryTest(parameterized.TestCase):
             self._output_state,
             self._output_state,
         ),
-        source_models=self.source_models,
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
@@ -331,7 +329,6 @@ class StateHistoryTest(parameterized.TestCase):
             post_processed_outputs,
             post_processed_outputs,
         ),
-        source_models=self.source_models,
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
