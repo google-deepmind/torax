@@ -61,7 +61,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             attrs=(
                 'p_auxiliary',
                 'p_ohmic',
-                'p_fusion',
+                'p_alpha',
                 'p_rad',
                 'p_brems',
                 'p_cycl',
@@ -69,7 +69,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             labels=(
                 r'$P_\mathrm{aux}$',
                 r'$P_\mathrm{ohm}$',
-                r'$P_\mathrm{\fusion}$',
+                r'$P_\mathrm{\alpha}$',
                 r'$P_\mathrm{rad}$',
                 r'$P_\mathrm{brems}$',
                 r'$P_\mathrm{cycl}$',

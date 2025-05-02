@@ -166,6 +166,7 @@ class PlotData:
     p_cycl: Total cyclotron radiation power loss [:math:`\mathrm{MW}`].
     p_rad: Total impurity radiation power loss [:math:`\mathrm{MW}`].
     t: Simulation time [:math:`\mathrm{s}`].
+    rho_coord: Normalized toroidal flux coordinate on cell grid + boundaries.
     rho_cell_coord: Normalized toroidal flux coordinate on the cell grid.
     rho_face_coord: Normalized toroidal flux coordinate on the face grid.
     te_volume_avg: Volume-averaged electron temperature [:math:`\mathrm{keV}`].
@@ -226,6 +227,7 @@ class PlotData:
   p_cycl: np.ndarray
   p_rad: np.ndarray
   t: np.ndarray
+  rho_coord: np.ndarray
   rho_cell_coord: np.ndarray
   rho_face_coord: np.ndarray
   te_volume_avg: np.ndarray
@@ -283,8 +285,8 @@ def load_data(filename: str) -> PlotData:
         'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
         'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
         'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
-        'p_fusion_i': 1e6,  # W/m^3 to MW/m^3
-        'p_fusion_e': 1e6,  # W/m^3 to MW/m^3
+        'p_alpha_i': 1e6,  # W/m^3 to MW/m^3
+        'p_alpha_e': 1e6,  # W/m^3 to MW/m^3
         'p_ohmic_e': 1e6,  # W/m^3 to MW/m^3
         'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
         'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
@@ -328,9 +330,7 @@ def load_data(filename: str) -> PlotData:
       j=profiles_dataset[output.J_TOTAL].to_numpy(),
       johm=profiles_dataset[output.J_OHMIC].to_numpy(),
       j_bootstrap=profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      external_current_source=profiles_dataset[
-          output.J_EXTERNAL
-      ].to_numpy(),
+      external_current_source=profiles_dataset[output.J_EXTERNAL].to_numpy(),
       j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
       generic_current=get_optional_data(
           profiles_dataset, 'j_generic_current', 'cell'
@@ -341,6 +341,7 @@ def load_data(filename: str) -> PlotData:
       chi_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
       d_e=profiles_dataset[output.D_TURB_E].to_numpy(),
       v_e=profiles_dataset[output.V_TURB_E].to_numpy(),
+      rho_coord=dataset[output.RHO_NORM].to_numpy(),
       rho_cell_coord=dataset[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=dataset[output.RHO_FACE_NORM].to_numpy(),
       q_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
@@ -348,8 +349,8 @@ def load_data(filename: str) -> PlotData:
       q_gen_i=get_optional_data(profiles_dataset, 'p_generic_heat_i', 'cell'),
       q_gen_e=get_optional_data(profiles_dataset, 'p_generic_heat_e', 'cell'),
       q_ecrh=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
-      q_alpha_i=get_optional_data(profiles_dataset, 'p_fusion_i', 'cell'),
-      q_alpha_e=get_optional_data(profiles_dataset, 'p_fusion_e', 'cell'),
+      q_alpha_i=get_optional_data(profiles_dataset, 'p_alpha_i', 'cell'),
+      q_alpha_e=get_optional_data(profiles_dataset, 'p_alpha_e', 'cell'),
       q_ohmic=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
       q_brems=get_optional_data(profiles_dataset, 'p_bremsstrahlung_e', 'cell'),
       q_cycl=get_optional_data(
@@ -371,8 +372,7 @@ def load_data(filename: str) -> PlotData:
       i_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
       p_ohmic=scalars_dataset['P_ohmic_e'].to_numpy(),
       p_auxiliary=(
-          scalars_dataset['P_external_tot']
-          - scalars_dataset['P_ohmic_e']
+          scalars_dataset['P_external_tot'] - scalars_dataset['P_ohmic_e']
       ).to_numpy(),
       p_alpha=scalars_dataset['P_alpha_total'].to_numpy(),
       p_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
@@ -385,9 +385,7 @@ def load_data(filename: str) -> PlotData:
       ti_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
       ne_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
       ni_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
-      W_thermal_tot=scalars_dataset[
-          'W_thermal_total'
-      ].to_numpy(),
+      W_thermal_tot=scalars_dataset['W_thermal_total'].to_numpy(),
       q95=scalars_dataset['q95'].to_numpy(),
       t=time,
   )
@@ -435,6 +433,7 @@ def plot_run(
   # Only create the slider if needed.
   if plot_config.contains_spatial_plot_type:
     timeslider = create_slider(slider_ax, plotdata1, plotdata2)
+
     def update(newtime):
       """Update plots with new values following slider manipulation."""
       fig.constrained_layout = False
@@ -523,10 +522,12 @@ def format_plots(
   def get_limit(plotdata, attrs, percentile, include_first_timepoint):
     """Gets the limit for a set of attributes based a histogram percentile."""
     if include_first_timepoint:
-      values = np.concatenate([getattr(plotdata, attr) for attr in attrs])
+      values = np.concatenate(
+          [getattr(plotdata, attr).flatten() for attr in attrs]
+      )
     else:
       values = np.concatenate(
-          [getattr(plotdata, attr)[1:, :] for attr in attrs]
+          [getattr(plotdata, attr)[1:, :].flatten() for attr in attrs]
       )
     return np.percentile(values, percentile)
 
@@ -590,6 +591,8 @@ def get_rho(
     return plotdata.rho_cell_coord
   elif datalen == len(plotdata.rho_face_coord):
     return plotdata.rho_face_coord
+  elif datalen == len(plotdata.rho_coord):
+    return plotdata.rho_coord
   else:
     raise ValueError(
         f'Data {datalen} does not coincide with either the cell or face grids.'
