@@ -219,7 +219,6 @@ class StateHistoryTest(parameterized.TestCase):
   def test_expected_keys_in_child_nodes(self):
     data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
-        output.POST_PROCESSED_OUTPUTS,
         output.PROFILES,
         output.SCALARS,
         output.NUMERICS,
@@ -395,36 +394,6 @@ class StateHistoryTest(parameterized.TestCase):
       data_array_dims = data_array.dims
       if data_array_dims:
         self.assertEqual(data_array_dims[0], output.TIME)
-
-  def test_profiles_and_scalars_are_all_saved(self):
-    """Temporary test to check profiles and scalars are saved equivalently."""
-    output_xr = self.history.simulation_output_to_xr()
-
-    def check_data_vars_saved_in_profiles_or_scalars(ds: xr.Dataset):
-      for data_var, data_array in ds.data_vars.items():
-        in_profiles = (
-            data_var in output_xr.children[output.PROFILES].dataset.data_vars
-        )
-        in_scalars = (
-            data_var in output_xr.children[output.SCALARS].dataset.data_vars
-        )
-        self.assertTrue(
-            in_profiles or in_scalars,
-            msg=f'Data var {data_var} is not in profiles or scalars.',
-        )
-        if in_profiles:
-          data_array = output_xr.children[output.PROFILES].dataset.data_vars[
-              data_var
-          ]
-        elif in_scalars:
-          data_array = output_xr.children[output.SCALARS].dataset.data_vars[
-              data_var
-          ]
-        xr.testing.assert_equal(data_array, ds[data_var])
-    with self.subTest('post_processed_outputs_are_saved'):
-      check_data_vars_saved_in_profiles_or_scalars(
-          output_xr.children[output.POST_PROCESSED_OUTPUTS].dataset
-      )
 
 
 if __name__ == '__main__':

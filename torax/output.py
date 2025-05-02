@@ -82,7 +82,6 @@ RHO_CELL = "rho_cell"
 TIME = "time"
 
 # Post processed outputs
-POST_PROCESSED_OUTPUTS = "post_processed_outputs"
 Q_FUSION = "Q_fusion"
 
 # Numerics.
@@ -533,9 +532,6 @@ class StateHistory:
         flat_dict[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
-    post_processed_outputs_ds = xr.Dataset(
-        post_processed_outputs_dict, coords=coords
-    )
     top_level_xr_dict = {
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
@@ -566,9 +562,6 @@ class StateHistory:
             NUMERICS: xr.DataTree(dataset=numerics),
             PROFILES: xr.DataTree(dataset=profiles),
             SCALARS: xr.DataTree(dataset=scalars),
-            POST_PROCESSED_OUTPUTS: xr.DataTree(
-                dataset=post_processed_outputs_ds
-            ),
         },
         dataset=xr.Dataset(
             top_level_xr_dict,

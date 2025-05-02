@@ -314,9 +314,6 @@ def load_data(filename: str) -> PlotData:
   data_tree = xr.map_over_datasets(_transform_data, data_tree)
   profiles_dataset = data_tree.children[output.PROFILES].dataset
   scalars_dataset = data_tree.children[output.SCALARS].dataset
-  post_processed_outputs_dataset = data_tree.children[
-      output.POST_PROCESSED_OUTPUTS
-  ].dataset
   dataset = data_tree.dataset
 
   return PlotData(
@@ -362,7 +359,7 @@ def load_data(filename: str) -> PlotData:
           profiles_dataset, 'p_impurity_radiation_e', 'cell'
       ),
       q_ei=profiles_dataset['ei_exchange'].to_numpy(),  # ion heating/sink
-      Q_fusion=post_processed_outputs_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
+      Q_fusion=scalars_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
       s_puff=get_optional_data(profiles_dataset, 'gas_puff', 'cell'),
       s_generic=get_optional_data(
           profiles_dataset, 's_generic_particle', 'cell'
@@ -370,28 +367,28 @@ def load_data(filename: str) -> PlotData:
       s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
       i_total=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
       i_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
-      i_generic=post_processed_outputs_dataset['I_aux_generic'].to_numpy(),
-      i_ecrh=post_processed_outputs_dataset['I_ecrh'].to_numpy(),
-      p_ohmic=post_processed_outputs_dataset['P_ohmic_e'].to_numpy(),
+      i_generic=scalars_dataset['I_aux_generic'].to_numpy(),
+      i_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
+      p_ohmic=scalars_dataset['P_ohmic_e'].to_numpy(),
       p_auxiliary=(
-          post_processed_outputs_dataset['P_external_tot']
-          - post_processed_outputs_dataset['P_ohmic_e']
+          scalars_dataset['P_external_tot']
+          - scalars_dataset['P_ohmic_e']
       ).to_numpy(),
-      p_alpha=post_processed_outputs_dataset['P_alpha_total'].to_numpy(),
-      p_sink=post_processed_outputs_dataset['P_bremsstrahlung_e'].to_numpy()
-      + post_processed_outputs_dataset['P_radiation_e'].to_numpy()
-      + post_processed_outputs_dataset['P_cyclotron_e'].to_numpy(),
-      p_brems=post_processed_outputs_dataset['P_bremsstrahlung_e'].to_numpy(),
-      p_rad=post_processed_outputs_dataset['P_radiation_e'].to_numpy(),
-      p_cycl=post_processed_outputs_dataset['P_cyclotron_e'].to_numpy(),
-      te_volume_avg=post_processed_outputs_dataset['T_e_volume_avg'].to_numpy(),
-      ti_volume_avg=post_processed_outputs_dataset['T_i_volume_avg'].to_numpy(),
-      ne_volume_avg=post_processed_outputs_dataset['n_e_volume_avg'].to_numpy(),
-      ni_volume_avg=post_processed_outputs_dataset['n_i_volume_avg'].to_numpy(),
-      W_thermal_tot=post_processed_outputs_dataset[
+      p_alpha=scalars_dataset['P_alpha_total'].to_numpy(),
+      p_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
+      + scalars_dataset['P_radiation_e'].to_numpy()
+      + scalars_dataset['P_cyclotron_e'].to_numpy(),
+      p_brems=scalars_dataset['P_bremsstrahlung_e'].to_numpy(),
+      p_rad=scalars_dataset['P_radiation_e'].to_numpy(),
+      p_cycl=scalars_dataset['P_cyclotron_e'].to_numpy(),
+      te_volume_avg=scalars_dataset['T_e_volume_avg'].to_numpy(),
+      ti_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
+      ne_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
+      ni_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
+      W_thermal_tot=scalars_dataset[
           'W_thermal_total'
       ].to_numpy(),
-      q95=post_processed_outputs_dataset['q95'].to_numpy(),
+      q95=scalars_dataset['q95'].to_numpy(),
       t=time,
   )
 

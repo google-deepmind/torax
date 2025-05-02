@@ -145,21 +145,17 @@ def get_initial_state_and_post_processed_outputs_from_file(
       geo=geo_for_init,
       step_fn=step_fn,
   )
-  post_processed_dataset = data_tree.children[
-      output.POST_PROCESSED_OUTPUTS
-  ].dataset
-  post_processed_dataset = post_processed_dataset.squeeze()
+  scalars_dataset = data_tree.children[output.SCALARS].dataset
+  scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = post_processing.make_post_processed_outputs(
       initial_state,
       dynamic_runtime_params_slice_for_init,
   )
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
-      E_fusion=post_processed_dataset.data_vars['E_fusion'].to_numpy(),
-      E_aux=post_processed_dataset.data_vars['E_aux'].to_numpy(),
+      E_fusion=scalars_dataset.data_vars['E_fusion'].to_numpy(),
+      E_aux=scalars_dataset.data_vars['E_aux'].to_numpy(),
   )
-  scalars_dataset = data_tree.children[output.SCALARS].dataset
-  scalars_dataset = scalars_dataset.squeeze()
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
       vloop_lcfs=scalars_dataset.vloop_lcfs.values,
