@@ -91,8 +91,8 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
       'magnetic_shear',
   ]
   # Load the Datasets
-  ds_old = output.safe_load_dataset(old_file).children['core_profiles']
-  ds_new = output.safe_load_dataset(new_file).children['core_profiles']
+  ds_old = output.safe_load_dataset(old_file).children['profiles']
+  ds_new = output.safe_load_dataset(new_file).children['profiles']
   print(f'Comparing {old_file} and {new_file}:')
   for profile_name in profile_names:
     _print_diff(profile_name, ds_old, ds_new)
