@@ -161,8 +161,6 @@ class Geometry:
       ``torax.orchestration.step_function`` for more details.
     _z_magnetic_axis: Vertical position of the magnetic axis
       [:math:`\mathrm{m}`].
-    _z_boundary_outline: z positions of boundary outline [:math:`\mathrm{m}`].
-    _r_boundary_outline: r positions of boundary outline [:math:`\mathrm{m}`].
   """
 
   geometry_type: GeometryType
@@ -206,8 +204,6 @@ class Geometry:
   rho_hires: chex.Array
   Phibdot: chex.Array
   _z_magnetic_axis: chex.Array | None
-  _z_boundary_outline: chex.Array | None
-  _r_boundary_outline: chex.Array | None
 
   @property
   def q_correction_factor(self) -> chex.Numeric:

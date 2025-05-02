@@ -148,8 +148,6 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
-  _z_boundary_outline: interpolated_param.StepInterpolatedParam | None
-  _r_boundary_outline: interpolated_param.StepInterpolatedParam | None
 
   @classmethod
   def create_provider(
@@ -180,17 +178,9 @@ class TimeDependentGeometryProvider:
       ):
         continue
       if attr.name == '_z_magnetic_axis':
-        if getattr(initial_geometry, attr.name) is None:  # pylint: disable=protected-access
+        if initial_geometry._z_magnetic_axis is None:  # pylint: disable=protected-access
           kwargs[attr.name] = None
           continue
-      if attr.name in ['_z_boundary_outline', '_r_boundary_outline']:
-        if getattr(initial_geometry, attr.name) is None:  # pylint: disable=protected-access
-          kwargs[attr.name] = None
-        else:
-          kwargs[attr.name] = interpolated_param.StepInterpolatedParam(
-              (times, [getattr(g, attr.name) for g in geos])
-          )
-        continue
       kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
           (times, np.stack([getattr(g, attr.name) for g in geos], axis=0))
       )
@@ -219,10 +209,8 @@ class TimeDependentGeometryProvider:
       if attr.name == 'Phibdot':
         kwargs[attr.name] = 0.0
         continue
-      if attr.name in [
-          '_z_magnetic_axis', '_z_boundary_outline', '_r_boundary_outline'
-      ]:
-        if getattr(self, attr.name) is None:  # pylint: disable=protected-access
+      if attr.name == '_z_magnetic_axis':
+        if self._z_magnetic_axis is None:
           kwargs[attr.name] = None
           continue
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
