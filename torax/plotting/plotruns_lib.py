@@ -289,8 +289,6 @@ def load_data(filename: str) -> PlotData:
         'j_ecrh': 1e6,  # A/m^2 to MA/m^2
         'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
         'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
-        'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
-        'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
         'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
         'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
@@ -300,17 +298,17 @@ def load_data(filename: str) -> PlotData:
         'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
         'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
         'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
-        'p_ei_exchange': 1e6,  # W/m^3 to MW/m^3
-        'P_ohmic': 1e6,  # W to MW
-        'P_external_tot': 1e6,  # W to MW
-        'P_alpha_tot': 1e6,  # W to MW
-        'P_brems': 1e6,  # W to MW
-        'P_cycl': 1e6,  # W to MW
+        'ei_exchange': 1e6,  # W/m^3 to MW/m^3
+        'P_ohmic_e': 1e6,  # W to MW
+        'P_external_total': 1e6,  # W to MW
+        'P_alpha_total': 1e6,  # W to MW
+        'P_bremsstrahlung_e': 1e6,  # W to MW
+        'P_cyclotron_e': 1e6,  # W to MW
         'P_ecrh': 1e6,  # W to MW
-        'P_rad': 1e6,  # W to MW
+        'P_radiation_e': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
         'I_aux_generic': 1e6,  # A to MA
-        'W_thermal_tot': 1e6,  # J to MJ
+        'W_thermal_total': 1e6,  # J to MJ
         output.N_E: nref / 1e20,
         output.N_I: nref / 1e20,
         output.N_IMPURITY: nref / 1e20,
