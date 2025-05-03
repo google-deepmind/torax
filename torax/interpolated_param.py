@@ -59,9 +59,7 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
-_ArrayOrListOfFloats: TypeAlias = (
-    chex.Array | list[float]
-)
+_ArrayOrListOfFloats: TypeAlias = chex.Array | list[float]
 
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
@@ -209,6 +207,11 @@ class StepInterpolatedParam(InterpolatedParamBase):
           'xs and ys must have the same number of elements in the first '
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
+    # Python‐level sortedness check:
+    xs_np = np.array(self.xs)
+    if not np.array_equal(np.sort(xs_np), xs_np):
+      raise RuntimeError('xs must be sorted.')
+
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
     self._padded_xs = jnp.concatenate([

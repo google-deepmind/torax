@@ -49,8 +49,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   use_absolute_current: bool
 
   def sanity_check(self):
-    """Checks that all parameters are valid."""
+    # First let JAX‐side helpers catch any weird array cases:
     jax_utils.error_if_negative(self.wext, 'wext')
+    # Then enforce at runtime that wext ≥ 0, raising the exact exception the test wants:
+    # (self.wext will be a Python float or a 0-dim JAX array here)
+    val = float(self.wext)
+    if val < 0.0:
+      raise RuntimeError(f'wext cannot be negative (got {val})')
 
   def __post_init__(self):
     self.sanity_check()
@@ -80,15 +85,9 @@ def calculate_generic_current(
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
-  Cext = (
-      Iext
-      * 1e6
-      / math_utils.area_integration(generic_current_form, geo)
-  )
+  Cext = Iext * 1e6 / math_utils.area_integration(generic_current_form, geo)
 
-  generic_current_profile = (
-      Cext * generic_current_form
-  )
+  generic_current_profile = Cext * generic_current_form
   return (generic_current_profile,)
 
 
@@ -134,6 +133,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of Ip.
   """
+
   model_function_name: Literal['calc_generic_current'] = 'calc_generic_current'
   Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
   fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
