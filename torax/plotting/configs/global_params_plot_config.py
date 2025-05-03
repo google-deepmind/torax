@@ -27,7 +27,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
     axes=(
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('i_total', 'i_bootstrap', 'i_generic', 'i_ecrh'),
+            attrs=('Ip_profile', 'I_bootstrap', 'I_aux_generic', 'I_ecrh'),
             labels=(
                 r'$I_\mathrm{p}$',
                 r'$I_\mathrm{bs}$',
@@ -45,13 +45,13 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('W_thermal_tot',),
+            attrs=('W_thermal_total',),
             labels=(r'$W_\mathrm{therm\_tot}$',),
             ylabel='Total thermal stored energy [MJ]',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('te_volume_avg', 'ti_volume_avg'),
+            attrs=('T_e_volume_avg', 'T_i_volume_avg'),
             labels=(
                 r'$\mathrm{<T_e>_V}$',
                 r'$\mathrm{<T_i>_V}$',
@@ -60,7 +60,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('ne_volume_avg', 'ni_volume_avg'),
+            attrs=('n_e_volume_avg', 'n_i_volume_avg'),
             labels=(
                 r'$\mathrm{<n_e>_V}$',
                 r'$\mathrm{<n_i>_V}$',

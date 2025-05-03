@@ -91,150 +91,159 @@ class FigureProperties:
     )
 
 
+# pylint: disable=invalid-name
 @dataclasses.dataclass
 class PlotData:
   r"""Dataclass for all plot related data.
 
   Attributes:
-    ti: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
-    te: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
-    ne: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
-      grid.
-    ni: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
-      grid. Corresponds to an bundled ion mixture if specified as such in the
-      config.
-    nimp: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
-      grid. Corresponds to an bundled ion mixture if specified as such in the
-      config.
-    zimp: Average charge state of the impurity species [dimensionless] on the
+    T_i: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
+    T_e: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
+    n_e: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the
       cell grid.
-    psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
-    psidot: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
+    n_i: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the
+      cell grid. Corresponds to an bundled ion mixture if specified as such in
+      the config.
+    n_impurity: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on
+      the cell grid. Corresponds to an bundled ion mixture if specified as such
+      in the config.
+    z_impurity: Average charge state of the impurity species [dimensionless]
       on the cell grid.
-    j: Total toroidal current density profile [:math:`\mathrm{MA/m^2}`] on the
+    psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
+    v_loop: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
+      on the cell grid.
+    j_total: Total toroidal current density profile [:math:`\mathrm{MA/m^2}`] on
+      the cell grid.
+    j_ohmic: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the
       cell grid.
-    johm: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the cell
-      grid.
     j_bootstrap: Bootstrap current density profile [:math:`\mathrm{MA/m^2}`] on
       the cell grid.
     j_ecrh: Electron cyclotron current density profile [:math:`\mathrm{MA/m^2}`]
       on the cell grid.
-    generic_current: Generic external current source density profile
+    j_generic_current: Generic external current source density profile
       [:math:`\mathrm{MA/m^2}`] on the cell grid.
-    external_current_source: Total externally driven current source density
-      profile [:math:`\mathrm{MA/m^2}`] on the cell grid.
+    j_external: Total externally driven current source density profile
+      [:math:`\mathrm{MA/m^2}`] on the cell grid.
     q: Safety factor (q-profile) [dimensionless] on the face grid.
-    s: Magnetic shear profile [dimensionless] on the face grid.
-    chi_i: Ion heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
-    chi_e: Electron heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
-    d_e: Electron particle diffusivity [:math:`\mathrm{m^2/s}`] on the face
+    magnetic_shear: Magnetic shear profile [dimensionless] on the face grid.
+    chi_turb_i: Ion heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
+    chi_turb_e: Electron heat conductivity [:math:`\mathrm{m^2/s}`] on the face
       grid.
-    v_e: Electron particle convection velocity [:math:`\mathrm{m/s}`] on the
-      face grid.
-    q_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
-    q_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
-    q_gen_i: Generic ion heating power density [:math:`\mathrm{MW/m^³}`].
-    q_gen_e: Generic electron heating power density [:math:`\mathrm{MW/m^3}`].
-    q_ecrh: Electron cyclotron heating power density [:math:`\mathrm{MW/m^3}`].
-    q_alpha_i: Fusion alpha particle heating power density to ion
+    D_turb_e: Electron particle diffusivity [:math:`\mathrm{m^2/s}`] on the face
+      grid.
+    V_turb_e: Electron particle convection velocity [:math:`\mathrm{m/s}`] on
+      the face grid.
+    p_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
+    p_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
+    p_generic_heat_i: Generic ion heating power density
+      [:math:`\mathrm{MW/m^³}`].
+    p_generic_heat_e: Generic electron heating power density
       [:math:`\mathrm{MW/m^3}`].
-    q_alpha_e: Fusion alpha particle heating power density to electrons
+    p_ecrh_e: Electron cyclotron heating power density
       [:math:`\mathrm{MW/m^3}`].
-    q_ohmic: Ohmic heating power density [:math:`\mathrm{MW/m^3}`].
-    q_brems: Bremsstrahlung radiation power density [:math:`\mathrm{MW/m^3}`].
-    q_cycl: Cyclotron radiation power density [:math:`\mathrm{MW/m^3}`].
-    q_ei: Ion-electron heat exchange power density [:math:`\mathrm{MW/m^3}`].
-      Positive values denote ion heating, and negative values denote ion cooling
-      (electron heating).
-    q_rad: Impurity radiation power density [:math:`\mathrm{MW/m^3}`].
+    p_alpha_i: Fusion alpha particle heating power density to ion
+      [:math:`\mathrm{MW/m^3}`].
+    p_alpha_e: Fusion alpha particle heating power density to electrons
+      [:math:`\mathrm{MW/m^3}`].
+    p_ohmic_e: Ohmic heating power density [:math:`\mathrm{MW/m^3}`].
+    p_bremsstrahlung_e: Bremsstrahlung radiation power density
+      [:math:`\mathrm{MW/m^3}`].
+    p_cyclotron_radiation_e: Cyclotron radiation power density
+      [:math:`\mathrm{MW/m^3}`].
+    ei_exchange: Ion-electron heat exchange power density
+      [:math:`\mathrm{MW/m^3}`]. Positive values denote ion heating, and
+      negative values denote ion cooling (electron heating).
+    p_impurity_radiation_e: Impurity radiation power density
+      [:math:`\mathrm{MW/m^3}`].
     Q_fusion: Fusion power gain (dimensionless).
-    s_puff: Gas puff particle source density [:math:`\mathrm{10^{20} m^{-3}
+    s_gas_puff: Gas puff particle source density [:math:`\mathrm{10^{20} m^{-3}
       s^{-1}}`].
-    s_generic: Generic particle source density [:math:`\mathrm{10^{20} m^{-3}
-      s^{-1}}`].
+    s_generic_particle: Generic particle source density [:math:`\mathrm{10^{20}
+      m^{-3} s^{-1}}`].
     s_pellet: Pellet particle source density [:math:`\mathrm{10^{20} m^{-3}
       s^{-1}}`].
-    i_total: Total plasma current [:math:`\mathrm{MA}`].
-    i_bootstrap: Total bootstrap current [:math:`\mathrm{MA}`].
-    i_generic: Total generic current source [:math:`\mathrm{MA}`].
-    i_ecrh: Total electron cyclotron current [:math:`\mathrm{MA}`].
-    p_auxiliary: Total auxiliary heating power [:math:`\mathrm{MW}`].
-    p_ohmic: Total Ohmic heating power [:math:`\mathrm{MW}`].
-    p_alpha: Total fusion alpha heating power [:math:`\mathrm{MW}`].
-    p_sink: Total electron heating sink [:math:`\mathrm{MW}`].
-    p_brems: Total bremsstrahlung radiation power loss [:math:`\mathrm{MW}`].
-    p_cycl: Total cyclotron radiation power loss [:math:`\mathrm{MW}`].
-    p_rad: Total impurity radiation power loss [:math:`\mathrm{MW}`].
+    Ip_profile: Total plasma current [:math:`\mathrm{MA}`].
+    I_bootstrap: Total bootstrap current [:math:`\mathrm{MA}`].
+    I_aux_generic: Total generic current source [:math:`\mathrm{MA}`].
+    I_ecrh: Total electron cyclotron current [:math:`\mathrm{MA}`].
+    P_auxiliary: Total auxiliary heating power [:math:`\mathrm{MW}`].
+    P_ohmic_e: Total Ohmic heating power [:math:`\mathrm{MW}`].
+    P_alpha_total: Total fusion alpha heating power [:math:`\mathrm{MW}`].
+    P_sink: Total electron heating sink [:math:`\mathrm{MW}`].
+    P_bremsstrahlung_e: Total bremsstrahlung radiation power loss
+      [:math:`\mathrm{MW}`].
+    P_cyclotron_e: Total cyclotron radiation power loss [:math:`\mathrm{MW}`].
+    P_radiation_e: Total impurity radiation power loss [:math:`\mathrm{MW}`].
     t: Simulation time [:math:`\mathrm{s}`].
-    rho_coord: Normalized toroidal flux coordinate on cell grid + boundaries.
-    rho_cell_coord: Normalized toroidal flux coordinate on the cell grid.
-    rho_face_coord: Normalized toroidal flux coordinate on the face grid.
-    te_volume_avg: Volume-averaged electron temperature [:math:`\mathrm{keV}`].
-    ti_volume_avg: Volume-averaged ion temperature [:math:`\mathrm{keV}`].
-    ne_volume_avg: Volume-averaged electron density [:math:`\mathrm{10^{20}
+    rho_norm: Normalized toroidal flux coordinate on cell grid + boundaries.
+    rho_cell_norm: Normalized toroidal flux coordinate on the cell grid.
+    rho_face_norm: Normalized toroidal flux coordinate on the face grid.
+    T_e_volume_avg: Volume-averaged electron temperature
+      [:math:`\mathrm{keV}`].
+    T_i_volume_avg: Volume-averaged ion temperature [:math:`\mathrm{keV}`].
+    n_e_volume_avg: Volume-averaged electron density [:math:`\mathrm{10^{20}
       m^{-3}}`].
-    ni_volume_avg: Volume-averaged ion density [:math:`\mathrm{10^{20}
+    n_i_volume_avg: Volume-averaged ion density [:math:`\mathrm{10^{20}
       m^{-3}}`].
-    W_thermal_tot: Total thermal stored energy [:math:`\mathrm{MJ}`].
+    W_thermal_total: Total thermal stored energy [:math:`\mathrm{MJ}`].
     q95: Safety factor at 95% of the normalized poloidal flux.
   """
-
-  ti: np.ndarray
-  te: np.ndarray
-  ne: np.ndarray
-  ni: np.ndarray
-  nimp: np.ndarray
-  zimp: np.ndarray
+  T_i: np.ndarray
+  T_e: np.ndarray
+  n_e: np.ndarray
+  n_i: np.ndarray
+  n_impurity: np.ndarray
+  z_impurity: np.ndarray
   psi: np.ndarray
-  psidot: np.ndarray
-  j: np.ndarray
-  johm: np.ndarray
+  v_loop: np.ndarray
+  j_total: np.ndarray
+  j_ohmic: np.ndarray
   j_bootstrap: np.ndarray
   j_ecrh: np.ndarray
-  generic_current: np.ndarray
-  external_current_source: np.ndarray
+  j_generic_current: np.ndarray
+  j_external: np.ndarray
   q: np.ndarray
-  s: np.ndarray
-  chi_i: np.ndarray
-  chi_e: np.ndarray
-  d_e: np.ndarray
-  v_e: np.ndarray
-  q_icrh_i: np.ndarray
-  q_icrh_e: np.ndarray
-  q_gen_i: np.ndarray
-  q_gen_e: np.ndarray
-  q_ecrh: np.ndarray
-  q_alpha_i: np.ndarray
-  q_alpha_e: np.ndarray
-  q_ohmic: np.ndarray
-  q_brems: np.ndarray
-  q_cycl: np.ndarray
-  q_ei: np.ndarray
-  q_rad: np.ndarray
+  magnetic_shear: np.ndarray
+  chi_turb_i: np.ndarray
+  chi_turb_e: np.ndarray
+  D_turb_e: np.ndarray
+  V_turb_e: np.ndarray
+  p_icrh_i: np.ndarray
+  p_icrh_e: np.ndarray
+  p_generic_heat_i: np.ndarray
+  p_generic_heat_e: np.ndarray
+  p_ecrh_e: np.ndarray
+  p_alpha_i: np.ndarray
+  p_alpha_e: np.ndarray
+  p_ohmic_e: np.ndarray
+  p_bremsstrahlung_e: np.ndarray
+  p_cyclotron_radiation_e: np.ndarray
+  ei_exchange: np.ndarray
+  p_impurity_radiation_e: np.ndarray
   Q_fusion: np.ndarray  # pylint: disable=invalid-name
-  s_puff: np.ndarray
-  s_generic: np.ndarray
+  s_gas_puff: np.ndarray
+  s_generic_particle: np.ndarray
   s_pellet: np.ndarray
-  i_total: np.ndarray
-  i_bootstrap: np.ndarray
-  i_generic: np.ndarray
-  i_ecrh: np.ndarray
-  p_auxiliary: np.ndarray
-  p_ohmic: np.ndarray
-  p_alpha: np.ndarray
-  p_sink: np.ndarray
-  p_brems: np.ndarray
-  p_cycl: np.ndarray
-  p_rad: np.ndarray
+  Ip_profile: np.ndarray
+  I_bootstrap: np.ndarray
+  I_aux_generic: np.ndarray
+  I_ecrh: np.ndarray
+  P_auxiliary: np.ndarray
+  P_ohmic_e: np.ndarray
+  P_alpha_total: np.ndarray
+  P_sink: np.ndarray
+  P_bremsstrahlung_e: np.ndarray
+  P_cyclotron_e: np.ndarray
+  P_radiation_e: np.ndarray
   t: np.ndarray
-  rho_coord: np.ndarray
-  rho_cell_coord: np.ndarray
-  rho_face_coord: np.ndarray
-  te_volume_avg: np.ndarray
-  ti_volume_avg: np.ndarray
-  ne_volume_avg: np.ndarray
-  ni_volume_avg: np.ndarray
-  W_thermal_tot: np.ndarray  # pylint: disable=invalid-name
+  rho_norm: np.ndarray
+  rho_cell_norm: np.ndarray
+  rho_face_norm: np.ndarray
+  T_e_volume_avg: np.ndarray
+  T_i_volume_avg: np.ndarray
+  n_e_volume_avg: np.ndarray
+  n_i_volume_avg: np.ndarray
+  W_thermal_total: np.ndarray  # pylint: disable=invalid-name
   q95: np.ndarray
 
 
@@ -319,73 +328,81 @@ def load_data(filename: str) -> PlotData:
   dataset = data_tree.dataset
 
   return PlotData(
-      ti=profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
-      te=profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
-      ne=profiles_dataset[output.N_E].to_numpy(),
-      ni=profiles_dataset[output.N_I].to_numpy(),
-      nimp=profiles_dataset[output.N_IMPURITY].to_numpy(),
-      zimp=profiles_dataset[output.Z_IMPURITY].to_numpy(),
+      T_i=profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
+      T_e=profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
+      n_e=profiles_dataset[output.N_E].to_numpy(),
+      n_i=profiles_dataset[output.N_I].to_numpy(),
+      n_impurity=profiles_dataset[output.N_IMPURITY].to_numpy(),
+      z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
       psi=profiles_dataset[output.PSI].to_numpy(),
-      psidot=profiles_dataset[output.V_LOOP].to_numpy(),
-      j=profiles_dataset[output.J_TOTAL].to_numpy(),
-      johm=profiles_dataset[output.J_OHMIC].to_numpy(),
+      v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
+      j_total=profiles_dataset[output.J_TOTAL].to_numpy(),
+      j_ohmic=profiles_dataset[output.J_OHMIC].to_numpy(),
       j_bootstrap=profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      external_current_source=profiles_dataset[output.J_EXTERNAL].to_numpy(),
+      j_external=profiles_dataset[output.J_EXTERNAL].to_numpy(),
       j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
-      generic_current=get_optional_data(
+      j_generic_current=get_optional_data(
           profiles_dataset, 'j_generic_current', 'cell'
       ),
       q=profiles_dataset[output.Q].to_numpy(),
-      s=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
-      chi_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
-      chi_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
-      d_e=profiles_dataset[output.D_TURB_E].to_numpy(),
-      v_e=profiles_dataset[output.V_TURB_E].to_numpy(),
-      rho_coord=dataset[output.RHO_NORM].to_numpy(),
-      rho_cell_coord=dataset[output.RHO_CELL_NORM].to_numpy(),
-      rho_face_coord=dataset[output.RHO_FACE_NORM].to_numpy(),
-      q_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
-      q_icrh_e=get_optional_data(profiles_dataset, 'p_icrh_e', 'cell'),
-      q_gen_i=get_optional_data(profiles_dataset, 'p_generic_heat_i', 'cell'),
-      q_gen_e=get_optional_data(profiles_dataset, 'p_generic_heat_e', 'cell'),
-      q_ecrh=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
-      q_alpha_i=get_optional_data(profiles_dataset, 'p_alpha_i', 'cell'),
-      q_alpha_e=get_optional_data(profiles_dataset, 'p_alpha_e', 'cell'),
-      q_ohmic=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
-      q_brems=get_optional_data(profiles_dataset, 'p_bremsstrahlung_e', 'cell'),
-      q_cycl=get_optional_data(
+      magnetic_shear=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
+      chi_turb_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
+      chi_turb_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
+      D_turb_e=profiles_dataset[output.D_TURB_E].to_numpy(),
+      V_turb_e=profiles_dataset[output.V_TURB_E].to_numpy(),
+      rho_norm=dataset[output.RHO_NORM].to_numpy(),
+      rho_cell_norm=dataset[output.RHO_CELL_NORM].to_numpy(),
+      rho_face_norm=dataset[output.RHO_FACE_NORM].to_numpy(),
+      p_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
+      p_icrh_e=get_optional_data(profiles_dataset, 'p_icrh_e', 'cell'),
+      p_generic_heat_i=get_optional_data(
+          profiles_dataset, 'p_generic_heat_i', 'cell'
+      ),
+      p_generic_heat_e=get_optional_data(
+          profiles_dataset, 'p_generic_heat_e', 'cell'
+      ),
+      p_ecrh_e=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
+      p_alpha_i=get_optional_data(profiles_dataset, 'p_alpha_i', 'cell'),
+      p_alpha_e=get_optional_data(profiles_dataset, 'p_alpha_e', 'cell'),
+      p_ohmic_e=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
+      p_bremsstrahlung_e=get_optional_data(
+          profiles_dataset, 'p_bremsstrahlung_e', 'cell'
+      ),
+      p_cyclotron_radiation_e=get_optional_data(
           profiles_dataset, 'p_cyclotron_radiation_e', 'cell'
       ),
-      q_rad=get_optional_data(
+      p_impurity_radiation_e=get_optional_data(
           profiles_dataset, 'p_impurity_radiation_e', 'cell'
       ),
-      q_ei=profiles_dataset['ei_exchange'].to_numpy(),  # ion heating/sink
+      ei_exchange=profiles_dataset[
+          'ei_exchange'
+      ].to_numpy(),  # ion heating/sink
       Q_fusion=scalars_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
-      s_puff=get_optional_data(profiles_dataset, 'gas_puff', 'cell'),
-      s_generic=get_optional_data(
+      s_gas_puff=get_optional_data(profiles_dataset, 's_gas_puff', 'cell'),
+      s_generic_particle=get_optional_data(
           profiles_dataset, 's_generic_particle', 'cell'
       ),
       s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
-      i_total=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
-      i_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
-      i_generic=scalars_dataset['I_aux_generic'].to_numpy(),
-      i_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
-      p_ohmic=scalars_dataset['P_ohmic_e'].to_numpy(),
-      p_auxiliary=(
+      Ip_profile=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
+      I_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
+      I_aux_generic=scalars_dataset['I_aux_generic'].to_numpy(),
+      I_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
+      P_ohmic_e=scalars_dataset['P_ohmic_e'].to_numpy(),
+      P_auxiliary=(
           scalars_dataset['P_external_tot'] - scalars_dataset['P_ohmic_e']
       ).to_numpy(),
-      p_alpha=scalars_dataset['P_alpha_total'].to_numpy(),
-      p_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
+      P_alpha_total=scalars_dataset['P_alpha_total'].to_numpy(),
+      P_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
       + scalars_dataset['P_radiation_e'].to_numpy()
       + scalars_dataset['P_cyclotron_e'].to_numpy(),
-      p_brems=scalars_dataset['P_bremsstrahlung_e'].to_numpy(),
-      p_rad=scalars_dataset['P_radiation_e'].to_numpy(),
-      p_cycl=scalars_dataset['P_cyclotron_e'].to_numpy(),
-      te_volume_avg=scalars_dataset['T_e_volume_avg'].to_numpy(),
-      ti_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
-      ne_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
-      ni_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
-      W_thermal_tot=scalars_dataset['W_thermal_total'].to_numpy(),
+      P_bremsstrahlung_e=scalars_dataset['P_bremsstrahlung_e'].to_numpy(),
+      P_radiation_e=scalars_dataset['P_radiation_e'].to_numpy(),
+      P_cyclotron_e=scalars_dataset['P_cyclotron_e'].to_numpy(),
+      T_e_volume_avg=scalars_dataset['T_e_volume_avg'].to_numpy(),
+      T_i_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
+      n_e_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
+      n_i_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
+      W_thermal_total=scalars_dataset['W_thermal_total'].to_numpy(),
       q95=scalars_dataset['q95'].to_numpy(),
       t=time,
   )
@@ -587,12 +604,12 @@ def get_rho(
 ) -> np.ndarray:
   """Gets the correct rho coordinate for the data."""
   datalen = len(getattr(plotdata, data_attr)[0, :])
-  if datalen == len(plotdata.rho_cell_coord):
-    return plotdata.rho_cell_coord
-  elif datalen == len(plotdata.rho_face_coord):
-    return plotdata.rho_face_coord
-  elif datalen == len(plotdata.rho_coord):
-    return plotdata.rho_coord
+  if datalen == len(plotdata.rho_cell_norm):
+    return plotdata.rho_cell_norm
+  elif datalen == len(plotdata.rho_face_norm):
+    return plotdata.rho_face_norm
+  elif datalen == len(plotdata.rho_norm):
+    return plotdata.rho_norm
   else:
     raise ValueError(
         f'Data {datalen} does not coincide with either the cell or face grids.'

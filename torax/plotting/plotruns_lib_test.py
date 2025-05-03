@@ -16,21 +16,35 @@
 
 import os
 from absl.testing import absltest
+from absl.testing import parameterized
+from torax.config import config_loader
 from torax.plotting import plotruns_lib
 from torax.tests.test_lib import paths
 
 
-class PlotrunsLibTest(absltest.TestCase):
+class PlotrunsLibTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
 
-    self.test_data_dir = paths.test_data_dir()
+    test_data_dir = paths.test_data_dir()
+    self.test_data_path = os.path.join(
+        test_data_dir, "test_iterhybrid_rampup.nc"
+    )
 
   def test_data_loading(self):
-    plotruns_lib.load_data(
-        os.path.join(self.test_data_dir, "test_iterhybrid_rampup.nc")
-    )
+    plotruns_lib.load_data(self.test_data_path)
+
+  @parameterized.parameters([
+      "default_plot_config",
+      "global_params_plot_config",
+      "simple_plot_config",
+      "sources_plot_config",
+  ])
+  def test_plot_config_smoke_test(self, config_name: str):
+    config_name = "torax.plotting.configs." + config_name
+    plot_config = config_loader.import_module(config_name).PLOT_CONFIG
+    plotruns_lib.plot_run(plot_config, self.test_data_path)
 
 
 if __name__ == "__main__":
