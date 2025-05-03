@@ -29,6 +29,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from jax.errors import ConcretizationTypeError
 
 
 # Default value for the model function to be used for the generic current
@@ -51,9 +52,12 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   def sanity_check(self):
     # First let JAX‐side helpers catch any weird array cases:
     jax_utils.error_if_negative(self.wext, 'wext')
-    # Then enforce at runtime that wext ≥ 0, raising the exact exception the test wants:
-    # (self.wext will be a Python float or a 0-dim JAX array here)
-    val = float(self.wext)
+    # Then enforce at Python runtime that wext ≥ 0. If we're under a JAX tracer,
+    # # float(...) will fail with ConcretizationTypeError, so skip the concrete check.
+    try:
+      val = float(self.wext)
+    except ConcretizationTypeError:
+      return
     if val < 0.0:
       raise RuntimeError(f'wext cannot be negative (got {val})')
 

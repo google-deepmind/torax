@@ -35,11 +35,17 @@ class TransportSmoothingTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields['transport'].annotation |= (
-        FakeTransportConfig
-    )
-    model_config.ToraxConfig.model_rebuild(force=True)
+    # Register the fake transport config exactly once.
+    field = model_config.ToraxConfig.model_fields['transport']
+    ann = field.annotation
+    try:
+      # typing.Union on 3.10+ supports __args__
+      existing = getattr(ann, '__args__', (ann,))
+    except Exception:
+      existing = (ann,)
+    if FakeTransportConfig not in existing:
+      field.annotation |= FakeTransportConfig
+      model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_smoothing(self):
     """Tests that smoothing works as expected."""

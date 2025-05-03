@@ -35,6 +35,8 @@ from torax.config import config_loader
 from torax.plotting import plotruns_lib
 from torax.torax_pydantic import model_config
 
+# Absorb pytest’s “--rootdir” flag so absl doesn’t fatally bail under pytest.
+flags.DEFINE_string('rootdir', None, 'Ignored pytest rootdir flag.')
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
@@ -372,10 +374,8 @@ def main(_):
   output_dir = _OUTPUT_DIR.value
   try:
     start_time = time.time()
-    torax_config = (
-        config_loader.build_torax_config_from_config_module(
-            config_module_str, _PYTHON_CONFIG_PACKAGE.value
-        )
+    torax_config = config_loader.build_torax_config_from_config_module(
+        config_module_str, _PYTHON_CONFIG_PACKAGE.value
     )
     build_time = time.time() - start_time
     start_time = time.time()
@@ -441,9 +441,7 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _modify_config(
-                config_module_str
-            )
+            torax_config_or_none = _modify_config(config_module_str)
             if torax_config_or_none is not None:
               torax_config = torax_config_or_none
             config_change_time = time.time() - start_time
@@ -469,9 +467,7 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _change_config(
-                config_module_str
-            )
+            torax_config_or_none = _change_config(config_module_str)
             if torax_config_or_none is not None:
               torax_config, config_module_str = torax_config_or_none
             config_change_time = time.time() - start_time

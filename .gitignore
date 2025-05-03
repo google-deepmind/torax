@@ -26,3 +26,6 @@ poetry.lock
 
 # Sphinx
 _build
+
+# virtual env
+toraxvenv/
