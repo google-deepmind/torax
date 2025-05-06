@@ -164,12 +164,12 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': True,
-        'corrector_steps': 1,
+        'use_predictor_corrector': True,
+        'n_corrector_steps': 1,
         # (deliberately) large heat conductivity for Pereverzev rule
-        'chi_per': 30,
+        'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
-        'd_per': 15,
+        'D_pereverzev': 15,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

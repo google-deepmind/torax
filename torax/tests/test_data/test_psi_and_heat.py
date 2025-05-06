@@ -55,7 +55,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
+        'use_predictor_corrector': False,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

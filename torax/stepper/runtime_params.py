@@ -19,17 +19,17 @@ import chex
 class StaticRuntimeParams:
   """Static params for the stepper."""
 
-  theta_imp: float
+  theta_implicit: float
   convection_dirichlet_mode: str
   convection_neumann_mode: str
   use_pereverzev: bool
-  predictor_corrector: bool
+  use_predictor_corrector: bool
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the stepper which can be used as compiled args."""
 
-  chi_per: float
-  d_per: float
-  corrector_steps: int
+  chi_pereverzev: float
+  D_pereverzev: float  # pylint: disable=invalid-name
+  n_corrector_steps: int

@@ -26,13 +26,13 @@ from torax.torax_pydantic import model_config
 class CoreProfileSettersTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      dict(num_cells=4, theta_imp=0, set_pedestal=False),
-      dict(num_cells=4, theta_imp=0, set_pedestal=True),
-      dict(num_cells=4, theta_imp=0.5, set_pedestal=False),
-      dict(num_cells=4, theta_imp=0.5, set_pedestal=True),
+      dict(num_cells=4, theta_implicit=0, set_pedestal=False),
+      dict(num_cells=4, theta_implicit=0, set_pedestal=True),
+      dict(num_cells=4, theta_implicit=0.5, set_pedestal=False),
+      dict(num_cells=4, theta_implicit=0.5, set_pedestal=True),
   ])
   def test_calc_coeffs_smoke_test(
-      self, num_cells, theta_imp, set_pedestal
+      self, num_cells, theta_implicit, set_pedestal
   ):
     sources_config = default_sources.get_default_source_config()
     sources_config['ei_exchange']['Qei_mult'] = 0.0
@@ -46,10 +46,12 @@ class CoreProfileSettersTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
-                set_pedestal=set_pedestal,
-                pedestal_model='set_tped_nped'),
+                set_pedestal=set_pedestal, pedestal_model='set_tped_nped'
+            ),
             sources=sources_config,
-            solver=dict(predictor_corrector=False, theta_imp=theta_imp),
+            solver=dict(
+                use_predictor_corrector=False, theta_implicit=theta_implicit
+            ),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )

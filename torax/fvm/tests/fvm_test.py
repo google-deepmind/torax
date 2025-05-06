@@ -36,11 +36,11 @@ from torax.torax_pydantic import model_config
 class FVMTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      dict(num_cells=2, theta_imp=0, time_steps=29),
-      dict(num_cells=3, theta_imp=0.5, time_steps=21),
-      dict(num_cells=4, theta_imp=1.0, time_steps=34),
+      dict(num_cells=2, theta_implicit=0, time_steps=29),
+      dict(num_cells=3, theta_implicit=0.5, time_steps=21),
+      dict(num_cells=4, theta_implicit=1.0, time_steps=34),
   ])
-  def test_leftward_convection(self, num_cells, theta_imp, time_steps):
+  def test_leftward_convection(self, num_cells, theta_implicit, time_steps):
     """Tests that leftward convection spreads the right boundary value."""
     num_faces = num_cells + 1
     right_boundary = jnp.array((1.0, -2.0))
@@ -59,7 +59,7 @@ class FVMTest(parameterized.TestCase):
     )
     x = (x_0, x_1)
     # Not deeply investigated, but dt = 1. seems unstable for explicit method.
-    dt = jnp.array(1.0 - 0.5 * (theta_imp == 0))
+    dt = jnp.array(1.0 - 0.5 * (theta_implicit == 0))
     transient_cell_i = jnp.ones(num_cells)
     transient_cell = (transient_cell_i, transient_cell_i)
     # Use convection leftward everywhere so the right boundary condition will
@@ -79,18 +79,18 @@ class FVMTest(parameterized.TestCase):
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
-          theta_imp=theta_imp,
+          theta_implicit=theta_implicit,
       )
 
     np.testing.assert_allclose(x[0].value, right_boundary[0])
     np.testing.assert_allclose(x[1].value, right_boundary[1])
 
   @parameterized.parameters([
-      dict(theta_imp=0.0),
-      dict(theta_imp=0.5),
-      dict(theta_imp=1.0),
+      dict(theta_implicit=0.0),
+      dict(theta_implicit=0.5),
+      dict(theta_implicit=1.0),
   ])
-  def test_implicit_source_cross(self, theta_imp):
+  def test_implicit_source_cross(self, theta_implicit):
     """Tests that implicit source cross terms act on sub-timestep scale."""
 
     # We model the evolution of two scalars, x and y:
@@ -136,7 +136,7 @@ class FVMTest(parameterized.TestCase):
 
     kwargs = {
         'dt': dt,
-        'theta_imp': theta_imp,
+        'theta_implicit': theta_implicit,
     }
 
     # Make x start to increase in channel `start` and drive an increase in the
@@ -188,7 +188,7 @@ class FVMTest(parameterized.TestCase):
           **kwargs,
       )
 
-      if theta_imp == 0.0:
+      if theta_implicit == 0.0:
         # For explicit method, the source terms are applied at t=0, when
         # u[start] == 0. So they should have no effect
         np.testing.assert_allclose(x[1 - start].value, 0.0)
@@ -198,12 +198,12 @@ class FVMTest(parameterized.TestCase):
         self.assertGreater(x[1 - start].value.min(), 0.0)
 
   @parameterized.parameters([
-      dict(num_cells=4, theta_imp=0, time_steps=29),
-      dict(num_cells=4, theta_imp=0.5, time_steps=21),
-      dict(num_cells=5, theta_imp=1.0, time_steps=34),
+      dict(num_cells=4, theta_implicit=0, time_steps=29),
+      dict(num_cells=4, theta_implicit=0.5, time_steps=21),
+      dict(num_cells=5, theta_implicit=1.0, time_steps=34),
   ])
   def test_nonlinear_solve_block_loss_minimum(
-      self, num_cells, theta_imp, time_steps
+      self, num_cells, theta_implicit, time_steps
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
     source_config = default_sources.get_default_source_config()
@@ -221,7 +221,9 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            solver=dict(predictor_corrector=False, theta_imp=theta_imp),
+            solver=dict(
+                use_predictor_corrector=False, theta_implicit=theta_implicit
+            ),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )
@@ -282,7 +284,7 @@ class FVMTest(parameterized.TestCase):
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
-          theta_imp=theta_imp,
+          theta_implicit=theta_implicit,
       )
 
       # When the coefficients are kept constant, the loss
@@ -344,7 +346,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            solver=dict(predictor_corrector=False, theta_imp=1.0),
+            solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )
@@ -402,8 +404,8 @@ class FVMTest(parameterized.TestCase):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    # Run with different theta_imp values.
-    for theta_imp in [0.0, 0.5, 1.0]:
+    # Run with different theta_implicit values.
+    for theta_implicit in [0.0, 0.5, 1.0]:
       x_new = implicit_solve_block.implicit_solve_block(
           dt=dt,
           x_old=(x_0,),
@@ -411,17 +413,18 @@ class FVMTest(parameterized.TestCase):
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
-          theta_imp=theta_imp,
+          theta_implicit=theta_implicit,
       )
-      # No matter what theta_imp is used, the x_new will be all 0s because there
-      # is no source and the boundaries are set to 0.
+      # No matter what theta_implicit is used, the x_new will be all 0s because
+      # there is no source and the boundaries are set to 0.
       np.testing.assert_allclose(x_new[0].value, 0.0)
 
     # If we run with an updated boundary condition applied at time t=dt, then
     # we should get non-zero values from the implicit terms.
     final_right_boundary = jnp.array(1.0)
     x_1 = dataclasses.replace(x_0, right_face_constraint=final_right_boundary)
-    # However, the explicit terms (when theta_imp = 0), should still be all 0.
+    # However, the explicit terms (when theta_implicit = 0), should still be
+    # all 0.
     x_new = implicit_solve_block.implicit_solve_block(
         dt=dt,
         x_old=(x_0,),
@@ -429,14 +432,14 @@ class FVMTest(parameterized.TestCase):
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_new=coeffs,
-        theta_imp=0.0,
+        theta_implicit=0.0,
     )
     np.testing.assert_allclose(x_new[0].value, 0.0)
     # x_new should still have the updated boundary conditions though.
     np.testing.assert_allclose(
         x_new[0].right_face_constraint, final_right_boundary
     )
-    # And when theta_imp is > 0, the values should be > 0.
+    # And when theta_implicit is > 0, the values should be > 0.
     x_new = implicit_solve_block.implicit_solve_block(
         dt=dt,
         x_old=(x_0,),
@@ -444,7 +447,7 @@ class FVMTest(parameterized.TestCase):
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_new=coeffs,
-        theta_imp=0.5,
+        theta_implicit=0.5,
     )
     self.assertGreater(x_new[0].value.min(), 0.0)
 
@@ -467,7 +470,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            solver=dict(predictor_corrector=False, theta_imp=0.0),
+            solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
             transport=dict(transport_model='constant', chimin=0, chii_const=1),
             time_step_calculator=dict(),
         )
@@ -485,7 +488,7 @@ class FVMTest(parameterized.TestCase):
     static_runtime_params_slice_theta05 = dataclasses.replace(
         static_runtime_params_slice_theta0,
         solver=dataclasses.replace(
-            static_runtime_params_slice_theta0.solver, theta_imp=0.5
+            static_runtime_params_slice_theta0.solver, theta_implicit=0.5
         ),
     )
 
@@ -566,7 +569,7 @@ class FVMTest(parameterized.TestCase):
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
       # When the boundary condition updates at time t+dt, then the implicit part
-      # of the update would generate a residual. When theta_imp is 0, the
+      # of the update would generate a residual. When theta_implicit is 0, the
       # residual would still be 0.
       final_right_boundary = jnp.array(1.0)
       residual, _ = residual_and_loss.theta_method_block_residual(
@@ -590,7 +593,7 @@ class FVMTest(parameterized.TestCase):
           pedestal_model=pedestal_model,
       )
       np.testing.assert_allclose(residual, 0.0)
-      # But when theta_imp > 0, the residual should be non-zero.
+      # But when theta_implicit > 0, the residual should be non-zero.
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice_theta05,

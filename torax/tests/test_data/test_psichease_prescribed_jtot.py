@@ -52,7 +52,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
+        'use_predictor_corrector': False,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

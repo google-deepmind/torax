@@ -15,8 +15,8 @@
 """Carries out the predictor corrector method for the PDE solution.
 
 Picard iterations to approximate the nonlinear solution. If
-static_runtime_params_slice.solver.predictor_corrector is False, reverts to a
-standard linear solution.
+static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
+a standard linear solution.
 """
 from typing import Any
 import jax
@@ -82,7 +82,7 @@ def predictor_corrector_method(
         x_new_guess=x_new_guess,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
-        theta_imp=static_runtime_params_slice.solver.theta_imp,
+        theta_implicit=static_runtime_params_slice.solver.theta_implicit,
         convection_dirichlet_mode=(
             static_runtime_params_slice.solver.convection_dirichlet_mode
         ),
@@ -94,12 +94,12 @@ def predictor_corrector_method(
   # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
   # compilation and revert to a standard for loop if
   # TORAX_COMPILATION_ENABLED=False. This logic is in jax.utils_py_fori_loop.
-  # If the static predictor_corrector=False, then compilation is faster, so
+  # If the static use_predictor_corrector=False, then compilation is faster, so
   # we maintain this option.
-  if static_runtime_params_slice.solver.predictor_corrector:
+  if static_runtime_params_slice.solver.use_predictor_corrector:
     x_new = jax_utils.py_fori_loop(
         0,
-        dynamic_runtime_params_slice_t_plus_dt.solver.corrector_steps + 1,
+        dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps + 1,
         loop_body,
         x_new_guess,
     )

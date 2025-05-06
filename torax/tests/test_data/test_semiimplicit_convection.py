@@ -44,7 +44,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
+        'use_predictor_corrector': False,
         'convection_dirichlet_mode': 'semi-implicit',
         'convection_neumann_mode': 'semi-implicit',
         'use_pereverzev': True,

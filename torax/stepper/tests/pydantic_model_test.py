@@ -43,7 +43,7 @@ class PydanticModelTest(parameterized.TestCase):
   )
   def test_build_solver_from_config(self, solver_model, expected_type):
     """Builds a solver from the config."""
-    solver_pydantic = solver_model(theta_imp=0.5)
+    solver_pydantic = solver_model(theta_implicit=0.5)
     transport = transport_pydantic_model.ConstantTransportModel()
     transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.NoPedestal()
@@ -58,7 +58,7 @@ class PydanticModelTest(parameterized.TestCase):
         pedestal_model=pedestal_model,
     )
     self.assertIsInstance(solver, expected_type)
-    self.assertEqual(solver_pydantic.theta_imp, 0.5)
+    self.assertEqual(solver_pydantic.theta_implicit, 0.5)
 
 
 if __name__ == '__main__':

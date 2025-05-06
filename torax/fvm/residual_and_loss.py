@@ -52,7 +52,7 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
-        'theta_imp',
+        'theta_implicit',
     ],
 )
 def theta_method_matrix_equation(
@@ -61,7 +61,7 @@ def theta_method_matrix_equation(
     x_new_guess: tuple[cell_variable.CellVariable, ...],
     coeffs_old: Block1DCoeffs,
     coeffs_new: Block1DCoeffs,
-    theta_imp: float = 1.0,
+    theta_implicit: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
@@ -81,7 +81,7 @@ def theta_method_matrix_equation(
   The theta method calculates one discrete time step by solving:
 
     | (tc_in_new x_new - tc_in_old x_old) / dt =
-    | theta_imp F_new / tc_out_new + theta_exp F_old / tc_out_old
+    | theta_implicit F_new / tc_out_new + theta_exp F_old / tc_out_old
 
   The equation is on the cell grid where `tc` is never zero. Therefore
   it's safe to multiply equation by `dt/tc_in_new` and scale the residual to
@@ -90,18 +90,18 @@ def theta_method_matrix_equation(
   We thus rearrange to:
 
     | x_new - tc_in_old/tc_in_new x_old =
-    | dt theta_imp F_new / (tc_out_new tc_in_new) +
+    | dt theta_implicit F_new / (tc_out_new tc_in_new) +
     | dt theta_exp F_old / (tc_out_old tc_in_new)
 
   Rearranging we obtain
 
-    | x_new - dt theta_imp F_new / (tc_out_new tc_in_new) =
+    | x_new - dt theta_implicit F_new / (tc_out_new tc_in_new) =
     | tc_in_old/tc_in_new x_old + dt theta_exp F_old / (tc_out_old tc_in_new)
 
   We now substitute in `F = Cu + c`:
 
-    | (I - dt theta_imp diag(1/(tc_out_new tc_in_new)) C_new) x_new
-    | - dt theta_imp diag(1/(tc_out_new tc_in_new)) c_new
+    | (I - dt theta_implicit diag(1/(tc_out_new tc_in_new)) C_new) x_new
+    | - dt theta_implicit diag(1/(tc_out_new tc_in_new)) c_new
     | =
     | (diag(tc_in_old/tc_in_new)
     | + dt theta_exp diag(1/(tc_out_old tc_in_new)) C_old) x_old
@@ -113,7 +113,7 @@ def theta_method_matrix_equation(
     x_new_guess: Current guess of x_new defined as a tuple of CellVariables.
     coeffs_old: The coefficients calculated at x_old.
     coeffs_new: The coefficients calculated at x_new.
-    theta_imp: Coefficient on implicit term of theta method.
+    theta_implicit: Coefficient on implicit term of theta method.
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,
@@ -129,7 +129,7 @@ def theta_method_matrix_equation(
 
   x_new_guess_vec = fvm_conversions.cell_variable_tuple_to_vec(x_new_guess)
 
-  theta_exp = 1.0 - theta_imp
+  theta_exp = 1.0 - theta_implicit
 
   tc_in_old = jnp.concatenate(coeffs_old.transient_in_cell)
   tc_out_new = jnp.concatenate(coeffs_new.transient_out_cell)
@@ -164,8 +164,8 @@ def theta_method_matrix_equation(
 
   broadcasted = jnp.expand_dims(1 / (tc_out_new * tc_in_new), 1)
 
-  lhs_mat = left_transient - dt * theta_imp * broadcasted * c_mat_new
-  lhs_vec = -theta_imp * dt * (1 / (tc_out_new * tc_in_new)) * c_new
+  lhs_mat = left_transient - dt * theta_implicit * broadcasted * c_mat_new
+  lhs_vec = -theta_implicit * dt * (1 / (tc_out_new * tc_in_new)) * c_new
 
   if theta_exp > 0.0:
     tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
@@ -223,12 +223,12 @@ def theta_method_block_residual(
     dt: Time step duration.
     static_runtime_params_slice: Static runtime parameters. Changes to these
       runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_imp, a coefficient in [0, 1] determining which solution
-      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
-      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
-      to named solution methods: theta_imp = 1: Backward Euler implicit method
-      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
-      explicit method.
+      slice is theta_implicit, a coefficient in [0, 1] determining which
+      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
+      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
+      theta_implicit correspond to named solution methods: theta_implicit = 1:
+      Backward Euler implicit method (default). theta_implicit = 0.5:
+      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
@@ -287,7 +287,7 @@ def theta_method_block_residual(
       x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_imp=static_runtime_params_slice.solver.theta_imp,
+      theta_implicit=static_runtime_params_slice.solver.theta_implicit,
       convection_dirichlet_mode=static_runtime_params_slice.solver.convection_dirichlet_mode,
       convection_neumann_mode=static_runtime_params_slice.solver.convection_neumann_mode,
   )
@@ -346,12 +346,12 @@ def theta_method_block_loss(
     dt: Time step duration.
     static_runtime_params_slice: Static runtime parameters. Changes to these
       runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_imp, a coefficient in [0, 1] determining which solution
-      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
-      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
-      to named solution methods: theta_imp = 1: Backward Euler implicit method
-      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
-      explicit method.
+      slice is theta_implicit, a coefficient in [0, 1] determining which
+      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
+      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
+      theta_implicit correspond to named solution methods: theta_implicit = 1:
+      Backward Euler implicit method (default). theta_implicit = 0.5:
+      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
@@ -425,12 +425,12 @@ def jaxopt_solver(
     dt: Time step duration.
     static_runtime_params_slice: Static runtime parameters. Changes to these
       runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_imp, a coefficient in [0, 1] determining which solution
-      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
-      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
-      to named solution methods: theta_imp = 1: Backward Euler implicit method
-      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
-      explicit method.
+      slice is theta_implicit, a coefficient in [0, 1] determining which
+      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
+      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
+      theta_implicit correspond to named solution methods: theta_implicit = 1:
+      Backward Euler implicit method (default). theta_implicit = 0.5:
+      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object for time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.

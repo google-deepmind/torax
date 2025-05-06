@@ -34,11 +34,11 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for solver configs.
 
   Attributes:
-    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+    theta_implicit: The theta value in the theta method 0 = explicit, 1 = fully
       implicit, 0.5 = Crank-Nicolson.
-    predictor_corrector: Enables predictor_corrector iterations with the linear
-      solver. If False, compilation is faster.
-    corrector_steps: The number of corrector steps for the predictor-corrector
+    use_predictor_corrector: Enables use_predictor_corrector iterations with the
+      linear solver. If False, compilation is faster.
+    n_corrector_steps: The number of corrector steps for the predictor-corrector
       linear solver. 0 means a pure linear solve with no corrector steps.
     convection_dirichlet_mode: See `fvm.convection_terms` docstring,
       `dirichlet_mode` argument.
@@ -46,19 +46,19 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       `neumann_mode` argument.
     use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
       the nonlinear solver for the optional initial guess from the linear solver
-    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
-    d_per: (deliberately) large particle diffusion for Pereverzev rule.
+    chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
+    D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
   """
-  theta_imp: torax_pydantic.UnitInterval = 1.0
-  predictor_corrector: bool = False
-  corrector_steps: pydantic.PositiveInt = 1
+  theta_implicit: torax_pydantic.UnitInterval = 1.0
+  use_predictor_corrector: bool = False
+  n_corrector_steps: pydantic.PositiveInt = 1
   convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
       'ghost'
   )
   convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
   use_pereverzev: bool = False
-  chi_per: pydantic.PositiveFloat = 20.0
-  d_per: pydantic.NonNegativeFloat = 10.0
+  chi_pereverzev: pydantic.PositiveFloat = 20.0
+  D_pereverzev: pydantic.NonNegativeFloat = 10.0
 
   @property
   @abc.abstractmethod
@@ -68,11 +68,11 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   def build_static_params(self) -> runtime_params.StaticRuntimeParams:
     """Builds static runtime params from the config."""
     return runtime_params.StaticRuntimeParams(
-        theta_imp=self.theta_imp,
+        theta_implicit=self.theta_implicit,
         convection_dirichlet_mode=self.convection_dirichlet_mode,
         convection_neumann_mode=self.convection_neumann_mode,
         use_pereverzev=self.use_pereverzev,
-        predictor_corrector=self.predictor_corrector,
+        use_predictor_corrector=self.use_predictor_corrector,
     )
 
   @abc.abstractmethod
@@ -102,9 +102,9 @@ class LinearThetaMethod(BaseSolver):
   @functools.cached_property
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
-        chi_per=self.chi_per,
-        d_per=self.d_per,
-        corrector_steps=self.corrector_steps,
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
+        n_corrector_steps=self.n_corrector_steps,
     )
 
   def build_solver(
@@ -157,14 +157,14 @@ class NewtonRaphsonThetaMethod(BaseSolver):
       self,
   ) -> nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams:
     return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
-        chi_per=self.chi_per,
-        d_per=self.d_per,
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
         log_iterations=self.log_iterations,
         initial_guess_mode=self.initial_guess_mode.value,
         maxiter=self.maxiter,
         tol=self.tol,
         coarse_tol=self.coarse_tol,
-        corrector_steps=self.corrector_steps,
+        n_corrector_steps=self.n_corrector_steps,
         delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,
     )
@@ -206,12 +206,12 @@ class OptimizerThetaMethod(BaseSolver):
       self,
   ) -> nonlinear_theta_method.DynamicOptimizerRuntimeParams:
     return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
-        chi_per=self.chi_per,
-        d_per=self.d_per,
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
         initial_guess_mode=self.initial_guess_mode.value,
         maxiter=self.maxiter,
         tol=self.tol,
-        corrector_steps=self.corrector_steps,
+        n_corrector_steps=self.n_corrector_steps,
     )
 
   def build_solver(

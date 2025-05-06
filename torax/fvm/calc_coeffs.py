@@ -58,7 +58,7 @@ class CoeffsCallback:
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
       allow_pereverzev: bool = False,
-      # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
+      # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
       explicit_call: bool = False,
   ) -> block_1d_coeffs.Block1DCoeffs:
@@ -75,14 +75,15 @@ class CoeffsCallback:
       core_profiles: The core profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
       allow_pereverzev: If True, then the coeffs are being called within a
-        linear solver. Thus could be either the predictor_corrector solver or as
-        part of calculating the initial guess for the nonlinear solver. In
+        linear solver. Thus could be either the use_predictor_corrector solver
+        or as part of calculating the initial guess for the nonlinear solver. In
         either case, we allow the inclusion of Pereverzev-Corrigan terms which
         aim to stabilize the linear solver when being used with highly nonlinear
         (stiff) transport coefficients. The nonlinear solver solves the system
         more rigorously and Pereverzev-Corrigan terms are not needed.
-      explicit_call: If True, then if theta_imp=1, only a reduced Block1DCoeffs
-        is calculated since most explicit coefficients will not be used.
+      explicit_call: If True, then if theta_implicit=1, only a reduced
+        Block1DCoeffs is calculated since most explicit coefficients will not
+        be used.
 
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.
@@ -141,17 +142,17 @@ def _calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ni_face
       * consts.keV2J
-      * dynamic_runtime_params_slice.solver.chi_per
+      * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
-      * dynamic_runtime_params_slice.solver.chi_per
+      * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
 
-  d_face_per_el = dynamic_runtime_params_slice.solver.d_per
+  d_face_per_el = dynamic_runtime_params_slice.solver.D_pereverzev
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -250,7 +251,7 @@ def calc_coeffs(
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
-      theta_imp=1. This saves computation for the default fully implicit
+      theta_implicit=1. This saves computation for the default fully implicit
       implementation.
 
   Returns:
@@ -259,7 +260,7 @@ def calc_coeffs(
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
-  if explicit_call and static_runtime_params_slice.solver.theta_imp == 1.0:
+  if explicit_call and static_runtime_params_slice.solver.theta_implicit == 1.0:
     return _calc_coeffs_reduced(
         geo,
         core_profiles,
@@ -673,7 +674,7 @@ def _calc_coeffs_reduced(
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""
 
-  # Only transient_in_cell is used for explicit terms if theta_imp=1
+  # Only transient_in_cell is used for explicit terms if theta_implicit=1
   tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
   tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
   tic_psi = jnp.ones_like(geo.vpr)

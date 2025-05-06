@@ -1218,7 +1218,7 @@ parameters pertaining to a specific solver are defined in the relevant section b
 * ``'optimizer'``
     Nonlinear solver using the jaxopt library.
 
-``theta_imp`` (float = 1.0)
+``theta_implicit`` (float = 1.0)
   theta value in the theta method of time discretization. 0 = explicit, 1 = fully implicit, 0.5 = Crank-Nicolson.
 
 ``adaptive_dt`` (bool = True)
@@ -1229,10 +1229,10 @@ parameters pertaining to a specific solver are defined in the relevant section b
   dt reduction factor if the solver does not converge following a call, and ``adaptive_dt=True``. Only relevant
   for nonlinear solvers.
 
-``predictor_corrector`` (bool = True)
-  Enables predictor_corrector iterations with the linear solver.
+``use_predictor_corrector`` (bool = True)
+  Enables use_predictor_corrector iterations with the linear solver.
 
-``corrector_steps`` (int = 1)
+``n_corrector_steps`` (int = 1)
   Number of corrector steps for the predictor-corrector linear solver. 0 means a pure linear solve with no corrector steps.
 
 ``use_pereverzev`` (bool = False)
@@ -1240,16 +1240,16 @@ parameters pertaining to a specific solver are defined in the relevant section b
   Critical for stable calculation of stiff transport, at the cost of introducing non-physical lag during transient. Also used for
   the ``linear_step`` initial guess mode in the nonlinear solvers.
 
-``chi_per`` (float = 20.0)
+``chi_pereverzev`` (float = 20.0)
   Large heat conductivity used for the Pereverzev-Corrigan term.
 
-``d_per`` (float = 10.0)
+``D_pereverzev`` (float = 10.0)
   Large particle diffusion used for the Pereverzev-Corrigan term.
 
 linear
 ^^^^^^
 
-Runtime parameters relevant for the ``LinearThetaMethod``, e.g. ``predictor_corrector``, are not defined in the child class but in the parent
+Runtime parameters relevant for the ``LinearThetaMethod``, e.g. ``use_predictor_corrector``, are not defined in the child class but in the parent
 ``Stepper`` class and hence in the upper layer of the ``solver`` config dict. Since the nonlinear solvers also have the option of using
 a linear solver for calculating an initial guess, it is more appropriate for these shared linear runtime parameters to be defined in the
 parent ``Stepper`` class.
@@ -1278,7 +1278,7 @@ newton_raphson
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
-    If used, is recommended to do so with the predictor_corrector solver and
+    If used, is recommended to do so with the use_predictor_corrector solver and
     several corrector steps. It is also strongly recommended to
     use_pereverzev=True if a stiff transport model like qlknn is used.
 
@@ -1316,7 +1316,7 @@ optimizer
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
-    If used, is recommended to do so with the predictor_corrector solver and
+    If used, is recommended to do so with the use_predictor_corrector solver and
     several corrector steps. It is also strongly recommended to
     use_pereverzev=True if a stiff transport model like qlknn is used.
 
@@ -1484,10 +1484,10 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       },
       'solver': {
           'solver_type': 'newton_raphson',
-          'predictor_corrector': True,
-          'corrector_steps': 10,
-          'chi_per': 30,
-          'd_per': 15,
+          'use_predictor_corrector': True,
+          'n_corrector_steps': 10,
+          'chi_pereverzev': 30,
+          'D_pereverzev': 15,
           'use_pereverzev': True,
           'log_iterations': False,
       },

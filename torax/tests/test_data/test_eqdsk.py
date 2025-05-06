@@ -100,10 +100,10 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': True,
-        'corrector_steps': 1,
-        'chi_per': 100,
-        'd_per': 50,
+        'use_predictor_corrector': True,
+        'n_corrector_steps': 1,
+        'chi_pereverzev': 100,
+        'D_pereverzev': 50,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

@@ -44,8 +44,8 @@ CONFIG = {
     'transport': {},
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
-        'theta_imp': 1.0,
+        'use_predictor_corrector': False,
+        'theta_implicit': 1.0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

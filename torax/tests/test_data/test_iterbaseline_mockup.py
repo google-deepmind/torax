@@ -163,10 +163,10 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
+        'use_predictor_corrector': False,
         'use_pereverzev': True,
-        'chi_per': 20,
-        'd_per': 10,
+        'chi_pereverzev': 20,
+        'D_pereverzev': 10,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

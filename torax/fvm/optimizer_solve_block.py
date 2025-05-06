@@ -76,12 +76,12 @@ def optimizer_solve_block(
     dt: Discrete time step.
     static_runtime_params_slice: Static runtime parameters. Changes to these
       runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_imp, a coefficient in [0, 1] determining which solution
-      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
-      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
-      to named solution methods: theta_imp = 1: Backward Euler implicit method
-      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
-      explicit method.
+      slice is theta_implicit, a coefficient in [0, 1] determining which
+      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
+      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
+      theta_implicit correspond to named solution methods: theta_implicit = 1:
+      Backward Euler implicit method (default). theta_implicit = 0.5:
+      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t: Runtime params for time t (the start time of
       the step). These runtime params can change from step to step without
       triggering a recompilation.
@@ -135,7 +135,8 @@ def optimizer_solve_block(
 
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
-    # corrector method if predictor_corrector=True in the stepper runtime params
+    # corrector method if use_predictor_corrector=True in the stepper runtime
+    # params
     case enums.InitialGuessMode.LINEAR:
       # returns transport coefficients with additional pereverzev terms
       # if set by runtime_params, needed if stiff transport models (e.g. qlknn)

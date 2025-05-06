@@ -437,7 +437,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
                   vloop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.vloop_lcfs,
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
-                  theta=static_runtime_params_slice.solver.theta_imp,
+                  theta=static_runtime_params_slice.solver.theta_implicit,
               )
               if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None
@@ -449,7 +449,7 @@ def compute_boundary_conditions_for_t_plus_dt(
 
 
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
-# for general theta_imp values.
+# for general theta_implicit values.
 def _update_vloop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
@@ -461,12 +461,12 @@ def _update_vloop_lcfs_from_psi(
   calculated from:
 
   (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
-    vloop_lcfs_t_plus_dt*theta_imp - vloop_lcfs_t*(1-theta_imp)
+    vloop_lcfs_t_plus_dt*theta_implicit - vloop_lcfs_t*(1-theta_implicit)
 
   However this set of equations is underdetermined. We thus restrict this
-  calculation assuming a fully implicit system, i.e. theta_imp=1, which is the
-  TORAX default. Be cautious when interpreting the results of this function
-  when theta_imp != 1 (non-standard usage).
+  calculation assuming a fully implicit system, i.e. theta_implicit=1, which is
+  the TORAX default. Be cautious when interpreting the results of this function
+  when theta_implicit != 1 (non-standard usage).
 
   Args:
     psi_t: The psi CellVariable at the beginning of the timestep interval.

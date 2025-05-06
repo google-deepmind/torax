@@ -50,8 +50,8 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
-        'theta_imp': 0.5,
+        'use_predictor_corrector': False,
+        'theta_implicit': 0.5,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

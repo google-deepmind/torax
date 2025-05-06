@@ -66,9 +66,9 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'predictor_corrector': False,
+        'use_predictor_corrector': False,
         'use_pereverzev': True,
-        'd_per': 0.0,
+        'D_pereverzev': 0.0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

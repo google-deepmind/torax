@@ -32,7 +32,7 @@ from torax.fvm import residual_and_loss
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
-        'theta_imp',
+        'theta_implicit',
     ],
 )
 def implicit_solve_block(
@@ -41,7 +41,7 @@ def implicit_solve_block(
     x_new_guess: tuple[cell_variable.CellVariable, ...],
     coeffs_old: block_1d_coeffs.Block1DCoeffs,
     coeffs_new: block_1d_coeffs.Block1DCoeffs,
-    theta_imp: float = 1.0,
+    theta_implicit: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
 ) -> tuple[cell_variable.CellVariable, ...]:
@@ -58,12 +58,12 @@ def implicit_solve_block(
     x_new_guess: Tuple containing initial guess for x_new.
     coeffs_old: Coefficients defining the equation, computed for time t.
     coeffs_new: Coefficients defining the equation, computed for time t+dt.
-    theta_imp: Coefficient in [0, 1] determining which solution method to use.
-      We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
-      theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
-      method
+    theta_implicit: Coefficient in [0, 1] determining which solution method to
+      use. We solve transient_coeff (x_new - x_old) / dt = theta_implicit
+      F(t_new) + (1 - theta_implicit) F(t_old). Three values of theta_implicit
+      correspond to named solution methods: theta_implicit = 1: Backward Euler
+      implicit method (default). theta_implicit = 0.5: Crank-Nicolson.
+      theta_implicit = 0: Forward Euler explicit method
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,
@@ -91,7 +91,7 @@ def implicit_solve_block(
           x_new_guess=x_new_guess,
           coeffs_old=coeffs_old,
           coeffs_new=coeffs_new,
-          theta_imp=theta_imp,
+          theta_implicit=theta_implicit,
           convection_dirichlet_mode=convection_dirichlet_mode,
           convection_neumann_mode=convection_neumann_mode,
       )
