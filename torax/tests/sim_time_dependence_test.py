@@ -72,12 +72,12 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 
     config = {
         'profile_conditions': {
-            'Ti_bound_right': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-            'ne_bound_right': 0.5,
+            'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+            'n_e_bound_right': 0.5,
         },
         'numerics': {
             'adaptive_dt': adaptive_dt,
-            # 1 time step in, the Ti_bound_right will be 2.0
+            # 1 time step in, the T_i_right_bc will be 2.0
             'fixed_dt': 1.0,
             'dt_reduction_factor': 1.5,
             't_final': 1.0,
@@ -142,7 +142,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     ) as mock_run_simulation:
       run_simulation.run_simulation(torax_config)
     # The initial step will not work, so it should take several adaptive time
-    # steps to get under the Ti_bound_right threshold set above if adaptive_dt
+    # steps to get under the T_i_right_bc threshold set above if adaptive_dt
     # was set to True.
     mock_run_simulation.assert_called_once()
 
@@ -151,7 +151,7 @@ class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):
   """Fake solver config that allows us to hook into the error logic."""
 
   solver_type: Literal['fake'] = 'fake'
-  param: str = 'Ti_bound_right'
+  param: str = 'T_i_right_bc'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None
 

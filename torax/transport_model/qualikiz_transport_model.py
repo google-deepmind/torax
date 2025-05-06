@@ -308,7 +308,7 @@ def _extract_qualikiz_plan(
   Zi1 = core_profiles.Zimp_face
 
   # Calculate main ion dilution
-  ni0 = core_profiles.ni.face_value() / core_profiles.ne.face_value()
+  ni0 = core_profiles.ni.face_value() / core_profiles.n_e.face_value()
 
   ion0 = qualikiz_inputtools.Ion(
       T=8,  # will be scan variable
@@ -355,9 +355,9 @@ def _extract_qualikiz_plan(
       'smag': np.array(qualikiz_inputs.smag),
       'alpha': np.array(qualikiz_inputs.alpha),
       'Te': np.array(core_profiles.temp_el.face_value()),
-      'ne': (
+      'n_e': (
           np.array(
-              core_profiles.ne.face_value()
+              core_profiles.n_e.face_value()
               * dynamic_runtime_params_slice.numerics.nref
           )
           / 1e19

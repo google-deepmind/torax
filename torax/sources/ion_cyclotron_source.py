@@ -329,7 +329,7 @@ def _helium3_tail_temperature(
   helium3_charge = 2
   helium3_fraction = minority_concentration / 100  # Min conc provided in %.
   absorbed_power_density = power_deposition_he3 * Ptot
-  ne20 = core_profiles.ne.value * core_profiles.nref / 1e20
+  n_e20 = core_profiles.n_e.value * core_profiles.nref / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
   # He3 distribution based on an analytic solution to the FP equation.
   xi = (
@@ -337,7 +337,7 @@ def _helium3_tail_temperature(
       * jnp.sqrt(core_profiles.temp_el.value)
       * helium3_mass
       * absorbed_power_density
-  ) / (ne20**2 * helium3_charge**2 * helium3_fraction)
+  ) / (n_e20**2 * helium3_charge**2 * helium3_fraction)
   return core_profiles.temp_el.value * (1 + xi)
 
 
@@ -361,14 +361,14 @@ def icrh_model_func(
       core_profiles.temp_el.value, geo
   )
   volume_average_density = math_utils.volume_average(
-      core_profiles.ne.value, geo
+      core_profiles.n_e.value, geo
   )
 
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
       core_profiles.temp_el.value[0] / volume_average_temperature
   )
-  density_peaking_factor = core_profiles.ne.value[0] / volume_average_density
+  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
   Router = geo.R_major + geo.a_minor
   Rinner = geo.R_major - geo.a_minor
   # Assumption: inner and outer gaps are not functions of z0.

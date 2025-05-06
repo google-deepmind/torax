@@ -107,28 +107,28 @@ class InitialStateTest(sim_test_case.SimTestCase):
     temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
     temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
     temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
-    ne = ref_profiles[output.N_E][index, 1:-1]
-    ne_bound_right = ref_profiles[output.N_E][index, -1]
+    n_e = ref_profiles[output.N_E][index, 1:-1]
+    n_e_bound_right = ref_profiles[output.N_E][index, -1]
     psi = ref_profiles[output.PSI][index, 1:-1]
 
     # Override the dynamic runtime params with the loaded values.
-    dynamic.profile_conditions.Ip_tot = Ip_total
+    dynamic.profile_conditions.I_total = Ip_total
     dynamic.profile_conditions.Te = temp_el
-    dynamic.profile_conditions.Te_bound_right = temp_el_bc
+    dynamic.profile_conditions.T_e_right_bc = temp_el_bc
     dynamic.profile_conditions.Ti = temp_ion
-    dynamic.profile_conditions.Ti_bound_right = temp_ion_bc
-    dynamic.profile_conditions.ne = ne
-    dynamic.profile_conditions.ne_bound_right = (
-        ne_bound_right
+    dynamic.profile_conditions.T_i_right_bc = temp_ion_bc
+    dynamic.profile_conditions.n_e = n_e
+    dynamic.profile_conditions.n_e_bound_right = (
+        n_e_bound_right
     )
     dynamic.profile_conditions.psi = psi
-    # When loading from file we want ne not to have transformations.
-    # Both ne and the boundary condition are given in absolute values (not fGW).
-    dynamic.profile_conditions.ne_bound_right_is_fGW = (
+    # When loading from file we want n_e not to have transformations.
+    # Both n_e and boundary condition are given in absolute values (not fGW).
+    dynamic.profile_conditions.n_e_bound_right_is_fGW = (
         False
     )
-    dynamic.profile_conditions.ne_is_fGW = False
-    dynamic.profile_conditions.ne_bound_right_is_absolute = (
+    dynamic.profile_conditions.n_e_is_fGW = False
+    dynamic.profile_conditions.n_e_bound_right_is_absolute = (
         True
     )
     # Additionally we want to avoid normalizing to nbar.
@@ -193,10 +193,10 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.N_E][index, 1:-1]
+      core_profiles.n_e.value, ref_profiles[output.N_E][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ne.right_face_constraint,
+      core_profiles.n_e.right_face_constraint,
       ref_profiles[output.N_E][index, -1],
   )
   np.testing.assert_allclose(

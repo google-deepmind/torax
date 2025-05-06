@@ -633,10 +633,10 @@ def _provide_core_profiles_t_plus_dt(
   psi = dataclasses.replace(
       core_profiles_t.psi, **updated_boundary_conditions['psi']
   )
-  ne = dataclasses.replace(
-      core_profiles_t.ne,
-      value=updated_values['ne'],
-      **updated_boundary_conditions['ne'],
+  n_e = dataclasses.replace(
+      core_profiles_t.n_e,
+      value=updated_values['n_e'],
+      **updated_boundary_conditions['n_e'],
   )
   ni = dataclasses.replace(
       core_profiles_t.ni,
@@ -670,7 +670,7 @@ def _provide_core_profiles_t_plus_dt(
       temp_ion=temp_ion,
       temp_el=temp_el,
       psi=psi,
-      ne=ne,
+      n_e=n_e,
       ni=ni,
       nimp=nimp,
       Zi=updated_values['Zi'],

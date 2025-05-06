@@ -90,16 +90,16 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     redistribution_mask = indices < idx_mixing
 
     if static_runtime_params_slice.dens_eq:
-      ne_redistributed = flatten_profile.flatten_density_profile(
+      n_e_redistributed = flatten_profile.flatten_density_profile(
           rho_norm_q1,
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles.ne,
+          core_profiles.n_e,
           geo,
       )
     else:
-      ne_redistributed = core_profiles.ne
+      n_e_redistributed = core_profiles.n_e
     if static_runtime_params_slice.el_heat_eq:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
@@ -107,8 +107,8 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
           redistribution_mask,
           redistribution_params.flattening_factor,
           core_profiles.temp_el,
-          core_profiles.ne,
-          ne_redistributed,
+          core_profiles.n_e,
+          n_e_redistributed,
           geo,
       )
     else:
@@ -122,7 +122,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
               static_runtime_params_slice,
               dynamic_runtime_params_slice,
               geo,
-              ne_redistributed,
+              n_e_redistributed,
               te_redistributed,
           )
       )
@@ -163,7 +163,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
         temp_ion=ti_redistributed,
         temp_el=te_redistributed,
         psi=psi_redistributed,
-        ne=ne_redistributed,
+        n_e=n_e_redistributed,
         ni=ni_redistributed,
         nimp=nimp_redistributed,
         Zi=Zi,

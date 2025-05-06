@@ -23,7 +23,7 @@ Functions:
     - calc_Wpol: Calculates total magnetic energy (Wpol).
     - calc_li3: Calculates normalized internal inductance li3 (ITER convention).
     - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
-    - calculate_psi_grad_constraint_from_Ip_tot: Calculates the gradient
+    - calculate_psi_grad_constraint_from_I_total: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
 """
@@ -259,13 +259,13 @@ def calc_q95(
   return q95
 
 
-def calculate_psi_grad_constraint_from_Ip_tot(
-    Ip_tot: array_typing.ScalarFloat,
+def calculate_psi_grad_constraint_from_I_total(
+    I_total: array_typing.ScalarFloat,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
-      Ip_tot
+      I_total
       * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])

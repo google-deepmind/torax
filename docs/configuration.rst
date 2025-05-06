@@ -58,13 +58,13 @@ due to constant extrapolation beyond the last time value.
 
 .. code-block:: python
 
-  Ip_tot = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
+  I_total = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
 .. code-block:: python
 
-    Ip_tot = {10: 2.0, 100: 15.0}
+    I_total = {10: 2.0, 100: 15.0}
 
 2. Define a time dependent internal boundary condition for ion temperature, ``Tiped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
@@ -294,15 +294,15 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip_tot`` (float = 15.0), **time-varying-scalar**
+``I_total`` (float = 15.0), **time-varying-scalar**
   Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
-``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
+``T_i_right_bc`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
   If not provided or set to `None` then the boundary condition is taken from the
   :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
 
-``Te_bound_right`` (float | None [default]), **time-varying-scalar**
+``T_e_right_bc`` (float | None [default]), **time-varying-scalar**
   Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
   If not provided or set to `None` then the boundary condition is taken from the
   :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
@@ -311,7 +311,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
   Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  If `T_i_right_bc=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
   Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
@@ -320,7 +320,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
   Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  If `T_e_right_bc=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
   Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
   for all provided times, an error will be raised.
@@ -330,14 +330,14 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   or the "nu formula".
 
 
-``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
+``n_e`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.
 
-  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
+  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``n_e`` is ignored, and only the initial value is used.
 
-  If ``ne_bound_right=None``, the boundary condition at :math:`\hat{\rho}=1`
-  is taken from the :math:`\hat{\rho}=1` value derived from the provided ``ne`` profile.
-  Note that if the ``ne`` profile does not contain a :math:`\hat{\rho}=1` point
+  If ``n_e_bound_right=None``, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided ``n_e`` profile.
+  Note that if the ``n_e`` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
 ``normalize_to_nbar`` (bool = True)
@@ -345,21 +345,21 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   :math:`\bar{n}`.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
-  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``ne_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
+  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``n_e_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``n_e_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
-``ne_is_fGW`` (bool = True)
+``n_e_is_fGW`` (bool = True)
   Toggles units of ``nbar``.
 
-``ne_bound_right`` (float = 0.5), **time-varying-scalar**
-  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``ne_bound_right_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
+``n_e_bound_right`` (float = 0.5), **time-varying-scalar**
+  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``n_e_bound_right_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``n_e_bound_right_is_fGW==True``.
   If not provided or set to `None` then the boundary condition is taken from the
-  :math:`\hat{\rho}=1` value derived from the provided `ne` profile.
+  :math:`\hat{\rho}=1` value derived from the provided `n_e` profile.
 
-``ne_bound_right_is_fGW`` (bool = False)
-  Toggles units of ``ne_bound_right``.
+``n_e_bound_right_is_fGW`` (bool = False)
+  Toggles units of ``n_e_bound_right``.
 
 ``nu`` (float = 3.0)
   Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
@@ -850,7 +850,7 @@ It is recommended to not set ``model_name``,  or
   If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float = 0.05)
-  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+  :math:`|R/L_{n_e}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
 
 ``avoid_big_negative_s`` (bool = True)
   If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
@@ -885,7 +885,7 @@ Runtime parameters for the QuaLiKiz model.
   If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float = 0.05)
-  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+  :math:`|R/L_{n_e}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
 
 ``avoid_big_negative_s`` (bool = True)
   If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
@@ -1388,18 +1388,18 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'Zeff': 1.6,
       },
       'profile_conditions': {
-          'Ip_tot': {0: 3, 80: 10.5},
+          'I_total': {0: 3, 80: 10.5},
           # initial condition ion temperature for r=0 and r=Rmin
           'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
+          'T_i_right_bc': 0.1,  # boundary condition ion temp for r=Rmin
           # initial condition electron temperature between r=0 and r=Rmin
           'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
-          'ne_bound_right_is_fGW': True,
-          'ne_bound_right': {0: 0.1, 80: 0.3},
-          'ne_is_fGW': True,
+          'T_e_right_bc': 0.1,  # boundary condition electron temp for r=Rmin
+          'n_e_bound_right_is_fGW': True,
+          'n_e_bound_right': {0: 0.1, 80: 0.3},
+          'n_e_is_fGW': True,
           'nbar': 1,
-          'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+          'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
           'Tiped': 1.0,
           'Teped': 1.0,
           'neped_is_fGW': True,

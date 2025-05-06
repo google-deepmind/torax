@@ -24,7 +24,7 @@ is infeasible.
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,  # initial density (Greenwald fraction units)
-        'ne_bound_right': 0.2,
+        'n_e_bound_right': 0.2,
         'neped': 1.0,
         'nu': 0,
     },

@@ -175,7 +175,7 @@ def make_ip_consistent(
       # If Ip is from parameters, renormalise psi etc to match the Ip in the
       # parameters.
       # pylint: disable=invalid-name
-      param_Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
+      param_Ip = dynamic_runtime_params_slice.profile_conditions.I_total
       Ip_scale_factor = param_Ip * 1e6 / geo.Ip_profile_face[-1]
       geo = dataclasses.replace(
           geo,
@@ -192,7 +192,7 @@ def make_ip_consistent(
           dynamic_runtime_params_slice,
           profile_conditions=dataclasses.replace(
               dynamic_runtime_params_slice.profile_conditions,
-              Ip_tot=geo.Ip_profile_face[-1] / 1e6,
+              I_total=geo.Ip_profile_face[-1] / 1e6,
           ),
       )
   return dynamic_runtime_params_slice, geo

@@ -64,13 +64,13 @@ def _alpha_closed_form(
 
   See cyclotron_radiation_albajar for more details.
 
-  We find alpha for the best fit for either the ne_data or te_data to the
+  We find alpha for the best fit for either the n_e_data or te_data to the
   parameterized functions:
 
-  ne = ne_data[0]*(1 - rhonorm**2)**alpha
+  n_e = n_e_data[0]*(1 - rhonorm**2)**alpha
   te = (te_data[0] - te_edge)*(1 - rhonorm**beta)**alpha + te_edge
 
-  Where ne_edge = 0 above. The parameterizations are from the Albajar paper.
+  Where n_e_edge = 0 above. The parameterizations are from the Albajar paper.
 
   The fit is from the magnetic axis to rhonorm=0.9, to avoid pedestal effects.
 
@@ -98,7 +98,7 @@ def _alpha_closed_form(
     The alpha parameter being fit for either the density or temperature fits.
   """
   # To avoid dealing with slicing of non-concrete values, we do a masking trick
-  # where we replace the values of ne_data and rhonorm above 0.9 with values
+  # where we replace the values of n_e_data and rhonorm above 0.9 with values
   # that will not contribute to the sums in the numerator and denominator.
 
   mask = rho_norm < 0.9
@@ -257,7 +257,7 @@ def cyclotron_radiation_albajar(
   of the following electron density and temperature parameterization to the
   actual plasma data.
 
-  ne = ne(0)*(1 - rhonorm**2)**alpha_n
+  n_e = n_e(0)*(1 - rhonorm**2)**alpha_n
   Te = (Te(0)-Te(a))*(1 - rhonorm**beta_T)**alpha_T + Te(a)
 
   Where we take a=0.9 in rhonorm space, and perform the best fit between
@@ -288,13 +288,13 @@ def cyclotron_radiation_albajar(
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
 
-  ne20_face = core_profiles.ne.face_value() * core_profiles.nref / 1e20
-  ne20_cell = core_profiles.ne.value * core_profiles.nref / 1e20
+  n_e20_face = core_profiles.n_e.face_value() * core_profiles.nref / 1e20
+  n_e20_cell = core_profiles.n_e.value * core_profiles.nref / 1e20
 
   # Dimensionless optical thickness parameter, on-axis:
   # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
   # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.a_minor * ne20_face[0] / geo.B_0
+  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0
 
   # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
   G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major / geo.a_minor))
@@ -303,7 +303,7 @@ def cyclotron_radiation_albajar(
   alpha_n = _alpha_closed_form(
       beta=2.0,
       rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
-      profile_data=ne20_face,
+      profile_data=n_e20_face,
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
@@ -333,7 +333,7 @@ def cyclotron_radiation_albajar(
       * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
       * geo.B_0**2.62
-      * ne20_face[0] ** 0.38
+      * n_e20_face[0] ** 0.38
       * core_profiles.temp_el.face_value()[0]
       * (16 + core_profiles.temp_el.face_value()[0]) ** 2.61
       * (1 + 0.12 * core_profiles.temp_el.face_value()[0] / p_a_0**0.41)
@@ -348,7 +348,7 @@ def cyclotron_radiation_albajar(
       geo.R_major
       * geo.elongation**0.79
       * (geo.F / geo.R_major) ** 2.62
-      * ne20_cell**0.38
+      * n_e20_cell**0.38
       * core_profiles.temp_el.value**3.61
   )
 

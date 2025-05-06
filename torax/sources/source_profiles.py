@@ -104,7 +104,7 @@ class SourceProfiles:
   # each core profile they affect.
   temp_el: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   temp_ion: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  ne: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  n_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   psi: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
 
   # This function can be jitted if source_models is a static argument. However,
@@ -154,7 +154,7 @@ class SourceProfiles:
 
   def total_sources(
       self,
-      source_type: Literal['ne', 'temp_ion', 'temp_el'],
+      source_type: Literal['n_e', 'temp_ion', 'temp_el'],
       geo: geometry.Geometry,
   ) -> jax.Array:
     source: dict[str, jax.Array] = getattr(self, source_type)

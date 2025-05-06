@@ -25,22 +25,22 @@ CONFIG = {
         'Zimp_override': 6.3623,
     },
     'profile_conditions': {
-        'Ip_tot': 15,  # total plasma current in MA
+        'I_total': 15,  # total plasma current in MA
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=Rmin
         'Ti': {0.0: {0.0: 15.0, 1.0: 0.238}},
-        'Ti_bound_right': (
+        'T_i_right_bc': (
             0.238
         ),  # boundary condition ion temperature for r=Rmin
         # initial condition electron temperature for r=0 and r=Rmin
         'Te': {0.0: {0.0: 15.0, 1.0: 0.238}},
-        'Te_bound_right': 0.238,  # boundary condition electron temp at r=Rmin
-        'ne_bound_right': 0.437,  # boundary condition density for r=Rmin
+        'T_e_right_bc': 0.238,  # boundary condition electron temp at r=Rmin
+        'n_e_bound_right': 0.437,  # boundary condition density for r=Rmin
         # set initial condition density according to Greenwald fraction.
         # Otherwise from nbar
-        'ne_is_fGW': True,
+        'n_e_is_fGW': True,
         'nbar': 0.77,  # original simulation goes up to ~0.92
-        'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+        'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {
         # simulation control
@@ -82,7 +82,7 @@ CONFIG = {
             # coordinate)
             'rext': 0.35,
         },
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             # total particle source
             'S_tot': 2.05e20,

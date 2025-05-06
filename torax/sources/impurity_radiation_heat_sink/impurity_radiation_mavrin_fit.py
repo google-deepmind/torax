@@ -210,7 +210,7 @@ def impurity_radiation_mavrin_fit(
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   radiation_profile = (
       effective_LZ
-      * core_profiles.ne.value
+      * core_profiles.n_e.value
       * core_profiles.nimp.value
       * dynamic_source_runtime_params.radiation_multiplier
       * dynamic_runtime_params_slice.numerics.nref**2

@@ -29,24 +29,24 @@ class BoundaryConditionsTest(parameterized.TestCase):
 
   @parameterized.parameters(
       dict(
-          ne={0.0: {0.0: 1.5, 1.0: 1.0}},
-          ne_bound_right=None,
-          expected_ne_bound_right=1.0,  # Value from profile.
+          n_e={0.0: {0.0: 1.5, 1.0: 1.0}},
+          n_e_bound_right=None,
+          expected_n_e_bound_right=1.0,  # Value from profile.
       ),
       dict(
-          ne={0.0: {0.0: 1.5, 1.0: 1.0}},
-          ne_bound_right=(
+          n_e={0.0: {0.0: 1.5, 1.0: 1.0}},
+          n_e_bound_right=(
               (np.array([0.0, 0.1]), np.array([0.1, 2.0])),
               'step',
           ),
-          expected_ne_bound_right=2.0,  # Value from boundary condition.
+          expected_n_e_bound_right=2.0,  # Value from boundary condition.
       ),
   )
   def test_setting_boundary_conditions(
       self,
-      ne_bound_right,
-      ne,
-      expected_ne_bound_right,
+      n_e_bound_right,
+      n_e,
+      expected_n_e_bound_right,
   ):
     """Tests that setting boundary conditions works."""
     # Boundary conditions can be time-dependent, but when creating the initial
@@ -55,12 +55,12 @@ class BoundaryConditionsTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'Ti': {0.0: {0.0: 27.7, 1.0: 1.0}},
         'Te': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
-        'Ti_bound_right': 27.7,
-        'Te_bound_right': {0.0: 42.0, 1.0: 0.1},
-        'ne_bound_right': ne_bound_right,
-        'ne': ne,
-        'ne_is_fGW': False,
-        'Ip_tot': {0.0: 5, 1.0: 7},
+        'T_i_right_bc': 27.7,
+        'T_e_right_bc': {0.0: 42.0, 1.0: 0.1},
+        'n_e_bound_right': n_e_bound_right,
+        'n_e': n_e,
+        'n_e_is_fGW': False,
+        'I_total': {0.0: 5, 1.0: 7},
         'normalize_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -115,15 +115,17 @@ class BoundaryConditionsTest(parameterized.TestCase):
     dilution_factor_face = (Zimp_face - Zeff_face) / (
         Zi_face * (Zimp_face - Zi_face)
     )
-    expected_ni_bound_right = expected_ne_bound_right * dilution_factor_face[-1]
+    expected_ni_bound_right = (
+        expected_n_e_bound_right * dilution_factor_face[-1]
+    )
     expected_nimp_bound_right = (
-        expected_ne_bound_right - expected_ni_bound_right * Zi_face[-1]
+        expected_n_e_bound_right - expected_ni_bound_right * Zi_face[-1]
     ) / Zimp_face[-1]
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.05)
     np.testing.assert_allclose(
-        updated.ne.right_face_constraint,
-        expected_ne_bound_right,
+        updated.n_e.right_face_constraint,
+        expected_n_e_bound_right,
         atol=1e-6,
         rtol=1e-6,
     )

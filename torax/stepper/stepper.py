@@ -123,7 +123,7 @@ class Solver(abc.ABC):
     if static_runtime_params_slice.current_eq:
       evolving_names.append('psi')
     if static_runtime_params_slice.dens_eq:
-      evolving_names.append('ne')
+      evolving_names.append('n_e')
     evolving_names = tuple(evolving_names)
 
     # Don't call solver functions on an empty list

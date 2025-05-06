@@ -92,7 +92,7 @@ class BootstrapCurrentSource(source.Source):
         nref=dynamic_runtime_params_slice.numerics.nref,
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         Zi_face=core_profiles.Zi_face,
-        ne=core_profiles.ne,
+        n_e=core_profiles.n_e,
         ni=core_profiles.ni,
         temp_el=core_profiles.temp_el,
         temp_ion=core_profiles.temp_ion,
@@ -165,7 +165,7 @@ def calc_sauter_model(
     nref: float,
     Zeff_face: chex.Array,
     Zi_face: chex.Array,
-    ne: cell_variable.CellVariable,
+    n_e: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
     temp_el: cell_variable.CellVariable,
     temp_ion: cell_variable.CellVariable,
@@ -179,7 +179,7 @@ def calc_sauter_model(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * nref
+  true_n_e_face = n_e.face_value() * nref
   true_ni_face = ni.face_value() * nref
 
   # # local r/R0 on face grid
@@ -193,7 +193,7 @@ def calc_sauter_model(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Zeff_face)
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_ne_face) + jnp.log(temp_el.face_value() * 1e3)
+      31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(temp_el.face_value() * 1e3)
   )
   lnLami = (
       30
@@ -210,7 +210,7 @@ def calc_sauter_model(
       6.921e-18
       * q_face
       * geo.R_major
-      * true_ne_face
+      * true_n_e_face
       * Zeff_face
       * lnLame
       / (
@@ -315,11 +315,11 @@ def calc_sauter_model(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
-  pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19
+  pe = true_n_e_face * (temp_el.face_value()) * 1e3 * 1.6e-19
   pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19
 
   dpsi_drnorm = psi.face_grad()
-  dlnne_drnorm = ne.face_grad() / ne.face_value()
+  dlnne_drnorm = n_e.face_grad() / n_e.face_value()
   dlnni_drnorm = ni.face_grad() / ni.face_value()
   dlnte_drnorm = temp_el.face_grad() / temp_el.face_value()
   dlnti_drnorm = temp_ion.face_grad() / temp_ion.face_value()

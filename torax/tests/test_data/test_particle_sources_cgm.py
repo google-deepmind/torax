@@ -21,7 +21,7 @@ CGM transport model. Pedestal. Particle sources
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,
-        'ne_bound_right': 0.2,
+        'n_e_bound_right': 0.2,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         'nu': 0,

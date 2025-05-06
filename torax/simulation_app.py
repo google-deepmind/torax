@@ -129,7 +129,7 @@ def _log_single_state(
   logging.info('temp_ion: %s', core_profiles.temp_ion.value)
   logging.info('temp_el: %s', core_profiles.temp_el.value)
   logging.info('psi: %s', core_profiles.psi.value)
-  logging.info('ne: %s', core_profiles.ne.value)
+  logging.info('n_e: %s', core_profiles.n_e.value)
   logging.info('ni: %s', core_profiles.ni.value)
   logging.info('q_face: %s', core_profiles.q_face)
   logging.info('s_face: %s', core_profiles.s_face)

@@ -29,8 +29,8 @@ CONFIG = {
     'profile_conditions': {
         'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
-        'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
-        'ne_bound_right': 0.5,
+        'I_total': {0: 5, 4: 15, 6: 12, 8: 12},
+        'n_e_bound_right': 0.5,
     },
     'numerics': {
         'current_eq': True,

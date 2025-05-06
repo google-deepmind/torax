@@ -41,7 +41,7 @@ def get_updated_ion_temperature(
       value=dynamic_profile_conditions.Ti,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.Ti_bound_right,
+      right_face_constraint=dynamic_profile_conditions.T_i_right_bc,
       dr=geo.drho_norm,
   )
   return temp_ion
@@ -56,7 +56,7 @@ def get_updated_electron_temperature(
       value=dynamic_profile_conditions.Te,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.Te_bound_right,
+      right_face_constraint=dynamic_profile_conditions.T_e_right_bc,
       dr=geo.drho_norm,
   )
   return temp_el
@@ -70,31 +70,31 @@ def get_updated_electron_density(
   """Gets initial and/or prescribed electron density profiles."""
 
   nGW = (
-      dynamic_profile_conditions.Ip_tot
+      dynamic_profile_conditions.I_total
       / (jnp.pi * geo.a_minor**2)
       * 1e20
       / dynamic_numerics.nref
   )
-  ne_value = jnp.where(
-      dynamic_profile_conditions.ne_is_fGW,
-      dynamic_profile_conditions.ne * nGW,
-      dynamic_profile_conditions.ne,
+  n_e_value = jnp.where(
+      dynamic_profile_conditions.n_e_is_fGW,
+      dynamic_profile_conditions.n_e * nGW,
+      dynamic_profile_conditions.n_e,
   )
-  # Calculate ne_bound_right.
-  ne_bound_right = jnp.where(
-      dynamic_profile_conditions.ne_bound_right_is_fGW,
-      dynamic_profile_conditions.ne_bound_right * nGW,
-      dynamic_profile_conditions.ne_bound_right,
+  # Calculate n_e_bound_right.
+  n_e_bound_right = jnp.where(
+      dynamic_profile_conditions.n_e_bound_right_is_fGW,
+      dynamic_profile_conditions.n_e_bound_right * nGW,
+      dynamic_profile_conditions.n_e_bound_right,
   )
 
   if dynamic_profile_conditions.normalize_to_nbar:
-    face_left = ne_value[0]  # Zero gradient boundary condition at left face.
-    face_right = ne_bound_right
-    face_inner = (ne_value[..., :-1] + ne_value[..., 1:]) / 2.0
-    ne_face = jnp.concatenate(
+    face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
+    face_right = n_e_bound_right
+    face_inner = (n_e_value[..., :-1] + n_e_value[..., 1:]) / 2.0
+    n_e_face = jnp.concatenate(
         [face_left[None], face_inner, face_right[None]],
     )
-    # Find normalization factor such that desired line-averaged ne is set.
+    # Find normalization factor such that desired line-averaged n_e is set.
     # Line-averaged electron density (nbar) is poorly defined. In general, the
     # definition is machine-dependent and even shot-dependent since it depends
     # on the usage of a specific interferometry chord. Furthermore, even if we
@@ -105,38 +105,38 @@ def get_updated_electron_density(
     Rmin_out = geo.R_out_face[-1] - geo.R_out_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(
-        dynamic_profile_conditions.ne_is_fGW,
+        dynamic_profile_conditions.n_e_is_fGW,
         dynamic_profile_conditions.nbar * nGW,
         dynamic_profile_conditions.nbar,
     )
-    if not dynamic_profile_conditions.ne_bound_right_is_absolute:
-      # In this case, ne_bound_right is taken from ne and we also normalize it.
-      C = target_nbar / (_trapz(ne_face, geo.R_out_face) / Rmin_out)
-      ne_bound_right = C * ne_bound_right
+    if not dynamic_profile_conditions.n_e_bound_right_is_absolute:
+      # In this case, n_e_bound_right taken from n_e and we also normalize it.
+      C = target_nbar / (_trapz(n_e_face, geo.R_out_face) / Rmin_out)
+      n_e_bound_right = C * n_e_bound_right
     else:
-      # If ne_bound_right is absolute, subtract off contribution from outer
+      # If n_e_bound_right is absolute, subtract off contribution from outer
       # face to get C we need to multiply the inner values with.
-      nbar_from_ne_face_inner = (
-          _trapz(ne_face[:-1], geo.R_out_face[:-1]) / Rmin_out
+      nbar_from_n_e_face_inner = (
+          _trapz(n_e_face[:-1], geo.R_out_face[:-1]) / Rmin_out
       )
 
       dr_edge = geo.R_out_face[-1] - geo.R_out_face[-2]
 
-      C = (target_nbar - 0.5 * ne_face[-1] * dr_edge / Rmin_out) / (
-          nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out
+      C = (target_nbar - 0.5 * n_e_face[-1] * dr_edge / Rmin_out) / (
+          nbar_from_n_e_face_inner + 0.5 * n_e_face[-2] * dr_edge / Rmin_out
       )
   else:
     C = 1
 
-  ne_value = C * ne_value
+  n_e_value = C * n_e_value
 
-  ne = cell_variable.CellVariable(
-      value=ne_value,
+  n_e = cell_variable.CellVariable(
+      value=n_e_value,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=ne_bound_right,
+      right_face_constraint=n_e_bound_right,
   )
-  return ne
+  return n_e
 
 
 # jitted since also used outside the stepper
@@ -147,7 +147,7 @@ def get_ion_density_and_charge_states(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    ne: cell_variable.CellVariable,
+    n_e: cell_variable.CellVariable,
     temp_el: cell_variable.CellVariable,
 ) -> tuple[
     cell_variable.CellVariable,
@@ -165,13 +165,13 @@ def get_ion_density_and_charge_states(
   quasineutrality, and the average impurity charge state which may be
   temperature dependent.
 
-  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
+  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/n_e  ;  nimp*Zimp + ni*Zi = n_e
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Geometry of the tokamak.
-    ne: Electron density profile [nref].
+    n_e: Electron density profile [nref].
     temp_el: Electron temperature profile [keV].
 
   Returns:
@@ -200,18 +200,18 @@ def get_ion_density_and_charge_states(
   )
 
   ni = cell_variable.CellVariable(
-      value=ne.value * dilution_factor,
+      value=n_e.value * dilution_factor,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=ne.right_face_constraint * dilution_factor_edge,
+      right_face_constraint=n_e.right_face_constraint * dilution_factor_edge,
   )
 
   nimp = cell_variable.CellVariable(
-      value=(ne.value - ni.value * Zi) / Zimp,
+      value=(n_e.value - ni.value * Zi) / Zimp,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=(
-          ne.right_face_constraint - ni.right_face_constraint * Zi_face[-1]
+          n_e.right_face_constraint - ni.right_face_constraint * Zi_face[-1]
       )
       / Zimp_face[-1],
   )

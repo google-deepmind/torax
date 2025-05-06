@@ -38,7 +38,7 @@ from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
 
-_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
+_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'n_e')
 
 
 class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
@@ -81,7 +81,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       np.testing.assert_allclose(profile, 3.0)
     for profile in merged_profiles.psi.values():
       np.testing.assert_allclose(profile, 3.0)
-    for profile in merged_profiles.ne.values():
+    for profile in merged_profiles.n_e.values():
       np.testing.assert_allclose(profile, 3.0)
     np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
     # Make sure the combo ion-el heat sources are present.
@@ -162,7 +162,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     ):
       state_history = run_simulation.run_simulation(torax_config)
 
-    for i, v in enumerate(state_history.core_sources.ne['generic_particle']):
+    for i, v in enumerate(state_history.core_sources.n_e['generic_particle']):
       np.testing.assert_allclose(v, i + 1)
 
 
@@ -186,7 +186,7 @@ def _build_source_profiles_with_single_value(
   return source_profiles_lib.SourceProfiles(
       temp_el=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
       temp_ion=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
-      ne=profiles[source_lib.AffectedCoreProfile.NE],
+      n_e=profiles[source_lib.AffectedCoreProfile.NE],
       psi=profiles[source_lib.AffectedCoreProfile.PSI],
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
           sigma=cell_1d_arr,

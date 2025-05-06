@@ -52,7 +52,7 @@ class NormalizedLogarithmicGradients:
     for name, profile in {
         "lref_over_lti": core_profiles.temp_ion,
         "lref_over_lte": core_profiles.temp_el,
-        "lref_over_lne": core_profiles.ne,
+        "lref_over_lne": core_profiles.n_e,
         "lref_over_lni0": core_profiles.ni,
         "lref_over_lni1": core_profiles.nimp,
     }.items():
@@ -132,7 +132,7 @@ def calculate_alpha(
   )
   alpha = factor_0 * (
       core_profiles.temp_el.face_value()
-      * core_profiles.ne.face_value()
+      * core_profiles.n_e.face_value()
       * (
           normalized_logarithmic_gradients.lref_over_lte
           + normalized_logarithmic_gradients.lref_over_lne
@@ -224,7 +224,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     # Convert the electron particle flux from GB (pfe) to SI units.
     pfe_SI = (
         pfe
-        * core_profiles.ne.face_value()
+        * core_profiles.n_e.face_value()
         * quasilinear_inputs.chiGB
         / gyrobohm_flux_reference_length
     )
@@ -253,11 +253,11 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     def DVeff_approach() -> tuple[jax.Array, jax.Array]:
       # The geo.rho_b is to unnormalize the face_grad.
       Deff = -pfe_SI / (
-          core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
+          core_profiles.n_e.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
           + constants.eps
       )
       Veff = pfe_SI / (
-          core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rho_b
+          core_profiles.n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b
       )
       Deff_mask = (
           ((pfe >= 0) & (quasilinear_inputs.lref_over_lne >= 0))
@@ -277,7 +277,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       chex.assert_rank(pfe, 1)
       d_face_el = chi_face_el
       v_face_el = (
-          pfe_SI / core_profiles.ne.face_value()
+          pfe_SI / core_profiles.n_e.face_value()
           - quasilinear_inputs.lref_over_lne
           * d_face_el
           / gradient_reference_length

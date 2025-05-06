@@ -20,8 +20,8 @@ Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
 
 CONFIG = {
     'profile_conditions': {
-        'ne_bound_right': 0.5,
-        'Ip_tot': 15,
+        'n_e_bound_right': 0.5,
+        'I_total': 15,
     },
     'numerics': {
         't_final': 1,
@@ -35,7 +35,7 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'generic_current': {},
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             # total particle source
             'S_tot': 0.0,

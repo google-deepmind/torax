@@ -127,8 +127,9 @@ def _calculate_pereverzev_flux(
   """Adds Pereverzev-Corrigan flux to diffusion terms."""
 
   consts = constants.CONSTANTS
-  true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+  true_n_e_face = (
+      core_profiles.n_e.face_value()
+      * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
       core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
@@ -147,15 +148,15 @@ def _calculate_pereverzev_flux(
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
-      * true_ne_face
+      * true_n_e_face
       * consts.keV2J
       * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
 
   d_face_per_el = dynamic_runtime_params_slice.solver.D_pereverzev
   v_face_per_el = (
-      core_profiles.ne.face_grad()
-      / core_profiles.ne.face_value()
+      core_profiles.n_e.face_grad()
+      / core_profiles.n_e.face_value()
       * d_face_per_el
       * geo_factor
   )
@@ -368,11 +369,14 @@ def _calc_coeffs_full(
   # fill source vector based on both original and updated core profiles
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
+  true_n_e = (
+      core_profiles.n_e.value * dynamic_runtime_params_slice.numerics.nref
+  )
   true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
 
-  true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+  true_n_e_face = (
+      core_profiles.n_e.face_value()
+      * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
       core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
@@ -392,7 +396,7 @@ def _calc_coeffs_full(
       * consts.keV2J
       * dynamic_runtime_params_slice.numerics.nref
   )
-  tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
+  tic_temp_el = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
@@ -429,7 +433,7 @@ def _calc_coeffs_full(
       geo.g1_over_vpr_face * true_ni_face * consts.keV2J * chi_face_ion
   )
   full_chi_face_el = (
-      geo.g1_over_vpr_face * true_ne_face * consts.keV2J * chi_face_el
+      geo.g1_over_vpr_face * true_n_e_face * consts.keV2J * chi_face_el
   )
 
   # entire coefficient preceding dne/dr in particle equation
@@ -440,9 +444,9 @@ def _calc_coeffs_full(
   source_mat_nn = jnp.zeros_like(geo.rho)
 
   # density source vector based both on original and updated core profiles
-  source_ne = merged_source_profiles.total_sources('ne', geo)
+  source_n_e = merged_source_profiles.total_sources('n_e', geo)
 
-  source_ne += (
+  source_n_e += (
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_n
       * pedestal_model_output.neped
@@ -496,7 +500,7 @@ def _calc_coeffs_full(
       / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
-      * true_ne_face
+      * true_n_e_face
       * consts.keV2J
   )
 
@@ -571,7 +575,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * geo.rho_norm
-      * true_ne
+      * true_n_e
       * core_profiles.temp_el.value
       * consts.keV2J
   )
@@ -597,13 +601,13 @@ def _calc_coeffs_full(
       'temp_ion': toc_temp_ion,
       'temp_el': toc_temp_el,
       'psi': toc_psi,
-      'ne': toc_dens_el,
+      'n_e': toc_dens_el,
   }
   var_to_tic = {
       'temp_ion': tic_temp_ion,
       'temp_el': tic_temp_el,
       'psi': tic_psi,
-      'ne': tic_dens_el,
+      'n_e': tic_dens_el,
   }
   transient_out_cell = tuple(var_to_toc[var] for var in evolving_names)
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
@@ -612,7 +616,7 @@ def _calc_coeffs_full(
       'temp_ion': full_chi_face_ion,
       'temp_el': full_chi_face_el,
       'psi': d_face_psi,
-      'ne': full_d_face_el,
+      'n_e': full_d_face_el,
   }
   d_face = tuple(var_to_d_face[var] for var in evolving_names)
 
@@ -620,7 +624,7 @@ def _calc_coeffs_full(
       'temp_ion': v_heat_face_ion,
       'temp_el': v_heat_face_el,
       'psi': v_face_psi,
-      'ne': full_v_face_el,
+      'n_e': full_v_face_el,
   }
   v_face = tuple(var_to_v_face.get(var) for var in evolving_names)
 
@@ -632,7 +636,7 @@ def _calc_coeffs_full(
       ('temp_ion', 'temp_el'): source_mat_ie,
       ('temp_el', 'temp_ion'): source_mat_ei,
       ('temp_el', 'temp_el'): source_mat_ee,
-      ('ne', 'ne'): source_mat_nn,
+      ('n_e', 'n_e'): source_mat_nn,
       ('psi', 'psi'): source_mat_psi,
   }
   source_mat_cell = tuple(
@@ -644,7 +648,7 @@ def _calc_coeffs_full(
       'temp_ion': source_i,
       'temp_el': source_e,
       'psi': source_psi,
-      'ne': source_ne,
+      'n_e': source_n_e,
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
@@ -676,7 +680,7 @@ def _calc_coeffs_reduced(
 
   # Only transient_in_cell is used for explicit terms if theta_implicit=1
   tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
-  tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
+  tic_temp_el = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   tic_psi = jnp.ones_like(geo.vpr)
   tic_dens_el = geo.vpr
 
@@ -684,7 +688,7 @@ def _calc_coeffs_reduced(
       'temp_ion': tic_temp_ion,
       'temp_el': tic_temp_el,
       'psi': tic_psi,
-      'ne': tic_dens_el,
+      'n_e': tic_dens_el,
   }
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
 

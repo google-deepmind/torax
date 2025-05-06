@@ -291,7 +291,7 @@ class StateHistory:
     xr_dict[TEMPERATURE_ION] = core_profiles.temp_ion.cell_plus_boundaries()
     xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
     xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
-    xr_dict[N_E] = core_profiles.ne.cell_plus_boundaries()
+    xr_dict[N_E] = core_profiles.n_e.cell_plus_boundaries()
     xr_dict[N_I] = core_profiles.ni.cell_plus_boundaries()
     xr_dict[N_IMPURITY] = core_profiles.nimp.cell_plus_boundaries()
     xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
@@ -387,8 +387,8 @@ class StateHistory:
         xr_dict[f"p_{profile}_e"] = self.core_sources.temp_el[profile]
     for profile in self.core_sources.psi:
       xr_dict[f"j_{profile}"] = self.core_sources.psi[profile]
-    for profile in self.core_sources.ne:
-      xr_dict[f"s_{profile}"] = self.core_sources.ne[profile]
+    for profile in self.core_sources.n_e:
+      xr_dict[f"s_{profile}"] = self.core_sources.n_e[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data)

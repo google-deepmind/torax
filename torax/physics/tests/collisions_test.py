@@ -55,13 +55,13 @@ class CollisionsTest(parameterized.TestCase):
   ])
   def test_calculate_weighted_Zeff(self, Aimp, Zimp, Zi, Ai, ni, expected):
     """Compare `_calculate_weighted_Zeff` to a reference value."""
-    ne = 1.0
-    nimp = (ne - ni * Zi) / Zimp
+    n_e = 1.0
+    nimp = (n_e - ni * Zi) / Zimp
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        ne=cell_variable.CellVariable(
-            value=jnp.array(ne),
+        n_e=cell_variable.CellVariable(
+            value=jnp.array(n_e),
             dr=jnp.array(1.0),
         ),
         ni=cell_variable.CellVariable(

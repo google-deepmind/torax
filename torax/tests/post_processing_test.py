@@ -63,7 +63,7 @@ class PostProcessingTest(parameterized.TestCase):
             'generic_current': 2 * ones,
             'ecrh': 2 * ones,
         },
-        ne={},
+        n_e={},
     )
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config

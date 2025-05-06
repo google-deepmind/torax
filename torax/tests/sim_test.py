@@ -141,7 +141,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_timedependence',
           'test_timedependence.py',
       ),
-      # Tests prescribed time-dependent ne (tied to GW frac with evolving Ip).
+      # Tests prescribed time-dependent n_e (tied to GW frac with evolving Ip).
       (
           'test_prescribed_timedependent_ne',
           'test_prescribed_timedependent_ne.py',
@@ -328,10 +328,10 @@ class SimTest(sim_test_case.SimTestCase):
         'numerics.current_eq': False,
         'numerics.dens_eq': False,
         # Keep profiles fixed.
-        'profile_conditions.Ip_tot': 3.0,
-        'profile_conditions.ne': 1.0,
-        'profile_conditions.ne_bound_right': 1.0,
-        'profile_conditions.ne_is_fGW': False,
+        'profile_conditions.I_total': 3.0,
+        'profile_conditions.n_e': 1.0,
+        'profile_conditions.n_e_bound_right': 1.0,
+        'profile_conditions.n_e_is_fGW': False,
         'profile_conditions.Ti': 6.0,
         'profile_conditions.Te': 6.0,
     })
@@ -344,7 +344,7 @@ class SimTest(sim_test_case.SimTestCase):
     profiles_to_check = (
         (output.TEMPERATURE_ION, history.core_profiles.temp_ion),
         (output.TEMPERATURE_ELECTRON, history.core_profiles.temp_el),
-        (output.N_E, history.core_profiles.ne),
+        (output.N_E, history.core_profiles.n_e),
         (output.PSI, history.core_profiles.psi),
         (output.Q, history.core_profiles.q_face),
         (output.MAGNETIC_SHEAR, history.core_profiles.s_face),
@@ -433,33 +433,33 @@ class SimTest(sim_test_case.SimTestCase):
       temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
       temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
       temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
-      ne = ref_profiles[output.N_E][index, 1:-1]
-      ne_bound_right = ref_profiles[output.N_E][index, -1]
+      n_e = ref_profiles[output.N_E][index, 1:-1]
+      n_e_bound_right = ref_profiles[output.N_E][index, -1]
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
+      dynamic_runtime_params_slice.profile_conditions.I_total = Ip_total
       dynamic_runtime_params_slice.profile_conditions.Te = temp_el
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
           temp_el_bc
       )
       dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
           temp_ion_bc
       )
-      dynamic_runtime_params_slice.profile_conditions.ne = ne
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
-          ne_bound_right
+      dynamic_runtime_params_slice.profile_conditions.n_e = n_e
+      dynamic_runtime_params_slice.profile_conditions.n_e_bound_right = (
+          n_e_bound_right
       )
       dynamic_runtime_params_slice.profile_conditions.psi = psi
-      # When loading from file we want ne not to have transformations.
-      # Both ne and the boundary condition are given in absolute values
+      # When loading from file we want n_e not to have transformations.
+      # Both n_e and the boundary condition are given in absolute values
       # (not fGW).
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
+      dynamic_runtime_params_slice.profile_conditions.n_e_bound_right_is_fGW = (
           False
       )
-      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+      dynamic_runtime_params_slice.profile_conditions.n_e_is_fGW = False
+      dynamic_runtime_params_slice.profile_conditions.n_e_bound_right_is_absolute = (
           True
       )
       # Additionally we want to avoid normalizing to nbar.
@@ -529,7 +529,7 @@ class SimTest(sim_test_case.SimTestCase):
         sim_outputs_vloop_bc.core_profiles.temp_ion,
         sim_outputs_vloop_bc.core_profiles.temp_el,
         sim_outputs_vloop_bc.core_profiles.psi,
-        sim_outputs_vloop_bc.core_profiles.ne,
+        sim_outputs_vloop_bc.core_profiles.n_e,
     )
 
     for profile in profiles_to_check:

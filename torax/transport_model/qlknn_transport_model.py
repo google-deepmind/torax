@@ -231,8 +231,8 @@ class QLKNNTransportModel(
     Returns:
       chi_face_ion: Chi for ion temperature, along faces.
       chi_face_el: Chi for electron temperature, along faces.
-      d_face_ne: Diffusivity for electron density, along faces.
-      v_face_ne: Convectivity for electron density, along faces.
+      d_face_n_e: Diffusivity for electron density, along faces.
+      v_face_n_e: Convectivity for electron density, along faces.
     """
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,

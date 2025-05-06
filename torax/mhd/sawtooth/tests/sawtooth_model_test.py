@@ -49,7 +49,7 @@ class SawtoothModelTest(parameterized.TestCase):
         },
         # Default initial current will lead to a sawtooth being triggered.
         'profile_conditions': {
-            'Ip_tot': 13,
+            'I_total': 13,
             'initial_j_is_total_current': True,
             'initial_psi_from_j': True,
             'nu': 3,
@@ -150,7 +150,7 @@ class SawtoothModelTest(parameterized.TestCase):
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.ne.value, _POST_CRASH_N, rtol=1e-6
+        output_state.core_profiles.n_e.value, _POST_CRASH_N, rtol=1e-6
     )
     np.testing.assert_allclose(
         output_state.core_profiles.psi.value, _POST_CRASH_PSI, rtol=1e-6

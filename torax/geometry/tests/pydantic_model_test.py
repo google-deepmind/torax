@@ -148,11 +148,11 @@ class PydanticModelTest(parameterized.TestCase):
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    original_Ip_tot = torax_config.profile_conditions.Ip_tot
+    original_I_total = torax_config.profile_conditions.I_total
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
     self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot.value[0]
+        dynamic_slice.profile_conditions.I_total, original_I_total.value[0]
     )
     # pylint: enable=invalid-name
 

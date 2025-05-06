@@ -34,97 +34,97 @@ class UpdatersTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='Set from ne',
-          ne_bound_right=None,
+          testcase_name='Set from n_e',
+          n_e_bound_right=None,
           normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=1.0,
+          n_e_is_fGW=False,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=1.0,
       ),
       dict(
-          testcase_name='Set and normalize from ne',
-          ne_bound_right=None,
+          testcase_name='Set and normalize from n_e',
+          n_e_bound_right=None,
           normalize_to_nbar=True,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.8050314,
+          n_e_is_fGW=False,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.8050314,
       ),
       dict(
-          testcase_name='Set and normalize from ne in fGW',
-          ne_bound_right=None,
+          testcase_name='Set and normalize from n_e in fGW',
+          n_e_bound_right=None,
           normalize_to_nbar=True,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.8050314,
+          n_e_is_fGW=True,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.8050314,
       ),
       dict(
-          testcase_name='Set from ne_bound_right',
-          ne_bound_right=0.5,
+          testcase_name='Set from n_e_bound_right',
+          n_e_bound_right=0.5,
           normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          n_e_is_fGW=False,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.5,
       ),
       dict(
-          testcase_name='Set from ne_bound_right absolute, ignore normalize',
-          ne_bound_right=0.5,
+          testcase_name='Set from n_e_bound_right absolute, ignore normalize',
+          n_e_bound_right=0.5,
           normalize_to_nbar=True,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          n_e_is_fGW=False,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.5,
       ),
       dict(
-          testcase_name='Set from ne in fGW',
-          ne_bound_right=None,
+          testcase_name='Set from n_e in fGW',
+          n_e_bound_right=None,
           normalize_to_nbar=False,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=1,  # This will be scaled by fGW in test.
+          n_e_is_fGW=True,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=1,  # This will be scaled by fGW in test.
       ),
       dict(
-          testcase_name='Set from ne, ignore ne_bound_right_is_fGW',
-          ne_bound_right=None,
+          testcase_name='Set from n_e, ignore n_e_bound_right_is_fGW',
+          n_e_bound_right=None,
           normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=True,
-          expected_ne_bound_right=1.0,
+          n_e_is_fGW=False,
+          n_e_bound_right_is_fGW=True,
+          expected_n_e_bound_right=1.0,
       ),
       dict(
-          testcase_name='Set from ne_bound_right, ignore ne_is_fGW',
-          ne_bound_right=0.5,
+          testcase_name='Set from n_e_bound_right, ignore n_e_is_fGW',
+          n_e_bound_right=0.5,
           normalize_to_nbar=False,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          n_e_is_fGW=True,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.5,
       ),
       dict(
           testcase_name=(
-              'Set from ne_bound_right, ignore ne_is_fGW, ignore normalize'
+              'Set from n_e_bound_right, ignore n_e_is_fGW, ignore normalize'
           ),
-          ne_bound_right=0.5,
+          n_e_bound_right=0.5,
           normalize_to_nbar=True,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          n_e_is_fGW=True,
+          n_e_bound_right_is_fGW=False,
+          expected_n_e_bound_right=0.5,
       ),
   )
-  def test_compute_boundary_conditions_ne(
+  def test_compute_boundary_conditions_n_e(
       self,
-      ne_bound_right,
+      n_e_bound_right,
       normalize_to_nbar,
-      ne_is_fGW,
-      ne_bound_right_is_fGW,
-      expected_ne_bound_right,
+      n_e_is_fGW,
+      n_e_bound_right_is_fGW,
+      expected_n_e_bound_right,
   ):
     """Tests that compute_boundary_conditions_t_plus_dt works."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'ne': {0: {0: 1.5, 1: 1}},
-        'ne_is_fGW': ne_is_fGW,
-        'ne_bound_right_is_fGW': ne_bound_right_is_fGW,
+        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e_is_fGW': n_e_is_fGW,
+        'n_e_bound_right_is_fGW': n_e_bound_right_is_fGW,
         'nbar': 1,
         'normalize_to_nbar': normalize_to_nbar,
-        'ne_bound_right': ne_bound_right,
+        'n_e_bound_right': n_e_bound_right,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -147,39 +147,39 @@ class UpdatersTest(parameterized.TestCase):
         core_profiles_t=mock.ANY,  # Unused
     )
 
-    if (ne_is_fGW and ne_bound_right is None) or (
-        ne_bound_right_is_fGW and ne_bound_right is not None
+    if (n_e_is_fGW and n_e_bound_right is None) or (
+        n_e_bound_right_is_fGW and n_e_bound_right is not None
     ):
       # Then we expect the boundary condition to be in fGW.
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip_tot
+          dynamic_runtime_params_slice.profile_conditions.I_total
           / (np.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )
       np.testing.assert_allclose(
-          boundary_conditions['ne']['right_face_constraint'],
-          expected_ne_bound_right * nGW,
+          boundary_conditions['n_e']['right_face_constraint'],
+          expected_n_e_bound_right * nGW,
       )
     else:
       np.testing.assert_allclose(
-          boundary_conditions['ne']['right_face_constraint'],
-          expected_ne_bound_right,
+          boundary_conditions['n_e']['right_face_constraint'],
+          expected_n_e_bound_right,
       )
 
   @parameterized.named_parameters(
-      ('Set from Te', None, 1.0), ('Set from Te_bound_right', 0.5, 0.5)
+      ('Set from Te', None, 1.0), ('Set from T_e_right_bc', 0.5, 0.5)
   )
   def test_compute_boundary_conditions_Te(
       self,
-      Te_bound_right,
-      expected_Te_bound_right,
+      T_e_right_bc,
+      expected_T_e_right_bc,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Te."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
         'Te': {0: {0: 1.5, 1: 1}},
-        'Te_bound_right': Te_bound_right,
+        'T_e_right_bc': T_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -204,22 +204,22 @@ class UpdatersTest(parameterized.TestCase):
 
     self.assertEqual(
         boundary_conditions['temp_el']['right_face_constraint'],
-        expected_Te_bound_right,
+        expected_T_e_right_bc,
     )
 
   @parameterized.named_parameters(
-      ('Set from Ti', None, 1.0), ('Set from Ti_bound_right', 0.5, 0.5)
+      ('Set from Ti', None, 1.0), ('Set from T_i_right_bc', 0.5, 0.5)
   )
   def test_compute_boundary_conditions_Ti(
       self,
-      Ti_bound_right,
-      expected_Ti_bound_right,
+      T_i_right_bc,
+      expected_T_i_right_bc,
   ):
     """Tests that compute_boundary_conditions_for_t_plus_dt works for Ti."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
         'Ti': {0: {0: 1.5, 1: 1}},
-        'Ti_bound_right': Ti_bound_right,
+        'T_i_right_bc': T_i_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -244,7 +244,7 @@ class UpdatersTest(parameterized.TestCase):
 
     self.assertEqual(
         boundary_conditions['temp_ion']['right_face_constraint'],
-        expected_Ti_bound_right,
+        expected_T_i_right_bc,
     )
 
   def test_update_vloop_lcfs_from_psi(self):

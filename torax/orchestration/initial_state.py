@@ -184,7 +184,7 @@ def _override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip_tot = (
+  dynamic_runtime_params_slice.profile_conditions.I_total = (
       profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1] / 1e6
   )  # Convert from A to MA.
   dynamic_runtime_params_slice.profile_conditions.Te = (
@@ -192,7 +192,7 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
       profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
@@ -202,17 +202,17 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
       profiles_ds.data_vars[output.TEMPERATURE_ION]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.ne = (
+  dynamic_runtime_params_slice.profile_conditions.n_e = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.n_e_bound_right = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
@@ -222,11 +222,11 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not fGW).
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+  # When loading from file we want n_e not to have transformations.
+  # Both n_e and the boundary condition are given in absolute values (not fGW).
+  dynamic_runtime_params_slice.profile_conditions.n_e_bound_right_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.n_e_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.n_e_bound_right_is_absolute = (
       True
   )
   # Additionally we want to avoid normalizing to nbar.

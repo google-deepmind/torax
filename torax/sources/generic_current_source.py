@@ -101,7 +101,7 @@ def _calculate_Iext(
       dynamic_source_runtime_params.use_absolute_current,
       dynamic_source_runtime_params.Iext,
       (
-          dynamic_runtime_params_slice.profile_conditions.Ip_tot
+          dynamic_runtime_params_slice.profile_conditions.I_total
           * dynamic_source_runtime_params.fext
       ),
   )

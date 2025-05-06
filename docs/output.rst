@@ -101,7 +101,7 @@ core_profiles
 ``temp_ion`` (time, rho_cell + boundary values)
   Ion temperature in :math:`[keV]`.
 
-``ne`` (time, rho_cell + boundary values)
+``n_e`` (time, rho_cell + boundary values)
   Electron density in units of ``nref``.
 
 ``ni`` (time, rho_cell + boundary values)
@@ -224,13 +224,13 @@ analysis and inspection.
 ``ti_volume_avg`` (time) [keV]:
   Volume average ion temperature.
 
-``ne_volume_avg`` (time) [nref m^-3]:
+``n_e_volume_avg`` (time) [nref m^-3]:
   Volume average electron density.
 
 ``ni_volume_avg`` (time) [nref m^-3]:
   Volume average ion density.
 
-``fgw_ne_volume_avg`` (time) [dimensionless]:
+``fgw_n_e_volume_avg`` (time) [dimensionless]:
   Greenwald fraction from volume-averaged electron density.
 
 ``pprime_face`` (time, rho_face) [Pa/Wb]:
@@ -362,13 +362,13 @@ analysis and inspection.
   according to Eq 3 from Martin 2008.
 
 ``P_LH_min`` (time) [W]: Minimum H-mode transition power at the minimum density
-  ``ne_min_P_LH``, according to Eq 4 from Ryter 2014.
+  ``n_e_min_P_LH``, according to Eq 4 from Ryter 2014.
 
 ``P_LH`` (time) [W]: H-mode transition power taken as the maximum of
   ``P_LH_min`` and ``P_LH_hi_dens``. ``P_LH_min`` and ``P_LH_hi_dens`` are kept
   in output for increased introspectability.
 
-``ne_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
+``n_e_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
   according to Eq 3 from Ryter 2014.
 
 ``E_cumulative_fusion`` (time) [J]:
