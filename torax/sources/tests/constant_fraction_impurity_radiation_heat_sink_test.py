@@ -55,10 +55,10 @@ class ImpurityRadiationConstantFractionTest(
 
     heat_dynamic = generic_ion_el_heat_source.DynamicRuntimeParams(
         prescribed_values=mock.ANY,
-        rsource=0.0,
-        w=0.25,
-        Ptot=120e6,
-        el_heat_fraction=0.66666,
+        location=0.0,
+        width=0.25,
+        P_total=120e6,
+        electron_heat_fraction=0.66666,
         absorption_fraction=1.0,
     )
 
@@ -124,7 +124,7 @@ class ImpurityRadiationConstantFractionTest(
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,
-        heat_dynamic.Ptot
+        heat_dynamic.P_total
         * -impurity_radiation_dynamic.fraction_of_total_power_density,
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
     )

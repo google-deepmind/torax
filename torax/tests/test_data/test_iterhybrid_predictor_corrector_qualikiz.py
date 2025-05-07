@@ -70,22 +70,22 @@ CONFIG = {
         'j_bootstrap': {
             # Multiplication factor for bootstrap current (note fbs~0.3 in
             # original simu)
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
         },
         'generic_current': {
             # total "external" current fraction
-            'fext': 0.46,
+            'fraction_of_total_current': 0.46,
             # width of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'wext': 0.075,
+            'width': 0.075,
             # radius of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'rext': 0.36,
+            'location': 0.36,
         },
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             # total particle source
-            'S_tot': 2.05e20,
+            'S_generic_total': 2.05e20,
             # particle source Gaussian central location (normalized radial
             # coordinate)
             'deposition_location': 0.3,
@@ -99,11 +99,11 @@ CONFIG = {
             # coordinate)
             'puff_decay_length': 0.3,
             # total pellet particles/s
-            'S_puff_tot': 6.0e21,
+            'S_puff_total': 6.0e21,
         },
         'pellet': {
             # total pellet particles/s (continuous pellet model)
-            'S_pellet_tot': 0.0e22,
+            'S_pellet_total': 0.0e22,
             # Gaussian width of pellet deposition (normalized radial coordinate)
             # in continuous pellet model
             'pellet_width': 0.1,
@@ -113,13 +113,13 @@ CONFIG = {
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {
-            'rsource': 0.12741589640723575,
+            'location': 0.12741589640723575,
             # Gaussian width in normalized radial coordinate r
-            'w': 0.07280908366127758,
+            'width': 0.07280908366127758,
             # total heating (including accounting for radiation) r
-            'Ptot': 51.0e6,
+            'P_total': 51.0e6,
             # electron heating fraction r
-            'el_heat_fraction': 0.68,
+            'electron_heat_fraction': 0.68,
         },
         'fusion': {},
         'ei_exchange': {

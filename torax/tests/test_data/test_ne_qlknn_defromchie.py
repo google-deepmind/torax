@@ -43,17 +43,17 @@ CONFIG = {
     },
     'sources': {
         'generic_heat': {
-            'w': 0.18202270915319393,
+            'width': 0.18202270915319393,
         },
         'ei_exchange': {},
         'generic_particle': {
-            'S_tot': 0.3e22,
+            'S_generic_total': 0.3e22,
         },
         'gas_puff': {
-            'S_puff_tot': 0.5e22,
+            'S_puff_total': 0.5e22,
         },
         'pellet': {
-            'S_pellet_tot': 1.0e22,
+            'S_pellet_total': 1.0e22,
         },
         'j_bootstrap': {},
         'generic_current': {},

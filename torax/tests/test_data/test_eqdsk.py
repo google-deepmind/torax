@@ -57,20 +57,20 @@ CONFIG = {
         # Set bootstrap multiplier to 0.5 to avoid numerical issues when
         # I_bs > Ip.
         'j_bootstrap': {
-            'bootstrap_mult': 0.5,
+            'bootstrap_multiplier': 0.5,
         },
         'ohmic': {},
         'ei_exchange': {},
         'generic_particle': {
-            'S_tot': 2.0e19,
+            'S_generic_total': 2.0e19,
             'deposition_location': 0.3,
             'particle_width': 0.25,
         },
         'generic_heat': {
-            'rsource': 0.3,
-            'w': 0.2,
-            'Ptot': 3e6,
-            'el_heat_fraction': 0.6,
+            'location': 0.3,
+            'width': 0.2,
+            'P_total': 3e6,
+            'electron_heat_fraction': 0.6,
         },
     },
     'pedestal': {},

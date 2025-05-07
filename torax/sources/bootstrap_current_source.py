@@ -34,7 +34,7 @@ from torax.sources import source_profiles
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  bootstrap_mult: float
+  bootstrap_multiplier: float
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -88,7 +88,7 @@ class BootstrapCurrentSource(source.Source):
       )
 
     bootstrap_current = calc_sauter_model(
-        bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_mult,
+        bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_multiplier,
         density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         Zi_face=core_profiles.Zi_face,
@@ -133,9 +133,9 @@ class BootstrapCurrentSourceConfig(base.SourceModelBase):
   """Bootstrap current density source profile.
 
   Attributes:
-    bootstrap_mult: Multiplication factor for bootstrap current.
+    bootstrap_multiplier: Multiplication factor for bootstrap current.
   """
-  bootstrap_mult: float = 1.0
+  bootstrap_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def model_func(self):
@@ -154,7 +154,7 @@ class BootstrapCurrentSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        bootstrap_mult=self.bootstrap_mult,
+        bootstrap_multiplier=self.bootstrap_multiplier,
     )
 
 

@@ -973,16 +973,16 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 
 ``mode`` (str = 'model')
 
-``rsource`` (float = 0.0), **time-varying-scalar**
+``location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``w`` (float = 0.25), **time-varying-scalar**
+``width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``Ptot`` (float = 120e6), **time-varying-scalar**
+``P_total`` (float = 120e6), **time-varying-scalar**
   Total source power in W. High default based on total ITER power including alphas
 
-``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
+``electron_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
 
 ei_exchange
@@ -1019,7 +1019,7 @@ Exponential based gas puff source. No first-principle-based model is yet impleme
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
 
-``S_puff_tot`` (float = 1e22), **time-varying-scalar**
+``S_puff_total`` (float = 1e22), **time-varying-scalar**
   Total number of particle source in units of particles/s.
 
 pellet
@@ -1035,7 +1035,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``pellet_width`` (float = 0.1), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
+``S_pellet_total`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
 generic_particle
@@ -1051,7 +1051,7 @@ Time dependent Gaussian particle source. No first-principle-based model is yet i
 ``particle_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_tot`` (float = 1e22), **time-varying-scalar**
+``S_generic_total`` (float = 1e22), **time-varying-scalar**
   Total particle source.
 
 j_bootstrap
@@ -1061,7 +1061,7 @@ Bootstrap current calculated with the Sauter model.
 
 ``mode`` (str = 'model')
 
-``bootstrap_mult`` (float = 1.0)
+``bootstrap_multiplier`` (float = 1.0)
   Multiplication factor for bootstrap current for testing purposes.
 
 generic_current
@@ -1071,17 +1071,17 @@ Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str = 'model')
 
-``rext`` (float = 0.4), **time-varying-scalar**
+``location`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.
 
-``wext`` (float = 0.05), **time-varying-scalar**
+``width`` (float = 0.05), **time-varying-scalar**
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
-``Iext`` (float = 3.0), **time-varying-scalar**
+``I_generic`` (float = 3.0), **time-varying-scalar**
   Total current in MA. Only used if ``use_absolute_current==True``.
 
-``fext`` (float = 0.2), **time-varying-scalar**
-  Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
+``fraction_of_total_current`` (float = 0.2), **time-varying-scalar**
+  Sets total ``j_ext`` to be a fraction ``fraction_of_total_current`` of the total plasma current.
   Only used if ``use_absolute_current==False``.
 
 ``use_absolute_current`` (bool = False)
@@ -1192,7 +1192,7 @@ environment variable which should point to a compatible JSON file.
 ``minority_concentration`` (float = 3.0) **time-varying-scalar**
   Helium-3 minority concentration relative to the electron density in %.
 
-``Ptot`` (float = 10e6), **time-varying-scalar**
+``P_total`` (float = 10e6), **time-varying-scalar**
   Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
@@ -1467,21 +1467,21 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'sources': {
           'j_bootstrap': {},
           'generic_current': {
-              'fext': 0.15,
-              'wext': 0.075,
-              'rext': 0.36,
+              'fraction_of_total_current': 0.15,
+              'width': 0.075,
+              'location': 0.36,
           },
           'pellet': {
-              'S_pellet_tot': 0.0e22,
+              'S_pellet_total': 0.0e22,
               'pellet_width': 0.1,
               'pellet_deposition_location': 0.85,
           },
           'generic_heat': {
-              'rsource': 0.12741589640723575,
-              'w': 0.07280908366127758,
+              'location': 0.12741589640723575,
+              'width': 0.07280908366127758,
               # total heating (with a rough assumption of radiation reduction)
-              'Ptot': 20.0e6,
-              'el_heat_fraction': 1.0,
+              'P_total': 20.0e6,
+              'electron_heat_fraction': 1.0,
           },
           'fusion': {},
           'ei_exchange': {},

@@ -39,7 +39,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'calc_puff_source'
 @chex.dataclass(frozen=True)
 class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   puff_decay_length: array_typing.ScalarFloat
-  S_puff_tot: array_typing.ScalarFloat
+  S_puff_total: array_typing.ScalarFloat
 
 
 # Default formula: exponential with density_reference normalization.
@@ -60,7 +60,7 @@ def calc_puff_source(
       decay_start=1.0,
       width=dynamic_source_runtime_params.puff_decay_length,
       total=(
-          dynamic_source_runtime_params.S_puff_tot
+          dynamic_source_runtime_params.S_puff_total
           / dynamic_runtime_params_slice.numerics.density_reference
       ),
       geo=geo,
@@ -89,13 +89,13 @@ class GasPuffSourceConfig(base.SourceModelBase):
   Attributes:
     puff_decay_length: exponential decay length of gas puff ionization
       [normalized radial coord]
-    S_puff_tot: total gas puff particles/s
+    S_puff_total: total gas puff particles/s
   """
   model_function_name: Literal['calc_puff_source'] = 'calc_puff_source'
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
-  S_puff_tot: torax_pydantic.TimeVaryingScalar = (
+  S_puff_total: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1e22)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -113,7 +113,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
             [v.get_value(t) for v in self.prescribed_values]
         ),
         puff_decay_length=self.puff_decay_length.get_value(t),
-        S_puff_tot=self.S_puff_tot.get_value(t),
+        S_puff_total=self.S_puff_total.get_value(t),
     )
 
   def build_source(self) -> GasPuffSource:

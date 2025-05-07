@@ -26,8 +26,8 @@ CONFIG['sources'].pop('generic_current')
 # Electron component is handled by the ECRH source.
 # This way, the total ion and electron heating is unchanged,
 # but the ECCD current drive is model-based.
-CONFIG['sources']['generic_heat']['el_heat_fraction'] = 0.0
-CONFIG['sources']['generic_heat']['Ptot'] = 16.32e6
+CONFIG['sources']['generic_heat']['electron_heat_fraction'] = 0.0
+CONFIG['sources']['generic_heat']['P_total'] = 16.32e6
 
 # Set the ECRH source.
 CONFIG['sources']['ecrh'] = {

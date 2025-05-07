@@ -37,7 +37,7 @@ class PydanticModelTest(parameterized.TestCase):
           config={
               'gas_puff': {
                   'puff_decay_length': 0.3,
-                  'S_puff_tot': 0.0,
+                  'S_puff_total': 0.0,
               }
           },
           expected_sources_model=gas_puff_source.GasPuffSourceConfig,
@@ -45,7 +45,7 @@ class PydanticModelTest(parameterized.TestCase):
       dict(
           config={
               'j_bootstrap': {
-                  'bootstrap_mult': 0.3,
+                  'bootstrap_multiplier': 0.3,
               }
           },
           expected_sources_model=bootstrap_current_source.BootstrapCurrentSourceConfig,

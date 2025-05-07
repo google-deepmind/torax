@@ -131,7 +131,7 @@ class GeometryTest(parameterized.TestCase):
       'deltau',
       'deltal',
       'kappa',
-      'FtPQ',       # TODO(b/412965439)  remove support for LY files w/o FtPVQ.
+      'FtPQ',  # TODO(b/412965439)  remove support for LY files width/o FtPVQ.
       'zA',
       't',
   )

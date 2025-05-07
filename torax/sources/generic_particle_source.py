@@ -56,7 +56,7 @@ def calc_generic_particle_source(
           center=dynamic_source_runtime_params.deposition_location,
           width=dynamic_source_runtime_params.particle_width,
           total=(
-              dynamic_source_runtime_params.S_tot
+              dynamic_source_runtime_params.S_generic_total
               / dynamic_runtime_params_slice.numerics.density_reference
           ),
           geo=geo,
@@ -84,7 +84,7 @@ class GenericParticleSource(source.Source):
 class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   particle_width: array_typing.ScalarFloat
   deposition_location: array_typing.ScalarFloat
-  S_tot: array_typing.ScalarFloat
+  S_generic_total: array_typing.ScalarFloat
 
 
 class GenericParticleSourceConfig(base.SourceModelBase):
@@ -94,7 +94,7 @@ class GenericParticleSourceConfig(base.SourceModelBase):
     particle_width: particle source Gaussian width in normalized radial coord
     deposition_location: particle source Gaussian center in normalized radial
       coord
-    S_tot: total particle source particles/s
+    S_generic_total: total particle source particles/s
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
@@ -107,8 +107,8 @@ class GenericParticleSourceConfig(base.SourceModelBase):
   deposition_location: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  S_tot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
+  S_generic_total: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e22)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
@@ -126,7 +126,7 @@ class GenericParticleSourceConfig(base.SourceModelBase):
         ),
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
-        S_tot=self.S_tot.get_value(t),
+        S_generic_total=self.S_generic_total.get_value(t),
     )
 
   def build_source(self) -> GenericParticleSource:

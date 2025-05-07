@@ -39,10 +39,10 @@ CONFIG = {
     },
     'sources': {
         'j_bootstrap': {
-            'bootstrap_mult': 0.0,
+            'bootstrap_multiplier': 0.0,
         },
         'generic_heat': {
-            'w': 0.18202270915319393,
+            'width': 0.18202270915319393,
         },
         'ei_exchange': {},
         'ohmic': {},

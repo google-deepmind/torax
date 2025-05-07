@@ -40,7 +40,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
     ).build_geometry()
     dynamic_bootstap_params = bootstrap_current_source.DynamicRuntimeParams(
         prescribed_values=mock.ANY,
-        bootstrap_mult=1.0,
+        bootstrap_multiplier=1.0,
     )
     self.dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,

@@ -53,7 +53,7 @@ def calc_pellet_source(
           center=dynamic_source_runtime_params.pellet_deposition_location,
           width=dynamic_source_runtime_params.pellet_width,
           total=(
-              dynamic_source_runtime_params.S_pellet_tot
+              dynamic_source_runtime_params.S_pellet_total
               / dynamic_runtime_params_slice.numerics.density_reference
           ),
           geo=geo,
@@ -81,7 +81,7 @@ class PelletSource(source.Source):
 class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   pellet_width: array_typing.ScalarFloat
   pellet_deposition_location: array_typing.ScalarFloat
-  S_pellet_tot: array_typing.ScalarFloat
+  S_pellet_total: array_typing.ScalarFloat
 
 
 class PelletSourceConfig(base.SourceModelBase):
@@ -91,7 +91,7 @@ class PelletSourceConfig(base.SourceModelBase):
     pellet_width: Gaussian width of pellet deposition [normalized radial coord]
     pellet_deposition_location: Gaussian center of pellet deposition [normalized
       radial coord]
-    S_pellet_tot: total pellet particles/s
+    S_pellet_total: total pellet particles/s
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
@@ -102,7 +102,7 @@ class PelletSourceConfig(base.SourceModelBase):
   pellet_deposition_location: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.85)
   )
-  S_pellet_tot: torax_pydantic.TimeVaryingScalar = (
+  S_pellet_total: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2e22)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -121,7 +121,7 @@ class PelletSourceConfig(base.SourceModelBase):
         ),
         pellet_width=self.pellet_width.get_value(t),
         pellet_deposition_location=self.pellet_deposition_location.get_value(t),
-        S_pellet_tot=self.S_pellet_tot.get_value(t),
+        S_pellet_total=self.S_pellet_total.get_value(t),
     )
 
   def build_source(self) -> PelletSource:

@@ -496,7 +496,7 @@ Examples
 
 To demonstrate xarray and numpy manipulations of output data, the following code carries out
 volume integration of ``alpha_el`` and ``alpha_ion`` at the time closest to t=1. The result equals
-the input config ``sources['alpha']['Ptot']`` at the time closest to t=1.
+the input config ``sources['alpha']['P_total']`` at the time closest to t=1.
 
 ``dt`` is the xarray.DataTree. The netCDF file is assumed to be in the working directory. ``vpr``
 is assumed to not be time varying.
@@ -510,7 +510,7 @@ is assumed to not be time varying.
   alpha_el = data_tree.children['core_sources'].dataset['alpha_el']
   alpha_ion = data_tree.children['core_sources'].dataset['alpha_ion']
 
-  Ptot = np.trapz((alpha_el + alpha_ion) * data_tree.vpr, data_tree.rho_cell_norm)
+  P_total = np.trapz((alpha_el + alpha_ion) * data_tree.vpr, data_tree.rho_cell_norm)
 
 
 It is possible to retrieve the input config from the output for debugging

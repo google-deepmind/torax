@@ -49,7 +49,7 @@ CONFIG = {
     },
     'sources': {
         'generic_heat': {
-            'w': 0.18202270915319393,
+            'width': 0.18202270915319393,
         },
         'generic_current': {},
     },

@@ -280,7 +280,7 @@ class InitialStatesTest(parameterized.TestCase):
     config['geometry']['geometry_type'] = geometry_name
     config['sources'] = {
         'j_bootstrap': {
-            'bootstrap_mult': 0.0,
+            'bootstrap_multiplier': 0.0,
         },
         'generic_current': {},
     }
@@ -356,11 +356,11 @@ class InitialStatesTest(parameterized.TestCase):
 
     new_source_config = {
         'j_bootstrap': {
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
         'generic_current': {
-            'fext': 0.0,
+            'fraction_of_total_current': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
@@ -392,11 +392,11 @@ class InitialStatesTest(parameterized.TestCase):
 
     new_source_config = {
         'j_bootstrap': {
-            'bootstrap_mult': 0.0,
+            'bootstrap_multiplier': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
         'generic_current': {
-            'fext': 0.0,
+            'fraction_of_total_current': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
@@ -435,7 +435,7 @@ class InitialStatesTest(parameterized.TestCase):
         1
         - dcs1.sources[
             generic_current_source.GenericCurrentSource.SOURCE_NAME
-        ].fext  # pytype: disable=attribute-error
+        ].fraction_of_total_current  # pytype: disable=attribute-error
     )
 
     # Calculate bootstrap current for config3 which doesn't zero it out
