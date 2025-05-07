@@ -161,8 +161,8 @@ CONFIG = {
         'DV_effective': True,
         'avoid_big_negative_s': True,
         'An_min': 0.05,
-        'maxruns': 2,
-        'numprocs': 24,
+        'n_max_runs': 2,
+        'n_processes': 24,
     },
     'solver': {
         'solver_type': 'linear',

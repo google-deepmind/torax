@@ -40,8 +40,8 @@ from torax.transport_model import qualikiz_based_transport_model
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
-  maxruns: int
-  numprocs: int
+  n_max_runs: int
+  n_processes: int
 
 
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'
@@ -114,7 +114,7 @@ class QualikizTransportModel(
         core_profiles=core_profiles,
     )
     self._run_qualikiz(
-        qualikiz_plan, dynamic_runtime_params_slice.transport.numprocs
+        qualikiz_plan, dynamic_runtime_params_slice.transport.n_processes
     )
     core_transport = self._extract_run_data(
         qualikiz_inputs=qualikiz_inputs,
@@ -128,7 +128,7 @@ class QualikizTransportModel(
   def _run_qualikiz(
       self,
       qualikiz_plan: qualikiz_inputtools.QuaLiKizPlan,
-      numprocs: int,
+      n_processes: int,
       verbose: bool = True,
   ) -> None:
     """Runs QuaLiKiz using command line tools. Loose coupling with TORAX."""
@@ -158,7 +158,7 @@ class QualikizTransportModel(
     command = [
         'mpirun',
         '-np',
-        str(numprocs),
+        str(n_processes),
         _QLK_EXEC_PATH,
     ]
     process = subprocess.Popen(
@@ -249,7 +249,7 @@ def _extract_qualikiz_plan(
       phys_meth=1,
       rhomin=0.0,
       rhomax=0.98,
-      maxruns=transport.maxruns,
+      maxruns=transport.n_max_runs,
   )
 
   options = qualikiz_inputtools.QuaLiKizXpoint.Options(
@@ -390,8 +390,8 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
 
   Attributes:
     transport_model: The transport model to use. Hardcoded to 'qualikiz'.
-    maxruns: Set frequency of full QuaLiKiz contour solutions.
-    numprocs: Set number of cores used QuaLiKiz calculations.
+    n_max_runs: Set frequency of full QuaLiKiz contour solutions.
+    n_processes: Set number of cores used QuaLiKiz calculations.
     collisionality_multiplier: Collisionality multiplier.
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
@@ -405,8 +405,8 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   """
 
   transport_model: Literal['qualikiz'] = 'qualikiz'
-  maxruns: pydantic.PositiveInt = 2
-  numprocs: pydantic.PositiveInt = 8
+  n_max_runs: pydantic.PositiveInt = 2
+  n_processes: pydantic.PositiveInt = 8
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
@@ -420,8 +420,8 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return DynamicRuntimeParams(
-        maxruns=self.maxruns,
-        numprocs=self.numprocs,
+        n_max_runs=self.n_max_runs,
+        n_processes=self.n_processes,
         collisionality_multiplier=self.collisionality_multiplier,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,

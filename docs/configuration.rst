@@ -870,12 +870,12 @@ qualikiz
 
 Runtime parameters for the QuaLiKiz model.
 
-``maxruns`` (int = 2)
-  Frequency of full QuaLiKiz contour solutions. For maxruns>1, every maxruns-th
+``n_max_runs`` (int = 2)
+  Frequency of full QuaLiKiz contour solutions. For n_max_runs>1, every n_max_runs-th
   call will use the full contour integral solution. Other runs will use the previous
   solution as the initial guess for the Newton solver, which is significantly faster.
 
-``numprocs`` (int = 8)
+``n_processes`` (int = 8)
   Number of MPI processes to use for QuaLiKiz.
 
 ``collisionality_multiplier`` (float = 1.0)
