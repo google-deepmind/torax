@@ -65,6 +65,7 @@ def initial_core_profiles(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
   n_e = getters.get_updated_electron_density(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice.numerics,
       dynamic_runtime_params_slice.profile_conditions,
       geo,
@@ -103,7 +104,7 @@ def initial_core_profiles(
 
   vloop_lcfs = (
       jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
-      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
       else jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
 
@@ -343,7 +344,9 @@ def _init_psi_psidot_and_currents(
   Returns:
     Refined core profiles.
   """
-  use_vloop_bc = static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+  use_vloop_bc = (
+      static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+  )
 
   source_profiles = source_profiles_lib.SourceProfiles(
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(geo),

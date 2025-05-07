@@ -20,6 +20,7 @@ from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
+from torax.config import runtime_params_slice
 from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -86,9 +87,11 @@ class GettersTest(parameterized.TestCase):
     numerics = numerics_lib.Numerics.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -127,9 +130,11 @@ class GettersTest(parameterized.TestCase):
     numerics = numerics_lib.Numerics.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -154,19 +159,22 @@ class GettersTest(parameterized.TestCase):
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-
+    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_normalized = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
 
     np.testing.assert_allclose(np.mean(n_e_normalized.value), nbar, rtol=1e-1)
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
+    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_unnormalized = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
 
@@ -193,16 +201,19 @@ class GettersTest(parameterized.TestCase):
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
+    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_fGW = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
     profile_conditions._update_fields({'n_e_nbar_is_fGW': False})
 
     n_e = getters.get_updated_electron_density(
-        numerics.build_dynamic_params(1.),
-        profile_conditions.build_dynamic_params(1.),
+        static_slice,
+        numerics.build_dynamic_params(1.0),
+        profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
 
@@ -233,14 +244,14 @@ class GettersTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(t=1.0)
 
     temp_el = cell_variable.CellVariable(
-        value=jnp.ones_like(geo.rho_norm)
-        * 100.0,  # ensure full ionization
+        value=jnp.ones_like(geo.rho_norm) * 100.0,  # ensure full ionization
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(100.0, dtype=jax_utils.get_dtype()),
         dr=geo.drho_norm,
     )
     n_e = getters.get_updated_electron_density(
+        static_slice,
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
@@ -270,6 +281,23 @@ class GettersTest(parameterized.TestCase):
         atol=1e-6,
         rtol=1e-6,
     )
+
+
+def _create_static_slice_mock(
+    profile_conditions: profile_conditions_lib.ProfileConditions,
+) -> runtime_params_slice.StaticRuntimeParamsSlice:
+  return mock.create_autospec(
+      runtime_params_slice.StaticRuntimeParamsSlice,
+      instance=True,
+      profile_conditions=mock.create_autospec(
+          profile_conditions_lib.StaticRuntimeParams,
+          instance=True,
+          normalize_n_e_to_nbar=profile_conditions.normalize_n_e_to_nbar,
+          n_e_right_bc_is_absolute=False
+          if profile_conditions.n_e_right_bc is None
+          else True,
+      ),
+  )
 
 
 if __name__ == '__main__':

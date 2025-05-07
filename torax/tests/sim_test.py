@@ -19,6 +19,7 @@ previously executed TORAX reference:
 """
 
 import copy
+import dataclasses
 from typing import Final, Sequence
 from unittest import mock
 
@@ -455,16 +456,18 @@ class SimTest(sim_test_case.SimTestCase):
       # When loading from file we want n_e not to have transformations.
       # Both n_e and the boundary condition are given in absolute values
       # (not fGW).
+      # Additionally we want to avoid normalizing to nbar.
       dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = (
           False
       )
       dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute = (
-          True
-      )
-      # Additionally we want to avoid normalizing to nbar.
-      dynamic_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar = (
-          False
+      static_runtime_params_slice = dataclasses.replace(
+          static_runtime_params_slice,
+          profile_conditions=dataclasses.replace(
+              static_runtime_params_slice.profile_conditions,
+              n_e_right_bc_is_absolute=True,
+              normalize_n_e_to_nbar=False,
+          ),
       )
       return original_get_initial_state(
           static_runtime_params_slice,

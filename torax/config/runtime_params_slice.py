@@ -137,9 +137,7 @@ class StaticRuntimeParamsSlice:
   # inconsistently between the static and dynamic runtime params slices.
   main_ion_names: tuple[str, ...]
   impurity_names: tuple[str, ...]
-  # Whether to use the vloop_lcfs BC or Ip_total BC for the psi equation.
-  use_vloop_lcfs_boundary_condition: bool
-
+  profile_conditions: profile_conditions.StaticRuntimeParams
   # Iterative reduction of dt if nonlinear step does not converge,
   # If nonlinear step does not converge, then the step is redone
   # iteratively at successively lower dt until convergence is reached
@@ -157,6 +155,7 @@ class StaticRuntimeParamsSlice:
         self.main_ion_names,
         self.impurity_names,
         self.adaptive_dt,
+        self.profile_conditions,
     ))
 
   def validate_new(self, new_params: typing_extensions.Self):

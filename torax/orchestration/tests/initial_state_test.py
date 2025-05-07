@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
@@ -118,26 +119,23 @@ class InitialStateTest(sim_test_case.SimTestCase):
     dynamic.profile_conditions.T_i = temp_ion
     dynamic.profile_conditions.T_i_right_bc = temp_ion_bc
     dynamic.profile_conditions.n_e = n_e
-    dynamic.profile_conditions.n_e_right_bc = (
-        n_e_right_bc
-    )
+    dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
     dynamic.profile_conditions.psi = psi
-    # When loading from file we want n_e not to have transformations.
-    # Both n_e and the boundary condition are given in absolute values
-    # (not fGW).
-    dynamic.profile_conditions.n_e_right_bc_is_fGW = (
-        False
-    )
-    dynamic.profile_conditions.n_e_nbar_is_fGW = False
-    dynamic.profile_conditions.n_e_right_bc_is_absolute = (
-        True
-    )
+    # When loading from file we want ne not to have transformations.
+    # Both ne and the boundary condition are given in absolute values (not fGW).
     # Additionally we want to avoid normalizing to nbar.
-    dynamic.profile_conditions.normalize_n_e_to_nbar = False
-
-    result = initial_state._get_initial_state(
-        static, dynamic, geo, step_fn
+    dynamic.profile_conditions.n_e_right_bc_is_fGW = False
+    dynamic.profile_conditions.n_e_nbar_is_fGW = False
+    static = dataclasses.replace(
+        static,
+        profile_conditions=dataclasses.replace(
+            static.profile_conditions,
+            n_e_right_bc_is_absolute=True,
+            normalize_n_e_to_nbar=False,
+        ),
     )
+
+    result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
     _verify_core_profiles(ref_profiles, index, result.core_profiles)
 
 

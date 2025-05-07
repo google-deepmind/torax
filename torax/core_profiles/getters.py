@@ -63,6 +63,7 @@ def get_updated_electron_temperature(
 
 
 def get_updated_electron_density(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_numerics: numerics.DynamicNumerics,
     dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
@@ -87,7 +88,7 @@ def get_updated_electron_density(
       dynamic_profile_conditions.n_e_right_bc,
   )
 
-  if dynamic_profile_conditions.normalize_n_e_to_nbar:
+  if static_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar:
     face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
     face_right = n_e_right_bc
     face_inner = (n_e_value[..., :-1] + n_e_value[..., 1:]) / 2.0
@@ -109,7 +110,9 @@ def get_updated_electron_density(
         dynamic_profile_conditions.nbar * nGW,
         dynamic_profile_conditions.nbar,
     )
-    if not dynamic_profile_conditions.n_e_right_bc_is_absolute:
+    if (
+        not static_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute
+    ):
       # In this case, n_e_right_bc is taken from n_e and we also normalize it.
       C = target_nbar / (_trapz(n_e_face, geo.R_out_face) / Rmin_out)
       n_e_right_bc = C * n_e_right_bc

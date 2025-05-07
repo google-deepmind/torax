@@ -230,16 +230,23 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       n_e_right_bc_is_fGW,  # pylint: disable=invalid-name
       n_e_nbar_is_fGW,  # pylint: disable=invalid-name
   ):
-    """Tests that the profile conditions can set the electron temperature."""
-    profile_conditions = profile_conditions_lib.ProfileConditions(
-        n_e_right_bc=n_e_right_bc,
-        n_e_right_bc_is_fGW=n_e_right_bc_is_fGW,
-        n_e_nbar_is_fGW=n_e_nbar_is_fGW,
-    )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
-    dynamic_profile_conditions = profile_conditions.build_dynamic_params(
-        t=0.0,
+    """Tests that the profile conditions can set the electron density."""
+
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'n_e_right_bc': n_e_right_bc,
+        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
+        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    ).profile_conditions
+
+    dynamic_profile_conditions = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )(t=0.0).profile_conditions
     )
 
     if n_e_right_bc is None:
@@ -249,13 +256,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           n_e_nbar_is_fGW,
       )
       # If the boundary condition was set check it is not absolute.
-      self.assertFalse(dynamic_profile_conditions.n_e_right_bc_is_absolute)
+      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
           dynamic_profile_conditions.n_e_right_bc_is_fGW,
           n_e_right_bc_is_fGW,
       )
-      self.assertTrue(dynamic_profile_conditions.n_e_right_bc_is_absolute)
+      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
 
 
 if __name__ == '__main__':

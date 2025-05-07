@@ -43,10 +43,20 @@ class DynamicProfileConditions:
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.ScalarFloat
   n_e_right_bc_is_fGW: bool
-  n_e_right_bc_is_absolute: bool
   current_profile_nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
+
+
+@chex.dataclass(frozen=True)
+class StaticRuntimeParams:
+  """Static params for profile conditions."""
+
+  use_vloop_lcfs_boundary_condition: bool
+  normalize_n_e_to_nbar: bool
+  # Whether to use absolute ne_bound_right or ne[-1] for setting BC.
+  # Set by ne_bound_right condition.
+  n_e_right_bc_is_absolute: bool
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -92,7 +102,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       `n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`. If `n_e_right_bc`
       is not `None` then `n_e_right_bc_is_absolute` will be set to `True`.
     n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
-    n_e_right_bc_is_absolute: Toggle units of n_e_right_bc
     current_profile_nu: Peaking factor of "Ohmic" current: johm = j0*(1 -
       r^2/a^2)^current_profile_nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
@@ -185,10 +194,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       dynamic_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )
-      dynamic_params['n_e_right_bc_is_absolute'] = False
       dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
-    else:
-      dynamic_params['n_e_right_bc_is_absolute'] = True
 
     def _get_value(x):
       if isinstance(
@@ -200,3 +206,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
     return DynamicProfileConditions(**dynamic_params)
+
+  def build_static_params(self) -> StaticRuntimeParams:
+    """Builds static runtime params from the config."""
+    return StaticRuntimeParams(
+        use_vloop_lcfs_boundary_condition=self.use_vloop_lcfs_boundary_condition,
+        normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
+        n_e_right_bc_is_absolute=False
+        if self.n_e_right_bc is None
+        else True,
+    )

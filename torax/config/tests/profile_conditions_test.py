@@ -15,9 +15,12 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import profile_conditions
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.tests.test_lib import default_configs
+from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -77,26 +80,36 @@ class ProfileConditionsTest(parameterized.TestCase):
       self, n_e_right_bc, expected_initial_value, expected_second_value
   ):
     """Tests that n_e_right_bc is set correctly."""
-    pc = profile_conditions.ProfileConditions(
-        n_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
-        n_e_right_bc=n_e_right_bc,
+
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'n_e': {0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
+        'n_e_right_bc': n_e_right_bc,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    ).profile_conditions
+
+    dcs_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dcs = pc.build_dynamic_params(t=0.0)
+    dcs = dcs_provider(t=0.0).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
     if n_e_right_bc is None:
       self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
-      self.assertFalse(dcs.n_e_right_bc_is_absolute)
+      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(dcs.n_e_right_bc_is_absolute)
-    dcs = pc.build_dynamic_params(t=1.5)
+      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+    dcs = dcs_provider(t=1.5).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_second_value)
     if n_e_right_bc is None:
       self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
-      self.assertFalse(dcs.n_e_right_bc_is_absolute)
+      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(dcs.n_e_right_bc_is_absolute)
+      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
 
   @parameterized.named_parameters(
       ('no psi provided', None, None, None),

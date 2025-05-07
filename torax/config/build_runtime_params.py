@@ -48,7 +48,7 @@ def build_static_params_from_config(
       main_ion_names=config.plasma_composition.get_main_ion_names(),
       impurity_names=config.plasma_composition.get_impurity_names(),
       adaptive_dt=config.numerics.adaptive_dt,
-      use_vloop_lcfs_boundary_condition=config.profile_conditions.use_vloop_lcfs_boundary_condition,
+      profile_conditions=config.profile_conditions.build_static_params(),
   )
 
 

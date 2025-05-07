@@ -88,6 +88,10 @@ def _calculate_psi_value_constraint_from_vloop(
   return psi_lcfs_t + theta_weighted_vloop_lcfs * dt
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=['static_runtime_params_slice'],
+)
 def get_prescribed_core_profile_values(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -125,6 +129,7 @@ def get_prescribed_core_profile_values(
     temp_el = temp_el_cell_variable.value
   if not static_runtime_params_slice.evolve_density:
     n_e_cell_variable = getters.get_updated_electron_density(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
@@ -303,7 +308,7 @@ def update_all_core_profiles_after_step(
 
   vloop_lcfs = (
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs  # pylint: disable=g-long-ternary
-      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
       else _update_vloop_lcfs_from_psi(
           core_profiles_t.psi,
           psi,
@@ -372,6 +377,7 @@ def compute_boundary_conditions_for_t_plus_dt(
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt.numerics,
       profile_conditions_t_plus_dt,
       geo_t_plus_dt,
@@ -430,7 +436,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   Ip=profile_conditions_t_plus_dt.Ip,
                   geo=geo_t_plus_dt,
               )
-              if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+              if not static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
@@ -441,7 +447,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
                   theta=static_runtime_params_slice.solver.theta_implicit,
               )
-              if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+              if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
               else None
           ),
       ),
