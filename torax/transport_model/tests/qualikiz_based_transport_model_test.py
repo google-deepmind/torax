@@ -80,7 +80,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     torax_config, model_inputs = _get_config_and_model_inputs(
         {
             'transport_model': 'qualikiz_based',
-            'coll_mult': 1.0,
+            'collisionality_multiplier': 1.0,
             'avoid_big_negative_s': True,
             'q_sawtooth_proxy': True,
         }
@@ -105,7 +105,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     torax_config, model_inputs = _get_config_and_model_inputs(
         {
             'transport_model': 'qualikiz_based',
-            'coll_mult': 1.0,
+            'collisionality_multiplier': 1.0,
             'avoid_big_negative_s': True,
             'q_sawtooth_proxy': True,
             'smag_alpha_correction': True,
@@ -228,24 +228,24 @@ class QualikizBasedTransportModelConfig(
 
   Attributes:
     transport_model: The transport model to use. Hardcoded to 'qualikiz'.
-    coll_mult: Collisionality multiplier.
+    collisionality_multiplier: Collisionality multiplier.
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
       impact of alpha.
     q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
       are sawteeth.
-    DVeff: Effective D / effective V approach for particle transport.
+    DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
 
   transport_model: Literal['qualikiz_based'] = 'qualikiz_based'
-  coll_mult: pydantic.PositiveFloat = 1.0
+  collisionality_multiplier: pydantic.PositiveFloat = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DVeff: bool = False
+  DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
   # pylint: disable=undefined-variable
@@ -257,11 +257,11 @@ class QualikizBasedTransportModelConfig(
   def build_dynamic_params(self, t: chex.Numeric):
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return qualikiz_based_transport_model.DynamicRuntimeParams(
-        coll_mult=self.coll_mult,
+        collisionality_multiplier=self.collisionality_multiplier,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,
         q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DVeff=self.DVeff,
+        DV_effective=self.DV_effective,
         An_min=self.An_min,
         **base_kwargs,
     )

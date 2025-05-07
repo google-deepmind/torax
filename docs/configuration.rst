@@ -827,7 +827,7 @@ It is recommended to not set ``model_name``,  or
 ``model_name`` (str = '')
   Name of the model. Used to select a model from the ``fusion_surrogates`` library.
 
-``coll_mult`` (float = 1.0)
+``collisionality_multiplier`` (float = 1.0)
   Collisionality multiplier.
   If using ``QLKNN10D``, the default is 0.25. It is a proxy for the upgraded
   collision operator in QuaLiKiz, in place since ``QLKNN10D`` was developed.
@@ -846,11 +846,11 @@ It is recommended to not set ``model_name``,  or
   If using ``QLKNN10D``, the default is 2.0. It is a proxy for the impact of the
   upgraded QuaLiKiz collision operator, in place since ``QLKNN10D`` was developed.
 
-``DVeff`` (bool = False)
+``DV_effective`` (bool = False)
   If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float = 0.05)
-  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DV_effective==True``.
 
 ``avoid_big_negative_s`` (bool = True)
   If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
@@ -878,14 +878,14 @@ Runtime parameters for the QuaLiKiz model.
 ``numprocs`` (int = 8)
   Number of MPI processes to use for QuaLiKiz.
 
-``coll_mult`` (float = 1.0)
+``collisionality_multiplier`` (float = 1.0)
   Collisionality multiplier for sensitivity analysis.
 
-``DVeff`` (bool = False)
+``DV_effective`` (bool = False)
   If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float = 0.05)
-  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DV_effective==True``.
 
 ``avoid_big_negative_s`` (bool = True)
   If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
@@ -1469,7 +1469,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'V_e_max': 10,
           'smoothing_width': 0.1,
           'qlknn_params': {
-              'DVeff': True,
+              'DV_effective': True,
               'avoid_big_negative_s': True,
               'An_min': 0.05,
               'ITG_flux_ratio_correction': 1,

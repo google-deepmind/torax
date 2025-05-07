@@ -93,7 +93,7 @@ CONFIG = {
         'D_e_min': 0.05,
         'smoothing_width': 0.1,
         # qlknn params.
-        'DVeff': True,
+        'DV_effective': True,
         'avoid_big_negative_s': True,
         'An_min': 0.05,
         'ITG_flux_ratio_correction': 1,

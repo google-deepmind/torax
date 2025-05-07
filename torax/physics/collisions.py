@@ -85,7 +85,7 @@ def calc_nu_star(
     core_profiles: state.CoreProfiles,
     density_reference: float,
     Zeff_face: jax.Array,
-    coll_mult: float,
+    collisionality_multiplier: float,
 ) -> jax.Array:
   """Calculates nustar.
 
@@ -96,7 +96,8 @@ def calc_nu_star(
     core_profiles: Core plasma profiles.
     density_reference: Reference value for normalization
     Zeff_face: Effective ion charge on face grid.
-    coll_mult: Collisionality multiplier in QLKNN for sensitivity testing.
+    collisionality_multiplier: Collisionality multiplier in QLKNN for
+      sensitivity testing.
 
   Returns:
     nu_star: on face grid.
@@ -115,7 +116,7 @@ def calc_nu_star(
       lambda_ei_face,
   )
 
-  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * coll_mult
+  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * collisionality_multiplier
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.R_major

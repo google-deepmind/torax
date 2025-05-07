@@ -71,7 +71,7 @@ CONFIG = {
     },
     'transport': {
         'transport_model': 'qlknn',
-        'DVeff': False,
+        'DV_effective': False,
     },
     'solver': {
         'solver_type': 'linear',

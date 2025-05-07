@@ -118,34 +118,38 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='DVeff_False',
-          DVeff=False,
+          testcase_name='DV_effective_False',
+          DV_effective=False,
           An_min=0.05,
           expected_zero_v_face_el=False,
           expected_zero_d_face_el=False,
       ),
       dict(
-          testcase_name='DVeff_True_An_min_less_than_Ane',
-          DVeff=True,
+          testcase_name='DV_effective_True_An_min_less_than_Ane',
+          DV_effective=True,
           An_min=0.05,
           expected_zero_v_face_el=True,
           expected_zero_d_face_el=False,
       ),
       dict(
-          testcase_name='DVeff_True_An_min_greater_than_Ane',
-          DVeff=True,
+          testcase_name='DV_effective_True_An_min_greater_than_Ane',
+          DV_effective=True,
           An_min=2.0,
           expected_zero_v_face_el=False,
           expected_zero_d_face_el=True,
       ),
   )
   def test_quasilinear_transport_model_dveff(
-      self, DVeff, An_min, expected_zero_v_face_el, expected_zero_d_face_el
+      self,
+      DV_effective,
+      An_min,
+      expected_zero_v_face_el,
+      expected_zero_d_face_el,
   ):
-    """Tests that the DVeff approach options behaves as expected."""
+    """Tests that the DV_effective approach options behaves as expected."""
     model, model_inputs = _get_model_and_model_inputs({
         'transport_model': 'quasilinear',
-        'DVeff': DVeff,
+        'DV_effective': DV_effective,
         'An_min': An_min,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
@@ -318,7 +322,7 @@ class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
 
   # pylint: disable=invalid-name
   transport_model: Literal['quasilinear'] = 'quasilinear'
-  DVeff: bool = False
+  DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
   def build_transport_model(self) -> FakeQuasilinearTransportModel:
@@ -329,7 +333,7 @@ class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
   ) -> runtime_params.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return quasilinear_transport_model.DynamicRuntimeParams(
-        DVeff=self.DVeff,
+        DV_effective=self.DV_effective,
         An_min=self.An_min,
         **base_kwargs,
     )

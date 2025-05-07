@@ -161,7 +161,7 @@ CONFIG = {
         'V_e_max': 10,  # minimum electron convection
         'smoothing_width': 0.1,
         # qlknn params.
-        'DVeff': True,
+        'DV_effective': True,
         'include_ITG': True,  # to toggle ITG modes on or off
         'include_TEM': True,  # to toggle TEM modes on or off
         'include_ETG': True,  # to toggle ETG modes on or off

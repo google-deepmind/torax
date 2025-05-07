@@ -158,7 +158,7 @@ CONFIG = {
         'chi_max': 100,  # maximum chi (can be helpful for stability)
         'D_e_min': 0.05,  # minimum electron diffusivity
         # qualikiz params.
-        'DVeff': True,
+        'DV_effective': True,
         'avoid_big_negative_s': True,
         'An_min': 0.05,
         'maxruns': 2,

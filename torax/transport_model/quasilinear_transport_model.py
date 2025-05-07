@@ -157,7 +157,7 @@ def calculate_alpha(
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
-  DVeff: bool
+  DV_effective: bool
   An_min: float
 
 
@@ -250,7 +250,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     # Effective D / Effective V approach.
     # For small density gradients or up-gradient transport, set pure effective
     # convection. Otherwise pure effective diffusion.
-    def DVeff_approach() -> tuple[jax.Array, jax.Array]:
+    def DV_effective_approach() -> tuple[jax.Array, jax.Array]:
       # The geo.rho_b is to unnormalize the face_grad.
       Deff = -pfe_SI / (
           core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
@@ -287,8 +287,8 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       return d_face_el, v_face_el
 
     d_face_el, v_face_el = jax.lax.cond(
-        transport.DVeff,
-        DVeff_approach,
+        transport.DV_effective,
+        DV_effective_approach,
         Dscaled_approach,
     )
     return state.CoreTransport(

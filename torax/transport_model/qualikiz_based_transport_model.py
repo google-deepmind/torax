@@ -27,7 +27,7 @@ from torax.transport_model import quasilinear_transport_model
 class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
   """Shared parameters for Qualikiz-based models."""
 
-  coll_mult: float
+  collisionality_multiplier: float
   avoid_big_negative_s: bool
   smag_alpha_correction: bool
   q_sawtooth_proxy: bool
@@ -138,7 +138,7 @@ class QualikizBasedTransportModel(
         core_profiles=core_profiles,
         density_reference=density_reference,
         Zeff_face=Zeff_face,
-        coll_mult=transport.coll_mult,
+        collisionality_multiplier=transport.collisionality_multiplier,
     )
     log_nu_star_face = jnp.log10(nu_star)
 

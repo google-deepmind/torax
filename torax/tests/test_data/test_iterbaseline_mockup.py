@@ -151,7 +151,7 @@ CONFIG = {
         'chi_max': 100,  # maximum chi (can be helpful for stability)
         'D_e_min': 0.05,  # minimum electron diffusivity
         # qlknn params.
-        'DVeff': True,
+        'DV_effective': True,
         'include_ITG': True,  # to toggle ITG modes on or off
         'include_TEM': True,  # to toggle ITG modes on or off
         'include_ETG': True,  # to toggle ITG modes on or off

@@ -95,14 +95,14 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
       training set boundaries.
     clip_margin: Margin to clip inputs within desired margin of the QLKNN
       training set boundaries.
-    coll_mult: Collisionality multiplier.
+    collisionality_multiplier: Collisionality multiplier.
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
       impact of alpha.
     q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
       are sawteeth.
-    DVeff: Effective D / effective V approach for particle transport.
+    DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
@@ -116,11 +116,11 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   ETG_correction_factor: float = 1.0 / 3.0
   clip_inputs: bool = False
   clip_margin: float = 0.95
-  coll_mult: float = 1.0
+  collisionality_multiplier: float = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DVeff: bool = False
+  DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
   @pydantic.model_validator(mode='before')
@@ -134,9 +134,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     )
 
     if data['model_name'] == qlknn_10d.QLKNN10D_NAME:
-      if 'coll_mult' not in data:
+      if 'collisionality_multiplier' not in data:
         # Correction factor to a more recent QLK collision operator.
-        data['coll_mult'] = 0.25
+        data['collisionality_multiplier'] = 0.25
       if 'ITG_flux_ratio_correction' not in data:
         # The QLK version this specific QLKNN was trained on tends to
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
@@ -163,11 +163,11 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         ETG_correction_factor=self.ETG_correction_factor,
         clip_inputs=self.clip_inputs,
         clip_margin=self.clip_margin,
-        coll_mult=self.coll_mult,
+        collisionality_multiplier=self.collisionality_multiplier,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,
         q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DVeff=self.DVeff,
+        DV_effective=self.DV_effective,
         An_min=self.An_min,
         **base_kwargs,
     )
