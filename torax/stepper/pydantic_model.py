@@ -131,9 +131,10 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     solver_type: The type of solver to use, hardcoded to 'newton_raphson'.
     log_iterations: If True, log internal iterations in Newton-Raphson solver.
     initial_guess_mode: The initial guess mode for the Newton-Raphson solver.
-    maxiter: The maximum number of iterations for the Newton-Raphson solver.
-    tol: The tolerance for the Newton-Raphson solver.
-    coarse_tol: The coarse tolerance for the Newton-Raphson solver.
+    n_max_iterations: The maximum number of iterations for the Newton-Raphson
+      solver.
+    residual_tol: The tolerance for the Newton-Raphson solver.
+    residual_coarse_tol: The coarse tolerance for the Newton-Raphson solver.
     delta_reduction_factor: The delta reduction factor for the Newton-Raphson
       solver.
     tau_min: The minimum value of tau for the Newton-Raphson solver.
@@ -142,9 +143,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   solver_type: Literal['newton_raphson'] = 'newton_raphson'
   log_iterations: bool = False
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
-  maxiter: pydantic.NonNegativeInt = 30
-  tol: float = 1e-5
-  coarse_tol: float = 1e-2
+  n_max_iterations: pydantic.NonNegativeInt = 30
+  residual_tol: float = 1e-5
+  residual_coarse_tol: float = 1e-2
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
 
@@ -161,9 +162,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         D_pereverzev=self.D_pereverzev,
         log_iterations=self.log_iterations,
         initial_guess_mode=self.initial_guess_mode.value,
-        maxiter=self.maxiter,
-        tol=self.tol,
-        coarse_tol=self.coarse_tol,
+        maxiter=self.n_max_iterations,
+        residual_tol=self.residual_tol,
+        residual_coarse_tol=self.residual_coarse_tol,
         n_corrector_steps=self.n_corrector_steps,
         delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,

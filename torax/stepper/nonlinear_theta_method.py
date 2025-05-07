@@ -42,8 +42,8 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   log_iterations: bool
   initial_guess_mode: int
   maxiter: int
-  tol: float
-  coarse_tol: float
+  residual_tol: float
+  residual_coarse_tol: float
   delta_reduction_factor: float
   tau_min: float
 
@@ -246,8 +246,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
                 solver_params.initial_guess_mode
             ),
             maxiter=solver_params.maxiter,
-            tol=solver_params.tol,
-            coarse_tol=solver_params.coarse_tol,
+            tol=solver_params.residual_tol,
+            coarse_tol=solver_params.residual_coarse_tol,
             delta_reduction_factor=solver_params.delta_reduction_factor,
             tau_min=solver_params.tau_min,
         )
