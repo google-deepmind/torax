@@ -80,11 +80,9 @@ def env_bool(name: str, default: bool) -> bool:
   raise ValueError(f'Unrecognized boolean string {str_value}.')
 
 
-# If True, `error_if` functions will raise errors.  Otherwise they are
-# pass throughs.
-# Default to False, because host_callbacks are incompatible with the
-# persistent compilation cache.
-_ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', False)
+# If True, `error_if` functions will raise errors. Otherwise they are pass-throughs.
+# Default to True so that by default bad conditions actually error out in tests
+_ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', True)
 
 
 @contextlib.contextmanager
