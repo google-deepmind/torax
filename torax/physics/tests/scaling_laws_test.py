@@ -63,7 +63,7 @@ class ScalingLawsTest(parameterized.TestCase):
         Zimp=mock.ANY,
         Zimp_face=mock.ANY,
         Aimp=mock.ANY,
-        nref=1e20,
+        density_reference=1e20,
     )
 
     core_profiles = dataclasses.replace(
@@ -129,7 +129,7 @@ class ScalingLawsTest(parameterized.TestCase):
         Zimp=mock.ANY,
         Zimp_face=mock.ANY,
         Aimp=mock.ANY,
-        nref=1e20,
+        density_reference=1e20,
     )
     core_profiles = dataclasses.replace(
         core_profiles,

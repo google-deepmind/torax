@@ -27,10 +27,10 @@ CONFIG = {
         'vloop_lcfs': 7.5,
     },
     'numerics': {
-        'ion_heat_eq': False,
-        'el_heat_eq': False,
-        'current_eq': True,
-        'resistivity_mult': 100,  # to shorten current diffusion time
+        'evolve_ion_heat': False,
+        'evolve_electron_heat': False,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
         't_final': 3,
     },
     'plasma_composition': {},

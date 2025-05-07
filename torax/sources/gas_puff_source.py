@@ -42,7 +42,7 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_puff_tot: array_typing.ScalarFloat
 
 
-# Default formula: exponential with nref normalization.
+# Default formula: exponential with density_reference normalization.
 def calc_puff_source(
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -61,7 +61,7 @@ def calc_puff_source(
       width=dynamic_source_runtime_params.puff_decay_length,
       total=(
           dynamic_source_runtime_params.S_puff_tot
-          / dynamic_runtime_params_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.density_reference
       ),
       geo=geo,
   ),)

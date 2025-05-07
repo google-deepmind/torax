@@ -64,8 +64,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     basic_dt = (3.0 / 4.0) * (geo.drho_norm**2) / chi_max
 
     dt = jnp.minimum(
-        dynamic_runtime_params_slice.numerics.dtmult * basic_dt,
-        dynamic_runtime_params_slice.numerics.maxdt,
+        dynamic_runtime_params_slice.numerics.chi_timestep_prefactor * basic_dt,
+        dynamic_runtime_params_slice.numerics.max_dt,
     )
 
     return dt

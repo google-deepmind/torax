@@ -315,7 +315,7 @@ class StateHistory:
 
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
-    xr_dict[N_REF] = core_profiles.nref
+    xr_dict[N_REF] = core_profiles.density_reference
 
     xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
 

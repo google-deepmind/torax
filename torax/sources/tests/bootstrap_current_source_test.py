@@ -54,7 +54,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
         numerics=mock.create_autospec(
             numerics.Numerics,
             instance=True,
-            nref=100,
+            density_reference=100,
         ),
     )
     self.core_profiles = mock.create_autospec(

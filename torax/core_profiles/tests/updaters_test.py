@@ -155,7 +155,7 @@ class UpdatersTest(parameterized.TestCase):
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (np.pi * geo.a_minor**2)
           * 1e20
-          / dynamic_runtime_params_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.density_reference
       )
       np.testing.assert_allclose(
           boundary_conditions['ne']['right_face_constraint'],

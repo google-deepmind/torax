@@ -122,14 +122,14 @@ class StaticRuntimeParamsSlice:
   # Torax mesh used to construct the geometry.
   torax_mesh: torax_pydantic.Grid1D
   # Solve the ion heat equation (ion temperature evolves over time)
-  ion_heat_eq: bool
+  evolve_ion_heat: bool
   # Solve the electron heat equation (electron temperature evolves over time)
-  el_heat_eq: bool
+  evolve_electron_heat: bool
   # Solve the current equation (psi evolves over time driven by the solver;
   # q and s evolve over time as a function of psi)
-  current_eq: bool
+  evolve_current: bool
   # Solve the density equation (n evolves over time)
-  dens_eq: bool
+  evolve_density: bool
   # Ion symbols for main ion and impurity (which each could be mixtures of ions)
   # These are static to simplify source functions for fusion power and radiation
   # which are species-dependent.
@@ -150,10 +150,10 @@ class StaticRuntimeParamsSlice:
         self.solver,
         tuple(sorted(self.sources.items())),  # Hashable version of sources
         hash(self.torax_mesh),  # Grid1D has a hash method defined.
-        self.ion_heat_eq,
-        self.el_heat_eq,
-        self.current_eq,
-        self.dens_eq,
+        self.evolve_ion_heat,
+        self.evolve_electron_heat,
+        self.evolve_current,
+        self.evolve_density,
         self.main_ion_names,
         self.impurity_names,
         self.adaptive_dt,

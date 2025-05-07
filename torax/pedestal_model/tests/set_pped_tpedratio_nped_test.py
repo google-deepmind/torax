@@ -98,7 +98,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (jnp.pi * geo.a_minor**2)
           * 1e20
-          / dynamic_runtime_params_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.density_reference
       )
       expected_neped *= nGW
     np.testing.assert_allclose(pedestal_model_output.neped, expected_neped)

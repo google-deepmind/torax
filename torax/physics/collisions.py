@@ -41,14 +41,14 @@ from torax.geometry import geometry
 
 def coll_exchange(
     core_profiles: state.CoreProfiles,
-    nref: float,
+    density_reference: float,
     Qei_mult: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
 
   Args:
     core_profiles: Core plasma profiles.
-    nref: Reference value for normalization
+    density_reference: Reference value for normalization
     Qei_mult: multiplier for ion-electron heat exchange term
 
   Returns:
@@ -56,13 +56,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   lambda_ei = _calculate_lambda_ei(
-      core_profiles.temp_el.value, core_profiles.ne.value * nref
+      core_profiles.temp_el.value, core_profiles.ne.value * density_reference
   )
   # ion-electron collisionality for Zeff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.value,
-      core_profiles.ne.value * nref,
+      core_profiles.ne.value * density_reference,
       lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -70,7 +70,7 @@ def coll_exchange(
   weighted_Zeff = _calculate_weighted_Zeff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
+      jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * density_reference)
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Zeff)
@@ -83,7 +83,7 @@ def coll_exchange(
 def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    nref: float,
+    density_reference: float,
     Zeff_face: jax.Array,
     coll_mult: float,
 ) -> jax.Array:
@@ -94,7 +94,7 @@ def calc_nu_star(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    nref: Reference value for normalization
+    density_reference: Reference value for normalization
     Zeff_face: Effective ion charge on face grid.
     coll_mult: Collisionality multiplier in QLKNN for sensitivity testing.
 
@@ -104,13 +104,14 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   lambda_ei_face = _calculate_lambda_ei(
-      core_profiles.temp_el.face_value(), core_profiles.ne.face_value() * nref
+      core_profiles.temp_el.face_value(),
+      core_profiles.ne.face_value() * density_reference
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.face_value(),
-      core_profiles.ne.face_value() * nref,
+      core_profiles.ne.face_value() * density_reference,
       lambda_ei_face,
   )
 

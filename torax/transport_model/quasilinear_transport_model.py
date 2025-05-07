@@ -96,7 +96,7 @@ def calculate_chiGB(
 
 def calculate_alpha(
     core_profiles: state.CoreProfiles,
-    nref: chex.Numeric,
+    density_reference: chex.Numeric,
     q: chex.Array,
     reference_magnetic_field: chex.Numeric,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
@@ -110,7 +110,7 @@ def calculate_alpha(
 
   Args:
     core_profiles: CoreProfiles object containing plasma profiles.
-    nref: Reference density.
+    density_reference: Reference density.
     q: Safety factor.
     reference_magnetic_field: Magnetic field strength. Different transport
       models have different definitions of the specific magnetic field input.
@@ -125,7 +125,7 @@ def calculate_alpha(
   factor_0 = (
       2
       * constants.keV2J
-      * nref
+      * density_reference
       / reference_magnetic_field**2
       * constants.mu0
       * q**2

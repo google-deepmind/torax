@@ -73,7 +73,7 @@ def get_updated_electron_density(
       dynamic_profile_conditions.Ip_tot
       / (jnp.pi * geo.a_minor**2)
       * 1e20
-      / dynamic_numerics.nref
+      / dynamic_numerics.density_reference
   )
   ne_value = jnp.where(
       dynamic_profile_conditions.ne_is_fGW,
@@ -171,12 +171,12 @@ def get_ion_density_and_charge_states(
     static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Geometry of the tokamak.
-    ne: Electron density profile [nref].
+    ne: Electron density profile [density_reference].
     temp_el: Electron temperature profile [keV].
 
   Returns:
-    ni: Ion density profile [nref].
-    nimp: Impurity density profile [nref].
+    ni: Ion density profile [density_reference].
+    nimp: Impurity density profile [density_reference].
     Zi: Average charge state of main ion on cell grid [amu].
       Typically just the average of the atomic numbers since these are normally
       low Z ions and can be assumed to be fully ionized.

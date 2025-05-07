@@ -61,7 +61,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot
         / (jnp.pi * geo.a_minor**2)
         * 1e20
-        / dynamic_runtime_params_slice.numerics.nref
+        / dynamic_runtime_params_slice.numerics.density_reference
     )
     neped_ref = jnp.where(
         dynamic_runtime_params_slice.pedestal.neped_is_fGW,
@@ -92,7 +92,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
-    prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
+    prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
     Teped = (
         dynamic_runtime_params_slice.pedestal.Pped
         / (

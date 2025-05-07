@@ -53,20 +53,18 @@ class SetPpedTpedRatioNped(BasePedestal):
 
   Attributes:
     Pped: The plasma pressure at the pedestal [Pa].
-    neped: The electron density at the pedestal in units of nref or fGW.
+    neped: The electron density at the pedestal in units of density_reference or
+      fGW.
     neped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
     ion_electron_temperature_ratio: Ratio of the ion and electron temperature at
       the pedestal [dimensionless].
     rho_norm_ped_top: The location of the pedestal top.
   """
+
   pedestal_model: Literal['set_pped_tpedratio_nped'] = 'set_pped_tpedratio_nped'
-  Pped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1e5)
-  )
-  neped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7)
-  )
+  Pped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
+  neped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.7)
   neped_is_fGW: bool = False
   ion_electron_temperature_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
@@ -103,7 +101,8 @@ class SetTpedNped(BasePedestal):
   """A basic version of the pedestal model that uses direct specification.
 
   Attributes:
-    neped: The electron density at the pedestal in units of nref or fGW.
+    neped: The electron density at the pedestal in units of density_reference or
+      fGW.
     neped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
     Tiped: Ion temperature at the pedestal [keV].

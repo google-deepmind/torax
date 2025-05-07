@@ -194,7 +194,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
     alpha = quasilinear_transport_model.calculate_alpha(
         core_profiles=core_profiles,
-        nref=1e20,
+        density_reference=1e20,
         q=np.array(1.0),
         reference_magnetic_field=1.0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
@@ -304,7 +304,7 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       Zimp_face=1.0,
       Ai=1.0,
       Aimp=1.0,
-      nref=1.0,
+      density_reference=1.0,
       q_face=1.0,
       s_face=1.0,
       psi=dummy_cell_variable,

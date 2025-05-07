@@ -84,11 +84,11 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     true_ne_face = (
         core_profiles.ne.face_value()
-        * dynamic_runtime_params_slice.numerics.nref
+        * dynamic_runtime_params_slice.numerics.density_reference
     )
     true_ne_grad_face = (
         core_profiles.ne.face_grad()
-        * dynamic_runtime_params_slice.numerics.nref
+        * dynamic_runtime_params_slice.numerics.density_reference
     )
 
     # Bohm term of heat transport

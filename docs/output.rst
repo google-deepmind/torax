@@ -102,12 +102,12 @@ core_profiles
   Ion temperature in :math:`[keV]`.
 
 ``ne`` (time, rho_cell + boundary values)
-  Electron density in units of ``nref``.
+  Electron density in units of ``density_reference``.
 
 ``ni`` (time, rho_cell + boundary values)
-  Main ion density in units of ``nref``.
+  Main ion density in units of ``density_reference``.
 
-``nref`` (time)
+``density_reference`` (time)
   Reference density in :math:`[m^{-3}]`.
 
 ``psi`` (time, rho_cell + boundary values)
@@ -224,10 +224,10 @@ analysis and inspection.
 ``ti_volume_avg`` (time) [keV]:
   Volume average ion temperature.
 
-``ne_volume_avg`` (time) [nref m^-3]:
+``ne_volume_avg`` (time) [density_reference m^-3]:
   Volume average electron density.
 
-``ni_volume_avg`` (time) [nref m^-3]:
+``ni_volume_avg`` (time) [density_reference m^-3]:
   Volume average ion density.
 
 ``fgw_ne_volume_avg`` (time) [dimensionless]:
@@ -368,7 +368,7 @@ analysis and inspection.
   ``P_LH_min`` and ``P_LH_hi_dens``. ``P_LH_min`` and ``P_LH_hi_dens`` are kept
   in output for increased introspectability.
 
-``ne_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
+``ne_min_P_LH`` (time) [density_reference]:  Density corresponding to the minimum P_LH,
   according to Eq 3 from Ryter 2014.
 
 ``E_cumulative_fusion`` (time) [J]:

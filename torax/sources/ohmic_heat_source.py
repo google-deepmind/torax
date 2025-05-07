@@ -60,7 +60,7 @@ def ohmic_model_func(
       psi_sources=psi_sources,
       sigma=sigma,
       sigma_face=sigma_face,
-      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
       psi=core_profiles.psi,
       geo=geo,
   )

@@ -33,11 +33,11 @@ CONFIG = {
         'ne_bound_right': 0.5,
     },
     'numerics': {
-        'current_eq': True,
+        'evolve_current': True,
         # to shorten current diffusion time for the test
-        'resistivity_mult': 50,
-        'dtmult': 150,
-        'maxdt': 0.5,
+        'resistivity_multiplier': 50,
+        'chi_timestep_prefactor': 150,
+        'max_dt': 0.5,
         't_final': 10,
     },
     'plasma_composition': {},

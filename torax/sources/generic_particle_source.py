@@ -57,7 +57,7 @@ def calc_generic_particle_source(
           width=dynamic_source_runtime_params.particle_width,
           total=(
               dynamic_source_runtime_params.S_tot
-              / dynamic_runtime_params_slice.numerics.nref
+              / dynamic_runtime_params_slice.numerics.density_reference
           ),
           geo=geo,
       ),

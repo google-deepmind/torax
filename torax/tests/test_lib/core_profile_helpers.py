@@ -47,7 +47,7 @@ def make_zero_core_profiles(
       nimp=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
-      nref=jnp.array(0.0),
+      density_reference=jnp.array(0.0),
       vloop_lcfs=jnp.array(0.0),
       Zi=jnp.zeros_like(geo.rho),
       Zi_face=jnp.zeros_like(geo.rho_face),

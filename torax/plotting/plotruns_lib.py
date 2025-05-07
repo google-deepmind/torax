@@ -268,7 +268,7 @@ def load_data(filename: str) -> PlotData:
           else np.zeros((len(time), len(ds[output.RHO_FACE_NORM].to_numpy())))
       )
 
-  nref = np.expand_dims(
+  density_reference = np.expand_dims(
       data_tree.children[output.SCALARS].dataset[output.N_REF].to_numpy(),
       axis=1,
   )
@@ -309,9 +309,9 @@ def load_data(filename: str) -> PlotData:
         'I_ecrh': 1e6,  # A to MA
         'I_aux_generic': 1e6,  # A to MA
         'W_thermal_total': 1e6,  # J to MJ
-        output.N_E: nref / 1e20,
-        output.N_I: nref / 1e20,
-        output.N_IMPURITY: nref / 1e20,
+        output.N_E: density_reference / 1e20,
+        output.N_I: density_reference / 1e20,
+        output.N_IMPURITY: density_reference / 1e20,
     }
 
     for var_name, scale in transformations.items():

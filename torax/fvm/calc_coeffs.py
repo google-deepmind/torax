@@ -128,10 +128,12 @@ def _calculate_pereverzev_flux(
 
   consts = constants.CONSTANTS
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+      core_profiles.ne.face_value()
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+      core_profiles.ni.face_value()
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
 
   geo_factor = jnp.concatenate(
@@ -368,14 +370,22 @@ def _calc_coeffs_full(
   # fill source vector based on both original and updated core profiles
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
-  true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
+  true_ne = (
+      core_profiles.ne.value
+      * dynamic_runtime_params_slice.numerics.density_reference
+  )
+  true_ni = (
+      core_profiles.ni.value
+      * dynamic_runtime_params_slice.numerics.density_reference
+  )
 
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+      core_profiles.ne.face_value()
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+      core_profiles.ni.face_value()
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
 
   # Transient term coefficient vector (has radial dependence through r, n)
@@ -383,19 +393,19 @@ def _calc_coeffs_full(
       1.5
       * geo.vpr ** (-2.0 / 3.0)
       * consts.keV2J
-      * dynamic_runtime_params_slice.numerics.nref
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
   tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
   toc_temp_el = (
       1.5
       * geo.vpr ** (-2.0 / 3.0)
       * consts.keV2J
-      * dynamic_runtime_params_slice.numerics.nref
+      * dynamic_runtime_params_slice.numerics.density_reference
   )
   tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
-      / dynamic_runtime_params_slice.numerics.resistivity_mult
+      / dynamic_runtime_params_slice.numerics.resistivity_multiplier
       * geo.rho_norm
       * merged_source_profiles.j_bootstrap.sigma
       * consts.mu0
@@ -418,7 +428,7 @@ def _calc_coeffs_full(
   v_face_el = transport_coeffs.v_face_el
   d_face_psi = geo.g2g3_over_rhon_face
 
-  if static_runtime_params_slice.dens_eq:
+  if static_runtime_params_slice.evolve_density:
     if d_face_el is None or v_face_el is None:
       raise NotImplementedError(
           f'{type(transport_model)} does not support the density equation.'
@@ -444,10 +454,12 @@ def _calc_coeffs_full(
 
   source_ne += (
       mask
-      * dynamic_runtime_params_slice.numerics.largeValue_n
+      * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
       * pedestal_model_output.neped
   )
-  source_mat_nn += -(mask * dynamic_runtime_params_slice.numerics.largeValue_n)
+  source_mat_nn += -(
+      mask * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
+  )
 
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
@@ -534,18 +546,22 @@ def _calc_coeffs_full(
   # Pedestal
   source_i += (
       mask
-      * dynamic_runtime_params_slice.numerics.largeValue_T
+      * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
       * pedestal_model_output.Tiped
   )
   source_e += (
       mask
-      * dynamic_runtime_params_slice.numerics.largeValue_T
+      * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
       * pedestal_model_output.Teped
   )
 
-  source_mat_ii -= mask * dynamic_runtime_params_slice.numerics.largeValue_T
+  source_mat_ii -= (
+      mask * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
+  )
 
-  source_mat_ee -= mask * dynamic_runtime_params_slice.numerics.largeValue_T
+  source_mat_ee -= (
+      mask * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
+  )
 
   # Add effective Phi_b_dot heat source terms
 

@@ -66,7 +66,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     """
 
     # No sawtooth redistribution if current is not being evolved.
-    if not static_runtime_params_slice.current_eq:
+    if not static_runtime_params_slice.evolve_current:
       return core_profiles
 
     assert dynamic_runtime_params_slice.mhd.sawtooth is not None
@@ -89,7 +89,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     indices = jnp.arange(geo.rho_norm.shape[0])
     redistribution_mask = indices < idx_mixing
 
-    if static_runtime_params_slice.dens_eq:
+    if static_runtime_params_slice.evolve_density:
       ne_redistributed = flatten_profile.flatten_density_profile(
           rho_norm_q1,
           mixing_radius,
@@ -100,7 +100,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
       )
     else:
       ne_redistributed = core_profiles.ne
-    if static_runtime_params_slice.el_heat_eq:
+    if static_runtime_params_slice.evolve_electron_heat:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
@@ -114,8 +114,8 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     else:
       te_redistributed = core_profiles.temp_el
     if (
-        static_runtime_params_slice.dens_eq
-        or static_runtime_params_slice.el_heat_eq
+        static_runtime_params_slice.evolve_density
+        or static_runtime_params_slice.evolve_electron_heat
     ):
       ni_redistributed, nimp_redistributed, Zi, Zi_face, Zimp, Zimp_face = (
           getters.get_ion_density_and_charge_states(
@@ -134,7 +134,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
       Zimp = core_profiles.Zimp
       Zimp_face = core_profiles.Zimp_face
 
-    if static_runtime_params_slice.ion_heat_eq:
+    if static_runtime_params_slice.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,

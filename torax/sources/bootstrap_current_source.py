@@ -89,7 +89,7 @@ class BootstrapCurrentSource(source.Source):
 
     bootstrap_current = calc_sauter_model(
         bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_mult,
-        nref=dynamic_runtime_params_slice.numerics.nref,
+        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         Zi_face=core_profiles.Zi_face,
         ne=core_profiles.ne,
@@ -162,7 +162,7 @@ class BootstrapCurrentSourceConfig(base.SourceModelBase):
 def calc_sauter_model(
     *,
     bootstrap_multiplier: float,
-    nref: float,
+    density_reference: float,
     Zeff_face: chex.Array,
     Zi_face: chex.Array,
     ne: cell_variable.CellVariable,
@@ -179,8 +179,8 @@ def calc_sauter_model(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * nref
-  true_ni_face = ni.face_value() * nref
+  true_ne_face = ne.face_value() * density_reference
+  true_ni_face = ni.face_value() * density_reference
 
   # # local r/R0 on face grid
   epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)

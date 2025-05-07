@@ -100,7 +100,7 @@ class QualikizTransportModel(
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
-        nref=dynamic_runtime_params_slice.numerics.nref,
+        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
@@ -358,7 +358,7 @@ def _extract_qualikiz_plan(
       'ne': (
           np.array(
               core_profiles.ne.face_value()
-              * dynamic_runtime_params_slice.numerics.nref
+              * dynamic_runtime_params_slice.numerics.density_reference
           )
           / 1e19
       ),

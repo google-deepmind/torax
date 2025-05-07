@@ -323,10 +323,10 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
     torax_config.update_fields({
         'numerics.t_final': 0.1,  # Modify final step.
-        'numerics.ion_heat_eq': False,
-        'numerics.el_heat_eq': False,
-        'numerics.current_eq': False,
-        'numerics.dens_eq': False,
+        'numerics.evolve_ion_heat': False,
+        'numerics.evolve_electron_heat': False,
+        'numerics.evolve_current': False,
+        'numerics.evolve_density': False,
         # Keep profiles fixed.
         'profile_conditions.Ip_tot': 3.0,
         'profile_conditions.ne': 1.0,

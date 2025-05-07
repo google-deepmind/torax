@@ -41,15 +41,15 @@ CONFIG = {
         't_final': 5,  # length of simulation time in seconds
         # 1/multiplication factor for sigma (conductivity) to reduce current
         # diffusion timescale to be closer to heat diffusion timescale.
-        'resistivity_mult': 200,
-        'ion_heat_eq': True,
-        'el_heat_eq': True,
-        'current_eq': True,
-        'dens_eq': True,
-        'maxdt': 0.5,
+        'resistivity_multiplier': 200,
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_current': True,
+        'evolve_density': True,
+        'max_dt': 0.5,
         # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
         # likely be increased further beyond this default.
-        'dtmult': 50,
+        'chi_timestep_prefactor': 50,
         'dt_reduction_factor': 3,
     },
     'geometry': {
@@ -127,7 +127,9 @@ CONFIG = {
         'set_pedestal': True,
         'Tiped': 4.5,  # ion pedestal top temperature in keV for Ti and Te
         'Teped': 4.5,  # electron pedestal top temperature in keV for Ti and Te
-        'neped': 0.62,  # pedestal top electron density in units of nref
+        'neped': (
+            0.62
+        ),  # pedestal top electron density in units of density_reference
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {

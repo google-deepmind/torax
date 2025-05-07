@@ -41,7 +41,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     sources_config['ohmic']['mode'] = 'ZERO'
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            numerics=dict(el_heat_eq=False),
+            numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),

@@ -41,10 +41,10 @@ class SawtoothModelTest(parameterized.TestCase):
     super().setUp()
     test_config_dict = {
         'numerics': {
-            'current_eq': True,
-            'dens_eq': True,
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
+            'evolve_current': True,
+            'evolve_density': True,
+            'evolve_ion_heat': True,
+            'evolve_electron_heat': True,
             'fixed_dt': _FIXED_DT,
         },
         # Default initial current will lead to a sawtooth being triggered.

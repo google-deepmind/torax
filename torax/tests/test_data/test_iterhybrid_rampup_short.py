@@ -26,7 +26,7 @@ CONFIG = {
         'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
         'Teped': 1.0,  # electron pedestal top temperature in keV for Ti and Te
         'neped_is_fGW': True,
-        # pedestal top electron density in units of nref
+        # pedestal top electron density in units of density_reference
         'neped': {0: 0.3, 80: 0.7},
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
@@ -60,12 +60,12 @@ CONFIG = {
         'fixed_dt': 2,
         # 1/multiplication factor for sigma (conductivity) to reduce current
         # diffusion timescale to be closer to heat diffusion timescale.
-        'resistivity_mult': 1,
-        'ion_heat_eq': True,
-        'el_heat_eq': True,
-        'current_eq': True,
-        'dens_eq': True,
-        'maxdt': 0.5,
+        'resistivity_multiplier': 1,
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_current': True,
+        'evolve_density': True,
+        'max_dt': 0.5,
         'dt_reduction_factor': 3,
     },
     'geometry': {

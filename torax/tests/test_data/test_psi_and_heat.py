@@ -27,8 +27,8 @@ CONFIG = {
         'nu': 0,
     },
     'numerics': {
-        'current_eq': True,
-        'resistivity_mult': 100,  # to shorten current diffusion time
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
         't_final': 2,
     },
     'plasma_composition': {},

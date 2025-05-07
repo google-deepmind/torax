@@ -288,8 +288,10 @@ def cyclotron_radiation_albajar(
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
 
-  ne20_face = core_profiles.ne.face_value() * core_profiles.nref / 1e20
-  ne20_cell = core_profiles.ne.value * core_profiles.nref / 1e20
+  ne20_face = (
+      core_profiles.ne.face_value() * core_profiles.density_reference / 1e20
+  )
+  ne20_cell = core_profiles.ne.value * core_profiles.density_reference / 1e20
 
   # Dimensionless optical thickness parameter, on-axis:
   # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the

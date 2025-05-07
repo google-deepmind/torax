@@ -40,11 +40,11 @@ CONFIG = {
         # 'nu': 0,
     },
     'numerics': {
-        'ion_heat_eq': True,
-        'el_heat_eq': True,
-        'dens_eq': True,
-        'current_eq': True,
-        'resistivity_mult': 100,  # to shorten current diffusion time
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
         't_final': 5,
     },
     'plasma_composition': {},

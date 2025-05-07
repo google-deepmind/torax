@@ -66,8 +66,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         self._torax_config
     )
     new_config = default_configs.get_default_config_dict()
-    new_config['numerics']['ion_heat_eq'] = (
-        not self._torax_config.numerics.ion_heat_eq
+    new_config['numerics']['evolve_ion_heat'] = (
+        not self._torax_config.numerics.evolve_ion_heat
     )
     new_torax_config = model_config.ToraxConfig.from_dict(new_config)
     static_slice2 = build_runtime_params.build_static_params_from_config(

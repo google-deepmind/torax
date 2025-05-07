@@ -84,7 +84,7 @@ class QLKNNRuntimeConfigInputs:
   """
 
   # pylint: disable=invalid-name
-  nref: float
+  density_reference: float
   Zeff_face: chex.Array
   transport: DynamicRuntimeParams
   Ped_top: float
@@ -100,7 +100,7 @@ class QLKNNRuntimeConfigInputs:
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
     return QLKNNRuntimeConfigInputs(
-        nref=dynamic_runtime_params_slice.numerics.nref,
+        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
@@ -236,7 +236,7 @@ class QLKNNTransportModel(
     """
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
-        nref=runtime_config_inputs.nref,
+        density_reference=runtime_config_inputs.density_reference,
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,

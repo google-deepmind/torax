@@ -108,7 +108,7 @@ def calc_heating_and_current(
       + jnp.log(constants.CONSTANTS.keV2J)  # Convert Te to J
       - jnp.log(core_profiles.ne.value)
       - jnp.log(
-          dynamic_runtime_params_slice.numerics.nref
+          dynamic_runtime_params_slice.numerics.density_reference
       )  # Convert ne to m^-3
       + jnp.log(dynamic_source_runtime_params.cd_efficiency)
       + jnp.log(ec_power_density)

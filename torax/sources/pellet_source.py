@@ -54,7 +54,7 @@ def calc_pellet_source(
           width=dynamic_source_runtime_params.pellet_width,
           total=(
               dynamic_source_runtime_params.S_pellet_tot
-              / dynamic_runtime_params_slice.numerics.nref
+              / dynamic_runtime_params_slice.numerics.density_reference
           ),
           geo=geo,
       ),

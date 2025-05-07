@@ -101,7 +101,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     numerics_mock = mock.create_autospec(
         numerics.Numerics,
         instance=True,
-        nref=100,
+        density_reference=100,
     )
 
     # Create the dynamic runtime params slice mock with nested mocks.

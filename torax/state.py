@@ -89,13 +89,13 @@ class CoreProfiles:
       temp_el: Electron temperature [keV].
       psi: Poloidal flux [Wb].
       psidot: Time derivative of poloidal flux (loop voltage) [V].
-      ne: Electron density [nref m^-3].
-      ni: Main ion density [nref m^-3].
-      nimp: Impurity density [nref m^-3].
+      ne: Electron density [density_reference m^-3].
+      ni: Main ion density [density_reference m^-3].
+      nimp: Impurity density [density_reference m^-3].
       currents: Instance of the Currents dataclass.
       q_face: Safety factor.
       s_face: Magnetic shear.
-      nref: Reference density [m^-3].
+      density_reference: Reference density [m^-3].
       vloop_lcfs: Loop voltage at LCFS (V).
       Zi: Main ion charge on cell grid [dimensionless].
       Zi_face: Main ion charge on face grid [dimensionless].
@@ -115,7 +115,7 @@ class CoreProfiles:
   currents: Currents
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
-  nref: array_typing.ScalarFloat
+  density_reference: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
   # pylint: disable=invalid-name
   Zi: array_typing.ArrayFloat
@@ -317,17 +317,17 @@ class PostProcessedOutputs:
     P_LH_min: Minimum H-mode transition power for at ne_min_P_LH [W]
     P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
       [W]
-    n_e_min_P_LH: Density corresponding to the P_LH_min [nref]
+    n_e_min_P_LH: Density corresponding to the P_LH_min [density_reference]
     E_fusion: Total cumulative fusion energy [J]
     E_aux: Total external injected energy (Ohmic + auxiliary heating)
       [J]
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
-    n_e_volume_avg: Volume average electron density [nref m^-3]
-    n_e_volume_avg: Volume average electron density [nref m^-3]
-    n_i_volume_avg: Volume average main ion density [nref m^-3]
-    n_e_line_avg: Line averaged electron density [nref m^-3]
-    n_i_line_avg: Line averaged main ion density [nref m^-3]
+    n_e_volume_avg: Volume average electron density [density_reference m^-3]
+    n_e_volume_avg: Volume average electron density [density_reference m^-3]
+    n_i_volume_avg: Volume average main ion density [density_reference m^-3]
+    n_e_line_avg: Line averaged electron density [density_reference m^-3]
+    n_i_line_avg: Line averaged main ion density [density_reference m^-3]
     fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
       [dimensionless]
     fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density

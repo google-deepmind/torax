@@ -144,7 +144,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         psi_sources=sum(source_profiles.psi.values()),
         sigma=bootstrap_profiles.sigma,
         sigma_face=bootstrap_profiles.sigma_face,
-        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,
     )

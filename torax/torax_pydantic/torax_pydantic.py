@@ -36,7 +36,7 @@ MeterPerSecond: TypeAlias = float
 MeterSquaredPerSecond: TypeAlias = pydantic.NonNegativeFloat
 Pascal: TypeAlias = pydantic.PositiveFloat
 PositiveMeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
-ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # nref
+ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # density_reference
 # Time can sometimes be 0, eg. for the start of an interval.
 Second: TypeAlias = pydantic.NonNegativeFloat
 Tesla: TypeAlias = pydantic.PositiveFloat

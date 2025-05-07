@@ -109,13 +109,13 @@ def get_prescribed_core_profile_values(
   """
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
-  if not static_runtime_params_slice.ion_heat_eq:
+  if not static_runtime_params_slice.evolve_ion_heat:
     temp_ion = getters.get_updated_ion_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     ).value
   else:
     temp_ion = core_profiles.temp_ion.value
-  if not static_runtime_params_slice.el_heat_eq:
+  if not static_runtime_params_slice.evolve_electron_heat:
     temp_el_cell_variable = getters.get_updated_electron_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     )
@@ -123,7 +123,7 @@ def get_prescribed_core_profile_values(
   else:
     temp_el_cell_variable = core_profiles.temp_el
     temp_el = temp_el_cell_variable.value
-  if not static_runtime_params_slice.dens_eq:
+  if not static_runtime_params_slice.evolve_density:
     ne_cell_variable = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
@@ -295,7 +295,7 @@ def update_all_core_profiles_after_step(
           psi_sources=psi_sources,
           sigma=source_profiles.j_bootstrap.sigma,
           sigma_face=source_profiles.j_bootstrap.sigma_face,
-          resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_mult,
+          resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_multiplier,
           psi=psi,
           geo=geo,
       ),
@@ -328,7 +328,7 @@ def update_all_core_profiles_after_step(
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
-      nref=core_profiles_t_plus_dt.nref,
+      density_reference=core_profiles_t_plus_dt.density_reference,
       Ai=core_profiles_t_plus_dt.Ai,
       Aimp=core_profiles_t_plus_dt.Aimp,
       vloop_lcfs=vloop_lcfs,

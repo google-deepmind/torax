@@ -104,7 +104,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (jnp.pi * geo.a_minor**2)
           * 1e20
-          / dynamic_runtime_params_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.density_reference
       )
       expected_neped *= nGW
     self.assertEqual(pedestal_model_output.neped, expected_neped)

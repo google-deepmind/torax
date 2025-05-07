@@ -124,7 +124,9 @@ def initial_core_profiles(
       currents=currents,
       q_face=q_face,
       s_face=s_face,
-      nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
+      density_reference=jnp.asarray(
+          dynamic_runtime_params_slice.numerics.density_reference
+      ),
       vloop_lcfs=vloop_lcfs,
   )
 
@@ -537,7 +539,7 @@ def _init_psi_psidot_and_currents(
       psi_sources=psi_sources,
       sigma=sigma,
       sigma_face=sigma_face,
-      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
       psi=psi,
       geo=geo,
   )

@@ -111,7 +111,7 @@ def _model_based_qei(
   zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = collisions.coll_exchange(
       core_profiles=core_profiles,
-      nref=dynamic_runtime_params_slice.numerics.nref,
+      density_reference=dynamic_runtime_params_slice.numerics.density_reference,
       Qei_mult=dynamic_source_runtime_params.Qei_mult,
   )
   implicit_ii = -qei_coef
@@ -120,12 +120,12 @@ def _model_based_qei(
   if (
       # if only a single heat equation is being evolved
       (
-          static_runtime_params_slice.ion_heat_eq
-          and not static_runtime_params_slice.el_heat_eq
+          static_runtime_params_slice.evolve_ion_heat
+          and not static_runtime_params_slice.evolve_electron_heat
       )
       or (
-          static_runtime_params_slice.el_heat_eq
-          and not static_runtime_params_slice.ion_heat_eq
+          static_runtime_params_slice.evolve_electron_heat
+          and not static_runtime_params_slice.evolve_ion_heat
       )
   ):
     explicit_i = qei_coef * core_profiles.temp_el.value

@@ -441,7 +441,7 @@ class SimulationStepFn:
 
     # Make a new step with a smaller dt, starting with the original core
     # profiles.
-    # Exit if dt < mindt
+    # Exit if dt < min_dt
     def body_fun(
         updated_output: tuple[
             state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
@@ -455,7 +455,7 @@ class SimulationStepFn:
       dt = old_state.dt / numerics.dt_reduction_factor
       if jnp.any(jnp.isnan(dt)):
         raise ValueError('dt is NaN.')
-      if dt < numerics.mindt:
+      if dt < numerics.min_dt:
         raise ValueError('dt below minimum timestep following adaptation')
 
       # Calculate dynamic_runtime_params and geo at t + dt.

@@ -46,7 +46,7 @@ def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
     Zeff_face: chex.Array,
-    nref: float,
+    density_reference: float,
     use_relativistic_correction: bool = False,
 ) -> tuple[chex.Array, chex.Array]:
   """Calculate the Bremsstrahlung radiation power profile.
@@ -59,7 +59,7 @@ def calc_bremsstrahlung(
       core_profiles (state.CoreProfiles): core plasma profiles.
       geo (geometry.Geometry): geometry object.
       Zeff_face (float): effective charge number on face grid.
-      nref (float): reference density.
+      density_reference (float): reference density.
       use_relativistic_correction (bool, optional): Set to true to include the
         relativistic correction from Stott. Defaults to False.
 
@@ -67,7 +67,7 @@ def calc_bremsstrahlung(
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  ne20 = (nref / 1e20) * core_profiles.ne.face_value()
+  ne20 = (density_reference / 1e20) * core_profiles.ne.face_value()
 
   Te_kev = core_profiles.temp_el.face_value()
 
@@ -115,7 +115,7 @@ def bremsstrahlung_model_func(
       core_profiles,
       geo,
       dynamic_runtime_params_slice.plasma_composition.Zeff_face,
-      dynamic_runtime_params_slice.numerics.nref,
+      dynamic_runtime_params_slice.numerics.density_reference,
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.

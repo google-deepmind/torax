@@ -67,7 +67,7 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        nref=1e20,
+        density_reference=1e20,
         temp_ion=_make_constant_core_profile(1.0),
         temp_el=_make_constant_core_profile(2.0),
         ne=_make_constant_core_profile(3.0),
@@ -80,15 +80,15 @@ class FormulasTest(parameterized.TestCase):
     self.assertEqual(p_el.shape, self.geo.rho_face.shape)
     # Ignore boundary condition terms and just check formula sanity.
     np.testing.assert_allclose(
-        p_el, 6 * constants.CONSTANTS.keV2J * core_profiles.nref
+        p_el, 6 * constants.CONSTANTS.keV2J * core_profiles.density_reference
     )
     np.testing.assert_allclose(
         p_ion,
-        2.75 * constants.CONSTANTS.keV2J * core_profiles.nref,
+        2.75 * constants.CONSTANTS.keV2J * core_profiles.density_reference,
     )
     np.testing.assert_allclose(
         p_tot,
-        8.75 * constants.CONSTANTS.keV2J * core_profiles.nref,
+        8.75 * constants.CONSTANTS.keV2J * core_profiles.density_reference,
     )
 
   def test_calculate_stored_thermal_energy(self):
@@ -114,7 +114,7 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        nref=1e20,
+        density_reference=1e20,
         currents=mock.create_autospec(
             state.Currents,
             instance=True,

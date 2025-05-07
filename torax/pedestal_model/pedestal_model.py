@@ -41,7 +41,7 @@ class PedestalModelOutput:
   Tiped: array_typing.ScalarFloat
   # The electron temperature at the pedestal.
   Teped: array_typing.ScalarFloat
-  # The electron density at the pedestal in units of nref.
+  # The electron density at the pedestal in units of density_reference.
   neped: array_typing.ScalarFloat
 
 

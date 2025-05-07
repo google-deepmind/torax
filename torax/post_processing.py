@@ -309,7 +309,8 @@ def make_post_processed_outputs(
       sim_state.core_profiles.temp_ion.value, sim_state.geometry
   )
 
-  # Calculate ne and ni (main ion) volume and line averages [nref m^-3]
+  # Calculate ne and ni (main ion) volume and line averages
+  # [density_reference m^-3]
   ne_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.ne.value, sim_state.geometry
   )

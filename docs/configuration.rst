@@ -333,7 +333,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.
 
-  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
+  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
 
   If ``ne_bound_right=None``, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided ``ne`` profile.
@@ -345,7 +345,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   :math:`\bar{n}`.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
-  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
+  Line averaged density. In units of reference density ``density_reference`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``ne_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
@@ -353,7 +353,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Toggles units of ``nbar``.
 
 ``ne_bound_right`` (float = 0.5), **time-varying-scalar**
-  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``ne_bound_right_is_fGW==False``.
+  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``density_reference`` if ``ne_bound_right_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
   If not provided or set to `None` then the boundary condition is taken from the
   :math:`\hat{\rho}=1` value derived from the provided `ne` profile.
@@ -391,42 +391,42 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``exact_t_final`` (bool = False)
   If True, ensures that the simulation end time is exactly ``t_final``, by adapting the final ``dt`` to match.
 
-``maxdt`` (float = 1e-1)
-  Maximum timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
+``max_dt`` (float = 1e-1)
+  Maximum size of timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
 
-``mindt`` (float = 1e-8)
+``min_dt`` (float = 1e-8)
   Minimum timestep allowed in simulation.
 
-``dtmult`` (float = 9.0)
+``chi_timestep_prefactor`` (float = 9.0)
   Prefactor in front of ``chi_timestep_calculator`` base timestep :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
-  In most use-cases with implicit solution methods, ``dtmult`` can be increased further above the conservative default.
+  In most use-cases with implicit solution methods, ``chi_timestep_prefactor`` can be increased further above the conservative default.
 
 ``fixed_dt`` (float = 1e-2)
   Timestep used for ``fixed_time_step_calculator`` (see :ref:`time_step_calculator`).
 
-``ion_heat_eq`` (bool = True)
+``evolve_ion_heat`` (bool = True)
   Solve the ion heat equation in the time-dependent PDE.
 
-``el_heat_eq`` (bool = True)
+``evolve_electron_heat`` (bool = True)
   Solve the electron heat equation in the time-dependent PDE.
 
-``current_eq`` (bool = False)
+``evolve_current`` (bool = False)
   Solve the current diffusion equation (evolving :math:`\psi`) in the time-dependent PDE.
 
-``dens_eq`` (bool = False)
+``evolve_density`` (bool = False)
   Solve the electron density equation in the time-dependent PDE.
 
-``resistivity_mult`` (float = 1.0)
+``resistivity_multiplier`` (float = 1.0)
   1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
   diffusion timescale to be closer to the energy confinement timescale, for testing purposes.
 
-``largeValue_T`` (float = 1e10)
+``adaptive_T_source_prefactor`` (float = 1e10)
   Prefactor for adaptive source term for setting temperature internal boundary conditions.
 
-``largeValue_n`` (float = 1e8)
+``adaptive_n_source_prefactor`` (float = 1e8)
   Prefactor for adaptive source term for setting density internal boundary conditions.
 
-``nref`` (float = 1e20)
+``density_reference`` (float = 1e20)
   Reference density value for normalizations.
 
 output_dir
@@ -1342,8 +1342,8 @@ time_step_calculator
 
 * ``'chi'``
     adaptive dt method, where ``dt`` is a multiple of a base dt inspired by the explicit stability limit for parabolic PDEs:
-    :math:`dt_{base}=\frac{dx^2}{2\chi}`, where :math:`dx` is the grid resolution and :math:`\chi=max(\chi_i, \chi_e)`. ``dt=dtmult * dt_base``, where
-    ``dtmult`` is defined in :ref:`numerics_dataclass`, and can be significantly larger than unity for implicit solvers.
+    :math:`dt_{base}=\frac{dx^2}{2\chi}`, where :math:`dx` is the grid resolution and :math:`\chi=max(\chi_i, \chi_e)`. ``dt=chi_timestep_prefactor * dt_base``, where
+    ``chi_timestep_prefactor`` is defined in :ref:`numerics_dataclass`, and can be significantly larger than unity for implicit solvers.
 
 Scaling the timestep to be :math:`\propto \chi` helps protect against traversing through fast transients, if there is a desire for them to be fully resolved.
 
@@ -1362,10 +1362,10 @@ Static parameters: These define the fundamental structure of the simulation and 
 Examples include the number of grid points or the choice of transport model. A partial list is provided below.
 
 * ``runtime_params['geometry']['nrho']``
-* ``runtime_params['numerics']['ion_heat_eq']``
-* ``runtime_params['numerics']['el_heat_eq']``
-* ``runtime_params['numerics']['current_eq']``
-* ``runtime_params['numerics']['dens_eq']``
+* ``runtime_params['numerics']['evolve_ion_heat']``
+* ``runtime_params['numerics']['evolve_electron_heat']``
+* ``runtime_params['numerics']['evolve_current']``
+* ``runtime_params['numerics']['evolve_density']``
 * ``transport['transport_model']``
 * ``solver['solver_type']``
 * ``time_step_calculator['time_step_calculator_type']``
@@ -1409,13 +1409,13 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'numerics': {
           't_final': 80,
           'fixed_dt': 2,
-          'ion_heat_eq': True,
-          'el_heat_eq': True,
-          'current_eq': True,
-          'dens_eq': True,
+          'evolve_ion_heat': True,
+          'evolve_electron_heat': True,
+          'evolve_current': True,
+          'evolve_density': True,
           'dt_reduction_factor': 3,
-          'largeValue_T': 1.0e10,
-          'largeValue_n': 1.0e8,
+          'adaptive_T_source_prefactor': 1.0e10,
+          'adaptive_n_source_prefactor': 1.0e8,
       },
       'geometry': {
           'geometry_type': 'chease',

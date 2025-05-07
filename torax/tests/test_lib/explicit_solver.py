@@ -74,16 +74,18 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
     # The explicit method is for testing purposes and
     # only implemented for ion heat.
     # Ensure that this is what the user requested.
-    assert static_runtime_params_slice.ion_heat_eq
-    assert not static_runtime_params_slice.el_heat_eq
-    assert not static_runtime_params_slice.dens_eq
-    assert not static_runtime_params_slice.current_eq
+    assert static_runtime_params_slice.evolve_ion_heat
+    assert not static_runtime_params_slice.evolve_electron_heat
+    assert not static_runtime_params_slice.evolve_density
+    assert not static_runtime_params_slice.evolve_current
 
     consts = constants.CONSTANTS
 
-    nref = dynamic_runtime_params_slice_t.numerics.nref
-    true_ni = core_profiles_t.ni.value * nref
-    true_ni_face = core_profiles_t.ni.face_value() * nref
+    density_reference = (
+        dynamic_runtime_params_slice_t.numerics.density_reference
+    )
+    true_ni = core_profiles_t.ni.value * density_reference
+    true_ni_face = core_profiles_t.ni.face_value() * density_reference
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)

@@ -116,13 +116,13 @@ class Solver(abc.ABC):
 
     # Use runtime params to determine which variables to evolve
     evolving_names = []
-    if static_runtime_params_slice.ion_heat_eq:
+    if static_runtime_params_slice.evolve_ion_heat:
       evolving_names.append('temp_ion')
-    if static_runtime_params_slice.el_heat_eq:
+    if static_runtime_params_slice.evolve_electron_heat:
       evolving_names.append('temp_el')
-    if static_runtime_params_slice.current_eq:
+    if static_runtime_params_slice.evolve_current:
       evolving_names.append('psi')
-    if static_runtime_params_slice.dens_eq:
+    if static_runtime_params_slice.evolve_density:
       evolving_names.append('ne')
     evolving_names = tuple(evolving_names)
 

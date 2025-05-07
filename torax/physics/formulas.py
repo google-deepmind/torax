@@ -68,7 +68,7 @@ def calculate_pressure(
   nimp = core_profiles.nimp.face_value()
   temp_ion = core_profiles.temp_ion.face_value()
   temp_el = core_profiles.temp_el.face_value()
-  prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
+  prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
   pressure_thermal_el_face = ne * temp_el * prefactor
   pressure_thermal_ion_face = (ni + nimp) * temp_ion * prefactor
   pressure_thermal_tot_face = (
@@ -95,7 +95,7 @@ def calc_pprime(
       with respect to the normalized toroidal flux coordinate, on the face grid.
   """
 
-  prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
+  prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
 
   _, _, p_total = calculate_pressure(core_profiles)
   psi = core_profiles.psi.face_value()
@@ -207,7 +207,7 @@ def calculate_greenwald_fraction(
   Different averaging can be used, e.g. volume-averaged or line-averaged.
 
   Args:
-    ne_avg: Averaged electron density [nref m^-3]
+    ne_avg: Averaged electron density [density_reference m^-3]
     core_profiles: CoreProfiles object containing information on currents and
       densities.
     geo: Geometry object
@@ -217,5 +217,5 @@ def calculate_greenwald_fraction(
   """
   # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
   gw_limit = core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.a_minor**2)
-  fgw = ne_avg * core_profiles.nref / (gw_limit * 1e20)
+  fgw = ne_avg * core_profiles.density_reference / (gw_limit * 1e20)
   return fgw

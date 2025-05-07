@@ -50,8 +50,8 @@ def calc_fusion(
     core_profiles: Core plasma profiles.
     static_runtime_params_slice: Static runtime params, used to determine the
       existence of deuterium and tritium.
-    dynamic_runtime_params_slice: Dynamic runtime params, used to extract nref
-      and the D and T densities.
+    dynamic_runtime_params_slice: Dynamic runtime params, used to extract
+      density_reference and the D and T densities.
 
   Returns:
     Tuple of Ptot, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
@@ -114,7 +114,7 @@ def calc_fusion(
       jnp.log(DT_fraction_product * Efus)
       + 2 * jnp.log(core_profiles.ni.face_value())
       + logsigmav
-      + 2 * jnp.log(dynamic_runtime_params_slice.numerics.nref)
+      + 2 * jnp.log(dynamic_runtime_params_slice.numerics.density_reference)
   )
 
   # [W/m^3]
