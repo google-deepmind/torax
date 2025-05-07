@@ -298,7 +298,7 @@ def _get_dummy_core_profiles(value, right_face_constraint):
   return state.CoreProfiles(
       temp_ion=dummy_cell_variable,
       temp_el=dummy_cell_variable,
-      ne=dummy_cell_variable,
+      n_e=dummy_cell_variable,
       ni=dummy_cell_variable,
       nimp=dummy_cell_variable,
       currents=currents,

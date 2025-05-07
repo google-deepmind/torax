@@ -70,7 +70,7 @@ class FormulasTest(parameterized.TestCase):
         density_reference=1e20,
         temp_ion=_make_constant_core_profile(1.0),
         temp_el=_make_constant_core_profile(2.0),
-        ne=_make_constant_core_profile(3.0),
+        n_e=_make_constant_core_profile(3.0),
         ni=_make_constant_core_profile(2.5),
         nimp=_make_constant_core_profile(0.25),
     )
@@ -109,7 +109,7 @@ class FormulasTest(parameterized.TestCase):
 
   def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
-    ne = 1.0
+    n_e = 1.0
 
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
@@ -127,14 +127,14 @@ class FormulasTest(parameterized.TestCase):
         a_minor=1.0,
     )
 
-    fgw_ne_volume_avg_calculated = formulas.calculate_greenwald_fraction(
-        ne, core_profiles, geo
+    fgw_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
+        n_e, core_profiles, geo
     )
 
-    fgw_ne_volume_avg_expected = 1.0
+    fgw_n_e_volume_avg_expected = 1.0
 
     np.testing.assert_allclose(
-        fgw_ne_volume_avg_calculated, fgw_ne_volume_avg_expected
+        fgw_n_e_volume_avg_calculated, fgw_n_e_volume_avg_expected
     )
 
 

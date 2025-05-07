@@ -330,36 +330,36 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   or the "nu formula".
 
 
-``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
+``n_e`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.
 
-  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
+  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time dependent ``n_e`` is ignored, and only the initial value is used.
 
-  If ``ne_bound_right=None``, the boundary condition at :math:`\hat{\rho}=1`
-  is taken from the :math:`\hat{\rho}=1` value derived from the provided ``ne`` profile.
-  Note that if the ``ne`` profile does not contain a :math:`\hat{\rho}=1` point
+  If ``n_e_right_bc=None``, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided ``n_e`` profile.
+  Note that if the ``n_e`` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
-``normalize_to_nbar`` (bool = True)
+``normalize_n_e_to_nbar`` (bool = True)
   If True, then the electron density profile is normalized to have the desired line averaged density
   :math:`\bar{n}`.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
-  Line averaged density. In units of reference density ``density_reference`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``ne_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
+  Line averaged density. In units of reference density ``density_reference`` (see :ref:`numerics_dataclass`) if ``n_e_nbar_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``n_e_nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
-``ne_is_fGW`` (bool = True)
+``n_e_nbar_is_fGW`` (bool = True)
   Toggles units of ``nbar``.
 
-``ne_bound_right`` (float = 0.5), **time-varying-scalar**
-  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``density_reference`` if ``ne_bound_right_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
+``n_e_right_bc`` (float = 0.5), **time-varying-scalar**
+  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``density_reference`` if ``n_e_right_bc_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``n_e_right_bc_is_fGW==True``.
   If not provided or set to `None` then the boundary condition is taken from the
-  :math:`\hat{\rho}=1` value derived from the provided `ne` profile.
+  :math:`\hat{\rho}=1` value derived from the provided `n_e` profile.
 
-``ne_bound_right_is_fGW`` (bool = False)
-  Toggles units of ``ne_bound_right``.
+``n_e_right_bc_is_fGW`` (bool = False)
+  Toggles units of ``n_e_right_bc``.
 
 ``nu`` (float = 3.0)
   Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
@@ -1389,17 +1389,17 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       },
       'profile_conditions': {
           'Ip_tot': {0: 3, 80: 10.5},
-          # initial condition ion temperature for r=0 and r=Rmin
+          # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'T_i_right_bc': 0.1,  # boundary condition ion temp for r=Rmin
-          # initial condition electron temperature between r=0 and r=Rmin
+          'T_i_right_bc': 0.1,  # boundary condition ion temp for r=a_minor
+          # initial condition electron temperature between r=0 and r=a_minor
           'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'T_e_right_bc': 0.1,  # boundary condition electron temp for r=Rmin
-          'ne_bound_right_is_fGW': True,
-          'ne_bound_right': {0: 0.1, 80: 0.3},
-          'ne_is_fGW': True,
+          'T_e_right_bc': 0.1,  # boundary condition electron temp for r=a_minor
+          'n_e_right_bc_is_fGW': True,
+          'n_e_right_bc': {0: 0.1, 80: 0.3},
+          'n_e_nbar_is_fGW': True,
           'nbar': 1,
-          'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+          'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
           'Tiped': 1.0,
           'Teped': 1.0,
           'neped_is_fGW': True,

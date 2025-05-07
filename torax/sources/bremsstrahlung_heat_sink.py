@@ -67,12 +67,12 @@ def calc_bremsstrahlung(
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  ne20 = (density_reference / 1e20) * core_profiles.ne.face_value()
+  n_e20 = (density_reference / 1e20) * core_profiles.n_e.face_value()
 
   T_e_kev = core_profiles.temp_el.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * Zeff_face * ne20**2 * jnp.sqrt(T_e_kev)
+      5.35e-3 * Zeff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:

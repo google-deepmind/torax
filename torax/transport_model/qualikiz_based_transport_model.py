@@ -186,7 +186,7 @@ class QualikizBasedTransportModel(
         alpha - 0.2,
         smag,
     )
-    normni = core_profiles.ni.face_value() / core_profiles.ne.face_value()
+    normni = core_profiles.ni.face_value() / core_profiles.n_e.face_value()
     return QualikizInputs(
         Zeff_face=Zeff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,

@@ -83,12 +83,12 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
 
-    true_ne_face = (
-        core_profiles.ne.face_value()
+    true_n_e_face = (
+        core_profiles.n_e.face_value()
         * dynamic_runtime_params_slice.numerics.density_reference
     )
-    true_ne_grad_face = (
-        core_profiles.ne.face_grad()
+    true_n_e_grad_face = (
+        core_profiles.n_e.face_grad()
         * dynamic_runtime_params_slice.numerics.density_reference
     )
 
@@ -96,10 +96,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     chi_e_B = (
         geo.r_mid_face
         * core_profiles.q_face**2
-        / (constants_module.CONSTANTS.qe * geo.B_0 * true_ne_face)
+        / (constants_module.CONSTANTS.qe * geo.B_0 * true_n_e_face)
         * (
-            jnp.abs(true_ne_grad_face) * core_profiles.temp_el.face_value()
-            + jnp.abs(core_profiles.temp_el.face_grad()) * true_ne_face
+            jnp.abs(true_n_e_grad_face) * core_profiles.temp_el.face_value()
+            + jnp.abs(core_profiles.temp_el.face_grad()) * true_n_e_face
         )
         * constants_module.CONSTANTS.keV2J
         / geo.rho_b

@@ -20,10 +20,10 @@ pedestal, chi from qlknn.
 
 CONFIG = {
     'profile_conditions': {
-        # initial condition ion temperature for r=0 and r=Rmin
+        # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 8.0, 1.0: 1.0}},
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
         'nu': 0,
     },
     'numerics': {

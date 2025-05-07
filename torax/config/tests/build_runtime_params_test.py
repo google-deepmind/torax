@@ -59,7 +59,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions(
         T_i_right_bc={0.0: 2.0, 4.0: 4.0},
         T_e_right_bc=4.5,  # not time-dependent.
-        ne_bound_right=({5.0: 6.0, 7.0: 8.0}, 'step'),
+        n_e_right_bc=({5.0: 6.0, 7.0: 8.0}, 'step'),
     )
     torax_pydantic.set_grid(profile_conditions, self._torax_mesh)
     np.testing.assert_allclose(
@@ -77,7 +77,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(
         profile_conditions.build_dynamic_params(
             t=6.0,
-        ).ne_bound_right,
+        ).n_e_right_bc,
         6.0,
     )
 
@@ -169,14 +169,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           None,
           np.array([1.125, 1.375, 1.625, 1.875]),
           2.0,
-          'ne',
+          'n_e',
       ),
       (
           {0: {0.0: 1.0, 1.0: 2.0}},
           3.0,
           np.array([1.125, 1.375, 1.625, 1.875]),
           3.0,
-          'ne',
+          'n_e',
       ),
   )
   def test_profile_conditions_set_electron_temperature_and_boundary_condition(
@@ -188,10 +188,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       var_name,
   ):
     """Tests that the profile conditions can set the electron temperature."""
-    if var_name in ['T_i', 'T_e']:
-      boundary_var_name = var_name + '_right_bc'
-    else:
-      boundary_var_name = var_name + '_bound_right'
+    boundary_var_name = var_name + '_right_bc'
 
     temperatures = {
         var_name: var,
@@ -214,30 +211,30 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
 
   @parameterized.product(
-      ne_bound_right=[
+      n_e_right_bc=[
           None,
           1.0,
       ],
-      ne_bound_right_is_fGW=[
+      n_e_right_bc_is_fGW=[
           True,
           False,
       ],
-      ne_is_fGW=[
+      n_e_nbar_is_fGW=[
           True,
           False,
       ],
   )
   def test_profile_conditions_set_electron_density_and_boundary_condition(
       self,
-      ne_bound_right,
-      ne_bound_right_is_fGW,  # pylint: disable=invalid-name
-      ne_is_fGW,  # pylint: disable=invalid-name
+      n_e_right_bc,
+      n_e_right_bc_is_fGW,  # pylint: disable=invalid-name
+      n_e_nbar_is_fGW,  # pylint: disable=invalid-name
   ):
     """Tests that the profile conditions can set the electron temperature."""
     profile_conditions = profile_conditions_lib.ProfileConditions(
-        ne_bound_right=ne_bound_right,
-        ne_bound_right_is_fGW=ne_bound_right_is_fGW,
-        ne_is_fGW=ne_is_fGW,
+        n_e_right_bc=n_e_right_bc,
+        n_e_right_bc_is_fGW=n_e_right_bc_is_fGW,
+        n_e_nbar_is_fGW=n_e_nbar_is_fGW,
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
@@ -245,20 +242,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         t=0.0,
     )
 
-    if ne_bound_right is None:
+    if n_e_right_bc is None:
       # If the boundary condition was not set, it should inherit the fGW flag.
       self.assertEqual(
-          dynamic_profile_conditions.ne_bound_right_is_fGW,
-          ne_is_fGW,
+          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          n_e_nbar_is_fGW,
       )
       # If the boundary condition was set check it is not absolute.
-      self.assertFalse(dynamic_profile_conditions.ne_bound_right_is_absolute)
+      self.assertFalse(dynamic_profile_conditions.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
-          dynamic_profile_conditions.ne_bound_right_is_fGW,
-          ne_bound_right_is_fGW,
+          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          n_e_right_bc_is_fGW,
       )
-      self.assertTrue(dynamic_profile_conditions.ne_bound_right_is_absolute)
+      self.assertTrue(dynamic_profile_conditions.n_e_right_bc_is_absolute)
 
 
 if __name__ == '__main__':

@@ -21,7 +21,7 @@ Pei standard dens, chi from CGM.
 
 CONFIG = {
     'profile_conditions': {
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     },
     'numerics': {
         't_final': 0.5,

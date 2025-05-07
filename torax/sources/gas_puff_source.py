@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Gas puff source for the ne equation."""
+"""Gas puff source for the n_e equation."""
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -69,7 +69,7 @@ def calc_puff_source(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
-  """Gas puff source for the ne equation."""
+  """Gas puff source for the n_e equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff'
   model_func: source.SourceProfileFunction = calc_puff_source
@@ -84,7 +84,7 @@ class GasPuffSource(source.Source):
 
 
 class GasPuffSourceConfig(base.SourceModelBase):
-  """Gas puff source for the ne equation.
+  """Gas puff source for the n_e equation.
 
   Attributes:
     puff_decay_length: exponential decay length of gas puff ionization

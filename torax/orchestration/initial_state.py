@@ -207,12 +207,12 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.ne = (
+  dynamic_runtime_params_slice.profile_conditions.n_e = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
@@ -222,15 +222,15 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  # When loading from file we want ne not to have transformations.
-  # Both ne and the boundary condition are given in absolute values (not fGW).
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+  # When loading from file we want n_e not to have transformations.
+  # Both n_e and the boundary condition are given in absolute values (not fGW).
+  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute = (
       True
   )
   # Additionally we want to avoid normalizing to nbar.
-  dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
+  dynamic_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar = False
   # pylint: enable=invalid-name
 
   dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(

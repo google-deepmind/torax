@@ -22,7 +22,7 @@
 
 CONFIG = {
     'profile_conditions': {
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
         'use_vloop_lcfs_boundary_condition': True,
         'vloop_lcfs': 7.5,
     },

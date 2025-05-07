@@ -129,7 +129,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           psi={'foo': jnp.full(geo.rho.shape, 13.0)},
           temp_el={'foo_source': jnp.full(geo.rho.shape, 17.0)},
           temp_ion={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
-          ne={},
+          n_e={},
           qei=source_profiles.QeiInfo.zeros(geo),
       )
     else:

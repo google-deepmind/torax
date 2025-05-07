@@ -34,97 +34,97 @@ class UpdatersTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='Set from ne',
-          ne_bound_right=None,
-          normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=1.0,
+          testcase_name='Set from n_e',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=1.0,
       ),
       dict(
-          testcase_name='Set and normalize from ne',
-          ne_bound_right=None,
-          normalize_to_nbar=True,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.8050314,
+          testcase_name='Set and normalize from n_e',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.8050314,
       ),
       dict(
-          testcase_name='Set and normalize from ne in fGW',
-          ne_bound_right=None,
-          normalize_to_nbar=True,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.8050314,
+          testcase_name='Set and normalize from n_e in fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.8050314,
       ),
       dict(
-          testcase_name='Set from ne_bound_right',
-          ne_bound_right=0.5,
-          normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          testcase_name='Set from n_e_right_bc',
+          n_e_right_bc=0.5,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5,
       ),
       dict(
-          testcase_name='Set from ne_bound_right absolute, ignore normalize',
-          ne_bound_right=0.5,
-          normalize_to_nbar=True,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          testcase_name='Set from n_e_right_bc absolute, ignore normalize',
+          n_e_right_bc=0.5,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5,
       ),
       dict(
-          testcase_name='Set from ne in fGW',
-          ne_bound_right=None,
-          normalize_to_nbar=False,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=1,  # This will be scaled by fGW in test.
+          testcase_name='Set from n_e in fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=1,  # This will be scaled by fGW in test.
       ),
       dict(
-          testcase_name='Set from ne, ignore ne_bound_right_is_fGW',
-          ne_bound_right=None,
-          normalize_to_nbar=False,
-          ne_is_fGW=False,
-          ne_bound_right_is_fGW=True,
-          expected_ne_bound_right=1.0,
+          testcase_name='Set from n_e, ignore n_e_right_bc_is_fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=True,
+          expected_n_e_right_bc=1.0,
       ),
       dict(
-          testcase_name='Set from ne_bound_right, ignore ne_is_fGW',
-          ne_bound_right=0.5,
-          normalize_to_nbar=False,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          testcase_name='Set from n_e_right_bc, ignore n_e_nbar_is_fGW',
+          n_e_right_bc=0.5,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5,
       ),
       dict(
           testcase_name=(
-              'Set from ne_bound_right, ignore ne_is_fGW, ignore normalize'
+              'Set from n_e_right_bc, ignore n_e_nbar_is_fGW, ignore normalize'
           ),
-          ne_bound_right=0.5,
-          normalize_to_nbar=True,
-          ne_is_fGW=True,
-          ne_bound_right_is_fGW=False,
-          expected_ne_bound_right=0.5,
+          n_e_right_bc=0.5,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5,
       ),
   )
-  def test_compute_boundary_conditions_ne(
+  def test_compute_boundary_conditions_n_e(
       self,
-      ne_bound_right,
-      normalize_to_nbar,
-      ne_is_fGW,
-      ne_bound_right_is_fGW,
-      expected_ne_bound_right,
+      n_e_right_bc,
+      normalize_n_e_to_nbar,
+      n_e_nbar_is_fGW,
+      n_e_right_bc_is_fGW,
+      expected_n_e_right_bc,
   ):
     """Tests that compute_boundary_conditions_t_plus_dt works."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'ne': {0: {0: 1.5, 1: 1}},
-        'ne_is_fGW': ne_is_fGW,
-        'ne_bound_right_is_fGW': ne_bound_right_is_fGW,
+        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
+        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
         'nbar': 1,
-        'normalize_to_nbar': normalize_to_nbar,
-        'ne_bound_right': ne_bound_right,
+        'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
+        'n_e_right_bc': n_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -147,8 +147,8 @@ class UpdatersTest(parameterized.TestCase):
         core_profiles_t=mock.ANY,  # Unused
     )
 
-    if (ne_is_fGW and ne_bound_right is None) or (
-        ne_bound_right_is_fGW and ne_bound_right is not None
+    if (n_e_nbar_is_fGW and n_e_right_bc is None) or (
+        n_e_right_bc_is_fGW and n_e_right_bc is not None
     ):
       # Then we expect the boundary condition to be in fGW.
       nGW = (
@@ -158,13 +158,13 @@ class UpdatersTest(parameterized.TestCase):
           / dynamic_runtime_params_slice.numerics.density_reference
       )
       np.testing.assert_allclose(
-          boundary_conditions['ne']['right_face_constraint'],
-          expected_ne_bound_right * nGW,
+          boundary_conditions['n_e']['right_face_constraint'],
+          expected_n_e_right_bc * nGW,
       )
     else:
       np.testing.assert_allclose(
-          boundary_conditions['ne']['right_face_constraint'],
-          expected_ne_bound_right,
+          boundary_conditions['n_e']['right_face_constraint'],
+          expected_n_e_right_bc,
       )
 
   @parameterized.named_parameters(

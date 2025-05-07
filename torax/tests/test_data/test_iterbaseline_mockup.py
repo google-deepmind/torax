@@ -27,20 +27,20 @@ CONFIG = {
     'profile_conditions': {
         'Ip_tot': 15,  # total plasma current in MA
         # boundary + initial conditions for T and n
-        # initial condition ion temperature for r=0 and r=Rmin
+        # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.238}},
         'T_i_right_bc': (
             0.238
-        ),  # boundary condition ion temperature for r=Rmin
-        # initial condition electron temperature for r=0 and r=Rmin
+        ),  # boundary condition ion temperature for r=a_minor
+        # initial condition electron temperature for r=0 and r=a_minor
         'T_e': {0.0: {0.0: 15.0, 1.0: 0.238}},
-        'T_e_right_bc': 0.238,  # boundary condition electron temp at r=Rmin
-        'ne_bound_right': 0.437,  # boundary condition density for r=Rmin
+        'T_e_right_bc': 0.238,  # boundary condition electron temp at r=a_minor
+        'n_e_right_bc': 0.437,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
         # Otherwise from nbar
-        'ne_is_fGW': True,
+        'n_e_nbar_is_fGW': True,
         'nbar': 0.77,  # original simulation goes up to ~0.92
-        'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+        'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },
     'numerics': {
         # simulation control
@@ -82,7 +82,7 @@ CONFIG = {
             # coordinate)
             'rext': 0.35,
         },
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             # total particle source
             'S_tot': 2.05e20,

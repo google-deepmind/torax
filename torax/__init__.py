@@ -86,7 +86,7 @@ CANONICAL_ORDER = [
     'core_profiles_t_plus_dt',
     'temp_ion',
     'temp_el',
-    'ne',
+    'n_e',
     'ni',
     'psi',
     'transport_model',

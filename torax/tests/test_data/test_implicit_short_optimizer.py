@@ -16,7 +16,7 @@
 
 CONFIG = {
     'profile_conditions': {
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     },
     'numerics': {
         't_final': 0.1,
@@ -28,7 +28,7 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'generic_current': {},
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {},
         'gas_puff': {},
         'pellet': {},

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generic particle source for the ne equation."""
+"""Generic particle source for the n_e equation."""
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -66,7 +66,7 @@ def calc_generic_particle_source(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericParticleSource(source.Source):
-  """Neutral-beam injection source for the ne equation."""
+  """Neutral-beam injection source for the n_e equation."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle'
   model_func: source.SourceProfileFunction = calc_generic_particle_source
@@ -88,7 +88,7 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 class GenericParticleSourceConfig(base.SourceModelBase):
-  """Generic particle source for the ne equation.
+  """Generic particle source for the n_e equation.
 
   Attributes:
     particle_width: particle source Gaussian width in normalized radial coord

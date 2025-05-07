@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Pellet source for the ne equation."""
+"""Pellet source for the n_e equation."""
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -63,7 +63,7 @@ def calc_pellet_source(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.Source):
-  """Pellet source for the ne equation."""
+  """Pellet source for the n_e equation."""
 
   SOURCE_NAME: ClassVar[str] = 'pellet'
   model_func: source.SourceProfileFunction = calc_pellet_source
@@ -85,7 +85,7 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 class PelletSourceConfig(base.SourceModelBase):
-  """Pellet source for the ne equation.
+  """Pellet source for the n_e equation.
 
   Attributes:
     pellet_width: Gaussian width of pellet deposition [normalized radial coord]

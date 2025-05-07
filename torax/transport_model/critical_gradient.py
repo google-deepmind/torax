@@ -56,8 +56,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
-    :math:`R/L_{T_i}|_crit` from Guo Romanelli 1993:
-    :math:`\chi_i = \chi_{GB} \chi_{stiff} H(R/L_{T_i} - R/L_{T_i})`
+    :math:`R/L_{Ti}|_crit` from Guo Romanelli 1993:
+    :math:`\chi_i = \chi_{GB} \chi_{stiff} H(R/L_{Ti} - R/L_{Ti})`
     where :math:`\chi_{GB}` is the GyroBohm diffusivity,
     :math:`\chi_{stiff}` is the stiffness parameter, and
     :math:`H` is the Heaviside function.

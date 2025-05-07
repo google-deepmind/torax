@@ -42,7 +42,7 @@ def make_zero_core_profiles(
       temp_el=temp_el if temp_el is not None else zero_cell_variable,
       psi=zero_cell_variable,
       psidot=zero_cell_variable,
-      ne=zero_cell_variable,
+      n_e=zero_cell_variable,
       ni=zero_cell_variable,
       nimp=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
@@ -75,10 +75,10 @@ def verify_core_profiles(
       ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.N_E][index, 1:-1]
+      core_profiles.n_e.value, ref_profiles[output.N_E][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ne.right_face_constraint,
+      core_profiles.n_e.right_face_constraint,
       ref_profiles[output.N_E][index, -1],
   )
   np.testing.assert_allclose(

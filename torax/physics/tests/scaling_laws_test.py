@@ -40,7 +40,7 @@ class ScalingLawsTest(parameterized.TestCase):
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
     # property needed in calculate_plh_scaling_factor.
     core_profiles = state.CoreProfiles(
-        ne=cell_variable.CellVariable(
+        n_e=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2,
             left_face_grad_constraint=jnp.zeros(()),
             right_face_grad_constraint=None,
@@ -73,7 +73,7 @@ class ScalingLawsTest(parameterized.TestCase):
             Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         ),
     )
-    P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
+    P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
         scaling_laws.calculate_plh_scaling_factor(geo, core_profiles)
     )
     expected_PLH_hi_dens = (
@@ -82,12 +82,12 @@ class ScalingLawsTest(parameterized.TestCase):
     expected_PLH_min = (
         0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08 * (2.0141 / 3)
     )
-    expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
+    expected_n_e_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
     np.testing.assert_allclose(
         P_LH_hi_dens / 1e6, expected_PLH_hi_dens, rtol=1e-6
     )
     np.testing.assert_allclose(P_LH_min / 1e6, expected_PLH_min, rtol=1e-6)
-    np.testing.assert_allclose(ne_min_P_LH, expected_ne_min_P_LH, rtol=1e-6)
+    np.testing.assert_allclose(n_e_min_P_LH, expected_n_e_min_P_LH, rtol=1e-6)
     np.testing.assert_allclose(P_LH, P_LH_hi_dens, rtol=1e-6)
 
   @parameterized.parameters([
@@ -106,7 +106,7 @@ class ScalingLawsTest(parameterized.TestCase):
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
     # property needed in calculate_plh_scaling_factor.
     core_profiles = state.CoreProfiles(
-        ne=cell_variable.CellVariable(
+        n_e=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2,
             left_face_grad_constraint=jnp.zeros(()),
             right_face_grad_constraint=None,

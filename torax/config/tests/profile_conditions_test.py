@@ -73,30 +73,30 @@ class ProfileConditionsTest(parameterized.TestCase):
       ('no boundary condition', None, 2.0, 200.0),
       ('boundary condition provided', 3.0, 3.0, 3.0),
   )
-  def test_profile_conditions_sets_ne_bound_right_correctly(
-      self, ne_bound_right, expected_initial_value, expected_second_value
+  def test_profile_conditions_sets_n_e_right_bc_correctly(
+      self, n_e_right_bc, expected_initial_value, expected_second_value
   ):
-    """Tests that ne_bound_right is set correctly."""
+    """Tests that n_e_right_bc is set correctly."""
     pc = profile_conditions.ProfileConditions(
-        ne={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
-        ne_bound_right=ne_bound_right,
+        n_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
+        n_e_right_bc=n_e_right_bc,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dcs = pc.build_dynamic_params(t=0.0)
-    self.assertEqual(dcs.ne_bound_right, expected_initial_value)
-    if ne_bound_right is None:
-      self.assertEqual(dcs.ne_bound_right_is_fGW, dcs.ne_is_fGW)
-      self.assertFalse(dcs.ne_bound_right_is_absolute)
+    self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
+    if n_e_right_bc is None:
+      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(dcs.ne_bound_right_is_absolute)
+      self.assertTrue(dcs.n_e_right_bc_is_absolute)
     dcs = pc.build_dynamic_params(t=1.5)
-    self.assertEqual(dcs.ne_bound_right, expected_second_value)
-    if ne_bound_right is None:
-      self.assertEqual(dcs.ne_bound_right_is_fGW, dcs.ne_is_fGW)
-      self.assertFalse(dcs.ne_bound_right_is_absolute)
+    self.assertEqual(dcs.n_e_right_bc, expected_second_value)
+    if n_e_right_bc is None:
+      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(dcs.ne_bound_right_is_absolute)
+      self.assertTrue(dcs.n_e_right_bc_is_absolute)
 
   @parameterized.named_parameters(
       ('no psi provided', None, None, None),

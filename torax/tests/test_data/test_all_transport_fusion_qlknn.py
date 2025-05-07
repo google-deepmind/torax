@@ -22,7 +22,7 @@ density. D_e scaled from chi_e
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,  # initial density (Greenwald fraction units)
-        'ne_bound_right': 0.2,
+        'n_e_right_bc': 0.2,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         'nu': 0,
@@ -45,7 +45,7 @@ CONFIG = {
             'bootstrap_mult': 1.0,
         },
         'generic_current': {},
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             'S_tot': 0.3e22,
         },

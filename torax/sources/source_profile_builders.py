@@ -121,7 +121,7 @@ def build_source_profiles(
       temp_ion=explicit_source_profiles.temp_ion
       if explicit_source_profiles
       else {},
-      ne=explicit_source_profiles.ne if explicit_source_profiles else {},
+      n_e=explicit_source_profiles.n_e if explicit_source_profiles else {},
       psi=explicit_source_profiles.psi if explicit_source_profiles else {},
   )
   build_standard_source_profiles(
@@ -221,7 +221,7 @@ def _update_standard_source_profiles(
       case source_lib.AffectedCoreProfile.PSI:
         calculated_source_profiles.psi[source_name] = profile
       case source_lib.AffectedCoreProfile.NE:
-        calculated_source_profiles.ne[source_name] = profile
+        calculated_source_profiles.n_e[source_name] = profile
       case source_lib.AffectedCoreProfile.TEMP_ION:
         calculated_source_profiles.temp_ion[source_name] = profile
       case source_lib.AffectedCoreProfile.TEMP_EL:

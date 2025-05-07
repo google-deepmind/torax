@@ -30,7 +30,7 @@ CONFIG = {
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     },
     'numerics': {
         'evolve_current': True,

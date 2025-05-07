@@ -53,7 +53,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         'smoothing_width': 0.05,
     }
     config['profile_conditions'] = {
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -225,7 +225,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         'smooth_everywhere': True,
     }
     config['profile_conditions'] = {
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     }
     config['pedestal'] = {
         'pedestal_model': 'set_tped_nped',

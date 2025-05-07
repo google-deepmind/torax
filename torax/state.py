@@ -89,7 +89,7 @@ class CoreProfiles:
       temp_el: Electron temperature [keV].
       psi: Poloidal flux [Wb].
       psidot: Time derivative of poloidal flux (loop voltage) [V].
-      ne: Electron density [density_reference m^-3].
+      n_e: Electron density [density_reference m^-3].
       ni: Main ion density [density_reference m^-3].
       nimp: Impurity density [density_reference m^-3].
       currents: Instance of the Currents dataclass.
@@ -109,7 +109,7 @@ class CoreProfiles:
   temp_el: cell_variable.CellVariable
   psi: cell_variable.CellVariable
   psidot: cell_variable.CellVariable
-  ne: cell_variable.CellVariable
+  n_e: cell_variable.CellVariable
   ni: cell_variable.CellVariable
   nimp: cell_variable.CellVariable
   currents: Currents
@@ -130,7 +130,7 @@ class CoreProfiles:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
         self.ni.value * self.Zi + self.nimp.value * self.Zimp,
-        self.ne.value,
+        self.n_e.value,
     ).item()
 
   def negative_temperature_or_density(self) -> bool:
@@ -138,7 +138,7 @@ class CoreProfiles:
     profiles_to_check = (
         self.temp_ion,
         self.temp_el,
-        self.ne,
+        self.n_e,
         self.ni,
         self.nimp,
     )
@@ -152,7 +152,7 @@ class CoreProfiles:
     state = jax.tree_util.tree_map(idx, self)
     # These variables track whether they are histories, so when we collapse down
     # to a single state we need to explicitly clear the history flag.
-    history_vars = ["temp_ion", "temp_el", "psi", "psidot", "ne", "ni"]
+    history_vars = ["temp_ion", "temp_el", "psi", "psidot", "n_e", "ni"]
     history_replace = {"history": None}
     replace_dict = {var: history_replace for var in history_vars}
     state = config_args.recursive_replace(state, **replace_dict)
@@ -170,7 +170,7 @@ class CoreProfiles:
         temp_ion={self.temp_ion},
         temp_el={self.temp_el},
         psi={self.psi},
-        ne={self.ne},
+        n_e={self.n_e},
         nimp={self.nimp},
         ni={self.ni},
       )
@@ -314,7 +314,7 @@ class PostProcessedOutputs:
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
     P_LH_high_density: H-mode transition power for high density branch [W]
-    P_LH_min: Minimum H-mode transition power for at ne_min_P_LH [W]
+    P_LH_min: Minimum H-mode transition power for at n_e_min_P_LH [W]
     P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
       [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [density_reference]

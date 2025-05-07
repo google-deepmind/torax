@@ -23,7 +23,7 @@ from torax.tests.test_lib import sim_test_case
 import xarray as xr
 
 
-_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
+_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'n_e')
 
 
 class RunSimulationTest(sim_test_case.SimTestCase):
@@ -42,8 +42,8 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     self.assertFalse(
         np.array_equal(
-            history.core_profiles.ne.value[-1],
-            new_history.core_profiles.ne.value[-1],
+            history.core_profiles.n_e.value[-1],
+            new_history.core_profiles.n_e.value[-1],
         )
     )
 

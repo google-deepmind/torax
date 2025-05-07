@@ -31,10 +31,10 @@ CONFIG = {
         'T_i_right_bc': 0.2,
         'T_e': {0.0: {0.0: 3.0, 1.0: 0.2}},
         'T_e_right_bc': 0.2,
-        'ne_bound_right': 0.25,
-        'ne_is_fGW': True,
+        'n_e_right_bc': 0.25,
+        'n_e_nbar_is_fGW': True,
         'nbar': 0.5,
-        'ne': {0: {0.0: 1.5, 1.0: 1.0}},
+        'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {
         't_final': 0.5,

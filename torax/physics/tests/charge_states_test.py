@@ -88,16 +88,17 @@ class ChargeStatesTest(parameterized.TestCase):
   ):
     """Test with valid ions and within temperature range."""
     T_e = np.array(temperature)
-    Z_calcuated = charge_states.calculate_average_charge_state_single_species(
+    Z_calculated = charge_states.calculate_average_charge_state_single_species(
         T_e, ion_symbol
     )
     Z_expected = np.ones_like(T_e) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
     np.testing.assert_allclose(
-        Z_calcuated,
+        Z_calculated,
         Z_expected,
         err_msg=(
             f'Low-Z full ionization not as expected for {ion_symbol} for'
-            f' T_e={T_e}, Z_calculated = {Z_calcuated}, Z_expected={Z_expected}'
+            f' T_e={T_e}, Z_calculated = {Z_calculated},'
+            f' Z_expected={Z_expected}'
         ),
     )
 

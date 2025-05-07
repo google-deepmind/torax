@@ -48,7 +48,7 @@ class StateHistoryTest(parameterized.TestCase):
         'profile_conditions': {
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
-            'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
+            'n_e_right_bc': ({0.0: 0.1, 1.0: 2.0}, 'step'),
         },
         'numerics': {},
         'plasma_composition': {},
@@ -82,7 +82,7 @@ class StateHistoryTest(parameterized.TestCase):
             'ohmic': ones * 5,
             'fusion': ones,
         },
-        ne={},
+        n_e={},
         psi={},
     )
     static_slice = build_runtime_params.build_static_params_from_config(

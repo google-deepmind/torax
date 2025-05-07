@@ -124,30 +124,30 @@ def get_prescribed_core_profile_values(
     temp_el_cell_variable = core_profiles.temp_el
     temp_el = temp_el_cell_variable.value
   if not static_runtime_params_slice.evolve_density:
-    ne_cell_variable = getters.get_updated_electron_density(
+    n_e_cell_variable = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
   else:
-    ne_cell_variable = core_profiles.ne
+    n_e_cell_variable = core_profiles.n_e
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
-          ne_cell_variable,
+          n_e_cell_variable,
           temp_el_cell_variable,
       )
   )
-  ne = ne_cell_variable.value
+  n_e = n_e_cell_variable.value
   ni = ni.value
   nimp = nimp.value
 
   return {
       'temp_ion': temp_ion,
       'temp_el': temp_el,
-      'ne': ne,
+      'n_e': n_e,
       'ni': ni,
       'nimp': nimp,
       'Zi': Zi,
@@ -204,14 +204,14 @@ def update_core_profiles_during_step(
   temp_ion = _get_update(x_new, evolving_names, core_profiles, 'temp_ion')
   temp_el = _get_update(x_new, evolving_names, core_profiles, 'temp_el')
   psi = _get_update(x_new, evolving_names, core_profiles, 'psi')
-  ne = _get_update(x_new, evolving_names, core_profiles, 'ne')
+  n_e = _get_update(x_new, evolving_names, core_profiles, 'n_e')
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
-          ne,
+          n_e,
           temp_el,
       )
   )
@@ -221,7 +221,7 @@ def update_core_profiles_during_step(
       temp_ion=temp_ion,
       temp_el=temp_el,
       psi=psi,
-      ne=ne,
+      n_e=n_e,
       ni=ni,
       nimp=nimp,
       Zi=Zi,
@@ -276,14 +276,14 @@ def update_all_core_profiles_after_step(
       x_new, evolving_names, core_profiles_t_plus_dt, 'temp_el'
   )
   psi = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'psi')
-  ne = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'ne')
+  n_e = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'n_e')
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt,
           geo,
-          ne,
+          n_e,
           temp_el,
       )
   )
@@ -315,7 +315,7 @@ def update_all_core_profiles_after_step(
       temp_ion=temp_ion,
       temp_el=temp_el,
       psi=psi,
-      ne=ne,
+      n_e=n_e,
       ni=ni,
       nimp=nimp,
       Zi=Zi,
@@ -369,12 +369,12 @@ def compute_boundary_conditions_for_t_plus_dt(
   )
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
-  ne = getters.get_updated_electron_density(
+  n_e = getters.get_updated_electron_density(
       dynamic_runtime_params_slice_t_plus_dt.numerics,
       profile_conditions_t_plus_dt,
       geo_t_plus_dt,
   )
-  ne_bound_right = ne.right_face_constraint
+  n_e_right_bc = n_e.right_face_constraint
 
   Zi_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.main_ion_names,
@@ -393,8 +393,8 @@ def compute_boundary_conditions_for_t_plus_dt(
       dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],
   )
 
-  ni_bound_right = ne_bound_right * dilution_factor_edge
-  nimp_bound_right = (ne_bound_right - ni_bound_right * Zi_edge) / Zimp_edge
+  ni_bound_right = n_e_right_bc * dilution_factor_edge
+  nimp_bound_right = (n_e_right_bc - ni_bound_right * Zi_edge) / Zimp_edge
 
   return {
       'temp_ion': dict(
@@ -407,10 +407,10 @@ def compute_boundary_conditions_for_t_plus_dt(
           right_face_grad_constraint=None,
           right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
       ),
-      'ne': dict(
+      'n_e': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(ne_bound_right),
+          right_face_constraint=jnp.array(n_e_right_bc),
       ),
       'ni': dict(
           left_face_grad_constraint=jnp.zeros(()),

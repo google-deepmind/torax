@@ -64,7 +64,7 @@ def initial_core_profiles(
   temp_el = getters.get_updated_electron_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
-  ne = getters.get_updated_electron_density(
+  n_e = getters.get_updated_electron_density(
       dynamic_runtime_params_slice.numerics,
       dynamic_runtime_params_slice.profile_conditions,
       geo,
@@ -75,7 +75,7 @@ def initial_core_profiles(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
-          ne,
+          n_e,
           temp_el,
       )
   )
@@ -110,7 +110,7 @@ def initial_core_profiles(
   core_profiles = state.CoreProfiles(
       temp_ion=temp_ion,
       temp_el=temp_el,
-      ne=ne,
+      n_e=n_e,
       ni=ni,
       Zi=Zi,
       Zi_face=Zi_face,

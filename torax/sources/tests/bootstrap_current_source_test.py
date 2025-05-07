@@ -68,7 +68,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
         psi=cell_variable.CellVariable(
             value=jnp.linspace(9000, 4000, n_rho), dr=self.geo.drho_norm
         ),
-        ne=cell_variable.CellVariable(
+        n_e=cell_variable.CellVariable(
             value=jnp.linspace(100, 200, n_rho), dr=self.geo.drho_norm
         ),
         ni=cell_variable.CellVariable(

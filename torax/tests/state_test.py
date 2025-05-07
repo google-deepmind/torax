@@ -53,7 +53,7 @@ def make_zero_core_profiles(
       temp_el=zero_cell_variable,
       psi=zero_cell_variable,
       psidot=zero_cell_variable,
-      ne=zero_cell_variable,
+      n_e=zero_cell_variable,
       ni=zero_cell_variable,
       nimp=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
@@ -195,8 +195,8 @@ class InitialStatesTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
-        'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
-        'normalize_to_nbar': False,
+        'n_e_right_bc': ({0.0: 0.1, 1.0: 2.0}, 'step'),
+        'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
@@ -229,7 +229,7 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         core_profiles.temp_el.right_face_constraint, 42.0
     )
-    np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
+    np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1)
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""
@@ -289,26 +289,26 @@ class InitialStatesTest(parameterized.TestCase):
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
         nu=2,
-        ne_bound_right=0.5,
+        n_e_right_bc=0.5,
     )
     config2 = dict(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
         nu=2,
-        ne_bound_right=0.5,
+        n_e_right_bc=0.5,
     )
     config3 = dict(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
         nu=2,
-        ne_bound_right=0.5,
+        n_e_right_bc=0.5,
     )
     # Needed to generate psi for bootstrap calculation
     config3_helper = dict(
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
         nu=2,
-        ne_bound_right=0.5,
+        n_e_right_bc=0.5,
     )
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources.source_model_config
@@ -502,7 +502,7 @@ class InitialStatesTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
         'initial_psi_from_j': False,
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(

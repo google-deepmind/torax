@@ -38,7 +38,7 @@ def get_default_source_config() -> dict[str, Any]:
       # Current sources (for psi equation)
       'j_bootstrap',
       'generic_current',
-      # Electron density sources/sink (for the ne equation).
+      # Electron density sources/sink (for the n_e equation).
       'generic_particle',
       'gas_puff',
       'pellet',

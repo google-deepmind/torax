@@ -225,7 +225,7 @@ def make_post_processed_outputs(
       / (integrated_sources['P_external_injected'] + constants.CONSTANTS.eps)
   )
 
-  P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
+  P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
       scaling_laws.calculate_plh_scaling_factor(
           sim_state.geometry, sim_state.core_profiles
       )
@@ -309,25 +309,25 @@ def make_post_processed_outputs(
       sim_state.core_profiles.temp_ion.value, sim_state.geometry
   )
 
-  # Calculate ne and ni (main ion) volume and line averages
+  # Calculate n_e and ni (main ion) volume and line averages
   # [density_reference m^-3]
-  ne_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.ne.value, sim_state.geometry
+  n_e_volume_avg = math_utils.volume_average(
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   ni_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.ni.value, sim_state.geometry
   )
-  ne_line_avg = math_utils.line_average(
-      sim_state.core_profiles.ne.value, sim_state.geometry
+  n_e_line_avg = math_utils.line_average(
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   ni_line_avg = math_utils.line_average(
       sim_state.core_profiles.ni.value, sim_state.geometry
   )
-  fgw_ne_volume_avg = formulas.calculate_greenwald_fraction(
-      ne_volume_avg, sim_state.core_profiles, sim_state.geometry
+  fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
+      n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
   )
-  fgw_ne_line_avg = formulas.calculate_greenwald_fraction(
-      ne_line_avg, sim_state.core_profiles, sim_state.geometry
+  fgw_n_e_line_avg = formulas.calculate_greenwald_fraction(
+      n_e_line_avg, sim_state.core_profiles, sim_state.geometry
   )
   Wpol = psi_calculations.calc_Wpol(
       sim_state.geometry, sim_state.core_profiles.psi
@@ -366,17 +366,17 @@ def make_post_processed_outputs(
       P_LH=P_LH,
       P_LH_min=P_LH_min,
       P_LH_high_density=P_LH_hi_dens,
-      n_e_min_P_LH=ne_min_P_LH,
+      n_e_min_P_LH=n_e_min_P_LH,
       E_fusion=E_cumulative_fusion,
       E_aux=E_cumulative_external,
       T_e_volume_avg=te_volume_avg,
       T_i_volume_avg=ti_volume_avg,
-      n_e_volume_avg=ne_volume_avg,
+      n_e_volume_avg=n_e_volume_avg,
       n_i_volume_avg=ni_volume_avg,
-      n_e_line_avg=ne_line_avg,
+      n_e_line_avg=n_e_line_avg,
       n_i_line_avg=ni_line_avg,
-      fgw_n_e_volume_avg=fgw_ne_volume_avg,
-      fgw_n_e_line_avg=fgw_ne_line_avg,
+      fgw_n_e_volume_avg=fgw_n_e_volume_avg,
+      fgw_n_e_line_avg=fgw_n_e_line_avg,
       q95=q95,
       W_pol=Wpol,
       li3=li3,

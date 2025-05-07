@@ -81,7 +81,7 @@ class QualikizTransportModelTest(absltest.TestCase):
     mock_process = mock.Mock()
     mock_process.communicate.return_value = (b'stdout', b'stderr')
     # The first call is expecting a 2D array, the others should be 1D arrays.
-    num_data = core_profiles.ne.face_value().shape[0]
+    num_data = core_profiles.n_e.face_value().shape[0]
     fake_qualikiz_results = [
         np.ones((num_data, 2)),
         np.ones(num_data),

@@ -37,13 +37,13 @@ class DynamicProfileConditions:
   # If provided as array, Psi profile defined on the cell grid.
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
-  ne: array_typing.ArrayFloat
-  normalize_to_nbar: bool
+  n_e: array_typing.ArrayFloat
+  normalize_n_e_to_nbar: bool
   nbar: array_typing.ScalarFloat
-  ne_is_fGW: bool
-  ne_bound_right: array_typing.ScalarFloat
-  ne_bound_right_is_fGW: bool
-  ne_bound_right_is_absolute: bool
+  n_e_nbar_is_fGW: bool
+  n_e_right_bc: array_typing.ScalarFloat
+  n_e_right_bc_is_fGW: bool
+  n_e_right_bc_is_absolute: bool
   nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
@@ -65,33 +65,33 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       specfied Vloop at the LCFS is used as the boundary condition for the psi
       equation; otherwise, Ip is used as the boundary condition.
     vloop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
-    T_i_right_bc: Temperature boundary conditions at r=Rmin. If this is `None`
-      the boundary condition will instead be taken from `T_i` and `T_e` at
-      rhon=1.
-    T_e_right_bc: Temperature boundary conditions at r=Rmin. If this is `None`
-      the boundary condition will instead be taken from `T_i` and `T_e` at
-      rhon=1.
+    T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
+      `None` the boundary condition will instead be taken from `T_i` and `T_e`
+      at rhon=1.
+    T_e_right_bc: Temperature boundary conditions at r=a_minor. If this is
+      `None` the boundary condition will instead be taken from `T_i` and `T_e`
+      at rhon=1.
     T_i: Prescribed or evolving values for temperature at different times.
     T_e: Prescribed or evolving values for temperature at different times.
     psi: Initial values for psi. If provided, the initial psi will be taken from
       here. Otherwise, the initial psi will be calculated from either the
       geometry or the "nu formula" dependant on the `initial_psi_from_j` field.
-    ne: Prescribed or evolving values for electron density at different times.
-    normalize_to_nbar: Whether to renormalize the density profile to have the
-      desired line averaged density `nbar`.
-    nbar: Line averaged density. In units of reference density if ne_is_fGW =
-      False. In Greenwald fraction if ne_is_fGW = True. nGW = Ip/(pi*a^2) with a
-      in m, nGW in 10^20 m-3, Ip in MA
-    ne_is_fGW: Toggle units of nbar
-    ne_bound_right: Density boundary condition for r=Rmin. In units of reference
-      density if ne_bound_right_is_fGW = False. In Greenwald fraction if
-      `ne_bound_right_is_fGW = True`. If `ne_bound_right` is `None` then the
-      boundary condition will instead be taken from `ne` at rhon=1. In this
-      case, `ne_bound_right_is_absolute` will be set to `False` and
-      `ne_bound_right_is_fGW` will be set to `ne_is_fGW`. If `ne_bound_right` is
-      not `None` then `ne_bound_right_is_absolute` will be set to `True`.
-    ne_bound_right_is_fGW: Toggle units of ne_bound_right.
-    ne_bound_right_is_absolute: Toggle units of ne_bound_right
+    n_e: Prescribed or evolving values for electron density at different times.
+    normalize_n_e_to_nbar: Whether to renormalize the density profile to have
+      the desired line averaged density `nbar`.
+    nbar: Line averaged density. In units of reference density if
+      n_e_nbar_is_fGW = False. In Greenwald fraction if n_e_nbar_is_fGW = True.
+      nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+    n_e_nbar_is_fGW: Toggle units of nbar
+    n_e_right_bc: Density boundary condition for r=a_minor. In units of
+      reference density if n_e_right_bc_is_fGW = False. In Greenwald fraction if
+      `n_e_right_bc_is_fGW = True`. If `n_e_right_bc` is `None` then the
+      boundary condition will instead be taken from `n_e` at rhon=1. In this
+      case, `n_e_right_bc_is_absolute` will be set to `False` and
+      `n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`. If `n_e_right_bc`
+      is not `None` then `n_e_right_bc_is_absolute` will be set to `True`.
+    n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
+    n_e_right_bc_is_absolute: Toggle units of n_e_right_bc
     nu: Peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
@@ -118,15 +118,15 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault({0: {0: 15.0, 1: 1.0}})
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
-  ne: torax_pydantic.PositiveTimeVaryingArray = torax_pydantic.ValidatedDefault(
-      {0: {0: 1.5, 1: 1.0}}
+  n_e: torax_pydantic.PositiveTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0: {0: 1.5, 1: 1.0}})
   )
-  normalize_to_nbar: bool = True
+  normalize_n_e_to_nbar: bool = True
   nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.85)
-  ne_is_fGW: bool = True
-  ne_bound_right: torax_pydantic.TimeVaryingScalar | None = None
-  ne_bound_right_is_fGW: bool = False
-  ne_bound_right_is_absolute: bool = False
+  n_e_nbar_is_fGW: bool = True
+  n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
+  n_e_right_bc_is_fGW: bool = False
+  n_e_right_bc_is_absolute: bool = False
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(True)
   )
@@ -154,8 +154,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       _sanity_check_profile_boundary_conditions(self.T_i, 'T_i')
     if self.T_e_right_bc is None:
       _sanity_check_profile_boundary_conditions(self.T_e, 'T_e')
-    if self.ne_bound_right is None:
-      _sanity_check_profile_boundary_conditions(self.ne, 'ne')
+    if self.n_e_right_bc is None:
+      _sanity_check_profile_boundary_conditions(self.n_e, 'n_e')
     return self
 
   def build_dynamic_params(
@@ -179,14 +179,14 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
 
-    if self.ne_bound_right is None:
-      dynamic_params['ne_bound_right'] = self.ne.get_value(
+    if self.n_e_right_bc is None:
+      dynamic_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )
-      dynamic_params['ne_bound_right_is_absolute'] = False
-      dynamic_params['ne_bound_right_is_fGW'] = self.ne_is_fGW
+      dynamic_params['n_e_right_bc_is_absolute'] = False
+      dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
     else:
-      dynamic_params['ne_bound_right_is_absolute'] = True
+      dynamic_params['n_e_right_bc_is_absolute'] = True
 
     def _get_value(x):
       if isinstance(

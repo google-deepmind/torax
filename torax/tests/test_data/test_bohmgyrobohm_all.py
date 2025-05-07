@@ -32,8 +32,8 @@
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.8,
-        'ne_bound_right': 0.5,
-        'ne_bound_right_is_fGW': True,
+        'n_e_right_bc': 0.5,
+        'n_e_right_bc_is_fGW': True,
     },
     'numerics': {
         'evolve_ion_heat': True,
@@ -51,7 +51,7 @@ CONFIG = {
         # Current sources (for psi equation)
         'generic_current': {},
         'j_bootstrap': {},
-        # Electron density sources/sink (for the ne equation).
+        # Electron density sources/sink (for the n_e equation).
         'generic_particle': {},
         'gas_puff': {},
         'pellet': {},

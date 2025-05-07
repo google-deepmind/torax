@@ -68,7 +68,7 @@ below as an example.
               ylabel='Temperature [keV]',
           ),
           plotruns_lib.PlotProperties(
-              attrs=('ne',),
+              attrs=('n_e',),
               labels=(r'$n_e$',),
               ylabel=r'Electron density $[10^{20}~m^{-3}]$',
           ),

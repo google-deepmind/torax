@@ -61,15 +61,15 @@ def calculate_plh_scaling_factor(
       corresponding to the P_LH_min.
   """
 
-  line_avg_ne = (
-      math_utils.line_average(core_profiles.ne.value, geo)
+  line_avg_n_e = (
+      math_utils.line_average(core_profiles.n_e.value, geo)
       * core_profiles.density_reference
   )
 
   # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
   P_LH_hi_dens_D = (
       2.15
-      * (line_avg_ne / 1e20) ** 0.782
+      * (line_avg_n_e / 1e20) ** 0.782
       * geo.B_0**0.772
       * geo.a_minor**0.975
       * geo.R_major**0.999
@@ -82,7 +82,7 @@ def calculate_plh_scaling_factor(
 
   # Calculate density (in density_reference) corresponding to P_LH_min
   # from Eq 3 Ryter 2014
-  ne_min_P_LH = (
+  n_e_min_P_LH = (
       0.7
       * (core_profiles.currents.Ip_total / 1e6) ** 0.34
       * geo.a_minor**-0.95
@@ -91,7 +91,7 @@ def calculate_plh_scaling_factor(
       * 1e19
       / core_profiles.density_reference
   )
-  # Calculate P_LH_min at ne_min from Eq 4 Ryter 2014
+  # Calculate P_LH_min at n_e_min from Eq 4 Ryter 2014
   P_LH_min_D = (
       0.36
       * (core_profiles.currents.Ip_total / 1e6) ** 0.27
@@ -102,7 +102,7 @@ def calculate_plh_scaling_factor(
   )
   P_LH_min = P_LH_min_D * A_deuterium / core_profiles.Ai
   P_LH = jnp.maximum(P_LH_min, P_LH_hi_dens)
-  return P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH
+  return P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH
 
 
 def calculate_scaling_law_confinement_time(
@@ -128,7 +128,7 @@ def calculate_scaling_law_confinement_time(
           'prefactor': 0.038128,
           'Ip_exponent': 0.85,
           'B_exponent': 0.2,
-          'line_avg_ne_exponent': 0.1,
+          'line_avg_n_e_exponent': 0.1,
           'Ploss_exponent': -0.5,
           'R_exponent': 1.5,
           'inverse_aspect_ratio_exponent': 0.3,
@@ -144,7 +144,7 @@ def calculate_scaling_law_confinement_time(
           'prefactor': 0.0562,
           'Ip_exponent': 0.93,
           'B_exponent': 0.15,
-          'line_avg_ne_exponent': 0.41,
+          'line_avg_n_e_exponent': 0.41,
           'Ploss_exponent': -0.69,
           'R_exponent': 1.97,
           'inverse_aspect_ratio_exponent': 0.58,
@@ -158,7 +158,7 @@ def calculate_scaling_law_confinement_time(
           'prefactor': 0.023,
           'Ip_exponent': 0.96,
           'B_exponent': 0.03,
-          'line_avg_ne_exponent': 0.4,
+          'line_avg_n_e_exponent': 0.4,
           'Ploss_exponent': -0.73,
           'R_exponent': 1.83,
           'inverse_aspect_ratio_exponent': -0.06,
@@ -172,7 +172,7 @@ def calculate_scaling_law_confinement_time(
           'prefactor': 0.053,
           'Ip_exponent': 0.98,
           'B_exponent': 0.22,
-          'line_avg_ne_exponent': 0.24,
+          'line_avg_n_e_exponent': 0.24,
           'Ploss_exponent': -0.669,
           'R_exponent': 1.71,
           'inverse_aspect_ratio_exponent': 0.35,
@@ -190,8 +190,8 @@ def calculate_scaling_law_confinement_time(
   scaled_Ip = core_profiles.currents.Ip_total / 1e6  # convert to MA
   scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B_0
-  line_avg_ne = (
-      math_utils.line_average(core_profiles.ne.value, geo)
+  line_avg_n_e = (
+      math_utils.line_average(core_profiles.n_e.value, geo)
       * core_profiles.density_reference
       / 1e19
   )
@@ -209,7 +209,7 @@ def calculate_scaling_law_confinement_time(
       params['prefactor']
       * scaled_Ip ** params['Ip_exponent']
       * B ** params['B_exponent']
-      * line_avg_ne ** params['line_avg_ne_exponent']
+      * line_avg_n_e ** params['line_avg_n_e_exponent']
       * scaled_Ploss ** params['Ploss_exponent']
       * R ** params['R_exponent']
       * inverse_aspect_ratio ** params['inverse_aspect_ratio_exponent']

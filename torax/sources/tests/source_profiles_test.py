@@ -42,7 +42,7 @@ class SourceProfilesTest(parameterized.TestCase):
             'bremsstrahlung': -ones,
             'ohmic': ones * 5,
         },
-        ne={},
+        n_e={},
         psi={},
     )
     with self.subTest('without_jit'):

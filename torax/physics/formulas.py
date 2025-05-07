@@ -63,13 +63,13 @@ def calculate_pressure(
     pressure_thermal_ion_face: Ion thermal pressure [Pa]
     pressure_thermal_tot_face: Total thermal pressure [Pa]
   """
-  ne = core_profiles.ne.face_value()
+  n_e = core_profiles.n_e.face_value()
   ni = core_profiles.ni.face_value()
   nimp = core_profiles.nimp.face_value()
   temp_ion = core_profiles.temp_ion.face_value()
   temp_el = core_profiles.temp_el.face_value()
   prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
-  pressure_thermal_el_face = ne * temp_el * prefactor
+  pressure_thermal_el_face = n_e * temp_el * prefactor
   pressure_thermal_ion_face = (ni + nimp) * temp_ion * prefactor
   pressure_thermal_tot_face = (
       pressure_thermal_el_face + pressure_thermal_ion_face
@@ -99,12 +99,12 @@ def calc_pprime(
 
   _, _, p_total = calculate_pressure(core_profiles)
   psi = core_profiles.psi.face_value()
-  ne = core_profiles.ne.face_value()
+  n_e = core_profiles.n_e.face_value()
   ni = core_profiles.ni.face_value()
   nimp = core_profiles.nimp.face_value()
   temp_ion = core_profiles.temp_ion.face_value()
   temp_el = core_profiles.temp_el.face_value()
-  dne_drhon = core_profiles.ne.face_grad()
+  dne_drhon = core_profiles.n_e.face_grad()
   dni_drhon = core_profiles.ni.face_grad()
   dnimp_drhon = core_profiles.nimp.face_grad()
   dti_drhon = core_profiles.temp_ion.face_grad()
@@ -112,7 +112,7 @@ def calc_pprime(
   dpsi_drhon = core_profiles.psi.face_grad()
 
   dptot_drhon = prefactor * (
-      ne * dte_drhon
+      n_e * dte_drhon
       + ni * dti_drhon
       + nimp * dti_drhon
       + dne_drhon * temp_el
@@ -198,7 +198,7 @@ def calculate_stored_thermal_energy(
 
 
 def calculate_greenwald_fraction(
-    ne_avg: array_typing.ScalarFloat,
+    n_e_avg: array_typing.ScalarFloat,
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
@@ -207,7 +207,7 @@ def calculate_greenwald_fraction(
   Different averaging can be used, e.g. volume-averaged or line-averaged.
 
   Args:
-    ne_avg: Averaged electron density [density_reference m^-3]
+    n_e_avg: Averaged electron density [density_reference m^-3]
     core_profiles: CoreProfiles object containing information on currents and
       densities.
     geo: Geometry object
@@ -217,5 +217,5 @@ def calculate_greenwald_fraction(
   """
   # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
   gw_limit = core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.a_minor**2)
-  fgw = ne_avg * core_profiles.density_reference / (gw_limit * 1e20)
+  fgw = n_e_avg * core_profiles.density_reference / (gw_limit * 1e20)
   return fgw

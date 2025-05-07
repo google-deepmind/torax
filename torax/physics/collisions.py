@@ -56,13 +56,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   lambda_ei = _calculate_lambda_ei(
-      core_profiles.temp_el.value, core_profiles.ne.value * density_reference
+      core_profiles.temp_el.value, core_profiles.n_e.value * density_reference
   )
   # ion-electron collisionality for Zeff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.value,
-      core_profiles.ne.value * density_reference,
+      core_profiles.n_e.value * density_reference,
       lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -70,7 +70,7 @@ def coll_exchange(
   weighted_Zeff = _calculate_weighted_Zeff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * density_reference)
+      jnp.log(Qei_mult * 1.5 * core_profiles.n_e.value * density_reference)
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Zeff)
@@ -106,13 +106,13 @@ def calc_nu_star(
   # Calculate Coulomb logarithm
   lambda_ei_face = _calculate_lambda_ei(
       core_profiles.temp_el.face_value(),
-      core_profiles.ne.face_value() * density_reference
+      core_profiles.n_e.face_value() * density_reference
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.face_value(),
-      core_profiles.ne.face_value() * density_reference,
+      core_profiles.n_e.face_value() * density_reference,
       lambda_ei_face,
   )
 
@@ -182,7 +182,7 @@ def fast_ion_fractional_heating_formula(
 
 def _calculate_lambda_ei(
     temp_el: jax.Array,
-    ne: jax.Array,
+    n_e: jax.Array,
 ) -> jax.Array:
   """Calculates Coulomb logarithm for electron-ion collisions.
 
@@ -190,12 +190,12 @@ def _calculate_lambda_ei(
 
   Args:
     temp_el: Electron temperature in keV.
-    ne: Electron density in m^-3.
+    n_e: Electron density in m^-3.
 
   Returns:
     Coulomb logarithm.
   """
-  return 15.2 - 0.5 * jnp.log(ne / 1e20) + jnp.log(temp_el)
+  return 15.2 - 0.5 * jnp.log(n_e / 1e20) + jnp.log(temp_el)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -206,12 +206,12 @@ def _calculate_weighted_Zeff(
   return (
       core_profiles.ni.value * core_profiles.Zi**2 / core_profiles.Ai
       + core_profiles.nimp.value * core_profiles.Zimp**2 / core_profiles.Aimp
-  ) / core_profiles.ne.value
+  ) / core_profiles.n_e.value
 
 
 def _calculate_log_tau_e_Z1(
     temp_el: jax.Array,
-    ne: jax.Array,
+    n_e: jax.Array,
     lambda_ei: jax.Array,
 ) -> jax.Array:
   """Calculates log of electron-ion collision time for Z=1 plasma.
@@ -221,14 +221,14 @@ def _calculate_log_tau_e_Z1(
 
   Args:
     temp_el: Electron temperature in keV.
-    ne: Electron density in m^-3.
+    n_e: Electron density in m^-3.
     lambda_ei: Coulomb logarithm.
 
   Returns:
     Log of electron-ion collision time.
   """
   return (
-      jnp.log(12 * jnp.pi**1.5 / (ne * lambda_ei))
+      jnp.log(12 * jnp.pi**1.5 / (n_e * lambda_ei))
       - 4 * jnp.log(constants.CONSTANTS.qe)
       + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)

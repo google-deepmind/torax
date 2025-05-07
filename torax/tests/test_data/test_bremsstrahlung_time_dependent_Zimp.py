@@ -24,8 +24,8 @@ CONFIG = {
         'Zimp_override': {0: 10.0, 1: 30.0},
     },
     'profile_conditions': {
-        'ne_is_fGW': True,
-        'ne_bound_right': 0.5,
+        'n_e_nbar_is_fGW': True,
+        'n_e_right_bc': 0.5,
         'nbar': 0.95,  # initial density (Greenwald fraction units)
     },
     'numerics': {

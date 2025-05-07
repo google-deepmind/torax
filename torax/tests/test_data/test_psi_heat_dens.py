@@ -20,7 +20,7 @@ Constant transport coefficient model. Pedestal
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,  # initial density (in Greenwald fraction units)
-        'ne_bound_right': 0.5,
+        'n_e_right_bc': 0.5,
         'nu': 0,
     },
     'numerics': {
