@@ -450,6 +450,90 @@ def compute_boundary_conditions_for_t_plus_dt(
   }
 
 
+def provide_core_profiles_t_plus_dt(
+    dt: jax.Array,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t_plus_dt: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+) -> state.CoreProfiles:
+  """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
+  updated_boundary_conditions = compute_boundary_conditions_for_t_plus_dt(
+      dt=dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=core_profiles_t,
+  )
+  updated_values = get_prescribed_core_profile_values(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      geo=geo_t_plus_dt,
+      core_profiles=core_profiles_t,
+  )
+  temp_ion = dataclasses.replace(
+      core_profiles_t.temp_ion,
+      value=updated_values['temp_ion'],
+      **updated_boundary_conditions['temp_ion'],
+  )
+  temp_el = dataclasses.replace(
+      core_profiles_t.temp_el,
+      value=updated_values['temp_el'],
+      **updated_boundary_conditions['temp_el'],
+  )
+  psi = dataclasses.replace(
+      core_profiles_t.psi, **updated_boundary_conditions['psi']
+  )
+  n_e = dataclasses.replace(
+      core_profiles_t.n_e,
+      value=updated_values['n_e'],
+      **updated_boundary_conditions['n_e'],
+  )
+  ni = dataclasses.replace(
+      core_profiles_t.ni,
+      value=updated_values['ni'],
+      **updated_boundary_conditions['ni'],
+  )
+  nimp = dataclasses.replace(
+      core_profiles_t.nimp,
+      value=updated_values['nimp'],
+      **updated_boundary_conditions['nimp'],
+  )
+
+  # pylint: disable=invalid-name
+  # Update Z_face with boundary condition Z, needed for cases where temp_el
+  # is evolving and updated_prescribed_core_profiles is a no-op.
+  Zi_face = jnp.concatenate(
+      [
+          updated_values['Zi_face'][:-1],
+          jnp.array([updated_boundary_conditions['Zi_edge']]),
+      ],
+  )
+  Zimp_face = jnp.concatenate(
+      [
+          updated_values['Zimp_face'][:-1],
+          jnp.array([updated_boundary_conditions['Zimp_edge']]),
+      ],
+  )
+  # pylint: enable=invalid-name
+  core_profiles_t_plus_dt = dataclasses.replace(
+      core_profiles_t,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      psi=psi,
+      n_e=n_e,
+      ni=ni,
+      nimp=nimp,
+      Zi=updated_values['Zi'],
+      Zi_face=Zi_face,
+      Zimp=updated_values['Zimp'],
+      Zimp_face=Zimp_face,
+  )
+  return core_profiles_t_plus_dt
+
+
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
 # for general theta_implicit values.
 def _update_vloop_lcfs_from_psi(
