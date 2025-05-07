@@ -1197,6 +1197,45 @@ environment variable which should point to a compatible JSON file.
 
 See :ref:`physics_models` for more detail.
 
+mhd
+---
+
+Configuration for MHD models. Currently only the sawtooth model is implemented.
+If the mhd key or the nested sawtooth key is absent or set to None, the sawtooth
+model will be disabled.
+
+.. _sawtooth_config:
+sawtooth
+^^^^^^^^
+
+``trigger_model_type`` (str = 'simple')
+  Currently only 'simple' is supported.
+
+``simple`` trigger model parameters:
+
+* ``s_critical`` (float = 0.1), **time-varying-scalar**: The critical magnetic
+  shear value at the q=1 surface. A crash is triggered only if the shear exceeds
+  this value.
+
+* ``minimum_radius`` (float = 0.05), **time-varying-scalar**: The minimum
+  normalized radius (:math:`\hat{\rho}`) of the q=1 surface required to trigger
+  a crash.
+
+``redistribution_model_type`` (str = 'simple')
+  Currently only 'simple' is supported.
+
+``simple`` redistribution model parameters:
+
+*   ``flattening_factor`` (float = 1.01), **time-varying-scalar**:
+    Factor determining the degree of flattening inside the q=1 surface.
+
+*   ``mixing_radius_multiplier`` (float = 1.1), **time-varying-scalar**:
+    Multiplier applied to :math:`\hat{\rho}_{q=1}` to determine the mixing
+    radius :math:`\hat{\rho}_{mix}`.
+
+``crash_step_duration`` (float = 1e-3):
+  Duration of a sawtooth crash step.
+
 solver
 -------
 

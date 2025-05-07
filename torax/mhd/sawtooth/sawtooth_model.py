@@ -26,6 +26,11 @@ from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
 
 
+# TODO(b/414537757). Sawtooth extensions.
+# a. Full and incomplete Kadomtsev redistribution model.
+# b. Porcelli model with free parameters and fast ion sensitivities.
+# c. "Smooth" version that can work with forward-sensitivity-analysis and
+#    stationary-state applications without the need for averaging.
 class SawtoothModel:
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 

@@ -86,6 +86,10 @@ successfully as well as the input config that was used to run the simulation.
   as a dictionary. We use this field to store the input config as a json string
   under the ``config`` key.
 
+``sawtooth_crash`` (time)
+  Boolean array with a length equal to the number of simulation timesteps,
+  indicating whether the state at that timestep corresponds to a
+  post-sawtooth-crash state.
 
 Child datasets
 ==============
