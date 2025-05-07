@@ -74,7 +74,7 @@ def _get_initial_state(
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
-  initial_core_sources = source_profile_builders.get_initial_source_profiles(
+  initial_core_sources = source_profile_builders.get_all_source_profiles(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,

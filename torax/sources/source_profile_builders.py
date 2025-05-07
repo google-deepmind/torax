@@ -238,14 +238,16 @@ def build_all_zero_profiles(
   )
 
 
-def get_initial_source_profiles(
+def get_all_source_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> source_profiles.SourceProfiles:
-  """Returns the source profiles for the initial state in run_simulation().
+  """Returns all source profiles for a given time.
+
+  Used e.g. to initialize the source profiles at an initial time step.
 
   Args:
     static_runtime_params_slice: Runtime parameters which, when they change,
