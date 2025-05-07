@@ -23,16 +23,15 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import getters
 from torax.geometry import geometry
-from torax.mhd.sawtooth import base_pydantic_model
 from torax.mhd.sawtooth import flatten_profile
+from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import runtime_params
-from torax.mhd.sawtooth import sawtooth_model
 from torax.physics import psi_calculations
 from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class SimpleRedistribution(sawtooth_model.RedistributionModel):
+class SimpleRedistribution(redistribution_base.RedistributionModel):
   """Simple redistribution model."""
 
   def __call__(
@@ -193,7 +192,7 @@ class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
   mixing_radius_multiplier: array_typing.ScalarFloat
 
 
-class SimpleRedistributionConfig(base_pydantic_model.RedistributionConfig):
+class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
   redistribution_model_type: Literal['simple'] = 'simple'

@@ -12,11 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base pydantic configs for trigger and redistribution models for sawtooth."""
+"""Base pydantic config and model for sawtooth redistribution."""
 
+import abc
 import chex
+from torax import array_typing
+from torax import state
+from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.torax_pydantic import torax_pydantic
+
+
+class RedistributionModel(abc.ABC):
+  """Abstract base class for sawtooth redistribution models."""
+
+  @abc.abstractmethod
+  def __call__(
+      self,
+      rho_norm_q1: array_typing.ScalarFloat,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> state.CoreProfiles:
+    """Returns a redistributed core_profiles if sawtooth has been triggered."""
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the redistribution model.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Equality method to be implemented to support jax.jit caching."""
 
 
 class RedistributionConfig(torax_pydantic.BaseModelFrozen):
@@ -36,23 +67,4 @@ class RedistributionConfig(torax_pydantic.BaseModelFrozen):
   ) -> sawtooth_runtime_params.RedistributionDynamicRuntimeParams:
     return sawtooth_runtime_params.RedistributionDynamicRuntimeParams(
         flattening_factor=self.flattening_factor.get_value(t),
-    )
-
-
-class TriggerConfig(torax_pydantic.BaseModelFrozen):
-  """Base config for all trigger models.
-
-  Attributes:
-    minimum_radius: The minimum radius of the q=1 surface for triggering.
-  """
-
-  minimum_radius: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> sawtooth_runtime_params.TriggerDynamicRuntimeParams:
-    return sawtooth_runtime_params.TriggerDynamicRuntimeParams(
-        minimum_radius=self.minimum_radius.get_value(t),
     )

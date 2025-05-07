@@ -149,35 +149,22 @@ class SimulationStepFn:
         )
     )
 
-    # Check for sawtooth model and see if sawtooth should trigger.
-    # Triggered sawtooth will trigger a redistribution step with early return.
-    # Consecutive sawtooth crashes are not allowed since standard PDE steps
-    # may then not take place.
-    # If sawtooth_crash is True, then a normal PDE step will be carried
-    # out. where a ToraxSimState will be returned with the default
-    # sawtooth_crash value of False.
-    if (
-        (self.mhd_models.sawtooth is not None)
-        and (not input_state.sawtooth_crash)
-    ):
-      sawtooth_triggered, output_state, post_processed_outputs = (
-          self.mhd_models.sawtooth(
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice_t,
-              input_state,
-              previous_post_processed_outputs,
-          )
-      )
-      output_state = dataclasses.replace(
-          output_state,
-          sawtooth_crash=sawtooth_triggered,
-      )
-      if sawtooth_triggered:
-        return (
-            output_state,
-            post_processed_outputs,
-            state.check_for_errors(output_state, post_processed_outputs),
+    # If a sawtooth model is provided, it will be checked to see if a sawtooth
+    # should trigger. If it does, the sawtooth model will be applied and instead
+    # of a full PDE solve, the step_fn will return early with a state following
+    # sawtooth redistribution, at a t+dt set by the sawtooth model.
+    output_state, post_processed_outputs, error_state = (
+        self._handle_sawtooth_crash(
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=geometry_provider,
+            input_state=input_state,
+            previous_post_processed_outputs=previous_post_processed_outputs,
         )
+    )
+    if output_state.sawtooth_crash:
+      return output_state, post_processed_outputs, error_state
 
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
@@ -524,6 +511,77 @@ class SimulationStepFn:
     )
 
     return dynamic_runtime_params_slice_t_plus_dt, output_state
+
+  def _handle_sawtooth_crash(
+      self,
+      *,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
+      input_state: state.ToraxSimState,
+      previous_post_processed_outputs: state.PostProcessedOutputs,
+  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
+    """Checks for and handles a sawtooth crash.
+
+    If a sawtooth model is provided and a crash is triggered, this method
+    computes the post-crash state and returns it. Otherwise, returns the input
+    state and post-processed outputs unchanged.
+
+    Consecutive sawtooth crashes are not allowed since standard PDE steps
+    may then not take place. Therefore if the input state has sawtooth_crash set
+    to True, then no crash is triggered.
+
+    Args:
+      static_runtime_params_slice: Static parameters.
+      dynamic_runtime_params_slice_t: Dynamic slice at time t.
+      dynamic_runtime_params_slice_provider: Provider for dynamic parameters.
+      geometry_provider: Provider for geometry.
+      input_state: State at the start of the time step.
+      previous_post_processed_outputs: Post-processed outputs from the previous
+        step.
+
+    Returns:
+      Returns a tuple (output_state, post_processed_outputs, sim_error).
+    """
+
+    # Return early if sawtooth model not active, or if there was a previous
+    # sawtooth crash.
+    if (self.mhd_models.sawtooth is None) or input_state.sawtooth_crash:
+      return (
+          dataclasses.replace(input_state, sawtooth_crash=False),
+          previous_post_processed_outputs,
+          state.SimError.NO_ERROR,
+      )
+
+    # Assert needed for linter.
+    assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+
+    dynamic_runtime_params_slice_t_plus_crash_dt, geo_t_plus_crash_dt = (
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=input_state.t
+            + dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=geometry_provider,
+        )
+    )
+
+    output_state, post_processed_outputs = self.mhd_models.sawtooth(
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice_t,
+        input_state,
+        previous_post_processed_outputs,
+        dynamic_runtime_params_slice_t_plus_crash_dt,
+        geo_t_plus_crash_dt,
+    )
+
+    return (
+        output_state,
+        post_processed_outputs,
+        state.check_for_errors(output_state, post_processed_outputs)
+        if output_state.sawtooth_crash
+        else state.SimError.NO_ERROR,
+    )
 
 
 @functools.partial(jax_utils.jit, static_argnums=(0, 1))

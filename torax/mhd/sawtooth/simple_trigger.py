@@ -23,13 +23,12 @@ from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
-from torax.mhd.sawtooth import base_pydantic_model
 from torax.mhd.sawtooth import runtime_params
-from torax.mhd.sawtooth import sawtooth_model
+from torax.mhd.sawtooth import trigger_base
 from torax.torax_pydantic import torax_pydantic
 
 
-class SimpleTrigger(sawtooth_model.TriggerModel):
+class SimpleTrigger(trigger_base.TriggerModel):
   """Simple trigger model."""
 
   def __call__(
@@ -121,7 +120,7 @@ class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):
   s_critical: array_typing.ScalarFloat
 
 
-class SimpleTriggerConfig(base_pydantic_model.TriggerConfig):
+class SimpleTriggerConfig(trigger_base.TriggerConfig):
   """Pydantic model for simple trigger configuration.
 
   Attributes:

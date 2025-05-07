@@ -14,67 +14,16 @@
 
 """Sawtooth model."""
 
-import abc
 import dataclasses
 import functools
 import jax
-from torax import array_typing
 from torax import jax_utils
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
-
-
-class TriggerModel(abc.ABC):
-  """Abstract base class for sawtooth trigger models."""
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
-    """Indicates if a crash is triggered and the radius of the q=1 surface."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the trigger model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other: object) -> bool:
-    """Equality method to be implemented to support jax.jit caching."""
-
-
-class RedistributionModel(abc.ABC):
-  """Abstract base class for sawtooth redistribution models."""
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-      rho_norm_q1: array_typing.ScalarFloat,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> state.CoreProfiles:
-    """Returns a redistributed core_profiles if sawtooth has been triggered."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the redistribution model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality method to be implemented to support jax.jit caching."""
+from torax.mhd.sawtooth import redistribution_base
+from torax.mhd.sawtooth import trigger_base
 
 
 class SawtoothModel:
@@ -82,24 +31,25 @@ class SawtoothModel:
 
   def __init__(
       self,
-      trigger_model: TriggerModel,
-      redistribution_model: RedistributionModel,
+      trigger_model: trigger_base.TriggerModel,
+      redistribution_model: redistribution_base.RedistributionModel,
   ):
-    self.trigger_model = trigger_model
-    self.redistribution_model = redistribution_model
+    self._trigger_model = trigger_model
+    self._redistribution_model = redistribution_model
 
   @functools.partial(
-      jax_utils.jit, static_argnames=['self', 'static_runtime_params_slice']
+      jax_utils.jit,
+      static_argnames=['self', 'static_runtime_params_slice'],
   )
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       input_state: state.ToraxSimState,
       input_post_processed_outputs: state.PostProcessedOutputs,
-  ) -> tuple[
-      array_typing.ScalarBool, state.ToraxSimState, state.PostProcessedOutputs
-  ]:
+      dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo_t_plus_crash_dt: geometry.Geometry,
+  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
     """Applies the sawtooth model and outputs a new state if triggered.
 
     If the trigger model indicates a crash has been triggered, the
@@ -109,59 +59,56 @@ class SawtoothModel:
 
     Args:
       static_runtime_params_slice: Static runtime parameters.
-      dynamic_runtime_params_slice: Dynamic runtime parameters.
+      dynamic_runtime_params_slice_t: Dynamic runtime parameters at time t.
       input_state: The input ToraxSimState.
       input_post_processed_outputs: The input PostProcessedOutputs.
+      dynamic_runtime_params_slice_t_plus_crash_dt: Dynamic runtime parameters
+        at time t + crash_step_duration.
+      geo_t_plus_crash_dt: The geometry at time t + crash_step_duration.
 
     Returns:
-      A boolean indicating if the sawtooth model triggered.
       The output ToraxSimState, which may be modified by the sawtooth model.
       The output PostProcessedOutputs, which may be modified by the sawtooth
         model.
     """
 
-    trigger_sawtooth, rho_norm_q1 = self.trigger_model(
+    trigger_sawtooth, rho_norm_q1 = self._trigger_model(
         static_runtime_params_slice,
-        dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice_t,
         input_state.geometry,
         input_state.core_profiles,
-    )
-
-    def _redistribute_core_profiles() -> state.CoreProfiles:
-      return self.redistribution_model(
-          rho_norm_q1,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          input_state.geometry,
-          input_state.core_profiles,
-      )
-
-    new_core_profiles = jax.lax.cond(
-        trigger_sawtooth,
-        _redistribute_core_profiles,
-        lambda: input_state.core_profiles,
     )
 
     # TODO(b/317360481)
     # Consider being more consistent with updating sources, bootstrap_current,
     # currents, etc at the end of this short step.
 
-    def _update_output_state_and_post_processed_outputs() -> (
+    def _make_redistributed_state_and_post_processed_outputs() -> (
         tuple[state.ToraxSimState, state.PostProcessedOutputs]
     ):
       # assertion needed for linter
-      assert dynamic_runtime_params_slice.mhd.sawtooth is not None
+      assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+      redistributed_core_profiles = self._redistribution_model(
+          rho_norm_q1,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          input_state.core_profiles,
+      )
+
       output_state = dataclasses.replace(
           input_state,
-          core_profiles=new_core_profiles,
+          core_profiles=redistributed_core_profiles,
           t=input_state.t
-          + dynamic_runtime_params_slice.mhd.sawtooth.crash_step_duration,
-          dt=dynamic_runtime_params_slice.mhd.sawtooth.crash_step_duration,
+          + dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+          geometry=geo_t_plus_crash_dt,
+          sawtooth_crash=True,
       )
       output_post_processed_outputs = (
           post_processing.make_post_processed_outputs(
               sim_state=output_state,
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
               previous_post_processed_outputs=input_post_processed_outputs,
           )
       )
@@ -169,18 +116,21 @@ class SawtoothModel:
 
     output_state, output_post_processed_outputs = jax.lax.cond(
         trigger_sawtooth,
-        _update_output_state_and_post_processed_outputs,
-        lambda: (input_state, input_post_processed_outputs),
+        _make_redistributed_state_and_post_processed_outputs,
+        lambda: (
+            dataclasses.replace(input_state, sawtooth_crash=False),
+            input_post_processed_outputs,
+        ),
     )
 
-    return trigger_sawtooth, output_state, output_post_processed_outputs
+    return output_state, output_post_processed_outputs
 
   def __hash__(self) -> int:
-    return hash((self.trigger_model, self.redistribution_model))
+    return hash((self._trigger_model, self._redistribution_model))
 
   def __eq__(self, other: object) -> bool:
     return (
         isinstance(other, SawtoothModel)
-        and self.trigger_model == other.trigger_model
-        and self.redistribution_model == other.redistribution_model
+        and self._trigger_model == other._trigger_model
+        and self._redistribution_model == other._redistribution_model
     )
