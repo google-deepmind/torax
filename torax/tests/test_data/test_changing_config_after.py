@@ -123,13 +123,13 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': 5.0,  # ion pedestal top temperature in keV for T_i and T_e
-        'Teped': (
+        'T_i_ped': 5.0,  # ion pedestal top temperature in keV for T_i and T_e
+        'T_e_ped': (
             4.5
         ),  # electron pedestal top temperature in keV for T_i and T_e
-        'neped': (
+        'n_e_ped': (
             0.62
         ),  # pedestal top electron density in units of density_reference
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius},

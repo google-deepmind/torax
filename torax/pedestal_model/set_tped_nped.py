@@ -28,11 +28,11 @@ from typing_extensions import override
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  neped: array_typing.ScalarFloat
-  Tiped: array_typing.ScalarFloat
-  Teped: array_typing.ScalarFloat
+  n_e_ped: array_typing.ScalarFloat
+  T_i_ped: array_typing.ScalarFloat
+  T_e_ped: array_typing.ScalarFloat
   rho_norm_ped_top: array_typing.ScalarFloat
-  neped_is_fGW: array_typing.ScalarBool
+  n_e_ped_is_fGW: array_typing.ScalarBool
 
 
 class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
@@ -59,16 +59,16 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         * 1e20
         / dynamic_runtime_params_slice.numerics.density_reference
     )
-    # Calculate neped in reference units.
-    neped_ref = jnp.where(
-        pedestal_params.neped_is_fGW,
-        pedestal_params.neped * nGW,
-        pedestal_params.neped,
+    # Calculate n_e_ped in reference units.
+    n_e_ped_ref = jnp.where(
+        pedestal_params.n_e_ped_is_fGW,
+        pedestal_params.n_e_ped * nGW,
+        pedestal_params.n_e_ped,
     )
     return pedestal_model.PedestalModelOutput(
-        neped=neped_ref,
-        Tiped=pedestal_params.Tiped,
-        Teped=pedestal_params.Teped,
+        n_e_ped=n_e_ped_ref,
+        T_i_ped=pedestal_params.T_i_ped,
+        T_e_ped=pedestal_params.T_e_ped,
         rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
         rho_norm_ped_top_idx=jnp.abs(
             geo.rho_norm - pedestal_params.rho_norm_ped_top).argmin(),

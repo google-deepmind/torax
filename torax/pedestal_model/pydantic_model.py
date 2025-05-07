@@ -52,21 +52,23 @@ class SetPpedTpedRatioNped(BasePedestal):
   """Model for direct specification of pressure, temperature ratio, and density.
 
   Attributes:
-    Pped: The plasma pressure at the pedestal [Pa].
-    neped: The electron density at the pedestal in units of density_reference or
+    P_ped: The plasma pressure at the pedestal [Pa].
+    n_e_ped: The electron density at the pedestal in units of density_reference
+      or fGW.
+    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
-    neped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
-    ion_electron_temperature_ratio: Ratio of the ion and electron temperature at
-      the pedestal [dimensionless].
+    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
+      [dimensionless].
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  pedestal_model: Literal['set_pped_tpedratio_nped'] = 'set_pped_tpedratio_nped'
-  Pped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
-  neped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.7)
-  neped_is_fGW: bool = False
-  ion_electron_temperature_ratio: torax_pydantic.TimeVaryingScalar = (
+  pedestal_model: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
+  P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
+  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.7
+  )
+  n_e_ped_is_fGW: bool = False
+  T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
   rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
@@ -87,10 +89,10 @@ class SetPpedTpedRatioNped(BasePedestal):
   ) -> set_pped_tpedratio_nped.DynamicRuntimeParams:
     return set_pped_tpedratio_nped.DynamicRuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
-        Pped=self.Pped.get_value(t),
-        neped=self.neped.get_value(t),
-        neped_is_fGW=self.neped_is_fGW,
-        ion_electron_temperature_ratio=self.ion_electron_temperature_ratio.get_value(
+        P_ped=self.P_ped.get_value(t),
+        n_e_ped=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(
             t
         ),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
@@ -101,24 +103,24 @@ class SetTpedNped(BasePedestal):
   """A basic version of the pedestal model that uses direct specification.
 
   Attributes:
-    neped: The electron density at the pedestal in units of density_reference or
+    n_e_ped: The electron density at the pedestal in units of density_reference
+      or fGW.
+    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
-    neped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
-    Tiped: Ion temperature at the pedestal [keV].
-    Teped: Electron temperature at the pedestal [keV].
+    T_i_ped: Ion temperature at the pedestal [keV].
+    T_e_ped: Electron temperature at the pedestal [keV].
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  pedestal_model: Literal['set_tped_nped'] = 'set_tped_nped'
-  neped: torax_pydantic.TimeVaryingScalar = (
+  pedestal_model: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
+  n_e_ped: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7)
   )
-  neped_is_fGW: bool = False
-  Tiped: torax_pydantic.TimeVaryingScalar = (
+  n_e_ped_is_fGW: bool = False
+  T_i_ped: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
-  Teped: torax_pydantic.TimeVaryingScalar = (
+  T_e_ped: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
   rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
@@ -135,10 +137,10 @@ class SetTpedNped(BasePedestal):
   ) -> set_tped_nped.DynamicRuntimeParams:
     return set_tped_nped.DynamicRuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
-        neped=self.neped.get_value(t),
-        neped_is_fGW=self.neped_is_fGW,
-        Tiped=self.Tiped.get_value(t),
-        Teped=self.Teped.get_value(t),
+        n_e_ped=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        T_i_ped=self.T_i_ped.get_value(t),
+        T_e_ped=self.T_e_ped.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
     )
 

@@ -25,7 +25,7 @@ CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2,
-        'neped': 1.0,
+        'n_e_ped': 1.0,
         'current_profile_nu': 0,
     },
     'numerics': {
@@ -61,7 +61,7 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
     },
     'transport': {

@@ -85,10 +85,10 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the pedestal runtime params are time dependent."""
     pedestal = pedestal_pydantic_model.SetTpedNped.from_dict(
         dict(
-            pedestal_model='set_tped_nped',
-            Tiped={0.0: 0.0, 1.0: 1.0},
-            Teped={0.0: 1.0, 1.0: 2.0},
-            neped={0.0: 2.0, 1.0: 3.0},
+            pedestal_model='set_T_ped_n_ped',
+            T_i_ped={0.0: 0.0, 1.0: 1.0},
+            T_e_ped={0.0: 1.0, 1.0: 2.0},
+            n_e_ped={0.0: 2.0, 1.0: 3.0},
             rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
             set_pedestal={0.0: True, 1.0: False},
         )
@@ -98,17 +98,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     pedestal_params = pedestal.build_dynamic_params(t=0.0)
     assert isinstance(pedestal_params, set_tped_nped.DynamicRuntimeParams)
     np.testing.assert_allclose(pedestal_params.set_pedestal, True)
-    np.testing.assert_allclose(pedestal_params.Tiped, 0.0)
-    np.testing.assert_allclose(pedestal_params.Teped, 1.0)
-    np.testing.assert_allclose(pedestal_params.neped, 2.0)
+    np.testing.assert_allclose(pedestal_params.T_i_ped, 0.0)
+    np.testing.assert_allclose(pedestal_params.T_e_ped, 1.0)
+    np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 3.0)
     # And check after the time limit.
     pedestal_params = pedestal.build_dynamic_params(t=1.0)
     assert isinstance(pedestal_params, set_tped_nped.DynamicRuntimeParams)
     np.testing.assert_allclose(pedestal_params.set_pedestal, False)
-    np.testing.assert_allclose(pedestal_params.Tiped, 1.0)
-    np.testing.assert_allclose(pedestal_params.Teped, 2.0)
-    np.testing.assert_allclose(pedestal_params.neped, 3.0)
+    np.testing.assert_allclose(pedestal_params.T_i_ped, 1.0)
+    np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
+    np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 5.0)
 
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):

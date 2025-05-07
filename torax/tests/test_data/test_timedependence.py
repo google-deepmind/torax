@@ -59,10 +59,10 @@ CONFIG = {
         'generic_current': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
-        'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
         'transport_model': 'qlknn',

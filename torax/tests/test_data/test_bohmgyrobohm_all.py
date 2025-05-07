@@ -60,10 +60,10 @@ CONFIG = {
         'ei_exchange': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'neped': 0.8,
-        'neped_is_fGW': True,
+        'n_e_ped': 0.8,
+        'n_e_ped_is_fGW': True,
     },
     'transport': {
         'transport_model': 'bohm-gyrobohm',

@@ -41,7 +41,7 @@ CONFIG = {
         'j_bootstrap': {},
         'generic_current': {},
     },
-    'pedestal': {'pedestal_model': 'set_tped_nped', 'set_pedestal': True},
+    'pedestal': {'pedestal_model': 'set_T_ped_n_ped', 'set_pedestal': True},
     'transport': {
         'transport_model': 'constant',
         # constant params.

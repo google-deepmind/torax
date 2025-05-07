@@ -40,7 +40,7 @@ class NoPedestal(pedestal_model.PedestalModel):
       core_profiles: state.CoreProfiles
   ) -> pedestal_model.PedestalModelOutput:
     return pedestal_model.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf, Tiped=0.0, Teped=0.0, neped=0.0,
+        rho_norm_ped_top=jnp.inf, T_i_ped=0.0, T_e_ped=0.0, n_e_ped=0.0,
         rho_norm_ped_top_idx=geo.torax_mesh.nx,
     )
 

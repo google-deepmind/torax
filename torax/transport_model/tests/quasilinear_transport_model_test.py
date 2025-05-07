@@ -50,7 +50,7 @@ def _get_model_and_model_inputs(
   config = default_configs.get_default_config_dict()
   config['transport'] = transport
   config['pedestal'] = {
-      'pedestal_model': 'set_tped_nped',
+      'pedestal_model': 'set_T_ped_n_ped',
       'set_pedestal': True,
   }
   torax_config = model_config.ToraxConfig.from_dict(config)

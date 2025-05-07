@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Like test_iterhybrid_predictor_corrector but with set_pped_tpedratio_nped."""
+"""Like test_iterhybrid_predictor_corrector but with set_P_ped_n_ped."""
 
 import copy
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
@@ -20,10 +20,10 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
-    'pedestal_model': 'set_pped_tpedratio_nped',
+    'pedestal_model': 'set_P_ped_n_ped',
     'set_pedestal': True,
-    'ion_electron_temperature_ratio': 1.0,
-    'Pped': 89300.0,
-    'neped': 0.62,
+    'T_i_T_e_ratio': 1.0,
+    'P_ped': 89300.0,
+    'n_e_ped': 0.62,
     'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
 }

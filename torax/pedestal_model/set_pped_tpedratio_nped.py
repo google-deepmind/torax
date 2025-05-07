@@ -30,11 +30,11 @@ from typing_extensions import override
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  Pped: array_typing.ScalarFloat
-  neped: array_typing.ScalarFloat
-  ion_electron_temperature_ratio: array_typing.ScalarFloat
+  P_ped: array_typing.ScalarFloat
+  n_e_ped: array_typing.ScalarFloat
+  T_i_T_e_ratio: array_typing.ScalarFloat
   rho_norm_ped_top: array_typing.ScalarFloat
-  neped_is_fGW: array_typing.ScalarBool
+  n_e_ped_is_fGW: array_typing.ScalarBool
 
 
 class SetPressureTemperatureRatioAndDensityPedestalModel(
@@ -56,22 +56,22 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     assert isinstance(
         dynamic_runtime_params_slice.pedestal, DynamicRuntimeParams
     )
-    # Convert neped to reference units.
+    # Convert n_e_ped to reference units.
     nGW = (
         dynamic_runtime_params_slice.profile_conditions.Ip
         / (jnp.pi * geo.a_minor**2)
         * 1e20
         / dynamic_runtime_params_slice.numerics.density_reference
     )
-    neped_ref = jnp.where(
-        dynamic_runtime_params_slice.pedestal.neped_is_fGW,
-        dynamic_runtime_params_slice.pedestal.neped * nGW,
-        dynamic_runtime_params_slice.pedestal.neped,
+    n_e_ped_ref = jnp.where(
+        dynamic_runtime_params_slice.pedestal.n_e_ped_is_fGW,
+        dynamic_runtime_params_slice.pedestal.n_e_ped * nGW,
+        dynamic_runtime_params_slice.pedestal.n_e_ped,
     )
 
-    # Calculate Teped.
+    # Calculate T_e_ped.
     temperature_ratio = (
-        dynamic_runtime_params_slice.pedestal.ion_electron_temperature_ratio
+        dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
     )
     Zimp = core_profiles.Zimp
     Zi = core_profiles.Zi
@@ -87,29 +87,29 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         Zi_ped, Zimp_ped, Zeff_ped
     )
     # Calculate ni and nimp.
-    ni_ped = dilution_factor_ped * neped_ref
-    nimp_ped = (neped_ref - Zi_ped * ni_ped) / Zimp_ped
+    ni_ped = dilution_factor_ped * n_e_ped_ref
+    nimp_ped = (n_e_ped_ref - Zi_ped * ni_ped) / Zimp_ped
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
     prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
-    Teped = (
-        dynamic_runtime_params_slice.pedestal.Pped
+    T_e_ped = (
+        dynamic_runtime_params_slice.pedestal.P_ped
         / (
-            neped_ref  # Electron pressure contribution.
+            n_e_ped_ref  # Electron pressure contribution.
             + temperature_ratio * ni_ped  # Ion pressure contribution.
             + temperature_ratio * nimp_ped  # Impurity pressure contribution.
         )
         / prefactor
     )
 
-    # Calculate Tiped
-    Tiped = temperature_ratio * Teped
+    # Calculate T_i_ped
+    T_i_ped = temperature_ratio * T_e_ped
 
     return pedestal_model.PedestalModelOutput(
-        neped=neped_ref,
-        Tiped=Tiped,
-        Teped=Teped,
+        n_e_ped=n_e_ped_ref,
+        T_i_ped=T_i_ped,
+        T_e_ped=T_e_ped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
         rho_norm_ped_top_idx=ped_idx,
     )

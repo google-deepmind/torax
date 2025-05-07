@@ -54,7 +54,7 @@ CONFIG = {
         # location if T != Tped
         'adaptive_T_source_prefactor': 1.0e10,
         # effective source to dominate density PDE in internal boundary\
-        # condtion location if n != neped
+        # condtion location if n != n_e_ped
         'adaptive_n_source_prefactor': 1.0e8,
     },
     'geometry': {
@@ -128,15 +128,11 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': 4.5,  # ion pedestal top temperature in keV for T_i and T_e
-        'Teped': (
-            4.5
-        ),  # electron pedestal top temperature in keV for T_i and T_e
-        'neped': (
-            0.62
-        ),  # pedestal top electron density in units of density_reference
+        'Tiped': 4.5,  # ion pedestal top temperature in keV for Ti and Te
+        'Teped': 4.5,  # electron pedestal top temperature in keV for Ti and Te
+        'neped': 0.62,  # pedestal top electron density in units of nref
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {

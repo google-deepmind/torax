@@ -30,28 +30,28 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
 ):
 
   @parameterized.product(
-      neped=[0.7, {0.0: 0.7, 1.0: 0.9}],
+      n_e_ped=[0.7, {0.0: 0.7, 1.0: 0.9}],
       rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      neped_is_fGW=[False, True],
+      n_e_ped_is_fGW=[False, True],
       time=[0.0, 1.0],
-      ion_electron_temperature_ratio=[1.0, {0.0: 1.0, 1.0: 1.5}],
+      T_i_T_e_ratio=[1.0, {0.0: 1.0, 1.0: 1.5}],
   )
   def test_build_and_call_pedestal_model(
       self,
-      neped,
+      n_e_ped,
       rho_norm_ped_top,
-      neped_is_fGW,
+      n_e_ped_is_fGW,
       time,
-      ion_electron_temperature_ratio,
+      T_i_T_e_ratio,
   ):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'pedestal_model': 'set_pped_tpedratio_nped',
+        'pedestal_model': 'set_P_ped_n_ped',
         'set_pedestal': True,
-        'neped': neped,
-        'neped_is_fGW': neped_is_fGW,
+        'n_e_ped': n_e_ped,
+        'n_e_ped_is_fGW': n_e_ped_is_fGW,
         'rho_norm_ped_top': rho_norm_ped_top,
-        'ion_electron_temperature_ratio': ion_electron_temperature_ratio,
+        'T_i_T_e_ratio': T_i_T_e_ratio,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
@@ -89,29 +89,29 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
           pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top[time]
       )
 
-    if isinstance(neped, (float, int)):
-      expected_neped = neped
+    if isinstance(n_e_ped, (float, int)):
+      expected_n_e_ped = n_e_ped
     else:
-      expected_neped = neped[time]
-    if neped_is_fGW:
+      expected_n_e_ped = n_e_ped[time]
+    if n_e_ped_is_fGW:
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip
           / (jnp.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.density_reference
       )
-      expected_neped *= nGW
-    np.testing.assert_allclose(pedestal_model_output.neped, expected_neped)
+      expected_n_e_ped *= nGW
+    np.testing.assert_allclose(pedestal_model_output.n_e_ped, expected_n_e_ped)
 
-    if isinstance(ion_electron_temperature_ratio, (float, int)):
+    if isinstance(T_i_T_e_ratio, (float, int)):
       np.testing.assert_allclose(
-          pedestal_model_output.Tiped / pedestal_model_output.Teped,
-          ion_electron_temperature_ratio,
+          pedestal_model_output.T_i_ped / pedestal_model_output.T_e_ped,
+          T_i_T_e_ratio,
       )
     else:
       np.testing.assert_allclose(
-          pedestal_model_output.Tiped / pedestal_model_output.Teped,
-          ion_electron_temperature_ratio[time],
+          pedestal_model_output.T_i_ped / pedestal_model_output.T_e_ped,
+          T_i_T_e_ratio[time],
       )
 
 

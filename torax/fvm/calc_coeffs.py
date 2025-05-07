@@ -456,7 +456,7 @@ def _calc_coeffs_full(
   source_n_e += (
       mask
       * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
-      * pedestal_model_output.neped
+      * pedestal_model_output.n_e_ped
   )
   source_mat_nn += -(
       mask * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
@@ -548,12 +548,12 @@ def _calc_coeffs_full(
   source_i += (
       mask
       * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.Tiped
+      * pedestal_model_output.T_i_ped
   )
   source_e += (
       mask
       * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.Teped
+      * pedestal_model_output.T_e_ped
   )
 
   source_mat_ii -= (

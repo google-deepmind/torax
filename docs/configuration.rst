@@ -66,13 +66,13 @@ or more simply, taking advantage of the default.
 
     Ip = {10: 2.0, 100: 15.0}
 
-2. Define a time dependent internal boundary condition for ion temperature, ``Tiped``, with stepwise changes,
+2. Define a time dependent internal boundary condition for ion temperature, ``T_i_ped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
 to :math:`1~keV` at :math:`t=20s`:
 
 .. code-block:: python
 
-  Tiped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
+  T_i_ped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
 
 To extend configuration parameters where time-dependence is not enabled, to have time-dependence, see :ref:`developer-guides`.
 
@@ -461,44 +461,44 @@ The following models are currently supported:
 No pedestal profile is set. This is the default option and the equivalent of
 setting ``set_pedestal`` to False.
 
-set_tped_nped
+set_T_ped_n_ped
 ^^^^^^^^^^^^^
 Directly specify the pedestal width, electron density, ion temperature and
 electron temperature.
 
-``neped`` (float = 0.7) **time-varying-scalar**
+``n_e_ped`` (float = 0.7) **time-varying-scalar**
   Electron density at the pedestal top.
-  In units of reference density if ``neped_is_fGW==False``. In units of
-  Greenwald fraction if ``neped_is_fGW==True``.
+  In units of reference density if ``n_e_ped_is_fGW==False``. In units of
+  Greenwald fraction if ``n_e_ped_is_fGW==True``.
 
-``neped_is_fGW`` (bool = False) **time-varying-scalar**
-  Toggles units of ``neped``.
+``n_e_ped_is_fGW`` (bool = False) **time-varying-scalar**
+  Toggles units of ``n_e_ped``.
 
-``Tiped`` (float = 5.0) **time-varying-scalar**
+``T_i_ped`` (float = 5.0) **time-varying-scalar**
   Ion temperature at the pedestal top in units of keV.
 
-``Teped`` (float = 5.0) **time-varying-scalar**
+``T_e_ped`` (float = 5.0) **time-varying-scalar**
   Electron temperature at the pedestal top in units of keV.
 
 ``rho_norm_ped_top`` (float = 0.91) **time-varying-scalar**
   Location of pedestal top, in units of :math:`\hat{\rho}`.
 
-set_pped_tpedratio_nped
+set_P_ped_n_ped
 ^^^^^^^^^^^^^^^^^^^^^^^
 Set the pedestal width, electron density and ion temperature by providing the
 total pressure at the pedestal and the ratio of ion to electron temperature.
 
-``Pped`` (float = 10.0) **time-varying-scalar**
+``P_ped`` (float = 10.0) **time-varying-scalar**
   The plasma pressure at the pedestal in units of :math:`[Pa]`.
 
-``neped`` (float = 0.7) **time-varying-scalar**
+``n_e_ped`` (float = 0.7) **time-varying-scalar**
   Electron density at the pedestal top.
-  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
+  In units of reference density if ``n_e_ped_is_fGW==False``. In units of Greenwald fraction if ``n_e_ped_is_fGW==True``.
 
-``neped_is_fGW`` (bool = False) **time-varying-scalar**
-  Toggles units of ``neped``.
+``n_e_ped_is_fGW`` (bool = False) **time-varying-scalar**
+  Toggles units of ``n_e_ped``.
 
-``ion_electron_temperature_ratio`` **time-varying-scalar**
+``T_i_T_e_ratio`` **time-varying-scalar**
   Ratio of the ion and electron temperature at the pedestal.
 
 ``rho_norm_ped_top`` (float = 0.91) **time-varying-scalar**
@@ -1439,10 +1439,10 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'n_e_nbar_is_fGW': True,
           'nbar': 1,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-          'Tiped': 1.0,
-          'Teped': 1.0,
-          'neped_is_fGW': True,
-          'neped': {0: 0.3, 80: 0.7},
+          'T_i_ped': 1.0,
+          'T_e_ped': 1.0,
+          'n_e_ped_is_fGW': True,
+          'n_e_ped': {0: 0.3, 80: 0.7},
           'Ped_top': 0.9,
       },
       'numerics': {
@@ -1515,10 +1515,10 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           },
       },
       'pedestal': {
-          'pedestal_model': 'set_tped_nped',
+          'pedestal_model': 'set_T_ped_n_ped',
           'set_pedestal': True,
-          'Tiped': 1.0,
-          'Teped': 1.0,
+          'T_i_ped': 1.0,
+          'T_e_ped': 1.0,
           'rho_norm_ped_top': 0.95,
       },
       'solver': {

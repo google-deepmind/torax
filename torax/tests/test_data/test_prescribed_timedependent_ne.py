@@ -21,10 +21,10 @@ pedestal, mocking up current-overshoot and an LH transition
 
 CONFIG = {
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
-        'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'profile_conditions': {
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},

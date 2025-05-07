@@ -38,11 +38,11 @@ class PedestalModelOutput:
   # The index of the pedestal in rho_norm.
   rho_norm_ped_top_idx: array_typing.ScalarInt
   # The ion temperature at the pedestal.
-  Tiped: array_typing.ScalarFloat
+  T_i_ped: array_typing.ScalarFloat
   # The electron temperature at the pedestal.
-  Teped: array_typing.ScalarFloat
+  T_e_ped: array_typing.ScalarFloat
   # The electron density at the pedestal in units of density_reference.
-  neped: array_typing.ScalarFloat
+  n_e_ped: array_typing.ScalarFloat
 
 
 class PedestalModel(abc.ABC):
@@ -87,7 +87,7 @@ class PedestalModel(abc.ABC):
         # Set the index to outside of bounds of the mesh to indicate that the
         # pedestal is not present.
         lambda: PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf, Tiped=0.0, Teped=0.0, neped=0.0,
+            rho_norm_ped_top=jnp.inf, T_i_ped=0.0, T_e_ped=0.0, n_e_ped=0.0,
             rho_norm_ped_top_idx=geo.torax_mesh.nx
         ),
     )

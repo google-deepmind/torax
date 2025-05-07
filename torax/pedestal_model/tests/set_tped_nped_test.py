@@ -26,31 +26,31 @@ from torax.torax_pydantic import model_config
 class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
 
   @parameterized.product(
-      Tiped=[5, {0.0: 5.0, 1.0: 10.0}],
-      Teped=[4, {0.0: 4.0, 1.0: 8.0}],
-      neped=[0.7, {0.0: 0.7, 1.0: 0.9}],
+      T_i_ped=[5, {0.0: 5.0, 1.0: 10.0}],
+      T_e_ped=[4, {0.0: 4.0, 1.0: 8.0}],
+      n_e_ped=[0.7, {0.0: 0.7, 1.0: 0.9}],
       rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      neped_is_fGW=[False, True],
+      n_e_ped_is_fGW=[False, True],
       time=[0.0, 1.0],
   )
   def test_build_and_call_pedestal_model(
       self,
-      Tiped,
-      Teped,
-      neped,
+      T_i_ped,
+      T_e_ped,
+      n_e_ped,
       rho_norm_ped_top,
-      neped_is_fGW,
+      n_e_ped_is_fGW,
       time,
   ):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'pedestal_model': 'set_tped_nped',
+        'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': Tiped,
-        'Teped': Teped,
+        'T_i_ped': T_i_ped,
+        'T_e_ped': T_e_ped,
         'rho_norm_ped_top': rho_norm_ped_top,
-        'neped': neped,
-        'neped_is_fGW': neped_is_fGW,
+        'n_e_ped': n_e_ped,
+        'n_e_ped_is_fGW': n_e_ped_is_fGW,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
@@ -80,14 +80,14 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
     )
 
-    if isinstance(Tiped, (float, int)):
-      self.assertEqual(pedestal_model_output.Tiped, Tiped)
+    if isinstance(T_i_ped, (float, int)):
+      self.assertEqual(pedestal_model_output.T_i_ped, T_i_ped)
     else:
-      self.assertEqual(pedestal_model_output.Tiped, Tiped[time])
-    if isinstance(Teped, (float, int)):
-      self.assertEqual(pedestal_model_output.Teped, Teped)
+      self.assertEqual(pedestal_model_output.T_i_ped, T_i_ped[time])
+    if isinstance(T_e_ped, (float, int)):
+      self.assertEqual(pedestal_model_output.T_e_ped, T_e_ped)
     else:
-      self.assertEqual(pedestal_model_output.Teped, Teped[time])
+      self.assertEqual(pedestal_model_output.T_e_ped, T_e_ped[time])
     if isinstance(rho_norm_ped_top, (float, int)):
       self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
     else:
@@ -95,19 +95,19 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
           pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top[time]
       )
 
-    if isinstance(neped, (float, int)):
-      expected_neped = neped
+    if isinstance(n_e_ped, (float, int)):
+      expected_n_e_ped = n_e_ped
     else:
-      expected_neped = neped[time]
-    if neped_is_fGW:
+      expected_n_e_ped = n_e_ped[time]
+    if n_e_ped_is_fGW:
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip
           / (jnp.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.density_reference
       )
-      expected_neped *= nGW
-    self.assertEqual(pedestal_model_output.neped, expected_neped)
+      expected_n_e_ped *= nGW
+    self.assertEqual(pedestal_model_output.n_e_ped, expected_n_e_ped)
 
 
 if __name__ == '__main__':
