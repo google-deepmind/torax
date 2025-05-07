@@ -189,14 +189,14 @@ class OptimizerThetaMethod(BaseSolver):
   Attributes:
     solver_type: The type of solver to use, hardcoded to 'optimizer'.
     initial_guess_mode: The initial guess mode for the optimizer.
-    maxiter: The maximum number of iterations for the optimizer.
-    tol: The tolerance for the optimizer.
+    n_max_iterations: The maximum number of iterations for the optimizer.
+    residual_tol: The tolerance for the optimizer.
   """
 
   solver_type: Literal['optimizer'] = 'optimizer'
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
-  maxiter: pydantic.NonNegativeInt = 100
-  tol: float = 1e-12
+  n_max_iterations: pydantic.NonNegativeInt = 100
+  loss_tol: float = 1e-12
 
   @property
   def linear_solver(self) -> bool:
@@ -210,8 +210,8 @@ class OptimizerThetaMethod(BaseSolver):
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         initial_guess_mode=self.initial_guess_mode.value,
-        maxiter=self.maxiter,
-        tol=self.tol,
+        n_max_iterations=self.n_max_iterations,
+        loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
     )
 

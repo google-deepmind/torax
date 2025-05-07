@@ -33,8 +33,8 @@ from torax.stepper import stepper
 @chex.dataclass(frozen=True)
 class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
   initial_guess_mode: int
-  maxiter: int
-  tol: float
+  n_max_iterations: int
+  loss_tol: float
 
 
 @chex.dataclass(frozen=True)
@@ -183,8 +183,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             initial_guess_mode=enums.InitialGuessMode(
                 solver_params.initial_guess_mode,
             ),
-            maxiter=solver_params.maxiter,
-            tol=solver_params.tol,
+            maxiter=solver_params.n_max_iterations,
+            tol=solver_params.loss_tol,
         )
     )
     return x_new, core_sources, core_transport, solver_numeric_outputs
