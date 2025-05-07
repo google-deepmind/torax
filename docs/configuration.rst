@@ -122,11 +122,11 @@ will be applied from the closest time value.
 Shortcuts:
 
 Passing a single float value is interpreted as defining a constant profile for all times.
-For example ``Ti: 6.0`` would be equivalent to passing in ``Ti: {0.0: {0.0: 6.0}}``.
+For example ``T_i: 6.0`` would be equivalent to passing in ``T_i: {0.0: {0.0: 6.0}}``.
 
 Passing a single dict (instead of dict of dicts) is a shortcut for defining the rho profile
-for :math:`t=0.0`. For example ``Ti: {0.0: 18.0, 0.95: 5.0, 1.0: 0.2}`` is a shortcut for
-``Ti: {0.0: {0: 18.0, 0.95: 5.0, 1.0: 0.2}}`` where :math:`t=0.0` is arbitrary
+for :math:`t=0.0`. For example ``T_i: {0.0: 18.0, 0.95: 5.0, 1.0: 0.2}`` is a shortcut for
+``T_i: {0.0: {0: 18.0, 0.95: 5.0, 1.0: 0.2}}`` where :math:`t=0.0` is arbitrary
 (due to constant extrapolation for any input :math:`t=0.0`).
 
 
@@ -136,7 +136,7 @@ Examples:
 
 .. code-block:: python
 
-  Ti = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}}
+  T_i = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}}
 
 Note: due to constant extrapolation the t=0.0 here is an arbitrary number and could be anything.
 
@@ -146,7 +146,7 @@ constant :math:`T_{i}=1` by :math:`t=80.0`.
 
 .. code-block:: python
 
-  Ti = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}, 80: 1.0}
+  T_i = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}, 80: 1.0}
 
 Using ``xarray.DataArray``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -297,32 +297,32 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Ip_tot`` (float = 15.0), **time-varying-scalar**
   Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
-``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
+``T_i_right_bc`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
   If not provided or set to `None` then the boundary condition is taken from the
-  :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
+  :math:`\hat{\rho}=1` value derived from the provided `T_i` profile.
 
-``Te_bound_right`` (float | None [default]), **time-varying-scalar**
+``T_e_right_bc`` (float | None [default]), **time-varying-scalar**
   Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
   If not provided or set to `None` then the boundary condition is taken from the
-  :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
+  :math:`\hat{\rho}=1` value derived from the provided `T_e` profile.
 
-``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
+``T_i`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
-  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
-  Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
+  Note: For a given time ``t``, ``T_i[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
+  If `T_i_right_bc=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `T_i` profile.
+  Note that if the `T_i` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
-``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
+``T_e`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
-  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
-  Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
+  Note: For a given time ``t``, ``T_e[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
+  If `T_e_right_bc=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `T_e` profile.
+  Note that if the `T_e` profile does not contain a :math:`\hat{\rho}=1` point,
   for all provided times, an error will be raised.
 
 ``psi`` (dict | None [default]), **time-varying-array**
@@ -1390,11 +1390,11 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'profile_conditions': {
           'Ip_tot': {0: 3, 80: 10.5},
           # initial condition ion temperature for r=0 and r=Rmin
-          'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
+          'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
+          'T_i_right_bc': 0.1,  # boundary condition ion temp for r=Rmin
           # initial condition electron temperature between r=0 and r=Rmin
-          'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
-          'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
+          'T_e': {0.0: {0.0: 6.0, 1.0: 0.1}},
+          'T_e_right_bc': 0.1,  # boundary condition electron temp for r=Rmin
           'ne_bound_right_is_fGW': True,
           'ne_bound_right': {0: 0.1, 80: 0.3},
           'ne_is_fGW': True,

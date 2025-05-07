@@ -94,7 +94,7 @@ def calc_heating_and_current(
   #     2 * pi * epsilon0**2
   #     / (qe**3 * R_maj)
   #     * F
-  #     * Te [J] / ne [m^-3]
+  #     * T_e [J] / ne [m^-3]
   #     * cd_efficiency
   #     * ec_power_density
   # )
@@ -105,7 +105,7 @@ def calc_heating_and_current(
       - 3 * jnp.log(constants.CONSTANTS.qe)
       + jnp.log(geo.F)
       + jnp.log(core_profiles.temp_el.value)
-      + jnp.log(constants.CONSTANTS.keV2J)  # Convert Te to J
+      + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
       - jnp.log(core_profiles.ne.value)
       - jnp.log(
           dynamic_runtime_params_slice.numerics.density_reference
@@ -121,7 +121,7 @@ def calc_heating_and_current(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
-  """Electron cyclotron source for the Te and Psi equations."""
+  """Electron cyclotron source for the T_e and Psi equations."""
 
   SOURCE_NAME: ClassVar[str] = "ecrh"
   model_func: source.SourceProfileFunction = calc_heating_and_current

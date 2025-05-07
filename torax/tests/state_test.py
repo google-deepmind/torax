@@ -193,8 +193,8 @@ class InitialStatesTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
     config['profile_conditions'] = {
-        'Ti_bound_right': 27.7,
-        'Te_bound_right': {0.0: 42.0, 1.0: 0.001},
+        'T_i_right_bc': 27.7,
+        'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
         'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
         'normalize_to_nbar': False,
     }

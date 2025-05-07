@@ -53,10 +53,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
     # state, we want to grab the boundary condition params at time 0.
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'Ti': {0.0: {0.0: 27.7, 1.0: 1.0}},
-        'Te': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
-        'Ti_bound_right': 27.7,
-        'Te_bound_right': {0.0: 42.0, 1.0: 0.1},
+        'T_i': {0.0: {0.0: 27.7, 1.0: 1.0}},
+        'T_e': {0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
+        'T_i_right_bc': 27.7,
+        'T_e_right_bc': {0.0: 42.0, 1.0: 0.1},
         'ne_bound_right': ne_bound_right,
         'ne': ne,
         'ne_is_fGW': False,

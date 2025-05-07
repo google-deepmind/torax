@@ -28,13 +28,13 @@ CONFIG = {
         'Ip_tot': 15,  # total plasma current in MA
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=Rmin
-        'Ti': {0.0: {0.0: 15.0, 1.0: 0.238}},
-        'Ti_bound_right': (
+        'T_i': {0.0: {0.0: 15.0, 1.0: 0.238}},
+        'T_i_right_bc': (
             0.238
         ),  # boundary condition ion temperature for r=Rmin
         # initial condition electron temperature for r=0 and r=Rmin
-        'Te': {0.0: {0.0: 15.0, 1.0: 0.238}},
-        'Te_bound_right': 0.238,  # boundary condition electron temp at r=Rmin
+        'T_e': {0.0: {0.0: 15.0, 1.0: 0.238}},
+        'T_e_right_bc': 0.238,  # boundary condition electron temp at r=Rmin
         'ne_bound_right': 0.437,  # boundary condition density for r=Rmin
         # set initial condition density according to Greenwald fraction.
         # Otherwise from nbar
@@ -130,8 +130,8 @@ CONFIG = {
     'pedestal': {
         'pedestal_model': 'set_tped_nped',
         'set_pedestal': True,
-        'Tiped': 5,  # ion pedestal top temperature in keV for Ti and Te
-        # electron pedestal top temperature in keV for Ti and Te
+        'Tiped': 5,  # ion pedestal top temperature in keV for T_i and T_e
+        # electron pedestal top temperature in keV for T_i and T_e
         'Teped': 5,
         'neped': (
             0.68

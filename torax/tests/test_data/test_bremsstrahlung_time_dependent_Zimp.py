@@ -14,7 +14,7 @@
 
 """Tests Bremsstrahlung power model with time-dependent Zimp and Zeff. CHEASE.
 
-Ip from parameters. implicit, Ti+Te, Pei low dens, no pedestal, constant chi
+Ip from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
 """
 
 

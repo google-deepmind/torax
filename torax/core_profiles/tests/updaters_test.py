@@ -168,18 +168,18 @@ class UpdatersTest(parameterized.TestCase):
       )
 
   @parameterized.named_parameters(
-      ('Set from Te', None, 1.0), ('Set from Te_bound_right', 0.5, 0.5)
+      ('Set from T_e', None, 1.0), ('Set from T_e_right_bc', 0.5, 0.5)
   )
-  def test_compute_boundary_conditions_Te(
+  def test_compute_boundary_conditions_T_e(
       self,
-      Te_bound_right,
-      expected_Te_bound_right,
+      T_e_right_bc,
+      expected_T_e_right_bc,
   ):
-    """Tests that compute_boundary_conditions_for_t_plus_dt works for Te."""
+    """Tests that compute_boundary_conditions_for_t_plus_dt works for T_e."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'Te': {0: {0: 1.5, 1: 1}},
-        'Te_bound_right': Te_bound_right,
+        'T_e': {0: {0: 1.5, 1: 1}},
+        'T_e_right_bc': T_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -204,22 +204,22 @@ class UpdatersTest(parameterized.TestCase):
 
     self.assertEqual(
         boundary_conditions['temp_el']['right_face_constraint'],
-        expected_Te_bound_right,
+        expected_T_e_right_bc,
     )
 
   @parameterized.named_parameters(
-      ('Set from Ti', None, 1.0), ('Set from Ti_bound_right', 0.5, 0.5)
+      ('Set from T_i', None, 1.0), ('Set from T_i_right_bc', 0.5, 0.5)
   )
-  def test_compute_boundary_conditions_Ti(
+  def test_compute_boundary_conditions_T_i(
       self,
-      Ti_bound_right,
-      expected_Ti_bound_right,
+      T_i_right_bc,
+      expected_T_i_right_bc,
   ):
-    """Tests that compute_boundary_conditions_for_t_plus_dt works for Ti."""
+    """Tests that compute_boundary_conditions_for_t_plus_dt works for T_i."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'Ti': {0: {0: 1.5, 1: 1}},
-        'Ti_bound_right': Ti_bound_right,
+        'T_i': {0: {0: 1.5, 1: 1}},
+        'T_i_right_bc': T_i_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -244,7 +244,7 @@ class UpdatersTest(parameterized.TestCase):
 
     self.assertEqual(
         boundary_conditions['temp_ion']['right_face_constraint'],
-        expected_Ti_bound_right,
+        expected_T_i_right_bc,
     )
 
   def test_update_vloop_lcfs_from_psi(self):

@@ -113,10 +113,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     # Override the dynamic runtime params with the loaded values.
     dynamic.profile_conditions.Ip_tot = Ip_total
-    dynamic.profile_conditions.Te = temp_el
-    dynamic.profile_conditions.Te_bound_right = temp_el_bc
-    dynamic.profile_conditions.Ti = temp_ion
-    dynamic.profile_conditions.Ti_bound_right = temp_ion_bc
+    dynamic.profile_conditions.T_e = temp_el
+    dynamic.profile_conditions.T_e_right_bc = temp_el_bc
+    dynamic.profile_conditions.T_i = temp_ion
+    dynamic.profile_conditions.T_i_right_bc = temp_ion_bc
     dynamic.profile_conditions.ne = ne
     dynamic.profile_conditions.ne_bound_right = (
         ne_bound_right

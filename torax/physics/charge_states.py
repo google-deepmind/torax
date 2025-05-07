@@ -87,7 +87,7 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 
 # pylint: disable=invalid-name
 def calculate_average_charge_state_single_species(
-    Te: array_typing.ArrayFloat,
+    T_e: array_typing.ArrayFloat,
     ion_symbol: str,
 ) -> array_typing.ArrayFloat:
   """Calculates the average charge state of an impurity based on the Marvin 2018 polynomial fit.
@@ -97,7 +97,7 @@ def calculate_average_charge_state_single_species(
   extrapolation outside this range.
 
   Args:
-    Te: Electron temperature [keV].
+    T_e: Electron temperature [keV].
     ion_symbol: Species to calculate average charge state for.
 
   Returns:
@@ -111,20 +111,20 @@ def calculate_average_charge_state_single_species(
     )
   # Return the Z value for light ions that are fully ionized for T > 0.1 keV.
   if ion_symbol not in _MAVRIN_Z_COEFFS:
-    return jnp.ones_like(Te) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
+    return jnp.ones_like(T_e) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
 
   # Avoid extrapolating fitted polynomial out of bounds.
-  Te_allowed_range = (0.1, 100.0)
-  Te = jnp.clip(Te, *Te_allowed_range)
+  T_e_allowed_range = (0.1, 100.0)
+  T_e = jnp.clip(T_e, *T_e_allowed_range)
 
   # Gather coefficients for each temperature
-  interval_indices = jnp.searchsorted(_TEMPERATURE_INTERVALS[ion_symbol], Te)
+  interval_indices = jnp.searchsorted(_TEMPERATURE_INTERVALS[ion_symbol], T_e)
   Zavg_coeffs_in_range = jnp.take(
       _MAVRIN_Z_COEFFS[ion_symbol], interval_indices, axis=0
   ).transpose()
 
   # Calculate Zavg from the polynomial fit.
-  X = jnp.log10(Te)
+  X = jnp.log10(T_e)
   Zavg = jnp.polyval(Zavg_coeffs_in_range, X)
 
   return Zavg
@@ -133,7 +133,7 @@ def calculate_average_charge_state_single_species(
 def get_average_charge_state(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
-    Te: array_typing.ArrayFloat,
+    T_e: array_typing.ArrayFloat,
 ) -> array_typing.ArrayFloat:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
@@ -142,21 +142,21 @@ def get_average_charge_state(
     ion_mixture: DynamicIonMixture object containing impurity information. The
       index of the ion_mixture.fractions array corresponds to the index of the
       ion_symbols array.
-    Te: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
+    T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 
   Returns:
     avg_Z: Average charge state profile [amu].
-      The shape of avg_Z is the same as Te.
+      The shape of avg_Z is the same as T_e.
   """
 
   if ion_mixture.Z_override is not None:
-    return jnp.ones_like(Te) * ion_mixture.Z_override
+    return jnp.ones_like(T_e) * ion_mixture.Z_override
 
-  avg_Z = jnp.zeros_like(Te)
+  avg_Z = jnp.zeros_like(T_e)
   for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
     avg_Z += fraction * calculate_average_charge_state_single_species(
-        Te, ion_symbol
+        T_e, ion_symbol
     )
 
   return avg_Z

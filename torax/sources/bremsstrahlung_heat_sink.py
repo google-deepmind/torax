@@ -69,17 +69,17 @@ def calc_bremsstrahlung(
   """
   ne20 = (density_reference / 1e20) * core_profiles.ne.face_value()
 
-  Te_kev = core_profiles.temp_el.face_value()
+  T_e_kev = core_profiles.temp_el.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * Zeff_face * ne20**2 * jnp.sqrt(Te_kev)
+      5.35e-3 * Zeff_face * ne20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
-    correction = (1.0 + 2.0 * Te_kev / Tm) * (
-        1.0 + (2.0 / Zeff_face) * (1.0 - 1.0 / (1.0 + Te_kev / Tm))
+    correction = (1.0 + 2.0 * T_e_kev / Tm) * (
+        1.0 + (2.0 / Zeff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction
 

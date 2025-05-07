@@ -187,22 +187,22 @@ def _override_initial_runtime_params_from_file(
   dynamic_runtime_params_slice.profile_conditions.Ip_tot = (
       profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1] / 1e6
   )  # Convert from A to MA.
-  dynamic_runtime_params_slice.profile_conditions.Te = (
+  dynamic_runtime_params_slice.profile_conditions.T_e = (
       profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
       profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.Ti = (
+  dynamic_runtime_params_slice.profile_conditions.T_i = (
       profiles_ds.data_vars[output.TEMPERATURE_ION]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+  dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
       profiles_ds.data_vars[output.TEMPERATURE_ION]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()

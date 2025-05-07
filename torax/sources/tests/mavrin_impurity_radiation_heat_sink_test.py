@@ -75,7 +75,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       self, ion_symbol, temperature
   ):
     """Test with valid ions and within temperature range."""
-    Te = np.array(temperature)
+    T_e = np.array(temperature)
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=np.array([1.0]),
         avg_A=2.0,  # unused
@@ -84,16 +84,16 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
             ion_mixture,
-            Te,
+            T_e,
         )
     )
     np.testing.assert_equal(
         LZ_calculated.shape,
-        Te.shape,
+        T_e.shape,
         err_msg=(
-            f'LZ and T shapes unequal for {ion_symbol} at temperature {Te}. LZ'
-            f' = {LZ_calculated}, LZ.shape = {LZ_calculated.shape}, Te.shape ='
-            f' {Te.shape}.'
+            f'LZ and T shapes unequal for {ion_symbol} at temperature {T_e}. LZ'
+            f' = {LZ_calculated}, LZ.shape = {LZ_calculated.shape}, T_e.shape ='
+            f' {T_e.shape}.'
         ),
     )
     # Physical sanity checking
@@ -101,16 +101,16 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         0.0,
         LZ_calculated,
         err_msg=(
-            f'Unphysical negative LZ for {ion_symbol} at temperature {Te}. '
+            f'Unphysical negative LZ for {ion_symbol} at temperature {T_e}. '
             f'LZ = {LZ_calculated}.'
         ),
     )
 
   @parameterized.named_parameters(
-      ('Te_low_input', 0.05, 0.1),
-      ('Te_high_input', 150.0, 100.0),
+      ('T_e_low_input', 0.05, 0.1),
+      ('T_e_high_input', 150.0, 100.0),
   )
-  def test_temperature_clipping(self, Te_input, Te_clipped):
+  def test_temperature_clipping(self, T_e_input, T_e_clipped):
     """Test with valid ions and within temperature range."""
     ion_symbol = ('W',)
     ion_mixture = plasma_composition.DynamicIonMixture(
@@ -121,14 +121,14 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
             ion_mixture,
-            Te_input,
+            T_e_input,
         )
     )
     LZ_expected = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
             ion_mixture,
-            Te_clipped,
+            T_e_clipped,
         )
     )
 
@@ -136,7 +136,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         LZ_calculated,
         LZ_expected,
         err_msg=(
-            f'Te clipping not working as expected for Te_input={Te_input},'
+            f'T_e clipping not working as expected for T_e_input={T_e_input},'
             f' LZ_calculated = {LZ_calculated}, Z_expected={LZ_expected}'
         ),
     )
@@ -236,19 +236,19 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def test_calculate_total_impurity_radiation(
       self,
       species,
-      Te,
+      T_e,
       expected_LZ,
   ):
     """Test calculate_total_impurity_radiation.
 
     Args:
       species: A dictionary of ion symbols and their fractions.
-      Te: The temperature in KeV.
+      T_e: The temperature in KeV.
       expected_LZ: The expected effective cooling curve value.
 
     expected_LZ references were verified against plots in the Mavrin 2018 paper.
     """
-    Te = np.array(Te)
+    T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
     avg_A = 2.0  # arbitrary, not used.
     ion_symbols = tuple(species.keys())
@@ -261,7 +261,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbols,
             ion_mixture,
-            Te,
+            T_e,
         )
     )
 

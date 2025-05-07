@@ -56,7 +56,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$\mathrm{<T_e>_V}$',
                 r'$\mathrm{<T_i>_V}$',
             ),
-            ylabel='Volume average Te and Ti [keV]',
+            ylabel='Volume average T_e and T_i [keV]',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,

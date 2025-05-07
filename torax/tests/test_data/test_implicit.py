@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_implicit: implicit, Ti+Te, no Pei, no pedestal, constant chi."""
+"""test_implicit: implicit, T_i+T_e, no Pei, no pedestal, constant chi."""
 
 
 CONFIG = {

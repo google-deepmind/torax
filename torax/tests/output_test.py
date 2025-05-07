@@ -46,8 +46,8 @@ class StateHistoryTest(parameterized.TestCase):
     super().setUp()
     self.torax_config = model_config.ToraxConfig.from_dict({
         'profile_conditions': {
-            'Ti_bound_right': 27.7,
-            'Te_bound_right': {0.0: 42.0, 1.0: 0.0001},
+            'T_i_right_bc': 27.7,
+            'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
             'ne_bound_right': ({0.0: 0.1, 1.0: 2.0}, 'step'),
         },
         'numerics': {},

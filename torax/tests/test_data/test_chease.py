@@ -14,7 +14,7 @@
 
 """Tests implementation of CHEASE geometry.
 
-Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
+Ip from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
 """
 
 

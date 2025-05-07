@@ -258,7 +258,7 @@ def cyclotron_radiation_albajar(
   actual plasma data.
 
   ne = ne(0)*(1 - rhonorm**2)**alpha_n
-  Te = (Te(0)-Te(a))*(1 - rhonorm**beta_T)**alpha_T + Te(a)
+  T_e = (T_e(0)-T_e(a))*(1 - rhonorm**beta_T)**alpha_T + T_e(a)
 
   Where we take a=0.9 in rhonorm space, and perform the best fit between
   0<rhonorm<0.9, to avoid pedestal effects.

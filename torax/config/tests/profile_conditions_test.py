@@ -35,39 +35,39 @@ class ProfileConditionsTest(parameterized.TestCase):
       ('no boundary condition', None, 2.0, 200.0),
       ('boundary condition provided', 3.0, 3.0, 3.0),
   )
-  def test_profile_conditions_sets_Te_bound_right_correctly(
-      self, Te_bound_right, expected_initial_value, expected_second_value
+  def test_profile_conditions_sets_T_e_right_bc_correctly(
+      self, T_e_right_bc, expected_initial_value, expected_second_value
   ):
-    """Tests that Te_bound_right is set correctly."""
+    """Tests that T_e_right_bc is set correctly."""
     pc = profile_conditions.ProfileConditions(
-        Te={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
-        Te_bound_right=Te_bound_right,
+        T_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
+        T_e_right_bc=T_e_right_bc,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dcs = pc.build_dynamic_params(t=0.0)
-    self.assertEqual(dcs.Te_bound_right, expected_initial_value)
+    self.assertEqual(dcs.T_e_right_bc, expected_initial_value)
     dcs = pc.build_dynamic_params(t=1.5)
-    self.assertEqual(dcs.Te_bound_right, expected_second_value)
+    self.assertEqual(dcs.T_e_right_bc, expected_second_value)
 
   @parameterized.named_parameters(
       ('no boundary condition', None, 2.0, 200.0),
       ('boundary condition provided', 3, 3, 3),
   )
-  def test_profile_conditions_sets_Ti_bound_right_correctly(
-      self, Ti_bound_right, expected_initial_value, expected_second_value
+  def test_profile_conditions_sets_T_i_right_bc_correctly(
+      self, T_i_right_bc, expected_initial_value, expected_second_value
   ):
-    """Tests that Ti_bound_right is set correctly."""
+    """Tests that T_i_right_bc is set correctly."""
     pc = profile_conditions.ProfileConditions(
-        Ti={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
-        Ti_bound_right=Ti_bound_right,
+        T_i={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
+        T_i_right_bc=T_i_right_bc,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dcs = pc.build_dynamic_params(t=0.0)
-    self.assertEqual(dcs.Ti_bound_right, expected_initial_value)
+    self.assertEqual(dcs.T_i_right_bc, expected_initial_value)
     dcs = pc.build_dynamic_params(t=1.5)
-    self.assertEqual(dcs.Ti_bound_right, expected_second_value)
+    self.assertEqual(dcs.T_i_right_bc, expected_second_value)
 
   @parameterized.named_parameters(
       ('no boundary condition', None, 2.0, 200.0),
@@ -218,13 +218,13 @@ class ProfileConditionsTest(parameterized.TestCase):
     if raises:
       with self.assertRaises(ValueError):
         profile_conditions.ProfileConditions(
-            Ti=values,
-            Ti_bound_right=None,
+            T_i=values,
+            T_i_right_bc=None,
         )
     else:
       profile_conditions.ProfileConditions(
-          Ti=values,
-          Ti_bound_right=None,
+          T_i=values,
+          T_i_right_bc=None,
       )
 
 

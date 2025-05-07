@@ -332,8 +332,8 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions.ne': 1.0,
         'profile_conditions.ne_bound_right': 1.0,
         'profile_conditions.ne_is_fGW': False,
-        'profile_conditions.Ti': 6.0,
-        'profile_conditions.Te': 6.0,
+        'profile_conditions.T_i': 6.0,
+        'profile_conditions.T_e': 6.0,
     })
 
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
@@ -439,12 +439,12 @@ class SimTest(sim_test_case.SimTestCase):
 
       # Override the dynamic runtime params with the loaded values.
       dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
-      dynamic_runtime_params_slice.profile_conditions.Te = temp_el
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.T_e = temp_el
+      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
           temp_el_bc
       )
-      dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.T_i = temp_ion
+      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
           temp_ion_bc
       )
       dynamic_runtime_params_slice.profile_conditions.ne = ne

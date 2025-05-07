@@ -183,7 +183,7 @@ class IonMixtureTest(parameterized.TestCase):
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
         ion_mixture=dynamic_mixture,
-        Te=np.array(10.0),  # Ensure that all ions in test are fully ionized
+        T_e=np.array(10.0),  # Ensure that all ions in test are fully ionized
     )
     np.testing.assert_allclose(calculated_Z, expected_Z)
     np.testing.assert_allclose(dynamic_mixture.avg_A, expected_A)
@@ -208,7 +208,7 @@ class IonMixtureTest(parameterized.TestCase):
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(mixture.species.keys()),
         ion_mixture=dynamic_mixture,
-        Te=np.array(1.0),  # arbitrary temperature, won't be used for D
+        T_e=np.array(1.0),  # arbitrary temperature, won't be used for D
     )
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override

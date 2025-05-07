@@ -39,17 +39,17 @@ class ChargeStatesTest(parameterized.TestCase):
       self, ion_symbol, temperature
   ):
     """Test with valid ions and within temperature range."""
-    Te = np.array(temperature)
+    T_e = np.array(temperature)
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
-        Te, ion_symbol
+        T_e, ion_symbol
     )
     np.testing.assert_equal(
         Z_calculated.shape,
-        Te.shape,
+        T_e.shape,
         err_msg=(
-            f'Z and T shapes not equal for {ion_symbol} at temperature {Te}. Z'
-            f' = {Z_calculated}, Z.shape = {Z_calculated.shape}, Te.shape ='
-            f' {Te.shape}.'
+            f'Z and T shapes not equal for {ion_symbol} at temperature {T_e}. Z'
+            f' = {Z_calculated}, Z.shape = {Z_calculated.shape}, T_e.shape ='
+            f' {T_e.shape}.'
         ),
     )
     # Physical sanity checking
@@ -58,7 +58,7 @@ class ChargeStatesTest(parameterized.TestCase):
         np.ones_like(Z_calculated) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
         + 1e-6,
         err_msg=(
-            f'Z is not less than Z_max for {ion_symbol} at temperature {Te}. Z'
+            f'Z is not less than Z_max for {ion_symbol} at temperature {T_e}. Z'
             f' = {Z_calculated}, Z_max ='
             f' {constants.ION_PROPERTIES_DICT[ion_symbol].Z}.'
         ),
@@ -68,7 +68,7 @@ class ChargeStatesTest(parameterized.TestCase):
         0.0,
         Z_calculated,
         err_msg=(
-            f'Unphysical negative Z for {ion_symbol} at temperature {Te}. '
+            f'Unphysical negative Z for {ion_symbol} at temperature {T_e}. '
             f'Z = {Z_calculated}.'
         ),
     )
@@ -87,32 +87,32 @@ class ChargeStatesTest(parameterized.TestCase):
       self, ion_symbol, temperature
   ):
     """Test with valid ions and within temperature range."""
-    Te = np.array(temperature)
+    T_e = np.array(temperature)
     Z_calcuated = charge_states.calculate_average_charge_state_single_species(
-        Te, ion_symbol
+        T_e, ion_symbol
     )
-    Z_expected = np.ones_like(Te) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
+    Z_expected = np.ones_like(T_e) * constants.ION_PROPERTIES_DICT[ion_symbol].Z
     np.testing.assert_allclose(
         Z_calcuated,
         Z_expected,
         err_msg=(
             f'Low-Z full ionization not as expected for {ion_symbol} for'
-            f' Te={Te}, Z_calcualted = {Z_calcuated}, Z_expected={Z_expected}'
+            f' T_e={T_e}, Z_calculated = {Z_calcuated}, Z_expected={Z_expected}'
         ),
     )
 
   @parameterized.named_parameters(
-      ('Te_low_input', 0.05, 0.1),
-      ('Te_high_input', 150.0, 100.0),
+      ('T_e_low_input', 0.05, 0.1),
+      ('T_e_high_input', 150.0, 100.0),
   )
-  def test_temperature_clipping(self, Te_input, Te_clipped):
+  def test_temperature_clipping(self, T_e_input, T_e_clipped):
     """Test with valid ions and within temperature range."""
     ion_symbol = 'W'
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
-        Te_input, ion_symbol
+        T_e_input, ion_symbol
     )
     Z_expected = charge_states.calculate_average_charge_state_single_species(
-        Te_clipped,
+        T_e_clipped,
         ion_symbol,
     )
 
@@ -120,7 +120,7 @@ class ChargeStatesTest(parameterized.TestCase):
         Z_calculated,
         Z_expected,
         err_msg=(
-            f'Te clipping not working as expected for Te_input={Te_input},'
+            f'T_e clipping not working as expected for T_e_input={T_e_input},'
             f' Z_calculated = {Z_calculated}, Z_expected={Z_expected}'
         ),
     )
@@ -160,11 +160,11 @@ class ChargeStatesTest(parameterized.TestCase):
   def test_get_average_charge_state(
       self,
       species,
-      Te,
+      T_e,
       expected_Z,
   ):
     """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
-    Te = np.array(Te)
+    T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
     avg_A = 2.0  # arbitrary, not used.
     ion_symbols = tuple(species.keys())
@@ -174,7 +174,7 @@ class ChargeStatesTest(parameterized.TestCase):
         avg_A=avg_A,
     )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, Te
+        ion_symbols, ion_mixture, T_e
     )
 
     np.testing.assert_allclose(Z_calculated, expected_Z, rtol=1e-5)
@@ -182,7 +182,7 @@ class ChargeStatesTest(parameterized.TestCase):
   def test_Z_override_in_get_average_charge_state(self):
     """Test Z_override logic."""
     species = {'W': 1.0}
-    Te = np.array([0.1, 2, 10])
+    T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
     ion_symbols = tuple(species.keys())
     ion_mixture = plasma_composition.DynamicIonMixture(
@@ -191,6 +191,6 @@ class ChargeStatesTest(parameterized.TestCase):
         Z_override=np.array([50.0, 50.0, 50.0]),
     )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, Te
+        ion_symbols, ion_mixture, T_e
     )
     np.testing.assert_allclose(Z_calculated, Z_override)

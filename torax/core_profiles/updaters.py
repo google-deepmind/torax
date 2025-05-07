@@ -379,12 +379,12 @@ def compute_boundary_conditions_for_t_plus_dt(
   Zi_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
-      Te=profile_conditions_t_plus_dt.Te_bound_right,
+      T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   )
   Zimp_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
-      Te=profile_conditions_t_plus_dt.Te_bound_right,
+      T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   )
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
@@ -400,12 +400,12 @@ def compute_boundary_conditions_for_t_plus_dt(
       'temp_ion': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=profile_conditions_t_plus_dt.Ti_bound_right,
+          right_face_constraint=profile_conditions_t_plus_dt.T_i_right_bc,
       ),
       'temp_el': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=profile_conditions_t_plus_dt.Te_bound_right,
+          right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
       ),
       'ne': dict(
           left_face_grad_constraint=jnp.zeros(()),

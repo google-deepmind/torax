@@ -15,7 +15,7 @@
 """Tests semi-implicit convection as carried out with FiPy.
 
 Semi-implicit convection can lead to numerical instability at boundary
-condition. No pedestal, implicit + pereverzev-corrigan, Ti+Te,
+condition. No pedestal, implicit + pereverzev-corrigan, T_i+T_e,
 Pei standard dens, chi from CGM.
 """
 

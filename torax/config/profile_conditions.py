@@ -29,11 +29,11 @@ class DynamicProfileConditions:
 
   Ip_tot: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
-  Ti_bound_right: array_typing.ScalarFloat
-  Te_bound_right: array_typing.ScalarFloat
+  T_i_right_bc: array_typing.ScalarFloat
+  T_e_right_bc: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
-  Te: array_typing.ArrayFloat
-  Ti: array_typing.ArrayFloat
+  T_e: array_typing.ArrayFloat
+  T_i: array_typing.ArrayFloat
   # If provided as array, Psi profile defined on the cell grid.
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
@@ -65,12 +65,14 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       specfied Vloop at the LCFS is used as the boundary condition for the psi
       equation; otherwise, Ip is used as the boundary condition.
     vloop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
-    Ti_bound_right: Temperature boundary conditions at r=Rmin. If this is `None`
-      the boundary condition will instead be taken from `Ti` and `Te` at rhon=1.
-    Te_bound_right: Temperature boundary conditions at r=Rmin. If this is `None`
-      the boundary condition will instead be taken from `Ti` and `Te` at rhon=1.
-    Ti: Prescribed or evolving values for temperature at different times.
-    Te: Prescribed or evolving values for temperature at different times.
+    T_i_right_bc: Temperature boundary conditions at r=Rmin. If this is `None`
+      the boundary condition will instead be taken from `T_i` and `T_e` at
+      rhon=1.
+    T_e_right_bc: Temperature boundary conditions at r=Rmin. If this is `None`
+      the boundary condition will instead be taken from `T_i` and `T_e` at
+      rhon=1.
+    T_i: Prescribed or evolving values for temperature at different times.
+    T_e: Prescribed or evolving values for temperature at different times.
     psi: Initial values for psi. If provided, the initial psi will be taken from
       here. Otherwise, the initial psi will be calculated from either the
       geometry or the "nu formula" dependant on the `initial_psi_from_j` field.
@@ -107,13 +109,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   vloop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  Ti_bound_right: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  Te_bound_right: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  Ti: torax_pydantic.PositiveTimeVaryingArray = torax_pydantic.ValidatedDefault(
-      {0: {0: 15.0, 1: 1.0}}
+  T_i_right_bc: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  T_e_right_bc: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  T_i: torax_pydantic.PositiveTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0: {0: 15.0, 1: 1.0}})
   )
-  Te: torax_pydantic.PositiveTimeVaryingArray = torax_pydantic.ValidatedDefault(
-      {0: {0: 15.0, 1: 1.0}}
+  T_e: torax_pydantic.PositiveTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0: {0: 15.0, 1: 1.0}})
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
   ne: torax_pydantic.PositiveTimeVaryingArray = torax_pydantic.ValidatedDefault(
@@ -148,10 +150,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       if not values.right_boundary_conditions_defined:
         raise ValueError(error_message)
 
-    if self.Ti_bound_right is None:
-      _sanity_check_profile_boundary_conditions(self.Ti, 'Ti')
-    if self.Te_bound_right is None:
-      _sanity_check_profile_boundary_conditions(self.Te, 'Te')
+    if self.T_i_right_bc is None:
+      _sanity_check_profile_boundary_conditions(self.T_i, 'T_i')
+    if self.T_e_right_bc is None:
+      _sanity_check_profile_boundary_conditions(self.T_e, 'T_e')
     if self.ne_bound_right is None:
       _sanity_check_profile_boundary_conditions(self.ne, 'ne')
     return self
@@ -167,13 +169,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         for x in dataclasses.fields(DynamicProfileConditions)
     }
 
-    if self.Te_bound_right is None:
-      dynamic_params['Te_bound_right'] = self.Te.get_value(
+    if self.T_e_right_bc is None:
+      dynamic_params['T_e_right_bc'] = self.T_e.get_value(
           t, grid_type='face_right'
       )
 
-    if self.Ti_bound_right is None:
-      dynamic_params['Ti_bound_right'] = self.Ti.get_value(
+    if self.T_i_right_bc is None:
+      dynamic_params['T_i_right_bc'] = self.T_i.get_value(
           t, grid_type='face_right'
       )
 

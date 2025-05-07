@@ -117,7 +117,7 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 
 # pylint: disable=invalid-name
 def _calculate_impurity_radiation_single_species(
-    Te: array_typing.ArrayFloat,
+    T_e: array_typing.ArrayFloat,
     ion_symbol: str,
 ) -> array_typing.ArrayFloat:
   """Calculates the line radiation for single impurity species.
@@ -127,7 +127,7 @@ def _calculate_impurity_radiation_single_species(
   extrapolation outside this range.
 
   Args:
-    Te: Electron temperature [keV].
+    T_e: Electron temperature [keV].
     ion_symbol: Species to calculate line radiation for.
 
   Returns:
@@ -141,19 +141,19 @@ def _calculate_impurity_radiation_single_species(
     )
 
   # Avoid extrapolating fitted polynomial out of bounds.
-  Te = jnp.clip(Te, 0.1, 100.0)
+  T_e = jnp.clip(T_e, 0.1, 100.0)
 
   # Gather coefficients for each temperature
   if ion_symbol in {'He3', 'He4', 'Be', 'Li'}:
     interval_indices = 0
   else:
-    interval_indices = jnp.searchsorted(_TEMPERATURE_INTERVALS[ion_symbol], Te)
+    interval_indices = jnp.searchsorted(_TEMPERATURE_INTERVALS[ion_symbol], T_e)
 
   L_coeffs_in_range = jnp.take(
       _MAVRIN_L_COEFFS[ion_symbol], interval_indices, axis=0
   ).transpose()
 
-  X = jnp.log10(Te)
+  X = jnp.log10(T_e)
   log10_LZ = jnp.polyval(L_coeffs_in_range, X)
   return 10**log10_LZ
 
@@ -167,25 +167,26 @@ def _calculate_impurity_radiation_single_species(
 def calculate_total_impurity_radiation(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
-    Te: array_typing.ArrayFloat,
+    T_e: array_typing.ArrayFloat,
 ) -> array_typing.ArrayFloat:
   """Calculates impurity line radiation profile (JAX-compatible).
 
   Args:
     ion_symbols: Ion symbols of the impurity species.
     ion_mixture: DynamicIonMixture object containing impurity information.
-    Te: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
+    T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 
   Returns:
     effective_LZ: Total effective radiative cooling rate in units of Wm^3,
-      summed over all species in the mixture. The shape of LZ is the same as Te.
+      summed over all species in the mixture. The shape of LZ is the same as
+      T_e.
   """
 
-  effective_LZ = jnp.zeros_like(Te)
+  effective_LZ = jnp.zeros_like(T_e)
   for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
     effective_LZ += fraction * _calculate_impurity_radiation_single_species(
-        Te, ion_symbol
+        T_e, ion_symbol
     )
   return effective_LZ
 
@@ -202,7 +203,7 @@ def impurity_radiation_mavrin_fit(
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=core_profiles.temp_el.value,
+      T_e=core_profiles.temp_el.value,
   )
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

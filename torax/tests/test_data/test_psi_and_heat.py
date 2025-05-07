@@ -14,15 +14,15 @@
 
 """Tests combined current diffusion and heat transport.
 
-Implicit solver + pereverzev-corrigan, Ti+Te+Psi, Pei standard dens,
+Implicit solver + pereverzev-corrigan, T_i+T_e+Psi, Pei standard dens,
 pedestal, chi from qlknn.
 """
 
 CONFIG = {
     'profile_conditions': {
         # initial condition ion temperature for r=0 and r=Rmin
-        'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
-        'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
+        'T_i': {0.0: {0.0: 8.0, 1.0: 1.0}},
+        'T_e': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'ne_bound_right': 0.5,
         'nu': 0,
     },

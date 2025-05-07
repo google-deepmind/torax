@@ -45,8 +45,8 @@ class GettersTest(parameterized.TestCase):
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
         instance=True,
-        Ti_bound_right=bound,
-        Ti=value,
+        T_i_right_bc=bound,
+        T_i=value,
     )
     result = getters.get_updated_ion_temperature(
         profile_conditions,
@@ -61,8 +61,8 @@ class GettersTest(parameterized.TestCase):
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
         instance=True,
-        Te_bound_right=bound,
-        Te=value,
+        T_e_right_bc=bound,
+        T_e=value,
     )
     result = getters.get_updated_electron_temperature(
         profile_conditions,

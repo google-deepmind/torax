@@ -38,10 +38,10 @@ def get_updated_ion_temperature(
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed ion temperature profiles."""
   temp_ion = cell_variable.CellVariable(
-      value=dynamic_profile_conditions.Ti,
+      value=dynamic_profile_conditions.T_i,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.Ti_bound_right,
+      right_face_constraint=dynamic_profile_conditions.T_i_right_bc,
       dr=geo.drho_norm,
   )
   return temp_ion
@@ -53,10 +53,10 @@ def get_updated_electron_temperature(
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron temperature profiles."""
   temp_el = cell_variable.CellVariable(
-      value=dynamic_profile_conditions.Te,
+      value=dynamic_profile_conditions.T_e,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.Te_bound_right,
+      right_face_constraint=dynamic_profile_conditions.T_e_right_bc,
       dr=geo.drho_norm,
   )
   return temp_el
@@ -232,23 +232,23 @@ def _get_charge_states(
   Zi = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.value,
+      T_e=temp_el.value,
   )
   Zi_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.face_value(),
+      T_e=temp_el.face_value(),
   )
 
   Zimp = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.value,
+      T_e=temp_el.value,
   )
   Zimp_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.face_value(),
+      T_e=temp_el.face_value(),
   )
 
   return Zi, Zi_face, Zimp, Zimp_face

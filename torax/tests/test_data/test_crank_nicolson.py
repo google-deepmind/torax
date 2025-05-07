@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests Crank-Nicolson method, Ti+Te, no Pei, no pedestal, constant chi.
+"""Tests Crank-Nicolson method, T_i+T_e, no Pei, no pedestal, constant chi.
 
 The ground truth for this test was generated using implicit method, we
 just check that Crank-Nicolson doesn't deviate too far from that.
