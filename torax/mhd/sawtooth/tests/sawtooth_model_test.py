@@ -49,10 +49,10 @@ class SawtoothModelTest(parameterized.TestCase):
         },
         # Default initial current will lead to a sawtooth being triggered.
         'profile_conditions': {
-            'Ip_tot': 13,
+            'Ip': 13,
             'initial_j_is_total_current': True,
             'initial_psi_from_j': True,
-            'nu': 3,
+            'current_profile_nu': 3,
         },
         'plasma_composition': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},

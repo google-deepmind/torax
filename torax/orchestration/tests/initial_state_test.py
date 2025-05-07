@@ -112,7 +112,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     psi = ref_profiles[output.PSI][index, 1:-1]
 
     # Override the dynamic runtime params with the loaded values.
-    dynamic.profile_conditions.Ip_tot = Ip_total
+    dynamic.profile_conditions.Ip = Ip_total
     dynamic.profile_conditions.T_e = temp_el
     dynamic.profile_conditions.T_e_right_bc = temp_el_bc
     dynamic.profile_conditions.T_i = temp_ion

@@ -48,7 +48,7 @@ class StandardGeometry(geometry.Geometry):
 
   Attributes:
     Ip_from_parameters: Boolean indicating whether the total plasma current
-      (`Ip_tot`) is determined by the config parameters (True) or read from the
+      (`Ip`) is determined by the config parameters (True) or read from the
       geometry file (False).
     Ip_profile_face: Plasma current profile on the face grid
       [:math:`\mathrm{A}`].

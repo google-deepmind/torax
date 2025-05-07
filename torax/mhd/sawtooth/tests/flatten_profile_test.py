@@ -306,9 +306,9 @@ class FlattenProfileTest(parameterized.TestCase):
     """Based on q profile with a q=1 surface."""
 
     Ip = 15  # MA
-    nu = 2
+    current_profile_nu = 2
 
-    jformula = (1 - self.geo.rho_norm**2) ** nu
+    jformula = (1 - self.geo.rho_norm**2) ** current_profile_nu
     denom = jax.scipy.integrate.trapezoid(
         jformula * self.geo.spr, self.geo.rho_norm
     )

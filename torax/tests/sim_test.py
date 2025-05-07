@@ -280,7 +280,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_ip_chease_vloop.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from nu formula.
+      # Initial Ip from parameters and psi from current_profile_nu formula.
       (
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
@@ -328,7 +328,7 @@ class SimTest(sim_test_case.SimTestCase):
         'numerics.evolve_current': False,
         'numerics.evolve_density': False,
         # Keep profiles fixed.
-        'profile_conditions.Ip_tot': 3.0,
+        'profile_conditions.Ip': 3.0,
         'profile_conditions.n_e': 1.0,
         'profile_conditions.n_e_right_bc': 1.0,
         'profile_conditions.n_e_nbar_is_fGW': False,
@@ -438,7 +438,7 @@ class SimTest(sim_test_case.SimTestCase):
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
+      dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
       dynamic_runtime_params_slice.profile_conditions.T_e = temp_el
       dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
           temp_el_bc

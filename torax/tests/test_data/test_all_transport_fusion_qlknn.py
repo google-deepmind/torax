@@ -25,7 +25,7 @@ CONFIG = {
         'n_e_right_bc': 0.2,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
-        'nu': 0,
+        'current_profile_nu': 0,
     },
     'numerics': {
         'evolve_ion_heat': True,

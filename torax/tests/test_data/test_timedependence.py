@@ -23,10 +23,10 @@ CONFIG = {
     'profile_conditions': {
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
-        'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
+        'Ip': {0: 5, 4: 15, 6: 12, 8: 12},
         'n_e_right_bc': 0.5,
         'n_e_nbar_is_fGW': False,
-        'nbar': 0.33820425407,  # fGW=0.85 for Ip_tot(t=0)
+        'nbar': 0.33820425407,  # fGW=0.85 for Ip(t=0)
     },
     'numerics': {
         'evolve_current': True,

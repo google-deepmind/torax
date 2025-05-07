@@ -164,7 +164,7 @@ def _prescribe_currents(
 ) -> state.Currents:
   """Creates the initial Currents from a given bootstrap profile."""
 
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
   Iext = math_utils.area_integration(external_current, geo) / 10**6
@@ -173,7 +173,7 @@ def _prescribe_currents(
   # construct prescribed current formula on grid.
   jformula = (
       1 - geo.rho_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.nu
+  ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
   denom = _trapz(jformula * geo.spr, geo.rho_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
@@ -242,7 +242,7 @@ def _calculate_currents_from_psi(
 
 
 def update_psi_from_j(
-    Ip_tot: array_typing.ScalarFloat,
+    Ip: array_typing.ScalarFloat,
     geo: geometry.Geometry,
     jtot_hires: jax.Array,
     use_vloop_lcfs_boundary_condition: bool = False,
@@ -250,16 +250,16 @@ def update_psi_from_j(
   """Calculates poloidal flux (psi) consistent with plasma current.
 
   For increased accuracy of psi, a hi-res grid is used, due to the double
-    integration. Presently used only for initialization. Therefore Ip_tot is
+    integration. Presently used only for initialization. Therefore Ip is
     a valid source of truth for Ip, even if use_vloop_lcfs_boundary_condition
     is True.
 
   Args:
-    Ip_tot: Total plasma current [MA].
+    Ip: Total plasma current [MA].
     geo: Torus geometry.
     jtot_hires: High resolution version of jtot [A/m^2].
     use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from
-      Ip_tot.
+      Ip.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -285,10 +285,10 @@ def update_psi_from_j(
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
-  # Set the BCs for psi to ensure the correct Ip_tot
+  # Set the BCs for psi to ensure the correct Ip
   dpsi_drhonorm_edge = (
-      psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
-          Ip_tot,
+      psi_calculations.calculate_psi_grad_constraint_from_Ip(
+          Ip,
           geo,
       )
   )
@@ -328,9 +328,9 @@ def _init_psi_psidot_and_currents(
   There are three modes of doing this that are supported:
     1. Retrieving psi from the profile conditions.
     2. Retrieving psi from the standard geometry input.
-    3. Calculating j according to the nu formula and then calculating psi from
-    that. As we are calculating j using a guess for psi, this method is iterated
-    to converge to the true psi.
+    3. Calculating j according to the nu formula and then
+    calculating psi from that. As we are calculating j using a guess for psi,
+    this method is iterated to converge to the true psi.
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
@@ -362,20 +362,20 @@ def _init_psi_psidot_and_currents(
   )
 
   # Case 1: retrieving psi from the profile conditions, using the prescribed
-  # profile and Ip_tot
+  # profile and Ip
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
-    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    # Calculate the dpsi/drho necessary to achieve the given Ip
     dpsi_drhonorm_edge = (
-        psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
-            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        psi_calculations.calculate_psi_grad_constraint_from_Ip(
+            dynamic_runtime_params_slice.profile_conditions.Ip,
             geo,
         )
     )
 
-    # Set the BCs to ensure the correct Ip_tot
+    # Set the BCs to ensure the correct Ip
     if use_vloop_bc:
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
-      # to achieve the desired Ip_tot
+      # to achieve the desired Ip
       right_face_grad_constraint = None
       right_face_constraint = (
           dynamic_runtime_params_slice.profile_conditions.psi[-1]
@@ -423,16 +423,16 @@ def _init_psi_psidot_and_currents(
     # first calculate currents. However, non-inductive currents are still
     # calculated and used in current diffusion equation.
 
-    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    # Calculate the dpsi/drho necessary to achieve the given Ip
     dpsi_drhonorm_edge = (
-        psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
-            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        psi_calculations.calculate_psi_grad_constraint_from_Ip(
+            dynamic_runtime_params_slice.profile_conditions.Ip,
             geo,
         )
     )
 
     # Use the psi from the equilibrium as the right face constraint
-    # This has already been made consistent with the desired Ip_tot
+    # This has already been made consistent with the desired Ip
     # by make_ip_consistent
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,  # Use psi from equilibrium
@@ -476,7 +476,7 @@ def _init_psi_psidot_and_currents(
         geo=geo,
     )
     psi = update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         currents.jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
@@ -502,7 +502,7 @@ def _init_psi_psidot_and_currents(
         geo=geo,
     )
     psi = update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         currents.jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
@@ -577,11 +577,11 @@ def _get_jtot_hires(
   # calculate high resolution jtot and Ohmic current profile
   jformula_hires = (
       1 - geo.rho_hires_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.nu
+  ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot * 1e6 / denom
+        dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom
     )
     jtot_hires = jformula_hires * Ctot_hires
   else:

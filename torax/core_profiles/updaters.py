@@ -351,13 +351,15 @@ def compute_boundary_conditions_for_t_plus_dt(
     dynamic_runtime_params_slice_t: Dynamic runtime parameters for the current
       timestep. Will not be used if
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip_tot is used
+      None, i.e. if the dirichlet psi boundary condition based on Ip is
+      used
     dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters for the
       next timestep
     geo_t_plus_dt: Geometry object for the next timestep
     core_profiles_t: Core profiles at the current timestep. Will not be used if
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip_tot is used
+      None, i.e. if the dirichlet psi boundary condition based on Ip is
+      used
 
   Returns:
     Mapping from State attribute names to dictionaries updating attributes of
@@ -424,8 +426,8 @@ def compute_boundary_conditions_for_t_plus_dt(
       ),
       'psi': dict(
           right_face_grad_constraint=(
-              psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(  # pylint: disable=g-long-ternary
-                  Ip_tot=profile_conditions_t_plus_dt.Ip_tot,
+              psi_calculations.calculate_psi_grad_constraint_from_Ip(  # pylint: disable=g-long-ternary
+                  Ip=profile_conditions_t_plus_dt.Ip,
                   geo=geo_t_plus_dt,
               )
               if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition

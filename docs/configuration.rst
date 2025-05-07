@@ -58,13 +58,13 @@ due to constant extrapolation beyond the last time value.
 
 .. code-block:: python
 
-  Ip_tot = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
+  Ip = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
 .. code-block:: python
 
-    Ip_tot = {10: 2.0, 100: 15.0}
+    Ip = {10: 2.0, 100: 15.0}
 
 2. Define a time dependent internal boundary condition for ion temperature, ``Tiped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
@@ -294,7 +294,7 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip_tot`` (float = 15.0), **time-varying-scalar**
+``Ip`` (float = 15.0), **time-varying-scalar**
   Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
 ``T_i_right_bc`` (float | None [default]), **time-varying-scalar**
@@ -327,7 +327,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 
 ``psi`` (dict | None [default]), **time-varying-array**
   Initial poloidal flux. If not provided the initial psi will be calculated from either the geometry
-  or the "nu formula".
+  or the "current_profile_nu formula".
 
 
 ``n_e`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
@@ -361,8 +361,8 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``n_e_right_bc_is_fGW`` (bool = False)
   Toggles units of ``n_e_right_bc``.
 
-``nu`` (float = 3.0)
-  Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
+``current_profile_nu`` (float = 3.0)
+  Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\current_profile_nu`. :math:`j_0` is calculated
   to be consistent with a desired total current. Only used if ``initial_psi_from_j==True``, otherwise the ``psi`` profile from the geometry file is used.
 
 ``initial_j_is_total_current`` (bool = False)
@@ -371,9 +371,9 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   calculated upon initialization.
 
 ``initial_psi_from_j`` (bool = False)
-  Toggles if the initial ``psi`` (:math:`\psi`) calculation is based on the "nu" current formula, or from the ``psi``
+  Toggles if the initial ``psi`` (:math:`\psi`) calculation is based on the "current_profile_nu" current formula, or from the ``psi``
   available in the numerical geometry file. This setting is ignored for the ad-hoc circular geometry option, which has no numerical geometry, and thus the
-  initial ``psi`` is always calculated from the "nu" current formula.
+  initial ``psi`` is always calculated from the "current_profile_nu" current formula.
 
 .. _numerics_dataclass:
 
@@ -1388,7 +1388,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'Zeff': 1.6,
       },
       'profile_conditions': {
-          'Ip_tot': {0: 3, 80: 10.5},
+          'Ip': {0: 3, 80: 10.5},
           # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_i_right_bc': 0.1,  # boundary condition ion temp for r=a_minor

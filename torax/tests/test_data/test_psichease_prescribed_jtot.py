@@ -22,7 +22,7 @@ CONFIG = {
         'n_e_right_bc': 0.5,
         'initial_psi_from_j': True,
         'initial_j_is_total_current': True,
-        'nu': 2,
+        'current_profile_nu': 2,
     },
     'numerics': {
         'evolve_ion_heat': False,

@@ -24,7 +24,7 @@ CONFIG = {
         'T_i': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 8.0, 1.0: 1.0}},
         'n_e_right_bc': 0.5,
-        'nu': 0,
+        'current_profile_nu': 0,
     },
     'numerics': {
         'evolve_current': True,

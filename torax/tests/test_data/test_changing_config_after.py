@@ -22,7 +22,7 @@ CONFIG = {
         'Zeff': 1.8,  # sets impurity density
     },
     'profile_conditions': {
-        'Ip_tot': 10.5,  # total plasma current in MA
+        'Ip': 10.5,  # total plasma current in MA
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},

@@ -70,7 +70,7 @@ def get_updated_electron_density(
   """Gets initial and/or prescribed electron density profiles."""
 
   nGW = (
-      dynamic_profile_conditions.Ip_tot
+      dynamic_profile_conditions.Ip
       / (jnp.pi * geo.a_minor**2)
       * 1e20
       / dynamic_numerics.density_reference

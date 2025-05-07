@@ -60,7 +60,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         'n_e_right_bc': n_e_right_bc,
         'n_e': n_e,
         'n_e_nbar_is_fGW': False,
-        'Ip_tot': {0.0: 5, 1.0: 7},
+        'Ip': {0.0: 5, 1.0: 7},
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

@@ -83,8 +83,8 @@ If any of the :math:`T_{i,e}`, :math:`n_e` equations are set to be non-evolving 
 then time-dependent prescribed profiles are user-configurable.
 
 For the poloidal flux :math:`\psi(\hat{\rho})`, the user specifies if the initial condition
-is based on a prescribed current profile, :math:`j_\mathrm{tor}=j_0(1-\hat{\rho}^2)^\nu` (with :math:`j_0`
-scaled to match :math:`I_p`, and :math:`\nu` is user-configurable), or from the :math:`\psi` provided
+is based on a prescribed current profile, :math:`j_\mathrm{tor}=j_0(1-\hat{\rho}^2)^\current_profile_nu` (with :math:`j_0`
+scaled to match :math:`I_p`, and :math:`\current_profile_nu` is user-configurable), or from the :math:`\psi` provided
 in a CHEASE geometry file. The prescribed current profile option is always used for the circular geometry.
 The total current :math:`I_p` can be user-configured or determined by the CHEASE geometry file.
 In the latter case, the :math:`\psi` provided by CHEASE can still be used, but is scaled by the ratio

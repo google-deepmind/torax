@@ -27,7 +27,7 @@ from typing_extensions import Self
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip_tot: array_typing.ScalarFloat
+  Ip: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
   T_i_right_bc: array_typing.ScalarFloat
   T_e_right_bc: array_typing.ScalarFloat
@@ -44,7 +44,7 @@ class DynamicProfileConditions:
   n_e_right_bc: array_typing.ScalarFloat
   n_e_right_bc_is_fGW: bool
   n_e_right_bc_is_absolute: bool
-  nu: float
+  current_profile_nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
 
@@ -56,8 +56,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   https://torax.readthedocs.io/en/latest/configuration.html#profile-conditions.
 
   Attributes:
-    Ip_tot: Total plasma current in MA. Note that if Ip_from_parameters=False in
-      geometry, then this Ip will be overwritten by values from the geometry
+    Ip: Total plasma current in MA. Note that if Ip_from_parameters=False
+      in geometry, then this Ip will be overwritten by values from the geometry
       data. If use_vloop_lcfs_boundary_condition, only used as an initial
       condition.
     use_vloop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
@@ -75,7 +75,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     T_e: Prescribed or evolving values for temperature at different times.
     psi: Initial values for psi. If provided, the initial psi will be taken from
       here. Otherwise, the initial psi will be calculated from either the
-      geometry or the "nu formula" dependant on the `initial_psi_from_j` field.
+      geometry or the "current_profile_nu formula" dependant on the
+      `initial_psi_from_j` field.
     n_e: Prescribed or evolving values for electron density at different times.
     normalize_n_e_to_nbar: Whether to renormalize the density profile to have
       the desired line averaged density `nbar`.
@@ -92,17 +93,18 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       is not `None` then `n_e_right_bc_is_absolute` will be set to `True`.
     n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
     n_e_right_bc_is_absolute: Toggle units of n_e_right_bc
-    nu: Peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
+    current_profile_nu: Peaking factor of "Ohmic" current: johm = j0*(1 -
+      r^2/a^2)^current_profile_nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
       included in initial jtot calculation.
     initial_psi_from_j: Toggles if the initial psi calculation is based on the
-      "nu" current formula, or from the psi available in the numerical geometry
-      file. This setting is ignored for the ad-hoc circular geometry, which has
-      no numerical geometry.
+      "current_profile_nu" current formula, or from the psi available in the
+      numerical geometry file. This setting is ignored for the ad-hoc circular
+      geometry, which has no numerical geometry.
   """
 
-  Ip_tot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       15.0
   )
   use_vloop_lcfs_boundary_condition: bool = False
@@ -130,7 +132,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(True)
   )
-  nu: float = 3.0
+  current_profile_nu: float = 3.0
   initial_j_is_total_current: bool = False
   initial_psi_from_j: bool = False
 

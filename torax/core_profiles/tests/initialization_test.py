@@ -56,7 +56,7 @@ class InitializationTest(parameterized.TestCase):
         geo=geo,
     )
     psi = initialization.update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         currents.jtot_hires,
     ).value

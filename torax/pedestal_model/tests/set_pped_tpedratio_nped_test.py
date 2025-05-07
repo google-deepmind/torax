@@ -95,7 +95,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       expected_neped = neped[time]
     if neped_is_fGW:
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip_tot
+          dynamic_runtime_params_slice.profile_conditions.Ip
           / (jnp.pi * geo.a_minor**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.density_reference

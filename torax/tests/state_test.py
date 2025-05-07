@@ -288,26 +288,26 @@ class InitialStatesTest(parameterized.TestCase):
     config1 = dict(
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
-        nu=2,
+        current_profile_nu=2,
         n_e_right_bc=0.5,
     )
     config2 = dict(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
-        nu=2,
+        current_profile_nu=2,
         n_e_right_bc=0.5,
     )
     config3 = dict(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
-        nu=2,
+        current_profile_nu=2,
         n_e_right_bc=0.5,
     )
     # Needed to generate psi for bootstrap calculation
     config3_helper = dict(
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
-        nu=2,
+        current_profile_nu=2,
         n_e_right_bc=0.5,
     )
     source_models = source_models_lib.SourceModels(
@@ -429,7 +429,7 @@ class InitialStatesTest(parameterized.TestCase):
     # calculate total and Ohmic current profiles arising from nu=2
     jformula = (1 - geo.rho_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = torax_config.profile_conditions.Ip_tot.value[0] * 1e6 / denom
+    ctot = torax_config.profile_conditions.Ip.value[0] * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
         1
@@ -449,7 +449,7 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
-        torax_config.profile_conditions.Ip_tot.value[0] * 1e6
+        torax_config.profile_conditions.Ip.value[0] * 1e6
     )
 
     np.testing.assert_raises(
