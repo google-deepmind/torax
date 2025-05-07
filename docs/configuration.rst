@@ -732,16 +732,16 @@ constant
 
 Runtime parameters for the constant chi transport model.
 
-``chii_const`` (float = 1.0), **time-varying-scalar**
+``chi_i`` (float = 1.0), **time-varying-scalar**
   Ion heat conductivity. In units of :math:`m^2/s`.
 
-``chie_const`` (float = 1.0), **time-varying-scalar**
+``chi_e`` (float = 1.0), **time-varying-scalar**
   Electron heat conductivity. In units of :math:`m^2/s`.
 
-``De_const`` (float = 1.0), **time-varying-scalar**
+``D_e`` (float = 1.0), **time-varying-scalar**
   Electron particle diffusion. In units of :math:`m^2/s`.
 
-``Ve_const`` (float = -0.33), **time-varying-scalar**
+``V_e`` (float = -0.33), **time-varying-scalar**
   Electron particle convection. In units of :math:`m^2/s`.
 
 CGM

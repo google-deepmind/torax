@@ -35,10 +35,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   See base class runtime_params.DynamicRuntimeParams docstring for more info.
   """
 
-  chii_const: array_typing.ScalarFloat
-  chie_const: array_typing.ScalarFloat
-  De_const: array_typing.ScalarFloat
-  Ve_const: array_typing.ScalarFloat
+  chi_i: array_typing.ScalarFloat
+  chi_e: array_typing.ScalarFloat
+  D_e: array_typing.ScalarFloat
+  V_e: array_typing.ScalarFloat
 
 
 class ConstantTransportModel(transport_model.TransportModel):
@@ -65,17 +65,17 @@ class ConstantTransportModel(transport_model.TransportModel):
     )
 
     chi_face_ion = (
-        dynamic_runtime_params_slice.transport.chii_const
+        dynamic_runtime_params_slice.transport.chi_i
         * jnp.ones_like(geo.rho_face)
     )
     chi_face_el = (
-        dynamic_runtime_params_slice.transport.chie_const
+        dynamic_runtime_params_slice.transport.chi_e
         * jnp.ones_like(geo.rho_face)
     )
-    d_face_el = dynamic_runtime_params_slice.transport.De_const * jnp.ones_like(
+    d_face_el = dynamic_runtime_params_slice.transport.D_e * jnp.ones_like(
         geo.rho_face
     )
-    v_face_el = dynamic_runtime_params_slice.transport.Ve_const * jnp.ones_like(
+    v_face_el = dynamic_runtime_params_slice.transport.V_e * jnp.ones_like(
         geo.rho_face
     )
 

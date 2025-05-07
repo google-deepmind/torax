@@ -100,7 +100,7 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
         geo_t.g1_over_vpr_face
         * true_ni_face
         * consts.keV2J
-        * dynamic_runtime_params_slice_t.transport.chii_const
+        * dynamic_runtime_params_slice_t.transport.chi_i
     )
 
     c_mat, c = diffusion_terms.make_diffusion_terms(

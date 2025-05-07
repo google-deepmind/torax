@@ -57,8 +57,8 @@ CONFIG = {
     },
     'transport': {
         'transport_model': 'constant',
-        'chii_const': 0.5,
-        'chie_const': 0.5,
+        'chi_i': 0.5,
+        'chi_e': 0.5,
     },
     'solver': {
         'solver_type': 'linear',

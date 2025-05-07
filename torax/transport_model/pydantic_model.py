@@ -178,22 +178,22 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
 
   Attributes:
     transport_model: The transport model to use. Hardcoded to 'constant'.
-    chii_const: coefficient in ion heat equation diffusion term in m^2/s.
-    chie_const: coefficient in electron heat equation diffusion term in m^2/s.
-    De_const: diffusion coefficient in electron density equation in m^2/s.
-    Ve_const: convection coefficient in electron density equation in m^2/s.
+    chi_i: coefficient in ion heat equation diffusion term in m^2/s.
+    chi_e: coefficient in electron heat equation diffusion term in m^2/s.
+    D_e: diffusion coefficient in electron density equation in m^2/s.
+    V_e: convection coefficient in electron density equation in m^2/s.
   """
   transport_model: Literal['constant'] = 'constant'
-  chii_const: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_i: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  chie_const: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_e: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  De_const: torax_pydantic.PositiveTimeVaryingScalar = (
+  D_e: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  Ve_const: interpolated_param_1d.TimeVaryingScalar = (
+  V_e: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(-0.33)
   )
 
@@ -205,10 +205,10 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   ) -> constant.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return constant.DynamicRuntimeParams(
-        chii_const=self.chii_const.get_value(t),
-        chie_const=self.chie_const.get_value(t),
-        De_const=self.De_const.get_value(t),
-        Ve_const=self.Ve_const.get_value(t),
+        chi_i=self.chi_i.get_value(t),
+        chi_e=self.chi_e.get_value(t),
+        D_e=self.D_e.get_value(t),
+        V_e=self.V_e.get_value(t),
         **base_kwargs,
     )
 

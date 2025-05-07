@@ -46,9 +46,9 @@ CONFIG = {
         'transport_model': 'constant',
         # constant params.
         # diffusion coefficient in electron density equation in m^2/s
-        'De_const': 0.5,
+        'D_e': 0.5,
         # convection coefficient in electron density equation in m^2/s
-        'Ve_const': -0.2,
+        'V_e': -0.2,
     },
     'solver': {
         'solver_type': 'linear',

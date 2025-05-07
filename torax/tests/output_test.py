@@ -57,7 +57,7 @@ class StateHistoryTest(parameterized.TestCase):
         'solver': {},
         'transport': {
             'transport_model': 'constant',
-            'chii_const': 2.0,
+            'chi_i': 2.0,
         },
         'pedestal': {},
     })
@@ -290,9 +290,9 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
     self.assertEqual(config_dict['transport']['transport_model'], 'constant')
-    self.assertEqual(config_dict['transport']['chii_const']['value'][1][0], 2.0)
+    self.assertEqual(config_dict['transport']['chi_i']['value'][1][0], 2.0)
     # Default values are expected to be set in the saved config
-    self.assertEqual(config_dict['transport']['chie_const']['value'][1][0], 1.0)
+    self.assertEqual(config_dict['transport']['chi_e']['value'][1][0], 1.0)
 
   def test_config_round_trip(self):
     """Tests that the serialization/deserialization of the config is correct."""
