@@ -752,10 +752,10 @@ Runtime parameters for the Critical Gradient Model (CGM).
 ``alpha`` (float = 2.0)
   Exponent of chi power law: :math:`\chi \propto (R/L_{Ti} - R/L_{Ti_crit})^\alpha`.
 
-``chistiff`` (float = 2.0)
+``chi_stiff`` (float = 2.0)
   Stiffness parameter.
 
-``chiei_ratio`` (float = 2.0), **time-varying-scalar**
+``chi_e_i_ratio`` (float = 2.0), **time-varying-scalar**
   Ratio of ion to electron heat conductivity. ITG turbulence has values above 1.
 
 ``chi_D_ratio`` (float = 5.0), **time-varying-scalar**

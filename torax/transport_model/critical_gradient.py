@@ -31,8 +31,8 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the CGM transport model."""
 
   alpha: float
-  chistiff: float
-  chiei_ratio: array_typing.ScalarFloat
+  chi_stiff: float
+  chi_e_i_ratio: array_typing.ScalarFloat
   chi_D_ratio: array_typing.ScalarFloat
   VR_D_ratio: array_typing.ScalarFloat
 
@@ -122,7 +122,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     chi_face_ion = jnp.where(
         rlti >= rlti_crit,
         chiGB
-        * dynamic_runtime_params_slice.transport.chistiff
+        * dynamic_runtime_params_slice.transport.chi_stiff
         * (rlti - rlti_crit) ** dynamic_runtime_params_slice.transport.alpha,
         0.0,
     )
@@ -130,7 +130,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     # set electron heat transport coefficient to user-defined ratio of ion heat
     # transport coefficient
     chi_face_el = (
-        chi_face_ion / dynamic_runtime_params_slice.transport.chiei_ratio
+        chi_face_ion / dynamic_runtime_params_slice.transport.chi_e_i_ratio
     )
 
     # set electron particle transport coefficient to user-defined ratio of ion

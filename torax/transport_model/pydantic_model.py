@@ -219,18 +219,19 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   Attributes:
     transport_model: The transport model to use. Hardcoded to 'CGM'.
     alpha: Exponent of chi power law: chi ∝ (R/LTi - R/LTi_crit)^alpha.
-    chistiff: Stiffness parameter.
-    chiei_ratio: Ratio of electron to ion heat transport coefficient (ion higher
-      for ITG).
+    chi_stiff: Stiffness parameter.
+    chi_e_i_ratio: Ratio of electron to ion heat transport coefficient (ion
+      higher for ITG).
     chi_D_ratio: Ratio of electron particle to ion heat transport coefficient.
     VR_D_ratio: Ratio of major radius * electron particle convection, to
       electron diffusion. Sets the value of electron particle convection in the
       model.
   """
+
   transport_model: Literal['CGM'] = 'CGM'
   alpha: float = 2.0
-  chistiff: float = 2.0
-  chiei_ratio: interpolated_param_1d.TimeVaryingScalar = (
+  chi_stiff: float = 2.0
+  chi_e_i_ratio: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -251,8 +252,8 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return critical_gradient.DynamicRuntimeParams(
         alpha=self.alpha,
-        chistiff=self.chistiff,
-        chiei_ratio=self.chiei_ratio.get_value(t),
+        chi_stiff=self.chi_stiff,
+        chi_e_i_ratio=self.chi_e_i_ratio.get_value(t),
         chi_D_ratio=self.chi_D_ratio.get_value(t),
         VR_D_ratio=self.VR_D_ratio.get_value(t),
         **base_kwargs,
