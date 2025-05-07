@@ -799,10 +799,10 @@ Runtime parameters for the Bohm-GyroBohm model.
   Multiplier for GyroBohm term for ion heat conductivity. Intended for
   user-friendly default modification.
 
-``d_face_c1`` (float = 1.0), **time-varying-scalar**
+``D_face_c1`` (float = 1.0), **time-varying-scalar**
   Constant for the electron diffusivity weighting factor.
 
-``d_face_c2`` (float = 0.3), **time-varying-scalar**
+``D_face_c2`` (float = 0.3), **time-varying-scalar**
   Constant for the electron diffusivity weighting factor.
 
 qlknn

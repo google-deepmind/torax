@@ -25,6 +25,7 @@ from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
+# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
@@ -33,9 +34,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   chi_e_gyrobohm_coeff: array_typing.ScalarFloat
   chi_i_bohm_coeff: array_typing.ScalarFloat
   chi_i_gyrobohm_coeff: array_typing.ScalarFloat
-  d_face_c1: array_typing.ScalarFloat
-  d_face_c2: array_typing.ScalarFloat
-  v_face_coeff: array_typing.ScalarFloat
+  D_face_c1: array_typing.ScalarFloat
+  D_face_c2: array_typing.ScalarFloat
+  V_face_coeff: array_typing.ScalarFloat
   chi_e_bohm_multiplier: array_typing.ScalarFloat
   chi_e_gyrobohm_multiplier: array_typing.ScalarFloat
   chi_i_bohm_multiplier: array_typing.ScalarFloat
@@ -152,10 +153,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     # Electron diffusivity
     weighting = (
-        dynamic_runtime_params_slice.transport.d_face_c1
+        dynamic_runtime_params_slice.transport.D_face_c1
         + (
-            dynamic_runtime_params_slice.transport.d_face_c2
-            - dynamic_runtime_params_slice.transport.d_face_c1
+            dynamic_runtime_params_slice.transport.D_face_c2
+            - dynamic_runtime_params_slice.transport.D_face_c1
         )
         * geo.rho_face_norm
     )
@@ -172,7 +173,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     ])
 
     # Electron convectivity set proportional to the electron diffusivity
-    v_face_el = dynamic_runtime_params_slice.transport.v_face_coeff * d_face_el
+    v_face_el = dynamic_runtime_params_slice.transport.V_face_coeff * d_face_el
 
     return state.CoreTransport(
         chi_face_ion=chi_i,

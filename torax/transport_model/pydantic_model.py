@@ -278,9 +278,9 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
       user-friendly default modification.
     chi_i_gyrobohm_multiplier: Multiplier for chi_i_gyrobohm_coeff. Intended for
       user-friendly default modification.
-    d_face_c1: Constant for the electron diffusivity weighting factor.
-    d_face_c2: Constant for the electron diffusivity weighting factor.
-    v_face_coeff: Proportionality factor between convectivity and diffusivity.
+    D_face_c1: Constant for the electron diffusivity weighting factor.
+    D_face_c2: Constant for the electron diffusivity weighting factor.
+    V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
   transport_model: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -307,13 +307,13 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   chi_i_gyrobohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  d_face_c1: torax_pydantic.PositiveTimeVaryingScalar = (
+  D_face_c1: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  d_face_c2: torax_pydantic.PositiveTimeVaryingScalar = (
+  D_face_c2: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.3)
   )
-  v_face_coeff: interpolated_param_1d.TimeVaryingScalar = (
+  V_face_coeff: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(-0.1)
   )
 
@@ -335,9 +335,9 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
         chi_e_gyrobohm_multiplier=self.chi_e_gyrobohm_multiplier.get_value(t),
         chi_i_bohm_multiplier=self.chi_i_bohm_multiplier.get_value(t),
         chi_i_gyrobohm_multiplier=self.chi_i_gyrobohm_multiplier.get_value(t),
-        d_face_c1=self.d_face_c1.get_value(t),
-        d_face_c2=self.d_face_c2.get_value(t),
-        v_face_coeff=self.v_face_coeff.get_value(t),
+        D_face_c1=self.D_face_c1.get_value(t),
+        D_face_c2=self.D_face_c2.get_value(t),
+        V_face_coeff=self.V_face_coeff.get_value(t),
         **base_kwargs,
     )
 
