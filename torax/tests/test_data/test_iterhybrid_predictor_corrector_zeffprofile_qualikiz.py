@@ -24,22 +24,22 @@ CONFIG['transport'] = {
     'transport_model': 'qualikiz',
     # set inner core transport coefficients (ad-hoc MHD/EM transport)
     'apply_inner_patch': True,
-    'De_inner': 0.25,
-    'Ve_inner': 0.0,
-    'chii_inner': 1.0,
-    'chie_inner': 1.0,
+    'D_e_inner': 0.25,
+    'V_e_inner': 0.0,
+    'chi_i_inner': 1.0,
+    'chi_e_inner': 1.0,
     'rho_inner': 0.2,  # radius below which patch transport is applied
     # set outer core transport coefficients (L-mode near edge region)
     'apply_outer_patch': True,
-    'De_outer': 0.1,
-    'Ve_outer': 0.0,
-    'chii_outer': 2.0,
-    'chie_outer': 2.0,
+    'D_e_outer': 0.1,
+    'V_e_outer': 0.0,
+    'chi_i_outer': 2.0,
+    'chi_e_outer': 2.0,
     'rho_outer': 0.9,  # radius above which patch transport is applied
     # allowed chi and diffusivity bounds
-    'chimin': 0.05,  # minimum chi
-    'chimax': 100,  # maximum chi (can be helpful for stability)
-    'Demin': 0.05,  # minimum electron diffusivity
+    'chi_min': 0.05,  # minimum chi
+    'chi_max': 100,  # maximum chi (can be helpful for stability)
+    'D_e_min': 0.05,  # minimum electron diffusivity
     # qualikiz params.
     'DVeff': True,
     'avoid_big_negative_s': True,

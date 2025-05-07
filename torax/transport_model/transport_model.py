@@ -136,19 +136,19 @@ class TransportModel(abc.ABC):
 
     # set minimum and maximum transport coefficents for PDE stability
     chi_face_ion = jnp.clip(
-        transport_coeffs.chi_face_ion, transport.chimin, transport.chimax,
+        transport_coeffs.chi_face_ion, transport.chi_min, transport.chi_max,
     )
 
     # set minimum and maximum chi for PDE stability
     chi_face_el = jnp.clip(
-        transport_coeffs.chi_face_el, transport.chimin, transport.chimax,
+        transport_coeffs.chi_face_el, transport.chi_min, transport.chi_max,
     )
 
     d_face_el = jnp.clip(
-        transport_coeffs.d_face_el, transport.Demin, transport.Demax,
+        transport_coeffs.d_face_el, transport.D_e_min, transport.D_e_max,
     )
     v_face_el = jnp.clip(
-        transport_coeffs.v_face_el, transport.Vemin, transport.Vemax,
+        transport_coeffs.v_face_el, transport.V_e_min, transport.V_e_max,
     )
 
     # set low transport in pedestal region to facilitate PDE solver
@@ -156,17 +156,17 @@ class TransportModel(abc.ABC):
     mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
     chi_face_ion = jnp.where(
         mask,
-        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chi_min,
         chi_face_ion,
     )
     chi_face_el = jnp.where(
         mask,
-        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chi_min,
         chi_face_el,
     )
     d_face_el = jnp.where(
         mask,
-        dynamic_runtime_params_slice.transport.Demin,
+        dynamic_runtime_params_slice.transport.D_e_min,
         d_face_el,
     )
     v_face_el = jnp.where(
@@ -201,7 +201,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.chii_inner,
+        dynamic_runtime_params_slice.transport.chi_i_inner,
         transport_coeffs.chi_face_ion,
     )
     chi_face_el = jnp.where(
@@ -210,7 +210,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.chie_inner,
+        dynamic_runtime_params_slice.transport.chi_e_inner,
         transport_coeffs.chi_face_el,
     )
     d_face_el = jnp.where(
@@ -219,7 +219,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.De_inner,
+        dynamic_runtime_params_slice.transport.D_e_inner,
         transport_coeffs.d_face_el,
     )
     v_face_el = jnp.where(
@@ -228,7 +228,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.Ve_inner,
+        dynamic_runtime_params_slice.transport.V_e_inner,
         transport_coeffs.v_face_el,
     )
 
@@ -246,7 +246,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.chii_outer,
+        dynamic_runtime_params_slice.transport.chi_i_outer,
         chi_face_ion,
     )
     chi_face_el = jnp.where(
@@ -260,7 +260,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.chie_outer,
+        dynamic_runtime_params_slice.transport.chi_e_outer,
         chi_face_el,
     )
     d_face_el = jnp.where(
@@ -274,7 +274,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.De_outer,
+        dynamic_runtime_params_slice.transport.D_e_outer,
         d_face_el,
     )
     v_face_el = jnp.where(
@@ -288,7 +288,7 @@ class TransportModel(abc.ABC):
             geo.rho_face_norm
             > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
         ),
-        dynamic_runtime_params_slice.transport.Ve_outer,
+        dynamic_runtime_params_slice.transport.V_e_outer,
         v_face_el,
     )
 
@@ -358,7 +358,7 @@ def build_smoothing_matrix(
   kernel = jnp.exp(
       -jnp.log(2)
       * (geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm) ** 2
-      / (dynamic_runtime_params_slice.transport.smoothing_sigma**2 + consts.eps)
+      / (dynamic_runtime_params_slice.transport.smoothing_width**2 + consts.eps)
   )
 
   # 2. Masking: we do not want transport coefficients calculated in pedestal

@@ -84,7 +84,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         transport, transport_pydantic_model.QLKNNTransportModel
     )
-    self.assertEqual(transport.smoothing_sigma, 0.1)
+    self.assertEqual(transport.smoothing_width, 0.1)
     self.assertEqual(transport.ETG_correction_factor, 1.0 / 3.0)
 
   @parameterized.parameters(

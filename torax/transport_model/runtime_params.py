@@ -27,25 +27,25 @@ from torax import jax_utils
 class DynamicRuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
-  chimin: float
-  chimax: float
-  Demin: float
-  Demax: float
-  Vemin: float
-  Vemax: float
+  chi_min: float
+  chi_max: float
+  D_e_min: float
+  D_e_max: float
+  V_e_min: float
+  V_e_max: float
   apply_inner_patch: array_typing.ScalarBool
-  De_inner: array_typing.ScalarFloat
-  Ve_inner: array_typing.ScalarFloat
-  chii_inner: array_typing.ScalarFloat
-  chie_inner: array_typing.ScalarFloat
+  D_e_inner: array_typing.ScalarFloat
+  V_e_inner: array_typing.ScalarFloat
+  chi_i_inner: array_typing.ScalarFloat
+  chi_e_inner: array_typing.ScalarFloat
   rho_inner: array_typing.ScalarFloat
   apply_outer_patch: array_typing.ScalarBool
-  De_outer: array_typing.ScalarFloat
-  Ve_outer: array_typing.ScalarFloat
-  chii_outer: array_typing.ScalarFloat
-  chie_outer: array_typing.ScalarFloat
+  D_e_outer: array_typing.ScalarFloat
+  V_e_outer: array_typing.ScalarFloat
+  chi_i_outer: array_typing.ScalarFloat
+  chi_e_outer: array_typing.ScalarFloat
   rho_outer: array_typing.ScalarFloat
-  smoothing_sigma: float
+  smoothing_width: float
   smooth_everywhere: bool
 
   def __post_init__(self):

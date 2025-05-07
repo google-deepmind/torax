@@ -667,38 +667,38 @@ transport model.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear gyrokinetic transport model.
 
-``chimin`` (float = 0.05)
+``chi_min`` (float = 0.05)
   Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
 
-``chimax`` (float = 100.0)
+``chi_max`` (float = 100.0)
   Upper allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
 
-``Demin`` (float = 0.05)
-  Lower allowed bound for particle conductivity :math:`D`, in units of :math:`m^2/s`.
+``D_e_min`` (float = 0.05)
+  Lower allowed bound for particle diffusivity :math:`D`, in units of :math:`m^2/s`.
 
-``Demax`` (float = 100.0)
+``D_e_max`` (float = 100.0)
   Upper allowed bound for particle conductivity :math:`D`, in units of :math:`m^2/s`.
 
-``Vemin`` (float = -50.0)
+``V_e_min`` (float = -50.0)
   Lower allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
 
-``Vemax`` (float = 50.0)
+``V_e_max`` (float = 50.0)
   Upper allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
 
 ``apply_inner_patch`` (bool = False), **time-varying-scalar**
   If True, set a patch for inner core transport coefficients below `rho_inner`.
   Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
 
-``De_inner``  (float = 0.2), **time-varying-scalar**
+``D_e_inner``  (float = 0.2), **time-varying-scalar**
   Particle diffusivity value for inner transport patch.
 
-``Ve_inner``  (float = 0.0), **time-varying-scalar**
+``V_e_inner``  (float = 0.0), **time-varying-scalar**
   Particle convection value for inner transport patch.
 
-``chii_inner``  (float = 1.0), **time-varying-scalar**
+``chi_i_inner``  (float = 1.0), **time-varying-scalar**
   Ion heat conduction value for inner transport patch.
 
-``chie_inner`` (float = 1.0), **time-varying-scalar**
+``chi_e_inner`` (float = 1.0), **time-varying-scalar**
   Electron heat conduction value for inner transport patch.
 
 ``rho_inner`` (float = 0.3)
@@ -708,22 +708,22 @@ transport model.
   If True, set a patch for outer core transport coefficients above ``rho_outer``.
   Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
 
-``De_outer``  (float = 0.2), **time-varying-scalar**
+``D_e_outer``  (float = 0.2), **time-varying-scalar**
   Particle diffusivity value for outer transport patch.
 
-``Ve_outer``  (float = 0.0), **time-varying-scalar**
+``V_e_outer``  (float = 0.0), **time-varying-scalar**
   Particle convection value for outer transport patch.
 
-``chii_outer``  (float = 1.0), **time-varying-scalar**
+``chi_i_outer``  (float = 1.0), **time-varying-scalar**
   Ion heat conduction value for outer transport patch.
 
-``chie_outer`` (float = 1.0), **time-varying-scalar**
+``chi_e_outer`` (float = 1.0), **time-varying-scalar**
   Electron heat conduction value for outer transport patch.
 
 ``rho_outer`` (float = 0.9)
   :math:`\hat{\rho}` above which outer patch is applied.
 
-``smoothing_sigma`` (float = 0.0)
+``smoothing_width`` (float = 0.0)
   Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
   If using the ``QLKNN_7_11`` transport model, the default is set to 0.1
 
@@ -1450,24 +1450,24 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'transport': {
           'transport_model': 'qlknn',
           'apply_inner_patch': True,
-          'De_inner': 0.25,
-          'Ve_inner': 0.0,
-          'chii_inner': 1.5,
-          'chie_inner': 1.5,
+          'D_e_inner': 0.25,
+          'V_e_inner': 0.0,
+          'chi_i_inner': 1.5,
+          'chi_e_inner': 1.5,
           'rho_inner': 0.3,
           'apply_outer_patch': True,
-          'De_outer': 0.1,
-          'Ve_outer': 0.0,
-          'chii_outer': 2.0,
-          'chie_outer': 2.0,
+          'D_e_outer': 0.1,
+          'V_e_outer': 0.0,
+          'chi_i_outer': 2.0,
+          'chi_e_outer': 2.0,
           'rho_outer': 0.9,
-          'chimin': 0.05,
-          'chimax': 100,
-          'Demin': 0.05,
-          'Demax': 50,
-          'Vemin': -10,
-          'Vemax': 10,
-          'smoothing_sigma': 0.1,
+          'chi_min': 0.05,
+          'chi_max': 100,
+          'D_e_min': 0.05,
+          'D_e_max': 50,
+          'V_e_min': -10,
+          'V_e_max': 10,
+          'smoothing_width': 0.1,
           'qlknn_params': {
               'DVeff': True,
               'avoid_big_negative_s': True,

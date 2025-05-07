@@ -52,7 +52,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             solver=dict(
                 use_predictor_corrector=False, theta_implicit=theta_implicit
             ),
-            transport=dict(transport_model='constant', chimin=0, chii_const=1),
+            transport=dict(transport_model='constant', chi_min=0, chii_const=1),
             time_step_calculator=dict(),
         )
     )

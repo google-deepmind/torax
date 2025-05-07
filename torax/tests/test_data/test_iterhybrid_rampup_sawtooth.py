@@ -26,9 +26,9 @@ CONFIG['sources']['generic_heat']['Ptot'] = 0.0
 CONFIG['sources']['ohmic'] = {}
 CONFIG['numerics']['resistivity_multiplier'] = 10.0
 CONFIG['numerics']['fixed_dt'] = 1.0
-CONFIG['transport']['chii_inner'] = 0.2
-CONFIG['transport']['chie_inner'] = 0.2
-CONFIG['transport']['De_inner'] = 0.02
+CONFIG['transport']['chi_i_inner'] = 0.2
+CONFIG['transport']['chi_e_inner'] = 0.2
+CONFIG['transport']['D_e_inner'] = 0.02
 CONFIG['transport']['rho_inner'] = 0.15
 CONFIG['mhd'] = {
     'sawtooth': {

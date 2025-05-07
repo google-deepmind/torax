@@ -147,8 +147,8 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         'transport_model': 'quasilinear',
         'DVeff': DVeff,
         'An_min': An_min,
-        'Demin': 0.0,
-        'Vemin': 0.0,
+        'D_e_min': 0.0,
+        'V_e_min': 0.0,
     })
     core_transport = model(*model_inputs)
     self.assertEqual(

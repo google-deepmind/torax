@@ -141,26 +141,26 @@ CONFIG = {
         'transport_model': 'qlknn',
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
         'apply_inner_patch': True,
-        'De_inner': 0.25,
-        'Ve_inner': 0.0,
-        'chii_inner': 1.5,
-        'chie_inner': 1.5,
+        'D_e_inner': 0.25,
+        'V_e_inner': 0.0,
+        'chi_i_inner': 1.5,
+        'chi_e_inner': 1.5,
         'rho_inner': 0.3,  # radius below which patch transport is applied
         # set outer core transport coefficients (L-mode near edge region)
         'apply_outer_patch': True,
-        'De_outer': 0.1,
-        'Ve_outer': 0.0,
-        'chii_outer': 2.0,
-        'chie_outer': 2.0,
+        'D_e_outer': 0.1,
+        'V_e_outer': 0.0,
+        'chi_i_outer': 2.0,
+        'chi_e_outer': 2.0,
         'rho_outer': 0.9,  # radius above which patch transport is applied
         # allowed chi and diffusivity bounds
-        'chimin': 0.05,  # minimum chi
-        'chimax': 100,  # maximum chi (can be helpful for stability)
-        'Demin': 0.05,  # minimum electron diffusivity
-        'Demax': 50,  # maximum electron diffusivity
-        'Vemin': -10,  # minimum electron convection
-        'Vemax': 10,  # minimum electron convection
-        'smoothing_sigma': 0.1,
+        'chi_min': 0.05,  # minimum chi
+        'chi_max': 100,  # maximum chi (can be helpful for stability)
+        'D_e_min': 0.05,  # minimum electron diffusivity
+        'D_e_max': 50,  # maximum electron diffusivity
+        'V_e_min': -10,  # minimum electron convection
+        'V_e_max': 10,  # minimum electron convection
+        'smoothing_width': 0.1,
         # qlknn params.
         'DVeff': True,
         'include_ITG': True,  # to toggle ITG modes on or off

@@ -65,8 +65,8 @@ CONFIG = {
     'transport': {
         'transport_model': 'qlknn',
         'apply_inner_patch': True,
-        'chii_inner': 2.0,
-        'chie_inner': 2.0,
+        'chi_i_inner': 2.0,
+        'chi_e_inner': 2.0,
         'rho_inner': 0.3,
     },
     'solver': {

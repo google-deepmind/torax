@@ -142,14 +142,14 @@ CONFIG = {
         'transport_model': 'qlknn',
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
         'apply_inner_patch': True,
-        'De_inner': 0.25,
-        'chii_inner': 0.5,
-        'chie_inner': 0.25,
+        'D_e_inner': 0.25,
+        'chi_i_inner': 0.5,
+        'chi_e_inner': 0.25,
         'rho_inner': 0.2,  # radius below which patch transport is applied
         # allowed chi and diffusivity bounds
-        'chimin': 0.05,  # minimum chi
-        'chimax': 100,  # maximum chi (can be helpful for stability)
-        'Demin': 0.05,  # minimum electron diffusivity
+        'chi_min': 0.05,  # minimum chi
+        'chi_max': 100,  # maximum chi (can be helpful for stability)
+        'D_e_min': 0.05,  # minimum electron diffusivity
         # qlknn params.
         'DVeff': True,
         'include_ITG': True,  # to toggle ITG modes on or off
