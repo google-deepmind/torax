@@ -45,7 +45,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-    Zeff_face: chex.Array,
+    Z_eff_face: chex.Array,
     density_reference: float,
     use_relativistic_correction: bool = False,
 ) -> tuple[chex.Array, chex.Array]:
@@ -58,7 +58,7 @@ def calc_bremsstrahlung(
   Args:
       core_profiles (state.CoreProfiles): core plasma profiles.
       geo (geometry.Geometry): geometry object.
-      Zeff_face (float): effective charge number on face grid.
+      Z_eff_face (float): effective charge number on face grid.
       density_reference (float): reference density.
       use_relativistic_correction (bool, optional): Set to true to include the
         relativistic correction from Stott. Defaults to False.
@@ -72,14 +72,14 @@ def calc_bremsstrahlung(
   T_e_kev = core_profiles.temp_el.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * Zeff_face * n_e20**2 * jnp.sqrt(T_e_kev)
+      5.35e-3 * Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
-        1.0 + (2.0 / Zeff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
+        1.0 + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction
 
@@ -114,7 +114,7 @@ def bremsstrahlung_model_func(
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       geo,
-      dynamic_runtime_params_slice.plasma_composition.Zeff_face,
+      dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
       dynamic_runtime_params_slice.numerics.density_reference,
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )

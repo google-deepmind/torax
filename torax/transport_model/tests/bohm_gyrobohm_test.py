@@ -91,7 +91,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     plasma_composition_mock = mock.create_autospec(
         plasma_composition.PlasmaComposition,
         instance=True,
-        Zeff_face=jnp.ones_like(self.geo.rho_face),
+        Z_eff_face=jnp.ones_like(self.geo.rho_face),
         main_ion=mock.create_autospec(
             plasma_composition.DynamicIonMixture,
             instance=True,

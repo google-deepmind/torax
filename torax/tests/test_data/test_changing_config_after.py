@@ -19,7 +19,7 @@ CONFIG = {
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
         'impurity': 'Ne',
-        'Zeff': 1.8,  # sets impurity density
+        'Z_eff': 1.8,  # sets impurity density
     },
     'profile_conditions': {
         'Ip': 10.5,  # total plasma current in MA

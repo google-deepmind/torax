@@ -264,10 +264,10 @@ class GettersTest(parameterized.TestCase):
         temp_el,
     )
 
-    Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+    Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
 
     dilution_factor = formulas.calculate_main_ion_dilution_factor(
-        Zi, Zimp, Zeff
+        Zi, Zimp, Z_eff
     )
     np.testing.assert_allclose(
         ni.value,

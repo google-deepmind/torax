@@ -53,8 +53,8 @@ class CollisionsTest(parameterized.TestCase):
       dict(Aimp=20.0, Zimp=10.0, Zi=1.0, Ai=2.0, ni=0.9, expected=0.5),
       dict(Aimp=40.0, Zimp=20.0, Zi=1.0, Ai=2.0, ni=0.92, expected=0.5),
   ])
-  def test_calculate_weighted_Zeff(self, Aimp, Zimp, Zi, Ai, ni, expected):
-    """Compare `_calculate_weighted_Zeff` to a reference value."""
+  def test_calculate_weighted_Z_eff(self, Aimp, Zimp, Zi, Ai, ni, expected):
+    """Compare `_calculate_weighted_Z_eff` to a reference value."""
     n_e = 1.0
     nimp = (n_e - ni * Zi) / Zimp
     core_profiles = mock.create_autospec(
@@ -78,7 +78,7 @@ class CollisionsTest(parameterized.TestCase):
         Aimp=Aimp,
     )
     np.testing.assert_allclose(
-        collisions._calculate_weighted_Zeff(core_profiles), expected
+        collisions._calculate_weighted_Z_eff(core_profiles), expected
     )
 
 if __name__ == '__main__':

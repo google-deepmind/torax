@@ -99,7 +99,7 @@ class QualikizTransportModel(
     transport = dynamic_runtime_params_slice.transport
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
-        Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
+        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         transport=transport,
         geo=geo,

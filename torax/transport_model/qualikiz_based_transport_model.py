@@ -38,7 +38,7 @@ class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
 class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   """Inputs to Qualikiz-based models."""
 
-  Zeff_face: chex.Array
+  Z_eff_face: chex.Array
   q: chex.Array
   smag: chex.Array
   x: chex.Array
@@ -77,7 +77,7 @@ class QualikizBasedTransportModel(
 
   def _prepare_qualikiz_inputs(
       self,
-      Zeff_face: chex.Array,
+      Z_eff_face: chex.Array,
       density_reference: chex.Numeric,
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
@@ -137,7 +137,7 @@ class QualikizBasedTransportModel(
         geo=geo,
         core_profiles=core_profiles,
         density_reference=density_reference,
-        Zeff_face=Zeff_face,
+        Z_eff_face=Z_eff_face,
         collisionality_multiplier=transport.collisionality_multiplier,
     )
     log_nu_star_face = jnp.log10(nu_star)
@@ -188,7 +188,7 @@ class QualikizBasedTransportModel(
     )
     normni = core_profiles.ni.face_value() / core_profiles.n_e.face_value()
     return QualikizInputs(
-        Zeff_face=Zeff_face,
+        Z_eff_face=Z_eff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
         lref_over_lte=normalized_logarithmic_gradients.lref_over_lte,
         lref_over_lne=normalized_logarithmic_gradients.lref_over_lne,

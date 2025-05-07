@@ -202,25 +202,25 @@ Defines the distribution of ion species.  The keys and their meanings are as fol
   Specifies the impurity species, following the same syntax as ``main_ion``. A single effective impurity species
   is currently supported, although multiple impurities can still be defined as a mixture.
 
-``Zeff`` (float = 1.0), **time-varying-array**
-  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
+``Z_eff`` (float = 1.0), **time-varying-array**
+  Plasma effective charge number, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
   the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and impurity charge states,
   a consistent :math:`\hat{n}_i` is calculated, with the appropriate degree of main ion dilution.
 
-``Zi_override`` (float, optional = None), **time-varying-scalar**
+``Z_i_override`` (float, optional = None), **time-varying-scalar**
   An optional override for the main ion's charge (Z) or average charge of an ion mixture.
   If provided, this value will be used instead of the Z calculated from the ``main_ion`` specification.
 
-``Ai_override`` (float, optional = None), **time-varying-scalar**
+``A_i_override`` (float, optional = None), **time-varying-scalar**
   An optional override for the main ion's mass (A) in amu units or average mass of an IonMixture.
   If provided, this value will be used instead of the A calculated from the ``main_ion`` specification.
 
-``Zimp_override`` (float, optional), **time-varying-scalar**
-  As ``Zi_override``, but for the impurity ion. If provided, this value will be used instead of the Z calculated
+``Z_impurity_override`` (float, optional), **time-varying-scalar**
+  As ``Z_i_override``, but for the impurity ion. If provided, this value will be used instead of the Z calculated
   from the ``impurity`` specification.
 
-``Aimp_override`` (float, optional), **time-varying-scalar**
-  As ``Ai_override``, but for the impurity ion. If provided, this value will be used instead of the A calculated
+``A_impurity_override`` (float, optional), **time-varying-scalar**
+  As ``A_i_override``, but for the impurity ion. If provided, this value will be used instead of the A calculated
   from the ``impurity`` specification.
 
 The average charge state of each ion in each mixture is determined by `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_,
@@ -232,7 +232,7 @@ Examples
 --------
 
 We remind that for all cases below, the impurity density is solely constrained by
-the input ``Zeff`` value and the impurity charge state, presently assumed to be fully ionized.
+the input ``Z_eff`` value and the impurity charge state, presently assumed to be fully ionized.
 Imminent development will support temperature-dependent impurity average charge states,
 
 * Pure deuterium plasma:
@@ -242,7 +242,7 @@ Imminent development will support temperature-dependent impurity average charge 
     'plasma_composition': {
         'main_ion': 'D',
         'impurity': 'Ne',  # Neon
-        'Zeff': 1.5,
+        'Z_eff': 1.5,
     }
 
 * 50-50 DT ion mixture:
@@ -252,7 +252,7 @@ Imminent development will support temperature-dependent impurity average charge 
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},
         'impurity': 'Be',  # Beryllium
-        'Zeff': 1.8,
+        'Z_eff': 1.8,
     }
 
 * Time-varying DT ion mixture:
@@ -265,7 +265,7 @@ Imminent development will support temperature-dependent impurity average charge 
         'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
       },
       'impurity': 'W',  # Tungsten
-      'Zeff': 2.0,
+      'Z_eff': 2.0,
     }
 
 Allowed ion symbols
@@ -1424,7 +1424,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'plasma_composition': {
           'main_ion': {'D': 0.5, 'T': 0.5},
           'impurity': 'Ne',
-          'Zeff': 1.6,
+          'Z_eff': 1.6,
       },
       'profile_conditions': {
           'Ip': {0: 3, 80: 10.5},

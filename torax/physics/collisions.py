@@ -23,7 +23,7 @@ Functions:
       goes to the ions according to Stix 1975 analyticlal formulas.
     - _calculate_lambda_ei: Calculates the Coulomb logarithm for electron-ion
       collisions.
-    - _calculate_weighted_Zeff: Calculates ion mass weighted Zeff used in
+    - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
     - _calculate_log_tau_e_Z1: Calculates log of electron-ion collision time for
       Z=1 plasma.
@@ -58,7 +58,7 @@ def coll_exchange(
   lambda_ei = _calculate_lambda_ei(
       core_profiles.temp_el.value, core_profiles.n_e.value * density_reference
   )
-  # ion-electron collisionality for Zeff=1. Ion charge and multiple ion effects
+  # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.value,
@@ -67,13 +67,13 @@ def coll_exchange(
   )
   # pylint: disable=invalid-name
 
-  weighted_Zeff = _calculate_weighted_Zeff(core_profiles)
+  weighted_Z_eff = _calculate_weighted_Z_eff(core_profiles)
 
   log_Qei_coef = (
       jnp.log(Qei_mult * 1.5 * core_profiles.n_e.value * density_reference)
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
-      + jnp.log(weighted_Zeff)
+      + jnp.log(weighted_Z_eff)
       - log_tau_e_Z1
   )
   Qei_coef = jnp.exp(log_Qei_coef)
@@ -84,7 +84,7 @@ def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     density_reference: float,
-    Zeff_face: jax.Array,
+    Z_eff_face: jax.Array,
     collisionality_multiplier: float,
 ) -> jax.Array:
   """Calculates nustar.
@@ -95,7 +95,7 @@ def calc_nu_star(
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
     density_reference: Reference value for normalization
-    Zeff_face: Effective ion charge on face grid.
+    Z_eff_face: Effective ion charge on face grid.
     collisionality_multiplier: Collisionality multiplier in QLKNN for
       sensitivity testing.
 
@@ -116,7 +116,7 @@ def calc_nu_star(
       lambda_ei_face,
   )
 
-  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * collisionality_multiplier
+  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Z_eff_face * collisionality_multiplier
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.R_major
@@ -199,10 +199,10 @@ def _calculate_lambda_ei(
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
-def _calculate_weighted_Zeff(
+def _calculate_weighted_Z_eff(
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-  """Calculates ion mass weighted Zeff. Used for collisional heat exchange."""
+  """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
   return (
       core_profiles.ni.value * core_profiles.Zi**2 / core_profiles.Ai
       + core_profiles.nimp.value * core_profiles.Zimp**2 / core_profiles.Aimp

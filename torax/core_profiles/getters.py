@@ -164,11 +164,11 @@ def get_ion_density_and_charge_states(
 
   Main ion and impurities are each treated as a single effective ion, but could
   be comparised of multiple species within an IonMixture. The main ion and
-  impurity densities are calculated depending on the Zeff constraint,
+  impurity densities are calculated depending on the Z_eff constraint,
   quasineutrality, and the average impurity charge state which may be
   temperature dependent.
 
-  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/n_e  ;  nimp*Zimp + ni*Zi = n_e
+  Z_eff = (Zi**2 * ni + Zimp**2 * nimp)/n_e  ;  nimp*Zimp + ni*Zi = n_e
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
@@ -194,12 +194,12 @@ def get_ion_density_and_charge_states(
       temp_el,
   )
 
-  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
-  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
+  Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+  Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
 
-  dilution_factor = formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Zeff)
+  dilution_factor = formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Z_eff)
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
+      Zi_face[-1], Zimp_face[-1], Z_eff_face[-1]
   )
 
   ni = cell_variable.CellVariable(

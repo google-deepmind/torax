@@ -191,7 +191,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
   @property
   def inputs_and_ranges(self) -> base_qlknn_model.InputsAndRanges:
     return {
-        'Zeff_face': {'min': 1.0, 'max': 3.0},
+        'Z_eff_face': {'min': 1.0, 'max': 3.0},
         'Ati': {'min': 0.0, 'max': 14.0},
         'Ate': {'min': 0.0, 'max': 14.0},
         'Ane': {'min': -5.0, 'max': 6.0},

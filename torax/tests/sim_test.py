@@ -122,7 +122,8 @@ class SimTest(sim_test_case.SimTestCase):
           'test_eqdsk',
           'test_eqdsk.py',
       ),
-      # Tests Bremsstrahlung heat sink with time dependent Zimp and Zeff. CHEASE
+      # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
+      # CHEASE
       (
           'test_bremsstrahlung_time_dependent_Zimp',
           'test_bremsstrahlung_time_dependent_Zimp.py',
@@ -190,7 +191,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_clip_inputs',
           'test_iterhybrid_predictor_corrector_clip_inputs.py',
       ),
-      # Predictor-corrector solver with non-constant Zeff profile.
+      # Predictor-corrector solver with non-constant Z_eff profile.
       (
           'test_iterhybrid_predictor_corrector_zeffprofile',
           'test_iterhybrid_predictor_corrector_zeffprofile.py',

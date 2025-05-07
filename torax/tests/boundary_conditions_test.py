@@ -109,10 +109,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
     )
     # pylint: disable=invalid-name
     Zi_face = core_profiles.Zi_face
-    Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
+    Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
     Zimp_face = core_profiles.Zimp_face
     # pylint: enable=invalid-name
-    dilution_factor_face = (Zimp_face - Zeff_face) / (
+    dilution_factor_face = (Zimp_face - Z_eff_face) / (
         Zi_face * (Zimp_face - Zi_face)
     )
     expected_ni_bound_right = expected_n_e_right_bc * dilution_factor_face[-1]

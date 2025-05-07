@@ -398,7 +398,7 @@ def compute_boundary_conditions_for_t_plus_dt(
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Zi_edge,
       Zimp_edge,
-      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],
+      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Z_eff_face[-1],
   )
 
   ni_bound_right = n_e_right_bc * dilution_factor_edge

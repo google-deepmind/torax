@@ -23,7 +23,7 @@ CONFIG = {
     'plasma_composition': {
         'main_ion': 'D',
         'impurity': 'Ne',
-        'Zeff': 1.6,
+        'Z_eff': 1.6,
     },
     'profile_conditions': {
         'Ip': 0.25,

@@ -90,7 +90,7 @@ class BootstrapCurrentSource(source.Source):
     bootstrap_current = calc_sauter_model(
         bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_mult,
         density_reference=dynamic_runtime_params_slice.numerics.density_reference,
-        Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
+        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         Zi_face=core_profiles.Zi_face,
         n_e=core_profiles.n_e,
         ni=core_profiles.ni,
@@ -163,7 +163,7 @@ def calc_sauter_model(
     *,
     bootstrap_multiplier: float,
     density_reference: float,
-    Zeff_face: chex.Array,
+    Z_eff_face: chex.Array,
     Zi_face: chex.Array,
     n_e: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
@@ -191,7 +191,7 @@ def calc_sauter_model(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  NZ = 0.58 + 0.74 / (0.76 + Zeff_face)
+  NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   lnLame = (
       31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(temp_el.face_value() * 1e3)
   )
@@ -203,7 +203,7 @@ def calc_sauter_model(
   )
 
   sigsptz = (
-      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff_face / NZ / lnLame
+      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
   )
 
   nuestar = (
@@ -211,7 +211,7 @@ def calc_sauter_model(
       * q_face
       * geo.R_major
       * true_n_e_face
-      * Zeff_face
+      * Z_eff_face
       * lnLame
       / (
           ((temp_el.face_value() * 1e3) ** 2)
@@ -223,7 +223,7 @@ def calc_sauter_model(
       * q_face
       * geo.R_major
       * true_ni_face
-      * Zeff_face**4
+      * Z_eff_face**4
       * lnLami
       / (
           ((temp_ion.face_value() * 1e3) ** 2)
@@ -235,12 +235,12 @@ def calc_sauter_model(
   ft33 = ftrap / (
       1.0
       + (0.55 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.45 * (1.0 - ftrap) * nuestar / (Zeff_face**1.5)
+      + 0.45 * (1.0 - ftrap) * nuestar / (Z_eff_face**1.5)
   )
   signeo_face = 1.0 - ft33 * (
       1.0
-      + 0.36 / Zeff_face
-      - ft33 * (0.59 / Zeff_face - 0.23 / Zeff_face * ft33)
+      + 0.36 / Z_eff_face
+      - ft33 * (0.59 / Z_eff_face - 0.23 / Z_eff_face * ft33)
   )
   sigmaneo = sigsptz * signeo_face
 
@@ -248,58 +248,58 @@ def calc_sauter_model(
   denom = (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - ftrap) * nuestar / Zeff_face
+      + 0.5 * (1.0 - ftrap) * nuestar / Z_eff_face
   )
   ft31 = ftrap / denom
   ft32ee = ftrap / (
       1
       + 0.26 * (1 - ftrap) * jnp.sqrt(nuestar)
-      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Zeff_face)
+      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Z_eff_face)
   )
   ft32ei = ftrap / (
       1
       + (1 + 0.6 * ftrap) * jnp.sqrt(nuestar)
-      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Zeff_face)
+      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Z_eff_face)
   )
   ft34 = ftrap / (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Zeff_face
+      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Z_eff_face
   )
 
   F32ee = (
-      (0.05 + 0.62 * Zeff_face)
-      / (Zeff_face * (1 + 0.44 * Zeff_face))
+      (0.05 + 0.62 * Z_eff_face)
+      / (Z_eff_face * (1 + 0.44 * Z_eff_face))
       * (ft32ee - ft32ee**4)
       + 1
-      / (1 + 0.22 * Zeff_face)
+      / (1 + 0.22 * Z_eff_face)
       * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2 / (1 + 0.5 * Zeff_face) * ft32ee**4
+      + 1.2 / (1 + 0.5 * Z_eff_face) * ft32ee**4
   )
 
   F32ei = (
-      -(0.56 + 1.93 * Zeff_face)
-      / (Zeff_face * (1 + 0.44 * Zeff_face))
+      -(0.56 + 1.93 * Z_eff_face)
+      / (Z_eff_face * (1 + 0.44 * Z_eff_face))
       * (ft32ei - ft32ei**4)
       + 4.95
-      / (1 + 2.48 * Zeff_face)
+      / (1 + 2.48 * Z_eff_face)
       * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2 / (1 + 0.5 * Zeff_face) * ft32ei**4
+      - 1.2 / (1 + 0.5 * Z_eff_face) * ft32ei**4
   )
 
-  term_0 = (1 + 1.4 / (Zeff_face + 1)) * ft31
-  term_1 = -1.9 / (Zeff_face + 1) * ft31**2
-  term_2 = 0.3 / (Zeff_face + 1) * ft31**3
-  term_3 = 0.2 / (Zeff_face + 1) * ft31**4
+  term_0 = (1 + 1.4 / (Z_eff_face + 1)) * ft31
+  term_1 = -1.9 / (Z_eff_face + 1) * ft31**2
+  term_2 = 0.3 / (Z_eff_face + 1) * ft31**3
+  term_3 = 0.2 / (Z_eff_face + 1) * ft31**4
   L31 = term_0 + term_1 + term_2 + term_3
 
   L32 = F32ee + F32ei
 
   L34 = (
-      (1 + 1.4 / (Zeff_face + 1)) * ft34
-      - 1.9 / (Zeff_face + 1) * ft34**2
-      + 0.3 / (Zeff_face + 1) * ft34**3
-      + 0.2 / (Zeff_face + 1) * ft34**4
+      (1 + 1.4 / (Z_eff_face + 1)) * ft34
+      - 1.9 / (Z_eff_face + 1) * ft34**2
+      + 0.3 / (Z_eff_face + 1) * ft34**3
+      + 0.2 / (Z_eff_face + 1) * ft34**4
   )
 
   alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)

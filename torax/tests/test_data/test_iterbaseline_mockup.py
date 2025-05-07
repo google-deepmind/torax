@@ -19,10 +19,10 @@ CONFIG = {
     'plasma_composition': {
         # physical inputs
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
-        'Zeff': 1.74,
+        'Z_eff': 1.74,
         # effective impurity charge state assumed for matching
         # dilution=0.862
-        'Zimp_override': 6.3623,
+        'Z_impurity_override': 6.3623,
     },
     'profile_conditions': {
         'Ip': 15,  # total plasma current in MA

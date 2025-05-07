@@ -16,7 +16,7 @@
 
 Functions:
     - calculate_main_ion_dilution_factor: Calculates the main ion dilution
-      factor based on average impurity charge and Zeff.
+      factor based on average impurity charge and Z_eff.
     - calculate_pressure: Calculates pressure from density and temperatures.
     - calc_pprime: Calculates total pressure gradient with respect to poloidal
       flux.
@@ -43,10 +43,10 @@ _trapz = jax.scipy.integrate.trapezoid
 def calculate_main_ion_dilution_factor(
     Zi: array_typing.ScalarFloat,
     Zimp: array_typing.ArrayFloat,
-    Zeff: array_typing.ArrayFloat,
+    Z_eff: array_typing.ArrayFloat,
 ) -> jax.Array:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Zimp - Zeff) / (Zi * (Zimp - Zi))
+  return (Zimp - Z_eff) / (Zi * (Zimp - Zi))
 
 
 def calculate_pressure(

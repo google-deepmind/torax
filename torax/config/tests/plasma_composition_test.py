@@ -21,14 +21,15 @@ from torax.physics import charge_states
 from torax.torax_pydantic import torax_pydantic
 
 
+# pylint: disable=invalid-name
 class PlasmaCompositionTest(parameterized.TestCase):
 
   @parameterized.named_parameters(('too_low', 0.0))
   def test_plasma_composition_validation_error_for_unphysical_zeff(
-      self, z_eff: float
+      self, Z_eff: float
   ):
     with self.assertRaises(pydantic.ValidationError):
-      plasma_composition.PlasmaComposition(Zeff=z_eff)
+      plasma_composition.PlasmaComposition(Z_eff=Z_eff)
 
   def test_plasma_composition_build_dynamic_params(self):
     """Checks provider construction with no issues."""
@@ -42,33 +43,33 @@ class PlasmaCompositionTest(parameterized.TestCase):
       (1.6,),
       (2.5,),
   )
-  def test_zeff_accepts_float_inputs(self, zeff: float):
+  def test_zeff_accepts_float_inputs(self, Z_eff: float):
     """Tests that zeff accepts a single float input."""
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Zeff=zeff)
+    pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dynamic_pc = pc.build_dynamic_params(t=0.0)
-    # Check that the values in both Zeff and Zeff_face are the same
+    # Check that the values in both Z_eff and Z_eff_face are the same
     # and consistent with the zeff float input
     np.testing.assert_allclose(
-        dynamic_pc.Zeff,
-        zeff,
+        dynamic_pc.Z_eff,
+        Z_eff,
     )
     np.testing.assert_allclose(
-        dynamic_pc.Zeff_face,
-        zeff,
+        dynamic_pc.Z_eff_face,
+        Z_eff,
     )
 
   def test_zeff_and_zeff_face_match_expected(self):
-    """Checks that Zeff and Zeff_face are calculated as expected."""
-    # Define an arbitrary Zeff profile
+    """Checks that Z_eff and Z_eff_face are calculated as expected."""
+    # Define an arbitrary Z_eff profile
     zeff_profile = {
         0.0: {0.0: 1.0, 0.5: 1.3, 1.0: 1.6},
         1.0: {0.0: 1.8, 0.5: 2.1, 1.0: 2.4},
     }
 
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Zeff=zeff_profile)
+    pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
@@ -83,8 +84,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
         np.array(list(zeff_profile[0.0])),
         np.array(list(zeff_profile[0.0].values())),
     )
-    np.testing.assert_allclose(dynamic_pc.Zeff, expected_zeff)
-    np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
+    np.testing.assert_allclose(dynamic_pc.Z_eff, expected_zeff)
+    np.testing.assert_allclose(dynamic_pc.Z_eff_face, expected_zeff_face)
 
     # Check values at t=0.5 (interpolated in time)
     dynamic_pc = pc.build_dynamic_params(t=0.5)
@@ -98,8 +99,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
         np.array([0.0, 0.5, 1.0]),
         np.array([1.4, 1.7, 2.0]),
     )
-    np.testing.assert_allclose(dynamic_pc.Zeff, expected_zeff)
-    np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
+    np.testing.assert_allclose(dynamic_pc.Z_eff, expected_zeff)
+    np.testing.assert_allclose(dynamic_pc.Z_eff_face, expected_zeff_face)
 
   def test_get_ion_names(self):
     # Test the get_ion_names method

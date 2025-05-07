@@ -85,7 +85,7 @@ class QLKNNRuntimeConfigInputs:
 
   # pylint: disable=invalid-name
   density_reference: float
-  Zeff_face: chex.Array
+  Z_eff_face: chex.Array
   transport: DynamicRuntimeParams
   Ped_top: float
   set_pedestal: bool
@@ -101,7 +101,7 @@ class QLKNNRuntimeConfigInputs:
     )
     return QLKNNRuntimeConfigInputs(
         density_reference=dynamic_runtime_params_slice.numerics.density_reference,
-        Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
+        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
         set_pedestal=dynamic_runtime_params_slice.pedestal.set_pedestal,
@@ -235,7 +235,7 @@ class QLKNNTransportModel(
       v_face_ne: Convectivity for electron density, along faces.
     """
     qualikiz_inputs = self._prepare_qualikiz_inputs(
-        Zeff_face=runtime_config_inputs.Zeff_face,
+        Z_eff_face=runtime_config_inputs.Z_eff_face,
         density_reference=runtime_config_inputs.density_reference,
         transport=runtime_config_inputs.transport,
         geo=geo,

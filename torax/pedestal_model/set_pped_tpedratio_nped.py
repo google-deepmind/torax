@@ -75,16 +75,16 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     )
     Zimp = core_profiles.Zimp
     Zi = core_profiles.Zi
-    # Find the value of Zeff at the pedestal top.
+    # Find the value of Z_eff at the pedestal top.
     rho_norm_ped_top = dynamic_runtime_params_slice.pedestal.rho_norm_ped_top
-    Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+    Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
-    Zeff_ped = jnp.take(Zeff, ped_idx)
+    Z_eff_ped = jnp.take(Z_eff, ped_idx)
     Zi_ped = jnp.take(Zi, ped_idx)
     Zimp_ped = jnp.take(Zimp, ped_idx)
     dilution_factor_ped = formulas.calculate_main_ion_dilution_factor(
-        Zi_ped, Zimp_ped, Zeff_ped
+        Zi_ped, Zimp_ped, Z_eff_ped
     )
     # Calculate ni and nimp.
     ni_ped = dilution_factor_ped * n_e_ped_ref

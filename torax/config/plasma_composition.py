@@ -103,8 +103,8 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: DynamicIonMixture
-  Zeff: array_typing.ArrayFloat
-  Zeff_face: array_typing.ArrayFloat
+  Z_eff: array_typing.ArrayFloat
+  Z_eff_face: array_typing.ArrayFloat
 
 
 class PlasmaComposition(torax_pydantic.BaseModelFrozen):
@@ -121,16 +121,16 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
       from a dict mapping ion symbols to their fractional concentration in the
       mixture.
     impurity: Impurity ion species. Same format as main_ion.
-    Zeff: Constraint for impurity densities.
-    Zi_override: Optional arbitrary masses and charges which can be used to
+    Z_eff: Constraint for impurity densities.
+    Z_i_override: Optional arbitrary masses and charges which can be used to
       override the data for the average Z and A of each IonMixture for main_ions
       or impurities. Useful for testing or testing physical sensitivities,
       outside the constraint of allowed impurity species.
-    Ai_override: Optional arbitrary masses and charges which can be used to
+    A_i_override: Optional arbitrary masses and charges which can be used to
       override the data for the average Z and A of each IonMixture for main_ions
       or impurities. Useful for testing or testing physical sensitivities,
       outside the constraint of allowed impurity species.
-    Zimp_override: Optional arbitrary masses and charges which can
+    Z_impurity_override: Optional arbitrary masses and charges which can
   """
 
   main_ion: runtime_validation_utils.IonMapping = (
@@ -139,13 +139,13 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   impurity: runtime_validation_utils.IonMapping = (
       torax_pydantic.ValidatedDefault('Ne')
   )
-  Zeff: (
+  Z_eff: (
       runtime_validation_utils.TimeVaryingArrayDefinedAtRightBoundaryAndBounded
   ) = torax_pydantic.ValidatedDefault(1.0)
-  Zi_override: torax_pydantic.TimeVaryingScalar | None = None
-  Ai_override: torax_pydantic.TimeVaryingScalar | None = None
-  Zimp_override: torax_pydantic.TimeVaryingScalar | None = None
-  Aimp_override: torax_pydantic.TimeVaryingScalar | None = None
+  Z_i_override: torax_pydantic.TimeVaryingScalar | None = None
+  A_i_override: torax_pydantic.TimeVaryingScalar | None = None
+  Z_impurity_override: torax_pydantic.TimeVaryingScalar | None = None
+  A_impurity_override: torax_pydantic.TimeVaryingScalar | None = None
 
   # Generate the IonMixture objects from the input for either a mixture (dict)
   # or the shortcut for a single ion (string). IonMixture objects with a
@@ -158,8 +158,8 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # Use `model_construct` as no validation required.
     return IonMixture.model_construct(
         species=self.main_ion,
-        Z_override=self.Zi_override,
-        A_override=self.Ai_override,
+        Z_override=self.Z_i_override,
+        A_override=self.A_i_override,
     )
 
   @functools.cached_property
@@ -168,8 +168,8 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # Use `model_construct` as no validation required.
     return IonMixture.model_construct(
         species=self.impurity,
-        Z_override=self.Zimp_override,
-        A_override=self.Aimp_override,
+        Z_override=self.Z_impurity_override,
+        A_override=self.A_impurity_override,
     )
 
   def get_main_ion_names(self) -> tuple[str, ...]:
@@ -184,6 +184,6 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     return DynamicPlasmaComposition(
         main_ion=self.main_ion_mixture.build_dynamic_params(t),
         impurity=self.impurity_mixture.build_dynamic_params(t),
-        Zeff=self.Zeff.get_value(t),
-        Zeff_face=self.Zeff.get_value(t, grid_type='face'),
+        Z_eff=self.Z_eff.get_value(t),
+        Z_eff_face=self.Z_eff.get_value(t, grid_type='face'),
     )

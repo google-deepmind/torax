@@ -107,7 +107,7 @@ class PlotData:
     n_impurity: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on
       the cell grid. Corresponds to an bundled ion mixture if specified as such
       in the config.
-    z_impurity: Average charge state of the impurity species [dimensionless]
+    Z_impurity: Average charge state of the impurity species [dimensionless]
       on the cell grid.
     psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
     v_loop: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
@@ -193,7 +193,7 @@ class PlotData:
   n_e: np.ndarray
   n_i: np.ndarray
   n_impurity: np.ndarray
-  z_impurity: np.ndarray
+  Z_impurity: np.ndarray
   psi: np.ndarray
   v_loop: np.ndarray
   j_total: np.ndarray
@@ -331,7 +331,7 @@ def load_data(filename: str) -> PlotData:
       n_e=profiles_dataset[output.N_E].to_numpy(),
       n_i=profiles_dataset[output.N_I].to_numpy(),
       n_impurity=profiles_dataset[output.N_IMPURITY].to_numpy(),
-      z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
+      Z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
       psi=profiles_dataset[output.PSI].to_numpy(),
       v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
       j_total=profiles_dataset[output.J_TOTAL].to_numpy(),

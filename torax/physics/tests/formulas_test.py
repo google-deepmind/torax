@@ -35,17 +35,19 @@ class FormulasTest(parameterized.TestCase):
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
-      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
-      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
-      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
-      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
-      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
-      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
+      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=1.0, Z_impurity=5.0, Z_eff=1.0, expected=1.0),
+      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=2.0, Z_impurity=5.0, Z_eff=2.0, expected=0.5),
+      dict(Z_i=1.0, Z_impurity=10.0, Z_eff=1.9, expected=0.9),
+      dict(Z_i=2.0, Z_impurity=10.0, Z_eff=3.6, expected=0.4),
   ])
-  def test_calculate_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
+  def test_calculate_main_ion_dilution_factor(
+      self, Z_i, Z_impurity, Z_eff, expected
+  ):
     """Unit test of `calculate_main_ion_dilution_factor`."""
     np.testing.assert_allclose(
-        formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Zeff),
+        formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
         expected,
     )
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_iterhybrid_predictor_corrector but with Zeff profile."""
+"""Identical to test_iterhybrid_predictor_corrector but with Z_eff profile."""
 import copy
 import numpy as np
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
@@ -27,4 +27,4 @@ zeff_max = 2.8
 zeff_diff = zeff_max - zeff_min
 zeff = -4 * zeff_diff * rhon**2 + 4 * zeff_diff * rhon + zeff_min
 
-CONFIG['plasma_composition']['Zeff'] = (rhon, zeff)
+CONFIG['plasma_composition']['Z_eff'] = (rhon, zeff)

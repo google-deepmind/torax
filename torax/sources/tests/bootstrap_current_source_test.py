@@ -49,7 +49,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
         plasma_composition=mock.create_autospec(
             plasma_composition.PlasmaComposition,
             instance=True,
-            Zeff_face=jnp.ones_like(self.geo.rho_face),
+            Z_eff_face=jnp.ones_like(self.geo.rho_face),
         ),
         numerics=mock.create_autospec(
             numerics.Numerics,

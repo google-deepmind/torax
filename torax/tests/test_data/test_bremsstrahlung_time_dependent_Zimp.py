@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests Bremsstrahlung power model with time-dependent Zimp and Zeff. CHEASE.
+"""Tests Bremsstrahlung power model with time-dependent Zimp and Z_eff. CHEASE.
 
 Ip from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
 """
@@ -20,8 +20,8 @@ Ip from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
 
 CONFIG = {
     'plasma_composition': {
-        'Zeff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
-        'Zimp_override': {0: 10.0, 1: 30.0},
+        'Z_eff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
+        'Z_impurity_override': {0: 10.0, 1: 30.0},
     },
     'profile_conditions': {
         'n_e_nbar_is_fGW': True,
