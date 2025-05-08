@@ -312,7 +312,7 @@ def _toric_nn_predict(
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
+  P_total: array_typing.ScalarFloat
   absorption_fraction: array_typing.ScalarFloat
   wall_inner: float
   wall_outer: float
@@ -322,13 +322,13 @@ def _helium3_tail_temperature(
     power_deposition_he3: jax.Array,
     core_profiles: state.CoreProfiles,
     minority_concentration: float,
-    Ptot: float,
+    P_total: float,
 ) -> jax.Array:
   """Use a "Stix distribution" to estimate the tail temperature of He3."""
   helium3_mass = 3.016
   helium3_charge = 2
   helium3_fraction = minority_concentration / 100  # Min conc provided in %.
-  absorbed_power_density = power_deposition_he3 * Ptot
+  absorbed_power_density = power_deposition_he3 * P_total
   n_e20 = core_profiles.n_e.value * core_profiles.density_reference / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
   # He3 distribution based on an analytic solution to the FP equation.
@@ -424,7 +424,7 @@ def icrh_model_func(
       power_deposition_he3,
       core_profiles,
       dynamic_source_runtime_params.minority_concentration,
-      dynamic_source_runtime_params.Ptot / 1e6,  # required in MW.
+      dynamic_source_runtime_params.P_total / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
@@ -433,7 +433,7 @@ def icrh_model_func(
       helium3_mass,
   )
   absorbed_power = (
-      dynamic_source_runtime_params.Ptot
+      dynamic_source_runtime_params.P_total
       * dynamic_source_runtime_params.absorption_fraction
   )
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
@@ -493,7 +493,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     frequency: ICRF wave frequency [Hz].
     minority_concentration: He3 minority concentration relative to the electron
       density in %.
-    Ptot: Total heating power [W].
+    P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
   model_name: Literal['toric_nn'] = 'toric_nn'
@@ -505,7 +505,9 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   minority_concentration: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(3.0)
   )
-  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      10e6
+  )
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -532,7 +534,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),
         minority_concentration=self.minority_concentration.get_value(t),
-        Ptot=self.Ptot.get_value(t),
+        P_total=self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )
 

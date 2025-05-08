@@ -42,7 +42,7 @@ CONFIG = {
             'bootstrap_mult': 0.0,
         },
         'generic_heat': {
-            'w': 0.18202270915319393,
+            'gaussian_width': 0.18202270915319393,
         },
         'generic_current': {},
     },

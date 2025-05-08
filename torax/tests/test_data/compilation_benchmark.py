@@ -48,7 +48,7 @@ CONFIG = {
             'bootstrap_mult': 1.0,
         },
         'generic_heat': {
-            'Ptot': 53.0e6,
+            'P_total': 53.0e6,
         },
         'pellet': {
             'S_pellet_tot': 1.0e22,

@@ -51,8 +51,8 @@ CONFIG = {
             'bootstrap_mult': 0.0,
         },
         'generic_heat': {
-            'w': 0.18202270915319393,
-            'Ptot': {
+            'gaussian_width': 0.18202270915319393,
+            'P_total': {
                 0: 20e6,
                 9: 20e6,
                 10: 120e6,

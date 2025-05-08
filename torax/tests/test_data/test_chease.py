@@ -51,7 +51,7 @@ CONFIG = {
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {
             # Gaussian width in normalized radial coordinate r
-            'w': 0.18202270915319393,
+            'gaussian_width': 0.18202270915319393,
         },
         'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity

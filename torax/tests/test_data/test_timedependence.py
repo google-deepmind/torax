@@ -15,7 +15,7 @@
 """Tests time dependent boundary conditions and sources.
 
 Ip from parameters. implicit + pereverzev-corrigan, T_i+T_e+Psi, Pei standard
-dens, pedestal, chi from QLKNN. Includes time dependent Ip, Ptot, and
+dens, pedestal, chi from QLKNN. Includes time dependent Ip, P_total, and
 pedestal, mocking up current-overshoot and an LH transition
 """
 
@@ -47,8 +47,8 @@ CONFIG = {
             'bootstrap_mult': 0.0,
         },
         'generic_heat': {
-            'w': 0.18202270915319393,
-            'Ptot': {
+            'gaussian_width': 0.18202270915319393,
+            'P_total': {
                 0: 20e6,
                 9: 20e6,
                 10: 120e6,

@@ -973,16 +973,16 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 
 ``mode`` (str = 'model')
 
-``rsource`` (float = 0.0), **time-varying-scalar**
+``gaussian_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``w`` (float = 0.25), **time-varying-scalar**
+``gaussian_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``Ptot`` (float = 120e6), **time-varying-scalar**
+``P_total`` (float = 120e6), **time-varying-scalar**
   Total source power in W. High default based on total ITER power including alphas
 
-``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
+``electron_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
 
 ei_exchange
@@ -1192,7 +1192,7 @@ environment variable which should point to a compatible JSON file.
 ``minority_concentration`` (float = 3.0) **time-varying-scalar**
   Helium-3 minority concentration relative to the electron density in %.
 
-``Ptot`` (float = 10e6), **time-varying-scalar**
+``P_total`` (float = 10e6), **time-varying-scalar**
   Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
@@ -1477,11 +1477,11 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'pellet_deposition_location': 0.85,
           },
           'generic_heat': {
-              'rsource': 0.12741589640723575,
-              'w': 0.07280908366127758,
+              'gaussian_location': 0.12741589640723575,
+              'gaussian_width': 0.07280908366127758,
               # total heating (with a rough assumption of radiation reduction)
-              'Ptot': 20.0e6,
-              'el_heat_fraction': 1.0,
+              'P_total': 20.0e6,
+              'electron_heat_fraction': 1.0,
           },
           'fusion': {},
           'ei_exchange': {},

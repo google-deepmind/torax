@@ -54,7 +54,7 @@ def calc_fusion(
       density_reference and the D and T densities.
 
   Returns:
-    Tuple of Ptot, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
+    Tuple of P_total, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
       fusion power densities in W/m^3.
   """
 
@@ -122,7 +122,7 @@ def calc_fusion(
   Pfus_cell = 0.5 * (Pfus_face[:-1] + Pfus_face[1:])
 
   # [MW]
-  Ptot = (
+  P_total = (
       jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.rho_face_norm)
       / 1e6
   )
@@ -140,7 +140,7 @@ def calc_fusion(
   frac_e = 1.0 - frac_i
   Pfus_i = Pfus_cell * frac_i * alpha_fraction
   Pfus_e = Pfus_cell * frac_e * alpha_fraction
-  return Ptot, Pfus_i, Pfus_e
+  return P_total, Pfus_i, Pfus_e
 
 
 def fusion_heat_model_func(

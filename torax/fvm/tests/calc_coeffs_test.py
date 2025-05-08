@@ -36,7 +36,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     sources_config = default_sources.get_default_source_config()
     sources_config['ei_exchange']['Qei_mult'] = 0.0
-    sources_config['generic_heat']['Ptot'] = 0.0
+    sources_config['generic_heat']['P_total'] = 0.0
     sources_config['fusion']['mode'] = 'ZERO'
     sources_config['ohmic']['mode'] = 'ZERO'
     torax_config = model_config.ToraxConfig.from_dict(

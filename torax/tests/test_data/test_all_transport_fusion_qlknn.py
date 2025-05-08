@@ -57,7 +57,7 @@ CONFIG = {
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {
-            'Ptot': 53.0e6,
+            'P_total': 53.0e6,
         },
         'fusion': {},
         'ei_exchange': {

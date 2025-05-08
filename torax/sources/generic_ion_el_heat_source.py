@@ -38,19 +38,19 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  w: array_typing.ScalarFloat
-  rsource: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
-  el_heat_fraction: array_typing.ScalarFloat
+  gaussian_width: array_typing.ScalarFloat
+  gaussian_location: array_typing.ScalarFloat
+  P_total: array_typing.ScalarFloat
+  electron_heat_fraction: array_typing.ScalarFloat
   absorption_fraction: array_typing.ScalarFloat
 
 
 def calc_generic_heat_source(
     geo: geometry.Geometry,
-    rsource: float,
-    w: float,
-    Ptot: float,
-    el_heat_fraction: float,
+    gaussian_location: float,
+    gaussian_width: float,
+    P_total: float,
+    electron_heat_fraction: float,
     absorption_fraction: float,
 ) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
@@ -59,10 +59,10 @@ def calc_generic_heat_source(
 
   Args:
     geo: Geometry describing the torus.
-    rsource: Source Gaussian central location
-    w: Gaussian width
-    Ptot: total heating
-    el_heat_fraction: fraction of heating deposited on electrons
+    gaussian_location: Source Gaussian central location
+    gaussian_width: Gaussian width
+    P_total: total heating
+    electron_heat_fraction: fraction of heating deposited on electrons
     absorption_fraction: fraction of absorbed power
 
   Returns:
@@ -70,12 +70,12 @@ def calc_generic_heat_source(
     source_el: source term for electrons.
   """
   # Calculate heat profile.
-  absorbed_power = Ptot * absorption_fraction
+  absorbed_power = P_total * absorption_fraction
   profile = formulas.gaussian_profile(
-      geo, center=rsource, width=w, total=absorbed_power
+      geo, center=gaussian_location, width=gaussian_width, total=absorbed_power
   )
-  source_ion = profile * (1 - el_heat_fraction)
-  source_el = profile * el_heat_fraction
+  source_ion = profile * (1 - electron_heat_fraction)
+  source_el = profile * electron_heat_fraction
 
   return source_ion, source_el
 
@@ -95,10 +95,10 @@ def default_formula(
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
-      dynamic_source_runtime_params.rsource,
-      dynamic_source_runtime_params.w,
-      dynamic_source_runtime_params.Ptot,
-      dynamic_source_runtime_params.el_heat_fraction,
+      dynamic_source_runtime_params.gaussian_location,
+      dynamic_source_runtime_params.gaussian_width,
+      dynamic_source_runtime_params.P_total,
+      dynamic_source_runtime_params.electron_heat_fraction,
       dynamic_source_runtime_params.absorption_fraction,
   )
   return (ion, el)
@@ -127,21 +127,25 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
-    w: Gaussian width in normalized radial coordinate
-    rsource: Source Gaussian central location (in normalized r)
-    Ptot: Total heating: high default based on total ITER power including alphas
-    el_heat_fraction: Electron heating fraction
-    absorption_fraction: Fraction of absorbed power
+    gaussian_width: Gaussian width in normalized radial coordinate
+    gaussian_location: Source Gaussian central location (in normalized
+      r)
+    P_total: Total heating: high default based on total ITER power including
+      alphas
+    electron_heat_fraction: Electron heating fraction
   """
+
   model_name: Literal['gaussian'] = 'gaussian'
-  w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
-  rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.0
+  gaussian_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.25)
   )
-  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+  gaussian_location: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       120e6
   )
-  el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
+  electron_heat_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -161,10 +165,10 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        w=self.w.get_value(t),
-        rsource=self.rsource.get_value(t),
-        Ptot=self.Ptot.get_value(t),
-        el_heat_fraction=self.el_heat_fraction.get_value(t),
+        gaussian_width=self.gaussian_width.get_value(t),
+        gaussian_location=self.gaussian_location.get_value(t),
+        P_total=self.P_total.get_value(t),
+        electron_heat_fraction=self.electron_heat_fraction.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )
 

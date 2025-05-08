@@ -113,13 +113,13 @@ CONFIG = {
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {
-            'rsource': 0.1383372589564274,
+            'gaussian_location': 0.1383372589564274,
             # Gaussian width in normalized radial coordinate r
-            'w': 0.07280908366127758,
+            'gaussian_width': 0.07280908366127758,
             # total heating (including accounting for radiation) r
-            'Ptot': 8.0e6,
+            'P_total': 8.0e6,
             # electron heating fraction r
-            'el_heat_fraction': 0.0,
+            'electron_heat_fraction': 0.0,
         },
         'fusion': {},
         'ei_exchange': {
