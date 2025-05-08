@@ -42,8 +42,11 @@ class PlotrunsLibTest(parameterized.TestCase):
       "sources_plot_config",
   ])
   def test_plot_config_smoke_test(self, config_name: str):
-    config_name = "torax.plotting.configs." + config_name
-    plot_config = config_loader.import_module(config_name).PLOT_CONFIG
+    config_path = config_loader.torax_path().joinpath(
+        "plotting", "configs", config_name + ".py"
+    )
+    assert config_path.is_file(), f"Path {config_path} is not a file."
+    plot_config = config_loader.import_module(config_path)["PLOT_CONFIG"]
     plotruns_lib.plot_run(plot_config, self.test_data_path)
 
 

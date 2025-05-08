@@ -13,24 +13,23 @@
 # limitations under the License.
 
 """TestCase base class for running tests with sim.py."""
-import copy
-import importlib
-import os
-from typing import Any, Optional, Sequence
 
+import copy
+import os
+from typing import Any, Final, Optional, Sequence
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import numpy as np
 from torax import output
 from torax import simulation_app
+from torax.config import config_loader
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import paths
 from torax.torax_pydantic import model_config
 
-PYTHON_MODULE_PREFIX = '.tests.test_data.'
-PYTHON_CONFIG_PACKAGE = 'torax'
-_FAILED_TEST_OUTPUT_DIR = '/tmp/torax_failed_sim_test_outputs/'
+
+_FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
 
 
 class SimTestCase(parameterized.TestCase):
@@ -53,13 +52,16 @@ class SimTestCase(parameterized.TestCase):
 
   def _get_config_dict(self, config_name: str) -> dict[str, Any]:
     """Returns a deepcopy of the config dict given the name of a module."""
-    config_module = _get_config_module(self.test_data_dir, config_name)
-    return copy.deepcopy(config_module.CONFIG)
+    cfg = config_loader.import_module(
+        os.path.join(self.test_data_dir, config_name)
+    )
+    return copy.deepcopy(cfg['CONFIG'])
 
   def _get_torax_config(self, config_name: str) -> model_config.ToraxConfig:
     """Returns a ToraxConfig given the name of a py file to build it."""
-    config_module = _get_config_module(self.test_data_dir, config_name)
-    return model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    return config_loader.build_torax_config_from_file(
+        os.path.join(self.test_data_dir, config_name)
+    )
 
   def _get_refs(
       self,
@@ -217,15 +219,3 @@ class SimTestCase(parameterized.TestCase):
         ds=ds,
         write_output=write_output,
     )
-
-
-def _get_config_module(test_data_dir: str, config_name: str):
-  """Returns an input Config module from the paths given."""
-  test_config_path = os.path.join(test_data_dir, config_name)
-  assert os.path.exists(test_config_path), test_config_path
-
-  # Load config structure with test-case-specific values.
-  assert config_name.endswith('.py'), config_name
-  config_name_no_py = config_name[:-3]
-  python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
-  return importlib.import_module(python_config_module, PYTHON_CONFIG_PACKAGE)

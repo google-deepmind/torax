@@ -16,15 +16,15 @@ r"""Main entrypoint for running transport simulation.
 
 Example command with a configuration defined in Python:
 python3 run_simulation_main.py \
- --config='torax.tests.test_data.default_config' \
+ --config=examples/iterhybrid_rampup.py \
  --log_progress
 """
 
 from collections.abc import Sequence
 import enum
 import functools
+import pathlib
 import time
-
 from absl import app
 from absl import flags
 from absl import logging
@@ -35,7 +35,6 @@ from torax.config import config_loader
 from torax.plotting import plotruns_lib
 from torax.torax_pydantic import model_config
 
-
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
 # String used when prompting the user to make a yes / no choice
@@ -43,20 +42,15 @@ Y_N_PROMPT = 'y/n: '
 # String used when printing how long the simulation took
 SIMULATION_TIME = 'simulation time'
 
-_PYTHON_CONFIG_MODULE = flags.DEFINE_string(
+
+_CONFIG_PATH = flags.DEFINE_string(
     'config',
     None,
-    'Module from which to import a python-based config. This program expects a '
-    '`get_sim()` function to be implemented in this module. Can either be '
-    'an absolute or relative path. See importlib.import_module() for more '
-    'information on how to use this flag and --config_package.',
-)
-
-_PYTHON_CONFIG_PACKAGE = flags.DEFINE_string(
-    'config_package',
-    None,
-    'If provided, it is the base package the --config is imported from. '
-    'This is required if --config is a relative path.',
+    'The absolute or relative path to the Python file to import the config'
+    ' from. This file must contain a global variable named `CONFIG`'
+    ' representing the config dictionary. If it is a relative path, it will'
+    ' first be attempted to be resolved relative to the working directory, and'
+    ' then the Torax base directory.',
 )
 
 _LOG_SIM_PROGRESS = flags.DEFINE_bool(
@@ -130,11 +124,11 @@ class _UserCommand(enum.Enum):
   QUIT = ('quit', 'q', simulation_app.AnsiColors.RED)
 
 
-def _prompt_user(config_module_str: str) -> _UserCommand:
+def _prompt_user(config_path: pathlib.Path) -> _UserCommand:
   """Prompts the user for the next thing to do."""
   simulation_app.log_to_stdout('\n')
   simulation_app.log_to_stdout(
-      f'Using the config: {config_module_str}',
+      f'Using the config: {config_path}',
       color=simulation_app.AnsiColors.YELLOW,
   )
   user_command = None
@@ -163,12 +157,10 @@ def _prompt_user(config_module_str: str) -> _UserCommand:
   return user_command
 
 
-def _maybe_update_config_module(
-    config_module_str: str,
-) -> str:
+def _maybe_update_config(path: pathlib.Path) -> pathlib.Path:
   """Returns a possibly-updated config module to import."""
   simulation_app.log_to_stdout(
-      f'Existing module: {config_module_str}',
+      f'Existing config module path: {path}',
       color=simulation_app.AnsiColors.BLUE,
   )
   simulation_app.log_to_stdout(
@@ -177,19 +169,21 @@ def _maybe_update_config_module(
   )
   should_change = _get_yes_or_no()
   if should_change:
-    logging.info('Updating the module.')
-    return input('Enter the new module to use: ').strip()
+    logging.info('Updating the config file path.')
+    new_path = input('Enter the new path to use: ').strip()
+    return pathlib.Path(new_path).resolve()
   else:
-    logging.info('Continuing with %s', config_module_str)
-    return config_module_str
+    logging.info('Continuing with %s', str(path))
+    return path
 
 
 def _modify_config(
-    config_module_str: str,
-) -> tuple[model_config.ToraxConfig, str] | None:
+    path: pathlib.Path,
+) -> model_config.ToraxConfig | None:
   """Returns a new ToraxConfig from the modified config module."""
+
   simulation_app.log_to_stdout(
-      f'Change {config_module_str} to include new values.',
+      f'Change {path} to include new values.',
       color=simulation_app.AnsiColors.BLUE,
   )
   simulation_app.log_to_stdout(
@@ -201,40 +195,26 @@ def _modify_config(
       color=simulation_app.AnsiColors.BLUE,
   )
   proceed_with_run = _get_yes_or_no()
+
   if not proceed_with_run:
     return None
-  config_module = config_loader.import_module(
-      config_module_str, _PYTHON_CONFIG_PACKAGE.value
-  )
-  if not hasattr(config_module, 'CONFIG'):
-    raise ValueError(
-        f'Config module {config_module_str} does not have a CONFIG attribute.'
-        ' Please use the basic config dict to build Sim.'
-    )
-  return model_config.ToraxConfig.from_dict(config_module.CONFIG)
+
+  return config_loader.build_torax_config_from_file(path)
 
 
 def _change_config(
-    config_module_str: str,
-) -> tuple[model_config.ToraxConfig, str]:
-  """Returns a ToraxConfig from the new config module and the config file."""
-  config_module_str = _maybe_update_config_module(config_module_str)
+    config_path: pathlib.Path,
+) -> tuple[model_config.ToraxConfig, pathlib.Path]:
+  """Returns a ToraxConfig from the new config file."""
+  config_path = _maybe_update_config(config_path)
   simulation_app.log_to_stdout(
-      f'Change {config_module_str} to include new values. Any changes to '
+      f'Change {config_path} to include new values. Any changes to '
       'CONFIG will be picked up.',
       color=simulation_app.AnsiColors.BLUE,
   )
   input('Press Enter when done changing the module.')
-  config_module = config_loader.import_module(
-      config_module_str, _PYTHON_CONFIG_PACKAGE.value
-  )
-  if not hasattr(config_module, 'CONFIG'):
-    raise ValueError(
-        f'Config module {config_module_str} does not have a CONFIG attribute.'
-        ' Please use the basic config dict to build Sim.'
-    )
-  torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
-  return torax_config, config_module_str
+  torax_config = config_loader.build_torax_config_from_file(config_path)
+  return torax_config, config_path
 
 
 def _get_yes_or_no() -> bool:
@@ -363,9 +343,12 @@ def _post_run_plotting(
 
 def main(_):
   torax.set_jax_precision()
-  config_module_str = _PYTHON_CONFIG_MODULE.value
-  if config_module_str is None:
-    raise ValueError(f'--{_PYTHON_CONFIG_MODULE.name} must be specified.')
+
+  if _CONFIG_PATH.value is None:
+    raise ValueError(f'--{_CONFIG_PATH.name} must be specified.')
+
+  config_path = pathlib.Path(_CONFIG_PATH.value)
+
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
@@ -374,9 +357,7 @@ def main(_):
   output_dir = _OUTPUT_DIR.value
   try:
     start_time = time.time()
-    torax_config = config_loader.build_torax_config_from_config_module(
-        config_module_str, _PYTHON_CONFIG_PACKAGE.value
-    )
+    torax_config = config_loader.build_torax_config_from_file(config_path)
     build_time = time.time() - start_time
     start_time = time.time()
     output_file = _call_sim_app_main(
@@ -405,7 +386,7 @@ def main(_):
     )
   if _QUIT.value:
     return
-  user_command = _prompt_user(config_module_str)
+  user_command = _prompt_user(config_path)
   while user_command != _UserCommand.QUIT:
     match user_command:
       case _UserCommand.QUIT:
@@ -441,7 +422,7 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _modify_config(config_module_str)
+            torax_config_or_none = _modify_config(config_path)
             if torax_config_or_none is not None:
               torax_config = torax_config_or_none
             config_change_time = time.time() - start_time
@@ -467,9 +448,9 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _change_config(config_module_str)
+            torax_config_or_none = _change_config(config_path)
             if torax_config_or_none is not None:
-              torax_config, config_module_str = torax_config_or_none
+              torax_config, config_path = torax_config_or_none
             config_change_time = time.time() - start_time
             simulation_app.log_to_stdout(
                 f'Config change time: {config_change_time:.2f}s'
@@ -493,7 +474,7 @@ def main(_):
         _post_run_plotting(output_files)
       case _:
         raise ValueError('Unknown command')
-    user_command = _prompt_user(config_module_str)
+    user_command = _prompt_user(config_path)
 
 
 def use_jax_profiler_if_enabled(f):

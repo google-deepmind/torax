@@ -38,8 +38,7 @@ class PersistentCacheTest(parameterized.TestCase):
     cache = cache.full_path
 
     flags = [
-        '--config_package=torax',
-        '--config=.tests.test_data.test_iterhybrid_rampup_short',
+        '--config=tests/test_data/test_iterhybrid_rampup_short.py',
         f'--jax_compilation_cache_dir={cache}',
         '--jax_persistent_cache_min_entry_size_bytes=-1',
         '--jax_persistent_cache_min_compile_time_secs=0.0',

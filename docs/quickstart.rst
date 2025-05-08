@@ -6,13 +6,16 @@ Running an example
 ==================
 It is convenient to set up a Python virtual environment for running TORAX, as described in :ref:`installation`.
 
-The following command will run TORAX using the configuration file ``torax/examples/basic_config.py``.
+The following command will run TORAX using the configuration file ``examples/basic_config.py``.
 TORAX configuration files overwrite the defaults in ``config.py``. See :ref:`configuration` for details
 of all input configuration fields.
 
 .. code-block:: console
 
-  run_torax --config='torax.examples.basic_config'
+  run_torax --config='examples/basic_config.py'
+
+Note that can also be an absolute path to a configuration file, which is a
+Python file containing the config dictionary as a global variable named ``CONFIG``.
 
 Simulation progress is shown by a progress bar in the terminal, displaying the current
 simulation time, and the percentage of the total simulation time completed.
@@ -69,7 +72,7 @@ time, dt, and number of outer solver iterations carried out during the step.
 .. code-block:: console
 
   run_torax
-  --config='torax.examples.basic_config' \
+  --config='examples/basic_config.py' \
    --log_progress
 
 plot_progress
@@ -79,7 +82,7 @@ Live plotting of simulation state and derived quantities as the simulation progr
 .. code-block:: console
 
   run_torax \
-   --config='torax.examples.basic_config' \
+   --config='examples/basic_config.py' \
    --plot_progress
 
 For a combination of the above:
@@ -87,7 +90,7 @@ For a combination of the above:
 .. code-block:: console
 
   run_torax \
-  --config='torax.examples.basic_config' \
+  --config='examples/basic_config.py' \
   --log_progress --plot_progress
 
 reference_run
@@ -109,7 +112,7 @@ Override the default output directory. If not provided, it will be set to
 .. code-block:: console
 
   run_torax \
-  --config='torax.examples.basic_config' \
+  --config='examples/basic_config.py' \
   --output_dir=<output_dir>
 
 plot_config

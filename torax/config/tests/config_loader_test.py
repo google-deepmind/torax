@@ -14,7 +14,6 @@
 import os
 import pathlib
 import typing
-from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import config_loader
@@ -23,26 +22,6 @@ from torax.torax_pydantic import model_config
 
 
 class ConfigLoaderTest(parameterized.TestCase):
-
-  def test_import_module_and_cache_reload(self):
-    """test the import_module function uses cache."""
-    test_value = "test_value"
-    with mock.patch(
-        "importlib.import_module", return_value=test_value
-    ) as mock_import_module:
-      value = config_loader.import_module("test_module")
-      mock_import_module.assert_called_once()
-      mock_import_module.assert_called_with("test_module", None)
-      self.assertEqual(value, test_value)
-      self.assertIn("test_module", config_loader._ALL_MODULES)
-      self.assertEqual(config_loader._ALL_MODULES["test_module"], test_value)
-
-    with mock.patch("importlib.reload", return_value=test_value) as mock_reload:
-      value = config_loader.import_module("test_module")
-      mock_reload.assert_called_once()
-      mock_reload.assert_called_with(test_value)
-      self.assertEqual(value, test_value)
-      self.assertEqual(config_loader._ALL_MODULES["test_module"], test_value)
 
   def test_example_config_paths(self):
     self.assertLen(
@@ -55,7 +34,7 @@ class ConfigLoaderTest(parameterized.TestCase):
       relative_to=[None, "working", "torax"],
       path=list(config_loader.example_config_paths().values()),
   )
-  def test_import_config(
+  def test_import_module(
       self, use_string: bool, relative_to: str | None, path: pathlib.Path
   ):
     if relative_to == "working":
@@ -66,7 +45,7 @@ class ConfigLoaderTest(parameterized.TestCase):
     if use_string:
       path = str(path)
 
-    config_dict = config_loader.import_config(path)
+    config_dict = config_loader.import_module(path)
 
     with self.subTest("is_valid_dict"):
       self.assertIsInstance(config_dict, dict)
@@ -74,7 +53,7 @@ class ConfigLoaderTest(parameterized.TestCase):
 
     with self.subTest("mutation_safe"):
       config_dict["new_invalid_key"] = True
-      config_dict_2 = config_loader.import_config(path)
+      config_dict_2 = config_loader.import_module(path)
       self.assertNotIn("new_invalid_key", config_dict_2)
 
   def test_import_config_invalid_path(self):
@@ -82,7 +61,7 @@ class ConfigLoaderTest(parameterized.TestCase):
     self.assertFalse(fake_file.is_file())
 
     with self.assertRaises(ValueError):
-      config_loader.import_config(fake_file)
+      config_loader.import_module(fake_file)
 
   @parameterized.product(
       path=list(config_loader.example_config_paths().values()),

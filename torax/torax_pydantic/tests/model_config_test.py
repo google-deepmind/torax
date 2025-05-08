@@ -49,9 +49,8 @@ class ConfigTest(parameterized.TestCase):
     """Test for basic config construction."""
 
     config_dict = config_loader.import_module(
-        f".tests.test_data.{config_name}",
-        config_package="torax",
-    ).CONFIG
+        f"tests/test_data/{config_name}.py",
+    )["CONFIG"]
     unique_objects_before = get_unique_objects(config_dict, list())
     config_dict_copy = copy.deepcopy(config_dict)  # Keep a copy for comparison.
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
@@ -111,9 +110,8 @@ class ConfigTest(parameterized.TestCase):
   def test_config_safe_update(self):
 
     config_dict = config_loader.import_module(
-        ".tests.test_data.test_iterhybrid_predictor_corrector",
-        config_package="torax",
-    ).CONFIG
+        "tests/test_data/test_iterhybrid_predictor_corrector.py",
+    )["CONFIG"]
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
     new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error

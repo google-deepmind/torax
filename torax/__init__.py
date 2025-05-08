@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Library functionality for TORAX."""
+
 import os
 
 import jax
@@ -20,6 +21,7 @@ import jax
 # pylint: disable=g-importing-member
 
 from torax import version
+from torax.config.config_loader import build_torax_config_from_file
 from torax.config.config_loader import import_module
 from torax.interpolated_param import InterpolatedVarSingleAxis
 from torax.interpolated_param import InterpolatedVarTimeRho
@@ -34,6 +36,7 @@ __version__ = version.TORAX_VERSION
 __version_info__ = version.TORAX_VERSION_INFO
 
 __all__ = [
+    'build_torax_config_from_file',
     'import_module',
     'InterpolatedVarSingleAxis',
     'InterpolatedVarTimeRho',

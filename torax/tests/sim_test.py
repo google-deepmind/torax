@@ -312,7 +312,7 @@ class SimTest(sim_test_case.SimTestCase):
     """Test that the integration tests can actually fail."""
 
     # Run test_qei but pass in the reference result from test_implicit.
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       self._test_run_simulation(
           'test_qei.py',
           ('temp_ion', 'temp_el'),
@@ -416,9 +416,8 @@ class SimTest(sim_test_case.SimTestCase):
     loading_time = ref_time[index]
 
     # Build the sim and runtime params at t=`loading_time`.
-    config = self._get_config_dict(test_config + '.py')
-    config['numerics']['t_initial'] = loading_time
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = self._get_torax_config(test_config + '.py')
+    torax_config.update_fields({'numerics.t_initial': loading_time})
 
     original_get_initial_state = initial_state._get_initial_state
 

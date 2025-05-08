@@ -15,16 +15,15 @@
 
 from collections.abc import Sequence
 import functools
-import importlib
 import os
 import time
 
 from absl import app
 from absl import flags
 from torax import simulation_app
+from torax.config import config_loader
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import paths
-from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 
 import shutil
@@ -40,35 +39,19 @@ _NUM_PROCESSES = flags.DEFINE_integer(
 )
 
 
-def _get_config_module(
-    test_data_dir: str,
-    config_name: str,
-):
-  """Returns an input config from the name given."""
-  test_config_path = os.path.join(test_data_dir, config_name)
-  assert os.path.exists(test_config_path), test_config_path
-
-  # Load config structure with test-case-specific values.
-  assert config_name.endswith('.py'), config_name
-  config_name_no_py = config_name[:-3]
-  python_config_module = sim_test_case.PYTHON_MODULE_PREFIX + config_name_no_py
-  return importlib.import_module(
-      python_config_module, sim_test_case.PYTHON_CONFIG_PACKAGE
-  )
-
-
 def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
   """Run simulation for given config."""
   flags.FLAGS.mark_as_parsed()
   print(f'Running {config_name}')
 
   try:
-    config_module = _get_config_module(test_data_dir, config_name + '.py')
-  except ImportError:
+    path = os.path.join(test_data_dir, config_name + '.py')
+    config_module = config_loader.import_module(path)
+  except ValueError:
     print(f'Failed to import config module {config_name}, skipping.')
     return
 
-  if hasattr(config_module, 'get_sim'):
+  if 'get_sim' in config_module:
     # The config module likely uses the "advanced" configuration setup with
     # python functions defining all the Sim object attributes.
     raise NotImplementedError(
@@ -76,11 +59,11 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' configuration setup with a single CONFIG dictionary defining'
         ' everything.'
     )
-  elif hasattr(config_module, 'CONFIG'):
+  elif 'CONFIG' in config_module:
     # The config module is using the "basic" configuration setup with a single
     # CONFIG dictionary defining everything.
     # This CONFIG needs to be built into an actual Sim object.
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = model_config.ToraxConfig.from_dict(config_module['CONFIG'])
   else:
     raise ValueError(
         f'Config module {config_name} must either define a get_sim() method'
@@ -88,11 +71,12 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
     )
   try:
     state_history = run_simulation.run_simulation(
-        torax_config, progress_bar=False)
+        torax_config, progress_bar=False
+    )
     output_file = os.path.join(output_dir, f'{config_name}.nc')
     simulation_app.write_output_to_file(
-        output_file,
-        state_history.simulation_output_to_xr())
+        output_file, state_history.simulation_output_to_xr()
+    )
     print(f'Finished running {config_name}, output saved to {output_file}')
   except Exception as e:  # pylint: disable=broad-except
     print(f'Failed to run {config_name}: {e}')
