@@ -47,6 +47,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       # Do not allow attributes not defined in pydantic model.
       extra='forbid',
       arbitrary_types_allowed=True,
+      validate_default=True,
   )
 
   def __new__(cls, *unused_args, **unused_kwargs):

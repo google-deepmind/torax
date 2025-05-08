@@ -89,7 +89,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   chi_timestep_prefactor: pydantic.PositiveFloat = 9.0
   fixed_dt: torax_pydantic.Second = 1e-2
   adaptive_dt: bool = True
-  dt_reduction_factor: pydantic.PositiveFloat = 3
+  dt_reduction_factor: pydantic.PositiveFloat = 3.
   evolve_ion_heat: bool = True
   evolve_electron_heat: bool = True
   evolve_current: bool = False
