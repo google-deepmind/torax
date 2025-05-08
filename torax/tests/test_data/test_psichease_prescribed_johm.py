@@ -39,7 +39,7 @@ CONFIG = {
     },
     'sources': {
         'j_bootstrap': {
-            'bootstrap_mult': 0.0,
+            'bootstrap_multiplier': 0.0,
         },
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,

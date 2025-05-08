@@ -57,7 +57,7 @@ CONFIG = {
         # Set bootstrap multiplier to 0.5 to avoid numerical issues when
         # I_bs > Ip.
         'j_bootstrap': {
-            'bootstrap_mult': 0.5,
+            'bootstrap_multiplier': 0.5,
         },
         'ohmic': {},
         'ei_exchange': {},

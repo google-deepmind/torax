@@ -81,17 +81,17 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'j_bootstrap': {
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
         },
         'generic_current': {
             # total "external" current fraction
-            'fext': 0.15,
+            'fraction_of_total_current': 0.15,
             # width of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'wext': 0.075,
+            'gaussian_width': 0.075,
             # radius of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'rext': 0.36,
+            'gaussian_location': 0.36,
         },
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {

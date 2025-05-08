@@ -45,7 +45,7 @@ class PydanticModelTest(parameterized.TestCase):
       dict(
           config={
               'j_bootstrap': {
-                  'bootstrap_mult': 0.3,
+                  'bootstrap_multiplier': 0.3,
               }
           },
           expected_sources_model=bootstrap_current_source.BootstrapCurrentSourceConfig,

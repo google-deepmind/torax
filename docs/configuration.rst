@@ -1061,7 +1061,7 @@ Bootstrap current calculated with the Sauter model.
 
 ``mode`` (str = 'model')
 
-``bootstrap_mult`` (float = 1.0)
+``bootstrap_multiplier`` (float = 1.0)
   Multiplication factor for bootstrap current for testing purposes.
 
 generic_current
@@ -1071,17 +1071,17 @@ Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str = 'model')
 
-``rext`` (float = 0.4), **time-varying-scalar**
+``gaussian_location`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.
 
-``wext`` (float = 0.05), **time-varying-scalar**
+``gaussian_width`` (float = 0.05), **time-varying-scalar**
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
-``Iext`` (float = 3.0), **time-varying-scalar**
+``I_generic`` (float = 3.0), **time-varying-scalar**
   Total current in MA. Only used if ``use_absolute_current==True``.
 
-``fext`` (float = 0.2), **time-varying-scalar**
-  Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
+``fraction_of_total_current`` (float = 0.2), **time-varying-scalar**
+  Sets total ``j_ext`` to be a fraction ``fraction_of_total_current`` of the total plasma current.
   Only used if ``use_absolute_current==False``.
 
 ``use_absolute_current`` (bool = False)
@@ -1467,9 +1467,9 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       'sources': {
           'j_bootstrap': {},
           'generic_current': {
-              'fext': 0.15,
-              'wext': 0.075,
-              'rext': 0.36,
+              'fraction_of_total_current': 0.15,
+              'gaussian_width': 0.075,
+              'gaussian_location': 0.36,
           },
           'pellet': {
               'S_total': 0.0e22,

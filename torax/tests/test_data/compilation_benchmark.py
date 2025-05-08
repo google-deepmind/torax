@@ -45,7 +45,7 @@ CONFIG = {
             'Qei_mult': 1.0,
         },
         'j_bootstrap': {
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
         },
         'generic_heat': {
             'P_total': 53.0e6,

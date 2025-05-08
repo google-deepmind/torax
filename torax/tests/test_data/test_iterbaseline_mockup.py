@@ -70,17 +70,17 @@ CONFIG = {
         'j_bootstrap': {
             # Multiplication factor for bootstrap current (note fbs~0.3 in
             # original simu)
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
         },
         'generic_current': {
             # total "external" current fraction
-            'fext': 0.09,
+            'fraction_of_total_current': 0.09,
             # width of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'wext': 0.25,
+            'gaussian_width': 0.25,
             # radius of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'rext': 0.35,
+            'gaussian_location': 0.35,
         },
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {

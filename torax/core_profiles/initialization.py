@@ -168,8 +168,8 @@ def _prescribe_currents(
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
-  Iext = math_utils.area_integration(external_current, geo) / 10**6
-  Iohm = Ip - Iext - f_bootstrap * Ip
+  I_generic = math_utils.area_integration(external_current, geo) / 10**6
+  Iohm = Ip - I_generic - f_bootstrap * Ip
 
   # construct prescribed current formula on grid.
   jformula = (

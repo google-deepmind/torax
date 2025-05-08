@@ -42,15 +42,15 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
 
-  Iext: array_typing.ScalarFloat
-  fext: array_typing.ScalarFloat
-  wext: array_typing.ScalarFloat
-  rext: array_typing.ScalarFloat
+  I_generic: array_typing.ScalarFloat
+  fraction_of_total_current: array_typing.ScalarFloat
+  gaussian_width: array_typing.ScalarFloat
+  gaussian_location: array_typing.ScalarFloat
   use_absolute_current: bool
 
   def sanity_check(self):
     """Checks that all parameters are valid."""
-    jax_utils.error_if_negative(self.wext, 'wext')
+    jax_utils.error_if_negative(self.gaussian_width, 'gaussian_width')
 
   def __post_init__(self):
     self.sanity_check()
@@ -70,18 +70,18 @@ def calculate_generic_current(
   ]
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  Iext = _calculate_Iext(
+  I_generic = _calculate_I_generic(
       dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
   )
   # form of external current on cell grid
   generic_current_form = jnp.exp(
-      -((geo.rho_norm - dynamic_source_runtime_params.rext) ** 2)
-      / (2 * dynamic_source_runtime_params.wext**2)
+      -((geo.rho_norm - dynamic_source_runtime_params.gaussian_location) ** 2)
+      / (2 * dynamic_source_runtime_params.gaussian_width**2)
   )
 
   Cext = (
-      Iext
+      I_generic
       * 1e6
       / math_utils.area_integration(generic_current_form, geo)
   )
@@ -92,17 +92,17 @@ def calculate_generic_current(
   return (generic_current_profile,)
 
 
-def _calculate_Iext(
+def _calculate_I_generic(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: DynamicRuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
   return jnp.where(
       dynamic_source_runtime_params.use_absolute_current,
-      dynamic_source_runtime_params.Iext,
+      dynamic_source_runtime_params.I_generic,
       (
           dynamic_runtime_params_slice.profile_conditions.Ip
-          * dynamic_source_runtime_params.fext
+          * dynamic_source_runtime_params.fraction_of_total_current
       ),
   )
 
@@ -127,18 +127,29 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    Iext: total "external" current in MA. Used if use_absolute_current=True.
-    fext: total "external" current fraction. Used if use_absolute_current=False.
-    wext: width of "external" Gaussian current profile
-    rext: normalized radius of "external" Gaussian current profile
+    I_generic: total "external" current in MA. Used if
+      use_absolute_current=True.
+    fraction_of_total_current: total "external" current fraction. Used if
+      use_absolute_current=False.
+    gaussian_width: width of "external" Gaussian current profile
+    gaussian_location: normalized radius of "external" Gaussian current profile
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of Ip.
   """
+
   model_name: Literal['gaussian'] = 'gaussian'
-  Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
-  fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
-  wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)
-  rext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.4)
+  I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      3.0
+  )
+  fraction_of_total_current: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.2)
+  )
+  gaussian_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.05)
+  )
+  gaussian_location: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.4)
+  )
   use_absolute_current: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
@@ -154,10 +165,10 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        Iext=self.Iext.get_value(t),
-        fext=self.fext.get_value(t),
-        wext=self.wext.get_value(t),
-        rext=self.rext.get_value(t),
+        I_generic=self.I_generic.get_value(t),
+        fraction_of_total_current=self.fraction_of_total_current.get_value(t),
+        gaussian_width=self.gaussian_width.get_value(t),
+        gaussian_location=self.gaussian_location.get_value(t),
         use_absolute_current=self.use_absolute_current,
     )
 

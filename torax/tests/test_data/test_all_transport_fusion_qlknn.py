@@ -42,7 +42,7 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'j_bootstrap': {
-            'bootstrap_mult': 1.0,
+            'bootstrap_multiplier': 1.0,
         },
         'generic_current': {},
         # Electron density sources/sink (for the n_e equation).
