@@ -31,7 +31,7 @@ CONFIG['sources']['generic_heat']['P_total'] = 16.32e6
 
 # Set the ECRH source.
 CONFIG['sources']['ecrh'] = {
-    'gaussian_ec_power_density_width': 0.075,
-    'gaussian_ec_power_density_location': 0.36,
-    'gaussian_ec_total_power': 34.68e6,
+    'gaussian_width': 0.075,
+    'gaussian_location': 0.36,
+    'P_total': 34.68e6,
 }

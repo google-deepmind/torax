@@ -22,5 +22,5 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['sources']['impurity_radiation'] = {
     'model_name': 'P_in_scaled_flat_profile',
-    'fraction_of_total_power_density': 0.1
+    'fraction_P_heating': 0.1
 }

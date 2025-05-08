@@ -37,15 +37,16 @@ from torax.torax_pydantic import torax_pydantic
 DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 
 
+# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
-  cd_efficiency: array_typing.ArrayFloat
-  manual_ec_power_density: array_typing.ArrayFloat
-  gaussian_ec_power_density_width: array_typing.ScalarFloat
-  gaussian_ec_power_density_location: array_typing.ScalarFloat
-  gaussian_ec_total_power: array_typing.ScalarFloat
+  current_drive_efficiency: array_typing.ArrayFloat
+  extra_prescribed_power_density: array_typing.ArrayFloat
+  gaussian_width: array_typing.ScalarFloat
+  gaussian_location: array_typing.ScalarFloat
+  P_total: array_typing.ScalarFloat
 
 
 def calc_heating_and_current(
@@ -79,11 +80,11 @@ def calc_heating_and_current(
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   # Construct the profile
   ec_power_density = (
-      dynamic_source_runtime_params.manual_ec_power_density
+      dynamic_source_runtime_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
-          center=dynamic_source_runtime_params.gaussian_ec_power_density_location,
-          width=dynamic_source_runtime_params.gaussian_ec_power_density_width,
-          total=dynamic_source_runtime_params.gaussian_ec_total_power,
+          center=dynamic_source_runtime_params.gaussian_location,
+          width=dynamic_source_runtime_params.gaussian_width,
+          total=dynamic_source_runtime_params.P_total,
           geo=geo,
       )
   )
@@ -95,7 +96,7 @@ def calc_heating_and_current(
   #     / (qe**3 * R_maj)
   #     * F
   #     * T_e [J] / n_e [m^-3]
-  #     * cd_efficiency
+  #     * current_drive_efficiency
   #     * ec_power_density
   # )
   # pylint: disable=invalid-name
@@ -110,7 +111,7 @@ def calc_heating_and_current(
       - jnp.log(
           dynamic_runtime_params_slice.numerics.density_reference
       )  # Convert n_e to m^-3
-      + jnp.log(dynamic_source_runtime_params.cd_efficiency)
+      + jnp.log(dynamic_source_runtime_params.current_drive_efficiency)
       + jnp.log(ec_power_density)
   )
   j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
@@ -139,30 +140,31 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   """Config for the electron-cyclotron source.
 
   Attributes:
-    cd_efficiency: Local dimensionless current drive efficiency. Zeta from
-      Lin-Liu, Chan, and Prater, 2003, eq 44
-    manual_ec_power_density: Manual EC power density profile on the rho grid
-    gaussian_ec_power_density_width: Gaussian EC power density profile width
-    gaussian_ec_power_density_location: Gaussian EC power density profile
-      location
-    gaussian_ec_total_power: Gaussian EC total power
+    current_drive_efficiency: Local dimensionless current drive efficiency. Zeta
+      from Lin-Liu, Chan, and Prater, 2003, eq 44
+    extra_prescribed_power_density: Manual EC power density profile on the rho
+      grid
+    gaussian_width: Gaussian EC power density profile width
+    gaussian_location: Gaussian EC power density profile location
+    P_total: Gaussian EC total power
   """
+
   model_name: Literal["gaussian_lin_liu"] = (
       "gaussian_lin_liu"
   )
-  cd_efficiency: torax_pydantic.TimeVaryingArray = (
+  current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
   )
-  manual_ec_power_density: torax_pydantic.TimeVaryingArray = (
+  extra_prescribed_power_density: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
   )
-  gaussian_ec_power_density_width: torax_pydantic.TimeVaryingScalar = (
+  gaussian_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  gaussian_ec_power_density_location: torax_pydantic.TimeVaryingScalar = (
+  gaussian_location: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  gaussian_ec_total_power: torax_pydantic.TimeVaryingScalar = (
+  P_total: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -179,15 +181,17 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        cd_efficiency=self.cd_efficiency.get_value(t),
-        manual_ec_power_density=self.manual_ec_power_density.get_value(t),
-        gaussian_ec_power_density_width=self.gaussian_ec_power_density_width.get_value(
+        current_drive_efficiency=self.current_drive_efficiency.get_value(t),
+        extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t
         ),
-        gaussian_ec_power_density_location=self.gaussian_ec_power_density_location.get_value(
+        gaussian_width=self.gaussian_width.get_value(
             t
         ),
-        gaussian_ec_total_power=self.gaussian_ec_total_power.get_value(t),
+        gaussian_location=self.gaussian_location.get_value(
+            t
+        ),
+        P_total=self.P_total.get_value(t),
     )
 
   def build_source(self):

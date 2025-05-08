@@ -1115,7 +1115,7 @@ The following models are available:
 * ``'P_in_scaled_flat_profile'``
     Sets impurity radiation to be a constant fraction of the total external input power.
 
-    ``fraction_of_total_power_density`` (float = 1.0). Fraction of total external input power to use for impurity radiation.
+    ``fraction_P_heating`` (float = 1.0). Fraction of total external input heating power to use for impurity radiation.
 
 cyclotron_radiation
 ^^^^^^^^^^^^^^^^^^^
@@ -1143,27 +1143,27 @@ Electron-cyclotron heating and current drive, based on the local efficiency mode
 Given an EC power density profile and efficiency profile, the model produces the corresponding EC-driven current density profile.
 The user has three options:
 
-1. Provide an entire EC power density profile manually (via ``manual_ec_power_density``).
-2. Provide the parameters of a Gaussian EC deposition (via ``gaussian_ec_power_density_width``, ``gaussian_ec_power_density_location``, and ``gaussian_ec_total_power``).
+1. Provide an entire EC power density profile manually (via ``extra_prescribed_power_density``).
+2. Provide the parameters of a Gaussian EC deposition (via ``gaussian_width``, ``gaussian_location``, and ``P_total``).
 3. Any combination of the above.
 
 By default, both the manual and Gaussian profiles are zero. The manual and Gaussian profiles are summed together to produce the final EC deposition profile.
 
     ``mode`` (str = 'model')
 
-    ``manual_ec_power_density`` **time-varying-array**
+    ``extra_prescribed_power_density`` **time-varying-array**
         EC power density deposition profile, in units of :math:`W/m^3`.
 
-    ``gaussian_ec_power_density_width`` **time-varying-scalar**
+    ``gaussian_width`` **time-varying-scalar**
         Width of Gaussian EC power density deposition profile.
 
-    ``gaussian_ec_power_density_location`` **time-varying-scalar**
+    ``gaussian_location`` **time-varying-scalar**
         Location of Gaussian EC power density deposition profile on the normalized rho grid.
 
-    ``gaussian_ec_total_power`` **time-varying-scalar**
+    ``P_total`` **time-varying-scalar**
         Integral of the Gaussian EC power density profile, setting the total power.
 
-    ``cd_efficiency`` **time-varying-scalar**
+    ``current_drive_efficiency`` **time-varying-scalar**
         Dimensionless local efficiency profile for conversion of EC power to current.
 
 icrh

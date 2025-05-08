@@ -29,7 +29,8 @@ from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_s
 from torax.torax_pydantic import torax_pydantic
 
 
-def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+def radially_constant_fraction_of_Pin(
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -85,7 +86,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
 
   # Calculate the heat sink as a fraction of the total power input
   return (
-      -dynamic_source_runtime_params.fraction_of_total_power_density
+      -dynamic_source_runtime_params.fraction_P_heating
       * P_total_in
       / geo.volume_face[-1]
       * jnp.ones_like(geo.rho),
@@ -96,13 +97,13 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   """Configuration for the ImpurityRadiationHeatSink.
 
   Attributes:
-    fraction_of_total_power_density: Fraction of total power density to be
+    fraction_P_heating: Fraction of total power density to be
       absorbed by the impurity.
   """
   model_name: Literal['P_in_scaled_flat_profile'] = (
       'P_in_scaled_flat_profile'
   )
-  fraction_of_total_power_density: torax_pydantic.TimeVaryingScalar = (
+  fraction_P_heating: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -115,7 +116,7 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        fraction_of_total_power_density=self.fraction_of_total_power_density.get_value(
+        fraction_P_heating=self.fraction_P_heating.get_value(
             t
         ),
     )
@@ -134,4 +135,4 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  fraction_of_total_power_density: array_typing.ScalarFloat
+  fraction_P_heating: array_typing.ScalarFloat
