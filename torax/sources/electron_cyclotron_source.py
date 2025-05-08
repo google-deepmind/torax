@@ -34,7 +34,7 @@ from torax.torax_pydantic import torax_pydantic
 # Default value for the model function to be used for the electron cyclotron
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = "calc_heating_and_current"
+DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 
 
 @chex.dataclass(frozen=True)
@@ -147,8 +147,8 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       location
     gaussian_ec_total_power: Gaussian EC total power
   """
-  model_name: Literal["calc_heating_and_current"] = (
-      "calc_heating_and_current"
+  model_name: Literal["gaussian_lin_liu"] = (
+      "gaussian_lin_liu"
   )
   cd_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})

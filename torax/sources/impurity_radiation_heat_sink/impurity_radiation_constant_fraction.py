@@ -99,8 +99,8 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     fraction_of_total_power_density: Fraction of total power density to be
       absorbed by the impurity.
   """
-  model_name: Literal['radially_constant_fraction_of_Pin'] = (
-      'radially_constant_fraction_of_Pin'
+  model_name: Literal['P_in_scaled_flat_profile'] = (
+      'P_in_scaled_flat_profile'
   )
   fraction_of_total_power_density: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)

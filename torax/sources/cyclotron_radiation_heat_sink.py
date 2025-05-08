@@ -38,7 +38,7 @@ import typing_extensions
 # Default value for the model function to be used for the Cyclotron radiation
 # heat sink source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'cyclotron_radiation_albajar'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 
 @chex.dataclass(frozen=True)
@@ -62,7 +62,7 @@ def _alpha_closed_form(
 ) -> array_typing.ScalarFloat:
   """Returns analytical closed form of alpha for parameterized profiles.
 
-  See cyclotron_radiation_albajar for more details.
+  See albajar_artaud for more details.
 
   We find alpha for the best fit for either the n_e_data or te_data to the
   parameterized functions:
@@ -393,8 +393,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
-  model_name: Literal['cyclotron_radiation_albajar'] = (
-      'cyclotron_radiation_albajar'
+  model_name: Literal['albajar_artaud'] = (
+      'albajar_artaud'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9

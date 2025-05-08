@@ -30,5 +30,5 @@ CONFIG['plasma_composition']['impurity'] = {
 }
 CONFIG['plasma_composition']['Z_eff'] = 3.0
 CONFIG['sources']['impurity_radiation'] = {
-    'model_name': 'impurity_radiation_mavrin_fit',
+    'model_name': 'mavrin_fit',
 }

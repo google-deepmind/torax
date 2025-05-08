@@ -34,7 +34,7 @@ from torax.sources import source_profiles
 # Default value for the model function to be used for the fusion heat
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'fusion_heat_model_func'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'bosch_hale'
 
 
 def calc_fusion(
@@ -184,8 +184,8 @@ class FusionHeatSource(source.Source):
 
 class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
-  model_name: Literal['fusion_heat_model_func'] = (
-      'fusion_heat_model_func'
+  model_name: Literal['bosch_hale'] = (
+      'bosch_hale'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

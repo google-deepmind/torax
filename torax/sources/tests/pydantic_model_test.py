@@ -59,7 +59,7 @@ class PydanticModelTest(parameterized.TestCase):
       dict(
           config={
               'impurity_radiation': {
-                  'model_name': 'impurity_radiation_mavrin_fit'
+                  'model_name': 'mavrin_fit'
               },
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
@@ -67,7 +67,7 @@ class PydanticModelTest(parameterized.TestCase):
       dict(
           config={
               'impurity_radiation': {
-                  'model_name': 'radially_constant_fraction_of_Pin'
+                  'model_name': 'P_in_scaled_flat_profile'
               },
           },
           expected_sources_model=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
@@ -193,7 +193,7 @@ class PydanticModelTest(parameterized.TestCase):
         'bremsstrahlung': {'mode': 'ZERO'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
-            'model_name': 'impurity_radiation_mavrin_fit',
+            'model_name': 'mavrin_fit',
         },
     }
     pydantic_model.Sources.from_dict(valid_config)
@@ -203,7 +203,7 @@ class PydanticModelTest(parameterized.TestCase):
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'ZERO',
-            'model_name': 'impurity_radiation_mavrin_fit',
+            'model_name': 'mavrin_fit',
         },
     }
     pydantic_model.Sources.from_dict(valid_config)
@@ -213,7 +213,7 @@ class PydanticModelTest(parameterized.TestCase):
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
-            'model_name': 'radially_constant_fraction_of_Pin',
+            'model_name': 'P_in_scaled_flat_profile',
         },
     }
     pydantic_model.Sources.from_dict(valid_config)
@@ -223,7 +223,7 @@ class PydanticModelTest(parameterized.TestCase):
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
-            'model_name': 'impurity_radiation_mavrin_fit',
+            'model_name': 'mavrin_fit',
         },
     }
     with self.assertRaisesRegex(

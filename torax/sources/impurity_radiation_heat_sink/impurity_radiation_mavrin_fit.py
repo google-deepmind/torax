@@ -38,7 +38,7 @@ from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_s
 # Default value for the model function to be used for the impurity radiation
 # source. This is also used as an identifier for the model function in
 # the source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'impurity_radiation_mavrin_fit'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'mavrin_fit'
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
@@ -228,8 +228,8 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
   Attributes:
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
-  model_name: Literal['impurity_radiation_mavrin_fit'] = (
-      'impurity_radiation_mavrin_fit'
+  model_name: Literal['mavrin_fit'] = (
+      'mavrin_fit'
   )
   radiation_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED

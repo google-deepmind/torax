@@ -45,7 +45,7 @@ import typing_extensions
 # Default value for the model function to be used for the ion cyclotron
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'icrh_model_func'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
 
 # Environment variable for the TORIC NN model. Used if the model path
@@ -496,7 +496,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     Ptot: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
-  model_name: Literal['icrh_model_func'] = 'icrh_model_func'
+  model_name: Literal['toric_nn'] = 'toric_nn'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

@@ -32,7 +32,7 @@ from torax.torax_pydantic import torax_pydantic
 # Default value for the model function to be used for the gas puff
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'calc_puff_source'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
 
 
 # pylint: disable=invalid-name
@@ -91,7 +91,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
       [normalized radial coord]
     S_puff_tot: total gas puff particles/s
   """
-  model_name: Literal['calc_puff_source'] = 'calc_puff_source'
+  model_name: Literal['exponential'] = 'exponential'
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )

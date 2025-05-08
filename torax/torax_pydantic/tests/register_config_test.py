@@ -87,7 +87,7 @@ class DuplicateGasPuffSourceModelConfig(
     source_base_pydantic_model.SourceModelBase
 ):
   # Name that is already registered.
-  model_name: Literal['calc_puff_source'] = 'calc_puff_source'
+  model_name: Literal['exponential'] = 'exponential'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False
 

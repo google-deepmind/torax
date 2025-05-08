@@ -1103,16 +1103,16 @@ Various models for impurity radiation. Runtime params for each available model a
 
 ``mode`` (str = 'model')
 
-``model_func`` (str = 'impurity_radiation_mavrin_fit')
+``model_func`` (str = 'mavrin_fit')
 
 The following models are available:
 
-* ``'impurity_radiation_mavrin_fit'``
+* ``'mavrin_fit'``
     Polynomial fits to ADAS data from `Mavrin, 2018. <https://doi.org/10.1080/10420150.2018.1462361>`_
 
     ``radiation_multiplier`` (float = 1.0). Multiplication factor for radiation term for testing sensitivities.
 
-* ``'radially_constant_fraction_of_Pin'``
+* ``'P_in_scaled_flat_profile'``
     Sets impurity radiation to be a constant fraction of the total external input power.
 
     ``fraction_of_total_power_density`` (float = 1.0). Fraction of total external input power to use for impurity radiation.

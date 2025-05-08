@@ -34,7 +34,7 @@ from torax.sources import source_profiles
 # Default value for the model function to be used for the Bremsstrahlung heat
 # sink. This is also used as an identifier for the model function in the default
 # source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'bremsstrahlung_model_func'
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
 @chex.dataclass(frozen=True)
@@ -144,8 +144,8 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
   """
-  model_name: Literal['bremsstrahlung_model_func'] = (
-      'bremsstrahlung_model_func'
+  model_name: Literal['wesson'] = (
+      'wesson'
   )
   use_relativistic_correction: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED

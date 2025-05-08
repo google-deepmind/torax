@@ -41,8 +41,8 @@ class SourceModels:
     gas_puff = register_source.get_registered_source('gas_puff')
     gas_puff_builder = source_lib.make_source_builder(
         gas_puff.source_class,
-        runtime_params_type=gas_puff.model_functions['calc_puff_source'].runtime_params_class,
-        model_func=gas_puff.model_functions['calc_puff_source'].source_profile_function,
+        runtime_params_type=gas_puff.model_functions['exponential'].runtime_params_class,
+        model_func=gas_puff.model_functions['exponential'].source_profile_function,
     )
     # Define the collection of sources here, which in this example only includes
     # one source.

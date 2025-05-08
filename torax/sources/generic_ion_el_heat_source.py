@@ -32,7 +32,7 @@ from torax.torax_pydantic import torax_pydantic
 # Default value for the model function to be used for the electron cyclotron
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'default_formula'
+DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 
 # pylint: disable=invalid-name
@@ -133,7 +133,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     el_heat_fraction: Electron heating fraction
     absorption_fraction: Fraction of absorbed power
   """
-  model_name: Literal['default_formula'] = 'default_formula'
+  model_name: Literal['gaussian'] = 'gaussian'
   w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
   rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
