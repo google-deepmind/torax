@@ -82,18 +82,24 @@ class SawtoothModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
 
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_params_from_config(torax_config)
+    )
+
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
     source_models = source_models_lib.SourceModels(torax_config.sources)
 
     solver = torax_config.solver.build_solver(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
     )
 
     mhd_models = torax_config.mhd.build_mhd_models(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         pedestal_model=pedestal_model,
         source_models=source_models,
@@ -140,7 +146,9 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
-    np.testing.assert_equal(output_state.sawtooth_crash, np.array(True))
+    np.testing.assert_equal(
+        output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
+    )
     np.testing.assert_equal(output_state.dt, np.array(_CRASH_STEP_DURATION))
     np.testing.assert_equal(
         output_state.t, self.initial_state.t + np.array(_CRASH_STEP_DURATION)
@@ -175,7 +183,9 @@ class SawtoothModelTest(parameterized.TestCase):
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
-    np.testing.assert_equal(output_state.sawtooth_crash, np.array(False))
+    np.testing.assert_equal(
+        output_state.solver_numeric_outputs.sawtooth_crash, np.array(False)
+    )
     np.testing.assert_equal(output_state.dt, np.array(_FIXED_DT))
     np.testing.assert_equal(
         output_state.t, self.initial_state.t + np.array(_FIXED_DT)
@@ -209,7 +219,7 @@ class SawtoothModelTest(parameterized.TestCase):
             self.initial_state.core_profiles,
             q_face=self.initial_state.core_profiles.q_face,
         ),
-        sawtooth_crash=False,
+        solver_numeric_outputs=state.SolverNumericOutputs(sawtooth_crash=False),
     )
 
     with self.subTest('no_subsequent_sawtooth_crashes'):
@@ -222,7 +232,8 @@ class SawtoothModelTest(parameterized.TestCase):
       )
       np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
       np.testing.assert_equal(
-          output_state_should_not_crash.sawtooth_crash, np.array(False)
+          output_state_should_not_crash.solver_numeric_outputs.sawtooth_crash,
+          np.array(False),
       )
       np.testing.assert_equal(
           output_state_should_not_crash.dt, np.array(_FIXED_DT)
@@ -242,7 +253,8 @@ class SawtoothModelTest(parameterized.TestCase):
       )
       np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
       np.testing.assert_equal(
-          output_state_should_crash.sawtooth_crash, np.array(True)
+          output_state_should_crash.solver_numeric_outputs.sawtooth_crash,
+          np.array(True),
       )
       np.testing.assert_equal(
           output_state_should_crash.dt, np.array(_CRASH_STEP_DURATION)
