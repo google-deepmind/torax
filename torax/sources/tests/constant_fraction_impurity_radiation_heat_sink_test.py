@@ -34,7 +34,7 @@ class ImpurityRadiationConstantFractionTest(
     super().setUp(
         source_config_class=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
-        model_function_name='radially_constant_fraction_of_Pin',
+        model_name='radially_constant_fraction_of_Pin',
         needs_source_models=True,
     )
 

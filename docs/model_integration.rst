@@ -146,7 +146,7 @@ Then we register the new model function and runtime parameters.
       # It is used to identify the model function for a given source by TORAX.
       # We follow the convention of using the name of the model function as the
       # model name but you can use any string here.
-      model_function_name='my_new_model',
+      model_name='my_new_model',
       # Reference to the model function we just defined.
       model_function=my_new_model,
       # Reference to the runtime parameters class we just defined.

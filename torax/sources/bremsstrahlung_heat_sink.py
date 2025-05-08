@@ -144,7 +144,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
   """
-  model_function_name: Literal['bremsstrahlung_model_func'] = (
+  model_name: Literal['bremsstrahlung_model_func'] = (
       'bremsstrahlung_model_func'
   )
   use_relativistic_correction: bool = False

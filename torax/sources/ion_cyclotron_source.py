@@ -496,7 +496,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     Ptot: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
-  model_function_name: Literal['icrh_model_func'] = 'icrh_model_func'
+  model_name: Literal['icrh_model_func'] = 'icrh_model_func'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

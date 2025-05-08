@@ -23,7 +23,7 @@ from torax.torax_pydantic import torax_pydantic
 class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all source models.
 
-  Subclasses should define the `model_function_name` attribute as a `Literal`
+  Subclasses should define the `model_name` attribute as a `Literal`
   string. This string should match the name of the function that calculates the
   source profile. This is used as an identifier for the model function in the
   source config for Pydantic to "discriminate" against. This should be given a

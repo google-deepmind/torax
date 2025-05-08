@@ -184,7 +184,7 @@ class FusionHeatSource(source.Source):
 
 class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
-  model_function_name: Literal['fusion_heat_model_func'] = (
+  model_name: Literal['fusion_heat_model_func'] = (
       'fusion_heat_model_func'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED

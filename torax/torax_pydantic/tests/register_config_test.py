@@ -59,7 +59,7 @@ def double_gas_puff_source(
 
 class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
   """New source model config."""
-  model_function_name: Literal['test_model_function'] = 'test_model_function'
+  model_name: Literal['test_model_function'] = 'test_model_function'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False
 
@@ -87,7 +87,7 @@ class DuplicateGasPuffSourceModelConfig(
     source_base_pydantic_model.SourceModelBase
 ):
   # Name that is already registered.
-  model_function_name: Literal['calc_puff_source'] = 'calc_puff_source'
+  model_name: Literal['calc_puff_source'] = 'calc_puff_source'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False
 
@@ -139,7 +139,7 @@ class RegisterConfigTest(parameterized.TestCase):
     # Now modify the original config to use the new config.
     del config['sources']['gas_puff']
     config['sources']['gas_puff'] = {
-        'model_function_name': 'test_model_function',  # new registered name.
+        'model_name': 'test_model_function',  # new registered name.
         'a': 2.0,
     }
     config_pydantic = model_config.ToraxConfig.from_dict(config)
@@ -152,7 +152,7 @@ class RegisterConfigTest(parameterized.TestCase):
     self.assertEqual(new_dynamic_params.a, 2.0)
     self.assertEqual(new_dynamic_params.b, False)
 
-  def test_error_thrown_if_model_function_name_is_already_registered(self):
+  def test_error_thrown_if_model_name_is_already_registered(self):
     with self.assertRaises(ValueError):
       register_config.register_source_model_config(
           DuplicateGasPuffSourceModelConfig, 'gas_puff'

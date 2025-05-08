@@ -42,72 +42,72 @@ def _validate_source_model_config(
     )
 
   source_model_config = source_model_config_class()
-  if not hasattr(source_model_config, 'model_function_name'):
+  if not hasattr(source_model_config, 'model_name'):
     raise ValueError(
-        'The source model config must have a model_function_name attribute.'
+        'The source model config must have a model_name attribute.'
     )
-  model_function_name: str = source_model_config.model_function_name
+  model_name: str = source_model_config.model_name
 
   match source_name:
     case bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSink.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case (
         cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSink.SOURCE_NAME
     ):
-      default_model_function_name = (
+      default_model_name = (
           cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case electron_cyclotron_source_lib.ElectronCyclotronSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case gas_puff_source_lib.GasPuffSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case generic_particle_source_lib.GenericParticleSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case pellet_source_lib.PelletSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case (
         generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_NAME
     ):
-      default_model_function_name = (
+      default_model_name = (
           generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case ion_cyclotron_source_lib.IonCyclotronSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
-      default_model_function_name = (
+      default_model_name = (
           generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case _:
       raise ValueError(f'The source name {source_name} is not supported.')
 
-  if model_function_name == default_model_function_name:
+  if model_name == default_model_name:
     raise ValueError(
-        f'The model function name {model_function_name} must be different from'
-        f' the default model function name {default_model_function_name} for'
+        f'The model function name {model_name} must be different from'
+        f' the default model function name {default_model_name} for'
         f' the source {source_name}.'
     )
 
@@ -124,7 +124,7 @@ def register_source_model_config(
   Args:
     source_model_config_class: The new source model config to register. This
       should be a subclass of SourceModelBase that implements the interface and
-      has a unique `model_function_name`.
+      has a unique `model_name`.
     source_name: The name of the source to register the model config against.
       This should be one of the fields in the Sources pydantic model. For the
       two "special" sources ("qei" and "j_bootstrap") registering a new

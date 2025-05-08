@@ -95,7 +95,7 @@ class PelletSourceConfig(base.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
-  model_function_name: Literal['calc_pellet_source'] = 'calc_pellet_source'
+  model_name: Literal['calc_pellet_source'] = 'calc_pellet_source'
   pellet_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )

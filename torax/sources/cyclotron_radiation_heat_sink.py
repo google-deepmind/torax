@@ -393,7 +393,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
-  model_function_name: Literal['cyclotron_radiation_albajar'] = (
+  model_name: Literal['cyclotron_radiation_albajar'] = (
       'cyclotron_radiation_albajar'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED

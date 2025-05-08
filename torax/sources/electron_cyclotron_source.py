@@ -147,7 +147,7 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       location
     gaussian_ec_total_power: Gaussian EC total power
   """
-  model_function_name: Literal["calc_heating_and_current"] = (
+  model_name: Literal["calc_heating_and_current"] = (
       "calc_heating_and_current"
   )
   cd_efficiency: torax_pydantic.TimeVaryingArray = (

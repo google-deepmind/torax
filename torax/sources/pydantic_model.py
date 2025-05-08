@@ -54,30 +54,30 @@ class Sources(torax_pydantic.BaseModelFrozen):
   bremsstrahlung: (
       bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   cyclotron_radiation: (
       cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSinkConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   ecrh: (
       electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   fusion: fusion_heat_source_lib.FusionHeatSourceConfig | None = (
       pydantic.Field(
-          discriminator='model_function_name',
+          discriminator='model_name',
           default=None,
       )
   )
   gas_puff: gas_puff_source_lib.GasPuffSourceConfig | None = (
       pydantic.Field(
-          discriminator='model_function_name',
+          discriminator='model_name',
           default=None,
       )
   )
@@ -87,19 +87,19 @@ class Sources(torax_pydantic.BaseModelFrozen):
   generic_heat: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   generic_particle: (
       generic_particle_source_lib.GenericParticleSourceConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   icrh: (
       ion_cyclotron_source_lib.IonCyclotronSourceConfig | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   impurity_radiation: (
@@ -107,17 +107,17 @@ class Sources(torax_pydantic.BaseModelFrozen):
       | impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig
       | None
   ) = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = (
       pydantic.Field(
-          discriminator='model_function_name',
+          discriminator='model_name',
           default=None,
       )
   )
   pellet: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
-      discriminator='model_function_name',
+      discriminator='model_name',
       default=None,
   )
   # keep-sorted end
@@ -132,59 +132,59 @@ class Sources(torax_pydantic.BaseModelFrozen):
         continue
       match k:
         case 'bremsstrahlung':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'cyclotron_radiation':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'ecrh':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'gas_puff':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'generic_particle':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'pellet':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'fusion':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'generic_heat':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'impurity_radiation':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
         case 'icrh':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'ohmic':
-          if 'model_function_name' not in v:
+          if 'model_name' not in v:
             constructor_data[k][
-                'model_function_name'
+                'model_name'
             ] = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     return constructor_data
 

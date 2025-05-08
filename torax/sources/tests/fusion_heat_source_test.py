@@ -49,7 +49,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = references_getter()
     references.config.update_fields({
         'sources.fusion': {
-            'model_function_name': (
+            'model_name': (
                 fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
             )
         }
@@ -97,7 +97,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references.config.update_fields(
         {'plasma_composition.main_ion': main_ion_input,
          'sources.fusion': {
-             'model_function_name': (
+             'model_name': (
                  fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
              )
          }})

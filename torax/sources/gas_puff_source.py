@@ -91,7 +91,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
       [normalized radial coord]
     S_puff_tot: total gas puff particles/s
   """
-  model_function_name: Literal['calc_puff_source'] = 'calc_puff_source'
+  model_name: Literal['calc_puff_source'] = 'calc_puff_source'
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
