@@ -9,7 +9,7 @@ General notes
 =============
 
 TORAX's configuration system allows for fine-grained control over various aspects of the simulation.
-The top layer ``config`` file is passed as input into a simulation, and contains a dictionary with the following keys:
+This configuration can be represented as a nested dictionary, where the top level keys are:
 
 * **plasma_composition**: Configures the distribution of ion species.
 * **profile_conditions**: Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
@@ -18,37 +18,42 @@ The top layer ``config`` file is passed as input into a simulation, and contains
 * **transport**: Selects and configures the transport model, and constructs the TransportModel object.
 * **sources**: Selects and configures parameters of the various heat source, particle source, and non-inductive current models.
 * **solver**: Selects and configures the PDE solver.
-* **time_step_calculator**: Selects the method used to calculate the timestep `dt`.
+* **time_step_calculator**: Selects the method used to calculate the timestep ``dt``.
 
-This configuration structure maps to objects instantiated and manipulated within TORAX.
+This configuration dictionary is converted internally to a Pydantic ``torax.ToraxConfig``
+model via ``torax.ToraxConfig.from_dict(config_dict)``.
+
+Configuration dictionaries are typically defined in a Python file, and used via
+``run_torax --config='path/to/config.py'``.` The file ```config.py``` must have the
+config dictionary defined as a global variable named ``CONFIG``. See
+``examples/iterhybrid_rampup.py`` for an example.
+
 See :ref:`structure` for more information on TORAX simulation objects.
-Further details on the internals of the configuration data structures are found in :ref:`config_details`.
+Further details on the internals of the configuration dictionary are found
+in :ref:`config_details`.
 
 For various definitions, see :ref:`glossary`.
 
-Time dependence and parameter interpolation
+Time-dependence and parameter interpolation
 ===========================================
-Some TORAX parameters are allowed to temporally vary. Parameters where time dependence is enabled are
-are labelled with **time-varying-scalar** and **time-varying-array** in :ref:`config_details`.
+Some TORAX parameters are allowed to vary over time, and are labelled with
+**time-varying-scalar** and **time-varying-array** in :ref:`config_details`.
 
 Time-varying scalars
 --------------------
-For fields labelled with **time-varying-scalar** time dependence is set by assigning a dict to the parameter,
-instead of a single value. The dict defines a time-series with ``{time: value}`` pairs.
-The keys do not need to be sorted in order of time. Ordering is carried out internally.
+The following inputs are valid for **time-varying-scalar** parameters:
+
+* Single integer, float, or boolean. The parameter is then not time-dependent.
+* A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
+* A tuple with ``(time-series, value-series)``. The time-series is a 1D array of times, and the value-series is a 1D array of values. The dimensions of both must match.
+* A ``xarray.DataArray`` with a single coordinate and a 1D value array.
+
 For each evaluation of the TORAX solver (PDE solver), time-dependent variables
 are interpolated at both time :math:`t` and time :math:`t+dt`.
 There are two interpolation modes:
 
 * **PIECEWISE_LINEAR**: linear interpolation of the input time-series (default)
 * **STEP**: stepwise change in values following each traversal above a time value in the time-series.
-
-The following inputs are valid for **time-varying-scalar** parameters:
-
-* Single integer, float, or boolean. The parameter is then not time dependent
-* A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
-* A tuple with ``(time-series, value-series)``. The time-series is a 1D array of times, and the value-series is a 1D array of values and the dimensions of both must match.
-* A ``xarray.DataArray`` with a single coordinate and a 1D value array.
 
 Examples:
 
@@ -66,7 +71,7 @@ or more simply, taking advantage of the default.
 
     Ip = {10: 2.0, 100: 15.0}
 
-2. Define a time dependent internal boundary condition for ion temperature, ``T_i_ped``, with stepwise changes,
+2. Define a time-dependent internal boundary condition for ion temperature, ``T_i_ped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
 to :math:`1~keV` at :math:`t=20s`:
 
@@ -102,7 +107,7 @@ Currently two interpolation modes are supported:
 Using primitives
 ^^^^^^^^^^^^^^^^
 
-For fields labelled with **time-varying-array** time dependence is set by assigning a dict of dicts to the parameter.
+For fields labelled with **time-varying-array** time-dependence is set by assigning a dict of dicts to the parameter.
 
 The outer dict defines a time-series with ``{time: value}`` pairs.
 The ``value`` itself is interpreted as a radial profile, being made up of {rho: value} pairs.
@@ -333,7 +338,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``n_e`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.
 
-  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time dependent ``n_e`` is ignored, and only the initial value is used.
+  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time-dependent ``n_e`` is ignored, and only the initial value is used.
 
   If ``n_e_right_bc=None``, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided ``n_e`` profile.
@@ -969,7 +974,7 @@ and can be set to anything convenient.
 generic_heat
 ^^^^^^^^^^^^
 
-A utility source module that allows for a time dependent Gaussian ion and electron heat source.
+A utility source module that allows for a time-dependent Gaussian ion and electron heat source.
 
 ``mode`` (str = 'model')
 
@@ -1025,7 +1030,7 @@ Exponential based gas puff source. No first-principle-based model is yet impleme
 pellet
 ^^^^^^
 
-Time dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
+Time-dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
 
 ``mode`` (str = 'model')
 
@@ -1041,7 +1046,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 generic_particle
 ^^^^^^^^^^^^^^^^
 
-Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
+Time-dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
 ``mode`` (str = 'model')
 
