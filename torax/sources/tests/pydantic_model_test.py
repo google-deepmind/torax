@@ -37,7 +37,7 @@ class PydanticModelTest(parameterized.TestCase):
           config={
               'gas_puff': {
                   'puff_decay_length': 0.3,
-                  'S_puff_tot': 0.0,
+                  'S_total': 0.0,
               }
           },
           expected_sources_model=gas_puff_source.GasPuffSourceConfig,

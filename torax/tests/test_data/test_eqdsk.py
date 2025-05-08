@@ -62,7 +62,7 @@ CONFIG = {
         'ohmic': {},
         'ei_exchange': {},
         'generic_particle': {
-            'S_tot': 2.0e19,
+            'S_total': 2.0e19,
             'deposition_location': 0.3,
             'particle_width': 0.25,
         },

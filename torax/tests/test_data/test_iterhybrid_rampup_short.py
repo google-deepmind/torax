@@ -96,7 +96,7 @@ CONFIG = {
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
             # total particle source
-            'S_tot': 0.0,
+            'S_total': 0.0,
             # particle source Gaussian central location (normalized radial
             # coordinate)
             'deposition_location': 0.3,
@@ -110,11 +110,11 @@ CONFIG = {
             # coordinate)
             'puff_decay_length': 0.3,
             # total pellet particles/s
-            'S_puff_tot': 0.0,
+            'S_total': 0.0,
         },
         'pellet': {
             # total pellet particles/s (continuous pellet model)
-            'S_pellet_tot': 0.0e22,
+            'S_total': 0.0e22,
             # Gaussian width of pellet deposition (normalized radial coordinate)
             # in continuous pellet model
             'pellet_width': 0.1,

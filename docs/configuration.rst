@@ -1019,7 +1019,7 @@ Exponential based gas puff source. No first-principle-based model is yet impleme
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
 
-``S_puff_tot`` (float = 1e22), **time-varying-scalar**
+``S_total`` (float = 1e22), **time-varying-scalar**
   Total number of particle source in units of particles/s.
 
 pellet
@@ -1035,7 +1035,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``pellet_width`` (float = 0.1), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
+``S_total`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
 generic_particle
@@ -1051,7 +1051,7 @@ Time dependent Gaussian particle source. No first-principle-based model is yet i
 ``particle_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_tot`` (float = 1e22), **time-varying-scalar**
+``S_total`` (float = 1e22), **time-varying-scalar**
   Total particle source.
 
 j_bootstrap
@@ -1472,7 +1472,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'rext': 0.36,
           },
           'pellet': {
-              'S_pellet_tot': 0.0e22,
+              'S_total': 0.0e22,
               'pellet_width': 0.1,
               'pellet_deposition_location': 0.85,
           },

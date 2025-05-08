@@ -51,13 +51,13 @@ CONFIG = {
             'P_total': 53.0e6,
         },
         'pellet': {
-            'S_pellet_tot': 1.0e22,
+            'S_total': 1.0e22,
         },
         'gas_puff': {
-            'S_puff_tot': 0.5e22,
+            'S_total': 0.5e22,
         },
         'generic_particle': {
-            'S_tot': 0.3e22,
+            'S_total': 0.3e22,
         },
     },
     'pedestal': {

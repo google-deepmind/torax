@@ -47,13 +47,13 @@ CONFIG = {
         'generic_current': {},
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {
-            'S_tot': 0.3e22,
+            'S_total': 0.3e22,
         },
         'gas_puff': {
-            'S_puff_tot': 0.5e22,
+            'S_total': 0.5e22,
         },
         'pellet': {
-            'S_pellet_tot': 1.0e22,
+            'S_total': 1.0e22,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {
