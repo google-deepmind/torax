@@ -4,21 +4,10 @@ Running simulations programmatically
 ####################################
 
 This short guide describes how to integrate Torax into you codebase and allows you
-to run it multiple times efficiently. Due to potential breaking changes at head
-it is currently recommended to use the v0.3.0 release for running programmatically.
+to run it multiple times efficiently.
 
-First we need to load up the config and make sure it is configured correctly.
-In this example below, we load the iterhybrid_rampup example from the torax
-package itself. The key object from a config module is the `CONFIG`` python
-dictionary used to construct the pydantic ToraxConfig object.
-
-NOTE: This is an optional step, if you are working in a notebook or have already
-loaded the config in another way you can skip this step. The config dict
-just needs to be a dictionary that matches the description in the
-configuration section.
-
-
-To run the simulation we need to construct the ToraxConfig pydantic object:
+First, we need a ``torax.ToraxConfig`` object representing the simulation config.
+In this example, we will use the ``torax/examples/iterhybrid_rampup.py`` config:
 
 .. code-block:: python
 
@@ -26,7 +15,10 @@ To run the simulation we need to construct the ToraxConfig pydantic object:
 
   torax_config = torax.build_torax_config_from_file('examples/iterhybrid_rampup.py')
 
-And then we can run the simulation using
+If you already have a ``config_dict`` dictionary in Python, you could
+instead use ``torax_config = torax.ToraxConfig.from_dict(config_dict)``.
+
+We can then run the simulation:
 
 .. code-block:: python
 
