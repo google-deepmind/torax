@@ -108,7 +108,7 @@ class StaticRuntimeParamsSlice:
   SimulationStepFn must be recompiled.
 
   NOTE: These are not the only parameters which can trigger recompilations! For
-  instance, if the geometry changes its shape (i.e. nr or hires_fac change),
+  instance, if the geometry changes its shape (i.e. nr or hires_factor change),
   that can also trigger a recompile. This is just to note that this list is not
   an exhaustive list of what can cause recompilations.
 

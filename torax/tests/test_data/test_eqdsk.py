@@ -15,7 +15,7 @@
 """Integration test for EQDSK geometry.
 
 Uses demo EQDSK file generated for a small tokamak configuration:
-Rmaj~0.9m , Rmin~0.2m, B0~1.4T, Ip~170kA.
+R_major~0.9m , a_minor~0.2m, B_0~1.4T, Ip~170kA.
 """
 
 

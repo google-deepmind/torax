@@ -532,7 +532,7 @@ Geometry dicts for all geometry types can contain the following additional keys.
 ``n_rho`` (int = 25)
   Number of radial grid points
 
-``hires_fac`` (int = 4)
+``hires_factor`` (int = 4)
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
   with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
@@ -542,7 +542,7 @@ Geometry dicts for all non-circular geometry types can contain the following add
   Required for all geometry types except ``'circular'``. Sets the geometry file loaded.
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
 
-``geometry_dir`` (str = None)
+``geometry_directory`` (str = None)
   Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
 
 ``Ip_from_parameters`` (bool = True)
@@ -551,13 +551,13 @@ Geometry dicts for all non-circular geometry types can contain the following add
 
 Geometry dicts for analytical circular geometry require the following additional keys.
 
-``Rmaj`` (float = 6.2)
+``R_major`` (float = 6.2)
   Major radius (R) in meters.
 
-``Rmin`` (float = 2.0)
+``a_minor`` (float = 2.0)
   Minor radius (a) in meters.
 
-``B0`` (float = 5.3)
+``B_0`` (float = 5.3)
   Vacuum toroidal magnetic field on axis [T].
 
 ``kappa`` (float = 1.72)
@@ -565,13 +565,13 @@ Geometry dicts for analytical circular geometry require the following additional
 
 Geometry dicts for CHEASE geometry require the following additional keys for denormalization.
 
-``Rmaj`` (float = 6.2)
+``R_major`` (float = 6.2)
   Major radius (R) in meters.
 
-``Rmin`` (float = 2.0)
+``a_minor`` (float = 2.0)
   Minor radius (a) in meters.
 
-``B0`` (float = 5.3)
+``B_0`` (float = 5.3)
   Vacuum toroidal magnetic field on axis [T].
 
 Geometry dicts for FBT geometry require the following additional keys.
@@ -1460,9 +1460,9 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'geometry_type': 'chease',
           'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
           'Ip_from_parameters': True,
-          'Rmaj': 6.2,
-          'Rmin': 2.0,
-          'B0': 5.3,
+          'R_major': 6.2,
+          'a_minor': 2.0,
+          'B_0': 5.3,
       },
       'sources': {
           'j_bootstrap': {},

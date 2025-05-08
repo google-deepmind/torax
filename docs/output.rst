@@ -395,13 +395,13 @@ Geometry
 ``Phi_face`` (time, rho_face) [Wb]
   Toroidal magnetic flux at each radial face.
 
-``Rmaj`` (time) [m]
+``R_major`` (time) [m]
   Major radius.
 
-``Rmin`` (time) [m]
+``a_minor`` (time) [m]
   Minor radius.
 
-``B0`` (time) [T]
+``B_0`` (time) [T]
   Magnetic field strength at the magnetic axis.
 
 ``volume`` (time, rho_cell) [:math:`m^3`]

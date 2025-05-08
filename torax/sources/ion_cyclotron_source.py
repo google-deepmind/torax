@@ -102,7 +102,7 @@ class ToricNNInputs:
   # Density profile peaking factor, training range = 1.15 to 1.65.
   density_peaking_factor: array_typing.ScalarFloat
   # Toroidal magnetic field on axis in T, training range = 11.8 to 12.5.
-  B0: array_typing.ScalarFloat
+  B_0: array_typing.ScalarFloat
 
 
 @chex.dataclass(frozen=True)
@@ -288,7 +288,7 @@ def _toric_nn_predict(
           inputs.z0,
           inputs.temperature_peaking_factor,
           inputs.density_peaking_factor,
-          inputs.B0,
+          inputs.B_0,
       ],
       dtype=jax_utils.get_dtype(),
   )
@@ -386,7 +386,7 @@ def icrh_model_func(
       z0=geo.z_magnetic_axis(),
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
-      B0=geo.B_0,
+      B_0=geo.B_0,
   )
 
   toric_nn_outputs = _toric_nn_predict(toric_nn, toric_inputs)

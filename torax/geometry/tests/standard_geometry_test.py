@@ -60,7 +60,7 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
-        hires_fac=4,
+        hires_factor=4,
         z_magnetic_axis=np.array(0.0),
     )
     geo = standard_geometry.build_standard_geometry(intermediate)
@@ -173,17 +173,17 @@ class GeometryTest(parameterized.TestCase):
     _, LY2 = _get_example_L_LY_data(10, 1, prefactor=3.0)
     geo0_intermediate = (
         standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_dir=None, LY_object=LY0, L_object=L
+            geometry_directory=None, LY_object=LY0, L_object=L
         )
     )
     geo1_intermediate = (
         standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_dir=None, LY_object=LY1, L_object=L
+            geometry_directory=None, LY_object=LY1, L_object=L
         )
     )
     geo2_intermediate = (
         standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_dir=None, LY_object=LY2, L_object=L
+            geometry_directory=None, LY_object=LY2, L_object=L
         )
     )
     geo0 = standard_geometry.build_standard_geometry(geo0_intermediate)

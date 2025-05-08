@@ -89,7 +89,7 @@ class MathUtilsTest(parameterized.TestCase):
     ).build_geometry()
 
     x = geo.rho_norm
-    # For circular geometry, spr = 2*pi*rho*Rmin. Do the integration by hand.
+    # For circular geometry, spr = 2*pi*rho*a_minor. Do the integration by hand.
     expected_area_integration = 2 / 3 * np.pi * geo.a_minor**2
 
     np.testing.assert_allclose(
@@ -106,7 +106,8 @@ class MathUtilsTest(parameterized.TestCase):
     ).build_geometry()
 
     x = geo.rho_norm
-    # For circular geometry, vpr = 4*pi^2*rho*Rmin*Rmaj. Do integration by hand.
+    # For circular geometry, vpr = 4*pi^2*rho*a_minor*R_major.
+    # Do integration by hand.
     expected_volume_integration = (
         4 / 3 * np.pi**2 * geo.a_minor**2 * geo.R_major
     )
@@ -141,7 +142,8 @@ class MathUtilsTest(parameterized.TestCase):
     ).build_geometry()
 
     x = geo.rho_norm
-    # For circular geometry, vpr = 4*pi^2*rho*Rmin*Rmaj. Do integration by hand.
+    # For circular geometry, vpr = 4*pi^2*rho*a_minor*R_major.
+    # Do integration by hand.
     expected_volume_average = 2 / 3
 
     np.testing.assert_allclose(

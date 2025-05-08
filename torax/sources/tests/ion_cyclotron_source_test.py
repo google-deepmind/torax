@@ -61,7 +61,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         z0=0.0,
         temperature_peaking_factor=2,
         density_peaking_factor=2,
-        B0=12.2,
+        B_0=12.2,
     )
     toric_input = jnp.array([
         model_input.frequency,
@@ -73,7 +73,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         model_input.z0,
         model_input.temperature_peaking_factor,
         model_input.density_peaking_factor,
-        model_input.B0,
+        model_input.B_0,
     ])
     model_output, params = toric_nn.init_with_output(
         jax.random.PRNGKey(0), toric_input

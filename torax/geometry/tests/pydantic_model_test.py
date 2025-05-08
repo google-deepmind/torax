@@ -67,15 +67,15 @@ class PydanticModelTest(parameterized.TestCase):
         'geometry_configs': {
             0.0: {
                 'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
+                'R_major': 6.2,
+                'a_minor': 2.0,
+                'B_0': 5.3,
             },
             1.0: {
                 'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
+                'R_major': 6.2,
+                'a_minor': 2.0,
+                'B_0': 5.3,
             },
         },
     }
@@ -91,7 +91,7 @@ class PydanticModelTest(parameterized.TestCase):
   @parameterized.parameters([
       dict(param='n_rho', value=5),
       dict(param='Ip_from_parameters', value=True),
-      dict(param='geometry_dir', value='.'),
+      dict(param='geometry_directory', value='.'),
   ])
   def test_build_time_dependent_geometry_from_chease_failure(
       self, param, value
@@ -104,15 +104,15 @@ class PydanticModelTest(parameterized.TestCase):
         'geometry_configs': {
             0.0: {
                 'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
+                'R_major': 6.2,
+                'a_minor': 2.0,
+                'B_0': 5.3,
             },
             1.0: {
                 'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
+                'R_major': 6.2,
+                'a_minor': 2.0,
+                'B_0': 5.3,
             },
         },
     }
@@ -164,13 +164,13 @@ class PydanticModelTest(parameterized.TestCase):
 
     with self.subTest('rmin_greater_than_rmaj'):
       with self.assertRaisesRegex(
-          ValueError, 'Rmin must be less than or equal to Rmaj'
+          ValueError, 'a_minor must be less than or equal to R_major'
       ):
-        config(Rmaj=1.0, Rmin=2.0)
+        config(R_major=1.0, a_minor=2.0)
 
     with self.subTest('negative_values'):
       with self.assertRaises(ValueError):
-        config(Rmaj=-1.0, Rmin=-2.0)
+        config(R_major=-1.0, a_minor=-2.0)
 
   def test_failed_test(self):
     config = {

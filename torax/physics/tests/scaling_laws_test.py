@@ -31,10 +31,10 @@ class ScalingLawsTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
-        hires_fac=4,
-        Rmaj=6.0,
-        Rmin=2.0,
-        B0=5.0,
+        hires_factor=4,
+        R_major=6.0,
+        a_minor=2.0,
+        B_0=5.0,
     ).build_geometry()
 
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
@@ -98,10 +98,10 @@ class ScalingLawsTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=elongation_LCFS,
-        hires_fac=4,
-        Rmaj=6.0,
-        Rmin=2.0,
-        B0=5.0,
+        hires_factor=4,
+        R_major=6.0,
+        a_minor=2.0,
+        B_0=5.0,
     ).build_geometry()
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
     # property needed in calculate_plh_scaling_factor.

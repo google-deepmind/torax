@@ -43,38 +43,38 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     geometry_type: Always set to 'circular'.
     n_rho: Number of radial grid points.
-    hires_fac: Only used when the initial condition ``psi`` is from plasma
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    Rmaj: Major radius (R) in meters.
-    Rmin: Minor radius (a) in meters.
-    B0: Vacuum toroidal magnetic field on axis [T].
+    R_major: Major radius (R) in meters.
+    a_minor: Minor radius (a) in meters.
+    B_0: Vacuum toroidal magnetic field on axis [T].
     elongation_LCFS: Sets the plasma elongation used for volume, area and
       q-profile corrections.
   """
 
   geometry_type: Annotated[Literal['circular'], TIME_INVARIANT] = 'circular'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
-  hires_fac: pydantic.PositiveInt = 4
-  Rmaj: torax_pydantic.Meter = 6.2
-  Rmin: torax_pydantic.Meter = 2.0
-  B0: torax_pydantic.Tesla = 5.3
+  hires_factor: pydantic.PositiveInt = 4
+  R_major: torax_pydantic.Meter = 6.2
+  a_minor: torax_pydantic.Meter = 2.0
+  B_0: torax_pydantic.Tesla = 5.3
   elongation_LCFS: pydantic.PositiveFloat = 1.72
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if not self.Rmaj >= self.Rmin:
-      raise ValueError('Rmin must be less than or equal to Rmaj.')
+    if not self.R_major >= self.a_minor:
+      raise ValueError('a_minor must be less than or equal to R_major.')
     return self
 
   def build_geometry(self) -> geometry.Geometry:
     return circular_geometry.build_circular_geometry(
         n_rho=self.n_rho,
         elongation_LCFS=self.elongation_LCFS,
-        Rmaj=self.Rmaj,
-        Rmin=self.Rmin,
-        B0=self.B0,
-        hires_fac=self.hires_fac,
+        R_major=self.R_major,
+        a_minor=self.a_minor,
+        B_0=self.B_0,
+        hires_factor=self.hires_factor,
     )
 
 
@@ -84,33 +84,33 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     geometry_type: Always set to 'chease'.
     n_rho: Number of radial grid points.
-    hires_fac: Only used when the initial condition ``psi`` is from plasma
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_dir: Optionally overrides the `TORAX_GEOMETRY_DIR` environment
-      variable.
+    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
+      environment variable.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
-    Rmaj: Major radius (R) in meters.
-    Rmin: Minor radius (a) in meters.
-    B0: Vacuum toroidal magnetic field on axis [T].
+    R_major: Major radius (R) in meters.
+    a_minor: Minor radius (a) in meters.
+    B_0: Vacuum toroidal magnetic field on axis [T].
   """
 
   geometry_type: Annotated[Literal['chease'], TIME_INVARIANT] = 'chease'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
-  hires_fac: pydantic.PositiveInt = 4
-  geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
   geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols'
-  Rmaj: torax_pydantic.Meter = 6.2
-  Rmin: torax_pydantic.Meter = 2.0
-  B0: torax_pydantic.Tesla = 5.3
+  R_major: torax_pydantic.Meter = 6.2
+  a_minor: torax_pydantic.Meter = 2.0
+  B_0: torax_pydantic.Tesla = 5.3
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if not self.Rmaj >= self.Rmin:
-      raise ValueError('Rmin must be less than or equal to Rmaj.')
+    if not self.R_major >= self.a_minor:
+      raise ValueError('a_minor must be less than or equal to R_major.')
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
@@ -129,15 +129,15 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     geometry_type: Always set to 'fbt'.
     n_rho: Number of radial grid points.
-    hires_fac: Only used when the initial condition ``psi`` is from plasma
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_dir: Optionally overrides the `TORAX_GEOMETRY_DIR` environment
-      variable.
+    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
+      environment variable.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
-    hires_fac: Sets up a higher resolution mesh with ``nrho_hires = nrho *
+    hires_factor: Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
     LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
       alternatively a dict directly containing a single time slice of LY data.
@@ -154,8 +154,8 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
 
   geometry_type: Annotated[Literal['fbt'], TIME_INVARIANT] = 'fbt'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
-  hires_fac: pydantic.PositiveInt = 4
-  geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
   LY_object: LY_OBJECT_TYPE | None = None
   LY_bundle_object: LY_OBJECT_TYPE | None = None
@@ -218,11 +218,11 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     geometry_type: Always set to 'eqdsk'.
     n_rho: Number of radial grid points.
-    hires_fac: Only used when the initial condition ``psi`` is from plasma
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_dir: Optionally overrides the `TORAX_GEOMETRY_DIR` environment
-      variable.
+    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
+      environment variable.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
@@ -235,8 +235,8 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
 
   geometry_type: Annotated[Literal['eqdsk'], TIME_INVARIANT] = 'eqdsk'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
-  hires_fac: pydantic.PositiveInt = 4
-  geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
   geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100

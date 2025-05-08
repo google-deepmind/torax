@@ -69,13 +69,13 @@ class GeometryTest(parameterized.TestCase):
     """Test stack_geometries for circular geometries."""
     # Create a few different geometries
     geo0 = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=1.0, B0=2.0, n_rho=10
+        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
     geo1 = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=1.5, B0=2.5, n_rho=10
+        a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
     ).build_geometry()
     geo2 = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=2.0, B0=3.0, n_rho=10
+        a_minor=0.5, R_major=2.0, B_0=3.0, n_rho=10
     ).build_geometry()
 
     # Stack them
@@ -125,10 +125,10 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_error_handling_different_mesh_sizes(self):
     """Test error handling for stack_geometries with different mesh sizes."""
     geo0 = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=1.0, B0=2.0, n_rho=10
+        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
     geo_diff_mesh = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=1.0, B0=2.0, n_rho=20
+        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=20
     ).build_geometry()  # Different n_rho
     with self.assertRaisesRegex(
         ValueError, 'All geometries must have the same mesh.'
@@ -138,7 +138,7 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_error_handling_different_geometry_types(self):
     """Test different geometry type error handling for stack_geometries."""
     geo0 = geometry_pydantic_model.CircularConfig(
-        Rmin=0.5, Rmaj=1.0, B0=2.0, n_rho=10
+        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
     geo_diff_geometry_type = dataclasses.replace(
         geo0, geometry_type=geometry.GeometryType(3)

@@ -161,9 +161,9 @@ class PsiCalculationsTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
-        Rmaj=100.0,
-        Rmin=1.0,
-        B0=5.0,
+        R_major=100.0,
+        a_minor=1.0,
+        B_0=5.0,
     ).build_geometry()
     Ip = 15
     # calculate high resolution jtot consistent with total current profile

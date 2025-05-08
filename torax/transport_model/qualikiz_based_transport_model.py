@@ -92,7 +92,7 @@ class QualikizBasedTransportModel(
     rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
 
     # gyrobohm diffusivity
-    # (defined here with Lref=Rmin due to QLKNN training set normalization)
+    # (defined here with Lref=a_minor due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
         reference_temperature=core_profiles.temp_ion.face_value(),
         reference_magnetic_field=geo.B_0,

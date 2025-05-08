@@ -90,11 +90,11 @@ class Geometry:
       grid [:math:`\mathrm{m}^3`].
     spr: Derivative of plasma surface area enclosed by each flux surface, with
       respect to the normalized toroidal flux coordinate rho_norm on cell grid
-      [:math:`\mathrm{m}^2`]. Equal to vpr / (:math:`2 \pi` Rmaj).
+      [:math:`\mathrm{m}^2`]. Equal to vpr / (:math:`2 \pi` R_major).
     spr_face: Derivative of plasma surface area enclosed by each flux surface,
       with respect to the normalized toroidal flux coordinate rho_face_norm on
       face grid [:math:`\mathrm{m}^2`]. Equal to vpr_face / (:math:`2 \pi`
-      Rmaj).
+      R_major).
     spr_hires: Derivative of plasma surface area enclosed by each flux surface
       on a higher resolution grid, with respect to the normalized toroidal flux
       coordinate rho_norm. [:math:`\mathrm{m}^2`].
@@ -143,16 +143,16 @@ class Geometry:
     R_out_face: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`] on face grid.
     delta_face: Average of upper and lower triangularity of each flux surface at
-      the faces [dimensionless]. Upper triangularity is defined as (Rmaj_local -
-      R_upper) / Rmin_local, where Rmaj_local = (Rout+Rin)/2, Rmin_local =
-      (Rout-Rin)/2, and R_upper is the radial location of the upper extent of
-      the flux surface. Lower triangularity is defined as (Rmaj_local - R_lower)
-      / Rmin_local, where R_lower is the radial location of the lower extent of
-      the flux surface.
+      the faces [dimensionless]. Upper triangularity is defined as
+      (R_major_local - R_upper) / a_minor_local, where R_major_local =
+      (Rout+Rin)/2, a_minor_local = (Rout-Rin)/2, and R_upper is the radial
+      location of the upper extent of the flux surface. Lower triangularity is
+      defined as (R_major_local - R_lower) / a_minor_local, where R_lower is the
+      radial location of the lower extent of the flux surface.
     elongation: Plasma elongation profile on cell grid [dimensionless].
-      Elongation is defined as (Z_upper - Z_lower) / (2.0 * Rmin_local), where
-      Z_upper and Z_lower are the Z coordinates of the upper and lower extent of
-      the flux surface.
+      Elongation is defined as (Z_upper - Z_lower) / (2.0 * a_minor_local),
+      where Z_upper and Z_lower are the Z coordinates of the upper and lower
+      extent of the flux surface.
     elongation_face: Plasma elongation profile on face grid [dimensionless].
     Phi_b_dot: Time derivative of the toroidal magnetic flux
       [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``

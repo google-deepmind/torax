@@ -213,7 +213,7 @@ def calc_Wpol(
 
 
 def calc_li3(
-    Rmaj: jax.Array,
+    R_major: jax.Array,
     Wpol: jax.Array,
     Ip_total: jax.Array,
 ) -> jax.Array:
@@ -224,21 +224,21 @@ def calc_li3(
   the average at the last closed flux surface.
 
   We use the ITER convention for normalized internal inductance defined as:
-  li3 = 2*V*<Bpol^2>_V / (mu0^2 Ip^2*Rmaj) = 4 * Wpol / (mu0 Ip^2*Rmaj)
+  li3 = 2*V*<Bpol^2>_V / (mu0^2 Ip^2*R_major) = 4 * Wpol / (mu0 Ip^2*R_major)
 
   Ip (total plasma current) enters through the integral form of Ampere's law.
   Since Wpol also corresponds to a volume integral of the poloidal field, we
   can define li3 with respect to Wpol.
 
   Args:
-    Rmaj: Major radius.
+    R_major: Major radius.
     Wpol: Total magnetic energy.
     Ip_total: Total plasma current.
 
   Returns:
     li3: Normalized internal inductance, ITER convention.
   """
-  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * Rmaj)
+  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * R_major)
 
 
 def calc_q95(

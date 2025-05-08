@@ -215,7 +215,7 @@ def calculate_greenwald_fraction(
   Returns:
     fgw: Greenwald density fraction
   """
-  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
+  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and a_minor is in m.
   gw_limit = core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.a_minor**2)
   fgw = n_e_avg * core_profiles.density_reference / (gw_limit * 1e20)
   return fgw

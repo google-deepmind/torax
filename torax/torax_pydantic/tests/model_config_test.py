@@ -117,8 +117,8 @@ class ConfigTest(parameterized.TestCase):
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
     new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error
-    new_hires_fac = (
-        config_pydantic.geometry.geometry_configs.config.hires_fac * 2  # pytype: disable=attribute-error
+    new_hires_factor = (
+        config_pydantic.geometry.geometry_configs.config.hires_factor * 2  # pytype: disable=attribute-error
     )
 
     # Check that the caches are invalidated.
@@ -131,7 +131,7 @@ class ConfigTest(parameterized.TestCase):
 
     config_pydantic.update_fields({
         "geometry.geometry_configs.config.n_rho": new_n_rho,
-        "geometry.geometry_configs.config.hires_fac": new_hires_fac,
+        "geometry.geometry_configs.config.hires_factor": new_hires_factor,
     })
 
     self.assertEqual(
@@ -139,8 +139,8 @@ class ConfigTest(parameterized.TestCase):
         new_n_rho,
     )
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.hires_fac,  # pytype: disable=attribute-error
-        new_hires_fac,
+        config_pydantic.geometry.geometry_configs.config.hires_factor,  # pytype: disable=attribute-error
+        new_hires_factor,
     )
 
     with self.subTest("nrho_updated_reset_mesh_cache"):

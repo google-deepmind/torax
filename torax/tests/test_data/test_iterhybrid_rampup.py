@@ -63,9 +63,9 @@ CONFIG = {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
         'Ip_from_parameters': True,
-        'Rmaj': 6.2,  # major radius (R) in meters
-        'Rmin': 2.0,  # minor radius (a) in meters
-        'B0': 5.3,  # Toroidal magnetic field on axis [T]
+        'R_major': 6.2,  # major radius (R) in meters
+        'a_minor': 2.0,  # minor radius (a) in meters
+        'B_0': 5.3,  # Toroidal magnetic field on axis [T]
     },
     'sources': {
         # Current sources (for psi equation)

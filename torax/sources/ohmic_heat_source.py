@@ -72,7 +72,8 @@ def ohmic_model_func(
 class OhmicHeatSource(source_lib.Source):
   """Ohmic heat source for electron heat equation.
 
-  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
+  Pohm = jtor * psidot /(2*pi*R_major), related to electric power formula P =
+  IV.
   """
 
   SOURCE_NAME: ClassVar[str] = 'ohmic'

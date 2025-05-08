@@ -32,10 +32,10 @@ class GeometryProviderTest(absltest.TestCase):
 
   def test_time_dependent_geometry_return_different_values(self):
     geo_0 = geometry_pydantic_model.CircularConfig(
-        Rmaj=6.2, Rmin=2.0, B0=5.3
+        R_major=6.2, a_minor=2.0, B_0=5.3
     ).build_geometry()
     geo_1 = geometry_pydantic_model.CircularConfig(
-        Rmaj=7.4, Rmin=1.0, B0=6.5
+        R_major=7.4, a_minor=1.0, B_0=6.5
     ).build_geometry()
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
         {0.0: geo_0, 10.0: geo_1}

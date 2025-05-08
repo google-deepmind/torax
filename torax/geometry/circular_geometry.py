@@ -24,32 +24,32 @@ from torax.torax_pydantic import torax_pydantic
 def build_circular_geometry(
     n_rho: int,
     elongation_LCFS: float,
-    Rmaj: float,
-    Rmin: float,
-    B0: float,
-    hires_fac: int,
+    R_major: float,
+    a_minor: float,
+    B_0: float,
+    hires_factor: int,
 ) -> geometry.Geometry:
   """Constructs a circular Geometry instance used for testing only.
 
   Args:
     n_rho: Radial grid points (num cells)
     elongation_LCFS: Elongation at last closed flux surface.
-    Rmaj: major radius (R) in meters
-    Rmin: minor radius (a) in meters
-    B0: Toroidal magnetic field on axis [T]
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+    R_major: major radius (R) in meters
+    a_minor: minor radius (a) in meters
+    B_0: Toroidal magnetic field on axis [T]
+    hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
 
   Returns:
     A Geometry instance.
   """
-  # circular geometry assumption of r/Rmin = rho_norm, the normalized
+  # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
   drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
   mesh = torax_pydantic.Grid1D(nx=n_rho, dx=drho_norm)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
-  rho_b = np.asarray(Rmin)
+  rho_b = np.asarray(a_minor)
 
   # normalized and unnormalized toroidal flux coordinate (rho)
   # on face and cell grids. See fvm documentation and paper for details on
@@ -59,12 +59,12 @@ def build_circular_geometry(
   rho_face = rho_face_norm * rho_b
   rho = rho_norm * rho_b
 
-  Rmaj = np.array(Rmaj)
-  B0 = np.array(B0)
+  R_major = np.array(R_major)
+  B_0 = np.array(B_0)
 
   # Define toroidal flux
-  Phi = np.pi * B0 * rho**2
-  Phi_face = np.pi * B0 * rho_face**2
+  Phi = np.pi * B_0 * rho**2
+  Phi_face = np.pi * B_0 * rho_face**2
 
   # Elongation profile.
   # Set to be a linearly increasing function from 1 to elongation_LCFS, which
@@ -76,8 +76,8 @@ def build_circular_geometry(
   # V = 2*pi^2*R*rho^2*elongation
   # S = pi*rho^2*elongation
 
-  volume = 2 * np.pi**2 * Rmaj * rho**2 * elongation
-  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * elongation_face
+  volume = 2 * np.pi**2 * R_major * rho**2 * elongation
+  volume_face = 2 * np.pi**2 * R_major * rho_face**2 * elongation_face
   area = np.pi * rho**2 * elongation
   area_face = np.pi * rho_face**2 * elongation_face
 
@@ -85,11 +85,12 @@ def build_circular_geometry(
   # \nabla V = 4*pi^2*R*rho*elongation
   #   + V * (elongation_param - 1) / elongation / rho_b
   # vpr = \nabla V * rho_b
-  vpr = 4 * np.pi**2 * Rmaj * rho * elongation * rho_b + volume / elongation * (
-      elongation_LCFS - 1
+  vpr = (
+      4 * np.pi**2 * R_major * rho * elongation * rho_b
+      + volume / elongation * (elongation_LCFS - 1)
   )
   vpr_face = (
-      4 * np.pi**2 * Rmaj * rho_face * elongation_face * rho_b
+      4 * np.pi**2 * R_major * rho_face * elongation_face * rho_b
       + volume_face / elongation_face * (elongation_LCFS - 1)
   )
   # pylint: disable=invalid-name
@@ -116,22 +117,22 @@ def build_circular_geometry(
   g1_face = vpr_face**2 / rho_b**2
 
   # g2: <(\nabla V)^2 / R^2>
-  g2 = g1 / Rmaj**2
-  g2_face = g1_face / Rmaj**2
+  g2 = g1 / R_major**2
+  g2_face = g1_face / R_major**2
 
   # g3: <1/R^2> (done without a elongation correction)
   # <1/R^2> =
-  # 1/2pi*int_0^2pi (1/(Rmaj+r*cosx)^2)dx =
-  # 1/( Rmaj^2 * (1 - (r/Rmaj)^2)^3/2 )
-  g3 = 1 / (Rmaj**2 * (1 - (rho / Rmaj) ** 2) ** (3.0 / 2.0))
-  g3_face = 1 / (Rmaj**2 * (1 - (rho_face / Rmaj) ** 2) ** (3.0 / 2.0))
+  # 1/2pi*int_0^2pi (1/(R_major+r*cosx)^2)dx =
+  # 1/( R_major^2 * (1 - (r/R_major)^2)^3/2 )
+  g3 = 1 / (R_major**2 * (1 - (rho / R_major) ** 2) ** (3.0 / 2.0))
+  g3_face = 1 / (R_major**2 * (1 - (rho_face / R_major) ** 2) ** (3.0 / 2.0))
 
-  # simplifying assumption for now, for J=R*B/(R0*B0)
+  # simplifying assumption for now, for J=R*B/(R0*B_0)
   J = np.ones(len(rho))
   J_face = np.ones(len(rho_face))
   # simplified (constant) version of the F=B*R function
-  F = np.ones(len(rho)) * Rmaj * B0
-  F_face = np.ones(len(rho_face)) * Rmaj * B0
+  F = np.ones(len(rho)) * R_major * B_0
+  F_face = np.ones(len(rho_face)) * R_major * B_0
 
   # Using an approximation where:
   # g2g3_over_rhon = 16 * pi**4 * G2 / (J * R) where:
@@ -141,30 +142,30 @@ def build_circular_geometry(
   # In the future, a more rigorous analytical geometry will be developed and
   # the direct definition of g2g3_over_rhon will be used.
 
-  g2g3_over_rhon = 4 * np.pi**2 * vpr * g3 / (J * Rmaj)
-  g2g3_over_rhon_face = 4 * np.pi**2 * vpr_face * g3_face / (J_face * Rmaj)
+  g2g3_over_rhon = 4 * np.pi**2 * vpr * g3 / (J * R_major)
+  g2g3_over_rhon_face = 4 * np.pi**2 * vpr_face * g3_face / (J_face * R_major)
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  rho_hires_norm = np.linspace(0, 1, n_rho * hires_fac)
+  rho_hires_norm = np.linspace(0, 1, n_rho * hires_factor)
   rho_hires = rho_hires_norm * rho_b
 
-  Rout = Rmaj + rho
-  Rout_face = Rmaj + rho_face
+  Rout = R_major + rho
+  Rout_face = R_major + rho_face
 
-  Rin = Rmaj - rho
-  Rin_face = Rmaj - rho_face
+  Rin = R_major - rho
+  Rin_face = R_major - rho_face
 
   # assumed elongation profile on hires grid
   elongation_hires = 1 + rho_hires_norm * (elongation_LCFS - 1)
 
-  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * elongation_hires
+  volume_hires = 2 * np.pi**2 * R_major * rho_hires**2 * elongation_hires
   area_hires = np.pi * rho_hires**2 * elongation_hires
 
   # V' = dV/drnorm for volume integrations on hires grid
   vpr_hires = (
-      4 * np.pi**2 * Rmaj * rho_hires * elongation_hires * rho_b
+      4 * np.pi**2 * R_major * rho_hires * elongation_hires * rho_b
       + volume_hires / elongation_hires * (elongation_LCFS - 1)
   )
   # S' = dS/drnorm for area integrals on hires grid
@@ -173,9 +174,9 @@ def build_circular_geometry(
       + area_hires / elongation_hires * (elongation_LCFS - 1)
   )
 
-  g3_hires = 1 / (Rmaj**2 * (1 - (rho_hires / Rmaj) ** 2) ** (3.0 / 2.0))
-  F_hires = np.ones(len(rho_hires)) * B0 * Rmaj
-  g2g3_over_rhon_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
+  g3_hires = 1 / (R_major**2 * (1 - (rho_hires / R_major) ** 2) ** (3.0 / 2.0))
+  F_hires = np.ones(len(rho_hires)) * B_0 * R_major
+  g2g3_over_rhon_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B_0 / F_hires
 
   return geometry.Geometry(
       # Set the standard geometry params.
@@ -183,9 +184,9 @@ def build_circular_geometry(
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,
-      R_major=Rmaj,
+      R_major=R_major,
       a_minor=rho_b,
-      B_0=B0,
+      B_0=B_0,
       volume=volume,
       volume_face=volume_face,
       area=area,

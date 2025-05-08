@@ -152,7 +152,7 @@ class StandardGeometryIntermediates:
     vpr:  Profile of dVolume/d(rho_norm), where rho_norm is the normalized
       toroidal flux coordinate [:math:`\mathrm{m^3}`].
     n_rho: Radial grid points (number of cells).
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+    hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations. Used to create a higher-resolution grid to improve accuracy
       when initializing psi from a plasma current profile.
     z_magnetic_axis: z position of magnetic axis [:math:`\mathrm{m}`].
@@ -179,7 +179,7 @@ class StandardGeometryIntermediates:
   elongation: chex.Array
   vpr: chex.Array
   n_rho: int
-  hires_fac: int
+  hires_factor: int
   z_magnetic_axis: chex.Numeric | None
 
   def __post_init__(self):
@@ -252,32 +252,32 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_chease(
       cls,
-      geometry_dir: str | None,
+      geometry_directory: str | None,
       geometry_file: str,
       Ip_from_parameters: bool,
       n_rho: int,
-      Rmaj: float,
-      Rmin: float,
-      B0: float,
-      hires_fac: int,
+      R_major: float,
+      a_minor: float,
+      B_0: float,
+      hires_factor: int,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
     Args:
-      geometry_dir: Directory where to find the CHEASE file describing the
+      geometry_directory: Directory where to find the CHEASE file describing the
         magnetic geometry. If None, uses the environment variable
         TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_dir is not provided, then it defaults to another dir. See
+        geometry_directory is not provided, then it defaults to another dir. See
         implementation.
       geometry_file: CHEASE file name.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are rescaled to match the new Ip.
       n_rho: Radial grid points (num cells)
-      Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
+      R_major: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
-      Rmin: minor radius (a) in meters
-      B0: Toroidal magnetic field on axis [T].
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      a_minor: minor radius (a) in meters
+      B_0: Toroidal magnetic field on axis [T].
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
 
     Returns:
@@ -285,34 +285,38 @@ class StandardGeometryIntermediates:
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
     chease_data = geometry_loader.load_geo_data(
-        geometry_dir, geometry_file, geometry_loader.GeometrySource.CHEASE
+        geometry_directory, geometry_file, geometry_loader.GeometrySource.CHEASE
     )
 
     # Prepare variables from CHEASE to be interpolated into our simulation
     # grid. CHEASE variables are normalized. Need to unnormalize them with
     # reference values poloidal flux and CHEASE-internal-calculated plasma
     # current.
-    psiunnormfactor = Rmaj**2 * B0
+    psiunnormfactor = R_major**2 * B_0
 
     # set psi in TORAX units with 2*pi factor
     psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
-    Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
+    Ip_chease = (
+        chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * R_major * B_0
+    )
 
     # toroidal flux
-    Phi = (chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj) ** 2 * B0 * np.pi
+    Phi = (chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * R_major) ** 2 * B_0 * np.pi
 
     # midplane radii
-    Rin_chease = chease_data['R_INBOARD'] * Rmaj
-    Rout_chease = chease_data['R_OUTBOARD'] * Rmaj
+    R_in_chease = chease_data['R_INBOARD'] * R_major
+    R_out_chease = chease_data['R_OUTBOARD'] * R_major
     # toroidal field flux function
-    F = chease_data['T=RBphi'] * Rmaj * B0
+    F = chease_data['T=RBphi'] * R_major * B_0
 
-    int_dl_over_Bp = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
-    flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
-    flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B0**2
-    flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / Rmaj
+    int_dl_over_Bp = (
+        chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * R_major / B_0
+    )
+    flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / R_major**2
+    flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B_0**2
+    flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
     flux_surf_avg_R2Bp2 = (
-        chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / Rmaj**2
+        chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / R_major**2
     )
 
     rhon = np.sqrt(Phi / Phi[-1])
@@ -321,14 +325,14 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.CHEASE,
         Ip_from_parameters=Ip_from_parameters,
-        R_major=np.array(Rmaj),
-        a_minor=np.array(Rmin),
-        B=np.array(B0),
+        R_major=np.array(R_major),
+        a_minor=np.array(a_minor),
+        B=np.array(B_0),
         psi=psi,
         Ip_profile=Ip_chease,
         Phi=Phi,
-        R_in=Rin_chease,
-        R_out=Rout_chease,
+        R_in=R_in_chease,
+        R_out=R_out_chease,
         F=F,
         int_dl_over_Bp=int_dl_over_Bp,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
@@ -340,19 +344,19 @@ class StandardGeometryIntermediates:
         elongation=chease_data['elongation'],
         vpr=vpr,
         n_rho=n_rho,
-        hires_fac=hires_fac,
+        hires_factor=hires_factor,
         z_magnetic_axis=None,
     )
 
   @classmethod
   def from_fbt_single_slice(
       cls,
-      geometry_dir: str | None,
+      geometry_directory: str | None,
       LY_object: str | Mapping[str, np.ndarray],
       L_object: str | Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      hires_fac: int = 4,
+      hires_factor: int = 4,
   ) -> typing_extensions.Self:
     """Returns StandardGeometryIntermediates from a single slice FBT LY file.
 
@@ -365,16 +369,17 @@ class StandardGeometryIntermediates:
     provided in the geometry config.
 
     Args:
-      geometry_dir: Directory where to find the FBT file describing the magnetic
-        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
-        available. If that variable is not set and geometry_dir is not provided,
-        then it defaults to another dir. See `load_geo_data` implementation.
+      geometry_directory: Directory where to find the FBT file describing the
+        magnetic geometry. If None, uses the environment variable
+        TORAX_GEOMETRY_DIR if available. If that variable is not set and
+        geometry_directory is not provided, then it defaults to another dir. See
+        `load_geo_data` implementation.
       LY_object: File name for LY data, or directly an LY single slice dict.
       L_object: File name for L data, or directly an L dict.
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled
       n_rho: Grid resolution used for all TORAX cell variables.
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
 
     Returns:
@@ -384,7 +389,7 @@ class StandardGeometryIntermediates:
     """
     if isinstance(LY_object, str):
       LY = geometry_loader.load_geo_data(
-          geometry_dir, LY_object, geometry_loader.GeometrySource.FBT
+          geometry_directory, LY_object, geometry_loader.GeometrySource.FBT
       )
     elif isinstance(LY_object, Mapping):
       LY = LY_object
@@ -394,7 +399,7 @@ class StandardGeometryIntermediates:
       )
     if isinstance(L_object, str):
       L = geometry_loader.load_geo_data(
-          geometry_dir, L_object, geometry_loader.GeometrySource.FBT
+          geometry_directory, L_object, geometry_loader.GeometrySource.FBT
       )
     elif isinstance(L_object, Mapping):
       L = L_object
@@ -408,18 +413,18 @@ class StandardGeometryIntermediates:
 
     # Raises a ValueError if the data is invalid.
     _validate_fbt_data(LY, L)
-    return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
+    return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_factor)
 
   @classmethod
   def from_fbt_bundle(
       cls,
-      geometry_dir: str | None,
+      geometry_directory: str | None,
       LY_bundle_object: str | Mapping[str, np.ndarray],
       L_object: str | Mapping[str, np.ndarray],
       LY_to_torax_times: np.ndarray | None,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      hires_fac: int = 4,
+      hires_factor: int = 4,
   ) -> Mapping[float, typing_extensions.Self]:
     """Returns StandardGeometryIntermediates from a bundled FBT LY file.
 
@@ -432,10 +437,11 @@ class StandardGeometryIntermediates:
     for disk loading, or directly the data dicts.
 
     Args:
-      geometry_dir: Directory where to find the FBT file describing the magnetic
-        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
-        available. If that variable is not set and geometry_dir is not provided,
-        then it defaults to another dir. See `load_geo_data` implementation.
+      geometry_directory: Directory where to find the FBT file describing the
+        magnetic geometry. If None, uses the environment variable
+        TORAX_GEOMETRY_DIR if available. If that variable is not set and
+        geometry_directory is not provided, then it defaults to another dir. See
+        `load_geo_data` implementation.
       LY_bundle_object: Either file name for bundled LY data, e.g. as produced
         by liuqe meqlpack, or the data dict itself.
       L_object: Either file name for L data. Assumed to be the same L data for
@@ -447,7 +453,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled.
       n_rho: Grid resolution used for all TORAX cell variables.
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
 
     Returns:
@@ -458,7 +464,9 @@ class StandardGeometryIntermediates:
 
     if isinstance(LY_bundle_object, str):
       LY_bundle = geometry_loader.load_geo_data(
-          geometry_dir, LY_bundle_object, geometry_loader.GeometrySource.FBT
+          geometry_directory,
+          LY_bundle_object,
+          geometry_loader.GeometrySource.FBT,
       )
     elif isinstance(LY_bundle_object, Mapping):
       LY_bundle = LY_bundle_object
@@ -469,7 +477,7 @@ class StandardGeometryIntermediates:
 
     if isinstance(L_object, str):
       L = geometry_loader.load_geo_data(
-          geometry_dir, L_object, geometry_loader.GeometrySource.FBT
+          geometry_directory, L_object, geometry_loader.GeometrySource.FBT
       )
     elif isinstance(L_object, Mapping):
       L = L_object
@@ -493,7 +501,7 @@ class StandardGeometryIntermediates:
     for idx, t in enumerate(LY_to_torax_times):
       data_slice = cls._get_LY_single_slice_from_bundle(LY_bundle, idx)
       intermediates[t] = cls._from_fbt(
-          data_slice, L, Ip_from_parameters, n_rho, hires_fac
+          data_slice, L, Ip_from_parameters, n_rho, hires_factor
       )
 
     return intermediates
@@ -547,7 +555,7 @@ class StandardGeometryIntermediates:
       L: Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      hires_fac: int = 4,
+      hires_factor: int = 4,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
 
@@ -557,7 +565,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled.
       n_rho: Grid resolution used for all TORAX cell variables.
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations on initialization.
 
     Returns:
@@ -565,9 +573,9 @@ class StandardGeometryIntermediates:
       can then be used to build a StandardGeometry by passing to
       `build_standard_geometry`.
     """
-    Rmaj = LY['rgeom'][-1]  # Major radius
-    B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
-    Rmin = LY['aminor'][-1]  # Minor radius
+    R_major = LY['rgeom'][-1]  # Major radius
+    B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
+    a_minor = LY['aminor'][-1]  # Minor radius
     # Toroidal flux including plasma contribution
     # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.
     if 'FtPVQ' in LY:
@@ -590,9 +598,9 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
-        R_major=Rmaj,
-        a_minor=Rmin,
-        B=B0,
+        R_major=R_major,
+        a_minor=a_minor,
+        B=B_0,
         psi=psi[0] - psi,
         Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
@@ -609,16 +617,16 @@ class StandardGeometryIntermediates:
         elongation=LY['kappa'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
-        hires_fac=hires_fac,
+        hires_factor=hires_factor,
         z_magnetic_axis=LY['zA'],
     )
 
   @classmethod
   def from_eqdsk(
       cls,
-      geometry_dir: str | None,
+      geometry_directory: str | None,
       geometry_file: str,
-      hires_fac: int,
+      hires_factor: int,
       Ip_from_parameters: bool,
       n_rho: int,
       n_surfaces: int,
@@ -631,13 +639,13 @@ class StandardGeometryIntermediates:
     mesh.
 
     Args:
-      geometry_dir: Directory where to find the EQDSK file describing the
+      geometry_directory: Directory where to find the EQDSK file describing the
         magnetic geometry. If None, uses the environment variable
         TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_dir is not provided, then it defaults to another dir. See
+        geometry_directory is not provided, then it defaults to another dir. See
         implementation.
       geometry_file: EQDSK file name.
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled.
@@ -666,13 +674,13 @@ class StandardGeometryIntermediates:
       return area
 
     eqfile = geometry_loader.load_geo_data(
-        geometry_dir, geometry_file, geometry_loader.GeometrySource.EQDSK
+        geometry_directory, geometry_file, geometry_loader.GeometrySource.EQDSK
     )
     # TODO(b/375696414): deal with updown asymmetric cases.
-    # Rmaj taken as Rgeo (LCFS Rmaj)
-    Rmaj = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
-    Rmin = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
-    B0 = eqfile['bcentre']
+    # R_major taken as Rgeo (LCFS R_major)
+    R_major = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
+    a_minor = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
+    B_0 = eqfile['bcentre']
     Raxis = eqfile['xmag']
     Zaxis = eqfile['zmag']
 
@@ -812,14 +820,14 @@ class StandardGeometryIntermediates:
 
       # volumes and areas
       area = calculate_area(x_surface, z_surface)
-      volume = area * 2 * np.pi * Rmaj
+      volume = area * 2 * np.pi * R_major
 
       # Triangularity
       idx_upperextent = np.argmax(z_surface)
       idx_lowerextent = np.argmin(z_surface)
 
-      Rmaj_local = (x_surface.max() + x_surface.min()) / 2.0
-      Rmin_local = (x_surface.max() - x_surface.min()) / 2.0
+      R_major_local = (x_surface.max() + x_surface.min()) / 2.0
+      a_minor_local = (x_surface.max() - x_surface.min()) / 2.0
 
       X_upperextent = x_surface[idx_upperextent]
       X_lowerextent = x_surface[idx_lowerextent]
@@ -828,8 +836,8 @@ class StandardGeometryIntermediates:
       Z_lowerextent = z_surface[idx_lowerextent]
 
       # (RMAJ - X_upperextent) / RMIN
-      surface_delta_upper_face = (Rmaj_local - X_upperextent) / Rmin_local
-      surface_delta_lower_face = (Rmaj_local - X_lowerextent) / Rmin_local
+      surface_delta_upper_face = (R_major_local - X_upperextent) / a_minor_local
+      surface_delta_lower_face = (R_major_local - X_lowerextent) / a_minor_local
 
       # Append to lists.
       # Start with n=1 since n=0 is the magnetic axis with no contour defined.
@@ -845,7 +853,9 @@ class StandardGeometryIntermediates:
       Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
       delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
       delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
-      elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (2.0 * Rmin_local)
+      elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (
+          2.0 * a_minor_local
+      )
 
     # Now set n=0 quantities. StandardGeometryIntermediate values at the
     # magnetic axis are prescribed, since a contour cannot be defined there.
@@ -902,9 +912,9 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.EQDSK,
         Ip_from_parameters=Ip_from_parameters,
-        R_major=Rmaj,
-        a_minor=Rmin,
-        B=B0,
+        R_major=R_major,
+        a_minor=a_minor,
+        B=B_0,
         # TODO(b/335204606): handle COCOS shenanigans
         psi=psi_interpolant * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
@@ -922,7 +932,7 @@ class StandardGeometryIntermediates:
         elongation=elongation,
         vpr=vpr,
         n_rho=n_rho,
-        hires_fac=hires_fac,
+        hires_factor=hires_factor,
         z_magnetic_axis=Zaxis,
     )
 
@@ -1018,7 +1028,7 @@ def build_standard_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
   rho_hires_norm = np.linspace(
-      0, 1, intermediate.n_rho * intermediate.hires_fac
+      0, 1, intermediate.n_rho * intermediate.hires_factor
   )
   rho_hires = rho_hires_norm * rho_b
 

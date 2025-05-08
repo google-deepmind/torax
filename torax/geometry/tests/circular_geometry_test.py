@@ -27,18 +27,18 @@ class CircularGeometryTest(absltest.TestCase):
     geo_0 = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
-        Rmaj=6.2,
-        Rmin=2.0,
-        B0=5.3,
-        hires_fac=4,
+        R_major=6.2,
+        a_minor=2.0,
+        B_0=5.3,
+        hires_factor=4,
     )
     geo_1 = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
-        Rmaj=7.2,
-        Rmin=1.0,
-        B0=5.3,
-        hires_fac=4,
+        R_major=7.2,
+        a_minor=1.0,
+        B_0=5.3,
+        hires_factor=4,
     )
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
         {0.0: geo_0, 10.0: geo_1}
@@ -56,10 +56,10 @@ class CircularGeometryTest(absltest.TestCase):
     geo = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
-        Rmaj=6.2,
-        Rmin=2.0,
-        B0=5.3,
-        hires_fac=4,
+        R_major=6.2,
+        a_minor=2.0,
+        B_0=5.3,
+        hires_factor=4,
     )
     # Make sure you can call the function with geo as an arg.
     foo(geo)
