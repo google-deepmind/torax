@@ -16,19 +16,23 @@
 Paths to torax tests, etc.
 """
 
-import os
+import pathlib
 from absl.testing import absltest
 
 
-def test_data_dir():
+def test_data_dir() -> pathlib.Path:
   """Absolute path of "test_data" directory."""
-  src_dir = absltest.TEST_SRCDIR.value
+  src_dir = pathlib.Path(absltest.TEST_SRCDIR.value)
   torax_dir = 'torax/'
-  return os.path.join(src_dir, torax_dir, 'tests/test_data')
+  path = src_dir.joinpath(torax_dir, 'tests/test_data')
+  assert path.is_dir(), f'Path {path} is not a directory.'
+  return path
 
 
-def examples_dir():
-  """Absolute path of "test_data" directory."""
-  src_dir = absltest.TEST_SRCDIR.value
+def examples_dir() -> pathlib.Path:
+  """Absolute path of "examples" directory."""
+  src_dir = pathlib.Path(absltest.TEST_SRCDIR.value)
   torax_dir = 'torax/'
-  return os.path.join(src_dir, torax_dir, 'examples')
+  path = src_dir.joinpath(torax_dir, 'examples')
+  assert path.is_dir(), f'Path {path} is not a directory.'
+  return path
