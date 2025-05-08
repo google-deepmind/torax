@@ -22,6 +22,7 @@ import sys
 import types
 import typing
 from typing import Any, Literal, TypeAlias
+from torax.plotting import plotruns_lib
 from torax.torax_pydantic import model_config
 
 # Tracks all the modules imported so far. Maps the name to the module object.
@@ -29,6 +30,13 @@ _ALL_MODULES = {}
 
 ExampleConfig: TypeAlias = Literal[
     'basic_config', 'iterhybrid_predictor_corrector', 'iterhybrid_rampup'
+]
+
+ExamplePlotConfig: TypeAlias = Literal[
+    'default_plot_config',
+    'global_params_plot_config',
+    'simple_plot_config',
+    'sources_plot_config',
 ]
 
 
@@ -92,6 +100,20 @@ def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
     return path
 
   return {path: _get_path(path) for path in typing.get_args(ExampleConfig)}
+
+
+def example_plot_config_paths() -> dict[ExamplePlotConfig, pathlib.Path]:
+  """Returns a tuple of example plot config paths."""
+
+  example_dir = torax_path().joinpath('plotting', 'configs')
+  assert example_dir.is_dir(), f'Path {example_dir} is not a directory.'
+
+  def _get_path(path):
+    path = example_dir.joinpath(path + '.py')
+    assert path.is_file(), f'Path {path} to the example config does not exist.'
+    return path
+
+  return {path: _get_path(path) for path in typing.get_args(ExamplePlotConfig)}
 
 
 # Taken from
@@ -183,3 +205,32 @@ def build_torax_config_from_file(
       return model_config.ToraxConfig.from_dict(cfg['CONFIG'])
     case _:
       raise ValueError(f'Path {path} is not a valid Torax config file.')
+
+
+def get_plot_config_from_file(
+    path: str | pathlib.Path,
+) -> plotruns_lib.FigureProperties:
+  """Returns a FigureProperties object from a config file.
+
+  The config file is a Python file with a `PLOT_CONFIG` variable.
+
+  Args:
+    path: The absolute path to the config file. If `None`, the default plot
+      config file is used.
+
+  Returns:
+    A FigureProperties object.
+  """
+
+  path = pathlib.Path(path) if isinstance(path, str) else path
+
+  if not path.is_file():
+    raise ValueError(f'Path {path} is not a file.')
+
+  cfg = import_config(path)
+  if 'PLOT_CONFIG' not in cfg:
+    raise ValueError(
+        f'The file {str(path)} is an invalid Torax plot config file, as it does'
+        ' not have a `PLOT_CONFIG` variable defined.'
+    )
+  return cfg['PLOT_CONFIG']

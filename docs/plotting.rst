@@ -23,13 +23,13 @@ TORAX root directory:
 .. code-block:: console
 
   plot_torax --outfile <full_path_to_simulation_output> \
-   --plot_config <module_path_to_plot_config>
+   --plot_config <path_to_plot_config>
 
 Replace <full_path_to_simulation_output> with the full path to your simulation's
 output file. Optionally, specify a custom plot configuration module using
-``--plot_config``, with the module path for the plotting configuration module.
-If no ``--plot_config`` is specified, the default configuration at
-``torax.plotting.configs.default_plot_config`` is used.
+``--plot_config``, with the path for the Python file containing a `PLOT_CONFIG`
+variable. If no ``--plot_config`` is specified, the default configuration at
+``plotting/configs/default_plot_config.py`` is used.
 
 Comparing Two Runs
 ------------------
@@ -47,11 +47,11 @@ Customizable Plot Configurations
 ================================
 
 The ``--plot_config`` flag allows you to define which quantities are plotted and
-how they are arranged. This flag accepts the path to a Python module containing
+how they are arranged. This flag accepts the path to a Python file containing
 a ``PLOT_CONFIG`` variable. This variable should be a ``FigureProperties`` object,
 which specifies the layout and properties of the plot.
 
-The ``PLOT_CONFIG`` from `torax.plotting.configs.simple_plot_config` is shown
+The ``PLOT_CONFIG`` from `plotting/configs/simple_plot_config.py` is shown
 below as an example.
 
 .. code-block:: python

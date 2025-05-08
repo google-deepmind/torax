@@ -115,9 +115,9 @@ Override the default output directory. If not provided, it will be set to
 plot_config
 ^^^^^^^^^^^
 Sets the plotting configuration used for the post-simulation plotting options.
-This flag should point to a python module path containing a `PLOT_CONFIG` variable
+This flag should give a path to a Python file path containing a `PLOT_CONFIG` variable
 which is an instance of `torax.plotting.plotruns_lib.FigureProperties`.
-By default, `torax.plotting.configs.default_plot_config` is used.
+By default, `torax/plotting/configs/default_plot_config.py` is used.
 See :ref:`plotting` for further details and examples. An example using a non-default
 plot config is shown below.
 
@@ -125,7 +125,7 @@ plot config is shown below.
 
   run_torax \
   --config='torax.examples.basic_config' \
-  --plot_config=torax.plotting.configs.simple_plot_config
+  --plot_config=plotting/configs/simple_plot_config.py
 
 Post-simulation
 ---------------
@@ -158,13 +158,13 @@ root directory:
 .. code-block:: console
 
   plot_torax --outfile <full_path_to_simulation_output> \
-   --plot_config <module_path_to_plot_config>
+   --plot_config <path_to_plot_config>
 
 Replace <full_path_to_simulation_output> with the full path to your simulation's
-output file. Optionally, specify a custom plot configuration module using
-``--plot_config``, with the module path for the plotting configuration module.
+output file. Optionally, specify a custom plot configuration using
+``--plot_config``, with the path for the plotting configuration module.
 If no ``--plot_config`` is specified, the default configuration at
-``torax.plotting.configs.default_plot_config`` is used.
+``plotting/configs/default_plot_config.py`` is used.
 
 A slider allows to scroll through the output of all simulation timesteps.
 
@@ -173,7 +173,7 @@ To plot the output of two simulations on top of each other, run the following co
 .. code-block:: console
 
   plot_torax --outfile <full_path_to_simulation_output1> \
-   <full_path_to_simulation_output2> --plot_config <module_path_to_plot_config>
+   <full_path_to_simulation_output2> --plot_config <path_to_plot_config>
 
 
 Cleaning up

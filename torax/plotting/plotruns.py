@@ -42,7 +42,7 @@ def parse_flags(_):
   )
   parser.add_argument(
       '--plot_config',
-      default='torax.plotting.configs.default_plot_config',
+      default='plotting/configs/default_plot_config.py',
       help='Name of the plot config module.',
   )
   return parser.parse_args()

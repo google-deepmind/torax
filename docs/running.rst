@@ -120,9 +120,9 @@ Override the default output directory. If not provided, it will be set to
 plot_config
 ^^^^^^^^^^^
 Sets the plotting configuration used for the post-simulation plotting options.
-This flag should point to a python module path containing a `PLOT_CONFIG` variable
+This flag should give the path to a Python file containing a `PLOT_CONFIG` variable
 which is an instance of `torax.plotting.plotruns_lib.FigureProperties`.
-By default, `torax.plotting.configs.default_plot_config` is used.
+By default, `plotting/configs/default_plot_config.py` is used.
 See :ref:`plotting` for further details and examples. An example using a non-default
 plot config is shown below.
 
@@ -130,7 +130,7 @@ plot config is shown below.
 
   run_torax \
   --config='torax.examples.basic_config' \
-  --plot_config=torax.plotting.configs.simple_plot_config
+  --plot_config=plotting/configs/simple_plot_config.py
 
 Post-simulation
 ---------------

@@ -18,6 +18,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import config_loader
+from torax.plotting import plotruns_lib
 from torax.torax_pydantic import model_config
 
 
@@ -89,6 +90,16 @@ class ConfigLoaderTest(parameterized.TestCase):
   def test_build_torax_config_from_file(self, path: pathlib.Path):
     config = config_loader.build_torax_config_from_file(path)
     self.assertIsInstance(config, model_config.ToraxConfig)
+
+  @parameterized.product(
+      use_string=[True, False],
+      name=list(config_loader.example_plot_config_paths().keys()),
+  )
+  def test_get_plot_config_from_file(self, name: str, use_string: bool):
+    path = config_loader.example_plot_config_paths()[name]
+    path = str(path) if use_string else path
+    cfg = config_loader.get_plot_config_from_file(path)
+    self.assertIsInstance(cfg, plotruns_lib.FigureProperties)
 
 
 if __name__ == "__main__":

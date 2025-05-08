@@ -105,10 +105,12 @@ _OUTPUT_DIR = flags.DEFINE_string(
     'If provided, overrides the default output directory.',
 )
 
-_PLOT_CONFIG_MODULE = flags.DEFINE_string(
+_PLOT_CONFIG_PATH = flags.DEFINE_string(
     'plot_config',
-    'torax.plotting.configs.default_plot_config',  # Default
-    'Module path to the plot config.',
+    'plotting/configs/default_plot_config.py',
+    'Path to a Python file containing a `PLOT_CONFIG` variable. If it is a'
+    ' relative path, it will first be attempted to be resolved relative to the'
+    ' working directory, and then the Torax base directory.',
 )
 
 jax.config.parse_flags_with_absl()
@@ -326,12 +328,12 @@ def _post_run_plotting(
     )
     return
   try:
-    plot_config = config_loader.import_module(
-        _PLOT_CONFIG_MODULE.value
-    ).PLOT_CONFIG
-  except (ModuleNotFoundError, AttributeError) as e:
+    plot_config = config_loader.get_plot_config_from_file(
+        _PLOT_CONFIG_PATH.value
+    )
+  except ValueError as e:
     logging.exception(
-        'Error loading plot config module %s: %s', _PLOT_CONFIG_MODULE.value, e
+        'Error loading plot config module %s: %s', _PLOT_CONFIG_PATH.value, e
     )
     return
   match input_text:
@@ -372,10 +374,8 @@ def main(_):
   output_dir = _OUTPUT_DIR.value
   try:
     start_time = time.time()
-    torax_config = (
-        config_loader.build_torax_config_from_config_module(
-            config_module_str, _PYTHON_CONFIG_PACKAGE.value
-        )
+    torax_config = config_loader.build_torax_config_from_config_module(
+        config_module_str, _PYTHON_CONFIG_PACKAGE.value
     )
     build_time = time.time() - start_time
     start_time = time.time()
@@ -441,9 +441,7 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _modify_config(
-                config_module_str
-            )
+            torax_config_or_none = _modify_config(config_module_str)
             if torax_config_or_none is not None:
               torax_config = torax_config_or_none
             config_change_time = time.time() - start_time
@@ -469,9 +467,7 @@ def main(_):
         else:
           try:
             start_time = time.time()
-            torax_config_or_none = _change_config(
-                config_module_str
-            )
+            torax_config_or_none = _change_config(config_module_str)
             if torax_config_or_none is not None:
               torax_config, config_module_str = torax_config_or_none
             config_change_time = time.time() - start_time
