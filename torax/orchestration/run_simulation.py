@@ -46,7 +46,7 @@ def run_simulation(
 
   geometry_provider = torax_config.geometry.build_provider
   source_models = source_models_lib.SourceModels(
-      torax_config.sources.source_model_config
+      torax_config.sources
   )
 
   solver = torax_config.solver.build_solver(

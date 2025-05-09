@@ -55,7 +55,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         dynamic_runtime_params_slice,
         self.geo,
         source_models_lib.SourceModels(
-            sources=torax_config.sources.source_model_config
+            sources=torax_config.sources
         ),
     )
     # pedestal_model_outputs is not used in the transport model; we can mock it.
