@@ -80,8 +80,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       default=None
   )
   neoclassical: neoclassical_pydantic_model.Neoclassical = (
-      neoclassical_pydantic_model.Neoclassical.from_dict(
-          {'bootstrap_current': {}})
+      neoclassical_pydantic_model.Neoclassical()
   )
 
   @pydantic.model_validator(mode='before')

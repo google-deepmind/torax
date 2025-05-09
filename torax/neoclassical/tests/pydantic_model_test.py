@@ -18,9 +18,19 @@ from torax.neoclassical import pydantic_model
 
 class PydanticModelTest(parameterized.TestCase):
 
-  def test_default_model_from_dict(self):
-    model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
+  def test_default_model(self):
+    model = pydantic_model.Neoclassical()
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
+    self.assertEqual(model.conductivity.model_name, "sauter")
+
+  def test_default_model_from_dict(self):
+    model = pydantic_model.Neoclassical.from_dict({})
+    self.assertEqual(model.bootstrap_current.model_name, "zeros")
+    self.assertEqual(model.conductivity.model_name, "sauter")
+
+  def test_bootstrap_current_exists_is_sauter(self):
+    model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
+    self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
   @parameterized.parameters("zeros", "sauter")
   def test_model_name(self, model_name):
@@ -28,6 +38,12 @@ class PydanticModelTest(parameterized.TestCase):
         {"bootstrap_current": {"model_name": model_name}}
     )
     self.assertEqual(model.bootstrap_current.model_name, model_name)
+
+  def test_set_conductivity_model_name(self):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"conductivity": {"model_name": "sauter"}}
+    )
+    self.assertEqual(model.conductivity.model_name, "sauter")
 
 
 if __name__ == "__main__":

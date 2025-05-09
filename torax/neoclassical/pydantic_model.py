@@ -13,31 +13,37 @@
 # limitations under the License.
 """Pydantic model for the neoclassical package."""
 
-from typing import Annotated
+import copy
+from typing import Any
 
 import pydantic
 from torax.neoclassical import runtime_params
-from torax.neoclassical.bootstrap_current import sauter
+from torax.neoclassical.bootstrap_current import sauter as sauter_current
 from torax.neoclassical.bootstrap_current import zeros
+from torax.neoclassical.conductivity import sauter as sauter_conductivity
 from torax.torax_pydantic import torax_pydantic
-
-
-def _bootstrap_current_discriminator(config) -> str:
-  """Returns the model type of the bootstrap current."""
-  if isinstance(config, dict):
-    return config.get("model_name", "zeros")
-  return getattr(config, "model_name", "zeros")
 
 
 class Neoclassical(torax_pydantic.BaseModelFrozen):
   """Config for neoclassical models."""
 
   bootstrap_current: (
-      Annotated[zeros.ZerosModelConfig, pydantic.Tag("zeros")]
-      | Annotated[sauter.SauterModelConfig, pydantic.Tag("sauter")]
-  ) = pydantic.Field(
-      discriminator=pydantic.Discriminator(_bootstrap_current_discriminator)
+      zeros.ZerosModelConfig | sauter_current.SauterModelConfig
+  ) = pydantic.Field(discriminator="model_name")
+  conductivity: sauter_conductivity.SauterModelConfig = (
+      torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())
   )
+
+  @pydantic.model_validator(mode="before")
+  @classmethod
+  def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
+    configurable_data = copy.deepcopy(data)
+    if "bootstrap_current" not in configurable_data:
+      configurable_data["bootstrap_current"] = {"model_name": "zeros"}
+    if "model_name" not in configurable_data["bootstrap_current"]:
+      configurable_data["bootstrap_current"]["model_name"] = "sauter"
+
+    return configurable_data
 
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
