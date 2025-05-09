@@ -115,7 +115,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -134,7 +134,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
       )
     else:
       calculated_source_profiles = None
-    source = source_models.sources[self._source_name]
+    source = source_models.standard_sources[self._source_name]
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -162,9 +162,9 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
-    source = source_models.sources[self._source_name]
+    source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
