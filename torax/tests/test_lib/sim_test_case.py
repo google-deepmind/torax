@@ -21,10 +21,10 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import numpy as np
-from torax import output
 from torax import simulation_app
 from torax.config import config_loader
 from torax.orchestration import run_simulation
+from torax.output_tools import output
 from torax.tests.test_lib import paths
 from torax.torax_pydantic import model_config
 
