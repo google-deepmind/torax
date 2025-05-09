@@ -22,11 +22,11 @@ import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
-from torax import output
 from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
+from torax.output_tools import output
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import core_profile_helpers

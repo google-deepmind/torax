@@ -16,8 +16,6 @@ import dataclasses
 
 from absl import logging
 import jax.numpy as jnp
-from torax import output
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -25,6 +23,8 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
+from torax.output_tools import output
+from torax.output_tools import post_processing
 from torax.sources import source_profile_builders
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 import xarray as xr

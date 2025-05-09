@@ -16,10 +16,10 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import output
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.output_tools import output
 
 
 # pylint: disable=invalid-name

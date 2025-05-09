@@ -16,10 +16,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import scipy
-from torax import post_processing
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.orchestration import run_simulation
+from torax.output_tools import post_processing
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_configs

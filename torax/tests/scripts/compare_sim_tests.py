@@ -20,7 +20,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 import numpy as np
-from torax import output
+from torax.output_tools import output
 from torax.tests import test_lib
 import xarray as xr
 

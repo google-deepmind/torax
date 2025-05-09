@@ -18,13 +18,13 @@ import dataclasses
 import functools
 import jax
 from torax import jax_utils
-from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
+from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders

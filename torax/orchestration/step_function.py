@@ -18,7 +18,6 @@ import dataclasses
 import functools
 import jax.numpy as jnp
 from torax import jax_utils
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -26,6 +25,7 @@ from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.mhd import base as mhd_base
+from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -652,4 +652,3 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       geo_t,
       geo_t_plus_dt,
   )
-
