@@ -31,23 +31,14 @@ import typing_extensions
 
 @chex.dataclass(frozen=True)
 class Currents:
-  """Dataclass to group currents and related variables (e.g. conductivity).
-
-  Not all fields are actually used by the library. For example,
-  j_bootstrap and I_bootstrap are updated during the sim loop,
-  but not read from. These fields are an output of the library
-  that may be interesting for the end user to plot, etc.
-  """
+  """Dataclass to group currents and related variables (e.g. conductivity)."""
 
   jtot: array_typing.ArrayFloat
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
   external_current_source: array_typing.ArrayFloat
-  j_bootstrap: array_typing.ArrayFloat
-  j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
-  I_bootstrap: array_typing.ScalarFloat  # [A]
   Ip_profile_face: array_typing.ArrayFloat  # [A]
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
@@ -65,9 +56,6 @@ class Currents:
         jtot_face=jnp.zeros(geo.rho_face.shape),
         johm=jnp.zeros(geo.rho_face.shape),
         external_current_source=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
         sigma=jnp.zeros(geo.rho_face.shape),
         jtot_hires=jnp.zeros(geo.rho_face.shape),
@@ -350,6 +338,7 @@ class PostProcessedOutputs:
       plane. If no intercept is found, set to -inf.
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
+    I_bootstrap: Total bootstrap current [A]
   """
 
   pressure_thermal_i: array_typing.ArrayFloat
@@ -420,6 +409,7 @@ class PostProcessedOutputs:
   rho_q_2_1_second: array_typing.ScalarFloat
   rho_q_3_1_first: array_typing.ScalarFloat
   rho_q_3_1_second: array_typing.ScalarFloat
+  I_bootstrap: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -492,6 +482,7 @@ class PostProcessedOutputs:
         rho_q_3_2_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
   def check_for_errors(self):
