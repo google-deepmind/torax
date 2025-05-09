@@ -85,7 +85,7 @@ class StateTest(parameterized.TestCase):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
     source_models = source_models_lib.SourceModels(
-        sources=references.config.sources.source_model_config
+        sources=references.config.sources
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -200,7 +200,7 @@ class InitialStatesTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -237,7 +237,7 @@ class InitialStatesTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -311,7 +311,7 @@ class InitialStatesTest(parameterized.TestCase):
         n_e_right_bc=0.5,
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
 
     torax_config.update_fields({'profile_conditions': config1})
@@ -369,7 +369,7 @@ class InitialStatesTest(parameterized.TestCase):
         'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     dcs3, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -405,7 +405,7 @@ class InitialStatesTest(parameterized.TestCase):
         'sources': new_source_config,
     })
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     dcs3_helper, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -440,7 +440,7 @@ class InitialStatesTest(parameterized.TestCase):
 
     # Calculate bootstrap current for config3 which doesn't zero it out
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dcs3,
@@ -506,7 +506,7 @@ class InitialStatesTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     dcs1 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

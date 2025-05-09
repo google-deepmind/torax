@@ -55,7 +55,7 @@ def _get_model_and_model_inputs(
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = source_models_lib.SourceModels(
-      sources=torax_config.sources.source_model_config
+      sources=torax_config.sources
   )
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

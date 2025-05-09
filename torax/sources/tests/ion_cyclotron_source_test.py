@@ -177,9 +177,9 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
-    source = source_models.sources[
+    source = source_models.standard_sources[
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ]
     self.assertIsInstance(source, source_lib.Source)

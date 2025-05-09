@@ -142,7 +142,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 def _get_step_fn(torax_config):
   solver = mock.MagicMock()
   solver.source_models = source_models_lib.SourceModels(
-      torax_config.sources.source_model_config
+      torax_config.sources
   )
   return mock.create_autospec(step_function.SimulationStepFn, solver=solver)
 

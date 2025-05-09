@@ -13,11 +13,8 @@
 # limitations under the License.
 
 """Functions for building source profiles in TORAX."""
-from collections.abc import Mapping
-
-from torax.sources import base
 from torax.sources import bootstrap_current_source
-from torax.sources import generic_current_source
+from torax.sources import pydantic_model
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source as source_lib
 
@@ -56,75 +53,40 @@ class SourceModels:
 
   def __init__(
       self,
-      sources: Mapping[str, base.SourceModelBase],
+      sources: pydantic_model.Sources,
   ):
     """Constructs a collection of sources.
-
-    The constructor should only be called by SourceModelsBuilder.
 
     This class defines which sources are available in a TORAX simulation run.
     Users can configure whether each source is actually on and what kind of
     profile it produces by changing its runtime configuration (see
-    runtime_params_lib.py).
+    sources.pydantic_model.py).
 
     Args:
       sources: Source models config.
-
-    NOTE - Some sources are "special-case": bootstrap_current, generic_current,
-    and Qei. SourceModels will always instantiate default objects for these
-    types of sources unless they are provided by this `sources` argument.
-
-    Raises:
-      ValueError if there is a naming collision with the reserved names as
-      described above.
     """
-    sources = {
-        name: source_config.build_source()
-        for name, source_config in sources.items()
-    }
-
-    # Some sources are accessed for specific use cases, so we extract those
-    # ones and expose them directly.
-    self._j_bootstrap = None
-    generic_current = None
-    self._qei_source = None
-    # The rest of the sources are "standard".
+    self._j_bootstrap = sources.j_bootstrap.build_source()
+    self._qei_source = sources.ei_exchange.build_source()
     self._standard_sources = {}
+    self._psi_sources = {}
 
-    # Pull out the psi sources as these are calculated first.
-    self._psi_sources: dict[str, source_lib.Source] = {}
-
-    # First set the "special" sources.
-    for source in sources.values():
-      if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
-        self._j_bootstrap = source
-      elif isinstance(source, generic_current_source.GenericCurrentSource):
-        generic_current = source
-      elif isinstance(source, qei_source_lib.QeiSource):
-        self._qei_source = source
-
-    # Make sure defaults are set for the "special-case" sources.
-    if self._j_bootstrap is None:
-      self._j_bootstrap = bootstrap_current_source.BootstrapCurrentSource()
-    if self._qei_source is None:
-      self._qei_source = qei_source_lib.QeiSource()
-    # If the generic current source wasn't provided, create a default one and
-    # add to standard sources.
-    if generic_current is None:
-      generic_current = generic_current_source.GenericCurrentSource()
-      self._add_standard_source(
-          generic_current_source.GenericCurrentSource.SOURCE_NAME,
-          generic_current,
-      )
-
-    # Then add all the "standard" sources.
-    for source_name, source in sources.items():
-      if isinstance(
-          source, bootstrap_current_source.BootstrapCurrentSource
-      ) or isinstance(source, qei_source_lib.QeiSource):
+    for k, v in dict(sources).items():
+      # skip these as they are handled above
+      if k == 'j_bootstrap'  or k == 'ei_exchange':
         continue
       else:
-        self._add_standard_source(source_name, source)
+        if v is not None:
+          source = v.build_source()
+          if k in self._standard_sources.keys():
+            raise ValueError(
+                f'Trying to add another source with the same name: {k}.'
+            )
+          self._standard_sources[k] = source
+          if (
+              source_lib.AffectedCoreProfile.PSI
+              in source.affected_core_profiles
+          ):
+            self._psi_sources[k] = source
 
     # The instance is constructed, now freeze it
     self._frozen = True
@@ -141,50 +103,10 @@ class SourceModels:
       raise AttributeError('SourceModels is immutable.')
     return super().__setattr__(attr, value)
 
-  def _add_standard_source(
-      self,
-      source_name: str,
-      source: source_lib.Source,
-  ) -> None:
-    """Adds a source to the collection of sources.
-
-    Do NOT directly add new sources to `SourceModels.standard_sources`. Users
-    should call this function instead. Cannot add additional bootstrap current,
-    external current, or Qei sources - those must be defined in the __init__.
-
-    Args:
-      source_name: Name of the new source being added. This will be the key
-        under which the source's output profile will be found in the output
-        SourceProfiles object.
-      source: The new standard source being added.
-
-    Raises:
-      ValueError if a "special-case" source is provided.
-    """
-    if isinstance(
-        source, bootstrap_current_source.BootstrapCurrentSource
-    ) or isinstance(source, qei_source_lib.QeiSource):
-      raise ValueError(
-          'Cannot add a source with the following types: '
-          'bootstrap_current_source.BootstrapCurrentSource,'
-          ' external_current_source.ExternalCurrentSource, or'
-          ' qei_source_lib.QeiSource. These must be added at init time.'
-      )
-    if source_name in self.sources.keys():
-      raise ValueError(
-          f'Trying to add another source with the same name: {source_name}.'
-      )
-    self._standard_sources[source_name] = source
-    if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
-      self._psi_sources[source_name] = source
-
   # Some sources require direct access, so this class defines properties for
   # those sources.
-
   @property
   def j_bootstrap(self) -> bootstrap_current_source.BootstrapCurrentSource:
-    if self._j_bootstrap is None:
-      raise ValueError('j_bootstrap is not initialized.')
     return self._j_bootstrap
 
   @property
@@ -193,13 +115,7 @@ class SourceModels:
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
-    if self._qei_source is None:
-      raise ValueError('qei_source is not initialized.')
     return self._qei_source
-
-  @property
-  def qei_source_name(self) -> str:
-    return qei_source_lib.QeiSource.SOURCE_NAME
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -214,21 +130,20 @@ class SourceModels:
     """
     return self._standard_sources
 
-  @property
-  def sources(self) -> dict[str, source_lib.Source]:
-    return self._standard_sources | {
-        self.j_bootstrap_name: self.j_bootstrap,
-        self.qei_source_name: self.qei_source,
-    }
-
   def __hash__(self) -> int:
-    hashes = [hash(source) for source in self.sources.values()]
+    hashes = [hash(source) for source in self.standard_sources.values()]
+    hashes.append(hash(self.j_bootstrap))
+    hashes.append(hash(self.qei_source))
     return hash(tuple(hashes))
 
   def __eq__(self, other) -> bool:
-    if set(self.sources.keys()) == set(other.sources.keys()):
-      return all(
-          self.sources[name] == other.sources[name]
-          for name in self.sources.keys()
+    if set(self.standard_sources.keys()) == set(other.standard_sources.keys()):
+      return (
+          all(
+              self.standard_sources[name] == other.standard_sources[name]
+              for name in self.standard_sources.keys()
+          )
+          and self.j_bootstrap == other.j_bootstrap
+          and self.qei_source == other.qei_source
       )
     return False

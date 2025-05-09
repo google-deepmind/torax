@@ -51,7 +51,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         default_sources.get_default_source_config()
     )
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=sources
     )
     # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
@@ -127,7 +127,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
 
     def mock_step_fn(

@@ -63,7 +63,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         build_runtime_params.build_static_params_from_config(torax_config)
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     jitted_pedestal_model = jax_utils.jit(pedestal_model)

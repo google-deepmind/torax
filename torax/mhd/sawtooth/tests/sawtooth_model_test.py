@@ -86,7 +86,7 @@ class SawtoothModelTest(parameterized.TestCase):
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
     source_models = source_models_lib.SourceModels(
-        torax_config.sources.source_model_config
+        torax_config.sources
     )
 
     solver = torax_config.solver.build_solver(

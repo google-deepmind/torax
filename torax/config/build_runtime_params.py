@@ -37,7 +37,8 @@ def build_static_params_from_config(
   return runtime_params_slice.StaticRuntimeParamsSlice(
       sources={
           source_name: source_config.build_static_params()
-          for source_name, source_config in config.sources.source_model_config.items()
+          for source_name, source_config in dict(config.sources).items()
+          if source_config is not None
       },
       torax_mesh=config.geometry.build_provider.torax_mesh,
       solver=config.solver.build_static_params(),
@@ -105,8 +106,9 @@ class DynamicRuntimeParamsSliceProvider:
         transport=self._transport_model.build_dynamic_params(t),
         solver=self._solver.build_dynamic_params,
         sources={
-            source_name: input_source_config.build_dynamic_params(t)
-            for source_name, input_source_config in self._sources.source_model_config.items()
+            source_name: source_config.build_dynamic_params(t)
+            for source_name, source_config in dict(self._sources).items()
+            if source_config is not None
         },
         plasma_composition=self._plasma_composition.build_dynamic_params(t),
         profile_conditions=self._profile_conditions.build_dynamic_params(t),
