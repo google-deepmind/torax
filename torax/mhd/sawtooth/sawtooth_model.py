@@ -71,10 +71,12 @@ class SawtoothModel:
   ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
     """Applies the sawtooth model and outputs a new state if triggered.
 
-    If the trigger model indicates a crash has been triggered, the
-    redistribution model is applied. A new state following a short
-    (configurable) dt is returned, with core_profiles modified by the
-    redistribution model.
+    If the trigger model indicates a crash has been triggered, an
+    instantaneous redistribution model is applied. A new state following a short
+    (configurable) dt is returned, with core_profiles further modified by psidot
+    assumed at time t, the new boundary conditions, and sources, transport, geo,
+    and pedestal outputs consistent with the new core_profiles at time
+    t_plus_crash_dt.
 
     Args:
       static_runtime_params_slice: Static runtime parameters.
@@ -104,45 +106,41 @@ class SawtoothModel:
       # assertion needed for linter
       assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
 
-      # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
-      # and prescribed profiles if present.
-      core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
-          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_dt=geo_t_plus_crash_dt,
-          core_profiles_t=input_state.core_profiles,
-      )
-
       redistributed_core_profiles = self._redistribution_model(
           rho_norm_q1,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_crash_dt,
           geo_t_plus_crash_dt,
           input_state.core_profiles,
-          core_profiles_t_plus_crash_dt,
+      )
+
+      # Evolve the psi profile over the sawtooth time.
+      # Redistribution maintains the same psi boundary condition. However,
+      # over the course of the sawtooth time, the central solenoid must still
+      # modify the psi profile. Since we don't calculate the psi PDE here, we
+      # assume that for the short sawtooth time we can use the psidot from the
+      # beginning of the step interval. This updates the bulk values. Later, the
+      # boundary conditions are also updated at time t_plus_crash_dt when
+      # using `updaters.update_all_core_profiles_after_step`.
+      evolved_psi_redistributed_value = (
+          redistributed_core_profiles.psi.value
+          + input_state.core_profiles.psidot.value
+          * dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
+      )
+      evolved_core_profiles = dataclasses.replace(
+          redistributed_core_profiles,
+          psi=dataclasses.replace(
+              redistributed_core_profiles.psi,
+              value=evolved_psi_redistributed_value,
+          ),
       )
 
       source_profiles = source_profile_builders.get_all_source_profiles(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_crash_dt,
           geo_t_plus_crash_dt,
-          core_profiles=redistributed_core_profiles,
+          core_profiles=evolved_core_profiles,
           source_models=self._source_models,
-      )
-
-      pedestal_model_output = self._pedestal_model(
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          redistributed_core_profiles,
-      )
-
-      transport_coeffs = self._transport_model(
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          redistributed_core_profiles,
-          pedestal_model_output,
       )
 
       # Needed to use update_all_core_profiles_after_step
@@ -157,9 +155,20 @@ class SawtoothModel:
         evolving_names.append('n_e')
       evolving_names = tuple(evolving_names)
 
-      x_new_redistributed = tuple([
-          getattr(redistributed_core_profiles, name) for name in evolving_names
-      ])
+      x_new_redistributed = tuple(
+          [getattr(evolved_core_profiles, name) for name in evolving_names]
+      )
+
+      # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
+      # and prescribed profiles if present.
+      core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
+          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_dt=geo_t_plus_crash_dt,
+          core_profiles_t=input_state.core_profiles,
+      )
 
       final_core_profiles = updaters.update_all_core_profiles_after_step(
           x_new_redistributed,
@@ -171,6 +180,19 @@ class SawtoothModel:
           core_profiles_t_plus_crash_dt,
           evolving_names,
           dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+      )
+
+      pedestal_model_output = self._pedestal_model(
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          final_core_profiles,
+      )
+
+      transport_coeffs = self._transport_model(
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          final_core_profiles,
+          pedestal_model_output,
       )
 
       output_state = dataclasses.replace(

@@ -35,7 +35,6 @@ class RedistributionModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_crash_dt: state.CoreProfiles,
   ) -> state.CoreProfiles:
     """Returns a redistributed core_profiles if sawtooth has been triggered."""
 

@@ -85,9 +85,7 @@ class SawtoothModelTest(parameterized.TestCase):
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
-    source_models = source_models_lib.SourceModels(
-        torax_config.sources
-    )
+    source_models = source_models_lib.SourceModels(torax_config.sources)
 
     solver = torax_config.solver.build_solver(
         transport_model=transport_model,
@@ -282,16 +280,16 @@ _POST_CRASH_N = np.array([
 ])
 
 _POST_CRASH_PSI = np.array([
-    9.7786644,
-    11.34198514,
-    14.36022924,
-    18.73686254,
-    24.37792036,
-    31.05797517,
-    38.12598722,
-    44.84476207,
-    50.74274513,
-    55.72986591,
+    9.778742,
+    11.342102,
+    14.360384,
+    18.737049,
+    24.378128,
+    31.058185,
+    38.126174,
+    44.844899,
+    50.742815,
+    55.729866,
 ])
 
 
