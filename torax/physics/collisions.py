@@ -42,14 +42,14 @@ from torax.geometry import geometry
 def coll_exchange(
     core_profiles: state.CoreProfiles,
     density_reference: float,
-    Qei_mult: float,
+    Qei_multiplier: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
 
   Args:
     core_profiles: Core plasma profiles.
     density_reference: Reference value for normalization
-    Qei_mult: multiplier for ion-electron heat exchange term
+    Qei_multiplier: multiplier for ion-electron heat exchange term
 
   Returns:
     Qei_coeff: ion-electron collisional heat exchange coefficient.
@@ -70,7 +70,9 @@ def coll_exchange(
   weighted_Z_eff = _calculate_weighted_Z_eff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(Qei_mult * 1.5 * core_profiles.n_e.value * density_reference)
+      jnp.log(
+          Qei_multiplier * 1.5 * core_profiles.n_e.value * density_reference
+      )
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Z_eff)

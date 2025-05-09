@@ -997,7 +997,7 @@ Ion-electron heat exchange.
 
 ``mode`` (str = 'model')
 
-``Qei_mult`` (float = 1.0)
+``Qei_multiplier`` (float = 1.0)
   Multiplication factor for ion-electron heat exchange term for testing purposes.
 
 ohmic

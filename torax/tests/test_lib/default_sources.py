@@ -28,7 +28,7 @@ def get_default_source_config() -> dict[str, Any]:
 
     sources_dict = get_default_source_config()
     sources_dict = sources_dict['source_model_config']
-    sources_dict['ei_exchange']['Qei_mult'] = 0.0
+    sources_dict['ei_exchange']['Qei_multiplier'] = 0.0
     sources_dict['generic_heat']['P_total'] = 0.0
     sources_dict['fusion']['mode'] = source_runtime_params.Mode.ZERO
     sources_dict['ohmic']['mode'] = source_runtime_params.Mode.ZERO

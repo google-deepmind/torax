@@ -32,7 +32,7 @@ from torax.sources import source_profiles
 # pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  Qei_mult: float
+  Qei_multiplier: float
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -112,7 +112,7 @@ def _model_based_qei(
   qei_coef = collisions.coll_exchange(
       core_profiles=core_profiles,
       density_reference=dynamic_runtime_params_slice.numerics.density_reference,
-      Qei_mult=dynamic_source_runtime_params.Qei_mult,
+      Qei_multiplier=dynamic_source_runtime_params.Qei_multiplier,
   )
   implicit_ii = -qei_coef
   implicit_ee = -qei_coef
@@ -152,10 +152,10 @@ class QeiSourceConfig(base.SourceModelBase):
   """Configuration for the QeiSource.
 
   Attributes:
-    Qei_mult: multiplier for ion-electron heat exchange term for sensitivity
-      testing
+    Qei_multiplier: multiplier for ion-electron heat exchange term for
+      sensitivity testing
   """
-  Qei_mult: float = 1.0
+  Qei_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
@@ -170,7 +170,7 @@ class QeiSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        Qei_mult=self.Qei_mult,
+        Qei_multiplier=self.Qei_multiplier,
     )
 
   def build_source(self) -> QeiSource:

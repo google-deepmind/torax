@@ -124,7 +124,7 @@ CONFIG = {
         'fusion': {},
         'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
-            'Qei_mult': 1.0,
+            'Qei_multiplier': 1.0,
         },
     },
     'pedestal': {

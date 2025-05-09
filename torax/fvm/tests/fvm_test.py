@@ -207,7 +207,7 @@ class FVMTest(parameterized.TestCase):
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
     source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_mult'] = 0.0
+    source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion'][
         'mode'
@@ -332,7 +332,7 @@ class FVMTest(parameterized.TestCase):
     # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 4
     source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_mult'] = 0.0
+    source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion'][
         'mode'
@@ -456,7 +456,7 @@ class FVMTest(parameterized.TestCase):
     # flat, residual should remain zero unless boundary conditions change.
     num_cells = 4
     source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_mult'] = 0.0
+    source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion'][
         'mode'

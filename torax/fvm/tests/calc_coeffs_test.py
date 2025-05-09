@@ -35,7 +35,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       self, num_cells, theta_implicit, set_pedestal
   ):
     sources_config = default_sources.get_default_source_config()
-    sources_config['ei_exchange']['Qei_mult'] = 0.0
+    sources_config['ei_exchange']['Qei_multiplier'] = 0.0
     sources_config['generic_heat']['P_total'] = 0.0
     sources_config['fusion']['mode'] = 'ZERO'
     sources_config['ohmic']['mode'] = 'ZERO'

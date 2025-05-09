@@ -55,7 +55,7 @@ CONFIG = {
         },
         'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
-            'Qei_mult': 0.0,
+            'Qei_multiplier': 0.0,
         },
     },
     'pedestal': {},
