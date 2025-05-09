@@ -89,7 +89,7 @@ class StateHistoryTest(parameterized.TestCase):
         self.torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=self.torax_config.sources.source_model_config
+        sources=self.torax_config.sources
     )
 
     self.core_profiles = initialization.initial_core_profiles(

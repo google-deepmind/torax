@@ -107,14 +107,12 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
     self.assertEqual(
         bootstrap_profile.j_bootstrap_face.shape, self.geo.rho_face.shape
     )
-    self.assertEqual(bootstrap_profile.I_bootstrap.shape, ())
 
     # Check that the values aren't zeros
     self.assertFalse(jnp.all(bootstrap_profile.sigma == 0))
     self.assertFalse(jnp.all(bootstrap_profile.sigma_face == 0))
     self.assertFalse(jnp.all(bootstrap_profile.j_bootstrap == 0))
     self.assertFalse(jnp.all(bootstrap_profile.j_bootstrap_face == 0))
-    self.assertFalse(jnp.all(bootstrap_profile.I_bootstrap == 0))
 
   def test_get_bootstrap_with_zero_mode(self):
     source = bootstrap_current_source.BootstrapCurrentSource()
@@ -143,7 +141,6 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
     self.assertEqual(
         bootstrap_profile.j_bootstrap_face.shape, self.geo.rho_face.shape
     )
-    self.assertEqual(bootstrap_profile.I_bootstrap.shape, ())
 
     # Check that the sigma values aren't zeros
     self.assertFalse(jnp.all(bootstrap_profile.sigma == 0))
@@ -151,7 +148,6 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
     # Check that the j_bootstrap values are zeros
     self.assertTrue(jnp.all(bootstrap_profile.j_bootstrap == 0))
     self.assertTrue(jnp.all(bootstrap_profile.j_bootstrap_face == 0))
-    self.assertTrue(jnp.all(bootstrap_profile.I_bootstrap == 0))
 
   def test_prescribed_mode_not_supported(self):
     source = bootstrap_current_source.BootstrapCurrentSource()

@@ -105,7 +105,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         'sources.generic_current.mode': 'MODEL_BASED'
     })
     source_models = source_models_lib.SourceModels(
-        sources=references.config.sources.source_model_config
+        sources=references.config.sources
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
