@@ -46,8 +46,8 @@ def flatten_density_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside
-      the mixing radius.
+    redistribution_mask: boolean mask for the redistribution region inside the
+      mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_density_profile: The original density profile to be redistributed.
     geo: The geometry of the simulation at this time slice.
@@ -121,8 +121,8 @@ def flatten_temperature_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside
-      the mixing radius.
+    redistribution_mask: boolean mask for the redistribution region inside the
+      mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_temperature_profile: The original temperature profile to be
       redistributed.
@@ -210,13 +210,13 @@ def flatten_current_profile(
   Args:
     rho_norm_q1: The normalised radius of the q=1 surface.
     rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside
-      the mixing radius.
+    redistribution_mask: boolean mask for the redistribution region inside the
+      mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_psi_profile: The original poloidal flux profile.
     original_jtot_profile: The original jtot profile already precalculated and
       consistent with the psi profile.
-    Ip_total: The total plasma current.
+    Ip_total: The total plasma current [MA].
     geo: The geometry of the simulation at this time slice.
 
   Returns:
@@ -269,8 +269,12 @@ def flatten_current_profile(
   new_psi = initialization.update_psi_from_j(Ip_total, geo, new_jtot_hires)
 
   # Shift the new psi profile to match the original psi profile at the
-  # cell boundary.
-  new_psi = new_psi.value - new_psi.value[-1] + original_psi_profile.value[-1]
+  # face boundary.
+  new_psi = (
+      new_psi.value
+      - new_psi.face_value()[-1]
+      + original_psi_profile.face_value()[-1]
+  )
 
   return dataclasses.replace(
       original_psi_profile,

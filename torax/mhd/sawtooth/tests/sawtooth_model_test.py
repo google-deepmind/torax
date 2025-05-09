@@ -95,7 +95,11 @@ class SawtoothModelTest(parameterized.TestCase):
         pedestal_model=pedestal_model,
     )
 
-    mhd_models = torax_config.mhd.build_mhd_models()
+    mhd_models = torax_config.mhd.build_mhd_models(
+        transport_model=transport_model,
+        pedestal_model=pedestal_model,
+        source_models=source_models,
+    )
 
     self.geometry_provider = torax_config.geometry.build_provider
 

@@ -21,9 +21,14 @@ from torax import jax_utils
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
+from torax.transport_model import transport_model as transport_model_lib
 
 
 # TODO(b/414537757). Sawtooth extensions.
@@ -38,13 +43,22 @@ class SawtoothModel:
       self,
       trigger_model: trigger_base.TriggerModel,
       redistribution_model: redistribution_base.RedistributionModel,
+      transport_model: transport_model_lib.TransportModel,
+      pedestal_model: pedestal_model_lib.PedestalModel,
+      source_models: source_models_lib.SourceModels,
   ):
     self._trigger_model = trigger_model
     self._redistribution_model = redistribution_model
+    self._transport_model = transport_model
+    self._pedestal_model = pedestal_model
+    self._source_models = source_models
 
   @functools.partial(
       jax_utils.jit,
-      static_argnames=['self', 'static_runtime_params_slice'],
+      static_argnames=[
+          'self',
+          'static_runtime_params_slice',
+      ],
   )
   def __call__(
       self,
@@ -84,38 +98,96 @@ class SawtoothModel:
         input_state.core_profiles,
     )
 
-    # TODO(b/317360481)
-    # Consider being more consistent with updating sources, bootstrap_current,
-    # currents, etc at the end of this short step.
-
     def _make_redistributed_state_and_post_processed_outputs() -> (
         tuple[state.ToraxSimState, state.PostProcessedOutputs]
     ):
       # assertion needed for linter
       assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+
+      # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
+      # and prescribed profiles if present.
+      core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
+          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_dt=geo_t_plus_crash_dt,
+          core_profiles_t=input_state.core_profiles,
+      )
+
       redistributed_core_profiles = self._redistribution_model(
           rho_norm_q1,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_crash_dt,
           geo_t_plus_crash_dt,
           input_state.core_profiles,
+          core_profiles_t_plus_crash_dt,
+      )
+
+      source_profiles = source_profile_builders.get_all_source_profiles(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          core_profiles=redistributed_core_profiles,
+          source_models=self._source_models,
+      )
+
+      pedestal_model_output = self._pedestal_model(
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          redistributed_core_profiles,
+      )
+
+      transport_coeffs = self._transport_model(
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          redistributed_core_profiles,
+          pedestal_model_output,
+      )
+
+      # Needed to use update_all_core_profiles_after_step
+      evolving_names = []
+      if static_runtime_params_slice.evolve_ion_heat:
+        evolving_names.append('temp_ion')
+      if static_runtime_params_slice.evolve_electron_heat:
+        evolving_names.append('temp_el')
+      if static_runtime_params_slice.evolve_current:
+        evolving_names.append('psi')
+      if static_runtime_params_slice.evolve_density:
+        evolving_names.append('n_e')
+      evolving_names = tuple(evolving_names)
+
+      x_new_redistributed = tuple([
+          getattr(redistributed_core_profiles, name) for name in evolving_names
+      ])
+
+      final_core_profiles = updaters.update_all_core_profiles_after_step(
+          x_new_redistributed,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t_plus_crash_dt,
+          source_profiles,
+          input_state.core_profiles,
+          core_profiles_t_plus_crash_dt,
+          evolving_names,
+          dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
       )
 
       output_state = dataclasses.replace(
           input_state,
-          core_profiles=redistributed_core_profiles,
+          core_profiles=final_core_profiles,
           t=input_state.t
           + dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
           dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
           geometry=geo_t_plus_crash_dt,
+          core_transport=transport_coeffs,
+          core_sources=source_profiles,
           sawtooth_crash=True,
       )
-      output_post_processed_outputs = (
-          post_processing.make_post_processed_outputs(
-              sim_state=output_state,
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
-              previous_post_processed_outputs=input_post_processed_outputs,
-          )
+      output_post_processed_outputs = post_processing.make_post_processed_outputs(
+          sim_state=output_state,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_crash_dt,
+          previous_post_processed_outputs=input_post_processed_outputs,
       )
       return output_state, output_post_processed_outputs
 
@@ -131,11 +203,20 @@ class SawtoothModel:
     return output_state, output_post_processed_outputs
 
   def __hash__(self) -> int:
-    return hash((self._trigger_model, self._redistribution_model))
+    return hash((
+        self._trigger_model,
+        self._redistribution_model,
+        self._transport_model,
+        self._pedestal_model,
+        self._source_models,
+    ))
 
   def __eq__(self, other: object) -> bool:
     return (
         isinstance(other, SawtoothModel)
         and self._trigger_model == other._trigger_model
         and self._redistribution_model == other._redistribution_model
+        and self._transport_model == other._transport_model
+        and self._pedestal_model == other._pedestal_model
+        and self._source_models == other._source_models
     )

@@ -55,7 +55,11 @@ def run_simulation(
       pedestal_model=pedestal_model,
   )
 
-  mhd_models = torax_config.mhd.build_mhd_models()
+  mhd_models = torax_config.mhd.build_mhd_models(
+      transport_model=transport_model,
+      source_models=source_models,
+      pedestal_model=pedestal_model,
+  )
 
   step_fn = step_function.SimulationStepFn(
       solver=solver,

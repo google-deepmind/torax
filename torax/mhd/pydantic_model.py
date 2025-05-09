@@ -19,7 +19,10 @@ import pydantic
 from torax.mhd import base
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import torax_pydantic
+from torax.transport_model import transport_model as transport_model_lib
 
 
 class MHD(torax_pydantic.BaseModelFrozen):
@@ -33,14 +36,20 @@ class MHD(torax_pydantic.BaseModelFrozen):
       default=None
   )
 
-  def build_mhd_models(self) -> base.MHDModels:
+  def build_mhd_models(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
+  ) -> base.MHDModels:
     """Builds and returns a container with instantiated MHD model objects."""
-
-    return base.MHDModels(
-        sawtooth=self.sawtooth.build_model()
-        if self.sawtooth is not None
-        else None,
-    )
+    if self.sawtooth is None:
+      sawtooth_model = None
+    else:
+      sawtooth_model = self.sawtooth.build_model(
+          transport_model, source_models, pedestal_model
+      )
+    return base.MHDModels(sawtooth=sawtooth_model)
 
   def build_dynamic_params(
       self, t: chex.Numeric

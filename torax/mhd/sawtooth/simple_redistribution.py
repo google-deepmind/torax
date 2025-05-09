@@ -40,7 +40,8 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_crash_dt: state.CoreProfiles,
   ) -> state.CoreProfiles:
     """Applies redistribution of profiles with a user-predefined mixing radius.
 
@@ -58,7 +59,10 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice: Dynamic runtime parameters.
       geo: Geometry object.
-      core_profiles: Core plasma profiles *before* redistribution.
+      core_profiles_t: Core plasma profiles *before* redistribution.
+      core_profiles_t_plus_crash_dt: Preprepared CoreProfiles object for *after*
+        redistribution, with boundary conditions and prescribed profiles already
+        updated.
 
     Returns:
       Core plasma profiles *after* redistribution.
@@ -66,7 +70,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
 
     # No sawtooth redistribution if current is not being evolved.
     if not static_runtime_params_slice.evolve_current:
-      return core_profiles
+      return core_profiles_t
 
     assert dynamic_runtime_params_slice.mhd.sawtooth is not None
     assert isinstance(
@@ -94,24 +98,24 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles.n_e,
+          core_profiles_t.n_e,
           geo,
       )
     else:
-      n_e_redistributed = core_profiles.n_e
+      n_e_redistributed = core_profiles_t.n_e
     if static_runtime_params_slice.evolve_electron_heat:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles.temp_el,
-          core_profiles.n_e,
+          core_profiles_t.temp_el,
+          core_profiles_t.n_e,
           n_e_redistributed,
           geo,
       )
     else:
-      te_redistributed = core_profiles.temp_el
+      te_redistributed = core_profiles_t.temp_el
     if (
         static_runtime_params_slice.evolve_density
         or static_runtime_params_slice.evolve_electron_heat
@@ -126,12 +130,12 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           )
       )
     else:
-      ni_redistributed = core_profiles.ni
-      nimp_redistributed = core_profiles.nimp
-      Zi = core_profiles.Zi
-      Zi_face = core_profiles.Zi_face
-      Zimp = core_profiles.Zimp
-      Zimp_face = core_profiles.Zimp_face
+      ni_redistributed = core_profiles_t.ni
+      nimp_redistributed = core_profiles_t.nimp
+      Zi = core_profiles_t.Zi
+      Zi_face = core_profiles_t.Zi_face
+      Zimp = core_profiles_t.Zimp
+      Zimp_face = core_profiles_t.Zimp_face
 
     if static_runtime_params_slice.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
@@ -139,29 +143,54 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles.temp_ion,
-          core_profiles.ni,
+          core_profiles_t.temp_ion,
+          core_profiles_t.ni,
           ni_redistributed,
           geo,
       )
     else:
-      ti_redistributed = core_profiles.temp_ion
+      ti_redistributed = core_profiles_t.temp_ion
     psi_redistributed = flatten_profile.flatten_current_profile(
         rho_norm_q1,
         mixing_radius,
         redistribution_mask,
         redistribution_params.flattening_factor,
-        core_profiles.psi,
-        core_profiles.currents.jtot,
-        core_profiles.currents.Ip_profile_face[-1],
+        core_profiles_t.psi,
+        core_profiles_t.currents.jtot,
+        core_profiles_t.currents.Ip_profile_face[-1] / 1e6,  # in MA
         geo,
+    )
+    # Shift the psi value to be consistent with the boundary condition.
+    # This reflects the impact of vloop on the redistribution timescale.
+    if (
+        static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+    ):
+      # core_profiles_t_plus_crash_dt already has the boundary condition
+      # from vloop across the interval.
+      psi_value_shifted = (
+          psi_redistributed.value
+          + core_profiles_t_plus_crash_dt.psi.face_value()[-1]
+          - psi_redistributed.face_value()[-1]
+      )
+    else:  # Ip boundary condition case.
+      # Due to not solving the actual PDE, we do not have a self-consistent
+      # vloop. Therefore we assume a constant vloop across the redistribution
+      # interval.
+      psi_value_shifted = (
+          psi_redistributed.value
+          + core_profiles_t.vloop_lcfs
+          * dynamic_runtime_params_slice.mhd.sawtooth.crash_step_duration
+      )
+    psi_final = dataclasses.replace(
+        psi_redistributed,
+        value=psi_value_shifted,
     )
 
     return dataclasses.replace(
-        core_profiles,
+        core_profiles_t_plus_crash_dt,
         temp_ion=ti_redistributed,
         temp_el=te_redistributed,
-        psi=psi_redistributed,
+        psi=psi_final,
         n_e=n_e_redistributed,
         ni=ni_redistributed,
         nimp=nimp_redistributed,

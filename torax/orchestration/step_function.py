@@ -566,12 +566,12 @@ class SimulationStepFn:
     )
 
     output_state, post_processed_outputs = self.mhd_models.sawtooth(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice_t,
-        input_state,
-        previous_post_processed_outputs,
-        dynamic_runtime_params_slice_t_plus_crash_dt,
-        geo_t_plus_crash_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        input_state=input_state,
+        input_post_processed_outputs=previous_post_processed_outputs,
+        dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
     )
 
     return (
