@@ -25,6 +25,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import pydantic_model as mhd_pydantic_model
+from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as solver_pydantic_model
@@ -77,6 +78,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
+  )
+  neoclassical: neoclassical_pydantic_model.Neoclassical = (
+      neoclassical_pydantic_model.Neoclassical.from_dict(
+          {'bootstrap_current': {}})
   )
 
   @pydantic.model_validator(mode='before')

@@ -86,6 +86,7 @@ class DynamicRuntimeParamsSliceProvider:
     self._solver = torax_config.solver
     self._pedestal = torax_config.pedestal
     self._mhd = torax_config.mhd
+    self._neoclassical = torax_config.neoclassical
 
   @classmethod
   def from_config(
@@ -110,6 +111,7 @@ class DynamicRuntimeParamsSliceProvider:
         plasma_composition=self._plasma_composition.build_dynamic_params(t),
         profile_conditions=self._profile_conditions.build_dynamic_params(t),
         numerics=self._numerics.build_dynamic_params(t),
+        neoclassical=self._neoclassical.build_dynamic_params(),
         pedestal=self._pedestal.build_dynamic_params(t),
         mhd=self._mhd.build_dynamic_params(t),
     )
