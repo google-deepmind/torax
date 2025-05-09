@@ -18,10 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
-from torax import output
 from torax.config import build_runtime_params
 from torax.orchestration import initial_state
 from torax.orchestration import step_function
+from torax.output_tools import output
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config

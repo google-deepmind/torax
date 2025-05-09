@@ -19,7 +19,7 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import output
+from torax.output_tools import output
 from torax.tests.test_lib import sim_test_case
 
 

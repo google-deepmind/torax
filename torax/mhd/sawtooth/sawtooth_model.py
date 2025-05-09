@@ -18,13 +18,13 @@ import dataclasses
 import functools
 import jax
 from torax import jax_utils
-from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
+from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -65,10 +65,10 @@ class SawtoothModel:
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       input_state: state.ToraxSimState,
-      input_post_processed_outputs: state.PostProcessedOutputs,
+      input_post_processed_outputs: post_processing.PostProcessedOutputs,
       dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t_plus_crash_dt: geometry.Geometry,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+  ) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
     """Applies the sawtooth model and outputs a new state if triggered.
 
     If the trigger model indicates a crash has been triggered, an
@@ -101,7 +101,7 @@ class SawtoothModel:
     )
 
     def _make_redistributed_state_and_post_processed_outputs() -> (
-        tuple[state.ToraxSimState, state.PostProcessedOutputs]
+        tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]
     ):
       # assertion needed for linter
       assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None

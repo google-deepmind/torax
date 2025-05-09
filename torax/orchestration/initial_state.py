@@ -16,8 +16,6 @@ import dataclasses
 
 from absl import logging
 import jax.numpy as jnp
-from torax import output
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -25,6 +23,8 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
+from torax.output_tools import output
+from torax.output_tools import post_processing
 from torax.sources import source_profile_builders
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 import xarray as xr
@@ -36,7 +36,7 @@ def get_initial_state_and_post_processed_outputs(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -105,7 +105,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file."""
   data_tree = output.load_state_file(file_restart.filename)
   # Find the closest time in the given dataset.

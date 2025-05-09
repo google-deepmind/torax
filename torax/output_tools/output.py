@@ -24,6 +24,7 @@ import jax
 import numpy as np
 from torax import state
 from torax.geometry import geometry as geometry_lib
+from torax.output_tools import post_processing
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
@@ -198,7 +199,9 @@ class StateHistory:
   def __init__(
       self,
       state_history: tuple[state.ToraxSimState, ...],
-      post_processed_outputs_history: tuple[state.PostProcessedOutputs, ...],
+      post_processed_outputs_history: tuple[
+          post_processing.PostProcessedOutputs, ...
+      ],
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
@@ -219,7 +222,7 @@ class StateHistory:
     self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *transport
     )
-    self.post_processed_outputs: state.PostProcessedOutputs = (
+    self.post_processed_outputs: post_processing.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_outputs_history)
     )
     self.times = np.array([state.t for state in state_history])

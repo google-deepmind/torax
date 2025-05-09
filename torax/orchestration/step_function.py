@@ -18,7 +18,6 @@ import dataclasses
 import functools
 import jax.numpy as jnp
 from torax import jax_utils
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -26,12 +25,25 @@ from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.mhd import base as mhd_base
+from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as solver_lib
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+
+
+def check_for_errors(
+    sim_state: state.ToraxSimState,
+    post_processed_outputs: post_processing.PostProcessedOutputs,
+) -> state.SimError:
+  """Checks for errors in the simulation state."""
+  state_error = sim_state.check_for_errors()
+  if state_error != state.SimError.NO_ERROR:
+    return state_error
+  else:
+    return post_processed_outputs.check_for_errors()
 
 
 class SimulationStepFn:
@@ -95,8 +107,10 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-      previous_post_processed_outputs: state.PostProcessedOutputs,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      state.ToraxSimState, post_processing.PostProcessedOutputs, state.SimError
+  ]:
     """Advances the simulation state one time step.
 
       If a sawtooth model is provided, it will be checked to see if a sawtooth
@@ -231,7 +245,7 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        state.check_for_errors(output_state, post_processed_outputs),
+        check_for_errors(output_state, post_processed_outputs),
     )
 
   def init_time_step_calculator(
@@ -519,8 +533,10 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-      previous_post_processed_outputs: state.PostProcessedOutputs,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      state.ToraxSimState, post_processing.PostProcessedOutputs, state.SimError
+  ]:
     """Checks for and handles a sawtooth crash.
 
     If a sawtooth model is provided and a crash is triggered, this method
@@ -577,7 +593,7 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        state.check_for_errors(output_state, post_processed_outputs)
+        check_for_errors(output_state, post_processed_outputs)
         if output_state.sawtooth_crash
         else state.SimError.NO_ERROR,
     )
@@ -652,4 +668,3 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       geo_t,
       geo_t_plus_dt,
   )
-
