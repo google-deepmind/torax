@@ -61,7 +61,6 @@ class SauterModel(base.BootstrapCurrentModel):
     return base.BootstrapCurrent(
         j_bootstrap=result.j_bootstrap,
         j_bootstrap_face=result.j_bootstrap_face,
-        I_bootstrap=result.I_bootstrap,
     )
 
 

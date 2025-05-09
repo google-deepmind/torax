@@ -71,7 +71,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,
@@ -245,7 +245,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,

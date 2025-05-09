@@ -310,7 +310,6 @@ class StateHistory:
     )
     xr_dict[IP_PROFILE] = core_profiles.currents.Ip_profile_face
     xr_dict[IP] = core_profiles.currents.Ip_total
-    xr_dict[I_BOOTSTRAP] = core_profiles.currents.I_bootstrap
     xr_dict[SIGMA_PARALLEL] = core_profiles.currents.sigma
 
     xr_dict[Q] = core_profiles.q_face

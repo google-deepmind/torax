@@ -102,36 +102,38 @@ class PydanticModelTest(parameterized.TestCase):
             'mode': 'ZERO',  # turn it off.
         },
     })
-    source_models = source_models_lib.SourceModels(sources.source_model_config)
+    source_models = source_models_lib.SourceModels(sources)
     # The non-standard ones are still off.
     self.assertEqual(
-        sources.source_model_config['j_bootstrap'].mode,
+        sources.j_bootstrap.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        sources.source_model_config['generic_current'].mode,
+        sources.generic_current.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        sources.source_model_config['ei_exchange'].mode,
+        sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     # But these new sources have been added.
-    self.assertLen(source_models.sources, 5)
     self.assertLen(source_models.standard_sources, 3)
     # With the overriding params.
-    gas_puff_config = sources.source_model_config['gas_puff']
-    self.assertIsInstance(gas_puff_config, gas_puff_source.GasPuffSourceConfig)
+    gas_puff_config = sources.gas_puff
+    self.assertIsNotNone(gas_puff_config)
     self.assertEqual(
         gas_puff_config.puff_decay_length.get_value(0.0),
         1.23,
     )
     self.assertEqual(
-        sources.source_model_config['gas_puff'].mode,
+        gas_puff_config.mode,
         source_runtime_params_lib.Mode.MODEL_BASED,  # On by default.
     )
+
+    ohmic_config = sources.ohmic
+    self.assertIsNotNone(ohmic_config)
     self.assertEqual(
-        sources.source_model_config['ohmic'].mode,
+        ohmic_config.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
 
@@ -139,18 +141,19 @@ class PydanticModelTest(parameterized.TestCase):
     """Tests that an empty source config has all sources turned off."""
     sources = pydantic_model.Sources.from_dict({})
     self.assertEqual(
-        sources.source_model_config['j_bootstrap'].mode,
+        sources.j_bootstrap.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        sources.source_model_config['generic_current'].mode,
+        sources.generic_current.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        sources.source_model_config['ei_exchange'].mode,
+        sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-    self.assertLen(sources.source_model_config, 3)
+    source_models = source_models_lib.SourceModels(sources)
+    self.assertLen(source_models.standard_sources, 1)
 
   def test_adding_a_source_with_prescribed_values(self):
     """Tests that a source can be added with overriding defaults."""
@@ -173,11 +176,13 @@ class PydanticModelTest(parameterized.TestCase):
     })
     mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
     torax_pydantic.set_grid(sources, mesh)
-    source = sources.source_model_config['generic_current']
+    source = sources.generic_current
     self.assertLen(source.prescribed_values, 1)
     self.assertIsInstance(
         source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
-    source = sources.source_model_config['ecrh']
+
+    source = sources.ecrh
+    self.assertIsNotNone(source)
     self.assertLen(source.prescribed_values, 2)
     self.assertIsInstance(
         source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
