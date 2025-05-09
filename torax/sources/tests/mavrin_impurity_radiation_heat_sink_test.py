@@ -42,14 +42,14 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     # full config.
     torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4, dx=0.25))
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=sources
     )
-    runtime_params = sources.source_model_config[
-        self._source_name
-    ].build_dynamic_params(t=0.0)
+    runtime_params = getattr(sources, self._source_name).build_dynamic_params(
+        t=0.0
+    )
 
     # Extract the source we're testing and check that it's been built correctly
-    impurity_radiation_sink = source_models.sources[self._source_name]
+    impurity_radiation_sink = source_models.standard_sources[self._source_name]
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     assert isinstance(

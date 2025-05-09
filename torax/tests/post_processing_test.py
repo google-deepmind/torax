@@ -69,7 +69,7 @@ class PostProcessingTest(parameterized.TestCase):
         torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
+        sources=torax_config.sources
     )
     self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,

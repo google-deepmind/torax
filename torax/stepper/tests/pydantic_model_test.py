@@ -50,7 +50,7 @@ class PydanticModelTest(parameterized.TestCase):
     pedestal_model = pedestal.build_pedestal_model()
     sources = source_pydantic_model.Sources.from_dict({})
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=sources
     )
     solver = solver_pydantic.build_solver(
         transport_model=transport_model,

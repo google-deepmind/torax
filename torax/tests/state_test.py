@@ -85,11 +85,12 @@ class StateTest(parameterized.TestCase):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
     source_models = source_models_lib.SourceModels(
-        sources=references.config.sources.source_model_config
+        sources=references.config.sources
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
-        references.config)
+        references.config
+    )
     basic_core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -199,9 +200,7 @@ class InitialStatesTest(parameterized.TestCase):
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -236,9 +235,7 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -310,9 +307,7 @@ class InitialStatesTest(parameterized.TestCase):
         current_profile_nu=2,
         n_e_right_bc=0.5,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
 
     torax_config.update_fields({'profile_conditions': config1})
     dcs1, geo = (
@@ -368,9 +363,7 @@ class InitialStatesTest(parameterized.TestCase):
         'profile_conditions': config3,
         'sources': new_source_config,
     })
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dcs3, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=torax_config.numerics.t_initial,
@@ -404,9 +397,7 @@ class InitialStatesTest(parameterized.TestCase):
         'profile_conditions': config3_helper,
         'sources': new_source_config,
     })
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dcs3_helper, geo = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=torax_config.numerics.t_initial,
@@ -439,18 +430,16 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     # Calculate bootstrap current for config3 which doesn't zero it out
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dcs3,
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles3_helper,
     )
-    f_bootstrap = bootstrap_profile.I_bootstrap / (
-        torax_config.profile_conditions.Ip.value[0] * 1e6
-    )
+    f_bootstrap = math_utils.area_integration(
+        bootstrap_profile.j_bootstrap, geo
+    ) / (torax_config.profile_conditions.Ip.value[0] * 1e6)
 
     np.testing.assert_raises(
         AssertionError,
@@ -505,9 +494,7 @@ class InitialStatesTest(parameterized.TestCase):
         'n_e_right_bc': 0.5,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources.source_model_config
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     dcs1 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
         torax_config
@@ -524,9 +511,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
 
-    torax_config.update_fields(
-        {'profile_conditions.initial_psi_from_j': True}
-    )
+    torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
     dcs2 = build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
         torax_config
     )(

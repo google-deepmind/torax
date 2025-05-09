@@ -304,14 +304,8 @@ class StateHistory:
     )
     xr_dict[J_OHMIC] = core_profiles.currents.johm
     xr_dict[J_EXTERNAL] = core_profiles.currents.external_current_source
-    xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
-        core_profiles.currents.j_bootstrap,
-        core_profiles.currents.j_bootstrap_face,
-    )
     xr_dict[IP_PROFILE] = core_profiles.currents.Ip_profile_face
     xr_dict[IP] = core_profiles.currents.Ip_total
-    xr_dict[I_BOOTSTRAP] = core_profiles.currents.I_bootstrap
-    xr_dict[SIGMA_PARALLEL] = core_profiles.currents.sigma
 
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
@@ -373,6 +367,12 @@ class StateHistory:
         self.core_sources.qei.qei_coef
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )
+
+    xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
+        self.core_sources.j_bootstrap.j_bootstrap,
+        self.core_sources.j_bootstrap.j_bootstrap_face,
+    )
+    xr_dict[SIGMA_PARALLEL] = self.core_sources.j_bootstrap.sigma
 
     # Add source profiles with suffixes indicating which profile they affect.
     for profile in self.core_sources.temp_ion:
