@@ -16,6 +16,7 @@
 
 import chex
 import pydantic
+from torax.config import runtime_params_slice
 from torax.mhd import base
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
@@ -38,6 +39,7 @@ class MHD(torax_pydantic.BaseModelFrozen):
 
   def build_mhd_models(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
@@ -47,7 +49,10 @@ class MHD(torax_pydantic.BaseModelFrozen):
       sawtooth_model = None
     else:
       sawtooth_model = self.sawtooth.build_model(
-          transport_model, source_models, pedestal_model
+          static_runtime_params_slice=static_runtime_params_slice,
+          transport_model=transport_model,
+          source_models=source_models,
+          pedestal_model=pedestal_model,
       )
     return base.MHDModels(sawtooth=sawtooth_model)
 
