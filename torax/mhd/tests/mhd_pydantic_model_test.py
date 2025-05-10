@@ -60,10 +60,14 @@ class MHDPydanticModelTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['mhd'] = {}
     torax_config = model_config.ToraxConfig.from_dict(config)
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_params_from_config(torax_config)
+    )
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     assert isinstance(torax_config.mhd, mhd_pydantic_model.MHD)
     mhd_models = torax_config.mhd.build_mhd_models(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
@@ -93,6 +97,9 @@ class MHDPydanticModelTest(parameterized.TestCase):
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_params_from_config(torax_config)
+    )
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     assert torax_config.mhd is not None
@@ -101,6 +108,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
     )
 
     mhd_models = torax_config.mhd.build_mhd_models(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
