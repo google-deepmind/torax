@@ -168,9 +168,14 @@ class ExplicitSolverConfig(solver_pydantic_model.LinearThetaMethod):
   solver_type: Literal['explicit'] = 'explicit'
 
   def build_solver(
-      self, transport_model, source_models, pedestal_model
+      self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      transport_model,
+      source_models,
+      pedestal_model,
   ) -> 'ExplicitSolver':
     return ExplicitSolver(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
