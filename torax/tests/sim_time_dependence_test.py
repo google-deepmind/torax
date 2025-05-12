@@ -27,6 +27,7 @@ from torax import sim
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import run_simulation
@@ -63,7 +64,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   def test_time_dependent_params_update_in_adaptive_dt(
       self,
       adaptive_dt: bool,
-      expected_outer_stepper_iterations: int,
+      expected_outer_solver_iterations: int,
       expected_error_state: int,
       expected_combined_value: float,
       inner_solver_iterations: list[int],
@@ -122,7 +123,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       )
       self.assertEqual(
           output_state.solver_numeric_outputs.outer_solver_iterations,
-          expected_outer_stepper_iterations,
+          expected_outer_solver_iterations,
       )
       self.assertEqual(
           output_state.solver_numeric_outputs.inner_solver_iterations,
@@ -156,30 +157,35 @@ class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):
   inner_solver_iterations: list[int] | None = None
 
   def build_solver(
-      self, transport_model, source_models, pedestal_model
-  ) -> 'FakeStepper':
-    return FakeStepper(
+      self,
+      static_runtime_params_slice,
+      transport_model,
+      source_models,
+      pedestal_model,
+  ) -> 'FakeSolver':
+    return FakeSolver(
         param=self.param,
         max_value=self.max_value,
-        inner_solver_iterations=self.inner_solver_iterations,
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        inner_solver_iterations=self.inner_solver_iterations,
     )
 
 
-class FakeStepper(linear_theta_method.LinearThetaMethod):
-  """Fake stepper that allows us to hook into the error logic.
+class FakeSolver(linear_theta_method.LinearThetaMethod):
+  """Fake solver that allows us to hook into the error logic.
 
   Given the name of a time-dependent param in the runtime_params, and a max
   value for
-  that param, this stepper returns a successful state if the config values for
+  that param, this solver returns a successful state if the config values for
   that param in the config at time t and config at time t+dt sum to less than
   max value.
 
   The number of inner solver iterations can also be specified.
 
-  This stepper returns the input state as is and doesn't actually use the
+  This solver returns the input state as is and doesn't actually use the
   transport model or sources provided. They are given just to match the base
   class api.
   """
@@ -188,11 +194,13 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
       self,
       param: str,
       max_value: float,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
       inner_solver_iterations: list[int] | None = None,
   ):
+    self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
@@ -203,9 +211,11 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
         if inner_solver_iterations is not None
         else []
     )
+    self.evolving_names = ()
 
   def __call__(
       self,
+      t: jax.Array,
       dt: jax.Array,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -214,12 +224,12 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles.SourceProfiles,
+      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
-      state.CoreProfiles,
-      source_profiles.SourceProfiles,
-      state.CoreTransport,
-      state.SolverNumericOutputs,
+      tuple[cell_variable.CellVariable, ...],
+      state.ToraxSimState,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
@@ -255,16 +265,20 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
     )
 
     def get_return_value(error_code: int):
-      return (
-          core_profiles_t,
-          core_sources,
-          transport,
-          state.SolverNumericOutputs(
+      intermediate_state = state.ToraxSimState(
+          t=t + dt,
+          dt=dt,
+          core_profiles=core_profiles_t_plus_dt,
+          core_transport=transport,
+          core_sources=core_sources,
+          geometry=geo_t_plus_dt,
+          solver_numeric_outputs=state.SolverNumericOutputs(
               outer_solver_iterations=1,
               solver_error_state=error_code,
               inner_solver_iterations=current_inner_solver_iterations,
           ),
       )
+      return (), intermediate_state
 
     return jax.lax.cond(
         combined < self._max_value,

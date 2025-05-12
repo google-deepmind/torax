@@ -15,19 +15,18 @@
 """Sawtooth model."""
 
 import dataclasses
-import functools
 import jax
-from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
-from torax.core_profiles import updaters
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
-from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
+from torax.sources import source_profiles as source_profiles_lib
+from torax.stepper import stepper
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -36,82 +35,99 @@ from torax.transport_model import transport_model as transport_model_lib
 # b. Porcelli model with free parameters and fast ion sensitivities.
 # c. "Smooth" version that can work with forward-sensitivity-analysis and
 #    stationary-state applications without the need for averaging.
-class SawtoothModel:
+class SawtoothModel(stepper.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
   def __init__(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       trigger_model: trigger_base.TriggerModel,
       redistribution_model: redistribution_base.RedistributionModel,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
       source_models: source_models_lib.SourceModels,
   ):
+    super().__init__(
+        static_runtime_params_slice=static_runtime_params_slice,
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+    )
     self._trigger_model = trigger_model
     self._redistribution_model = redistribution_model
-    self._transport_model = transport_model
-    self._pedestal_model = pedestal_model
-    self._source_models = source_models
 
-  @functools.partial(
-      jax_utils.jit,
-      static_argnames=[
-          'self',
-          'static_runtime_params_slice',
-      ],
-  )
-  def __call__(
+  def _x_new(
       self,
+      dt: jax.Array,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      input_state: state.ToraxSimState,
-      input_post_processed_outputs: state.PostProcessedOutputs,
-      dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo_t_plus_crash_dt: geometry.Geometry,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
-    """Applies the sawtooth model and outputs a new state if triggered.
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles_lib.SourceProfiles,
+      core_transport_t: state.CoreTransport,
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      evolving_names: tuple[str, ...],
+  ) -> tuple[
+      tuple[cell_variable.CellVariable, ...],
+      source_profiles_lib.SourceProfiles,
+      state.CoreTransport,
+      state.SolverNumericOutputs,
+  ]:
+    """Applies the sawtooth model and outputs new state attributes if triggered.
 
     If the trigger model indicates a crash has been triggered, an
-    instantaneous redistribution model is applied. A new state following a short
-    (configurable) dt is returned, with core_profiles further modified by psidot
-    assumed at time t, the new boundary conditions, and sources, transport, geo,
-    and pedestal outputs consistent with the new core_profiles at time
-    t_plus_crash_dt.
+    instantaneous redistribution model is applied. New state attributes
+    following a short (configurable) dt are returned. Beyond the sawtooth
+    redistribution, core_profiles are further updated by: the psidot assumed at
+    time t; the new boundary conditions; sources, transport, geo, and pedestal
+    outputs consistent with the new core_profiles at time t_plus_crash_dt.
 
     Args:
+      dt: Sawtooth step duration.
       static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice_t: Dynamic runtime parameters at time t.
-      input_state: The input ToraxSimState.
-      input_post_processed_outputs: The input PostProcessedOutputs.
-      dynamic_runtime_params_slice_t_plus_crash_dt: Dynamic runtime parameters
-        at time t + crash_step_duration.
-      geo_t_plus_crash_dt: The geometry at time t + crash_step_duration.
+      dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters at time
+        t + crash_dt.
+      geo_t: Geometry at time t.
+      geo_t_plus_dt: Geometry at time t + crash_dt.
+      core_profiles_t: Core profiles at time t.
+      core_profiles_t_plus_dt: Core profiles containing boundary conditions and
+        prescribed profiles at time t + crash_dt.
+      core_sources_t: Source profiles at time t.
+      core_transport_t: Transport coefficients at time t.
+      explicit_source_profiles: Explicit source profiles at time t.
+      evolving_names: Names of evolving variables.
 
     Returns:
-      The output ToraxSimState, which may be modified by the sawtooth model.
-      The output PostProcessedOutputs, which may be modified by the sawtooth
-        model.
+      Updated tuple of evolving CellVariables from CoreProfiles
+      Source profiles consistent with redistributed state.
+      Transport coefficients consistent with redistributed state.
+      SolverNumericOutputs indicating a sawtooth crash.
     """
 
     trigger_sawtooth, rho_norm_q1 = self._trigger_model(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
-        input_state.geometry,
-        input_state.core_profiles,
+        geo_t,
+        core_profiles_t,
     )
 
-    def _make_redistributed_state_and_post_processed_outputs() -> (
-        tuple[state.ToraxSimState, state.PostProcessedOutputs]
-    ):
-      # assertion needed for linter
-      assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+    def _redistribute_state() -> tuple[
+        tuple[cell_variable.CellVariable, ...],
+        source_profiles_lib.SourceProfiles,
+        state.CoreTransport,
+        state.SolverNumericOutputs,
+    ]:
 
       redistributed_core_profiles = self._redistribution_model(
           rho_norm_q1,
           static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          input_state.core_profiles,
+          dynamic_runtime_params_slice_t,
+          geo_t,
+          core_profiles_t,
       )
 
       # Evolve the psi profile over the sawtooth time.
@@ -124,8 +140,7 @@ class SawtoothModel:
       # using `updaters.update_all_core_profiles_after_step`.
       evolved_psi_redistributed_value = (
           redistributed_core_profiles.psi.value
-          + input_state.core_profiles.psidot.value
-          * dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
+          + core_profiles_t.psidot.value * dt
       )
       evolved_core_profiles = dataclasses.replace(
           redistributed_core_profiles,
@@ -135,102 +150,65 @@ class SawtoothModel:
           ),
       )
 
-      source_profiles = source_profile_builders.get_all_source_profiles(
+      core_sources_post_step = source_profile_builders.get_all_source_profiles(
           static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
           core_profiles=evolved_core_profiles,
-          source_models=self._source_models,
+          source_models=self.source_models,
       )
 
-      # Needed to use update_all_core_profiles_after_step
-      evolving_names = []
-      if static_runtime_params_slice.evolve_ion_heat:
-        evolving_names.append('temp_ion')
-      if static_runtime_params_slice.evolve_electron_heat:
-        evolving_names.append('temp_el')
-      if static_runtime_params_slice.evolve_current:
-        evolving_names.append('psi')
-      if static_runtime_params_slice.evolve_density:
-        evolving_names.append('n_e')
-      evolving_names = tuple(evolving_names)
-
-      x_new_redistributed = tuple(
+      x_post_step = tuple(
           [getattr(evolved_core_profiles, name) for name in evolving_names]
       )
 
-      # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
-      # and prescribed profiles if present.
-      core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
-          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_dt=geo_t_plus_crash_dt,
-          core_profiles_t=input_state.core_profiles,
+      pedestal_model_output = self.pedestal_model(
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
+          redistributed_core_profiles,
       )
 
-      final_core_profiles = updaters.update_all_core_profiles_after_step(
-          x_new_redistributed,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          source_profiles,
-          input_state.core_profiles,
-          core_profiles_t_plus_crash_dt,
-          evolving_names,
-          dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-      )
-
-      pedestal_model_output = self._pedestal_model(
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          final_core_profiles,
-      )
-
-      transport_coeffs = self._transport_model(
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t_plus_crash_dt,
-          final_core_profiles,
+      core_transport_post_step = self.transport_model(
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
+          redistributed_core_profiles,
           pedestal_model_output,
       )
 
-      output_state = dataclasses.replace(
-          input_state,
-          core_profiles=final_core_profiles,
-          t=input_state.t
-          + dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-          dt=dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-          geometry=geo_t_plus_crash_dt,
-          core_transport=transport_coeffs,
-          core_sources=source_profiles,
-          sawtooth_crash=True,
+      solver_numeric_outputs_post_step = state.SolverNumericOutputs(
+          sawtooth_crash=True
       )
-      output_post_processed_outputs = post_processing.make_post_processed_outputs(
-          sim_state=output_state,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_crash_dt,
-          previous_post_processed_outputs=input_post_processed_outputs,
-      )
-      return output_state, output_post_processed_outputs
 
-    output_state, output_post_processed_outputs = jax.lax.cond(
+      return (
+          x_post_step,
+          core_sources_post_step,
+          core_transport_post_step,
+          solver_numeric_outputs_post_step,
+      )
+
+    # Return redistributed state attributes if triggered, otherwise return
+    # unchanged state attributes.
+    x_out, core_sources, core_transport, solver_numeric_outputs = jax.lax.cond(
         trigger_sawtooth,
-        _make_redistributed_state_and_post_processed_outputs,
+        _redistribute_state,
         lambda: (
-            dataclasses.replace(input_state, sawtooth_crash=False),
-            input_post_processed_outputs,
+            tuple([getattr(core_profiles_t, name) for name in evolving_names]),
+            core_sources_t,
+            core_transport_t,
+            state.SolverNumericOutputs(),
         ),
     )
 
-    return output_state, output_post_processed_outputs
+    return x_out, core_sources, core_transport, solver_numeric_outputs
 
   def __hash__(self) -> int:
     return hash((
         self._trigger_model,
         self._redistribution_model,
-        self._transport_model,
-        self._pedestal_model,
-        self._source_models,
+        self.static_runtime_params_slice,
+        self.transport_model,
+        self.pedestal_model,
+        self.source_models,
     ))
 
   def __eq__(self, other: object) -> bool:
@@ -238,7 +216,9 @@ class SawtoothModel:
         isinstance(other, SawtoothModel)
         and self._trigger_model == other._trigger_model
         and self._redistribution_model == other._redistribution_model
-        and self._transport_model == other._transport_model
-        and self._pedestal_model == other._pedestal_model
-        and self._source_models == other._source_models
+        and self.static_runtime_params_slice
+        == other.static_runtime_params_slice
+        and self.transport_model == other.transport_model
+        and self.pedestal_model == other.pedestal_model
+        and self.source_models == other.source_models
     )

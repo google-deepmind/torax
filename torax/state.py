@@ -501,11 +501,14 @@ class SolverNumericOutputs:
       Occasional error=2 has low impact on final sim state.
     inner_solver_iterations: Total number of iterations performed in the solver
       across all iterations of the solver.
+    sawtooth_crash: True if a sawtooth model is active and the solver step
+      corresponds to a sawtooth crash step.
   """
 
   outer_solver_iterations: int = 0
   solver_error_state: int = 0
   inner_solver_iterations: int = 0
+  sawtooth_crash: bool = False
 
 
 @enum.unique
@@ -562,13 +565,8 @@ class ToraxSimState:
       are the values at time t. For the implicit sources, these are the most
       recent guess for time t+dt. The profiles here are the merged version of
       the explicit and implicit profiles.
-    post_processed_outputs: variables for output or intermediate observations
-      for overarching workflows, calculated after each simulation step.
     geometry: Geometry at this time step used for the simulation.
-    time_step_calculator_state: the state of the TimeStepper.
     solver_numeric_outputs: Numerical quantities related to the solver.
-    sawtooth_crash: True if a sawtooth model is active and the state
-      corresponds to a post-sawtooth-crash state.
   """
 
   t: jax.Array
@@ -578,7 +576,6 @@ class ToraxSimState:
   core_sources: source_profiles.SourceProfiles
   geometry: geometry.Geometry
   solver_numeric_outputs: SolverNumericOutputs
-  sawtooth_crash: bool = False
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""

@@ -17,6 +17,7 @@
 from typing import Union
 import chex
 import pydantic
+from torax.config import runtime_params_slice
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.mhd.sawtooth import sawtooth_model
 from torax.mhd.sawtooth import simple_redistribution
@@ -48,11 +49,13 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
 
   def build_model(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> sawtooth_model.SawtoothModel:
     return sawtooth_model.SawtoothModel(
+        static_runtime_params_slice=static_runtime_params_slice,
         trigger_model=self.trigger_model.build_trigger_model(),
         redistribution_model=self.redistribution_model.build_redistribution_model(),
         transport_model=transport_model,

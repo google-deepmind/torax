@@ -18,6 +18,7 @@ import functools
 from typing import Literal
 
 import pydantic
+from torax.config import runtime_params_slice
 from torax.fvm import enums
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
@@ -27,6 +28,7 @@ from torax.stepper import runtime_params
 from torax.stepper import stepper as solver_lib
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import transport_model as transport_model_lib
+
 # pylint: disable=invalid-name
 
 
@@ -49,6 +51,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
     chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
   """
+
   theta_implicit: torax_pydantic.UnitInterval = 1.0
   use_predictor_corrector: bool = False
   n_corrector_steps: pydantic.PositiveInt = 1
@@ -109,11 +112,13 @@ class LinearThetaMethod(BaseSolver):
 
   def build_solver(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
@@ -172,11 +177,13 @@ class NewtonRaphsonThetaMethod(BaseSolver):
 
   def build_solver(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
@@ -217,11 +224,13 @@ class OptimizerThetaMethod(BaseSolver):
 
   def build_solver(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,

@@ -18,11 +18,10 @@ Abstract base class defining updates to State.
 """
 
 import abc
-
+import functools
 import jax
 from torax import state
 from torax.config import runtime_params_slice
-from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -44,10 +43,12 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
+    static_runtime_params_slice: Static runtime parameters.
   """
 
   def __init__(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
@@ -55,9 +56,25 @@ class Solver(abc.ABC):
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.static_runtime_params_slice = static_runtime_params_slice
+
+  @functools.cached_property
+  def evolving_names(self) -> tuple[str, ...]:
+    """The names of core_profiles variables that are evolved by the solver."""
+    evolving_names = []
+    if self.static_runtime_params_slice.evolve_ion_heat:
+      evolving_names.append('temp_ion')
+    if self.static_runtime_params_slice.evolve_electron_heat:
+      evolving_names.append('temp_el')
+    if self.static_runtime_params_slice.evolve_current:
+      evolving_names.append('psi')
+    if self.static_runtime_params_slice.evolve_density:
+      evolving_names.append('n_e')
+    return tuple(evolving_names)
 
   def __call__(
       self,
+      t: jax.Array,
       dt: jax.Array,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -66,16 +83,17 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles.SourceProfiles,
+      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
-      state.CoreProfiles,
-      source_profiles.SourceProfiles,
-      state.CoreTransport,
-      state.SolverNumericOutputs,
+      tuple[cell_variable.CellVariable, ...],
+      state.ToraxSimState,
   ]:
     """Applies a time step update.
 
     Args:
+      t: Time.
       dt: Time step duration.
       static_runtime_params_slice: Input params that trigger recompilation when
         they change. These don't have to be JAX-friendly types and can be used
@@ -92,42 +110,28 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
+      core_sources_t: source profiles at time t.
+      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input params). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
         either based on the original core profiles at the start of the time step
         or were independent of the core profiles. Because they were calculated
-        outside the possibly-JAX-jitted solver logic, they can be
-        calculated in non-JAX-friendly ways.
+        outside the possibly-JAX-jitted solver logic, they can be calculated in
+        non-JAX-friendly ways.
 
     Returns:
-      new_core_profiles: Updated core profiles.
-      core_sources: Merged source profiles of all sources, including explicit
-        and implicit. This is the version of the source profiles that is used
-        to calculate the coefficients for the t+dt time step. For the explicit
-        sources, this is the same as the explicit_source_profiles input. For
-        the implicit sources, this is the most recent guess for time t+dt.
-      core_transport: Transport coefficients for time t+dt.
-      solver_numeric_output: Error and iteration info.
+      x_new: Tuple containing new cell-grid values of the evolving variables.
+      intermediate_state: The state at time t + dt apart from core_profiles
+        which is incomplete and must be finalized outside this function with
+        x_new and additional post_processing.
     """
 
     # This base class method can be completely overriden by a subclass, but
     # most can make use of the boilerplate here and just implement `_x_new`.
 
-    # Use runtime params to determine which variables to evolve
-    evolving_names = []
-    if static_runtime_params_slice.evolve_ion_heat:
-      evolving_names.append('temp_ion')
-    if static_runtime_params_slice.evolve_electron_heat:
-      evolving_names.append('temp_el')
-    if static_runtime_params_slice.evolve_current:
-      evolving_names.append('psi')
-    if static_runtime_params_slice.evolve_density:
-      evolving_names.append('n_e')
-    evolving_names = tuple(evolving_names)
-
     # Don't call solver functions on an empty list
-    if evolving_names:
+    if self.evolving_names:
       x_new, core_sources, core_transport, solver_numeric_output = self._x_new(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
@@ -137,8 +141,10 @@ class Solver(abc.ABC):
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          core_sources_t=core_sources_t,
+          core_transport_t=core_transport_t,
           explicit_source_profiles=explicit_source_profiles,
-          evolving_names=evolving_names,
+          evolving_names=self.evolving_names,
       )
     else:
       x_new = tuple()
@@ -156,26 +162,19 @@ class Solver(abc.ABC):
       core_transport = state.CoreTransport.zeros(geo_t)
       solver_numeric_output = state.SolverNumericOutputs()
 
-    # x_new contains the new cell-grid values of the evolving variables.
-    # Update the core profiles with the new values of the evolving variables and
-    # derived quantities like q_face, psidot, etc.
-    core_profiles_t_plus_dt = updaters.update_all_core_profiles_after_step(
-        x_new,
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
-        core_sources,
-        core_profiles_t,
-        core_profiles_t_plus_dt,
-        evolving_names,
+    intermediate_state = state.ToraxSimState(
+        t=t+dt,
         dt=dt,
+        core_profiles=core_profiles_t_plus_dt,
+        core_transport=core_transport,
+        core_sources=core_sources,
+        geometry=geo_t_plus_dt,
+        solver_numeric_outputs=solver_numeric_output,
     )
 
     return (
-        core_profiles_t_plus_dt,
-        core_sources,
-        core_transport,
-        solver_numeric_output,
+        x_new,
+        intermediate_state,
     )
 
   def _x_new(
@@ -188,6 +187,8 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles.SourceProfiles,
+      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -218,6 +219,8 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
+      core_sources_t: source profiles at time t.
+      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
 

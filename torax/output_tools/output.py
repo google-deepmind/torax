@@ -226,13 +226,11 @@ class StateHistory:
     # The rho grid does not change in time so we can just take the first one.
     self.rho_cell_norm = state_history[0].geometry.rho_norm
     self.rho_face_norm = state_history[0].geometry.rho_face_norm
-    self.rho_norm = np.concatenate(
-        [[0.0], self.rho_cell_norm, [1.0]]
-    )
+    self.rho_norm = np.concatenate([[0.0], self.rho_cell_norm, [1.0]])
     chex.assert_rank(self.times, 1)
 
     self.sawtooth_crash = np.array(
-        [state.sawtooth_crash for state in state_history]
+        [state.solver_numeric_outputs.sawtooth_crash for state in state_history]
     )
 
   def _pack_into_data_array(

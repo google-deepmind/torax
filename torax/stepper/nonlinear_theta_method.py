@@ -71,6 +71,8 @@ class NonlinearThetaMethod(stepper.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles.SourceProfiles,
+      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -80,6 +82,9 @@ class NonlinearThetaMethod(stepper.Solver):
       state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
+
+    # Not used in this implementation.
+    del core_sources_t, core_transport_t
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,

@@ -16,15 +16,18 @@
 
 import dataclasses
 import functools
+import jax
 import jax.numpy as jnp
 from torax import jax_utils
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
+from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.mhd import base as mhd_base
+from torax.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
 from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
@@ -148,23 +151,6 @@ class SimulationStepFn:
         )
     )
 
-    # If a sawtooth model is provided, it will be checked to see if a sawtooth
-    # should trigger. If it does, the sawtooth model will be applied and instead
-    # of a full PDE solve, the step_fn will return early with a state following
-    # sawtooth redistribution, at a t+dt set by the sawtooth model.
-    output_state, post_processed_outputs, error_state = (
-        self._handle_sawtooth_crash(
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=geometry_provider,
-            input_state=input_state,
-            previous_post_processed_outputs=previous_post_processed_outputs,
-        )
-    )
-    if output_state.sawtooth_crash:
-      return output_state, post_processed_outputs, error_state
-
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
@@ -176,6 +162,46 @@ class SimulationStepFn:
         source_models=self.solver.source_models,
         explicit=True,
     )
+
+    # If a sawtooth model is provided, and there was no previous
+    # sawtooth crash, it will be checked to see if a sawtooth
+    # should trigger. If it does, the sawtooth model will be applied and instead
+    # of a full PDE solve, the step_fn will return early with a state following
+    # sawtooth redistribution, at a t+dt set by the sawtooth model
+    # configuration.
+    if (self.mhd_models.sawtooth is not None) and (
+        not input_state.solver_numeric_outputs.sawtooth_crash
+    ):
+      assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+      dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
+      dynamic_runtime_params_slice_t_plus_crash_dt, geo_t_plus_crash_dt = (
+          build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+              t=input_state.t + dt_crash,
+              dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+              geometry_provider=geometry_provider,
+          )
+      )
+      # If no sawtooth crash is triggered, output_state and
+      # post_processed_outputs will be the same as the input state and
+      # previous_post_processed_outputs.
+      output_state, post_processed_outputs = _sawtooth_step(
+          sawtooth_solver=self.mhd_models.sawtooth,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t=geo_t,
+          geo_t_plus_crash_dt=geo_t_plus_crash_dt,
+          explicit_source_profiles=explicit_source_profiles,
+          input_state=input_state,
+          input_post_processed_outputs=previous_post_processed_outputs,
+      )
+      # If a sawtooth crash was carried out, we exit early with the post-crash
+      # state, post-processed outputs, and the error state.
+      if output_state.solver_numeric_outputs.sawtooth_crash:
+        error_state = state.check_for_errors(
+            output_state, post_processed_outputs
+        )
+        return output_state, post_processed_outputs, error_state
 
     dt = self.init_time_step_calculator(
         dynamic_runtime_params_slice_t,
@@ -197,7 +223,7 @@ class SimulationStepFn:
         )
     )
 
-    output_state = self.step(
+    x_new, intermediate_state = self.step(
         dt,
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
@@ -211,21 +237,28 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.solver_numeric_outputs.solver_error_state == 0.
-      dynamic_runtime_params_slice_t_plus_dt, output_state = self.adaptive_step(
-          output_state,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_provider,
-          geo_t,
-          geometry_provider,
-          input_state,
-          explicit_source_profiles,
+      x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt = (
+          self.adaptive_step(
+              x_new,
+              intermediate_state,
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_t,
+              dynamic_runtime_params_slice_provider,
+              geo_t,
+              geometry_provider,
+              input_state,
+              explicit_source_profiles,
+          )
       )
 
-    post_processed_outputs = post_processing.make_post_processed_outputs(
-        sim_state=output_state,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        previous_post_processed_outputs=previous_post_processed_outputs,
+    output_state, post_processed_outputs = _finalize_outputs(
+        x_new=x_new,
+        static_runtime_params_slice=self.solver.static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        core_profiles_t=input_state.core_profiles,
+        intermediate_state=intermediate_state,
+        evolving_names=self.solver.evolving_names,
+        input_post_processed_outputs=previous_post_processed_outputs,
     )
 
     return (
@@ -303,7 +336,10 @@ class SimulationStepFn:
       geo_t_plus_dt: geometry.Geometry,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> state.ToraxSimState:
+  ) -> tuple[
+      tuple[cell_variable.CellVariable, ...],
+      state.ToraxSimState,
+  ]:
     """Performs a simulation step with given dt.
 
     Stepper may fail to converge in which case adaptive_step() can be used to
@@ -324,7 +360,10 @@ class SimulationStepFn:
         core profiles at the start of the time step.
 
     Returns:
-      ToraxSimState after the step.
+      tuple:
+        tuple of CellVariables corresponding to the evolved state variables
+        An intermediate ToraxSimState with all attributes updated apart from
+          core_profiles.
     """
 
     core_profiles_t = input_state.core_profiles
@@ -343,37 +382,34 @@ class SimulationStepFn:
 
     # Initial trial for solver. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    core_profiles, core_sources, core_transport, solver_numeric_outputs = (
-        self._solver(
-            dt=dt,
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo_t=geo_t,
-            geo_t_plus_dt=geo_t_plus_dt,
-            core_profiles_t=core_profiles_t,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            explicit_source_profiles=explicit_source_profiles,
-        )
-    )
-    solver_numeric_outputs.outer_solver_iterations = 1
-
-    # post_processed_outputs set to zero since post-processing is done at the
-    # end of the simulation step following recalculation of explicit
-    # core_sources to be consistent with the final core_profiles.
-    return state.ToraxSimState(
-        t=input_state.t + dt,
+    x_new, intermediate_state = self._solver(
+        t=input_state.t,
         dt=dt,
-        core_profiles=core_profiles,
-        core_transport=core_transport,
-        core_sources=core_sources,
-        solver_numeric_outputs=solver_numeric_outputs,
-        geometry=geo_t_plus_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
+        core_profiles_t=core_profiles_t,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        core_sources_t=input_state.core_sources,
+        core_transport_t=input_state.core_transport,
+        explicit_source_profiles=explicit_source_profiles,
     )
+    intermediate_state = dataclasses.replace(
+        intermediate_state,
+        solver_numeric_outputs=dataclasses.replace(
+            intermediate_state.solver_numeric_outputs,
+            outer_solver_iterations=1,
+        ),
+    )
+
+    return x_new, intermediate_state
 
   def adaptive_step(
       self,
-      output_state: state.ToraxSimState,
+      x_old: tuple[cell_variable.CellVariable, ...],
+      intermediate_state: state.ToraxSimState,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
@@ -382,8 +418,9 @@ class SimulationStepFn:
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
-      runtime_params_slice.DynamicRuntimeParamsSlice,
+      tuple[cell_variable.CellVariable, ...],
       state.ToraxSimState,
+      runtime_params_slice.DynamicRuntimeParamsSlice,
   ]:
     """Performs adaptive time stepping until solver converges.
 
@@ -392,7 +429,9 @@ class SimulationStepFn:
     function is a no-op.
 
     Args:
-      output_state: State after a full step.
+      x_old: Tuple containing previous guess of the cell-grid values of the
+        evolving variables
+      intermediate_state: Partially-solved state after a full step.
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
@@ -407,19 +446,23 @@ class SimulationStepFn:
 
     Returns:
       A tuple containing:
+        - tuple of CellVariables corresponding to the evolved state variables
+        - An intermediate ToraxSimState after adaptive time stepping, complete
+          apart from the final core_profiles
         - Dynamic runtime params at time t + dt, where dt is the actual time
           step used.
-        - ToraxSimState after adaptive time stepping.
     """
     core_profiles_t = input_state.core_profiles
 
     # Check if solver converged. If not, proceed to body_fun
     def cond_fun(
         updated_output: tuple[
-            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+            tuple[cell_variable.CellVariable, ...],
+            state.ToraxSimState,
+            runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> bool:
-      if updated_output[0].solver_numeric_outputs.solver_error_state == 1:
+      if updated_output[1].solver_numeric_outputs.solver_error_state == 1:
         do_dt_backtrack = True
       else:
         do_dt_backtrack = False
@@ -430,12 +473,16 @@ class SimulationStepFn:
     # Exit if dt < min_dt
     def body_fun(
         updated_output: tuple[
-            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+            tuple[cell_variable.CellVariable, ...],
+            state.ToraxSimState,
+            runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> tuple[
-        state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+        tuple[cell_variable.CellVariable, ...],
+        state.ToraxSimState,
+        runtime_params_slice.DynamicRuntimeParamsSlice,
     ]:
-      old_state, old_slice = updated_output
+      _, old_state, old_slice = updated_output
       numerics = old_slice.numerics
 
       dt = old_state.dt / numerics.dt_reduction_factor
@@ -467,120 +514,150 @@ class SimulationStepFn:
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
       )
-      core_profiles, core_sources, core_transport, solver_numeric_outputs = (
-          self._solver(
-              dt=dt,
-              static_runtime_params_slice=static_runtime_params_slice,
-              dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-              dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-              geo_t=geo_t_with_phibdot,
-              geo_t_plus_dt=geo_t_plus_dt,
-              core_profiles_t=core_profiles_t,
-              core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-              explicit_source_profiles=explicit_source_profiles,
-          )
+      # The solver returned state is still "intermediate" since the CoreProfiles
+      # need to be updated by the evolved CellVariables in x_new
+      x_new, intermediate_state = self._solver(
+          t=input_state.t,
+          dt=dt,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          geo_t=geo_t_with_phibdot,
+          geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t=core_profiles_t,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          core_sources_t=input_state.core_sources,
+          core_transport_t=input_state.core_transport,
+          explicit_source_profiles=explicit_source_profiles,
       )
-      solver_numeric_outputs.outer_solver_iterations = (
-          old_state.solver_numeric_outputs.outer_solver_iterations + 1
+      intermediate_state = dataclasses.replace(
+          intermediate_state,
+          solver_numeric_outputs=dataclasses.replace(
+              intermediate_state.solver_numeric_outputs,
+              outer_solver_iterations=old_state.solver_numeric_outputs.outer_solver_iterations
+              + 1,
+              inner_solver_iterations=old_state.solver_numeric_outputs.inner_solver_iterations
+              + intermediate_state.solver_numeric_outputs.inner_solver_iterations,
+          ),
       )
 
-      solver_numeric_outputs.inner_solver_iterations += (
-          old_state.solver_numeric_outputs.inner_solver_iterations
-      )
-      return (
-          state.ToraxSimState(
-              t=input_state.t + dt,
-              dt=dt,
-              core_profiles=core_profiles,
-              core_transport=core_transport,
-              core_sources=core_sources,
-              solver_numeric_outputs=solver_numeric_outputs,
-              geometry=geo_t_plus_dt,
-          ),
-          dynamic_runtime_params_slice_t_plus_dt,
-      )
+      return x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt
 
     # Note that the initial state provided here uses the dynamic slice at time t
     # whereas the return value of this function uses the dynamic slice at time
     # t + dt. The input should technically be the dynamic state at time t + dt,
     # but we don't have that value here and we also don't use any of the dynamic
     # state in the cond_fun or body_fun.
-    output_state, dynamic_runtime_params_slice_t_plus_dt = jax_utils.py_while(
-        cond_fun, body_fun, (output_state, dynamic_runtime_params_slice_t)
-    )
-
-    return dynamic_runtime_params_slice_t_plus_dt, output_state
-
-  def _handle_sawtooth_crash(
-      self,
-      *,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
-      input_state: state.ToraxSimState,
-      previous_post_processed_outputs: state.PostProcessedOutputs,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
-    """Checks for and handles a sawtooth crash.
-
-    If a sawtooth model is provided and a crash is triggered, this method
-    computes the post-crash state and returns it. Otherwise, returns the input
-    state and post-processed outputs unchanged.
-
-    Consecutive sawtooth crashes are not allowed since standard PDE steps
-    may then not take place. Therefore if the input state has sawtooth_crash set
-    to True, then no crash is triggered.
-
-    Args:
-      static_runtime_params_slice: Static parameters.
-      dynamic_runtime_params_slice_t: Dynamic slice at time t.
-      dynamic_runtime_params_slice_provider: Provider for dynamic parameters.
-      geometry_provider: Provider for geometry.
-      input_state: State at the start of the time step.
-      previous_post_processed_outputs: Post-processed outputs from the previous
-        step.
-
-    Returns:
-      Returns a tuple (output_state, post_processed_outputs, sim_error).
-    """
-
-    # Return early if sawtooth model not active, or if there was a previous
-    # sawtooth crash.
-    if (self.mhd_models.sawtooth is None) or input_state.sawtooth_crash:
-      return (
-          dataclasses.replace(input_state, sawtooth_crash=False),
-          previous_post_processed_outputs,
-          state.SimError.NO_ERROR,
-      )
-
-    # Assert needed for linter.
-    assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
-
-    dynamic_runtime_params_slice_t_plus_crash_dt, geo_t_plus_crash_dt = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=input_state.t
-            + dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=geometry_provider,
+    x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt = (
+        jax_utils.py_while(
+            cond_fun,
+            body_fun,
+            (x_old, intermediate_state, dynamic_runtime_params_slice_t),
         )
     )
 
-    output_state, post_processed_outputs = self.mhd_models.sawtooth(
+    return x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'sawtooth_solver',
+        'static_runtime_params_slice',
+    ],
+)
+def _sawtooth_step(
+    *,
+    sawtooth_solver: sawtooth_model_lib.SawtoothModel | None,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    geo_t_plus_crash_dt: geometry.Geometry,
+    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    input_state: state.ToraxSimState,
+    input_post_processed_outputs: state.PostProcessedOutputs,
+) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+  """Checks for and handles a sawtooth crash.
+
+  If a sawtooth model is provided and a crash is triggered, this method
+  computes the post-crash state and returns it. Otherwise, returns the input
+  state and post-processed outputs unchanged.
+
+  Consecutive sawtooth crashes are not allowed since standard PDE steps
+  may then not take place. Therefore if the input state has sawtooth_crash set
+  to True, then no crash is triggered.
+
+  Args:
+    sawtooth_solver: Sawtooth model which carries out sawtooth step..
+    static_runtime_params_slice: Static parameters.
+    dynamic_runtime_params_slice_t: Dynamic slice at time t.
+    dynamic_runtime_params_slice_t_plus_crash_dt: Dynamic slice at time t +
+      crash_dt.
+    geo_t: Geometry at time t.
+    geo_t_plus_crash_dt: Geometry at time t + crash_dt.
+    explicit_source_profiles: Explicit source profiles at time t.
+    input_state: State at the start of the time step.
+    input_post_processed_outputs: Post-processed outputs from the previous step.
+
+  Returns:
+    Returns a tuple (output_state, post_processed_outputs).
+  """
+
+  # Asserts needed for linter.
+  assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+  assert sawtooth_solver is not None
+  dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
+
+  # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
+  # and prescribed profiles if present.
+  core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
+      dt=dt_crash,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+      geo_t_plus_dt=geo_t_plus_crash_dt,
+      core_profiles_t=input_state.core_profiles,
+  )
+
+  (
+      x_candidate,
+      intermediate_state_candidate,
+  ) = sawtooth_solver(
+      t=input_state.t,
+      dt=dt_crash,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+      geo_t=geo_t,
+      geo_t_plus_dt=geo_t_plus_crash_dt,
+      core_profiles_t=input_state.core_profiles,
+      core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
+      core_sources_t=input_state.core_sources,
+      core_transport_t=input_state.core_transport,
+      explicit_source_profiles=explicit_source_profiles,
+  )
+
+  def _make_post_crash_state_and_post_processed_outputs():
+    """Returns the post-crash state and post-processed outputs."""
+    return _finalize_outputs(
+        x_new=x_candidate,
         static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        input_state=input_state,
-        input_post_processed_outputs=previous_post_processed_outputs,
-        dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
-        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        core_profiles_t=input_state.core_profiles,
+        intermediate_state=intermediate_state_candidate,
+        evolving_names=sawtooth_solver.evolving_names,
+        input_post_processed_outputs=input_post_processed_outputs,
     )
 
-    return (
-        output_state,
-        post_processed_outputs,
-        state.check_for_errors(output_state, post_processed_outputs)
-        if output_state.sawtooth_crash
-        else state.SimError.NO_ERROR,
-    )
+  return jax.lax.cond(
+      intermediate_state_candidate.solver_numeric_outputs.sawtooth_crash,
+      _make_post_crash_state_and_post_processed_outputs,
+      lambda: (
+          input_state,
+          input_post_processed_outputs,
+      ),
+  )
 
 
 @functools.partial(jax_utils.jit, static_argnums=(0, 1))
@@ -652,3 +729,36 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       geo_t,
       geo_t_plus_dt,
   )
+
+
+def _finalize_outputs(
+    x_new: tuple[cell_variable.CellVariable, ...],
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    core_profiles_t: state.CoreProfiles,
+    intermediate_state: state.ToraxSimState,
+    evolving_names: tuple[str, ...],
+    input_post_processed_outputs: state.PostProcessedOutputs,
+) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+  """Returns the final state and post-processed outputs."""
+  final_core_profiles = updaters.update_all_core_profiles_after_step(
+      x_new,
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt,
+      intermediate_state.geometry,
+      intermediate_state.core_sources,
+      core_profiles_t,
+      intermediate_state.core_profiles,
+      evolving_names,
+      dt=intermediate_state.dt,
+  )
+  output_state = dataclasses.replace(
+      intermediate_state,
+      core_profiles=final_core_profiles,
+  )
+  post_processed_outputs = post_processing.make_post_processed_outputs(
+      sim_state=output_state,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      previous_post_processed_outputs=input_post_processed_outputs,
+  )
+  return output_state, post_processed_outputs

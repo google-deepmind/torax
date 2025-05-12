@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax.config import runtime_params_slice
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
@@ -43,6 +45,7 @@ class PydanticModelTest(parameterized.TestCase):
   )
   def test_build_solver_from_config(self, solver_model, expected_type):
     """Builds a solver from the config."""
+
     solver_pydantic = solver_model(theta_implicit=0.5)
     transport = transport_pydantic_model.ConstantTransportModel()
     transport_model = transport.build_transport_model()
@@ -53,6 +56,14 @@ class PydanticModelTest(parameterized.TestCase):
         sources=sources
     )
     solver = solver_pydantic.build_solver(
+        static_runtime_params_slice=mock.create_autospec(
+            runtime_params_slice.StaticRuntimeParamsSlice,
+            instance=True,
+            evolve_ion_heat=True,
+            evolve_electron_heat=True,
+            evolve_current=True,
+            evolve_density=True,
+        ),
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,

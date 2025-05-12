@@ -49,13 +49,19 @@ def run_simulation(
       torax_config.sources
   )
 
+  static_runtime_params_slice = (
+      build_runtime_params.build_static_params_from_config(torax_config)
+  )
+
   solver = torax_config.solver.build_solver(
+      static_runtime_params_slice=static_runtime_params_slice,
       transport_model=transport_model,
       source_models=source_models,
       pedestal_model=pedestal_model,
   )
 
   mhd_models = torax_config.mhd.build_mhd_models(
+      static_runtime_params_slice=static_runtime_params_slice,
       transport_model=transport_model,
       source_models=source_models,
       pedestal_model=pedestal_model,
@@ -67,10 +73,6 @@ def run_simulation(
       transport_model=transport_model,
       pedestal_model=pedestal_model,
       mhd_models=mhd_models,
-  )
-
-  static_runtime_params_slice = (
-      build_runtime_params.build_static_params_from_config(torax_config)
   )
 
   dynamic_runtime_params_slice_provider = (
