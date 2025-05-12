@@ -306,7 +306,6 @@ class StateHistory:
     xr_dict[J_EXTERNAL] = core_profiles.currents.external_current_source
     xr_dict[IP_PROFILE] = core_profiles.currents.Ip_profile_face
     xr_dict[IP] = core_profiles.currents.Ip_total
-    xr_dict[SIGMA_PARALLEL] = core_profiles.currents.sigma
 
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
@@ -373,6 +372,7 @@ class StateHistory:
         self.core_sources.j_bootstrap.j_bootstrap,
         self.core_sources.j_bootstrap.j_bootstrap_face,
     )
+    xr_dict[SIGMA_PARALLEL] = self.core_sources.j_bootstrap.sigma
 
     # Add source profiles with suffixes indicating which profile they affect.
     for profile in self.core_sources.temp_ion:

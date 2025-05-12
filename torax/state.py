@@ -40,7 +40,6 @@ class Currents:
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   Ip_profile_face: array_typing.ArrayFloat  # [A]
-  sigma: array_typing.ArrayFloat
 
   @property
   def Ip_total(self) -> array_typing.ScalarFloat:
@@ -56,7 +55,6 @@ class Currents:
         johm=jnp.zeros(geo.rho_face.shape),
         external_current_source=jnp.zeros(geo.rho_face.shape),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
-        sigma=jnp.zeros(geo.rho_face.shape),
     )
 
 

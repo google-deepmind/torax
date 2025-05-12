@@ -65,7 +65,6 @@ def _get_updated_currents(
       johm=johm,
       external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
-      sigma=j_bootstrap.sigma,
   )
 
 
