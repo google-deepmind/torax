@@ -15,8 +15,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import interpolated_param
 from torax.config import build_runtime_params
-from torax.config import config_args
 from torax.config import profile_conditions
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.tests.test_lib import default_configs
@@ -207,8 +207,8 @@ class ProfileConditionsTest(parameterized.TestCase):
           testcase_name='invalid xarray',
           values=xr.DataArray(
               data=np.array([[0.1, 1.0]]),
-              dims=['time', config_args.RHO_NORM],
-              coords={config_args.RHO_NORM: [0.0, 0.9], 'time': [0.0]},
+              dims=['time', interpolated_param.RHO_NORM],
+              coords={interpolated_param.RHO_NORM: [0.0, 0.9], 'time': [0.0]},
           ),
           raises=True,
       ),
@@ -216,8 +216,8 @@ class ProfileConditionsTest(parameterized.TestCase):
           testcase_name='valid xarray',
           values=xr.DataArray(
               data=np.array([[0.1, 1.0]]),
-              dims=['time', config_args.RHO_NORM],
-              coords={config_args.RHO_NORM: [0.0, 1.0], 'time': [0.0]},
+              dims=['time', interpolated_param.RHO_NORM],
+              coords={interpolated_param.RHO_NORM: [0.0, 1.0], 'time': [0.0]},
           ),
           raises=False,
       ),

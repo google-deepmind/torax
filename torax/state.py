@@ -21,7 +21,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax.config import config_args
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
@@ -133,12 +132,6 @@ class CoreProfiles:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
     idx = lambda x: x[i]
     state = jax.tree_util.tree_map(idx, self)
-    # These variables track whether they are histories, so when we collapse down
-    # to a single state we need to explicitly clear the history flag.
-    history_vars = ["temp_ion", "temp_el", "psi", "psidot", "n_e", "ni"]
-    history_replace = {"history": None}
-    replace_dict = {var: history_replace for var in history_vars}
-    state = config_args.recursive_replace(state, **replace_dict)
     return state
 
   def sanity_check(self):

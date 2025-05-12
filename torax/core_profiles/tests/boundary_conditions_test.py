@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax.config import build_runtime_params
-from torax.config import config_args
 from torax.core_profiles import initialization
 from torax.core_profiles import updaters
 from torax.sources import source_models as source_models_lib
@@ -96,11 +95,21 @@ class BoundaryConditionsTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo_t_plus_dt=geo,
     )
-    # Remove Zi_edge and Zimp_edge which are not used in core_profiles
-    bc.pop('Zi_edge')
-    bc.pop('Zimp_edge')
-
-    updated = config_args.recursive_replace(core_profiles, **bc)
+    temp_ion = dataclasses.replace(core_profiles.temp_ion, **bc['temp_ion'],)
+    temp_el = dataclasses.replace(core_profiles.temp_el, **bc['temp_el'],)
+    psi = dataclasses.replace(core_profiles.psi, **bc['psi'])
+    n_e = dataclasses.replace(core_profiles.n_e, **bc['n_e'],)
+    ni = dataclasses.replace(core_profiles.ni, **bc['ni'],)
+    nimp = dataclasses.replace(core_profiles.nimp, **bc['nimp'],)
+    updated = dataclasses.replace(
+        core_profiles,
+        temp_el=temp_el,
+        temp_ion=temp_ion,
+        n_e=n_e,
+        ni=ni,
+        nimp=nimp,
+        psi=psi,
+    )
 
     psi_constraint = (
         6e6

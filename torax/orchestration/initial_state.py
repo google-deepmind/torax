@@ -112,8 +112,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
   profiles_dataset = data_tree.children[output.PROFILES].dataset
-  # Remap coordinates in saved file to be consistent with expectations of
-  # how config_args parses xarrays.
   profiles_dataset = profiles_dataset.squeeze()
   if t_restart != t_initial:
     logging.warning(
