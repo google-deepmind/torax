@@ -35,7 +35,6 @@ class ZerosModel(base.BootstrapCurrentModel):
     return base.BootstrapCurrent(
         j_bootstrap=jnp.zeros_like(geometry.rho),
         j_bootstrap_face=jnp.zeros_like(geometry.rho_face),
-        I_bootstrap=jnp.zeros_like(geometry.rho),
     )
 
 

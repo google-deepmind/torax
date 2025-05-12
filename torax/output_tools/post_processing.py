@@ -345,6 +345,10 @@ def make_post_processed_outputs(
       )
   )
 
+  I_bootstrap = math_utils.area_integration(
+      sim_state.core_sources.j_bootstrap.j_bootstrap, sim_state.geometry
+  )
+
   # pylint: enable=invalid-name
   return state.PostProcessedOutputs(
       pressure_thermal_i=pressure_thermal_ion_face,
@@ -389,4 +393,5 @@ def make_post_processed_outputs(
       rho_q_3_2_second=safety_factor_fit_outputs.rho_q_3_2_second,
       rho_q_2_1_second=safety_factor_fit_outputs.rho_q_2_1_second,
       rho_q_3_1_second=safety_factor_fit_outputs.rho_q_3_1_second,
+      I_bootstrap=I_bootstrap,
   )

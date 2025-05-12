@@ -30,7 +30,6 @@ class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
   j_bootstrap: chex.Array
   j_bootstrap_face: chex.Array
-  I_bootstrap: chex.Array
 
 
 class BootstrapCurrentModel(abc.ABC):

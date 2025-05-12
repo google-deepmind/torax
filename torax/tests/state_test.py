@@ -85,7 +85,8 @@ class StateTest(parameterized.TestCase):
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
-        references.config)
+        references.config
+    )
     basic_core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -195,9 +196,7 @@ class InitialStatesTest(parameterized.TestCase):
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -232,9 +231,7 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
-    )
+    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

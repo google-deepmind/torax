@@ -166,10 +166,10 @@ def _prescribe_currents(
   """Creates the initial Currents from a given bootstrap profile."""
 
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
-  f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
+  psi_current = external_current + bootstrap_profile.j_bootstrap
 
-  I_generic = math_utils.area_integration(external_current, geo) / 10**6
-  Iohm = Ip - I_generic - f_bootstrap * Ip
+  I_non_inductive = math_utils.area_integration(psi_current, geo) / 10**6
+  Iohm = Ip - I_non_inductive
 
   # construct prescribed current formula on grid.
   jformula = (
@@ -203,7 +203,6 @@ def _prescribe_currents(
       external_current_source=external_current,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
       Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
       sigma=bootstrap_profile.sigma,
   )
@@ -234,7 +233,6 @@ def _calculate_currents_from_psi(
       external_current_source=external_current,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
       Ip_profile_face=Ip_profile_face,
       sigma=bootstrap_profile.sigma,
   )

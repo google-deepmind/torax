@@ -193,7 +193,6 @@ def _build_source_profiles_with_single_value(
           sigma_face=face_1d_arr,
           j_bootstrap=cell_1d_arr,
           j_bootstrap_face=face_1d_arr,
-          I_bootstrap=jnp.ones(()) * value,
       ),
       qei=source_profiles_lib.QeiInfo(
           qei_coef=cell_1d_arr,
