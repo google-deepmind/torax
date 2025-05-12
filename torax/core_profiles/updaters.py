@@ -288,6 +288,17 @@ def update_all_core_profiles_after_step(
   )
 
   psi_sources = source_profiles.total_psi_sources(geo)
+
+  vloop_lcfs = (
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs  # pylint: disable=g-long-ternary
+      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+      else _update_vloop_lcfs_from_psi(
+          core_profiles_t.psi,
+          psi,
+          dt,
+      )
+  )
+
   psidot = dataclasses.replace(
       core_profiles_t_plus_dt.psidot,
       value=psi_calculations.calculate_psidot_from_psi_sources(
@@ -298,16 +309,8 @@ def update_all_core_profiles_after_step(
           psi=psi,
           geo=geo,
       ),
-  )
-
-  vloop_lcfs = (
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs  # pylint: disable=g-long-ternary
-      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-      else _update_vloop_lcfs_from_psi(
-          core_profiles_t.psi,
-          psi,
-          dt,
-      )
+      right_face_constraint=vloop_lcfs,
+      right_face_grad_constraint=None,
   )
 
   return state.CoreProfiles(

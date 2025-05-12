@@ -249,8 +249,7 @@ def update_psi_from_j(
     Ip: Total plasma current [MA].
     geo: Torus geometry.
     jtot_hires: High resolution version of jtot [A/m^2].
-    use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from
-      Ip.
+    use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -277,11 +276,9 @@ def update_psi_from_j(
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
   # Set the BCs for psi to ensure the correct Ip
-  dpsi_drhonorm_edge = (
-      psi_calculations.calculate_psi_grad_constraint_from_Ip(
-          Ip,
-          geo,
-      )
+  dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
+      Ip,
+      geo,
   )
 
   if use_vloop_lcfs_boundary_condition:
@@ -358,11 +355,9 @@ def _init_psi_psidot_and_currents(
   # profile and Ip
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
     # Calculate the dpsi/drho necessary to achieve the given Ip
-    dpsi_drhonorm_edge = (
-        psi_calculations.calculate_psi_grad_constraint_from_Ip(
-            dynamic_runtime_params_slice.profile_conditions.Ip,
-            geo,
-        )
+    dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
+        dynamic_runtime_params_slice.profile_conditions.Ip,
+        geo,
     )
 
     # Set the BCs to ensure the correct Ip
@@ -417,11 +412,9 @@ def _init_psi_psidot_and_currents(
     # calculated and used in current diffusion equation.
 
     # Calculate the dpsi/drho necessary to achieve the given Ip
-    dpsi_drhonorm_edge = (
-        psi_calculations.calculate_psi_grad_constraint_from_Ip(
-            dynamic_runtime_params_slice.profile_conditions.Ip,
-            geo,
-        )
+    dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
+        dynamic_runtime_params_slice.profile_conditions.Ip,
+        geo,
     )
 
     # Use the psi from the equilibrium as the right face constraint
@@ -536,10 +529,24 @@ def _init_psi_psidot_and_currents(
       psi=psi,
       geo=geo,
   )
-  psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
+
+  # psidot boundary condition. If vloop_lcfs is not prescribed then we set it
+  # to the last calculated psidot for the initialisation since we have no
+  # other information.
+  vloop_lcfs = (
+      dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
+      if use_vloop_bc
+      else psidot[-1]
+  )
+  psidot = dataclasses.replace(
+      core_profiles.psidot,
+      value=psidot,
+      right_face_constraint=vloop_lcfs,
+      right_face_grad_constraint=None,
+  )
   core_profiles = dataclasses.replace(
       core_profiles,
-      psidot=psidot_cell_var,
+      psidot=psidot,
   )
 
   return core_profiles
