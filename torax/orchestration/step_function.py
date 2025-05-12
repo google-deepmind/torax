@@ -243,6 +243,7 @@ class SimulationStepFn:
               intermediate_state,
               static_runtime_params_slice,
               dynamic_runtime_params_slice_t,
+              dynamic_runtime_params_slice_t_plus_dt,
               dynamic_runtime_params_slice_provider,
               geo_t,
               geometry_provider,
@@ -412,6 +413,7 @@ class SimulationStepFn:
       intermediate_state: state.ToraxSimState,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
       geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -435,6 +437,9 @@ class SimulationStepFn:
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
+        Used if a no-op and the original dynamic runtime params slice is
+        returned.
       dynamic_runtime_params_slice_provider: Runtime parameters slice provider.
       geo_t: The geometry of the torus during this time step of the simulation.
       geometry_provider: Provides geometry during the next time step of the
@@ -543,16 +548,14 @@ class SimulationStepFn:
 
       return x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt
 
-    # Note that the initial state provided here uses the dynamic slice at time t
-    # whereas the return value of this function uses the dynamic slice at time
-    # t + dt. The input should technically be the dynamic state at time t + dt,
-    # but we don't have that value here and we also don't use any of the dynamic
-    # state in the cond_fun or body_fun.
+    # Iteratively apply the adaptive time step until the solver converges.
+    # If the solver has already converged, then the body_fun will not be
+    # called and the output will be returned unchanged.
     x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt = (
         jax_utils.py_while(
             cond_fun,
             body_fun,
-            (x_old, intermediate_state, dynamic_runtime_params_slice_t),
+            (x_old, intermediate_state, dynamic_runtime_params_slice_t_plus_dt),
         )
     )
 
