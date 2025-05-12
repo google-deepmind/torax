@@ -37,6 +37,18 @@ from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 
 
+def check_for_errors(
+    sim_state: state.ToraxSimState,
+    post_processed_outputs: post_processing.PostProcessedOutputs,
+) -> state.SimError:
+  """Checks for errors in the simulation state."""
+  state_error = sim_state.check_for_errors()
+  if state_error != state.SimError.NO_ERROR:
+    return state_error
+  else:
+    return post_processed_outputs.check_for_errors()
+
+
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
@@ -98,8 +110,10 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-      previous_post_processed_outputs: state.PostProcessedOutputs,
-  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      state.ToraxSimState, post_processing.PostProcessedOutputs, state.SimError
+  ]:
     """Advances the simulation state one time step.
 
       If a sawtooth model is provided, it will be checked to see if a sawtooth
@@ -198,7 +212,7 @@ class SimulationStepFn:
       # If a sawtooth crash was carried out, we exit early with the post-crash
       # state, post-processed outputs, and the error state.
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = state.check_for_errors(
+        error_state = check_for_errors(
             output_state, post_processed_outputs
         )
         return output_state, post_processed_outputs, error_state
@@ -265,7 +279,7 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        state.check_for_errors(output_state, post_processed_outputs),
+        check_for_errors(output_state, post_processed_outputs),
     )
 
   def init_time_step_calculator(
@@ -579,8 +593,8 @@ def _sawtooth_step(
     geo_t_plus_crash_dt: geometry.Geometry,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     input_state: state.ToraxSimState,
-    input_post_processed_outputs: state.PostProcessedOutputs,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+    input_post_processed_outputs: post_processing.PostProcessedOutputs,
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
   If a sawtooth model is provided and a crash is triggered, this method
@@ -741,8 +755,8 @@ def _finalize_outputs(
     core_profiles_t: state.CoreProfiles,
     intermediate_state: state.ToraxSimState,
     evolving_names: tuple[str, ...],
-    input_post_processed_outputs: state.PostProcessedOutputs,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+    input_post_processed_outputs: post_processing.PostProcessedOutputs,
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles = updaters.update_all_core_profiles_after_step(
       x_new,

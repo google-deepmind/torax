@@ -32,6 +32,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import run_simulation
 from torax.orchestration import step_function
+from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -103,14 +104,14 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         geometry_provider: geometry_provider_lib.GeometryProvider,
         initial_state: state.ToraxSimState,
-        initial_post_processed_outputs: state.PostProcessedOutputs,
+        initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
         restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
     ) -> tuple[
         tuple[state.ToraxSimState, ...],
-        tuple[state.PostProcessedOutputs, ...],
+        tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
       del log_timestep_info, progress_bar, restart_case

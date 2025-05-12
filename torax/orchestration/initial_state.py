@@ -36,7 +36,7 @@ def get_initial_state_and_post_processed_outputs(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -105,7 +105,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file."""
   data_tree = output.load_state_file(file_restart.filename)
   # Find the closest time in the given dataset.

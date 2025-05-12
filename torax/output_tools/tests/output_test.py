@@ -27,6 +27,7 @@ from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.output_tools import output
+from torax.output_tools import post_processing
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import core_profile_helpers
@@ -117,7 +118,7 @@ class StateHistoryTest(parameterized.TestCase):
         geometry=self.geo,
     )
     sim_error = state.SimError.NO_ERROR
-    self._output_state = state.PostProcessedOutputs.zeros(self.geo)
+    self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)
 
     self.history = output.StateHistory(
         sim_error=sim_error,
@@ -319,7 +320,9 @@ class StateHistoryTest(parameterized.TestCase):
         self.geo, temp_el=temp_el, Zimp=Zimp, Zimp_face=Zimp_face
     )
     sim_state = dataclasses.replace(sim_state, core_profiles=core_profiles)
-    post_processed_outputs = state.PostProcessedOutputs.zeros(self.geo)
+    post_processed_outputs = post_processing.PostProcessedOutputs.zeros(
+        self.geo
+    )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
         state_history=(sim_state, sim_state),

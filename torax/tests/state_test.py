@@ -26,7 +26,6 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import torax_refs
@@ -94,92 +93,6 @@ class StateTest(parameterized.TestCase):
         source_models=source_models,
     )
     basic_core_profiles.sanity_check()
-
-  def test_nan_check(self):
-    t = jnp.array(0.0)
-    dt = jnp.array(0.1)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    source_profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            geo
-        ),
-        qei=source_profiles_lib.QeiInfo.zeros(geo),
-    )
-    dummy_cell_variable = cell_variable.CellVariable(
-        value=jnp.zeros_like(geo.rho),
-        dr=geo.drho_norm,
-        right_face_constraint=jnp.ones(()),
-        right_face_grad_constraint=None,
-    )
-    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    sim_state = state.ToraxSimState(
-        core_profiles=core_profiles,
-        core_transport=state.CoreTransport.zeros(geo),
-        core_sources=source_profiles,
-        t=t,
-        dt=dt,
-        solver_numeric_outputs=state.SolverNumericOutputs(
-            outer_solver_iterations=1,
-            solver_error_state=1,
-            inner_solver_iterations=1,
-        ),
-        geometry=geo,
-    )
-    post_processed_outputs = state.PostProcessedOutputs.zeros(geo)
-
-    with self.subTest('no NaN'):
-      error = sim_state.check_for_errors()
-      self.assertEqual(error, state.SimError.NO_ERROR)
-      error = state.check_for_errors(sim_state, post_processed_outputs)
-      self.assertEqual(error, state.SimError.NO_ERROR)
-
-    with self.subTest('NaN in BC'):
-      core_profiles = dataclasses.replace(
-          core_profiles,
-          temp_ion=dataclasses.replace(
-              core_profiles.temp_ion,
-              right_face_constraint=jnp.array(jnp.nan),
-          ),
-      )
-      new_sim_state_core_profiles = dataclasses.replace(
-          sim_state, core_profiles=core_profiles
-      )
-      error = new_sim_state_core_profiles.check_for_errors()
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = state.check_for_errors(
-          new_sim_state_core_profiles, post_processed_outputs
-      )
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
-
-    with self.subTest('NaN in post processed outputs'):
-      new_post_processed_outputs = dataclasses.replace(
-          post_processed_outputs,
-          P_external_tot=jnp.array(jnp.nan),
-      )
-      error = new_post_processed_outputs.check_for_errors()
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = state.check_for_errors(sim_state, new_post_processed_outputs)
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
-
-    with self.subTest('NaN in one element of source array'):
-      nan_array = np.zeros_like(geo.rho)
-      nan_array[-1] = np.nan
-      j_bootstrap = dataclasses.replace(
-          sim_state.core_sources.j_bootstrap,
-          j_bootstrap=nan_array,
-      )
-      new_core_sources = dataclasses.replace(
-          sim_state.core_sources, j_bootstrap=j_bootstrap
-      )
-      new_sim_state_sources = dataclasses.replace(
-          sim_state, core_sources=new_core_sources
-      )
-      error = new_sim_state_sources.check_for_errors()
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = state.check_for_errors(
-          new_sim_state_sources, post_processed_outputs
-      )
-      self.assertEqual(error, state.SimError.NAN_DETECTED)
 
 
 class InitialStatesTest(parameterized.TestCase):

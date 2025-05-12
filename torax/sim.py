@@ -35,6 +35,7 @@ from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
+from torax.output_tools import post_processing
 import tqdm
 
 
@@ -43,14 +44,14 @@ def _run_simulation(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
-    initial_post_processed_outputs: state.PostProcessedOutputs,
+    initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
 ) -> tuple[
     tuple[state.ToraxSimState, ...],
-    tuple[state.PostProcessedOutputs, ...],
+    tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
   """Runs the transport simulation over a prescribed time interval.
