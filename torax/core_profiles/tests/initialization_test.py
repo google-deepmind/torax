@@ -56,7 +56,7 @@ class InitializationTest(parameterized.TestCase):
         unused_state=mock.ANY,
         unused_calculated_source_profiles=mock.ANY,
     )[0]
-    currents = initialization._prescribe_currents(
+    _, jtot_hires = initialization._prescribe_currents(
         bootstrap_profile=bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -65,7 +65,7 @@ class InitializationTest(parameterized.TestCase):
     psi = initialization.update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        currents.jtot_hires,
+        jtot_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 

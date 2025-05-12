@@ -162,8 +162,8 @@ def _prescribe_currents(
     external_current: jax.Array,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-) -> state.Currents:
-  """Creates the initial Currents from a given bootstrap profile."""
+) -> tuple[state.Currents, jax.Array]:
+  """Creates the initial Currents and jtot_hires from a bootstrap profile."""
 
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
   psi_current = external_current + bootstrap_profile.j_bootstrap
@@ -198,14 +198,13 @@ def _prescribe_currents(
       jtot_face=math_utils.cell_to_face(
           jtot, geo, math_utils.IntegralPreservationQuantity.SURFACE
       ),
-      jtot_hires=jtot_hires,
       johm=johm,
       external_current_source=external_current,
       Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
       sigma=bootstrap_profile.sigma,
   )
 
-  return currents
+  return currents, jtot_hires
 
 
 def _calculate_currents_from_psi(
@@ -226,7 +225,6 @@ def _calculate_currents_from_psi(
   currents = state.Currents(
       jtot=jtot,
       jtot_face=jtot_face,
-      jtot_hires=None,
       johm=johm,
       external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
@@ -466,7 +464,7 @@ def _init_psi_psidot_and_currents(
   else:
     # First calculate currents without bootstrap.
     external_current = sum(source_profiles.psi.values())
-    currents = _prescribe_currents(
+    currents, jtot_hires = _prescribe_currents(
         bootstrap_profile=source_profiles.j_bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -475,7 +473,7 @@ def _init_psi_psidot_and_currents(
     psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        currents.jtot_hires,
+        jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     core_profiles = dataclasses.replace(
@@ -492,7 +490,7 @@ def _init_psi_psidot_and_currents(
         geo=geo,
         core_profiles=core_profiles,
     )
-    currents = _prescribe_currents(
+    currents, jtot_hires = _prescribe_currents(
         bootstrap_profile=bootstrap_profile,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -501,7 +499,7 @@ def _init_psi_psidot_and_currents(
     psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        currents.jtot_hires,
+        jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     _, _, Ip_profile_face = psi_calculations.calc_jtot(
