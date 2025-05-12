@@ -65,8 +65,6 @@ def _get_updated_currents(
       jtot_face=jtot_face,
       johm=johm,
       external_current_source=external_current,
-      j_bootstrap=j_bootstrap.j_bootstrap,
-      j_bootstrap_face=j_bootstrap.j_bootstrap_face,
       Ip_profile_face=Ip_profile_face,
       sigma=j_bootstrap.sigma,
       jtot_hires=currents.jtot_hires,

@@ -201,8 +201,6 @@ def _prescribe_currents(
       jtot_hires=jtot_hires,
       johm=johm,
       external_current_source=external_current,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
       sigma=bootstrap_profile.sigma,
   )
@@ -231,8 +229,6 @@ def _calculate_currents_from_psi(
       jtot_hires=None,
       johm=johm,
       external_current_source=external_current,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       Ip_profile_face=Ip_profile_face,
       sigma=bootstrap_profile.sigma,
   )

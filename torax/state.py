@@ -31,20 +31,12 @@ import typing_extensions
 
 @chex.dataclass(frozen=True)
 class Currents:
-  """Dataclass to group currents and related variables (e.g. conductivity).
-
-  Not all fields are actually used by the library. For example,
-  j_bootstrap and I_bootstrap are updated during the sim loop,
-  but not read from. These fields are an output of the library
-  that may be interesting for the end user to plot, etc.
-  """
+  """Dataclass to group currents and related variables (e.g. conductivity)."""
 
   jtot: array_typing.ArrayFloat
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
   external_current_source: array_typing.ArrayFloat
-  j_bootstrap: array_typing.ArrayFloat
-  j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   Ip_profile_face: array_typing.ArrayFloat  # [A]
@@ -64,8 +56,6 @@ class Currents:
         jtot_face=jnp.zeros(geo.rho_face.shape),
         johm=jnp.zeros(geo.rho_face.shape),
         external_current_source=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
         sigma=jnp.zeros(geo.rho_face.shape),
         jtot_hires=jnp.zeros(geo.rho_face.shape),

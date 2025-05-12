@@ -219,10 +219,6 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap,
-      ref_profiles[output.J_BOOTSTRAP][index, 1:-1],
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.jtot, ref_profiles[output.J_TOTAL][index, 1:-1]
   )
   np.testing.assert_allclose(
@@ -232,14 +228,6 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
   np.testing.assert_allclose(
       core_profiles.currents.jtot_face[-1],
       ref_profiles[output.J_TOTAL][index, -1],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face[0],
-      ref_profiles[output.J_BOOTSTRAP][index, 0],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face[-1],
-      ref_profiles[output.J_BOOTSTRAP][index, -1],
   )
   np.testing.assert_allclose(
       core_profiles.currents.external_current_source,

@@ -33,7 +33,6 @@ class BootstrapCurrentProfile:
     sigma_face: plasma conductivity with neoclassical corrections on face grid.
     j_bootstrap: Bootstrap current density (Amps / m^2)
     j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
-
   """
 
   sigma: jax.Array
