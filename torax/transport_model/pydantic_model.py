@@ -69,20 +69,17 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   To determine which model to load, TORAX uses the following logic:
 
   * If `model_path` is provided, then we load the model from this path.
-  * Otherwise, if the `TORAX_QLKNN_MODEL_PATH` environment variable is set,
-    then we load the model from this path.
   * Otherwise, if `model_name` is provided, we load that model from registered
     models in the `fusion_surrogates` library.
   * If `model_name` is not set either, we load the default QLKNN model from
     `fusion_surrogates` (currently `QLKNN_7_11`).
 
-  It is recommended to not set `model_name`, `TORAX_QLKNN_MODEL_PATH`  or
-  `model_path` to use the default QLKNN model.
+  It is recommended to not set `model_name` or `model_path` to use the default
+  QLKNN model.
 
   Attributes:
     transport_model: The transport model to use. Hardcoded to 'qlknn'.
-    model_path: Path to the model. Takes precedence over `model_name` and
-      `TORAX_QLKNN_MODEL_PATH`.
+    model_path: Path to the model. Takes precedence over `model_name`.
     model_name: Name of the model to use. Used to select a model from the
       `fusion_surrogates` library.
     include_ITG: Whether to include ITG modes.
