@@ -243,7 +243,7 @@ class GettersTest(parameterized.TestCase):
     dynamic_runtime_params_slice = provider(t=1.0)
     geo = torax_config.geometry.build_provider(t=1.0)
 
-    temp_el = cell_variable.CellVariable(
+    T_e = cell_variable.CellVariable(
         value=jnp.ones_like(geo.rho_norm) * 100.0,  # ensure full ionization
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
@@ -256,28 +256,30 @@ class GettersTest(parameterized.TestCase):
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
-    ni, nimp, Zi, _, Zimp, _ = getters.get_ion_density_and_charge_states(
-        static_slice,
-        dynamic_runtime_params_slice,
-        geo,
-        n_e,
-        temp_el,
+    n_i, n_impurity, Z_i, _, Z_impurity, _ = (
+        getters.get_ion_density_and_charge_states(
+            static_slice,
+            dynamic_runtime_params_slice,
+            geo,
+            n_e,
+            T_e,
+        )
     )
 
     Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
 
     dilution_factor = formulas.calculate_main_ion_dilution_factor(
-        Zi, Zimp, Z_eff
+        Z_i, Z_impurity, Z_eff
     )
     np.testing.assert_allclose(
-        ni.value,
+        n_i.value,
         expected_value * dilution_factor,
         atol=1e-6,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        nimp.value,
-        (expected_value - ni.value * Zi) / Zimp,
+        n_impurity.value,
+        (expected_value - n_i.value * Z_i) / Z_impurity,
         atol=1e-6,
         rtol=1e-6,
     )

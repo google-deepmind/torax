@@ -38,7 +38,7 @@ from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
 
 
-_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'n_e')
+_ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
 
 
 class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
@@ -75,9 +75,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         explicit_source_profiles=fake_explicit_source_profiles,
     )
     # All the profiles in the merged profiles should be a 1D array with all 3s.
-    for profile in merged_profiles.temp_el.values():
+    for profile in merged_profiles.T_e.values():
       np.testing.assert_allclose(profile, 3.0)
-    for profile in merged_profiles.temp_ion.values():
+    for profile in merged_profiles.T_i.values():
       np.testing.assert_allclose(profile, 3.0)
     for profile in merged_profiles.psi.values():
       np.testing.assert_allclose(profile, 3.0)
@@ -86,8 +86,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
     # Make sure the combo ion-el heat sources are present.
     for name in ['generic_heat', 'fusion']:
-      self.assertIn(name, merged_profiles.temp_ion)
-      self.assertIn(name, merged_profiles.temp_el)
+      self.assertIn(name, merged_profiles.T_i)
+      self.assertIn(name, merged_profiles.T_e)
 
   def test_source_profiles(self):
     """Tests that the source profiles contain correct data."""
@@ -184,8 +184,8 @@ def _build_source_profiles_with_single_value(
     for affected_core_profile in source.affected_core_profiles:
       profiles[affected_core_profile][source_name] = cell_1d_arr
   return source_profiles_lib.SourceProfiles(
-      temp_el=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
-      temp_ion=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
+      T_e=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
+      T_i=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
       n_e=profiles[source_lib.AffectedCoreProfile.NE],
       psi=profiles[source_lib.AffectedCoreProfile.PSI],
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(

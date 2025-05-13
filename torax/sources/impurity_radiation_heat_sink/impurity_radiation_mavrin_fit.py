@@ -203,7 +203,7 @@ def impurity_radiation_mavrin_fit(
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=core_profiles.temp_el.value,
+      T_e=core_profiles.T_e.value,
   )
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
@@ -212,7 +212,7 @@ def impurity_radiation_mavrin_fit(
   radiation_profile = (
       effective_LZ
       * core_profiles.n_e.value
-      * core_profiles.nimp.value
+      * core_profiles.n_impurity.value
       * dynamic_source_runtime_params.radiation_multiplier
       * dynamic_runtime_params_slice.numerics.density_reference**2
   )

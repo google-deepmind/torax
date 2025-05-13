@@ -50,11 +50,11 @@ class NormalizedLogarithmicGradients:
     """Calculates the normalized logarithmic gradients."""
     gradients = {}
     for name, profile in {
-        "lref_over_lti": core_profiles.temp_ion,
-        "lref_over_lte": core_profiles.temp_el,
+        "lref_over_lti": core_profiles.T_i,
+        "lref_over_lte": core_profiles.T_e,
         "lref_over_lne": core_profiles.n_e,
-        "lref_over_lni0": core_profiles.ni,
-        "lref_over_lni1": core_profiles.nimp,
+        "lref_over_lni0": core_profiles.n_i,
+        "lref_over_lni1": core_profiles.n_impurity,
     }.items():
       gradients[name] = calculate_normalized_logarithmic_gradient(
           var=profile,
@@ -131,20 +131,20 @@ def calculate_alpha(
       * q**2
   )
   alpha = factor_0 * (
-      core_profiles.temp_el.face_value()
+      core_profiles.T_e.face_value()
       * core_profiles.n_e.face_value()
       * (
           normalized_logarithmic_gradients.lref_over_lte
           + normalized_logarithmic_gradients.lref_over_lne
       )
-      + core_profiles.ni.face_value()
-      * core_profiles.temp_ion.face_value()
+      + core_profiles.n_i.face_value()
+      * core_profiles.T_i.face_value()
       * (
           normalized_logarithmic_gradients.lref_over_lti
           + normalized_logarithmic_gradients.lref_over_lni0
       )
-      + core_profiles.nimp.face_value()
-      * core_profiles.temp_ion.face_value()
+      + core_profiles.n_impurity.face_value()
+      * core_profiles.T_i.face_value()
       * (
           normalized_logarithmic_gradients.lref_over_lti
           + normalized_logarithmic_gradients.lref_over_lni1

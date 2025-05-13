@@ -135,7 +135,7 @@ def reference_calc_fusion(numerics, geo, core_profiles):
   """Reference implementation from PINT. We still use TORAX state here."""
   # PINT doesn't follow Google style
   # pylint:disable=invalid-name
-  T = core_profiles.temp_ion.face_value()
+  T = core_profiles.T_i.face_value()
   consts = constants.CONSTANTS
 
   # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
@@ -165,7 +165,7 @@ def reference_calc_fusion(numerics, geo, core_profiles):
   Pfus = (
       Efus
       * 0.25
-      * (core_profiles.ni.face_value() * numerics.density_reference) ** 2
+      * (core_profiles.n_i.face_value() * numerics.density_reference) ** 2
       * sigmav
   )  # [W/m^3]
   P_total = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]

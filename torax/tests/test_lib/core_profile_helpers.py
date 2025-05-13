@@ -25,9 +25,9 @@ from torax.output_tools import output
 # pylint: disable=invalid-name
 def make_zero_core_profiles(
     geo: geometry.Geometry,
-    temp_el: cell_variable.CellVariable | None = None,
-    Zimp: jax.Array | None = None,
-    Zimp_face: jax.Array | None = None,
+    T_e: cell_variable.CellVariable | None = None,
+    Z_impurity: jax.Array | None = None,
+    Z_impurity_face: jax.Array | None = None,
 ) -> state.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
@@ -38,25 +38,27 @@ def make_zero_core_profiles(
   )
   return state.CoreProfiles(
       currents=state.Currents.zeros(geo),
-      temp_ion=zero_cell_variable,
-      temp_el=temp_el if temp_el is not None else zero_cell_variable,
+      T_i=zero_cell_variable,
+      T_e=T_e if T_e is not None else zero_cell_variable,
       psi=zero_cell_variable,
       psidot=zero_cell_variable,
       n_e=zero_cell_variable,
-      ni=zero_cell_variable,
-      nimp=zero_cell_variable,
+      n_i=zero_cell_variable,
+      n_impurity=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       density_reference=jnp.array(0.0),
       vloop_lcfs=jnp.array(0.0),
-      Zi=jnp.zeros_like(geo.rho),
-      Zi_face=jnp.zeros_like(geo.rho_face),
-      Ai=jnp.zeros(()),
-      Zimp=Zimp if Zimp is not None else jnp.zeros_like(geo.rho),
-      Zimp_face=Zimp_face
-      if Zimp_face is not None
+      Z_i=jnp.zeros_like(geo.rho),
+      Z_i_face=jnp.zeros_like(geo.rho_face),
+      A_i=jnp.zeros(()),
+      Z_impurity=Z_impurity
+      if Z_impurity is not None
+      else jnp.zeros_like(geo.rho),
+      Z_impurity_face=Z_impurity_face
+      if Z_impurity_face is not None
       else jnp.zeros_like(geo.rho_face),
-      Aimp=jnp.zeros(()),
+      A_impurity=jnp.zeros(()),
   )
 
 
@@ -67,11 +69,11 @@ def verify_core_profiles(
 ):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
-      core_profiles.temp_el.value,
+      core_profiles.T_e.value,
       ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.temp_ion.value,
+      core_profiles.T_i.value,
       ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
   )
   np.testing.assert_allclose(
@@ -88,10 +90,10 @@ def verify_core_profiles(
       core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.N_I][index, 1:-1]
+      core_profiles.n_i.value, ref_profiles[output.N_I][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.right_face_constraint,
+      core_profiles.n_i.right_face_constraint,
       ref_profiles[output.N_I][index, -1],
   )
 

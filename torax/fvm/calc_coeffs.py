@@ -32,6 +32,7 @@ from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
 
 
+# pylint: disable=invalid-name
 class CoeffsCallback:
   """Calculates Block1DCoeffs for a state."""
 
@@ -132,8 +133,8 @@ def _calculate_pereverzev_flux(
 
       * dynamic_runtime_params_slice.numerics.density_reference
   )
-  true_ni_face = (
-      core_profiles.ni.face_value()
+  true_n_i_face = (
+      core_profiles.n_i.face_value()
       * dynamic_runtime_params_slice.numerics.density_reference
   )
 
@@ -143,7 +144,7 @@ def _calculate_pereverzev_flux(
 
   chi_face_per_ion = (
       geo.g1_over_vpr_face
-      * true_ni_face
+      * true_n_i_face
       * consts.keV2J
       * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
@@ -178,13 +179,13 @@ def _calculate_pereverzev_flux(
 
   # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
   v_heat_face_ion = (
-      core_profiles.temp_ion.face_grad()
-      / core_profiles.temp_ion.face_value()
+      core_profiles.T_i.face_grad()
+      / core_profiles.T_i.face_value()
       * chi_face_per_ion
   )
   v_heat_face_el = (
-      core_profiles.temp_el.face_grad()
-      / core_profiles.temp_el.face_value()
+      core_profiles.T_e.face_grad()
+      / core_profiles.T_e.face_value()
       * chi_face_per_el
   )
 
@@ -375,8 +376,8 @@ def _calc_coeffs_full(
       core_profiles.n_e.value
       * dynamic_runtime_params_slice.numerics.density_reference
   )
-  true_ni = (
-      core_profiles.ni.value
+  true_n_i = (
+      core_profiles.n_i.value
       * dynamic_runtime_params_slice.numerics.density_reference
   )
 
@@ -384,26 +385,26 @@ def _calc_coeffs_full(
       core_profiles.n_e.face_value()
       * dynamic_runtime_params_slice.numerics.density_reference
   )
-  true_ni_face = (
-      core_profiles.ni.face_value()
+  true_n_i_face = (
+      core_profiles.n_i.face_value()
       * dynamic_runtime_params_slice.numerics.density_reference
   )
 
   # Transient term coefficient vector (has radial dependence through r, n)
-  toc_temp_ion = (
+  toc_T_i = (
       1.5
       * geo.vpr ** (-2.0 / 3.0)
       * consts.keV2J
       * dynamic_runtime_params_slice.numerics.density_reference
   )
-  tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
-  toc_temp_el = (
+  tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
+  toc_T_e = (
       1.5
       * geo.vpr ** (-2.0 / 3.0)
       * consts.keV2J
       * dynamic_runtime_params_slice.numerics.density_reference
   )
-  tic_temp_el = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_multiplier
@@ -437,7 +438,7 @@ def _calc_coeffs_full(
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
-      geo.g1_over_vpr_face * true_ni_face * consts.keV2J * chi_face_ion
+      geo.g1_over_vpr_face * true_n_i_face * consts.keV2J * chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face * true_n_e_face * consts.keV2J * chi_face_el
@@ -498,7 +499,7 @@ def _calc_coeffs_full(
       / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
-      * true_ni_face
+      * true_n_i_face
       * consts.keV2J
   )
 
@@ -532,8 +533,8 @@ def _calc_coeffs_full(
 
   # Fill heat transport equation sources. Initialize source matrices to zero
 
-  source_i = merged_source_profiles.total_sources('temp_ion', geo)
-  source_e = merged_source_profiles.total_sources('temp_el', geo)
+  source_i = merged_source_profiles.total_sources('T_i', geo)
+  source_e = merged_source_profiles.total_sources('T_e', geo)
 
   # Add the Qei effects.
   qei = merged_source_profiles.qei
@@ -576,8 +577,8 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * geo.rho_norm
-      * true_ni
-      * core_profiles.temp_ion.value
+      * true_n_i
+      * core_profiles.T_i.value
       * consts.keV2J
   )
 
@@ -589,7 +590,7 @@ def _calc_coeffs_full(
       / geo.Phi_b
       * geo.rho_norm
       * true_n_e
-      * core_profiles.temp_el.value
+      * core_profiles.T_e.value
       * consts.keV2J
   )
 
@@ -611,14 +612,14 @@ def _calc_coeffs_full(
 
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {
-      'temp_ion': toc_temp_ion,
-      'temp_el': toc_temp_el,
+      'T_i': toc_T_i,
+      'T_e': toc_T_e,
       'psi': toc_psi,
       'n_e': toc_dens_el,
   }
   var_to_tic = {
-      'temp_ion': tic_temp_ion,
-      'temp_el': tic_temp_el,
+      'T_i': tic_T_i,
+      'T_e': tic_T_e,
       'psi': tic_psi,
       'n_e': tic_dens_el,
   }
@@ -626,16 +627,16 @@ def _calc_coeffs_full(
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
 
   var_to_d_face = {
-      'temp_ion': full_chi_face_ion,
-      'temp_el': full_chi_face_el,
+      'T_i': full_chi_face_ion,
+      'T_e': full_chi_face_el,
       'psi': d_face_psi,
       'n_e': full_d_face_el,
   }
   d_face = tuple(var_to_d_face[var] for var in evolving_names)
 
   var_to_v_face = {
-      'temp_ion': v_heat_face_ion,
-      'temp_el': v_heat_face_el,
+      'T_i': v_heat_face_ion,
+      'T_e': v_heat_face_el,
       'psi': v_face_psi,
       'n_e': full_v_face_el,
   }
@@ -645,10 +646,10 @@ def _calc_coeffs_full(
   # (Can't use a descriptive name or the nested comprehension to build the
   # matrix gets too long)
   d = {
-      ('temp_ion', 'temp_ion'): source_mat_ii,
-      ('temp_ion', 'temp_el'): source_mat_ie,
-      ('temp_el', 'temp_ion'): source_mat_ei,
-      ('temp_el', 'temp_el'): source_mat_ee,
+      ('T_i', 'T_i'): source_mat_ii,
+      ('T_i', 'T_e'): source_mat_ie,
+      ('T_e', 'T_i'): source_mat_ei,
+      ('T_e', 'T_e'): source_mat_ee,
       ('n_e', 'n_e'): source_mat_nn,
       ('psi', 'psi'): source_mat_psi,
   }
@@ -658,8 +659,8 @@ def _calc_coeffs_full(
   )
 
   var_to_source = {
-      'temp_ion': source_i,
-      'temp_el': source_e,
+      'T_i': source_i,
+      'T_e': source_e,
       'psi': source_psi,
       'n_e': source_n_e,
   }
@@ -692,14 +693,14 @@ def _calc_coeffs_reduced(
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""
 
   # Only transient_in_cell is used for explicit terms if theta_implicit=1
-  tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
-  tic_temp_el = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
+  tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   tic_psi = jnp.ones_like(geo.vpr)
   tic_dens_el = geo.vpr
 
   var_to_tic = {
-      'temp_ion': tic_temp_ion,
-      'temp_el': tic_temp_el,
+      'T_i': tic_T_i,
+      'T_e': tic_T_e,
       'psi': tic_psi,
       'n_e': tic_dens_el,
   }

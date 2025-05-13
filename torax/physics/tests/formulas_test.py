@@ -70,11 +70,11 @@ class FormulasTest(parameterized.TestCase):
         state.CoreProfiles,
         instance=True,
         density_reference=1e20,
-        temp_ion=_make_constant_core_profile(1.0),
-        temp_el=_make_constant_core_profile(2.0),
+        T_i=_make_constant_core_profile(1.0),
+        T_e=_make_constant_core_profile(2.0),
         n_e=_make_constant_core_profile(3.0),
-        ni=_make_constant_core_profile(2.5),
-        nimp=_make_constant_core_profile(0.25),
+        n_i=_make_constant_core_profile(2.5),
+        n_impurity=_make_constant_core_profile(0.25),
     )
 
     p_el, p_ion, p_tot = formulas.calculate_pressure(core_profiles)

@@ -105,7 +105,7 @@ def calc_heating_and_current(
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)
       - 3 * jnp.log(constants.CONSTANTS.qe)
       + jnp.log(geo.F)
-      + jnp.log(core_profiles.temp_el.value)
+      + jnp.log(core_profiles.T_e.value)
       + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
       - jnp.log(core_profiles.n_e.value)
       - jnp.log(

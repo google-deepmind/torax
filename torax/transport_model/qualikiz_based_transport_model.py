@@ -94,9 +94,9 @@ class QualikizBasedTransportModel(
     # gyrobohm diffusivity
     # (defined here with Lref=a_minor due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.temp_ion.face_value(),
+        reference_temperature=core_profiles.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
-        reference_mass=core_profiles.Ai,
+        reference_mass=core_profiles.A_i,
         reference_length=geo.a_minor,
     )
 
@@ -129,7 +129,7 @@ class QualikizBasedTransportModel(
 
     # Ion to electron temperature ratio
     Ti_Te = (
-        core_profiles.temp_ion.face_value() / core_profiles.temp_el.face_value()
+        core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
     )
 
     # logarithm of normalized collisionality
@@ -186,7 +186,7 @@ class QualikizBasedTransportModel(
         alpha - 0.2,
         smag,
     )
-    normni = core_profiles.ni.face_value() / core_profiles.n_e.face_value()
+    normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
     return QualikizInputs(
         Z_eff_face=Z_eff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,

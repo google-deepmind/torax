@@ -334,11 +334,11 @@ def _helium3_tail_temperature(
   # He3 distribution based on an analytic solution to the FP equation.
   xi = (
       0.24
-      * jnp.sqrt(core_profiles.temp_el.value)
+      * jnp.sqrt(core_profiles.T_e.value)
       * helium3_mass
       * absorbed_power_density
   ) / (n_e20**2 * helium3_charge**2 * helium3_fraction)
-  return core_profiles.temp_el.value * (1 + xi)
+  return core_profiles.T_e.value * (1 + xi)
 
 
 def icrh_model_func(
@@ -358,7 +358,7 @@ def icrh_model_func(
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
-      core_profiles.temp_el.value, geo
+      core_profiles.T_e.value, geo
   )
   volume_average_density = math_utils.volume_average(
       core_profiles.n_e.value, geo
@@ -366,7 +366,7 @@ def icrh_model_func(
 
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
-      core_profiles.temp_el.value[0] / volume_average_temperature
+      core_profiles.T_e.value[0] / volume_average_temperature
   )
   density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
   Router = geo.R_major + geo.a_minor
@@ -429,7 +429,7 @@ def icrh_model_func(
   helium3_mass = 3.016
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       helium3_birth_energy,
-      core_profiles.temp_el.value,
+      core_profiles.T_e.value,
       helium3_mass,
   )
   absorbed_power = (

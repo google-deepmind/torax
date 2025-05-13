@@ -339,7 +339,7 @@ def _calculate_integrated_sources(
   # electron-ion heat exchange always exists, and is not in
   # core_sources.profiles, so we calculate it here.
   qei = core_sources.qei.qei_coef * (
-      core_profiles.temp_el.value - core_profiles.temp_ion.value
+      core_profiles.T_e.value - core_profiles.T_i.value
   )
   integrated['P_ei_exchange_i'] = math_utils.volume_integration(qei, geo)
   integrated['P_ei_exchange_e'] = -integrated['P_ei_exchange_i']
@@ -359,8 +359,8 @@ def _calculate_integrated_sources(
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
   for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    ion_profiles = core_sources.temp_ion
-    el_profiles = core_sources.temp_el
+    ion_profiles = core_sources.T_i
+    el_profiles = core_sources.T_e
     if key in ion_profiles and key in el_profiles:
       profile_ion, profile_el = ion_profiles[key], el_profiles[key]
       integrated[f'{value}_i'] = math_utils.volume_integration(
@@ -392,7 +392,7 @@ def _calculate_integrated_sources(
       integrated[f'{value}_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    profiles = core_sources.temp_el
+    profiles = core_sources.T_e
     if key in profiles:
       integrated[f'{value}'] = math_utils.volume_integration(
           profiles[key], geo
@@ -556,25 +556,25 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.temp_el.value, sim_state.geometry
+      sim_state.core_profiles.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.temp_ion.value, sim_state.geometry
+      sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
-  # Calculate n_e and ni (main ion) volume and line averages
+  # Calculate n_e and n_i (main ion) volume and line averages
   # [density_reference m^-3]
   n_e_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.n_e.value, sim_state.geometry
   )
-  ni_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.ni.value, sim_state.geometry
+  n_i_volume_avg = math_utils.volume_average(
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
       sim_state.core_profiles.n_e.value, sim_state.geometry
   )
-  ni_line_avg = math_utils.line_average(
-      sim_state.core_profiles.ni.value, sim_state.geometry
+  n_i_line_avg = math_utils.line_average(
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -629,9 +629,9 @@ def make_post_processed_outputs(
       T_e_volume_avg=te_volume_avg,
       T_i_volume_avg=ti_volume_avg,
       n_e_volume_avg=n_e_volume_avg,
-      n_i_volume_avg=ni_volume_avg,
+      n_i_volume_avg=n_i_volume_avg,
       n_e_line_avg=n_e_line_avg,
-      n_i_line_avg=ni_line_avg,
+      n_i_line_avg=n_i_line_avg,
       fgw_n_e_volume_avg=fgw_n_e_volume_avg,
       fgw_n_e_line_avg=fgw_n_e_line_avg,
       q95=q95,

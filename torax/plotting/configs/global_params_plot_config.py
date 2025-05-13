@@ -65,7 +65,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$\mathrm{<n_e>_V}$',
                 r'$\mathrm{<n_i>_V}$',
             ),
-            ylabel='Volume average n_e and ni $[10^{20}~m^{-3}]$',
+            ylabel='Volume average n_e and n_i $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,

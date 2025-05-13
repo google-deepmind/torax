@@ -126,11 +126,11 @@ def _log_single_state(
     t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
-  logging.info('temp_ion: %s', core_profiles.temp_ion.value)
-  logging.info('temp_el: %s', core_profiles.temp_el.value)
+  logging.info('T_i: %s', core_profiles.T_i.value)
+  logging.info('T_e: %s', core_profiles.T_e.value)
   logging.info('psi: %s', core_profiles.psi.value)
   logging.info('n_e: %s', core_profiles.n_e.value)
-  logging.info('ni: %s', core_profiles.ni.value)
+  logging.info('n_i: %s', core_profiles.n_i.value)
   logging.info('q_face: %s', core_profiles.q_face)
   logging.info('s_face: %s', core_profiles.s_face)
 

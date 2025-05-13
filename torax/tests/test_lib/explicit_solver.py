@@ -45,7 +45,7 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
   is not strictly necessary (may be in the future if these are time varying).
 
   Current implementation has no ion-electron heat exchange, only constant chi,
-  and simulates the evolution of temp_ion only.
+  and simulates the evolution of T_i only.
 
   Ghost cell formulation for RHS BC.
   """
@@ -84,12 +84,12 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
     density_reference = (
         dynamic_runtime_params_slice_t.numerics.density_reference
     )
-    true_ni = core_profiles_t.ni.value * density_reference
-    true_ni_face = core_profiles_t.ni.face_value() * density_reference
+    true_n_i = core_profiles_t.n_i.value * density_reference
+    true_n_i_face = core_profiles_t.n_i.face_value() * density_reference
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)
-    cti = 1.5 * geo_t.vpr * true_ni * consts.keV2J
+    cti = 1.5 * geo_t.vpr * true_n_i * consts.keV2J
 
     # Diffusion term coefficient
     assert isinstance(
@@ -98,21 +98,21 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
     )
     d_face_ion = (
         geo_t.g1_over_vpr_face
-        * true_ni_face
+        * true_n_i_face
         * consts.keV2J
         * dynamic_runtime_params_slice_t.transport.chi_i
     )
 
     c_mat, c = diffusion_terms.make_diffusion_terms(
-        d_face_ion, core_profiles_t.temp_ion
+        d_face_ion, core_profiles_t.T_i
     )
 
     # Source term
-    c += explicit_source_profiles.total_sources('temp_ion', geo_t)
+    c += explicit_source_profiles.total_sources('T_i', geo_t)
 
-    temp_ion_new = (
-        core_profiles_t.temp_ion.value
-        + dt * (jnp.dot(c_mat, core_profiles_t.temp_ion.value) + c) / cti
+    T_i_new = (
+        core_profiles_t.T_i.value
+        + dt * (jnp.dot(c_mat, core_profiles_t.T_i.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
@@ -123,10 +123,10 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
     )
-    temp_ion_new = dataclasses.replace(
-        core_profiles_t.temp_ion,
-        value=temp_ion_new,
-        **updated_boundary_conditions['temp_ion'],
+    T_i_new = dataclasses.replace(
+        core_profiles_t.T_i,
+        value=T_i_new,
+        **updated_boundary_conditions['T_i'],
     )
 
     q_face = psi_calculations.calc_q_face(geo_t, core_profiles_t.psi)
@@ -144,7 +144,7 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
     return (
         dataclasses.replace(
             core_profiles_t,
-            temp_ion=temp_ion_new,
+            T_i=T_i_new,
             q_face=q_face,
             s_face=s_face,
         ),

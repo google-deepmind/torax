@@ -155,7 +155,7 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        output_state.core_profiles.temp_el.value,
+        output_state.core_profiles.T_e.value,
         _POST_CRASH_TEMPERATURE,
         rtol=1e-6,
     )

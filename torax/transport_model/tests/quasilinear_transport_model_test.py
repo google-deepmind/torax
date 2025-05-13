@@ -170,7 +170,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
     )
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.temp_ion.face_value(),
+        reference_temperature=core_profiles.T_i.face_value(),
         reference_magnetic_field=1.0,
         reference_mass=1.0,
         reference_length=1.0,
@@ -296,18 +296,18 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       dr=jnp.array(1.0),
   )
   return state.CoreProfiles(
-      temp_ion=dummy_cell_variable,
-      temp_el=dummy_cell_variable,
+      T_i=dummy_cell_variable,
+      T_e=dummy_cell_variable,
       n_e=dummy_cell_variable,
-      ni=dummy_cell_variable,
-      nimp=dummy_cell_variable,
+      n_i=dummy_cell_variable,
+      n_impurity=dummy_cell_variable,
       currents=currents,
-      Zi=1.0,
-      Zi_face=1.0,
-      Zimp=1.0,
-      Zimp_face=1.0,
-      Ai=1.0,
-      Aimp=1.0,
+      Z_i=1.0,
+      Z_i_face=1.0,
+      Z_impurity=1.0,
+      Z_impurity_face=1.0,
+      A_i=1.0,
+      A_impurity=1.0,
       density_reference=1.0,
       q_face=1.0,
       s_face=1.0,

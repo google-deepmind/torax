@@ -248,7 +248,7 @@ class FVMTest(parameterized.TestCase):
         geo,
         source_models,
     )
-    evolving_names = tuple(['temp_ion'])
+    evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -274,7 +274,7 @@ class FVMTest(parameterized.TestCase):
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
     # initialize x_new for timestepping
-    x_new = (core_profiles.temp_ion,)
+    x_new = (core_profiles.T_i,)
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(
@@ -381,7 +381,7 @@ class FVMTest(parameterized.TestCase):
     )
 
     dt = jnp.array(1.0)
-    evolving_names = tuple(['temp_ion'])
+    evolving_names = tuple(['T_i'])
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
@@ -514,7 +514,7 @@ class FVMTest(parameterized.TestCase):
     )
 
     dt = jnp.array(1.0)
-    evolving_names = tuple(['temp_ion'])
+    evolving_names = tuple(['T_i'])
 
     coeffs_old = calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice_theta05,
@@ -544,7 +544,7 @@ class FVMTest(parameterized.TestCase):
     )
     core_profiles_t_plus_dt = dataclasses.replace(
         core_profiles_t_plus_dt,
-        temp_ion=x_0,
+        T_i=x_0,
     )
 
     with self.subTest('static_boundary_conditions'):
@@ -581,7 +581,7 @@ class FVMTest(parameterized.TestCase):
           x_new_guess_vec=x_0.value,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
-              temp_ion=dataclasses.replace(
+              T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
@@ -602,7 +602,7 @@ class FVMTest(parameterized.TestCase):
           x_old=(x_0,),
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
-              temp_ion=dataclasses.replace(
+              T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),

@@ -108,19 +108,19 @@ def get_prescribed_core_profile_values(
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
   if not static_runtime_params_slice.evolve_ion_heat:
-    temp_ion = getters.get_updated_ion_temperature(
+    T_i = getters.get_updated_ion_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     ).value
   else:
-    temp_ion = core_profiles.temp_ion.value
+    T_i = core_profiles.T_i.value
   if not static_runtime_params_slice.evolve_electron_heat:
-    temp_el_cell_variable = getters.get_updated_electron_temperature(
+    T_e_cell_variable = getters.get_updated_electron_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     )
-    temp_el = temp_el_cell_variable.value
+    T_e = T_e_cell_variable.value
   else:
-    temp_el_cell_variable = core_profiles.temp_el
-    temp_el = temp_el_cell_variable.value
+    T_e_cell_variable = core_profiles.T_e
+    T_e = T_e_cell_variable.value
   if not static_runtime_params_slice.evolve_density:
     n_e_cell_variable = getters.get_updated_electron_density(
         static_runtime_params_slice,
@@ -130,29 +130,29 @@ def get_prescribed_core_profile_values(
     )
   else:
     n_e_cell_variable = core_profiles.n_e
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           n_e_cell_variable,
-          temp_el_cell_variable,
+          T_e_cell_variable,
       )
   )
   n_e = n_e_cell_variable.value
-  ni = ni.value
-  nimp = nimp.value
+  n_i = n_i.value
+  n_impurity = n_impurity.value
 
   return {
-      'temp_ion': temp_ion,
-      'temp_el': temp_el,
+      'T_i': T_i,
+      'T_e': T_e,
       'n_e': n_e,
-      'ni': ni,
-      'nimp': nimp,
-      'Zi': Zi,
-      'Zi_face': Zi_face,
-      'Zimp': Zimp,
-      'Zimp_face': Zimp_face,
+      'n_i': n_i,
+      'n_impurity': n_impurity,
+      'Z_i': Z_i,
+      'Z_i_face': Z_i_face,
+      'Z_impurity': Z_impurity,
+      'Z_impurity_face': Z_impurity_face,
   }
 
 
@@ -200,33 +200,33 @@ def update_core_profiles_during_step(
     evolving_names: The names of the evolving variables.
   """
 
-  temp_ion = _get_update(x_new, evolving_names, core_profiles, 'temp_ion')
-  temp_el = _get_update(x_new, evolving_names, core_profiles, 'temp_el')
+  T_i = _get_update(x_new, evolving_names, core_profiles, 'T_i')
+  T_e = _get_update(x_new, evolving_names, core_profiles, 'T_e')
   psi = _get_update(x_new, evolving_names, core_profiles, 'psi')
   n_e = _get_update(x_new, evolving_names, core_profiles, 'n_e')
 
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           n_e,
-          temp_el,
+          T_e,
       )
   )
 
   return dataclasses.replace(
       core_profiles,
-      temp_ion=temp_ion,
-      temp_el=temp_el,
+      T_i=T_i,
+      T_e=T_e,
       psi=psi,
       n_e=n_e,
-      ni=ni,
-      nimp=nimp,
-      Zi=Zi,
-      Zi_face=Zi_face,
-      Zimp=Zimp,
-      Zimp_face=Zimp_face,
+      n_i=n_i,
+      n_impurity=n_impurity,
+      Z_i=Z_i,
+      Z_i_face=Z_i_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
   )
@@ -268,22 +268,22 @@ def update_all_core_profiles_after_step(
     dt: The size of the last timestep.
   """
 
-  temp_ion = _get_update(
-      x_new, evolving_names, core_profiles_t_plus_dt, 'temp_ion'
+  T_i = _get_update(
+      x_new, evolving_names, core_profiles_t_plus_dt, 'T_i'
   )
-  temp_el = _get_update(
-      x_new, evolving_names, core_profiles_t_plus_dt, 'temp_el'
+  T_e = _get_update(
+      x_new, evolving_names, core_profiles_t_plus_dt, 'T_e'
   )
   psi = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'psi')
   n_e = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'n_e')
 
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt,
           geo,
           n_e,
-          temp_el,
+          T_e,
       )
   )
 
@@ -314,23 +314,23 @@ def update_all_core_profiles_after_step(
   )
 
   return state.CoreProfiles(
-      temp_ion=temp_ion,
-      temp_el=temp_el,
+      T_i=T_i,
+      T_e=T_e,
       psi=psi,
       n_e=n_e,
-      ni=ni,
-      nimp=nimp,
-      Zi=Zi,
-      Zi_face=Zi_face,
-      Zimp=Zimp,
-      Zimp_face=Zimp_face,
+      n_i=n_i,
+      n_impurity=n_impurity,
+      Z_i=Z_i,
+      Z_i_face=Z_i_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
       currents=_get_updated_currents(geo, psi, source_profiles),
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
       density_reference=core_profiles_t_plus_dt.density_reference,
-      Ai=core_profiles_t_plus_dt.Ai,
-      Aimp=core_profiles_t_plus_dt.Aimp,
+      A_i=core_profiles_t_plus_dt.A_i,
+      A_impurity=core_profiles_t_plus_dt.A_impurity,
       vloop_lcfs=vloop_lcfs,
   )
 
@@ -379,33 +379,35 @@ def compute_boundary_conditions_for_t_plus_dt(
   )
   n_e_right_bc = n_e.right_face_constraint
 
-  Zi_edge = charge_states.get_average_charge_state(
+  Z_i_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   )
-  Zimp_edge = charge_states.get_average_charge_state(
+  Z_impurity_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   )
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Zi_edge,
-      Zimp_edge,
+      Z_i_edge,
+      Z_impurity_edge,
       dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Z_eff_face[-1],
   )
 
-  ni_bound_right = n_e_right_bc * dilution_factor_edge
-  nimp_bound_right = (n_e_right_bc - ni_bound_right * Zi_edge) / Zimp_edge
+  n_i_bound_right = n_e_right_bc * dilution_factor_edge
+  n_impurity_bound_right = (
+      n_e_right_bc - n_i_bound_right * Z_i_edge
+  ) / Z_impurity_edge
 
   return {
-      'temp_ion': dict(
+      'T_i': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
           right_face_constraint=profile_conditions_t_plus_dt.T_i_right_bc,
       ),
-      'temp_el': dict(
+      'T_e': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
           right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
@@ -415,15 +417,15 @@ def compute_boundary_conditions_for_t_plus_dt(
           right_face_grad_constraint=None,
           right_face_constraint=jnp.array(n_e_right_bc),
       ),
-      'ni': dict(
+      'n_i': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(ni_bound_right),
+          right_face_constraint=jnp.array(n_i_bound_right),
       ),
-      'nimp': dict(
+      'n_impurity': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(nimp_bound_right),
+          right_face_constraint=jnp.array(n_impurity_bound_right),
       ),
       'psi': dict(
           right_face_grad_constraint=(
@@ -446,8 +448,8 @@ def compute_boundary_conditions_for_t_plus_dt(
               else None
           ),
       ),
-      'Zi_edge': Zi_edge,
-      'Zimp_edge': Zimp_edge,
+      'Z_i_edge': Z_i_edge,
+      'Z_impurity_edge': Z_impurity_edge,
   }
 
 
@@ -474,15 +476,15 @@ def provide_core_profiles_t_plus_dt(
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t,
   )
-  temp_ion = dataclasses.replace(
-      core_profiles_t.temp_ion,
-      value=updated_values['temp_ion'],
-      **updated_boundary_conditions['temp_ion'],
+  T_i = dataclasses.replace(
+      core_profiles_t.T_i,
+      value=updated_values['T_i'],
+      **updated_boundary_conditions['T_i'],
   )
-  temp_el = dataclasses.replace(
-      core_profiles_t.temp_el,
-      value=updated_values['temp_el'],
-      **updated_boundary_conditions['temp_el'],
+  T_e = dataclasses.replace(
+      core_profiles_t.T_e,
+      value=updated_values['T_e'],
+      **updated_boundary_conditions['T_e'],
   )
   psi = dataclasses.replace(
       core_profiles_t.psi, **updated_boundary_conditions['psi']
@@ -492,45 +494,45 @@ def provide_core_profiles_t_plus_dt(
       value=updated_values['n_e'],
       **updated_boundary_conditions['n_e'],
   )
-  ni = dataclasses.replace(
-      core_profiles_t.ni,
-      value=updated_values['ni'],
-      **updated_boundary_conditions['ni'],
+  n_i = dataclasses.replace(
+      core_profiles_t.n_i,
+      value=updated_values['n_i'],
+      **updated_boundary_conditions['n_i'],
   )
-  nimp = dataclasses.replace(
-      core_profiles_t.nimp,
-      value=updated_values['nimp'],
-      **updated_boundary_conditions['nimp'],
+  n_impurity = dataclasses.replace(
+      core_profiles_t.n_impurity,
+      value=updated_values['n_impurity'],
+      **updated_boundary_conditions['n_impurity'],
   )
 
   # pylint: disable=invalid-name
-  # Update Z_face with boundary condition Z, needed for cases where temp_el
+  # Update Z_face with boundary condition Z, needed for cases where T_e
   # is evolving and updated_prescribed_core_profiles is a no-op.
-  Zi_face = jnp.concatenate(
+  Z_i_face = jnp.concatenate(
       [
-          updated_values['Zi_face'][:-1],
-          jnp.array([updated_boundary_conditions['Zi_edge']]),
+          updated_values['Z_i_face'][:-1],
+          jnp.array([updated_boundary_conditions['Z_i_edge']]),
       ],
   )
-  Zimp_face = jnp.concatenate(
+  Z_impurity_face = jnp.concatenate(
       [
-          updated_values['Zimp_face'][:-1],
-          jnp.array([updated_boundary_conditions['Zimp_edge']]),
+          updated_values['Z_impurity_face'][:-1],
+          jnp.array([updated_boundary_conditions['Z_impurity_edge']]),
       ],
   )
   # pylint: enable=invalid-name
   core_profiles_t_plus_dt = dataclasses.replace(
       core_profiles_t,
-      temp_ion=temp_ion,
-      temp_el=temp_el,
+      T_i=T_i,
+      T_e=T_e,
       psi=psi,
       n_e=n_e,
-      ni=ni,
-      nimp=nimp,
-      Zi=updated_values['Zi'],
-      Zi_face=Zi_face,
-      Zimp=updated_values['Zimp'],
-      Zimp_face=Zimp_face,
+      n_i=n_i,
+      n_impurity=n_impurity,
+      Z_i=updated_values['Z_i'],
+      Z_i_face=Z_i_face,
+      Z_impurity=updated_values['Z_impurity'],
+      Z_impurity_face=Z_impurity_face,
   )
   return core_profiles_t_plus_dt
 

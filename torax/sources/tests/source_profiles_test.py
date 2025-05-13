@@ -20,9 +20,10 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_profiles as source_profiles_lib
 
 
+# pylint: disable=invalid-name
 class SourceProfilesTest(parameterized.TestCase):
 
-  def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
+  def test_summed_T_i_profiles_dont_change_when_jitting(self):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
 
     # Make some dummy source profiles that could have come from these sources.
@@ -32,11 +33,11 @@ class SourceProfilesTest(parameterized.TestCase):
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
-        temp_ion={
+        T_i={
             'generic_heat': ones,
             'fusion': ones * 3,
         },
-        temp_el={
+        T_e={
             'generic_heat': ones * 2,
             'fusion': ones * 4,
             'bremsstrahlung': -ones,
@@ -46,19 +47,19 @@ class SourceProfilesTest(parameterized.TestCase):
         psi={},
     )
     with self.subTest('without_jit'):
-      summed_temp_ion = profiles.total_sources('temp_ion', geo)
-      np.testing.assert_allclose(summed_temp_ion, ones * 4 * geo.vpr)
-      summed_temp_el = profiles.total_sources('temp_el', geo)
-      np.testing.assert_allclose(summed_temp_el, ones * 10 * geo.vpr)
+      summed_T_i = profiles.total_sources('T_i', geo)
+      np.testing.assert_allclose(summed_T_i, ones * 4 * geo.vpr)
+      summed_T_e = profiles.total_sources('T_e', geo)
+      np.testing.assert_allclose(summed_T_e, ones * 10 * geo.vpr)
 
     with self.subTest('with_jit'):
       sum_temp = jax.jit(
           profiles.total_sources, static_argnames=('source_type')
       )
-      jitted_temp_ion = sum_temp('temp_ion', geo)
-      np.testing.assert_allclose(jitted_temp_ion, ones * 4 * geo.vpr)
-      jitted_temp_el = sum_temp('temp_el', geo)
-      np.testing.assert_allclose(jitted_temp_el, ones * 10 * geo.vpr)
+      jitted_T_i = sum_temp('T_i', geo)
+      np.testing.assert_allclose(jitted_T_i, ones * 4 * geo.vpr)
+      jitted_T_e = sum_temp('T_e', geo)
+      np.testing.assert_allclose(jitted_T_e, ones * 10 * geo.vpr)
 
 
 if __name__ == '__main__':

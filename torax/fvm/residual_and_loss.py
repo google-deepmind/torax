@@ -256,7 +256,7 @@ def theta_method_block_residual(
   # 2. Before calling calc_coeffs, we need to update the evolving subset of the
   #    core_profiles_t_plus_dt CellVariables with the current x_new_guess.
   # 3. Ion and impurity density and charge states are also updated here, since
-  #    they are state dependent (on n_e and temp_el).
+  #    they are state dependent (on n_e and T_e).
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
       x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )

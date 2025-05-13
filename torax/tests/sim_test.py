@@ -315,7 +315,7 @@ class SimTest(sim_test_case.SimTestCase):
     with self.assertRaises(ValueError):
       self._test_run_simulation(
           'test_qei.py',
-          ('temp_ion', 'temp_el'),
+          ('T_i', 'T_e'),
           ref_name='test_implicit.nc',
           write_output=False,
       )
@@ -340,12 +340,12 @@ class SimTest(sim_test_case.SimTestCase):
 
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
-    history_length = history.core_profiles.temp_ion.value.shape[0]
+    history_length = history.core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(history.times[-1], torax_config.numerics.t_final)
     profiles_to_check = (
-        (output.TEMPERATURE_ION, history.core_profiles.temp_ion),
-        (output.TEMPERATURE_ELECTRON, history.core_profiles.temp_el),
+        (output.TEMPERATURE_ION, history.core_profiles.T_i),
+        (output.TEMPERATURE_ELECTRON, history.core_profiles.T_e),
         (output.N_E, history.core_profiles.n_e),
         (output.PSI, history.core_profiles.psi),
         (output.Q, history.core_profiles.q_face),
@@ -430,23 +430,23 @@ class SimTest(sim_test_case.SimTestCase):
       # Load in the reference core profiles.
       Ip_total = ref_profiles[output.IP_PROFILE][index, -1] / 1e6
       # All profiles are on a grid with [left_face, cell_grid, right_face]
-      temp_el = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
-      temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
-      temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
-      temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+      T_e = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
+      T_e_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
+      T_i = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
+      T_i_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
       n_e = ref_profiles[output.N_E][index, 1:-1]
       n_e_right_bc = ref_profiles[output.N_E][index, -1]
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
       dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
-      dynamic_runtime_params_slice.profile_conditions.T_e = temp_el
+      dynamic_runtime_params_slice.profile_conditions.T_e = T_e
       dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
-          temp_el_bc
+          T_e_bc
       )
-      dynamic_runtime_params_slice.profile_conditions.T_i = temp_ion
+      dynamic_runtime_params_slice.profile_conditions.T_i = T_i
       dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
-          temp_ion_bc
+          T_i_bc
       )
       dynamic_runtime_params_slice.profile_conditions.n_e = n_e
       dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
@@ -531,8 +531,8 @@ class SimTest(sim_test_case.SimTestCase):
     sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
 
     profiles_to_check = (
-        sim_outputs_vloop_bc.core_profiles.temp_ion,
-        sim_outputs_vloop_bc.core_profiles.temp_el,
+        sim_outputs_vloop_bc.core_profiles.T_i,
+        sim_outputs_vloop_bc.core_profiles.T_e,
         sim_outputs_vloop_bc.core_profiles.psi,
         sim_outputs_vloop_bc.core_profiles.n_e,
     )

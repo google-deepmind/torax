@@ -78,7 +78,7 @@ def calculate_plh_scaling_factor(
 
   # Scale to average isotope mass.
   A_deuterium = constants.ION_PROPERTIES_DICT['D']['A']
-  P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.Ai
+  P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.A_i
 
   # Calculate density (in density_reference) corresponding to P_LH_min
   # from Eq 3 Ryter 2014
@@ -100,7 +100,7 @@ def calculate_plh_scaling_factor(
       * (geo.R_major / geo.a_minor) ** 0.08
       * 1e6
   )
-  P_LH_min = P_LH_min_D * A_deuterium / core_profiles.Ai
+  P_LH_min = P_LH_min_D * A_deuterium / core_profiles.A_i
   P_LH = jnp.maximum(P_LH_min, P_LH_hi_dens)
   return P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH
 
@@ -202,7 +202,7 @@ def calculate_scaling_law_confinement_time(
   # the standard definition used in geo.elongation.
   elongation = geo.area_face[-1] / (jnp.pi * geo.a_minor**2)
   # TODO(b/317360834): extend when multiple ions are supported.
-  effective_mass = core_profiles.Ai
+  effective_mass = core_profiles.A_i
   triangularity = geo.delta_face[-1]
 
   tau_scaling = (

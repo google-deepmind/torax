@@ -24,6 +24,7 @@ from torax.geometry import geometry
 import typing_extensions
 
 
+# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class BootstrapCurrentProfile:
   """Bootstrap current profile.
@@ -98,8 +99,8 @@ class SourceProfiles:
   # is the profile on the cell grid from that source for that core profile.
   # For sources that affect multiple core profiles, they will have an entry for
   # each core profile they affect.
-  temp_el: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
-  temp_ion: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  T_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  T_i: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   n_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   psi: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
 
@@ -150,7 +151,7 @@ class SourceProfiles:
 
   def total_sources(
       self,
-      source_type: Literal['n_e', 'temp_ion', 'temp_el'],
+      source_type: Literal['n_e', 'T_i', 'T_e'],
       geo: geometry.Geometry,
   ) -> jax.Array:
     source: dict[str, jax.Array] = getattr(self, source_type)

@@ -90,11 +90,11 @@ class BootstrapCurrentSource(source.Source):
         bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_multiplier,
         density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
-        Zi_face=core_profiles.Zi_face,
+        Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
-        ni=core_profiles.ni,
-        temp_el=core_profiles.temp_el,
-        temp_ion=core_profiles.temp_ion,
+        n_i=core_profiles.n_i,
+        T_e=core_profiles.T_e,
+        T_i=core_profiles.T_i,
         psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geo,
@@ -162,11 +162,11 @@ def calc_sauter_model(
     bootstrap_multiplier: float,
     density_reference: float,
     Z_eff_face: chex.Array,
-    Zi_face: chex.Array,
+    Z_i_face: chex.Array,
     n_e: cell_variable.CellVariable,
-    ni: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-    temp_ion: cell_variable.CellVariable,
+    n_i: cell_variable.CellVariable,
+    T_e: cell_variable.CellVariable,
+    T_i: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
     q_face: chex.Array,
     geo: geometry.Geometry,
@@ -178,7 +178,7 @@ def calc_sauter_model(
   # corrections.
 
   true_n_e_face = n_e.face_value() * density_reference
-  true_ni_face = ni.face_value() * density_reference
+  true_n_i_face = n_i.face_value() * density_reference
 
   # # local r/R0 on face grid
   epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
@@ -191,17 +191,17 @@ def calc_sauter_model(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(temp_el.face_value() * 1e3)
+      31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(T_e.face_value() * 1e3)
   )
   lnLami = (
       30
-      - 3 * jnp.log(Zi_face)
-      - 0.5 * jnp.log(true_ni_face)
-      + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
+      - 3 * jnp.log(Z_i_face)
+      - 0.5 * jnp.log(true_n_i_face)
+      + 1.5 * jnp.log(T_i.face_value() * 1e3)
   )
 
   sigsptz = (
-      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
+      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
   )
 
   nuestar = (
@@ -212,7 +212,7 @@ def calc_sauter_model(
       * Z_eff_face
       * lnLame
       / (
-          ((temp_el.face_value() * 1e3) ** 2)
+          ((T_e.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -220,11 +220,11 @@ def calc_sauter_model(
       4.9e-18
       * q_face
       * geo.R_major
-      * true_ni_face
+      * true_n_i_face
       * Z_eff_face**4
       * lnLami
       / (
-          ((temp_ion.face_value() * 1e3) ** 2)
+          ((T_i.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -313,14 +313,14 @@ def calc_sauter_model(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
-  pe = true_n_e_face * (temp_el.face_value()) * 1e3 * 1.6e-19
-  pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19
+  pe = true_n_e_face * (T_e.face_value()) * 1e3 * 1.6e-19
+  pi = true_n_i_face * (T_i.face_value()) * 1e3 * 1.6e-19
 
   dpsi_drnorm = psi.face_grad()
   dlnne_drnorm = n_e.face_grad() / n_e.face_value()
-  dlnni_drnorm = ni.face_grad() / ni.face_value()
-  dlnte_drnorm = temp_el.face_grad() / temp_el.face_value()
-  dlnti_drnorm = temp_ion.face_grad() / temp_ion.face_value()
+  dlnni_drnorm = n_i.face_grad() / n_i.face_value()
+  dlnte_drnorm = T_e.face_grad() / T_e.face_value()
+  dlnti_drnorm = T_i.face_grad() / T_i.face_value()
 
   global_coeff = prefactor[1:] / dpsi_drnorm[1:]
   global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])

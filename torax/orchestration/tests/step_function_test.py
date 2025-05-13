@@ -69,8 +69,8 @@ class StepFunctionTest(absltest.TestCase):
     with self.subTest('NaN in BC'):
       core_profiles = dataclasses.replace(
           core_profiles,
-          temp_ion=dataclasses.replace(
-              core_profiles.temp_ion,
+          T_i=dataclasses.replace(
+              core_profiles.T_i,
               right_face_constraint=jnp.array(jnp.nan),
           ),
       )

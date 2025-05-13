@@ -76,7 +76,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         geo,
         source_models,
     )
-    evolving_names = tuple(['temp_ion'])
+    evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_runtime_params_slice=static_runtime_params_slice,
         source_models=source_models,

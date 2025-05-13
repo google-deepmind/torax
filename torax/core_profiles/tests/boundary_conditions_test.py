@@ -95,19 +95,22 @@ class BoundaryConditionsTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo_t_plus_dt=geo,
     )
-    temp_ion = dataclasses.replace(core_profiles.temp_ion, **bc['temp_ion'],)
-    temp_el = dataclasses.replace(core_profiles.temp_el, **bc['temp_el'],)
+    # pylint: disable=invalid-name
+    T_i = dataclasses.replace(core_profiles.T_i, **bc['T_i'],)
+    T_e = dataclasses.replace(core_profiles.T_e, **bc['T_e'],)
     psi = dataclasses.replace(core_profiles.psi, **bc['psi'])
     n_e = dataclasses.replace(core_profiles.n_e, **bc['n_e'],)
-    ni = dataclasses.replace(core_profiles.ni, **bc['ni'],)
-    nimp = dataclasses.replace(core_profiles.nimp, **bc['nimp'],)
+    n_i = dataclasses.replace(core_profiles.n_i, **bc['n_i'],)
+    n_impurity = dataclasses.replace(
+        core_profiles.n_impurity, **bc['n_impurity'],
+    )
     updated = dataclasses.replace(
         core_profiles,
-        temp_el=temp_el,
-        temp_ion=temp_ion,
+        T_e=T_e,
+        T_i=T_i,
         n_e=n_e,
-        ni=ni,
-        nimp=nimp,
+        n_i=n_i,
+        n_impurity=n_impurity,
         psi=psi,
     )
 
@@ -117,19 +120,19 @@ class BoundaryConditionsTest(parameterized.TestCase):
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name
-    Zi_face = core_profiles.Zi_face
+    Z_i_face = core_profiles.Z_i_face
     Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
-    Zimp_face = core_profiles.Zimp_face
+    Z_impurity_face = core_profiles.Z_impurity_face
     # pylint: enable=invalid-name
-    dilution_factor_face = (Zimp_face - Z_eff_face) / (
-        Zi_face * (Zimp_face - Zi_face)
+    dilution_factor_face = (Z_impurity_face - Z_eff_face) / (
+        Z_i_face * (Z_impurity_face - Z_i_face)
     )
-    expected_ni_bound_right = expected_n_e_right_bc * dilution_factor_face[-1]
-    expected_nimp_bound_right = (
-        expected_n_e_right_bc - expected_ni_bound_right * Zi_face[-1]
-    ) / Zimp_face[-1]
-    np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
-    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.05)
+    expected_n_i_bound_right = expected_n_e_right_bc * dilution_factor_face[-1]
+    expected_n_impurity_bound_right = (
+        expected_n_e_right_bc - expected_n_i_bound_right * Z_i_face[-1]
+    ) / Z_impurity_face[-1]
+    np.testing.assert_allclose(updated.T_i.right_face_constraint, 27.7)
+    np.testing.assert_allclose(updated.T_e.right_face_constraint, 21.05)
     np.testing.assert_allclose(
         updated.n_e.right_face_constraint,
         expected_n_e_right_bc,
@@ -137,12 +140,13 @@ class BoundaryConditionsTest(parameterized.TestCase):
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        updated.ni.right_face_constraint, expected_ni_bound_right
+        updated.n_i.right_face_constraint, expected_n_i_bound_right
     )
     np.testing.assert_allclose(
-        updated.nimp.right_face_constraint, expected_nimp_bound_right
+        updated.n_impurity.right_face_constraint,
+        expected_n_impurity_bound_right,
     )
-    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.05)
+    np.testing.assert_allclose(updated.T_e.right_face_constraint, 21.05)
     np.testing.assert_allclose(
         updated.psi.right_face_grad_constraint, psi_constraint
     )

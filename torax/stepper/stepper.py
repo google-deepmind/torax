@@ -63,9 +63,9 @@ class Solver(abc.ABC):
     """The names of core_profiles variables that are evolved by the solver."""
     evolving_names = []
     if self.static_runtime_params_slice.evolve_ion_heat:
-      evolving_names.append('temp_ion')
+      evolving_names.append('T_i')
     if self.static_runtime_params_slice.evolve_electron_heat:
-      evolving_names.append('temp_el')
+      evolving_names.append('T_e')
     if self.static_runtime_params_slice.evolve_current:
       evolving_names.append('psi')
     if self.static_runtime_params_slice.evolve_density:

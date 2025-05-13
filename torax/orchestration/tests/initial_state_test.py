@@ -104,20 +104,20 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # Load in the reference core profiles.
     Ip_total = ref_profiles[output.IP_PROFILE][index, -1] / 1e6
     # All profiles are on a grid with [left_face, cell_grid, right_face]
-    temp_el = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
-    temp_el_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
-    temp_ion = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
-    temp_ion_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+    T_e = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
+    T_e_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
+    T_i = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
+    T_i_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
     n_e = ref_profiles[output.N_E][index, 1:-1]
     n_e_right_bc = ref_profiles[output.N_E][index, -1]
     psi = ref_profiles[output.PSI][index, 1:-1]
 
     # Override the dynamic runtime params with the loaded values.
     dynamic.profile_conditions.Ip = Ip_total
-    dynamic.profile_conditions.T_e = temp_el
-    dynamic.profile_conditions.T_e_right_bc = temp_el_bc
-    dynamic.profile_conditions.T_i = temp_ion
-    dynamic.profile_conditions.T_i_right_bc = temp_ion_bc
+    dynamic.profile_conditions.T_e = T_e
+    dynamic.profile_conditions.T_e_right_bc = T_e_bc
+    dynamic.profile_conditions.T_i = T_i
+    dynamic.profile_conditions.T_i_right_bc = T_i_bc
     dynamic.profile_conditions.n_e = n_e
     dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
     dynamic.profile_conditions.psi = psi
@@ -184,11 +184,11 @@ def _get_geo_and_runtime_params_slice(torax_config):
 def _verify_core_profiles(ref_profiles, index, core_profiles):
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
-      core_profiles.temp_el.value,
+      core_profiles.T_e.value,
       ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.temp_ion.value,
+      core_profiles.T_i.value,
       ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
   )
   np.testing.assert_allclose(
@@ -205,10 +205,10 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.N_I][index, 1:-1]
+      core_profiles.n_i.value, ref_profiles[output.N_I][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.ni.right_face_constraint,
+      core_profiles.n_i.right_face_constraint,
       ref_profiles[output.N_I][index, -1],
   )
 

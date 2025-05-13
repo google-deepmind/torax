@@ -105,33 +105,38 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles_t.temp_el,
+          core_profiles_t.T_e,
           core_profiles_t.n_e,
           n_e_redistributed,
           geo,
       )
     else:
-      te_redistributed = core_profiles_t.temp_el
+      te_redistributed = core_profiles_t.T_e
     if (
         static_runtime_params_slice.evolve_density
         or static_runtime_params_slice.evolve_electron_heat
     ):
-      ni_redistributed, nimp_redistributed, Zi, Zi_face, Zimp, Zimp_face = (
-          getters.get_ion_density_and_charge_states(
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice,
-              geo,
-              n_e_redistributed,
-              te_redistributed,
-          )
+      (
+          n_i_redistributed,
+          n_impurity_redistributed,
+          Z_i,
+          Z_i_face,
+          Z_impurity,
+          Z_impurity_face,
+      ) = getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          n_e_redistributed,
+          te_redistributed,
       )
     else:
-      ni_redistributed = core_profiles_t.ni
-      nimp_redistributed = core_profiles_t.nimp
-      Zi = core_profiles_t.Zi
-      Zi_face = core_profiles_t.Zi_face
-      Zimp = core_profiles_t.Zimp
-      Zimp_face = core_profiles_t.Zimp_face
+      n_i_redistributed = core_profiles_t.n_i
+      n_impurity_redistributed = core_profiles_t.n_impurity
+      Z_i = core_profiles_t.Z_i
+      Z_i_face = core_profiles_t.Z_i_face
+      Z_impurity = core_profiles_t.Z_impurity
+      Z_impurity_face = core_profiles_t.Z_impurity_face
 
     if static_runtime_params_slice.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
@@ -139,13 +144,13 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles_t.temp_ion,
-          core_profiles_t.ni,
-          ni_redistributed,
+          core_profiles_t.T_i,
+          core_profiles_t.n_i,
+          n_i_redistributed,
           geo,
       )
     else:
-      ti_redistributed = core_profiles_t.temp_ion
+      ti_redistributed = core_profiles_t.T_i
     psi_redistributed = flatten_profile.flatten_current_profile(
         rho_norm_q1,
         mixing_radius,
@@ -159,16 +164,16 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
 
     return dataclasses.replace(
         core_profiles_t,
-        temp_ion=ti_redistributed,
-        temp_el=te_redistributed,
+        T_i=ti_redistributed,
+        T_e=te_redistributed,
         psi=psi_redistributed,
         n_e=n_e_redistributed,
-        ni=ni_redistributed,
-        nimp=nimp_redistributed,
-        Zi=Zi,
-        Zi_face=Zi_face,
-        Zimp=Zimp,
-        Zimp_face=Zimp_face,
+        n_i=n_i_redistributed,
+        n_impurity=n_impurity_redistributed,
+        Z_i=Z_i,
+        Z_i_face=Z_i_face,
+        Z_impurity=Z_impurity,
+        Z_impurity_face=Z_impurity_face,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
     )

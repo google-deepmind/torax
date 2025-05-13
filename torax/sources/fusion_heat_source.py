@@ -63,8 +63,8 @@ def calc_fusion(
   if not {'D', 'T'}.issubset(static_runtime_params_slice.main_ion_names):
     return (
         jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        jnp.zeros_like(core_profiles.temp_ion.value),
-        jnp.zeros_like(core_profiles.temp_ion.value),
+        jnp.zeros_like(core_profiles.T_i.value),
+        jnp.zeros_like(core_profiles.T_i.value),
     )
   else:
     product = 1.0
@@ -76,7 +76,7 @@ def calc_fusion(
         product *= fraction
     DT_fraction_product = product  # pylint: disable=invalid-name
 
-  t_face = core_profiles.temp_ion.face_value()
+  t_face = core_profiles.T_i.face_value()
 
   # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
   # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
@@ -112,7 +112,7 @@ def calc_fusion(
 
   logPfus = (
       jnp.log(DT_fraction_product * Efus)
-      + 2 * jnp.log(core_profiles.ni.face_value())
+      + 2 * jnp.log(core_profiles.n_i.face_value())
       + logsigmav
       + 2 * jnp.log(dynamic_runtime_params_slice.numerics.density_reference)
   )
@@ -134,7 +134,7 @@ def calc_fusion(
   alpha_mass = 4.002602
   frac_i = collisions.fast_ion_fractional_heating_formula(
       birth_energy,
-      core_profiles.temp_el.value,
+      core_profiles.T_e.value,
       alpha_mass,
   )
   frac_e = 1.0 - frac_i

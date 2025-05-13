@@ -59,10 +59,10 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
     )
     self.core_profiles = mock.create_autospec(
         state.CoreProfiles,
-        temp_ion=cell_variable.CellVariable(
+        T_i=cell_variable.CellVariable(
             value=jnp.linspace(400, 700, n_rho), dr=self.geo.drho_norm
         ),
-        temp_el=cell_variable.CellVariable(
+        T_e=cell_variable.CellVariable(
             value=jnp.linspace(4000, 7000, n_rho), dr=self.geo.drho_norm
         ),
         psi=cell_variable.CellVariable(
@@ -71,10 +71,10 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
         n_e=cell_variable.CellVariable(
             value=jnp.linspace(100, 200, n_rho), dr=self.geo.drho_norm
         ),
-        ni=cell_variable.CellVariable(
+        n_i=cell_variable.CellVariable(
             value=jnp.linspace(100, 200, n_rho), dr=self.geo.drho_norm
         ),
-        Zi_face=np.linspace(1000, 2000, n_rho + 1),
+        Z_i_face=np.linspace(1000, 2000, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
     )
 

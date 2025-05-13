@@ -23,7 +23,7 @@ from torax.tests.test_lib import sim_test_case
 import xarray as xr
 
 
-_ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'n_e')
+_ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
 
 
 class RunSimulationTest(sim_test_case.SimTestCase):

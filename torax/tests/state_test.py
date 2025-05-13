@@ -44,23 +44,23 @@ def make_zero_core_profiles(
   )
   return state.CoreProfiles(
       currents=state.Currents.zeros(geo),
-      temp_ion=zero_cell_variable,
-      temp_el=zero_cell_variable,
+      T_i=zero_cell_variable,
+      T_e=zero_cell_variable,
       psi=zero_cell_variable,
       psidot=zero_cell_variable,
       n_e=zero_cell_variable,
-      ni=zero_cell_variable,
-      nimp=zero_cell_variable,
+      n_i=zero_cell_variable,
+      n_impurity=zero_cell_variable,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       density_reference=jnp.array(0.0),
       vloop_lcfs=jnp.array(0.0),
-      Zi=jnp.zeros_like(geo.rho),
-      Zi_face=jnp.zeros_like(geo.rho_face),
-      Ai=jnp.zeros(()),
-      Zimp=jnp.zeros_like(geo.rho),
-      Zimp_face=jnp.zeros_like(geo.rho_face),
-      Aimp=jnp.zeros(()),
+      Z_i=jnp.zeros_like(geo.rho),
+      Z_i_face=jnp.zeros_like(geo.rho_face),
+      A_i=jnp.zeros(()),
+      Z_impurity=jnp.zeros_like(geo.rho),
+      Z_impurity_face=jnp.zeros_like(geo.rho_face),
+      A_impurity=jnp.zeros(()),
   )
 
 
@@ -132,10 +132,10 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     np.testing.assert_allclose(
-        core_profiles.temp_ion.right_face_constraint, 27.7
+        core_profiles.T_i.right_face_constraint, 27.7
     )
     np.testing.assert_allclose(
-        core_profiles.temp_el.right_face_constraint, 42.0
+        core_profiles.T_e.right_face_constraint, 42.0
     )
     np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1)
 
@@ -169,7 +169,7 @@ class InitialStatesTest(parameterized.TestCase):
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(
         core_profiles,
-        Zi=core_profiles.Zi * 2.0,
+        Z_i=core_profiles.Z_i * 2.0,
     )
     assert not core_profiles.quasineutrality_satisfied()
 
@@ -178,11 +178,11 @@ class InitialStatesTest(parameterized.TestCase):
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
     with self.subTest('no negative values'):
       self.assertFalse(core_profiles.negative_temperature_or_density())
-    with self.subTest('negative temp_ion triggers'):
+    with self.subTest('negative T_i triggers'):
       new_core_profiles = dataclasses.replace(
           core_profiles,
-          temp_ion=dataclasses.replace(
-              core_profiles.temp_ion,
+          T_i=dataclasses.replace(
+              core_profiles.T_i,
               value=jnp.array(-1.0),
           ),
       )

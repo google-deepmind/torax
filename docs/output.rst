@@ -99,16 +99,16 @@ the child ``DataTree``.
 core_profiles
 -------------
 
-``temp_el`` (time, rho_cell + boundary values)
+``T_e`` (time, rho_cell + boundary values)
   Electron temperature in :math:`[keV]`.
 
-``temp_ion`` (time, rho_cell + boundary values)
+``T_i`` (time, rho_cell + boundary values)
   Ion temperature in :math:`[keV]`.
 
 ``ne`` (time, rho_cell + boundary values)
   Electron density in units of ``density_reference``.
 
-``ni`` (time, rho_cell + boundary values)
+``n_i`` (time, rho_cell + boundary values)
   Main ion density in units of ``density_reference``.
 
 ``density_reference`` (time)
@@ -231,7 +231,7 @@ analysis and inspection.
 ``ne_volume_avg`` (time) [density_reference m^-3]:
   Volume average electron density.
 
-``ni_volume_avg`` (time) [density_reference m^-3]:
+``n_i_volume_avg`` (time) [density_reference m^-3]:
   Volume average ion density.
 
 ``fgw_ne_volume_avg`` (time) [dimensionless]:

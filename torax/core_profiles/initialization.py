@@ -58,10 +58,10 @@ def initial_core_profiles(
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = getters.get_updated_ion_temperature(
+  T_i = getters.get_updated_ion_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
-  temp_el = getters.get_updated_electron_temperature(
+  T_e = getters.get_updated_electron_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
   n_e = getters.get_updated_electron_density(
@@ -71,13 +71,13 @@ def initial_core_profiles(
       geo,
   )
 
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           n_e,
-          temp_el,
+          T_e,
       )
   )
 
@@ -109,17 +109,17 @@ def initial_core_profiles(
   )
 
   core_profiles = state.CoreProfiles(
-      temp_ion=temp_ion,
-      temp_el=temp_el,
+      T_i=T_i,
+      T_e=T_e,
       n_e=n_e,
-      ni=ni,
-      Zi=Zi,
-      Zi_face=Zi_face,
-      Ai=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
-      nimp=nimp,
-      Zimp=Zimp,
-      Zimp_face=Zimp_face,
-      Aimp=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+      n_i=n_i,
+      Z_i=Z_i,
+      Z_i_face=Z_i_face,
+      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
+      n_impurity=n_impurity,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
       psi=psi,
       psidot=psidot,
       currents=currents,

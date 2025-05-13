@@ -288,15 +288,15 @@ class StateHistory:
     xr_dict = {}
     core_profiles = self.core_profiles
 
-    xr_dict[TEMPERATURE_ELECTRON] = core_profiles.temp_el.cell_plus_boundaries()
-    xr_dict[TEMPERATURE_ION] = core_profiles.temp_ion.cell_plus_boundaries()
+    xr_dict[TEMPERATURE_ELECTRON] = core_profiles.T_e.cell_plus_boundaries()
+    xr_dict[TEMPERATURE_ION] = core_profiles.T_i.cell_plus_boundaries()
     xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
     xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
     xr_dict[N_E] = core_profiles.n_e.cell_plus_boundaries()
-    xr_dict[N_I] = core_profiles.ni.cell_plus_boundaries()
-    xr_dict[N_IMPURITY] = core_profiles.nimp.cell_plus_boundaries()
+    xr_dict[N_I] = core_profiles.n_i.cell_plus_boundaries()
+    xr_dict[N_IMPURITY] = core_profiles.n_impurity.cell_plus_boundaries()
     xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
-        core_profiles.Zimp, core_profiles.Zimp_face
+        core_profiles.Z_impurity, core_profiles.Z_impurity_face
     )
 
     # Currents.
@@ -366,7 +366,7 @@ class StateHistory:
 
     xr_dict[qei_source_lib.QeiSource.SOURCE_NAME] = (
         self.core_sources.qei.qei_coef
-        * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
+        * (self.core_profiles.T_e.value - self.core_profiles.T_i.value)
     )
 
     xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
@@ -376,16 +376,16 @@ class StateHistory:
     xr_dict[SIGMA_PARALLEL] = self.core_sources.j_bootstrap.sigma
 
     # Add source profiles with suffixes indicating which profile they affect.
-    for profile in self.core_sources.temp_ion:
+    for profile in self.core_sources.T_i:
       if profile == "fusion":
-        xr_dict["p_alpha_i"] = self.core_sources.temp_ion[profile]
+        xr_dict["p_alpha_i"] = self.core_sources.T_i[profile]
       else:
-        xr_dict[f"p_{profile}_i"] = self.core_sources.temp_ion[profile]
-    for profile in self.core_sources.temp_el:
+        xr_dict[f"p_{profile}_i"] = self.core_sources.T_i[profile]
+    for profile in self.core_sources.T_e:
       if profile == "fusion":
-        xr_dict["p_alpha_e"] = self.core_sources.temp_el[profile]
+        xr_dict["p_alpha_e"] = self.core_sources.T_e[profile]
       else:
-        xr_dict[f"p_{profile}_e"] = self.core_sources.temp_el[profile]
+        xr_dict[f"p_{profile}_e"] = self.core_sources.T_e[profile]
     for profile in self.core_sources.psi:
       xr_dict[f"j_{profile}"] = self.core_sources.psi[profile]
     for profile in self.core_sources.n_e:

@@ -48,11 +48,11 @@ class PostProcessingTest(parameterized.TestCase):
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        temp_ion={
+        T_i={
             'fusion': ones,
             'generic_heat': 2 * ones,
         },
-        temp_el={
+        T_e={
             'bremsstrahlung': -ones,
             'ohmic': ones * 5,
             'fusion': ones,

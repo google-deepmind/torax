@@ -196,12 +196,12 @@ class SourceModelsTest(parameterized.TestCase):
 
     # Check that a single profile is returned for each affected core profile.
     # These profiles should be the same shape as the geo.rho.
-    ion_profiles = profiles.temp_ion
+    ion_profiles = profiles.T_i
     self.assertLen(ion_profiles, 1)
     self.assertIn('foo', ion_profiles)
     np.testing.assert_equal(ion_profiles['foo'].shape, self.geo.rho.shape)
 
-    el_profiles = profiles.temp_el
+    el_profiles = profiles.T_e
     self.assertLen(el_profiles, 1)
     self.assertIn('foo', el_profiles)
     np.testing.assert_equal(el_profiles['foo'].shape, self.geo.rho.shape)

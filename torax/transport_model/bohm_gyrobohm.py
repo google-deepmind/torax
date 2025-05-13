@@ -98,8 +98,8 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         * core_profiles.q_face**2
         / (constants_module.CONSTANTS.qe * geo.B_0 * true_n_e_face)
         * (
-            jnp.abs(true_n_e_grad_face) * core_profiles.temp_el.face_value()
-            + jnp.abs(core_profiles.temp_el.face_grad()) * true_n_e_face
+            jnp.abs(true_n_e_grad_face) * core_profiles.T_e.face_value()
+            + jnp.abs(core_profiles.T_e.face_grad()) * true_n_e_face
         )
         * constants_module.CONSTANTS.keV2J
         / geo.rho_b
@@ -114,9 +114,9 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         jnp.sqrt(
             dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A / 2
         )
-        * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3)
+        * jnp.sqrt(core_profiles.T_e.face_value() * 1e3)
         / geo.B_0**2
-        * jnp.abs(core_profiles.temp_el.face_grad() * 1e3)
+        * jnp.abs(core_profiles.T_e.face_grad() * 1e3)
         / geo.rho_b
     )
 

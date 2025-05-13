@@ -128,8 +128,8 @@ def _model_based_qei(
           and not static_runtime_params_slice.evolve_ion_heat
       )
   ):
-    explicit_i = qei_coef * core_profiles.temp_el.value
-    explicit_e = qei_coef * core_profiles.temp_ion.value
+    explicit_i = qei_coef * core_profiles.T_e.value
+    explicit_e = qei_coef * core_profiles.T_i.value
     implicit_ie = zeros
     implicit_ei = zeros
   else:

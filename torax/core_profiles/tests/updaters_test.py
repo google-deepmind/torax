@@ -203,7 +203,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     self.assertEqual(
-        boundary_conditions['temp_el']['right_face_constraint'],
+        boundary_conditions['T_e']['right_face_constraint'],
         expected_T_e_right_bc,
     )
 
@@ -243,7 +243,7 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     self.assertEqual(
-        boundary_conditions['temp_ion']['right_face_constraint'],
+        boundary_conditions['T_i']['right_face_constraint'],
         expected_T_i_right_bc,
     )
 

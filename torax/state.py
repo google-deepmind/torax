@@ -27,6 +27,7 @@ from torax.sources import source_profiles
 import typing_extensions
 
 
+# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
 class Currents:
   """Dataclass to group currents and related variables (e.g. conductivity)."""
@@ -67,62 +68,62 @@ class CoreProfiles:
   internal PDE system, and are simple JAX arrays.
 
   Attributes:
-      temp_ion: Ion temperature [keV].
-      temp_el: Electron temperature [keV].
+      T_i: Ion temperature [keV].
+      T_e: Electron temperature [keV].
       psi: Poloidal flux [Wb].
       psidot: Time derivative of poloidal flux (loop voltage) [V].
       n_e: Electron density [density_reference m^-3].
-      ni: Main ion density [density_reference m^-3].
-      nimp: Impurity density [density_reference m^-3].
+      n_i: Main ion density [density_reference m^-3].
+      n_impurity: Impurity density [density_reference m^-3].
       currents: Instance of the Currents dataclass.
       q_face: Safety factor.
       s_face: Magnetic shear.
       density_reference: Reference density [m^-3].
       vloop_lcfs: Loop voltage at LCFS (V).
-      Zi: Main ion charge on cell grid [dimensionless].
-      Zi_face: Main ion charge on face grid [dimensionless].
-      Ai: Main ion mass [amu].
-      Zimp: Impurity charge on cell grid [dimensionless].
-      Zimp_face: Impurity charge on face grid [dimensionless].
-      Aimp: Impurity mass [amu].
+      Z_i: Main ion charge on cell grid [dimensionless].
+      Z_i_face: Main ion charge on face grid [dimensionless].
+      A_i: Main ion mass [amu].
+      Z_impurity: Impurity charge on cell grid [dimensionless].
+      Z_impurity_face: Impurity charge on face grid [dimensionless].
+      A_impurity: Impurity mass [amu].
   """
 
-  temp_ion: cell_variable.CellVariable
-  temp_el: cell_variable.CellVariable
+  T_i: cell_variable.CellVariable
+  T_e: cell_variable.CellVariable
   psi: cell_variable.CellVariable
   psidot: cell_variable.CellVariable
   n_e: cell_variable.CellVariable
-  ni: cell_variable.CellVariable
-  nimp: cell_variable.CellVariable
+  n_i: cell_variable.CellVariable
+  n_impurity: cell_variable.CellVariable
   currents: Currents
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
   density_reference: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
   # pylint: disable=invalid-name
-  Zi: array_typing.ArrayFloat
-  Zi_face: array_typing.ArrayFloat
-  Ai: array_typing.ScalarFloat
-  Zimp: array_typing.ArrayFloat
-  Zimp_face: array_typing.ArrayFloat
-  Aimp: array_typing.ScalarFloat
+  Z_i: array_typing.ArrayFloat
+  Z_i_face: array_typing.ArrayFloat
+  A_i: array_typing.ScalarFloat
+  Z_impurity: array_typing.ArrayFloat
+  Z_impurity_face: array_typing.ArrayFloat
+  A_impurity: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
-        self.ni.value * self.Zi + self.nimp.value * self.Zimp,
+        self.n_i.value * self.Z_i + self.n_impurity.value * self.Z_impurity,
         self.n_e.value,
     ).item()
 
   def negative_temperature_or_density(self) -> bool:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
-        self.temp_ion,
-        self.temp_el,
+        self.T_i,
+        self.T_e,
         self.n_e,
-        self.ni,
-        self.nimp,
+        self.n_i,
+        self.n_impurity,
     )
     return any(
         [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
@@ -143,12 +144,12 @@ class CoreProfiles:
   def __str__(self) -> str:
     return f"""
       CoreProfiles(
-        temp_ion={self.temp_ion},
-        temp_el={self.temp_el},
+        T_i={self.T_i},
+        T_e={self.T_e},
         psi={self.psi},
         n_e={self.n_e},
-        nimp={self.nimp},
-        ni={self.ni},
+        n_impurity={self.n_impurity},
+        n_i={self.n_i},
       )
     """
 

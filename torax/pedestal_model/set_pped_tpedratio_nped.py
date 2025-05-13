@@ -73,22 +73,22 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     temperature_ratio = (
         dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
     )
-    Zimp = core_profiles.Zimp
-    Zi = core_profiles.Zi
+    Z_impurity = core_profiles.Z_impurity
+    Z_i = core_profiles.Z_i
     # Find the value of Z_eff at the pedestal top.
     rho_norm_ped_top = dynamic_runtime_params_slice.pedestal.rho_norm_ped_top
     Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
     Z_eff_ped = jnp.take(Z_eff, ped_idx)
-    Zi_ped = jnp.take(Zi, ped_idx)
-    Zimp_ped = jnp.take(Zimp, ped_idx)
+    Z_i_ped = jnp.take(Z_i, ped_idx)
+    Z_impurity_ped = jnp.take(Z_impurity, ped_idx)
     dilution_factor_ped = formulas.calculate_main_ion_dilution_factor(
-        Zi_ped, Zimp_ped, Z_eff_ped
+        Z_i_ped, Z_impurity_ped, Z_eff_ped
     )
-    # Calculate ni and nimp.
-    ni_ped = dilution_factor_ped * n_e_ped_ref
-    nimp_ped = (n_e_ped_ref - Zi_ped * ni_ped) / Zimp_ped
+    # Calculate n_i and n_impurity.
+    n_i_ped = dilution_factor_ped * n_e_ped_ref
+    n_impurity_ped = (n_e_ped_ref - Z_i_ped * n_i_ped) / Z_impurity_ped
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
@@ -97,8 +97,9 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         dynamic_runtime_params_slice.pedestal.P_ped
         / (
             n_e_ped_ref  # Electron pressure contribution.
-            + temperature_ratio * ni_ped  # Ion pressure contribution.
-            + temperature_ratio * nimp_ped  # Impurity pressure contribution.
+            + temperature_ratio * n_i_ped  # Ion pressure contribution.
+            + temperature_ratio
+            * n_impurity_ped  # Impurity pressure contribution.
         )
         / prefactor
     )

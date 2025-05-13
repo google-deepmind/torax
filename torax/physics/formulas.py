@@ -41,12 +41,12 @@ _trapz = jax.scipy.integrate.trapezoid
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
-    Zi: array_typing.ScalarFloat,
-    Zimp: array_typing.ArrayFloat,
+    Z_i: array_typing.ScalarFloat,
+    Z_impurity: array_typing.ArrayFloat,
     Z_eff: array_typing.ArrayFloat,
 ) -> jax.Array:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Zimp - Z_eff) / (Zi * (Zimp - Zi))
+  return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
 
 def calculate_pressure(
@@ -64,13 +64,13 @@ def calculate_pressure(
     pressure_thermal_tot_face: Total thermal pressure [Pa]
   """
   n_e = core_profiles.n_e.face_value()
-  ni = core_profiles.ni.face_value()
-  nimp = core_profiles.nimp.face_value()
-  temp_ion = core_profiles.temp_ion.face_value()
-  temp_el = core_profiles.temp_el.face_value()
+  n_i = core_profiles.n_i.face_value()
+  n_impurity = core_profiles.n_impurity.face_value()
+  T_i = core_profiles.T_i.face_value()
+  T_e = core_profiles.T_e.face_value()
   prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
-  pressure_thermal_el_face = n_e * temp_el * prefactor
-  pressure_thermal_ion_face = (ni + nimp) * temp_ion * prefactor
+  pressure_thermal_el_face = n_e * T_e * prefactor
+  pressure_thermal_ion_face = (n_i + n_impurity) * T_i * prefactor
   pressure_thermal_tot_face = (
       pressure_thermal_el_face + pressure_thermal_ion_face
   )
@@ -100,24 +100,24 @@ def calc_pprime(
   _, _, p_total = calculate_pressure(core_profiles)
   psi = core_profiles.psi.face_value()
   n_e = core_profiles.n_e.face_value()
-  ni = core_profiles.ni.face_value()
-  nimp = core_profiles.nimp.face_value()
-  temp_ion = core_profiles.temp_ion.face_value()
-  temp_el = core_profiles.temp_el.face_value()
+  n_i = core_profiles.n_i.face_value()
+  n_impurity = core_profiles.n_impurity.face_value()
+  T_i = core_profiles.T_i.face_value()
+  T_e = core_profiles.T_e.face_value()
   dne_drhon = core_profiles.n_e.face_grad()
-  dni_drhon = core_profiles.ni.face_grad()
-  dnimp_drhon = core_profiles.nimp.face_grad()
-  dti_drhon = core_profiles.temp_ion.face_grad()
-  dte_drhon = core_profiles.temp_el.face_grad()
+  dni_drhon = core_profiles.n_i.face_grad()
+  dnimp_drhon = core_profiles.n_impurity.face_grad()
+  dti_drhon = core_profiles.T_i.face_grad()
+  dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
 
   dptot_drhon = prefactor * (
       n_e * dte_drhon
-      + ni * dti_drhon
-      + nimp * dti_drhon
-      + dne_drhon * temp_el
-      + dni_drhon * temp_ion
-      + dnimp_drhon * temp_ion
+      + n_i * dti_drhon
+      + n_impurity * dti_drhon
+      + dne_drhon * T_e
+      + dni_drhon * T_i
+      + dnimp_drhon * T_i
   )
 
   # Calculate on-axis value with L'Hôpital's rule using 2nd order forward

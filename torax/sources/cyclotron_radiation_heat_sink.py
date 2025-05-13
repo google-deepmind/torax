@@ -315,7 +315,7 @@ def cyclotron_radiation_albajar(
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
-      te_data=core_profiles.temp_el.face_value(),
+      te_data=core_profiles.T_e.face_value(),
       beta_scan_parameters=beta_scan_parameters,
   )
 
@@ -336,9 +336,9 @@ def cyclotron_radiation_albajar(
       * geo.elongation_face[-1] ** 0.79
       * geo.B_0**2.62
       * n_e20_face[0] ** 0.38
-      * core_profiles.temp_el.face_value()[0]
-      * (16 + core_profiles.temp_el.face_value()[0]) ** 2.61
-      * (1 + 0.12 * core_profiles.temp_el.face_value()[0] / p_a_0**0.41)
+      * core_profiles.T_e.face_value()[0]
+      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61
+      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41)
       ** -1.51
       * K
       * G
@@ -351,7 +351,7 @@ def cyclotron_radiation_albajar(
       * geo.elongation**0.79
       * (geo.F / geo.R_major) ** 2.62
       * n_e20_cell**0.38
-      * core_profiles.temp_el.value**3.61
+      * core_profiles.T_e.value**3.61
   )
 
   # Scale the profile shape to match the total integrated power loss

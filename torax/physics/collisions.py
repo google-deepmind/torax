@@ -56,12 +56,12 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   lambda_ei = _calculate_lambda_ei(
-      core_profiles.temp_el.value, core_profiles.n_e.value * density_reference
+      core_profiles.T_e.value, core_profiles.n_e.value * density_reference
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.temp_el.value,
+      core_profiles.T_e.value,
       core_profiles.n_e.value * density_reference,
       lambda_ei,
   )
@@ -107,13 +107,13 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   lambda_ei_face = _calculate_lambda_ei(
-      core_profiles.temp_el.face_value(),
+      core_profiles.T_e.face_value(),
       core_profiles.n_e.face_value() * density_reference
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.temp_el.face_value(),
+      core_profiles.T_e.face_value(),
       core_profiles.n_e.face_value() * density_reference,
       lambda_ei_face,
   )
@@ -130,7 +130,7 @@ def calc_nu_star(
       / (
           epsilon**1.5
           * jnp.sqrt(
-              core_profiles.temp_el.face_value()
+              core_profiles.T_e.face_value()
               * constants.CONSTANTS.keV2J
               / constants.CONSTANTS.me
           )
@@ -147,7 +147,7 @@ def calc_nu_star(
 
 def fast_ion_fractional_heating_formula(
     birth_energy: float | array_typing.ArrayFloat,
-    temp_el: array_typing.ArrayFloat,
+    T_e: array_typing.ArrayFloat,
     fast_ion_mass: float,
 ) -> array_typing.ArrayFloat:
   """Returns the fraction of heating that goes to the ions.
@@ -158,13 +158,13 @@ def fast_ion_fractional_heating_formula(
 
   Args:
     birth_energy: Birth energy of the fast ions in keV.
-    temp_el: Electron temperature.
+    T_e: Electron temperature.
     fast_ion_mass: Mass of the fast ions in amu.
 
   Returns:
     The fraction of heating that goes to the ions.
   """
-  critical_energy = 10 * fast_ion_mass * temp_el  # Eq. 5.
+  critical_energy = 10 * fast_ion_mass * T_e  # Eq. 5.
   energy_ratio = birth_energy / critical_energy
 
   # Eq. 26.
@@ -183,7 +183,7 @@ def fast_ion_fractional_heating_formula(
 
 
 def _calculate_lambda_ei(
-    temp_el: jax.Array,
+    T_e: jax.Array,
     n_e: jax.Array,
 ) -> jax.Array:
   """Calculates Coulomb logarithm for electron-ion collisions.
@@ -191,13 +191,13 @@ def _calculate_lambda_ei(
   See Wesson 3rd edition p727.
 
   Args:
-    temp_el: Electron temperature in keV.
+    T_e: Electron temperature in keV.
     n_e: Electron density in m^-3.
 
   Returns:
     Coulomb logarithm.
   """
-  return 15.2 - 0.5 * jnp.log(n_e / 1e20) + jnp.log(temp_el)
+  return 15.2 - 0.5 * jnp.log(n_e / 1e20) + jnp.log(T_e)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -206,13 +206,15 @@ def _calculate_weighted_Z_eff(
 ) -> jax.Array:
   """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
   return (
-      core_profiles.ni.value * core_profiles.Zi**2 / core_profiles.Ai
-      + core_profiles.nimp.value * core_profiles.Zimp**2 / core_profiles.Aimp
+      core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
+      + core_profiles.n_impurity.value
+      * core_profiles.Z_impurity**2
+      / core_profiles.A_impurity
   ) / core_profiles.n_e.value
 
 
 def _calculate_log_tau_e_Z1(
-    temp_el: jax.Array,
+    T_e: jax.Array,
     n_e: jax.Array,
     lambda_ei: jax.Array,
 ) -> jax.Array:
@@ -222,7 +224,7 @@ def _calculate_log_tau_e_Z1(
   and implemented in calling functions.
 
   Args:
-    temp_el: Electron temperature in keV.
+    T_e: Electron temperature in keV.
     n_e: Electron density in m^-3.
     lambda_ei: Coulomb logarithm.
 
@@ -234,5 +236,5 @@ def _calculate_log_tau_e_Z1(
       - 4 * jnp.log(constants.CONSTANTS.qe)
       + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(temp_el * constants.CONSTANTS.keV2J)
+      + 1.5 * jnp.log(T_e * constants.CONSTANTS.keV2J)
   )

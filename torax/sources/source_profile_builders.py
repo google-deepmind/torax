@@ -115,10 +115,10 @@ def build_source_profiles(
   profiles = source_profiles.SourceProfiles(
       j_bootstrap=bootstrap_profiles,
       qei=qei,
-      temp_el=explicit_source_profiles.temp_el
+      T_e=explicit_source_profiles.T_e
       if explicit_source_profiles
       else {},
-      temp_ion=explicit_source_profiles.temp_ion
+      T_i=explicit_source_profiles.T_i
       if explicit_source_profiles
       else {},
       n_e=explicit_source_profiles.n_e if explicit_source_profiles else {},
@@ -223,9 +223,9 @@ def _update_standard_source_profiles(
       case source_lib.AffectedCoreProfile.NE:
         calculated_source_profiles.n_e[source_name] = profile
       case source_lib.AffectedCoreProfile.TEMP_ION:
-        calculated_source_profiles.temp_ion[source_name] = profile
+        calculated_source_profiles.T_i[source_name] = profile
       case source_lib.AffectedCoreProfile.TEMP_EL:
-        calculated_source_profiles.temp_el[source_name] = profile
+        calculated_source_profiles.T_e[source_name] = profile
 
 
 def build_all_zero_profiles(

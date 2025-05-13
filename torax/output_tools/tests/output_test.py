@@ -75,10 +75,10 @@ class StateHistoryTest(parameterized.TestCase):
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        temp_ion={
+        T_i={
             'fusion': ones,
         },
-        temp_el={
+        T_e={
             'bremsstrahlung': -ones,
             'ohmic': ones * 5,
             'fusion': ones,
@@ -196,11 +196,11 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('p_alpha_e', profiles_dataset.data_vars)
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_i'].values[0, ...],
-        self.source_profiles.temp_ion['fusion'],
+        self.source_profiles.T_i['fusion'],
     )
     np.testing.assert_allclose(
         profiles_dataset.data_vars['p_alpha_e'].values[0, ...],
-        self.source_profiles.temp_el['fusion'],
+        self.source_profiles.T_e['fusion'],
     )
 
   def test_state_history_to_xr(self):
@@ -304,7 +304,7 @@ class StateHistoryTest(parameterized.TestCase):
 
   def test_cell_plus_boundaries_output(self):
     sim_state = self.sim_state
-    temp_el = cell_variable.CellVariable(
+    T_e = cell_variable.CellVariable(  # pylint: disable=invalid-name
         value=jnp.ones_like(self.geo.rho),
         dr=self.geo.drho_norm,
         right_face_constraint=2,
@@ -313,11 +313,14 @@ class StateHistoryTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     # pylint: disable=invalid-name
-    Zimp = jnp.ones_like(self.geo.rho) * 2
-    Zimp_face = jnp.ones_like(self.geo.rho_face) * 3
+    Z_impurity = jnp.ones_like(self.geo.rho) * 2
+    Z_impurity_face = jnp.ones_like(self.geo.rho_face) * 3
     # pylint: enable=invalid-name
     core_profiles = core_profile_helpers.make_zero_core_profiles(
-        self.geo, temp_el=temp_el, Zimp=Zimp, Zimp_face=Zimp_face
+        self.geo,
+        T_e=T_e,
+        Z_impurity=Z_impurity,
+        Z_impurity_face=Z_impurity_face,
     )
     sim_state = dataclasses.replace(sim_state, core_profiles=core_profiles)
     post_processed_outputs = post_processing.PostProcessedOutputs.zeros(

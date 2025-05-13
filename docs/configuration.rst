@@ -372,7 +372,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 
 ``initial_j_is_total_current`` (bool = False)
   Toggles the interpretation of :math:`j` above. If true, then :math:`j` is the total current.
-  If false, then :math:`j` is Ohmic current, with :math:`I_{ohm} = I_{tot} - I_{ni}`, where :math:`I_{ni}` is the total non-inductive current
+  If false, then :math:`j` is Ohmic current, with :math:`I_{ohm} = I_{tot} - I_{n_i}`, where :math:`I_{n_i}` is the total non-inductive current
   calculated upon initialization.
 
 ``initial_psi_from_j`` (bool = False)

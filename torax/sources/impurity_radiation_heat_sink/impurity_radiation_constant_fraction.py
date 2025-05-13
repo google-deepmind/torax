@@ -40,7 +40,7 @@ def radially_constant_fraction_of_Pin(
 ) -> tuple[chex.Array, ...]:
   """Model function for radiation heat sink from impurities.
 
-  This model represents a sink in the temp_el equation, whose value is a fixed %
+  This model represents a sink in the T_e equation, whose value is a fixed %
   of the total heating power input.
 
   Args:
@@ -67,19 +67,19 @@ def radially_constant_fraction_of_Pin(
         ' function is used in an explicit source.'
     )
 
-  # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum
+  # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
   # sources_psi, but only summing over heating *input* sources
   # (Pohm + Paux + Palpha + ...) and summing over *both* ion + electron heating
 
   # TODO(b/383061556) Move away from using brittle source names to identify
   # sinks/sources.
   source_profiles = jnp.zeros_like(geo.rho)
-  for source_name in calculated_source_profiles.temp_el:
+  for source_name in calculated_source_profiles.T_e:
     if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.temp_el[source_name]
-  for source_name in calculated_source_profiles.temp_ion:
+      source_profiles += calculated_source_profiles.T_e[source_name]
+  for source_name in calculated_source_profiles.T_i:
     if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.temp_ion[source_name]
+      source_profiles += calculated_source_profiles.T_i[source_name]
 
   Q_total_in = source_profiles
   P_total_in = math_utils.volume_integration(Q_total_in, geo)

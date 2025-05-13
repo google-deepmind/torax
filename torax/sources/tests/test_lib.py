@@ -127,8 +127,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
       calculated_source_profiles = source_profiles.SourceProfiles(
           j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
           psi={'foo': jnp.full(geo.rho.shape, 13.0)},
-          temp_el={'foo_source': jnp.full(geo.rho.shape, 17.0)},
-          temp_ion={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
+          T_e={'foo_source': jnp.full(geo.rho.shape, 17.0)},
+          T_i={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
           n_e={},
           qei=source_profiles.QeiInfo.zeros(geo),
       )
