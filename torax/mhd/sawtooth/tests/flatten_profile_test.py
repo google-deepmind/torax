@@ -314,15 +314,17 @@ class FlattenProfileTest(parameterized.TestCase):
     )
 
     Ctot = Ip * 1e6 / denom
-    jtot = jformula * Ctot
+    j_total = jformula * Ctot
 
-    jtot_hires = np.interp(self.geo.rho_hires_norm, self.geo.rho_norm, jtot)
-
-    original_psi_profile = initialization.update_psi_from_j(
-        Ip, self.geo, jtot_hires
+    j_total_hires = np.interp(
+        self.geo.rho_hires_norm, self.geo.rho_norm, j_total
     )
 
-    original_jtot_profile, _, _ = psi_calculations.calc_jtot(
+    original_psi_profile = initialization.update_psi_from_j(
+        Ip, self.geo, j_total_hires
+    )
+
+    original_j_total_profile, _, _ = psi_calculations.calc_j_total(
         self.geo, original_psi_profile
     )
     original_q = psi_calculations.calc_q_face(self.geo, original_psi_profile)
@@ -339,12 +341,12 @@ class FlattenProfileTest(parameterized.TestCase):
         redistribution_mask=jnp.array(redistribution_mask),
         flattening_factor=jnp.array(flattening_factor),
         original_psi_profile=original_psi_profile,
-        original_jtot_profile=original_jtot_profile,
+        original_j_total_profile=original_j_total_profile,
         Ip_total=Ip,
         geo=self.geo,
     )
 
-    redistributed_jtot_profile, _, _ = psi_calculations.calc_jtot(
+    redistributed_j_total_profile, _, _ = psi_calculations.calc_j_total(
         self.geo, redistributed_psi_profile
     )
     redistributed_q = psi_calculations.calc_q_face(
@@ -353,16 +355,16 @@ class FlattenProfileTest(parameterized.TestCase):
 
     with self.subTest('approximate_current_conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          original_jtot_profile,
-          redistributed_jtot_profile,
+          original_j_total_profile,
+          redistributed_j_total_profile,
           rho_norm_mixing,
           rtol=2e-2,
       )
 
     with self.subTest('approximate_total_current_conservation'):
       self._check_total_conservation(
-          original_jtot_profile,
-          redistributed_jtot_profile,
+          original_j_total_profile,
+          redistributed_j_total_profile,
           rtol=1e-3,
       )
 

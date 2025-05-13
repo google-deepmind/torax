@@ -55,18 +55,18 @@ class PsiCalculationsTest(parameterized.TestCase):
           references_getter=torax_refs.chease_references_Ip_from_runtime_params
       ),
   ])
-  def test_calc_jtot(
+  def test_calc_j_total(
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
     geo = references.geometry_provider(references.config.numerics.t_initial)
     # pylint: disable=invalid-name
-    j, _, Ip_profile_face = psi_calculations.calc_jtot(
+    j, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         references.psi,
     )
     # pylint: enable=invalid-name
-    np.testing.assert_allclose(j, references.jtot, rtol=1e-5)
+    np.testing.assert_allclose(j, references.j_total, rtol=1e-5)
 
     if isinstance(geo, standard_geometry.StandardGeometry):
       if not geo.Ip_from_parameters:
@@ -166,17 +166,17 @@ class PsiCalculationsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
     Ip = 15
-    # calculate high resolution jtot consistent with total current profile
-    jtot_profile = (1 - geo.rho_hires_norm**2) ** 2
-    denom = _trapz(jtot_profile * geo.spr_hires, geo.rho_hires_norm)
+    # calculate high resolution j_total consistent with total current profile
+    j_total_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(j_total_profile * geo.spr_hires, geo.rho_hires_norm)
     Ctot = Ip * 1e6 / denom
-    jtot = jtot_profile * Ctot
+    j_total = j_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
         Ip,
         geo,
-        jtot,
+        j_total,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_jtot(
+    _, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         psi_cell_variable,
     )

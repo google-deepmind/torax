@@ -16,7 +16,7 @@
 
 Functions:
     - calc_q: Calculates the q-profile (q).
-    - calc_jtot: Calculate flux-surface-averaged toroidal current density.
+    - calc_j_total: Calculate flux-surface-averaged toroidal current density.
     - calc_s: Calculates magnetic shear (s).
     - calc_s_rmid: Calculates magnetic shear (s), using midplane r as radial
       coordinate.
@@ -62,21 +62,21 @@ def calc_q_face(
   return q_face * geo.q_correction_factor
 
 
-def calc_jtot(
+def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
-  Calculation based on jtot = dI/dS
+  Calculation based on j_total = dI/dS
 
   Args:
     geo: Torus geometry.
     psi: Poloidal flux.
 
   Returns:
-    jtot: total current density [A/m2] on cell grid
-    jtot_face: total current density [A/m2] on face grid
+    j_total: total current density [A/m2] on cell grid
+    j_total_face: total current density [A/m2] on face grid
     Ip_profile_face: cumulative total plasma current profile [A] on face grid
   """
 
@@ -100,17 +100,17 @@ def calc_jtot(
   dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
   dI_drhon = jnp.gradient(Ip_profile, geo.rho_norm)
 
-  jtot_bulk = dI_drhon[1:] / geo.spr[1:]
-  jtot_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
+  j_total_bulk = dI_drhon[1:] / geo.spr[1:]
+  j_total_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
 
   # Extrapolate the axis term from the bulk term due to strong sensitivities
   # of near-axis numerical derivatives. Set zero boundary condition on-axis
-  jtot_axis = jtot_bulk[0] - (jtot_bulk[1] - jtot_bulk[0])
+  j_total_axis = j_total_bulk[0] - (j_total_bulk[1] - j_total_bulk[0])
 
-  jtot = jnp.concatenate([jnp.array([jtot_axis]), jtot_bulk])
-  jtot_face = jnp.concatenate([jnp.array([jtot_axis]), jtot_face_bulk])
+  j_total = jnp.concatenate([jnp.array([j_total_axis]), j_total_bulk])
+  j_total_face = jnp.concatenate([jnp.array([j_total_axis]), j_total_face_bulk])
 
-  return jtot, jtot_face, Ip_profile_face
+  return j_total, j_total_face, Ip_profile_face
 
 
 def calc_s_face(

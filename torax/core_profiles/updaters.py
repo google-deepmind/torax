@@ -54,15 +54,17 @@ def _get_updated_currents(
     source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
   """Updates the currents in the core profiles from the source profiles."""
-  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(geo, psi)
+  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
+      geo, psi
+  )
   external_current = sum(source_profiles.psi.values())
   j_bootstrap = source_profiles.j_bootstrap
-  johm = jtot - external_current - j_bootstrap.j_bootstrap
+  j_ohmic = j_total - external_current - j_bootstrap.j_bootstrap
 
   return state.Currents(
-      jtot=jtot,
-      jtot_face=jtot_face,
-      johm=johm,
+      j_total=j_total,
+      j_total_face=j_total_face,
+      j_ohmic=j_ohmic,
       external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
   )

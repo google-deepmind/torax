@@ -191,7 +191,7 @@ def flatten_current_profile(
     redistribution_mask: array_typing.ArrayBool,
     flattening_factor: array_typing.ScalarFloat,
     original_psi_profile: cell_variable.CellVariable,
-    original_jtot_profile: array_typing.ArrayFloat,
+    original_j_total_profile: array_typing.ArrayFloat,
     Ip_total: array_typing.ScalarFloat,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
@@ -214,8 +214,8 @@ def flatten_current_profile(
       mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_psi_profile: The original poloidal flux profile.
-    original_jtot_profile: The original jtot profile already precalculated and
-      consistent with the psi profile.
+    original_j_total_profile: The original j_total profile already precalculated
+      and consistent with the psi profile.
     Ip_total: The total plasma current [MA].
     geo: The geometry of the simulation at this time slice.
 
@@ -227,46 +227,48 @@ def flatten_current_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_jtot = _get_trial_profile(
+  trial_j_total = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
-      original_jtot_profile,
+      original_j_total_profile,
       geo,
   )
 
-  jtot_at_mixing_edge = jnp.interp(
+  j_total_at_mixing_edge = jnp.interp(
       rho_norm_mixing,
       rho_norm,
-      original_jtot_profile,
+      original_j_total_profile,
   )
 
   scaling = _get_scaling_factor(
-      value_at_mixing_edge=jtot_at_mixing_edge,
-      original_profile=original_jtot_profile,
-      trial_profile=trial_jtot,
+      value_at_mixing_edge=j_total_at_mixing_edge,
+      original_profile=original_j_total_profile,
+      trial_profile=trial_j_total,
       redistribution_mask=redistribution_mask,
       geo=geo,
   )
 
-  new_jtot = (trial_jtot - jtot_at_mixing_edge) * scaling + jtot_at_mixing_edge
+  new_j_total = (
+      trial_j_total - j_total_at_mixing_edge
+  ) * scaling + j_total_at_mixing_edge
 
   # Build the new value using masks and the scaling factor
-  new_jtot = jnp.where(
+  new_j_total = jnp.where(
       redistribution_mask,
-      new_jtot,
-      original_jtot_profile,
+      new_j_total,
+      original_j_total_profile,
   )
 
-  # Construct a new psi profile using the new jtot profile.
-  # Since we will need to use a hires jtot profile, we expect a minor deviation
-  # from the conserved current.
+  # Construct a new psi profile using the new j_total profile.
+  # Since we will need to use a hires j_total profile, we expect a minor
+  # deviation from the conserved current.
   # TODO(b/317360481). Come up with a better way to conserve current through
   # the j-->psi conversion.
 
-  new_jtot_hires = jnp.interp(geo.rho_hires_norm, geo.rho_norm, new_jtot)
+  new_j_total_hires = jnp.interp(geo.rho_hires_norm, geo.rho_norm, new_j_total)
 
-  new_psi = initialization.update_psi_from_j(Ip_total, geo, new_jtot_hires)
+  new_psi = initialization.update_psi_from_j(Ip_total, geo, new_j_total_hires)
 
   # Shift the new psi profile to match the original psi profile at the
   # face boundary.

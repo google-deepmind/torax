@@ -56,7 +56,7 @@ class InitializationTest(parameterized.TestCase):
         unused_state=mock.ANY,
         unused_calculated_source_profiles=mock.ANY,
     )[0]
-    _, jtot_hires = initialization._prescribe_currents(
+    _, j_total_hires = initialization._prescribe_currents(
         bootstrap_profile=bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -65,7 +65,7 @@ class InitializationTest(parameterized.TestCase):
     psi = initialization.update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        jtot_hires,
+        j_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -165,8 +165,8 @@ class InitializationTest(parameterized.TestCase):
     j_total1_expected = jformula * ctot
     j_ohmic2_expected = j_total1_expected * (1 - _FRACTION_OF_TOTAL_CURRENT)
 
-    # Due to approximation errors in psi-->jtot conversions, as well as
-    # modifications to jtot on axis, we only compare the current profile
+    # Due to approximation errors in psi-->j_total conversions, as well as
+    # modifications to j_total on axis, we only compare the current profile
     # mean values up to relatively loose tolerance.
 
     # Both total currents should be equal, even if the relative contribution
@@ -338,7 +338,7 @@ def _calculate_currents(
 ) -> tuple[
     jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, geometry.Geometry
 ]:
-  """Calculates jtot, j_external, and j_ohmic currents."""
+  """Calculates j_total, j_external, and j_ohmic currents."""
 
   static_slice = build_runtime_params.build_static_params_from_config(
       torax_config
@@ -367,8 +367,8 @@ def _calculate_currents(
       core_profiles=core_profiles,
       source_models=source_models,
   )
-  j_total = core_profiles.currents.jtot
-  j_total_face = core_profiles.currents.jtot_face
+  j_total = core_profiles.currents.j_total
+  j_total_face = core_profiles.currents.j_total_face
   j_external = sum(core_sources.psi.values())
   j_bootstrap = core_sources.j_bootstrap.j_bootstrap
   j_ohmic = j_total - j_external - j_bootstrap

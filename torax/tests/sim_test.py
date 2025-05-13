@@ -361,7 +361,7 @@ class SimTest(sim_test_case.SimTestCase):
           [np.all(profile == first_profile) for profile in profile_history]
       ):
         for i in range(1, len(profile_history)):
-          # Most profiles should be == but jtot, q_face, and s_face can be
+          # Most profiles should be == but j_total, q_face, and s_face can be
           # merely allclose because they are recalculated on each step.
           if not np.allclose(profile_history[i], first_profile):
             msg = (

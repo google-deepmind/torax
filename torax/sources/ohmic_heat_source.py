@@ -49,7 +49,7 @@ def ohmic_model_func(
         ' an explicit source.'
     )
 
-  jtot, _, _ = psi_calculations.calc_jtot(
+  j_total, _, _ = psi_calculations.calc_j_total(
       geo,
       core_profiles.psi,
   )
@@ -66,7 +66,7 @@ def ohmic_model_func(
   )
 
   # Ohmic power is positive regardless of the sign of voltage and current.
-  pohm = jnp.abs(jtot * psidot / (2 * jnp.pi * geo.R_major))
+  pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major))
   return (pohm,)
 
 

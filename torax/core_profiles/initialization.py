@@ -139,13 +139,13 @@ def initial_core_profiles(
       source_models,
   )
 
-  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
+  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo, core_profiles.psi
   )
   currents = dataclasses.replace(
       core_profiles.currents,
-      jtot=jtot,
-      jtot_face=jtot_face,
+      j_total=j_total,
+      j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
   )
   core_profiles = dataclasses.replace(
@@ -163,7 +163,7 @@ def _prescribe_currents(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
 ) -> tuple[state.Currents, jax.Array]:
-  """Creates the initial Currents and jtot_hires from a bootstrap profile."""
+  """Creates the initial Currents and j_total_hires from a bootstrap profile."""
 
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
   psi_current = external_current + bootstrap_profile.j_bootstrap
@@ -179,14 +179,14 @@ def _prescribe_currents(
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
-    jtot = jformula * Ctot
-    johm = jtot - external_current - bootstrap_profile.j_bootstrap
+    j_total = jformula * Ctot
+    j_ohmic = j_total - external_current - bootstrap_profile.j_bootstrap
   else:
     Cohm = Iohm * 1e6 / denom
-    johm = jformula * Cohm
-    jtot = johm + external_current + bootstrap_profile.j_bootstrap
+    j_ohmic = jformula * Cohm
+    j_total = j_ohmic + external_current + bootstrap_profile.j_bootstrap
 
-  jtot_hires = _get_jtot_hires(
+  j_total_hires = _get_j_total_hires(
       dynamic_runtime_params_slice,
       geo,
       bootstrap_profile,
@@ -194,16 +194,16 @@ def _prescribe_currents(
       external_current,
   )
   currents = state.Currents(
-      jtot=jtot,
-      jtot_face=math_utils.cell_to_face(
-          jtot, geo, math_utils.IntegralPreservationQuantity.SURFACE
+      j_total=j_total,
+      j_total_face=math_utils.cell_to_face(
+          j_total, geo, math_utils.IntegralPreservationQuantity.SURFACE
       ),
-      johm=johm,
+      j_ohmic=j_ohmic,
       external_current_source=external_current,
       Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
   )
 
-  return currents, jtot_hires
+  return currents, j_total_hires
 
 
 def _calculate_currents_from_psi(
@@ -211,8 +211,8 @@ def _calculate_currents_from_psi(
     core_profiles: state.CoreProfiles,
     source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
-  """Creates the initial Currents using psi to calculate jtot."""
-  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
+  """Creates the initial Currents using psi to calculate j_total."""
+  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo,
       core_profiles.psi,
   )
@@ -220,11 +220,11 @@ def _calculate_currents_from_psi(
   # Note that the psi sources here are the standard sources and don't include
   # the bootstrap current.
   external_current = sum(source_profiles.psi.values())
-  johm = jtot - external_current - bootstrap_profile.j_bootstrap
+  j_ohmic = j_total - external_current - bootstrap_profile.j_bootstrap
   currents = state.Currents(
-      jtot=jtot,
-      jtot_face=jtot_face,
-      johm=johm,
+      j_total=j_total,
+      j_total_face=j_total_face,
+      j_ohmic=j_ohmic,
       external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
   )
@@ -235,7 +235,7 @@ def _calculate_currents_from_psi(
 def update_psi_from_j(
     Ip: array_typing.ScalarFloat,
     geo: geometry.Geometry,
-    jtot_hires: jax.Array,
+    j_total_hires: jax.Array,
     use_vloop_lcfs_boundary_condition: bool = False,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
@@ -248,13 +248,13 @@ def update_psi_from_j(
   Args:
     Ip: Total plasma current [MA].
     geo: Torus geometry.
-    jtot_hires: High resolution version of jtot [A/m^2].
+    j_total_hires: High resolution version of j_total [A/m^2].
     use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
 
   Returns:
     psi: Poloidal flux cell variable.
   """
-  y = jtot_hires * geo.spr_hires
+  y = j_total_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
@@ -455,7 +455,7 @@ def _init_psi_psidot_and_currents(
   else:
     # First calculate currents without bootstrap.
     external_current = sum(source_profiles.psi.values())
-    currents, jtot_hires = _prescribe_currents(
+    currents, j_total_hires = _prescribe_currents(
         bootstrap_profile=source_profiles.j_bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -464,7 +464,7 @@ def _init_psi_psidot_and_currents(
     psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        jtot_hires,
+        j_total_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     core_profiles = dataclasses.replace(
@@ -481,7 +481,7 @@ def _init_psi_psidot_and_currents(
         geo=geo,
         core_profiles=core_profiles,
     )
-    currents, jtot_hires = _prescribe_currents(
+    currents, j_total_hires = _prescribe_currents(
         bootstrap_profile=bootstrap_profile,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -490,10 +490,10 @@ def _init_psi_psidot_and_currents(
     psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
-        jtot_hires,
+        j_total_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_jtot(
+    _, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         psi,
     )
@@ -552,14 +552,14 @@ def _init_psi_psidot_and_currents(
   return core_profiles
 
 
-def _get_jtot_hires(
+def _get_j_total_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array | float,
     external_current: jax.Array,
 ) -> jax.Array:
-  """Calculates jtot hires."""
+  """Calculates j_total hires."""
   j_bootstrap_hires = jnp.interp(
       geo.rho_hires, geo.rho_face, bootstrap_profile.j_bootstrap_face
   )
@@ -574,7 +574,7 @@ def _get_jtot_hires(
       geo.rho_hires, geo.rho_face, external_current_face
   )
 
-  # calculate high resolution jtot and Ohmic current profile
+  # calculate high resolution j_total and Ohmic current profile
   jformula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
@@ -583,9 +583,9 @@ def _get_jtot_hires(
     Ctot_hires = (
         dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom
     )
-    jtot_hires = jformula_hires * Ctot_hires
+    j_total_hires = jformula_hires * Ctot_hires
   else:
     Cohm_hires = Iohm * 1e6 / denom
-    johm_hires = jformula_hires * Cohm_hires
-    jtot_hires = johm_hires + external_current_hires + j_bootstrap_hires
-  return jtot_hires
+    j_ohmic_hires = jformula_hires * Cohm_hires
+    j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
+  return j_total_hires

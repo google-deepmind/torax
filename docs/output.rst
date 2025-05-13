@@ -135,10 +135,10 @@ core_profiles
 ``core_profiles_generic_current_source`` (time, rho_cell)
   External non-inductive current density on cell grid, as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
 
-``johm`` (time, rho_cell)
+``j_ohmic`` (time, rho_cell)
   Ohmic current density on cell grid in :math:`[A/m^2]`.
 
-``jtot`` (time, rho_cell + boundary values)
+``j_total`` (time, rho_cell + boundary values)
   Total current density on cell grid plus boundary values in :math:`[A/m^2]`.
 
 ``Ip_profile_face`` (time, rho_face)

@@ -32,9 +32,9 @@ import typing_extensions
 class Currents:
   """Dataclass to group currents and related variables (e.g. conductivity)."""
 
-  jtot: array_typing.ArrayFloat
-  jtot_face: array_typing.ArrayFloat
-  johm: array_typing.ArrayFloat
+  j_total: array_typing.ArrayFloat
+  j_total_face: array_typing.ArrayFloat
+  j_ohmic: array_typing.ArrayFloat
   external_current_source: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
@@ -49,9 +49,9 @@ class Currents:
   def zeros(cls, geo: geometry.Geometry) -> "Currents":
     """Returns a Currents with all zeros."""
     return cls(
-        jtot=jnp.zeros(geo.rho_face.shape),
-        jtot_face=jnp.zeros(geo.rho_face.shape),
-        johm=jnp.zeros(geo.rho_face.shape),
+        j_total=jnp.zeros(geo.rho_face.shape),
+        j_total_face=jnp.zeros(geo.rho_face.shape),
+        j_ohmic=jnp.zeros(geo.rho_face.shape),
         external_current_source=jnp.zeros(geo.rho_face.shape),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
     )

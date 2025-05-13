@@ -1008,13 +1008,13 @@ def build_standard_geometry(
   # plasma current density
   dI_tot_drhon = np.gradient(intermediate.Ip_profile, rho_norm_intermediate)
 
-  jtot_face_bulk = dI_tot_drhon[1:] / spr[1:]
+  j_total_face_bulk = dI_tot_drhon[1:] / spr[1:]
 
   # For now set on-axis to the same as the second grid point, due to 0/0
   # division.
-  jtot_face_axis = jtot_face_bulk[0]
+  j_total_face_axis = j_total_face_bulk[0]
 
-  jtot = np.concatenate([np.array([jtot_face_axis]), jtot_face_bulk])
+  j_total = np.concatenate([np.array([j_total_face_axis]), j_total_face_bulk])
 
   # fill geometry structure
   drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
@@ -1072,8 +1072,8 @@ def build_standard_geometry(
   psi_from_Ip_face = rhon_interpolation_func(rho_face_norm, psi_from_Ip)
   psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
-  jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
-  jtot = rhon_interpolation_func(rho_norm, jtot)
+  j_total_face = rhon_interpolation_func(rho_face_norm, j_total)
+  j_total = rhon_interpolation_func(rho_norm, j_total)
 
   Ip_profile_face = rhon_interpolation_func(
       rho_face_norm, intermediate.Ip_profile
@@ -1147,8 +1147,8 @@ def build_standard_geometry(
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       psi_from_Ip_face=psi_from_Ip_face,
-      j_total=jtot,
-      j_total_face=jtot_face,
+      j_total=j_total,
+      j_total_face=j_total_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,

@@ -165,7 +165,7 @@ def calc_FFprime(
   pprime = calc_pprime(core_profiles)
   # g3 = <1/R^2>
   g3 = geo.g3_face
-  jtor_over_R = core_profiles.currents.jtot_face / geo.R_major
+  jtor_over_R = core_profiles.currents.j_total_face / geo.R_major
 
   FFprime_face = -(jtor_over_R / (2 * jnp.pi) + pprime) * mu0 / g3
   return FFprime_face

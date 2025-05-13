@@ -33,7 +33,7 @@ class References:
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
-  jtot: np.ndarray
+  j_total: np.ndarray
   q: np.ndarray
   s: np.ndarray
 
@@ -167,7 +167,7 @@ def circular_references() -> References:
       9.90033116980977e-03,
       -1.40569237592991e-02,
   ])
-  jtot = np.array([
+  j_total = np.array([
       2.68706872988400e06,
       2.62750394454838e06,
       2.56793915921276e06,
@@ -255,7 +255,7 @@ def circular_references() -> References:
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
-      jtot=jtot,
+      j_total=j_total,
       q=q,
       s=s,
   )
@@ -369,7 +369,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       0.40289033343704,
       0.61986455206849,
   ])
-  jtot = np.array([
+  j_total = np.array([
       811609.9098229366,
       866385.1221635343,
       921160.3345041319,
@@ -457,7 +457,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
-      jtot=jtot,
+      j_total=j_total,
       q=q,
       s=s,
   )
@@ -571,7 +571,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       0.51017615337305,
       0.78493833987809,
   ])
-  jtot = np.array([
+  j_total = np.array([
       1034360.4161327551,
       1104168.9666995427,
       1173977.5172663303,
@@ -659,7 +659,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=psidot,
-      jtot=jtot,
+      j_total=j_total,
       q=q,
       s=s,
   )

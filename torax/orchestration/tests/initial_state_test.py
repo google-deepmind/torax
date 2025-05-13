@@ -219,14 +219,14 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot, ref_profiles[output.J_TOTAL][index, 1:-1]
+      core_profiles.currents.j_total, ref_profiles[output.J_TOTAL][index, 1:-1]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot_face[0],
+      core_profiles.currents.j_total_face[0],
       ref_profiles[output.J_TOTAL][index, 0],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jtot_face[-1],
+      core_profiles.currents.j_total_face[-1],
       ref_profiles[output.J_TOTAL][index, -1],
   )
   np.testing.assert_allclose(
@@ -234,7 +234,7 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_EXTERNAL][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.johm, ref_profiles[output.J_OHMIC][index, :]
+      core_profiles.currents.j_ohmic, ref_profiles[output.J_OHMIC][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.Ip_profile_face,
