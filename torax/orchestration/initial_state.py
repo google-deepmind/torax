@@ -164,7 +164,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
   numerics_dataset = data_tree.children[output.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()
   sawtooth_crash = bool(numerics_dataset[output.SAWTOOTH_CRASH])
-  print(numerics_dataset[output.OUTER_SOLVER_ITERATIONS])
   outer_solver_iterations = int(
       numerics_dataset[output.OUTER_SOLVER_ITERATIONS]
   )
