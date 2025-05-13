@@ -191,8 +191,8 @@ def _override_initial_runtime_params_from_file(
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
   dynamic_runtime_params_slice.profile_conditions.Ip = (
-      profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1] / 1e6
-  )  # Convert from A to MA.
+      profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1]
+  )
   dynamic_runtime_params_slice.profile_conditions.T_e = (
       profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])

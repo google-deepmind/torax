@@ -216,7 +216,7 @@ def flatten_current_profile(
     original_psi_profile: The original poloidal flux profile.
     original_j_total_profile: The original j_total profile already precalculated
       and consistent with the psi profile.
-    Ip_total: The total plasma current [MA].
+    Ip_total: The total plasma current [A].
     geo: The geometry of the simulation at this time slice.
 
   Returns:

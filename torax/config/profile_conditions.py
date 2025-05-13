@@ -27,7 +27,7 @@ from typing_extensions import Self
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.ScalarFloat  # MA.
+  Ip: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
   T_i_right_bc: array_typing.ScalarFloat
   T_e_right_bc: array_typing.ScalarFloat
@@ -204,7 +204,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         return x
 
     dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
-    dynamic_params['Ip'] /= 1e6  # Convert to MA.
     return DynamicProfileConditions(**dynamic_params)
 
   def build_static_params(self) -> StaticRuntimeParams:

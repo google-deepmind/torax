@@ -266,7 +266,6 @@ def calculate_psi_grad_constraint_from_Ip(
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
       Ip
-      * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )

@@ -158,7 +158,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
         redistribution_params.flattening_factor,
         core_profiles_t.psi,
         core_profiles_t.currents.j_total,
-        core_profiles_t.currents.Ip_profile_face[-1] / 1e6,  # in MA
+        core_profiles_t.currents.Ip_profile_face[-1],
         geo,
     )
 

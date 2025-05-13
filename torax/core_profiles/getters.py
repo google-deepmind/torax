@@ -72,6 +72,7 @@ def get_updated_electron_density(
 
   nGW = (
       dynamic_profile_conditions.Ip
+      / 1e6  # Convert to MA.
       / (jnp.pi * geo.a_minor**2)
       * 1e20
       / dynamic_numerics.density_reference

@@ -59,6 +59,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Convert n_e_ped to reference units.
     nGW = (
         dynamic_runtime_params_slice.profile_conditions.Ip
+        / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
         / dynamic_runtime_params_slice.numerics.density_reference

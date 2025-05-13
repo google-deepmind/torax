@@ -305,7 +305,7 @@ class FlattenProfileTest(parameterized.TestCase):
   def test_flatten_current_profile(self):
     """Based on q profile with a q=1 surface."""
 
-    Ip = 15  # MA
+    Ip = 15e6  # A
     current_profile_nu = 2
 
     jformula = (1 - self.geo.rho_norm**2) ** current_profile_nu
@@ -313,7 +313,7 @@ class FlattenProfileTest(parameterized.TestCase):
         jformula * self.geo.spr, self.geo.rho_norm
     )
 
-    Ctot = Ip * 1e6 / denom
+    Ctot = Ip / denom
     j_total = jformula * Ctot
 
     j_total_hires = np.interp(

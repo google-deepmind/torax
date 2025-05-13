@@ -50,7 +50,6 @@ def initial_core_profiles(
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
-
   Returns:
     Initial core profiles.
   """
@@ -168,7 +167,7 @@ def _prescribe_currents(
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
   psi_current = external_current + bootstrap_profile.j_bootstrap
 
-  I_non_inductive = math_utils.area_integration(psi_current, geo) / 10**6
+  I_non_inductive = math_utils.area_integration(psi_current, geo)
   Iohm = Ip - I_non_inductive
 
   # construct prescribed current formula on grid.
@@ -178,10 +177,10 @@ def _prescribe_currents(
   denom = _trapz(jformula * geo.spr, geo.rho_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
-    Ctot = Ip * 1e6 / denom
+    Ctot = Ip / denom
     j_total = jformula * Ctot
   else:
-    Cohm = Iohm * 1e6 / denom
+    Cohm = Iohm / denom
     j_ohmic = jformula * Cohm
     j_total = j_ohmic + external_current + bootstrap_profile.j_bootstrap
 
@@ -237,7 +236,7 @@ def update_psi_from_j(
     is True.
 
   Args:
-    Ip: Total plasma current [MA].
+    Ip: Total plasma current [A].
     geo: Torus geometry.
     j_total_hires: High resolution version of j_total [A/m^2].
     use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
@@ -552,11 +551,11 @@ def _get_j_total_hires(
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
-        dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom
+        dynamic_runtime_params_slice.profile_conditions.Ip / denom
     )
     j_total_hires = jformula_hires * Ctot_hires
   else:
-    Cohm_hires = Iohm * 1e6 / denom
+    Cohm_hires = Iohm / denom
     j_ohmic_hires = jformula_hires * Cohm_hires
     j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
   return j_total_hires

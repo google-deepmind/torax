@@ -82,7 +82,6 @@ def calculate_generic_current(
 
   Cext = (
       I_generic
-      * 1e6
       / math_utils.area_integration(generic_current_form, geo)
   )
 
@@ -127,7 +126,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current in MA. Used if
+    I_generic: total "external" current in A. Used if
       use_absolute_current=True.
     fraction_of_total_current: total "external" current fraction. Used if
       use_absolute_current=False.
@@ -139,7 +138,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
 
   model_name: Literal['gaussian'] = 'gaussian'
   I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      3.0
+      3.0e6
   )
   fraction_of_total_current: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.2)
