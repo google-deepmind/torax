@@ -16,7 +16,7 @@ import dataclasses
 import functools
 import json
 import logging
-import os
+import os  # pylint: disable=unused-import
 from typing import Any, ClassVar, Final, Literal, Sequence
 
 import chex
@@ -47,10 +47,6 @@ import typing_extensions
 # the default source config for Pydantic to "discriminate" against.
 DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
-
-# Environment variable for the TORIC NN model. Used if the model path
-# is not set in the config.
-_MODEL_PATH_ENV_VAR: Final[str] = 'TORIC_NN_MODEL_PATH'
 # If no path is set in either the config or the environment variable, use
 # this path.
 _DEFAULT_MODEL_PATH = '~/toric_surrogate/TORIC_MLP_v1/toricnn.json'
@@ -58,10 +54,6 @@ _TORIC_GRID_SIZE = 297
 _HELIUM3_ID = 'He3'
 _TRITIUM_SECOND_HARMONIC_ID = '2T'
 _ELECTRON_ID = 'e'
-
-
-def _get_default_model_path() -> str:
-  return os.environ.get(_MODEL_PATH_ENV_VAR, _DEFAULT_MODEL_PATH)
 
 
 def _from_json(json_file) -> dict[str, Any]:
@@ -216,7 +208,7 @@ class ToricNNWrapper:
 
   def __init__(self, path: str | None = None):
     if path is None:
-      path = _get_default_model_path()
+      path = _DEFAULT_MODEL_PATH
     self._path = path
     logging.info('Loading ToricNN model from %s', path)
     model_config = _from_json(path)
@@ -486,6 +478,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   """Configuration for the IonCyclotronSource.
 
   Attributes:
+    model_path: Path to JSON weights and model config of ToricNN model.
     wall_inner: Inner radial location of first wall at plasma midplane level
       [m].
     wall_outer: Outer radial location of first wall at plasma midplane level
@@ -497,6 +490,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     absorption_fraction: Fraction of absorbed power.
   """
   model_name: Literal['toric_nn'] = 'toric_nn'
+  model_path: str | None = None
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
@@ -515,7 +509,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
 
   @pydantic.model_validator(mode='after')
   def _load_toric_nn(self) -> typing_extensions.Self:
-    self._toric_nn = ToricNNWrapper()
+    self._toric_nn = ToricNNWrapper(self.model_path)
     return self
 
   @property

@@ -30,6 +30,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
+from torax.torax_pydantic import torax_pydantic
 
 # Internal import.
 # Internal import.
@@ -100,21 +101,24 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     # pytype: enable=signature-mismatch
 
   def config_raises_if_model_path_does_not_exist(self):
-    os.environ[ion_cyclotron_source._MODEL_PATH_ENV_VAR] = (
-        "/tmp/non_existent_file.json"
-    )
     with self.assertRaises(FileNotFoundError):
-      ion_cyclotron_source.IonCyclotronSourceConfig.from_dict({})
+      ion_cyclotron_source.IonCyclotronSourceConfig.from_dict(
+          {"model_path": "/tmp/non_existent_file.json"}
+      )
 
-  @mock.patch.object(
-      ion_cyclotron_source,
-      "_get_default_model_path",
-      autospec=True,
-      return_value=_DUMMY_MODEL_PATH,
-  )
-  def test_build_dynamic_params(self, mock_path: str):
-    del mock_path
-    super().test_build_dynamic_params()
+  def test_build_dynamic_params(self):
+    source = self._source_config_class.from_dict(
+        {"model_path": _DUMMY_MODEL_PATH}
+    )
+    self.assertIsInstance(source, self._source_config_class)
+    torax_pydantic.set_grid(
+        source,
+        torax_pydantic.Grid1D(nx=4, dx=0.25),
+    )
+    dynamic_params = source.build_dynamic_params(t=0.0)
+    self.assertIsInstance(
+        dynamic_params, runtime_params_lib.DynamicRuntimeParams
+    )
 
   @parameterized.product(
       mode=(
@@ -128,15 +132,11 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the static params are built correctly."""
-    with mock.patch.object(
-        ion_cyclotron_source,
-        "_get_default_model_path",
-        autospec=True,
-        return_value=_DUMMY_MODEL_PATH,
-    ):
-      source_config = self._source_config_class.from_dict(
-          {"mode": mode, "is_explicit": is_explicit}
-      )
+    source_config = self._source_config_class.from_dict({
+        "mode": mode,
+        "is_explicit": is_explicit,
+        "model_path": _DUMMY_MODEL_PATH,
+    })
     static_params = source_config.build_static_params()
     self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
     self.assertEqual(static_params.mode, mode.value)
@@ -164,17 +164,10 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     )
     # pylint: enable=protected-access
 
-  @mock.patch.object(
-      ion_cyclotron_source,
-      "_get_default_model_path",
-      autospec=True,
-      return_value=_DUMMY_MODEL_PATH,
-  )
-  def test_source_value(self, mock_path):
+  def test_source_value(self):
     """Tests that the source can provide a value by default."""
-    del mock_path
     config = default_configs.get_default_config_dict()
-    config["sources"] = {self._source_name: {}}
+    config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources
