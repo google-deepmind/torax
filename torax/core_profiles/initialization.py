@@ -180,7 +180,6 @@ def _prescribe_currents(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     j_total = jformula * Ctot
-    j_ohmic = j_total - external_current - bootstrap_profile.j_bootstrap
   else:
     Cohm = Iohm * 1e6 / denom
     j_ohmic = jformula * Cohm
@@ -198,8 +197,6 @@ def _prescribe_currents(
       j_total_face=math_utils.cell_to_face(
           j_total, geo, math_utils.IntegralPreservationQuantity.SURFACE
       ),
-      j_ohmic=j_ohmic,
-      external_current_source=external_current,
       Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
   )
 
@@ -209,23 +206,17 @@ def _prescribe_currents(
 def _calculate_currents_from_psi(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate j_total."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo,
       core_profiles.psi,
   )
-  bootstrap_profile = source_profiles.j_bootstrap
   # Note that the psi sources here are the standard sources and don't include
   # the bootstrap current.
-  external_current = sum(source_profiles.psi.values())
-  j_ohmic = j_total - external_current - bootstrap_profile.j_bootstrap
   currents = state.Currents(
       j_total=j_total,
       j_total_face=j_total_face,
-      j_ohmic=j_ohmic,
-      external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
   )
 
@@ -387,19 +378,9 @@ def _init_psi_psidot_and_currents(
         q_face=psi_calculations.calc_q_face(geo, psi),
         s_face=psi_calculations.calc_s_face(geo, psi),
     )
-    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-    source_profiles = dataclasses.replace(
-        source_profiles, j_bootstrap=bootstrap_profile
-    )
     currents = _calculate_currents_from_psi(
         geo=geo,
         core_profiles=core_profiles,
-        source_profiles=source_profiles,
     )
 
   # Case 2: retrieving psi from the standard geometry input.
@@ -436,19 +417,9 @@ def _init_psi_psidot_and_currents(
     )
 
     # Calculate non-inductive currents
-    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-    source_profiles = dataclasses.replace(
-        source_profiles, j_bootstrap=bootstrap_profile
-    )
     currents = _calculate_currents_from_psi(
         geo=geo,
         core_profiles=core_profiles,
-        source_profiles=source_profiles,
     )
 
   # Case 3: calculating j according to nu formula and psi from j.

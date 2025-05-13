@@ -51,21 +51,15 @@ _trapz = jax.scipy.integrate.trapezoid
 def _get_updated_currents(
     geo: geometry.Geometry,
     psi: array_typing.ArrayFloat,
-    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
   """Updates the currents in the core profiles from the source profiles."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo, psi
   )
-  external_current = sum(source_profiles.psi.values())
-  j_bootstrap = source_profiles.j_bootstrap
-  j_ohmic = j_total - external_current - j_bootstrap.j_bootstrap
 
   return state.Currents(
       j_total=j_total,
       j_total_face=j_total_face,
-      j_ohmic=j_ohmic,
-      external_current_source=external_current,
       Ip_profile_face=Ip_profile_face,
   )
 
@@ -326,7 +320,7 @@ def update_all_core_profiles_after_step(
       Z_i_face=Z_i_face,
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
-      currents=_get_updated_currents(geo, psi, source_profiles),
+      currents=_get_updated_currents(geo, psi),
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),

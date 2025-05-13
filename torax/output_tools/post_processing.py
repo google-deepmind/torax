@@ -128,6 +128,9 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
+    j_external: Total current from psi sources which are external to the
+      plasma (aka not bootstrap) [A]
+    j_ohmic: Ohmic current density [A]
   """
 
   pressure_thermal_i: array_typing.ArrayFloat
@@ -199,6 +202,8 @@ class PostProcessedOutputs:
   rho_q_3_1_first: array_typing.ScalarFloat
   rho_q_3_1_second: array_typing.ScalarFloat
   I_bootstrap: array_typing.ScalarFloat
+  j_external: array_typing.ArrayFloat
+  j_ohmic: array_typing.ArrayFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -272,6 +277,8 @@ class PostProcessedOutputs:
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        j_external=jnp.zeros(geo.rho_face.shape),
+        j_ohmic=jnp.zeros(geo.rho_face.shape),
     )
 
   def check_for_errors(self):
@@ -602,6 +609,12 @@ def make_post_processed_outputs(
       sim_state.core_sources.j_bootstrap.j_bootstrap, sim_state.geometry
   )
 
+  j_external = sum(sim_state.core_sources.psi.values())
+  psi_current = (
+      j_external + sim_state.core_sources.j_bootstrap.j_bootstrap
+  )
+  j_ohmic = sim_state.core_profiles.currents.j_total - psi_current
+
   # pylint: enable=invalid-name
   return PostProcessedOutputs(
       pressure_thermal_i=pressure_thermal_ion_face,
@@ -647,4 +660,6 @@ def make_post_processed_outputs(
       rho_q_2_1_second=safety_factor_fit_outputs.rho_q_2_1_second,
       rho_q_3_1_second=safety_factor_fit_outputs.rho_q_3_1_second,
       I_bootstrap=I_bootstrap,
+      j_external=j_external,
+      j_ohmic=j_ohmic,
   )

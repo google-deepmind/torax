@@ -230,13 +230,6 @@ def _verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_TOTAL][index, -1],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.external_current_source,
-      ref_profiles[output.J_EXTERNAL][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_ohmic, ref_profiles[output.J_OHMIC][index, :]
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.Ip_profile_face,
       ref_profiles[output.IP_PROFILE][index, :],
   )

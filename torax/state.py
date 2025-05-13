@@ -34,8 +34,6 @@ class Currents:
 
   j_total: array_typing.ArrayFloat
   j_total_face: array_typing.ArrayFloat
-  j_ohmic: array_typing.ArrayFloat
-  external_current_source: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   Ip_profile_face: array_typing.ArrayFloat  # [A]
@@ -51,8 +49,6 @@ class Currents:
     return cls(
         j_total=jnp.zeros(geo.rho_face.shape),
         j_total_face=jnp.zeros(geo.rho_face.shape),
-        j_ohmic=jnp.zeros(geo.rho_face.shape),
-        external_current_source=jnp.zeros(geo.rho_face.shape),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
     )
 
