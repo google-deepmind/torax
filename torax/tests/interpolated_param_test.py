@@ -26,8 +26,22 @@ import xarray as xr
 class InterpolatedParamTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      ((np.array([0.0]), np.array([42.0,])),),
-      ((np.array([0.0]), np.array([1.0,])),),
+      (
+          (
+              np.array([0.0]),
+              np.array([
+                  42.0,
+              ]),
+          ),
+      ),
+      (
+          (
+              np.array([0.0]),
+              np.array([
+                  1.0,
+              ]),
+          ),
+      ),
   )
   def test_single_value_param_always_return_constant(self, expected_output):
     """Tests that when passed a single value this is always returned."""
@@ -77,7 +91,12 @@ class InterpolatedParamTest(parameterized.TestCase):
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          (np.array([0.0]), np.array([7.0,]),),
+          (
+              np.array([0.0]),
+              np.array([
+                  7.0,
+              ]),
+          ),
           1.0,
           7.0,
           interpolated_param.InterpolationMode.STEP,
@@ -164,8 +183,8 @@ class InterpolatedParamTest(parameterized.TestCase):
         ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
     )
     range_class(
-        xs=jnp.arange(2).reshape((2)),
-        ys=jnp.arange(6).reshape((2, 3)),
+        xs=jnp.arange(2, dtype=jnp.float64).reshape((2)),
+        ys=jnp.arange(6, dtype=jnp.float64).reshape((2, 3)),
     )
     with self.assertRaises(AssertionError):
       range_class(
@@ -254,13 +273,13 @@ class InterpolatedParamTest(parameterized.TestCase):
           'values': {
               0.0: (
                   np.array(
-                      [0],
+                      [0.0],
                   ),
                   np.array([0.0]),
               ),
               1.0: (
                   np.array(
-                      [0, 1],
+                      [0.0, 1.0],
                   ),
                   np.array([0.0, 1.0]),
               ),
@@ -272,8 +291,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'two_line_case_2',
           'values': {
-              0.0: (np.array([0]), np.array([0.0])),
-              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+              0.0: (np.array([0.0]), np.array([0.0])),
+              1.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
           },
           'x': 1.0,
           'y': 0.0,
@@ -282,8 +301,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'two_line_case_3',
           'values': {
-              0.0: (np.array([0]), np.array([0.0])),
-              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+              0.0: (np.array([0.0]), np.array([0.0])),
+              1.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
           },
           'x': 1.0,
           'y': 1.0,
@@ -292,8 +311,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'two_line_case_4',
           'values': {
-              0.0: (np.array([0]), np.array([0.0])),
-              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+              0.0: (np.array([0.0]), np.array([0.0])),
+              1.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
           },
           'x': 1.0,
           'y': 0.5,
@@ -302,8 +321,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'two_line_case_5',
           'values': {
-              0.0: (np.array([0]), np.array([0.0])),
-              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+              0.0: (np.array([0.0]), np.array([0.0])),
+              1.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
           },
           'x': 0.5,
           'y': 0.5,
@@ -312,8 +331,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'two_line_case_6',
           'values': {
-              0.0: (np.array([0]), np.array([0.0])),
-              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+              0.0: (np.array([0.0]), np.array([0.0])),
+              1.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
           },
           'x': 0.5,
           'y': 0.75,
@@ -324,13 +343,13 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'four_line_case_1',
           'values': {
-              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              0.0: (np.array([0.0, 1.0]), np.array([0.0, 0.0])),
               1.0: (
                   np.array([0.0, 0.3, 0.8, 1.0]),
                   np.array([0.0, 0.5, 1.0, 1.0]),
               ),
               2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
-              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
+              3.0: (np.array([0.0, 1.0]), np.array([1.0, 0.0])),
           },
           'x': 0.5,
           'y': 0.5,
@@ -340,13 +359,13 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'four_line_case_2',
           'values': {
-              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              0.0: (np.array([0.0, 1.0]), np.array([0.0, 0.0])),
               1.0: (
                   np.array([0.0, 0.3, 0.8, 1.0]),
                   np.array([0.0, 0.5, 1.0, 1.0]),
               ),
               2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
-              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
+              3.0: (np.array([0.0, 1.0]), np.array([1.0, 0.0])),
           },
           'x': 1.2,
           'y': 0.5,
@@ -356,13 +375,13 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'four_line_case_3',
           'values': {
-              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              0.0: (np.array([0.0, 1.0]), np.array([0.0, 0.0])),
               1.0: (
                   np.array([0.0, 0.3, 0.8, 1.0]),
                   np.array([0.0, 0.5, 1.0, 1.0]),
               ),
               2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
-              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
+              3.0: (np.array([0.0, 1.0]), np.array([1.0, 0.0])),
           },
           'x': 2.8,
           'y': 0.5,
@@ -373,7 +392,7 @@ class InterpolatedParamTest(parameterized.TestCase):
           'testcase_name': 'y_array_case',
           'values': {
               2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
-              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
+              3.0: (np.array([0.0, 1.0]), np.array([1.0, 0.0])),
           },
           'x': 2.8,
           'y': np.array([0.1, 0.5, 0.6]),
@@ -460,7 +479,7 @@ class InterpolatedParamTest(parameterized.TestCase):
   ):
     """Check we can jit the get_value call."""
     xs = np.array([0.25, 0.5, 0.75])
-    ys = np.array([1, 2, 3])
+    ys = np.array([1.0, 2.0, 3.0])
     interpolated_var = interpolated_param.InterpolatedVarSingleAxis(
         value=(xs, ys), interpolation_mode=mode
     )

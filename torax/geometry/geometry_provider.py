@@ -24,6 +24,7 @@ from typing import Protocol, Type
 import chex
 import numpy as np
 from torax import interpolated_param
+from torax import jax_utils
 from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 import typing_extensions
@@ -155,7 +156,7 @@ class TimeDependentGeometryProvider:
   ) -> typing_extensions.Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
-    times = np.asarray(list(geometries.keys()))
+    times = np.asarray(list(geometries.keys()), dtype=jax_utils.get_np_dtype())
     geos = list(geometries.values())
     initial_geometry = geos[0]
     for geo in geos:
@@ -181,9 +182,14 @@ class TimeDependentGeometryProvider:
         if initial_geometry._z_magnetic_axis is None:  # pylint: disable=protected-access
           kwargs[attr.name] = None
           continue
-      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
-          (times, np.stack([getattr(g, attr.name) for g in geos], axis=0))
-      )
+      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis((
+          times,
+          np.stack(
+              [getattr(g, attr.name) for g in geos],
+              axis=0,
+              dtype=jax_utils.get_np_dtype(),
+          ),
+      ))
     return cls(**kwargs)
 
   def _get_geometry_base(

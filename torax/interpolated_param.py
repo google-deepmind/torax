@@ -120,13 +120,13 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   def __init__(self, xs: chex.Array, ys: chex.Array):
     """Initialises a piecewise-linear interpolated param, xs must be sorted."""
 
-    # TODO(b/381884065)
-    self._xs = (
-        xs.astype(np.float64) if np.issubdtype(xs.dtype, np.integer) else xs
-    )
-    self._ys = (
-        ys.astype(np.float64) if np.issubdtype(ys.dtype, np.integer) else ys
-    )
+    if not np.issubdtype(xs.dtype, np.floating):
+      raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
+    if not np.issubdtype(ys.dtype, np.floating):
+      raise ValueError(f'ys must be a float array, but got {ys.dtype}.')
+
+    self._xs = xs
+    self._ys = ys
 
     jax_utils.assert_rank(self.xs, 1)
     if self.xs.shape[0] != self.ys.shape[0]:
@@ -373,6 +373,14 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
         converted to a float.
     """
     xs, ys = value
+
+    if not np.issubdtype(xs.dtype, np.floating):
+      raise ValueError(
+          f'xs must be a float array, but got {xs.dtype}.'
+      )
+    if not np.issubdtype(ys.dtype, np.floating):
+      raise ValueError(f'ys must be a float array, but got {ys.dtype}.')
+
     self._is_bool_param = is_bool_param
     self._interpolation_mode = interpolation_mode
     match interpolation_mode:
