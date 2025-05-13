@@ -24,6 +24,9 @@ from jax import numpy as jnp
 
 # pylint: disable=invalid-name
 
+# Constant for scaling the density equation to O(1) values.
+DENSITY_SCALING_FACTOR = 1e20
+
 
 @chex.dataclass(frozen=True)
 class IonProperties:

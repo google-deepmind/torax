@@ -16,11 +16,13 @@
 import chex
 import pydantic
 from torax import array_typing
+from torax import constants
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
 
 # pylint: disable=invalid-name
+# TODO(b/326578331): remove density reference from DynamicNumerics entirely.
 @chex.dataclass
 class DynamicNumerics:
   """Generic numeric parameters for the simulation."""
@@ -89,7 +91,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   chi_timestep_prefactor: pydantic.PositiveFloat = 9.0
   fixed_dt: torax_pydantic.Second = 1e-2
   adaptive_dt: bool = True
-  dt_reduction_factor: pydantic.PositiveFloat = 3.
+  dt_reduction_factor: pydantic.PositiveFloat = 3.0
   evolve_ion_heat: bool = True
   evolve_electron_heat: bool = True
   evolve_current: bool = False
@@ -98,7 +100,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  density_reference: pydantic.PositiveFloat = 1e20
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
 
@@ -133,7 +134,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         dt_reduction_factor=self.dt_reduction_factor,
         calcphibdot=self.calcphibdot,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
-        density_reference=self.density_reference,
+        density_reference=constants.DENSITY_SCALING_FACTOR,
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
     )

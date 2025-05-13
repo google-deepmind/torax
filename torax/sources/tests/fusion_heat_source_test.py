@@ -74,9 +74,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         dynamic_runtime_params_slice,
     )
 
-    reference_fusion_power = reference_calc_fusion(
-        references.config.numerics, geo, core_profiles
-    )
+    reference_fusion_power = reference_calc_fusion(geo, core_profiles)
 
     np.testing.assert_allclose(torax_fusion_power, reference_fusion_power)
 
@@ -122,16 +120,14 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         dynamic_runtime_params_slice_t,
     )
 
-    reference_fusion_power = reference_calc_fusion(
-        references.config.numerics, geo, core_profiles
-    )
+    reference_fusion_power = reference_calc_fusion(geo, core_profiles)
 
     np.testing.assert_allclose(
         torax_fusion_power, expected_fusion_factor * reference_fusion_power
     )
 
 
-def reference_calc_fusion(numerics, geo, core_profiles):
+def reference_calc_fusion(geo, core_profiles):
   """Reference implementation from PINT. We still use TORAX state here."""
   # PINT doesn't follow Google style
   # pylint:disable=invalid-name
@@ -165,7 +161,7 @@ def reference_calc_fusion(numerics, geo, core_profiles):
   Pfus = (
       Efus
       * 0.25
-      * (core_profiles.n_i.face_value() * numerics.density_reference) ** 2
+      * (core_profiles.n_i.face_value() * constants.DENSITY_SCALING_FACTOR) ** 2
       * sigmav
   )  # [W/m^3]
   P_total = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
