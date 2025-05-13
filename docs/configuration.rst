@@ -68,18 +68,18 @@ to ``(inputs, 'PIECEWISE_LINEAR')``.
 Examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 1. Define a time-dependent total current :math:`Ip_{tot}` with piecewise linear interpolation,
-from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from 2 to 15, and then stays flat
+from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from 2MA to 15MA, and then stays flat
 due to constant extrapolation beyond the last time value.
 
 .. code-block:: python
 
-  Ip = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
+  Ip = ({10: 2.0e6, 100: 15.0e6}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
 .. code-block:: python
 
-    Ip = {10: 2.0, 100: 15.0}
+    Ip = {10: 2.0e6, 100: 15.0e6}
 
 2. Define a time-dependent internal boundary condition for ion temperature, ``T_i_ped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down

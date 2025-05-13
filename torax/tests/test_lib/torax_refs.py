@@ -63,7 +63,7 @@ def circular_references() -> References:
   # will stay valid even if we change the Config constructor defaults
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15,
+          'Ip': 15e6,
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -267,7 +267,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   """Reference values for CHEASE geometry where the Ip comes from the file."""
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15,
+          'Ip': 15e6,
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -471,7 +471,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
   """Reference values for CHEASE geometry where the Ip comes from the config."""
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15,
+          'Ip': 15e6,
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,

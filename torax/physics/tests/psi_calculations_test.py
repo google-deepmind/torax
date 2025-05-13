@@ -165,11 +165,11 @@ class PsiCalculationsTest(parameterized.TestCase):
         a_minor=1.0,
         B_0=5.0,
     ).build_geometry()
-    Ip = 15
+    Ip = 15e6
     # calculate high resolution j_total consistent with total current profile
     j_total_profile = (1 - geo.rho_hires_norm**2) ** 2
     denom = _trapz(j_total_profile * geo.spr_hires, geo.rho_hires_norm)
-    Ctot = Ip * 1e6 / denom
+    Ctot = Ip / denom
     j_total = j_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
         Ip,

@@ -161,7 +161,7 @@ class InitializationTest(parameterized.TestCase):
     # calculate total and Ohmic current profile references
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = torax_config.profile_conditions.Ip.value[0] * 1e6 / denom
+    ctot = torax_config.profile_conditions.Ip.value[0] / denom
     j_total1_expected = jformula * ctot
     j_ohmic2_expected = j_total1_expected * (1 - _FRACTION_OF_TOTAL_CURRENT)
 

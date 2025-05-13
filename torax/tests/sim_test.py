@@ -330,7 +330,7 @@ class SimTest(sim_test_case.SimTestCase):
         'numerics.evolve_current': False,
         'numerics.evolve_density': False,
         # Keep profiles fixed.
-        'profile_conditions.Ip': 3.0,
+        'profile_conditions.Ip': 3.0e6,  # MA.
         'profile_conditions.n_e': 1.0,
         'profile_conditions.n_e_right_bc': 1.0,
         'profile_conditions.n_e_nbar_is_fGW': False,

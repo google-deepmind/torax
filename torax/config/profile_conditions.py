@@ -27,7 +27,7 @@ from typing_extensions import Self
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.ScalarFloat
+  Ip: array_typing.ScalarFloat  # MA.
   vloop_lcfs: array_typing.ScalarFloat
   T_i_right_bc: array_typing.ScalarFloat
   T_e_right_bc: array_typing.ScalarFloat
@@ -66,7 +66,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   https://torax.readthedocs.io/en/latest/configuration.html#profile-conditions.
 
   Attributes:
-    Ip: Total plasma current in MA. Note that if Ip_from_parameters=False in
+    Ip: Total plasma current in A. Note that if Ip_from_parameters=False in
       geometry, then this Ip will be overwritten by values from the geometry
       data. If use_vloop_lcfs_boundary_condition, only used as an initial
       condition.
@@ -114,7 +114,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       geometry, which has no numerical geometry.
   """
 
-  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15.0)
+  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
   use_vloop_lcfs_boundary_condition: bool = False
   vloop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
@@ -195,7 +195,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
       dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
-
     def _get_value(x):
       if isinstance(
           x, (torax_pydantic.TimeVaryingScalar, torax_pydantic.TimeVaryingArray)
@@ -205,6 +204,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         return x
 
     dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
+    dynamic_params['Ip'] /= 1e6  # Convert to MA.
     return DynamicProfileConditions(**dynamic_params)
 
   def build_static_params(self) -> StaticRuntimeParams:
