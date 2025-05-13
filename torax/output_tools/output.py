@@ -88,7 +88,8 @@ Q_FUSION = "Q_fusion"
 # Numerics.
 # Simulation error state.
 SIM_ERROR = "sim_error"
-
+OUTER_SOLVER_ITERATIONS = "outer_solver_iterations"
+INNER_SOLVER_ITERATIONS = "inner_solver_iterations"
 # Boolean array indicating whether the state corresponds to a
 # post-sawtooth-crash state.
 SAWTOOTH_CRASH = "sawtooth_crash"
@@ -207,6 +208,9 @@ class StateHistory:
   ):
     self.sim_error = sim_error
     self.torax_config = torax_config
+    solver_numeric_outputs = [
+        state.solver_numeric_outputs for state in state_history
+    ]
     core_profiles = [state.core_profiles for state in state_history]
     core_sources = [state.core_sources for state in state_history]
     transport = [state.core_transport for state in state_history]
@@ -224,6 +228,9 @@ class StateHistory:
     )
     self.post_processed_outputs: post_processing.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_outputs_history)
+    )
+    self.solver_numeric_outputs: state.SolverNumericOutputs = (
+        jax.tree_util.tree_map(stack, *solver_numeric_outputs)
     )
     self.times = np.array([state.t for state in state_history])
     # The rho grid does not change in time so we can just take the first one.
@@ -471,18 +478,8 @@ class StateHistory:
             left and right face boundaries added.
         - rho_face_norm: The normalized toroidal coordinate on the face grid.
         - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
-        - sawtooth_crash: Time-series boolean indicating whether the
-            state corresponds to a post-sawtooth-crash state.
-        - sim_error: The simulation error state.
         - config: The ToraxConfig used to run the simulation serialized to JSON.
       The child datasets contain the following variables:
-        - core_profiles: Contains data variables for quantities in the
-          CoreProfiles.
-        - core_sources: Contains data variables for quantities in the
-          CoreSources.
-        - post_processed_outputs: Contains data variables for quantities in the
-          PostProcessedOutputs.
-        - geometry: Contains data variables for quantities in the Geometry.
         - numerics: Contains data variables for numeric quantities to do with
             the simulation.
         - profiles: Contains data variables for 1D profiles.
@@ -530,6 +527,16 @@ class StateHistory:
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
             self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
+        ),
+        OUTER_SOLVER_ITERATIONS: xr.DataArray(
+            self.solver_numeric_outputs.outer_solver_iterations,
+            dims=[TIME],
+            name=OUTER_SOLVER_ITERATIONS,
+        ),
+        INNER_SOLVER_ITERATIONS: xr.DataArray(
+            self.solver_numeric_outputs.inner_solver_iterations,
+            dims=[TIME],
+            name=INNER_SOLVER_ITERATIONS,
         ),
     }
     numerics = xr.Dataset(numerics_dict)

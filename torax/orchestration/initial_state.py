@@ -164,12 +164,21 @@ def get_initial_state_and_post_processed_outputs_from_file(
   numerics_dataset = data_tree.children[output.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()
   sawtooth_crash = bool(numerics_dataset[output.SAWTOOTH_CRASH])
+  print(numerics_dataset[output.OUTER_SOLVER_ITERATIONS])
+  outer_solver_iterations = int(
+      numerics_dataset[output.OUTER_SOLVER_ITERATIONS]
+  )
+  inner_solver_iterations = int(
+      numerics_dataset[output.INNER_SOLVER_ITERATIONS]
+  )
   return (
       dataclasses.replace(
           initial_state,
           core_profiles=core_profiles,
           solver_numeric_outputs=state.SolverNumericOutputs(
-              sawtooth_crash=sawtooth_crash
+              sawtooth_crash=sawtooth_crash,
+              outer_solver_iterations=outer_solver_iterations,
+              inner_solver_iterations=inner_solver_iterations,
           ),
       ),
       post_processed_outputs,
