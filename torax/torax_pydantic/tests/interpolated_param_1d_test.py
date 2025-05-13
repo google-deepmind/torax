@@ -53,8 +53,8 @@ class InterpolatedParam1dTest(parameterized.TestCase):
 
     user_config = dict(
         a=xr.DataArray(
-            data=a_expected.value,
-            coords={'time': a_expected.time},
+            data=np.array([2.0, 1.0, 4.0]),
+            coords={'time': np.array([1.0, 0.0, 2.0])},  # unsorted in time.
         ),
     )
     with self.subTest('model_validate'):
@@ -198,6 +198,17 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     self.assertEqual(scalar_1, scalar_2)
     scalar_1.get_value(t=0.0)
     self.assertEqual(scalar_1, scalar_2)
+
+  def test_invalid_xarray(self):
+    cfg = xr.DataArray(
+        data=np.array([2.0, 1.0, 4.0]),
+        coords=(np.array([1.0, 0.0, 2.0]),),
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        'The coords in the xr.DataArray must include a "time" coordinate',
+    ):
+      torax_pydantic.TimeVaryingScalar.model_validate(cfg)
 
 
 if __name__ == '__main__':

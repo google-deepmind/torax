@@ -24,6 +24,7 @@ from torax import interpolated_param
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
 from typing_extensions import Annotated
+from typing_extensions import Self
 
 
 class TimeVaryingScalar(model_base.BaseModelFrozen):
@@ -35,15 +36,16 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
   for more details.
 
   Attributes:
-    time: A 1-dimensional NumPy array of times.
-    value: A NumPy array specifying the values to interpolate.
+    time: A 1-dimensional NumPy array of times sorted in ascending time order.
+    value: A NumPy array specifying the values to interpolate. The same length
+      as `time`.
     is_bool_param: If True, the input value is assumed to be a bool and is
       converted to a float.
     interpolation_mode: An InterpolationMode enum specifying the interpolation
       mode to use.
   """
 
-  time: pydantic_types.NumpyArray1D
+  time: pydantic_types.NumpyArray1DSorted
   value: pydantic_types.NumpyArray
   is_bool_param: bool = False
   interpolation_mode: interpolated_param.InterpolationMode = (
@@ -69,6 +71,20 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
         and self.interpolation_mode == other.interpolation_mode
     )
 
+  @pydantic.model_validator(mode='after')
+  def _ensure_consistent_arrays(self) -> Self:
+
+    if not np.issubdtype(self.time.dtype, np.floating):
+      raise ValueError('The time array must be a float array.')
+
+    if self.time.dtype != self.value.dtype:
+      raise ValueError('The time and value arrays must have the same dtype.')
+
+    if len(self.time) != len(self.value):
+      raise ValueError('The value and time arrays must be the same length.')
+
+    return self
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(
@@ -86,6 +102,11 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     time, value, interpolation_mode, is_bool_param = (
         interpolated_param.convert_input_to_xs_ys(data)
     )
+
+    # Ensure that the time is sorted.
+    sort_order = np.argsort(time)
+    time = time[sort_order]
+    value = value[sort_order]
     return dict(
         time=time,
         value=value,

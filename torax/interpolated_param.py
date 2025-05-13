@@ -59,9 +59,7 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
-_ArrayOrListOfFloats: TypeAlias = (
-    chex.Array | list[float]
-)
+_ArrayOrListOfFloats: TypeAlias = chex.Array | list[float]
 
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
@@ -258,7 +256,7 @@ def _convert_value_to_floats(
 
 def convert_input_to_xs_ys(
     interp_input: TimeInterpolatedInput,
-) -> tuple[chex.Array, chex.Array, InterpolationMode, bool]:
+) -> tuple[np.ndarray, np.ndarray, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
   Args:
@@ -293,49 +291,42 @@ def convert_input_to_xs_ys(
     is_bool_param = False
 
   if isinstance(interp_input, xr.DataArray):
-    if len(interp_input.coords) != 1:  # pytype: disable=attribute-error
+    if not isinstance(interp_input.coords, Mapping):  # pytype: disable=attribute-error
+      raise ValueError('The coords in the xr.DataArray must be a mapping.')
+    if 'time' not in interp_input.coords:  # pytype: disable=attribute-error
       raise ValueError(
-          f'Loaded values must have 1 coordinate. Given: {interp_input.coords}'  # pytype: disable=attribute-error
+          'The coords in the xr.DataArray must include a "time" coordinate.'
       )
-    if len(interp_input.values.shape) != 1:  # pytype: disable=attribute-error
-      raise ValueError(
-          f'Loaded values for {interp_input.name} must be 1D. Given:'  # pytype: disable=attribute-error
-          f' {interp_input.values.shape}.'  # pytype: disable=attribute-error
-      )
-    index = list(interp_input.coords)[0]  # pytype: disable=attribute-error
-    return (  # pytype: disable=bad-return-type
-        interp_input[index].data,
-        interp_input.values,  # pytype: disable=attribute-error
+    return (
+        np.asarray(interp_input.coords['time'], dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
+        np.asarray(interp_input.values, dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
         interpolation_mode,
         is_bool_param,
     )
   if isinstance(interp_input, tuple):
     if len(interp_input) != 2:
       raise ValueError(
-          'InterpolatedVarSingleAxisInput tuple must be length 2. Given: '
+          'The time interpolated input tuple must be length 2. Given: '
           f'{interp_input}.'
       )
     xs, ys = interp_input
-    sort_order = np.argsort(xs)
-    xs = np.asarray(xs)[sort_order]
-    ys = np.asarray(ys)[sort_order]
+    xs = np.asarray(xs, dtype=jax_utils.get_np_dtype())
+    ys = np.asarray(ys, dtype=jax_utils.get_np_dtype())
     return xs, ys, interpolation_mode, is_bool_param
   if isinstance(interp_input, dict):
     if not interp_input:
-      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
-    sorted_keys = sorted(interp_input.keys())  # pytype: disable=attribute-error
-    values = [interp_input[key] for key in sorted_keys]
+      raise ValueError('The time interpolated input dict must be non-empty.')
     return (
-        np.array(sorted_keys),
-        np.array(values),
+        np.array(list(interp_input.keys()), dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
+        np.array(list(interp_input.values()), dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
         interpolation_mode,
         is_bool_param,
     )
   else:
     # The input is a single value.
     return (
-        np.array([0]),
-        np.array([interp_input]),
+        np.array([0.0], dtype=jax_utils.get_np_dtype()),
+        np.array([interp_input], dtype=jax_utils.get_np_dtype()),
         interpolation_mode,
         is_bool_param,
     )

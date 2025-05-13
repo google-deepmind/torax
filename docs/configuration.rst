@@ -43,20 +43,30 @@ Time-varying scalars
 --------------------
 The following inputs are valid for **time-varying-scalar** parameters:
 
-* Single integer, float, or boolean. The parameter is then not time-dependent.
-* A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
-* A tuple with ``(time-series, value-series)``. The time-series is a 1D array of times, and the value-series is a 1D array of values. The dimensions of both must match.
-* A ``xarray.DataArray`` with a single coordinate and a 1D value array.
+* A scalar (integer, float, or boolean). The parameter is then not time-dependent.
+* A time-series ``dict`` with ``{time: value}`` pairs.
+* A tuple ``(time_array, value_array)``, where ``time_array`` is a 1D array of times, and
+  ``value_array`` is a 1D array of values of equal length. The 1D arrays can be a NumPy arrays, lists or tuples.
+* A ``xarray.DataArray`` of the form ``xarray.DataArray(data=value_array, coords={'time': time_array})``.
+
+Note that times do not need to be sorted in order of time. Ordering is carried out internally.
 
 For each evaluation of the TORAX solver (PDE solver), time-dependent variables
 are interpolated at both time :math:`t` and time :math:`t+dt`.
-There are two interpolation modes:
 
-* **PIECEWISE_LINEAR**: linear interpolation of the input time-series (default)
-* **STEP**: stepwise change in values following each traversal above a time value in the time-series.
+Specifying interpolation methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Currently, two interpolation modes are supported:
+* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series (default).
+* ``'STEP'``: stepwise change in values following each traversal above a time value in the time-series.
 
-Examples:
+The interpolation method can be specified by giving a tuple of the form
+``(inputs, interpolation_mode)``, where ``inputs`` is one of the input specifications
+listed in the previous section. Specifying no interpolation mode is equivalent
+to ``(inputs, 'PIECEWISE_LINEAR')``.
 
+Examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 1. Define a time-dependent total current :math:`Ip_{tot}` with piecewise linear interpolation,
 from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from 2 to 15, and then stays flat
 due to constant extrapolation beyond the last time value.

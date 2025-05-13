@@ -68,6 +68,17 @@ class PydanticTypesTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       array.validate_python(np.array([[1.0, 2.0], [3.0, 4.0]]))
 
+  def test_1_sorted_array(self):
+    array = pydantic.TypeAdapter(
+        pydantic_types.NumpyArray1DSorted,
+        config=pydantic.ConfigDict(arbitrary_types_allowed=True),
+    )
+
+    with self.assertRaises(pydantic.ValidationError):
+      array.validate_python(np.array([1.0, 2.0, 0.0, 4.0]))
+
+    array.validate_python(np.array([0.0, 1.0, 2.0, 4.0]))
+
 
 if __name__ == '__main__':
   absltest.main()

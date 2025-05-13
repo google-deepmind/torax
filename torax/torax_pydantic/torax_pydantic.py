@@ -48,6 +48,7 @@ OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]
 
 NumpyArray = pydantic_types.NumpyArray
 NumpyArray1D = pydantic_types.NumpyArray1D
+NumpyArray1DSorted = pydantic_types.NumpyArray1DSorted
 
 BaseModelFrozen = model_base.BaseModelFrozen
 

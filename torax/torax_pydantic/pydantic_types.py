@@ -62,6 +62,12 @@ def _numpy_array_is_rank_1(x: np.ndarray) -> np.ndarray:
   return x
 
 
+def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
+  if not np.all(x[:-1] <= x[1:]):
+    raise ValueError(f'NumPy array is not sorted: {x}')
+  return x
+
+
 NumpyArray = Annotated[
     np.ndarray,
     pydantic.BeforeValidator(_numpy_array_before_validator),
@@ -72,6 +78,10 @@ NumpyArray = Annotated[
 
 NumpyArray1D = Annotated[
     NumpyArray, pydantic.AfterValidator(_numpy_array_is_rank_1)
+]
+
+NumpyArray1DSorted = Annotated[
+    NumpyArray, pydantic.AfterValidator(_numpy_array_is_sorted)
 ]
 
 
