@@ -16,16 +16,22 @@
 
 from collections.abc import Mapping
 import functools
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 import chex
 import numpy as np
 import pydantic
 from torax import interpolated_param
+from torax import jax_utils
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
 from typing_extensions import Annotated
 from typing_extensions import Self
 import xarray as xr
+
+ValueType: TypeAlias = dict[
+    float,
+    tuple[pydantic_types.NumpyArray1DUnitInterval, pydantic_types.NumpyArray1D],
+]
 
 
 class Grid1D(model_base.BaseModelFrozen):
@@ -65,9 +71,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   for more details.
 
   Attributes:
-    value: A mapping of the form `{time: (rho_norm, values), ...}`, where
-      `rho_norm` and `values` are 1D NumPy arrays of equal length. Note that all
-      `rho_norm` values `x` are in the range `0 <= x <= 1.0`.
+    value: A dict of the form `{time: (rho_norm, values), ...}`, where
+      `rho_norm` and `values` are 1D NumPy arrays, and each pair is of equal
+      length. Note that all `rho_norm` values `x` are in the range `0 <= x <=
+      1.0`, and the mapping is ordered by increasing `time`.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
     grid_face_centers: The face centers of the grid to use for the
@@ -78,12 +85,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       construction time, and is set later.
   """
 
-  value: Mapping[
-      float,
-      tuple[
-          pydantic_types.NumpyArray1DUnitInterval, pydantic_types.NumpyArray1D
-      ],
-  ]
+  value: ValueType
   rho_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
@@ -140,6 +142,33 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     except AssertionError:
       return False
 
+  @pydantic.field_validator('value', mode='after')
+  @classmethod
+  def _valid_value(cls, value: ValueType) -> ValueType:
+    # Ensure the keys are sorted.
+    value = dict(sorted(value.items()))
+
+    for t, (rho_norm, values) in value.items():
+      if not isinstance(t, float):
+        raise ValueError(f'Time values must be a float, but got {t}.')
+
+      if not np.issubdtype(rho_norm.dtype, np.floating):
+        raise ValueError(
+            f'rho_norm must be a float array, but got {rho_norm.dtype}.'
+        )
+      if rho_norm.dtype != values.dtype:
+        raise ValueError(
+            'rho_norm and values must have the same dtype. Given: '
+            f'{rho_norm.dtype} and {values.dtype}.'
+        )
+      if len(rho_norm) != len(values):
+        raise ValueError(
+            'rho_norm and values must be of the same length. Given: '
+            f'{len(rho_norm)} and {len(values)}.'
+        )
+
+    return value
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(
@@ -183,7 +212,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         if isinstance(v, chex.Array):
           values.append(v)
         elif isinstance(v, list):
-          values.append(np.array(v))
+          values.append(np.asarray(v))
         else:
           raise ValueError(
               'Input to TimeVaryingArray unsupported. Input was of type:'
@@ -316,8 +345,10 @@ def _load_from_xr_array(
     )
   values = {
       t: (
-          xr_array.rho_norm.data,
-          xr_array.sel(time=t).values,
+          np.asarray(xr_array.rho_norm.data, dtype=jax_utils.get_np_dtype()),
+          np.asarray(
+              xr_array.sel(time=t).values, dtype=jax_utils.get_np_dtype()
+          ),
       )
       for t in xr_array.time.data
   }
@@ -326,7 +357,7 @@ def _load_from_xr_array(
 
 def _load_from_arrays(
     arrays: tuple[chex.Array, ...],
-) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+) -> Mapping[float, tuple[np.ndarray, np.ndarray]]:
   """Loads the data from numpy arrays.
 
   Args:
@@ -342,22 +373,17 @@ def _load_from_arrays(
   if len(arrays) == 2:
     # Shortcut for initial condition profile.
     rho_norm, values = arrays
-    if len(rho_norm.shape) != 1:
-      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
-    if len(values.shape) != 1:
-      raise ValueError(f'values must be a 1D array. Given: {values.shape}.')
-    if rho_norm.shape != values.shape:
-      raise ValueError(
-          'rho_norm and values must be of the same shape. Given: '
-          f'{rho_norm.shape} and {values.shape}.'
-      )
-    return {0.0: (rho_norm, values)}
+    return {
+        0.0: (
+            np.asarray(rho_norm, dtype=jax_utils.get_np_dtype()),
+            np.asarray(values, dtype=jax_utils.get_np_dtype()),
+        )
+    }
   if len(arrays) == 3:
-    times, rho_norm, values = arrays
-    if len(times.shape) != 1:
-      raise ValueError(f'times must be a 1D array. Given: {times.shape}.')
-    if len(rho_norm.shape) != 1:
-      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
+    times = np.asarray(arrays[0], dtype=jax_utils.get_np_dtype())
+    rho_norm = np.asarray(arrays[1], dtype=jax_utils.get_np_dtype())
+    values = np.asarray(arrays[2], dtype=jax_utils.get_np_dtype())
+
     if values.shape != (len(times), len(rho_norm)):
       raise ValueError(
           'values must be of shape (len(times), len(rho_norm)). Given: '

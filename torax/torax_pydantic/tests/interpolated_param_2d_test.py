@@ -361,6 +361,22 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     self.assertIs(grid_1.cell_centers, grid_2.cell_centers)
     self.assertIs(grid_1.face_centers, grid_2.face_centers)
 
+  def test_sorted_keys(self):
+
+    value = xr.DataArray(
+        data=np.array([[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]),
+        coords={
+            'time': [
+                1.0,
+                0.0,
+            ],
+            'rho_norm': [0.25, 0.5, 1.0],
+        },
+    )
+    inter = interpolated_param_2d.TimeVaryingArray.model_validate(value)
+    times = list(inter.value.keys())
+    self.assertEqual(times, sorted(times))
+
 
 if __name__ == '__main__':
   absltest.main()
