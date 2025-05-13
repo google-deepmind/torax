@@ -23,6 +23,8 @@ CONFIG = {
         'initial_psi_from_j': True,
         'initial_j_is_total_current': True,
         'current_profile_nu': 2,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
     },
     'numerics': {
         'evolve_ion_heat': False,

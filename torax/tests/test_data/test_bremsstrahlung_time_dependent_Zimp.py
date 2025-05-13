@@ -25,6 +25,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
         'n_e_right_bc': 0.5,
         'nbar': 0.95,  # initial density (Greenwald fraction units)
     },

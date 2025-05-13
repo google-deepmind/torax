@@ -22,6 +22,8 @@ CONFIG = {
     'profile_conditions': {
         'n_e_right_bc': 0.5,
         'Ip': 15,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
     },
     'numerics': {
         't_final': 1,

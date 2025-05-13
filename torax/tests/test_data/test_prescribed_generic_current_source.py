@@ -35,6 +35,8 @@ generic_current_profiles = np.array([
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         # 'current_profile_nu': 0,

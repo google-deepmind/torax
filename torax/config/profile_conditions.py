@@ -66,8 +66,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   https://torax.readthedocs.io/en/latest/configuration.html#profile-conditions.
 
   Attributes:
-    Ip: Total plasma current in MA. Note that if Ip_from_parameters=False
-      in geometry, then this Ip will be overwritten by values from the geometry
+    Ip: Total plasma current in MA. Note that if Ip_from_parameters=False in
+      geometry, then this Ip will be overwritten by values from the geometry
       data. If use_vloop_lcfs_boundary_condition, only used as an initial
       condition.
     use_vloop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
@@ -99,9 +99,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       `n_e_right_bc_is_fGW = True`. If `n_e_right_bc` is `None` then the
       boundary condition will instead be taken from `n_e` at rhon=1. In this
       case, `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
-      `False` and n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`.
-      If `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be
-      set to `True`.
+      `False` and n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`. If
+      `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be set
+      to `True`.
     n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
     current_profile_nu: Peaking factor of "Ohmic" current: j_ohmic = j0*(1 -
       r^2/a^2)^current_profile_nu
@@ -114,9 +114,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       geometry, which has no numerical geometry.
   """
 
-  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      15.0
-  )
+  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15.0)
   use_vloop_lcfs_boundary_condition: bool = False
   vloop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
@@ -131,11 +129,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
-      torax_pydantic.ValidatedDefault({0: {0: 1.5, 1: 1.0}})
+      torax_pydantic.ValidatedDefault(
+          {0: {0: 1.2, 1: 0.8}}
+      )
   )
-  normalize_n_e_to_nbar: bool = True
+  normalize_n_e_to_nbar: bool = False
   nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.85)
-  n_e_nbar_is_fGW: bool = True
+  n_e_nbar_is_fGW: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
@@ -212,7 +212,5 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     return StaticRuntimeParams(
         use_vloop_lcfs_boundary_condition=self.use_vloop_lcfs_boundary_condition,
         normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
-        n_e_right_bc_is_absolute=False
-        if self.n_e_right_bc is None
-        else True,
+        n_e_right_bc_is_absolute=False if self.n_e_right_bc is None else True,
     )

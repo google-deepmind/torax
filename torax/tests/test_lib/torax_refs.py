@@ -65,6 +65,8 @@ def circular_references() -> References:
       'profile_conditions': {
           'Ip': 15,
           'current_profile_nu': 3,
+          'n_e_nbar_is_fGW': True,
+          'normalize_n_e_to_nbar': True,
       },
       'numerics': {},
       'plasma_composition': {},
@@ -267,6 +269,8 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       'profile_conditions': {
           'Ip': 15,
           'current_profile_nu': 3,
+          'n_e_nbar_is_fGW': True,
+          'normalize_n_e_to_nbar': True,
       },
       'numerics': {},
       'plasma_composition': {},
@@ -469,6 +473,8 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       'profile_conditions': {
           'Ip': 15,
           'current_profile_nu': 3,
+          'n_e_nbar_is_fGW': True,
+          'normalize_n_e_to_nbar': True,
       },
       'numerics': {},
       'plasma_composition': {},

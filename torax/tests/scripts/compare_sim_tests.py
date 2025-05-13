@@ -108,7 +108,7 @@ def _print_diff(profile_name: str, ds_old: xr.Dataset, ds_new: xr.Dataset):
     ds_new: Dataset containing the new simulation output.
   """
 
-  if (profile_name == 's_face') or (profile_name == 'psi'):
+  if (profile_name == 'magnetic_shear') or (profile_name == 'psi'):
     # Avoid potential 0.0 on-axis
     old_value = ds_old[profile_name].isel(time=-1).to_numpy()[1:]
     new_value = ds_new[profile_name].isel(time=-1).to_numpy()[1:]

@@ -39,6 +39,7 @@ CONFIG = {
         # set initial condition density according to Greenwald fraction.
         # Otherwise from nbar
         'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
         'nbar': 0.77,  # original simulation goes up to ~0.92
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },

@@ -345,7 +345,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   or the "current_profile_nu formula".
 
 
-``n_e`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
+``n_e`` (dict = {0: {0: 1.2, 1: 0.8}}), **time-varying-array**
   Electron density profile.
 
   If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time-dependent ``n_e`` is ignored, and only the initial value is used.
@@ -355,16 +355,16 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Note that if the ``n_e`` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
-``normalize_n_e_to_nbar`` (bool = True)
+``normalize_n_e_to_nbar`` (bool = False)
   If True, then the electron density profile is normalized to have the desired line averaged density
   :math:`\bar{n}`.
 
-``nbar`` (float = 0.5), **time-varying-scalar**
+``nbar`` (float = 0.85), **time-varying-scalar**
   Line averaged density. In units of reference density ``density_reference`` (see :ref:`numerics_dataclass`) if ``n_e_nbar_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``n_e_nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
-``n_e_nbar_is_fGW`` (bool = True)
+``n_e_nbar_is_fGW`` (bool = False)
   Toggles units of ``nbar``.
 
 ``n_e_right_bc`` (float = 0.5), **time-varying-scalar**

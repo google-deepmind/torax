@@ -33,6 +33,7 @@ CONFIG = {
         'n_e_right_bc': 0.25,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
         'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
         'nbar': 0.8,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
     },

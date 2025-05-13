@@ -25,6 +25,8 @@ CONFIG = {
         'n_e_right_bc': 0.5,
         'use_vloop_lcfs_boundary_condition': True,
         'vloop_lcfs': 7.5,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
     },
     'numerics': {
         'evolve_ion_heat': False,

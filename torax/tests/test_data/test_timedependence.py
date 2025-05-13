@@ -26,6 +26,7 @@ CONFIG = {
         'Ip': {0: 5, 4: 15, 6: 12, 8: 12},
         'n_e_right_bc': 0.5,
         'n_e_nbar_is_fGW': False,
+        'normalize_n_e_to_nbar': True,
         'nbar': 0.33820425407,  # fGW=0.85 for Ip(t=0)
     },
     'numerics': {

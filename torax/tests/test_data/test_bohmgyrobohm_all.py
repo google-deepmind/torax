@@ -34,6 +34,8 @@ CONFIG = {
         'nbar': 0.8,
         'n_e_right_bc': 0.5,
         'n_e_right_bc_is_fGW': True,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
     },
     'numerics': {
         'evolve_ion_heat': True,
