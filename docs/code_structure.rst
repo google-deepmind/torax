@@ -92,7 +92,7 @@ TORAX state
 ^^^^^^^^^^^
 
 The |torax.state|_ module describes the input and output states of TORAX.
-|torax.state.ToraxSimState|_ is the complete simulation state, with several
+|torax.sim_state.ToraxSimState|_ is the complete simulation state, with several
 attributes inspired by the IMAS schema. Each time step of a TORAX simulation
 updates that state.
 
@@ -231,8 +231,8 @@ extending |TimeStepCalculator|_.
 .. _sim.py: https://github.com/google-deepmind/torax/blob/main/torax/sim.py
 .. |torax.state| replace:: ``torax.state``
 .. _torax.state: https://github.com/google-deepmind/torax/blob/main/torax/state.py
-.. |torax.state.ToraxSimState| replace:: ``torax.state.ToraxSimState``
-.. _torax.state.ToraxSimState: https://github.com/google-deepmind/torax/blob/main/torax/state.py
+.. |torax.sim_state.ToraxSimState| replace:: ``torax.sim_state.ToraxSimState``
+.. _torax.sim_state.ToraxSimState: https://github.com/google-deepmind/torax/blob/main/torax/state.py
 .. |Geometry| replace:: ``Geometry``
 .. _Geometry: https://github.com/google-deepmind/torax/blob/main/torax/geometry/geometry.py
 .. |torax.config.build_sim| replace:: ``torax.config.build_sim``

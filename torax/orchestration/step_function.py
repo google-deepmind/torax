@@ -28,6 +28,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.mhd import base as mhd_base
 from torax.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
+from torax.orchestration import sim_state
 from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
@@ -37,12 +38,12 @@ from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 
 
-def check_for_errors(
-    sim_state: state.ToraxSimState,
+def _check_for_errors(
+    output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
-  state_error = sim_state.check_for_errors()
+  state_error = output_state.check_for_errors()
   if state_error != state.SimError.NO_ERROR:
     return state_error
   else:
@@ -109,10 +110,12 @@ class SimulationStepFn:
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      input_state: state.ToraxSimState,
+      input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
-      state.ToraxSimState, post_processing.PostProcessedOutputs, state.SimError
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+      state.SimError,
   ]:
     """Advances the simulation state one time step.
 
@@ -212,9 +215,7 @@ class SimulationStepFn:
       # If a sawtooth crash was carried out, we exit early with the post-crash
       # state, post-processed outputs, and the error state.
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = check_for_errors(
-            output_state, post_processed_outputs
-        )
+        error_state = _check_for_errors(output_state, post_processed_outputs)
         return output_state, post_processed_outputs, error_state
 
     dt = self.init_time_step_calculator(
@@ -279,14 +280,14 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        check_for_errors(output_state, post_processed_outputs),
+        _check_for_errors(output_state, post_processed_outputs),
     )
 
   def init_time_step_calculator(
       self,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
-      input_state: state.ToraxSimState,
+      input_state: sim_state.ToraxSimState,
   ) -> jnp.ndarray:
     """First phase: Initialize the solver state.
 
@@ -349,11 +350,11 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      input_state: state.ToraxSimState,
+      input_state: sim_state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.ToraxSimState,
+      sim_state.ToraxSimState,
   ]:
     """Performs a simulation step with given dt.
 
@@ -424,18 +425,18 @@ class SimulationStepFn:
   def adaptive_step(
       self,
       x_old: tuple[cell_variable.CellVariable, ...],
-      intermediate_state: state.ToraxSimState,
+      intermediate_state: sim_state.ToraxSimState,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      input_state: state.ToraxSimState,
+      input_state: sim_state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.ToraxSimState,
+      sim_state.ToraxSimState,
       runtime_params_slice.DynamicRuntimeParamsSlice,
   ]:
     """Performs adaptive time stepping until solver converges.
@@ -477,7 +478,7 @@ class SimulationStepFn:
     def cond_fun(
         updated_output: tuple[
             tuple[cell_variable.CellVariable, ...],
-            state.ToraxSimState,
+            sim_state.ToraxSimState,
             runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> bool:
@@ -493,12 +494,12 @@ class SimulationStepFn:
     def body_fun(
         updated_output: tuple[
             tuple[cell_variable.CellVariable, ...],
-            state.ToraxSimState,
+            sim_state.ToraxSimState,
             runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> tuple[
         tuple[cell_variable.CellVariable, ...],
-        state.ToraxSimState,
+        sim_state.ToraxSimState,
         runtime_params_slice.DynamicRuntimeParamsSlice,
     ]:
       _, old_state, old_slice = updated_output
@@ -592,9 +593,9 @@ def _sawtooth_step(
     geo_t: geometry.Geometry,
     geo_t_plus_crash_dt: geometry.Geometry,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    input_state: state.ToraxSimState,
+    input_state: sim_state.ToraxSimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
   If a sawtooth model is provided and a crash is triggered, this method
@@ -753,10 +754,10 @@ def _finalize_outputs(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     core_profiles_t: state.CoreProfiles,
-    intermediate_state: state.ToraxSimState,
+    intermediate_state: sim_state.ToraxSimState,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles = updaters.update_all_core_profiles_after_step(
       x_new,

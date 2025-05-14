@@ -26,6 +26,7 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.neoclassical.conductivity import base as conductivity_base
+from torax.orchestration import sim_state
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -90,7 +91,7 @@ class Solver(abc.ABC):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.ToraxSimState,
+      sim_state.ToraxSimState,
   ]:
     """Applies a time step update.
 
@@ -184,7 +185,7 @@ class Solver(abc.ABC):
         sigma_face=core_conductivity.sigma_face,
     )
 
-    intermediate_state = state.ToraxSimState(
+    intermediate_state = sim_state.ToraxSimState(
         t=t+dt,
         dt=dt,
         core_profiles=core_profiles_t_plus_dt,

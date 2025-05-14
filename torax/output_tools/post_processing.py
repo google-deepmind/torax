@@ -24,6 +24,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.orchestration import sim_state as sim_state_lib
 from torax.output_tools import safety_factor_fit
 from torax.physics import formulas
 from torax.physics import psi_calculations
@@ -428,7 +429,7 @@ def _calculate_integrated_sources(
 
 @jax_utils.jit
 def make_post_processed_outputs(
-    sim_state: state.ToraxSimState,
+    sim_state: sim_state_lib.ToraxSimState,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     previous_post_processed_outputs: PostProcessedOutputs | None = None,
 ) -> PostProcessedOutputs:

@@ -24,6 +24,7 @@ import jax
 import numpy as np
 from torax import state
 from torax.geometry import geometry as geometry_lib
+from torax.orchestration import sim_state
 from torax.output_tools import post_processing
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles
@@ -199,7 +200,7 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: tuple[state.ToraxSimState, ...],
+      state_history: tuple[sim_state.ToraxSimState, ...],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],

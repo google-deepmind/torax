@@ -26,6 +26,7 @@ from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
+from torax.orchestration import sim_state
 from torax.output_tools import output
 from torax.output_tools import post_processing
 from torax.sources import source_models as source_models_lib
@@ -105,7 +106,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
-    self.sim_state = state.ToraxSimState(
+    self.sim_state = sim_state.ToraxSimState(
         core_profiles=self.core_profiles,
         core_transport=self.core_transport,
         core_sources=self.source_profiles,
@@ -302,7 +303,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertEqual(rebuilt_torax_config, self.torax_config)
 
   def test_cell_plus_boundaries_output(self):
-    sim_state = self.sim_state
+    torax_state = self.sim_state
     T_e = cell_variable.CellVariable(  # pylint: disable=invalid-name
         value=jnp.ones_like(self.geo.rho),
         dr=self.geo.drho_norm,
@@ -321,13 +322,13 @@ class StateHistoryTest(parameterized.TestCase):
         Z_impurity=Z_impurity,
         Z_impurity_face=Z_impurity_face,
     )
-    sim_state = dataclasses.replace(sim_state, core_profiles=core_profiles)
+    torax_state = dataclasses.replace(torax_state, core_profiles=core_profiles)
     post_processed_outputs = post_processing.PostProcessedOutputs.zeros(
         self.geo
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(sim_state, sim_state),
+        state_history=(torax_state, torax_state),
         post_processed_outputs_history=(
             post_processed_outputs,
             post_processed_outputs,

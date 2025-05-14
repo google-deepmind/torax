@@ -20,6 +20,7 @@ import numpy as np
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import post_processing
 from torax.sources import source_profiles as source_profiles_lib
@@ -45,7 +46,7 @@ class StepFunctionTest(absltest.TestCase):
         right_face_grad_constraint=None,
     )
     core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    sim_state = state.ToraxSimState(
+    torax_state = sim_state.ToraxSimState(
         core_profiles=core_profiles,
         core_transport=state.CoreTransport.zeros(geo),
         core_sources=source_profiles,
@@ -61,9 +62,10 @@ class StepFunctionTest(absltest.TestCase):
     post_processed_outputs = post_processing.PostProcessedOutputs.zeros(geo)
 
     with self.subTest('no NaN'):
-      error = sim_state.check_for_errors()
+      error = torax_state.check_for_errors()
       self.assertEqual(error, state.SimError.NO_ERROR)
-      error = step_function.check_for_errors(sim_state, post_processed_outputs)
+      error = step_function._check_for_errors(
+          torax_state, post_processed_outputs)
       self.assertEqual(error, state.SimError.NO_ERROR)
 
     with self.subTest('NaN in BC'):
@@ -75,11 +77,11 @@ class StepFunctionTest(absltest.TestCase):
           ),
       )
       new_sim_state_core_profiles = dataclasses.replace(
-          sim_state, core_profiles=core_profiles
+          torax_state, core_profiles=core_profiles
       )
       error = new_sim_state_core_profiles.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function.check_for_errors(
+      error = step_function._check_for_errors(
           new_sim_state_core_profiles, post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
@@ -91,8 +93,8 @@ class StepFunctionTest(absltest.TestCase):
       )
       error = new_post_processed_outputs.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function.check_for_errors(
-          sim_state, new_post_processed_outputs
+      error = step_function._check_for_errors(
+          torax_state, new_post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
 
@@ -100,18 +102,18 @@ class StepFunctionTest(absltest.TestCase):
       nan_array = np.zeros_like(geo.rho)
       nan_array[-1] = np.nan
       j_bootstrap = dataclasses.replace(
-          sim_state.core_sources.j_bootstrap,
+          torax_state.core_sources.j_bootstrap,
           j_bootstrap=nan_array,
       )
       new_core_sources = dataclasses.replace(
-          sim_state.core_sources, j_bootstrap=j_bootstrap
+          torax_state.core_sources, j_bootstrap=j_bootstrap
       )
       new_sim_state_sources = dataclasses.replace(
-          sim_state, core_sources=new_core_sources
+          torax_state, core_sources=new_core_sources
       )
       error = new_sim_state_sources.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function.check_for_errors(
+      error = step_function._check_for_errors(
           new_sim_state_sources, post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)

@@ -34,6 +34,7 @@ from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import post_processing
 import tqdm
@@ -43,14 +44,14 @@ def _run_simulation(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    initial_state: state.ToraxSimState,
+    initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
 ) -> tuple[
-    tuple[state.ToraxSimState, ...],
+    tuple[sim_state.ToraxSimState, ...],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -135,8 +136,8 @@ def _run_simulation(
       )
   )
 
-  sim_state = initial_state
-  state_history = [sim_state]
+  current_state = initial_state
+  state_history = [current_state]
   post_processing_history = [initial_post_processed_outputs]
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
@@ -152,19 +153,19 @@ def _run_simulation(
     # Advance the simulation until the time_step_calculator tells us we are done
     first_step = True if not restart_case else False
     while step_fn.time_step_calculator.not_done(
-        sim_state.t,
+        current_state.t,
         dynamic_runtime_params_slice.numerics.t_final,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
       if log_timestep_info:
-        _log_timestep(sim_state)
+        _log_timestep(current_state)
 
-      sim_state, post_processed_outputs, sim_error = step_fn(
+      current_state, post_processed_outputs, sim_error = step_fn(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
-          sim_state,
+          current_state,
           post_processing_history[-1],
       )
 
@@ -186,25 +187,26 @@ def _run_simulation(
             # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
             state_history[0].core_profiles = dataclasses.replace(
                 state_history[0].core_profiles,
-                vloop_lcfs=sim_state.core_profiles.vloop_lcfs,
+                vloop_lcfs=current_state.core_profiles.vloop_lcfs,
             )
-        state_history.append(sim_state)
+        state_history.append(current_state)
         post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
-            float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
+            float(current_state.t)
+            - dynamic_runtime_params_slice.numerics.t_initial
         ) / (
             dynamic_runtime_params_slice.numerics.t_final
             - dynamic_runtime_params_slice.numerics.t_initial
         )
         pbar.n = int(progress_ratio * pbar.total)
-        pbar.set_description(f'Simulating (t={sim_state.t:.5f})')
+        pbar.set_description(f'Simulating (t={current_state.t:.5f})')
         pbar.refresh()
 
   # Log final timestep
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
-    _log_timestep(sim_state)
+    _log_timestep(current_state)
 
   # If the first step of the simulation was very long, call it out. It might
   # have to do with tracing the jitted step_fn.
@@ -237,17 +239,17 @@ def _run_simulation(
 
 
 def _log_timestep(
-    sim_state: state.ToraxSimState,
+    current_state: sim_state.ToraxSimState,
 ) -> None:
   """Logs basic timestep info."""
   log_str = (
-      f'Simulation time: {sim_state.t:.5f}, previous dt: {sim_state.dt:.6f},'
-      ' previous stepper iterations:'
-      f' {sim_state.solver_numeric_outputs.outer_solver_iterations}'
+      f'Simulation time: {current_state.t:.5f}, previous dt:'
+      f' {current_state.dt:.6f}, previous stepper iterations:'
+      f' {current_state.solver_numeric_outputs.outer_solver_iterations}'
   )
   # TODO(b/330172917): once tol and coarse_tol are configurable in the
   # runtime_params, also log the value of tol and coarse_tol below
-  match sim_state.solver_numeric_outputs.solver_error_state:
+  match current_state.solver_numeric_outputs.solver_error_state:
     case 0:
       pass
     case 1:

@@ -31,6 +31,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import run_simulation
+from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import post_processing
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -103,14 +104,14 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         geometry_provider: geometry_provider_lib.GeometryProvider,
-        initial_state: state.ToraxSimState,
+        initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
         restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
     ) -> tuple[
-        tuple[state.ToraxSimState, ...],
+        tuple[sim_state.ToraxSimState, ...],
         tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
@@ -230,7 +231,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      state.ToraxSimState,
+      sim_state.ToraxSimState,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
@@ -266,7 +267,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     )
 
     def get_return_value(error_code: int):
-      intermediate_state = state.ToraxSimState(
+      intermediate_state = sim_state.ToraxSimState(
           t=t + dt,
           dt=dt,
           core_profiles=core_profiles_t_plus_dt,

@@ -24,6 +24,7 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.neoclassical.conductivity import base as conductivity_base
+from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import output
 from torax.output_tools import post_processing
@@ -38,7 +39,7 @@ def get_initial_state_and_post_processed_outputs(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -65,7 +66,7 @@ def _get_initial_state(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
-) -> state.ToraxSimState:
+) -> sim_state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = initialization.initial_core_profiles(
       static_runtime_params_slice,
@@ -87,7 +88,7 @@ def _get_initial_state(
           sigma_face=initial_core_profiles.sigma_face),
   )
 
-  return state.ToraxSimState(
+  return sim_state.ToraxSimState(
       t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
@@ -110,7 +111,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> tuple[state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file."""
   data_tree = output.load_state_file(file_restart.filename)
   # Find the closest time in the given dataset.
