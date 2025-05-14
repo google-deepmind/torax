@@ -38,8 +38,10 @@ CONFIG = {
     'sources': {
         'generic_heat': {},
         'ei_exchange': {},
-        'j_bootstrap': {},
         'generic_current': {},
+    },
+    'neoclassical': {
+        'bootstrap_current': {},
     },
     'pedestal': {'pedestal_model': 'set_T_ped_n_ped', 'set_pedestal': True},
     'transport': {

@@ -61,13 +61,15 @@ CONFIG = {
         'a_minor': 2.0,  # minor radius (a) in meters
         'B_0': 5.3,  # Toroidal magnetic field on axis [T]
     },
-    'sources': {
-        # Current sources (for psi equation)
-        'j_bootstrap': {
+    'neoclassical': {
+        'bootstrap_current': {
             # Multiplication factor for bootstrap current (note fbs~0.3 in
             # original simu)
             'bootstrap_multiplier': 1.0,
         },
+    },
+    'sources': {
+        # Current sources (for psi equation)
         'generic_current': {
             # total "external" current fraction
             'fraction_of_total_current': 0.46,

@@ -49,10 +49,12 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'circular',
     },
+    'neoclassical': {
+        'bootstrap_current': {},
+    },
     'sources': {
         # Current sources (for psi equation)
         'generic_current': {},
-        'j_bootstrap': {},
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {},
         'gas_puff': {},

@@ -38,10 +38,12 @@ CONFIG = {
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
         'Ip_from_parameters': True,
     },
-    'sources': {
-        'j_bootstrap': {
+    'neoclassical': {
+        'bootstrap_current': {
             'bootstrap_multiplier': 0.0,
         },
+    },
+    'sources': {
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
         },

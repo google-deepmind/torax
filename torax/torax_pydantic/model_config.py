@@ -86,21 +86,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _move_bootstrap(cls, data: dict[str, Any]) -> dict[str, Any]:
-    configurable_data = copy.deepcopy(data)
-    if (
-        'j_bootstrap' in data['sources']
-        and 'neoclassical' not in configurable_data
-    ):
-      configurable_data['neoclassical'] = {'bootstrap_current': {}}
-      if 'bootstrap_multiplier' in data['sources']['j_bootstrap']:
-        configurable_data['neoclassical']['bootstrap_current'][
-            'bootstrap_multiplier'
-        ] = data['sources']['j_bootstrap']['bootstrap_multiplier']
-    return configurable_data
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
     if 'pedestal_model' not in configurable_data['pedestal']:

@@ -50,8 +50,10 @@ CONFIG = {
         'pellet': {
             'S_total': 1.0e22,
         },
-        'j_bootstrap': {},
         'generic_current': {},
+    },
+    'neoclassical': {
+        'bootstrap_current': {},
     },
     'pedestal': {
         'pedestal_model': 'set_T_ped_n_ped',

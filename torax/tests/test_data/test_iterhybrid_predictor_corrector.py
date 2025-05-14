@@ -63,11 +63,6 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'j_bootstrap': {
-            # Multiplication factor for bootstrap current (note fbs~0.3 in
-            # original simu)
-            'bootstrap_multiplier': 1.0,
-        },
         'generic_current': {
             # total "external" current fraction
             'fraction_of_total_current': 0.46,
@@ -121,6 +116,11 @@ CONFIG = {
         'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_multiplier': 1.0,
+        },
+    },
+    'neoclassical': {
+        'bootstrap_current': {
+            'bootstrap_multiplier': 1.0,
         },
     },
     'pedestal': {

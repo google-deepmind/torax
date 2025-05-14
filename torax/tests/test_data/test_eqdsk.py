@@ -54,12 +54,10 @@ CONFIG = {
         'geometry_file': 'eqdsk_cocos02.eqdsk',
         'Ip_from_parameters': False,
     },
+    'neoclassical': {'bootstrap_current': {'bootstrap_multiplier': 0.5}},
     'sources': {
         # Set bootstrap multiplier to 0.5 to avoid numerical issues when
         # I_bs > Ip.
-        'j_bootstrap': {
-            'bootstrap_multiplier': 0.5,
-        },
         'ohmic': {},
         'ei_exchange': {},
         'generic_particle': {

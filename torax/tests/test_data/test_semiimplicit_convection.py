@@ -31,9 +31,6 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'j_bootstrap': {
-            'bootstrap_multiplier': 0.0,
-        },
         'generic_heat': {},
         'ei_exchange': {},
         'generic_current': {},

@@ -41,12 +41,10 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'circular',
     },
+    'neoclassical': {'bootstrap_current': {'bootstrap_multiplier': 1.0}},
     'sources': {
         'ei_exchange': {
             'Qei_multiplier': 1.0,
-        },
-        'j_bootstrap': {
-            'bootstrap_multiplier': 1.0,
         },
         'generic_heat': {
             'P_total': 53.0e6,

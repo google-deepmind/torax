@@ -42,9 +42,6 @@ CONFIG = {
         'Ip_from_parameters': True,
     },
     'sources': {
-        'j_bootstrap': {
-            'bootstrap_multiplier': 0.0,
-        },
         'generic_heat': {
             'gaussian_width': 0.18202270915319393,
         },
