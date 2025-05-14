@@ -43,7 +43,7 @@ class GeometryTest(parameterized.TestCase):
         n_rho=25,
         R_major=6.2,
         a_minor=2.0,
-        B=5.3,
+        B_0=5.3,
         # Use the same dummy value for the rest.
         psi=np.arange(0, 1.0, 0.01),
         Ip_profile=np.arange(0, 1.0, 0.01),

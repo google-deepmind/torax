@@ -122,7 +122,7 @@ class StandardGeometryIntermediates:
       values in the Geometry are rescaled to match the new Ip.
     R_major: major radius on the magnetic axis in [:math:`\mathrm{m}`].
     a_minor: minor radius (a) in [:math:`\mathrm{m}`].
-    B: Toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    B_0: Toroidal magnetic field on axis [:math:`\mathrm{T}`].
     psi: Poloidal flux profile [:math:`\mathrm{Wb}`].
     Ip_profile: Plasma current profile [:math:`\mathrm{A}`].
     Phi: Toroidal flux profile [:math:`\mathrm{Wb}`].
@@ -162,7 +162,7 @@ class StandardGeometryIntermediates:
   Ip_from_parameters: bool
   R_major: chex.Numeric
   a_minor: chex.Numeric
-  B: chex.Numeric
+  B_0: chex.Numeric
   psi: chex.Array
   Ip_profile: chex.Array
   Phi: chex.Array
@@ -325,7 +325,7 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         R_major=np.array(R_major),
         a_minor=np.array(a_minor),
-        B=np.array(B_0),
+        B_0=np.array(B_0),
         psi=psi,
         Ip_profile=Ip_chease,
         Phi=Phi,
@@ -594,7 +594,7 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         R_major=R_major,
         a_minor=a_minor,
-        B=B_0,
+        B_0=B_0,
         psi=psi[0] - psi,
         Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
@@ -906,7 +906,7 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         R_major=R_major,
         a_minor=a_minor,
-        B=B_0,
+        B_0=B_0,
         # TODO(b/335204606): handle COCOS shenanigans
         psi=psi_interpolant * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
@@ -944,7 +944,7 @@ def build_standard_geometry(
   """
 
   # Toroidal flux coordinates
-  rho_intermediate = np.sqrt(intermediate.Phi / (np.pi * intermediate.B))
+  rho_intermediate = np.sqrt(intermediate.Phi / (np.pi * intermediate.B_0))
   rho_norm_intermediate = rho_intermediate / rho_intermediate[-1]
 
   # flux surface integrals of various geometry quantities
@@ -1106,7 +1106,7 @@ def build_standard_geometry(
       Phi_face=Phi_face,
       R_major=intermediate.R_major,
       a_minor=intermediate.a_minor,
-      B_0=intermediate.B,
+      B_0=intermediate.B_0,
       volume=volume,
       volume_face=volume_face,
       area=area,
