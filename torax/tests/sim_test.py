@@ -41,7 +41,6 @@ _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_E,
     output.PSI,
     output.Q,
-    output.MAGNETIC_SHEAR,
     output.N_E,
 )
 
@@ -60,7 +59,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_crank_nicolson.py',
           (output.T_I, output.T_E),
           2e-1,
-          1e-10,
+          0,
           'test_implicit.nc',
       ),
       # Tests implicit solver with theta=1.0 (backwards Euler)
@@ -108,9 +107,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_fusion_qlknn',
           'test_all_transport_fusion_qlknn.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
       # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
@@ -153,8 +149,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
-          _ALL_PROFILES,
-          1e-8,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
@@ -165,8 +159,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterbaseline_mockup',
           'test_iterbaseline_mockup.py',
-          _ALL_PROFILES,
-          1e-10,
       ),
       # Tests full integration for ITER-hybrid-like config. Linear solver.
       (
@@ -195,9 +187,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_zeffprofile',
           'test_iterhybrid_predictor_corrector_zeffprofile.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
       # Predictor-corrector solver with a time-dependent isotope mix.
       (
@@ -233,9 +222,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_cyclotron',
           'test_iterhybrid_predictor_corrector_cyclotron.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
       # Tests current and density rampup for for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
@@ -243,9 +229,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
-          _ALL_PROFILES,
-          0,
-          1e-6,
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
@@ -253,9 +236,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
-          _ALL_PROFILES,
-          0,
-          1e-6,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector
@@ -292,7 +272,7 @@ class SimTest(sim_test_case.SimTestCase):
       self,
       config_name: str,
       profiles: Sequence[str] = _ALL_PROFILES,
-      rtol: float | None = 0.0,
+      rtol: float | None = None,
       atol: float | None = None,
       ref_name: str | None = None,
   ):

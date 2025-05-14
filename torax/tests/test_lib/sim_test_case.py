@@ -31,6 +31,12 @@ from torax.torax_pydantic import model_config
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
 
+# Default tolerances for checking sim results against references.
+# np.allclose true if absolute(a - b) <= (atol + rtol * absolute(b))
+# Therefore _ATOL = 0 restricts to a pure relative error check.
+_RTOL = 1e-10
+_ATOL = 0
+
 
 class SimTestCase(parameterized.TestCase):
   """Base class for TestCases running TORAX sim.
@@ -38,9 +44,6 @@ class SimTestCase(parameterized.TestCase):
   Contains useful functions for loading configs and checking sim results against
   references.
   """
-
-  rtol = 2e-3
-  atol = 1e-10
 
   def setUp(self):
     super().setUp()
@@ -144,12 +147,12 @@ class SimTestCase(parameterized.TestCase):
         # mismatch at the last step
         msg = [
             f'Mismatch at step {step}, t = {ref_time[step]}',
-            'Pos\tActual\tExpected\tAbs Err\tMatch',
+            'Pos\tActual\tExpected\tRel Err\tMatch',
         ]
         for i in range(actual.shape[0]):
           match = np.allclose(actual[i], ref[i], rtol=rtol, atol=atol)
-          abse = np.abs(actual[i] - ref[i])
-          msg.append(f'{names[i]}\t{actual[i]}\t{ref[i]}\t{abse:e}\t{match}')
+          rele = np.abs((actual[i] - ref[i])/ref[i])
+          msg.append(f'{names[i]}\t{actual[i]}\t{ref[i]}\t{rele:e}\t{match}')
         msg = '\n'.join(msg)
         msgs.append(msg)
 
@@ -195,9 +198,9 @@ class SimTestCase(parameterized.TestCase):
   ):
     """Integration test comparing to TORAX reference output."""
     if rtol is None:
-      rtol = self.rtol
+      rtol = _RTOL
     if atol is None:
-      atol = self.atol
+      atol = _ATOL
 
     torax_config = self._get_torax_config(config_name)
     history = run_simulation.run_simulation(torax_config, progress_bar=False)

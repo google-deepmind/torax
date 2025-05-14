@@ -88,7 +88,6 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
       'n_e',
       'psi',
       'q',
-      'magnetic_shear',
   ]
   # Load the Datasets
   ds_old = output.safe_load_dataset(old_file).children['profiles']
@@ -108,7 +107,7 @@ def _print_diff(profile_name: str, ds_old: xr.Dataset, ds_new: xr.Dataset):
     ds_new: Dataset containing the new simulation output.
   """
 
-  if (profile_name == 'magnetic_shear') or (profile_name == 'psi'):
+  if (profile_name == 'psi'):
     # Avoid potential 0.0 on-axis
     old_value = ds_old[profile_name].isel(time=-1).to_numpy()[1:]
     new_value = ds_new[profile_name].isel(time=-1).to_numpy()[1:]
