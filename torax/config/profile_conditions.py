@@ -90,15 +90,15 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     n_e: Prescribed or evolving values for electron density at different times.
     normalize_n_e_to_nbar: Whether to renormalize the density profile to have
       the desired line averaged density `nbar`.
-    nbar: Line averaged density. In units of reference density if
-      n_e_nbar_is_fGW = False. In Greenwald fraction if n_e_nbar_is_fGW = True.
-      nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+    nbar: Line averaged density. In units of m^-3 if n_e_nbar_is_fGW = False. In
+      Greenwald fraction if n_e_nbar_is_fGW = True. nGW = Ip/(pi*a^2) with a in
+      m, nGW in 10^20 m-3, Ip in MA
     n_e_nbar_is_fGW: Toggle units of nbar
-    n_e_right_bc: Density boundary condition for r=a_minor. In units of
-      reference density if n_e_right_bc_is_fGW = False. In Greenwald fraction if
-      `n_e_right_bc_is_fGW = True`. If `n_e_right_bc` is `None` then the
-      boundary condition will instead be taken from `n_e` at rhon=1. In this
-      case, `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
+    n_e_right_bc: Density boundary condition for r=a_minor. In units of m^-3 if
+      n_e_right_bc_is_fGW = False. In Greenwald fraction if `n_e_right_bc_is_fGW
+      = True`. If `n_e_right_bc` is `None` then the boundary condition will
+      instead be taken from `n_e` at rho_norm=1. In this case,
+      `n_e_right_bc_is_absolute` in the StaticRuntimeParams will be set to
       `False` and n_e_right_bc_is_fGW` will be set to `n_e_nbar_is_fGW`. If
       `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be set
       to `True`.
@@ -129,12 +129,12 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
-      torax_pydantic.ValidatedDefault(
-          {0: {0: 1.2, 1: 0.8}}
-      )
+      torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
   normalize_n_e_to_nbar: bool = False
-  nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.85)
+  nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.85e20
+  )
   n_e_nbar_is_fGW: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False

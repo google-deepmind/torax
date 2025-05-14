@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
+from torax import constants
 from torax.config import build_runtime_params
 from torax.orchestration import initial_state
 from torax.orchestration import step_function
@@ -25,7 +26,6 @@ from torax.output_tools import output
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
-
 
 # pylint: disable=invalid-name
 
@@ -118,8 +118,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
     dynamic.profile_conditions.T_e_right_bc = T_e_bc
     dynamic.profile_conditions.T_i = T_i
     dynamic.profile_conditions.T_i_right_bc = T_i_bc
-    dynamic.profile_conditions.n_e = n_e
-    dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
+    dynamic.profile_conditions.n_e = n_e * constants.DENSITY_SCALING_FACTOR
+    dynamic.profile_conditions.n_e_right_bc = (
+        n_e_right_bc * constants.DENSITY_SCALING_FACTOR
+    )
     dynamic.profile_conditions.psi = psi
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
@@ -141,9 +143,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
 def _get_step_fn(torax_config):
   solver = mock.MagicMock()
-  solver.source_models = source_models_lib.SourceModels(
-      torax_config.sources
-  )
+  solver.source_models = source_models_lib.SourceModels(torax_config.sources)
   return mock.create_autospec(step_function.SimulationStepFn, solver=solver)
 
 

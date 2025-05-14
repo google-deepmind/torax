@@ -16,6 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import constants
 from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.core_profiles import updaters
@@ -59,7 +60,7 @@ class UpdatersTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='Set from n_e_right_bc',
-          n_e_right_bc=0.5,
+          n_e_right_bc=0.5e20,
           normalize_n_e_to_nbar=False,
           n_e_nbar_is_fGW=False,
           n_e_right_bc_is_fGW=False,
@@ -67,7 +68,7 @@ class UpdatersTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='Set from n_e_right_bc absolute, ignore normalize',
-          n_e_right_bc=0.5,
+          n_e_right_bc=0.5e20,
           normalize_n_e_to_nbar=True,
           n_e_nbar_is_fGW=False,
           n_e_right_bc_is_fGW=False,
@@ -79,7 +80,7 @@ class UpdatersTest(parameterized.TestCase):
           normalize_n_e_to_nbar=False,
           n_e_nbar_is_fGW=True,
           n_e_right_bc_is_fGW=False,
-          expected_n_e_right_bc=1,  # This will be scaled by fGW in test.
+          expected_n_e_right_bc=1.0,  # This will be scaled by fGW in test.
       ),
       dict(
           testcase_name='Set from n_e, ignore n_e_right_bc_is_fGW',
@@ -91,7 +92,7 @@ class UpdatersTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='Set from n_e_right_bc, ignore n_e_nbar_is_fGW',
-          n_e_right_bc=0.5,
+          n_e_right_bc=0.5e20,
           normalize_n_e_to_nbar=False,
           n_e_nbar_is_fGW=True,
           n_e_right_bc_is_fGW=False,
@@ -101,7 +102,7 @@ class UpdatersTest(parameterized.TestCase):
           testcase_name=(
               'Set from n_e_right_bc, ignore n_e_nbar_is_fGW, ignore normalize'
           ),
-          n_e_right_bc=0.5,
+          n_e_right_bc=0.5e20,
           normalize_n_e_to_nbar=True,
           n_e_nbar_is_fGW=True,
           n_e_right_bc_is_fGW=False,
@@ -118,11 +119,19 @@ class UpdatersTest(parameterized.TestCase):
   ):
     """Tests that compute_boundary_conditions_t_plus_dt works."""
     config = default_configs.get_default_config_dict()
+
+    if n_e_nbar_is_fGW:
+      nbar = 1.0
+      n_e = {0: {0: 1.5, 1: 1}}
+    else:
+      nbar = 1.0e20
+      n_e = {0: {0: 1.5e20, 1: 1e20}}
+
     config['profile_conditions'] = {
-        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e': n_e,
         'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
         'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
-        'nbar': 1,
+        'nbar': nbar,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
         'n_e_right_bc': n_e_right_bc,
     }
@@ -156,16 +165,17 @@ class UpdatersTest(parameterized.TestCase):
           / 1e6  # Convert to MA.
           / (np.pi * geo.a_minor**2)
           * 1e20
-          / dynamic_runtime_params_slice.numerics.density_reference
       )
       np.testing.assert_allclose(
           boundary_conditions['n_e']['right_face_constraint'],
-          expected_n_e_right_bc * nGW,
+          expected_n_e_right_bc * nGW / constants.DENSITY_SCALING_FACTOR,
+          rtol=1e-6,
       )
     else:
       np.testing.assert_allclose(
           boundary_conditions['n_e']['right_face_constraint'],
           expected_n_e_right_bc,
+          rtol=1e-6,
       )
 
   @parameterized.named_parameters(

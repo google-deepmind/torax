@@ -27,6 +27,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import tree
 import numpy as np
+from torax import constants
 from torax import state
 from torax.orchestration import initial_state
 from torax.orchestration import run_simulation
@@ -34,7 +35,6 @@ from torax.output_tools import output
 from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
-
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.TEMPERATURE_ION,
@@ -434,20 +434,21 @@ class SimTest(sim_test_case.SimTestCase):
       T_e_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
       T_i = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
       T_i_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
-      n_e = ref_profiles[output.N_E][index, 1:-1]
-      n_e_right_bc = ref_profiles[output.N_E][index, -1]
+      n_e = (
+          ref_profiles[output.N_E][index, 1:-1]
+          * constants.DENSITY_SCALING_FACTOR
+      )
+      n_e_right_bc = (
+          ref_profiles[output.N_E][index, -1] * constants.DENSITY_SCALING_FACTOR
+      )
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
       dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
       dynamic_runtime_params_slice.profile_conditions.T_e = T_e
-      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
-          T_e_bc
-      )
+      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = T_e_bc
       dynamic_runtime_params_slice.profile_conditions.T_i = T_i
-      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
-          T_i_bc
-      )
+      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = T_i_bc
       dynamic_runtime_params_slice.profile_conditions.n_e = n_e
       dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
           n_e_right_bc

@@ -55,6 +55,8 @@ class SawtoothModelTest(parameterized.TestCase):
             'current_profile_nu': 3,
             'n_e_nbar_is_fGW': True,
             'normalize_n_e_to_nbar': True,
+            'nbar': 0.85,
+            'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
         },
         'plasma_composition': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},

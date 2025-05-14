@@ -73,8 +73,8 @@ class ProfileConditionsTest(parameterized.TestCase):
     self.assertEqual(dcs.T_i_right_bc, expected_second_value)
 
   @parameterized.named_parameters(
-      ('no boundary condition', None, 2.0, 200.0),
-      ('boundary condition provided', 3.0, 3.0, 3.0),
+      ('no boundary condition', None, 2.0e20, 200.0e20),
+      ('boundary condition provided', 3.0e20, 3.0e20, 3.0e20),
   )
   def test_profile_conditions_sets_n_e_right_bc_correctly(
       self, n_e_right_bc, expected_initial_value, expected_second_value
@@ -83,7 +83,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'n_e': {0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
+        'n_e': {0: {0: 1.0e20, 1: 2.0e20}, 1.5: {0: 100.0e20, 1: 200.0e20}},
         'n_e_right_bc': n_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

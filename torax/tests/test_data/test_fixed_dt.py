@@ -17,7 +17,7 @@
 
 CONFIG = {
     'profile_conditions': {
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
     },
     'numerics': {
         't_final': 2,

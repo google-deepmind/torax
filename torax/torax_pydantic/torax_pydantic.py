@@ -29,6 +29,7 @@ JAX_STATIC = model_base.JAX_STATIC
 
 # Physical units.
 # keep-sorted start
+CubicMeter: TypeAlias = pydantic.PositiveFloat
 GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
 KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
 Meter: TypeAlias = pydantic.PositiveFloat
@@ -36,12 +37,11 @@ MeterPerSecond: TypeAlias = float
 MeterSquaredPerSecond: TypeAlias = pydantic.NonNegativeFloat
 Pascal: TypeAlias = pydantic.PositiveFloat
 PositiveMeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
-ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # density_reference
 # Time can sometimes be 0, eg. for the start of an interval.
 Second: TypeAlias = pydantic.NonNegativeFloat
 Tesla: TypeAlias = pydantic.PositiveFloat
 # keep-sorted end
-Density: TypeAlias = GreenwaldFraction | ReferenceDensity
+Density: TypeAlias = CubicMeter | GreenwaldFraction
 
 UnitInterval: TypeAlias = Annotated[float, pydantic.Field(ge=0.0, le=1.0)]
 OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]

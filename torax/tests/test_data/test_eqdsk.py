@@ -31,7 +31,7 @@ CONFIG = {
         'T_i_right_bc': 0.2,
         'T_e': {0.0: {0.0: 3.0, 1.0: 0.2}},
         'T_e_right_bc': 0.2,
-        'n_e_right_bc': 0.25,
+        'n_e_right_bc': 0.25e20,
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.5,

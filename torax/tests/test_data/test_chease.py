@@ -20,10 +20,12 @@ Ip from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
 
 CONFIG = {
     'profile_conditions': {
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
         'Ip': 15e6,
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
+        'nbar': 0.85,
+        'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {
         't_final': 1,

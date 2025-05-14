@@ -59,7 +59,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions(
         T_i_right_bc={0.0: 2.0, 4.0: 4.0},
         T_e_right_bc=4.5,  # not time-dependent.
-        n_e_right_bc=({5.0: 6.0, 7.0: 8.0}, 'step'),
+        n_e_right_bc=({5.0: 6.0e20, 7.0: 8.0e20}, 'step'),
     )
     torax_pydantic.set_grid(profile_conditions, self._torax_mesh)
     np.testing.assert_allclose(
@@ -78,7 +78,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         profile_conditions.build_dynamic_params(
             t=6.0,
         ).n_e_right_bc,
-        6.0,
+        6.0e20,
     )
 
   def test_pedestal_is_time_dependent(self):
@@ -88,7 +88,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             pedestal_model='set_T_ped_n_ped',
             T_i_ped={0.0: 0.0, 1.0: 1.0},
             T_e_ped={0.0: 1.0, 1.0: 2.0},
-            n_e_ped={0.0: 2.0, 1.0: 3.0},
+            n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
             rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
             set_pedestal={0.0: True, 1.0: False},
         )
@@ -100,7 +100,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.set_pedestal, True)
     np.testing.assert_allclose(pedestal_params.T_i_ped, 0.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 1.0)
-    np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0)
+    np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0e20)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 3.0)
     # And check after the time limit.
     pedestal_params = pedestal.build_dynamic_params(t=1.0)
@@ -108,7 +108,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.set_pedestal, False)
     np.testing.assert_allclose(pedestal_params.T_i_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
-    np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0)
+    np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0e20)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 5.0)
 
   def test_gaussian_width_in_dynamic_runtime_params_cannot_be_negative(self):
@@ -165,17 +165,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           'T_e',
       ),
       (
-          {0: {0.0: 1.0, 1.0: 2.0}},
+          {0: {0.0: 1.0e20, 1.0: 2.0e20}},
           None,
-          np.array([1.125, 1.375, 1.625, 1.875]),
-          2.0,
+          np.array([1.125e20, 1.375e20, 1.625e20, 1.875e20]),
+          2.0e20,
           'n_e',
       ),
       (
-          {0: {0.0: 1.0, 1.0: 2.0}},
-          3.0,
-          np.array([1.125, 1.375, 1.625, 1.875]),
-          3.0,
+          {0: {0.0: 1.0e20, 1.0: 2.0e20}},
+          3.0e20,
+          np.array([1.125e20, 1.375e20, 1.625e20, 1.875e20]),
+          3.0e20,
           'n_e',
       ),
   )

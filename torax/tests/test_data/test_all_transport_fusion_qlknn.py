@@ -22,7 +22,7 @@ density. D_e scaled from chi_e
 CONFIG = {
     'profile_conditions': {
         'nbar': 0.85,  # initial density (Greenwald fraction units)
-        'n_e_right_bc': 0.2,
+        'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         'current_profile_nu': 0,
@@ -69,7 +69,7 @@ CONFIG = {
     'pedestal': {
         'pedestal_model': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'n_e_ped': 1.0,
+        'n_e_ped': 1.0e20,
     },
     'transport': {
         'transport_model': 'qlknn',

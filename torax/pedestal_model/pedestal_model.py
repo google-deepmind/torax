@@ -41,7 +41,7 @@ class PedestalModelOutput:
   T_i_ped: array_typing.ScalarFloat
   # The electron temperature at the pedestal.
   T_e_ped: array_typing.ScalarFloat
-  # The electron density at the pedestal in units of density_reference.
+  # The electron density at the pedestal in units 10^-3.
   n_e_ped: array_typing.ScalarFloat
 
 

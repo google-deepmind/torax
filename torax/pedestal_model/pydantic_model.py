@@ -53,8 +53,7 @@ class SetPpedTpedRatioNped(BasePedestal):
 
   Attributes:
     P_ped: The plasma pressure at the pedestal [Pa].
-    n_e_ped: The electron density at the pedestal in units of density_reference
-      or fGW.
+    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
     n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
     T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
@@ -65,7 +64,7 @@ class SetPpedTpedRatioNped(BasePedestal):
   pedestal_model: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
   P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.7
+      0.7e20
   )
   n_e_ped_is_fGW: bool = False
   T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
@@ -103,8 +102,7 @@ class SetTpedNped(BasePedestal):
   """A basic version of the pedestal model that uses direct specification.
 
   Attributes:
-    n_e_ped: The electron density at the pedestal in units of density_reference
-      or fGW.
+    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
     n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
     T_i_ped: Ion temperature at the pedestal [keV].
@@ -114,7 +112,7 @@ class SetTpedNped(BasePedestal):
 
   pedestal_model: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
   n_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7)
+      torax_pydantic.ValidatedDefault(0.7e20)
   )
   n_e_ped_is_fGW: bool = False
   T_i_ped: torax_pydantic.TimeVaryingScalar = (

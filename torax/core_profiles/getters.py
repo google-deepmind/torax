@@ -70,12 +70,13 @@ def get_updated_electron_density(
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""
 
+  # Greenwald density in m^-3.
+  # Ip in MA. a_minor in m.
   nGW = (
       dynamic_profile_conditions.Ip
       / 1e6  # Convert to MA.
       / (jnp.pi * geo.a_minor**2)
       * 1e20
-      / dynamic_numerics.density_reference
   )
   n_e_value = jnp.where(
       dynamic_profile_conditions.n_e_nbar_is_fGW,
@@ -135,10 +136,10 @@ def get_updated_electron_density(
   n_e_value = C * n_e_value
 
   n_e = cell_variable.CellVariable(
-      value=n_e_value,
+      value=n_e_value / dynamic_numerics.density_reference,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=n_e_right_bc,
+      right_face_constraint=n_e_right_bc / dynamic_numerics.density_reference,
   )
   return n_e
 

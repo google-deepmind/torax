@@ -16,6 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax import constants
 from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.config import numerics as numerics_lib
@@ -77,10 +78,10 @@ class GettersTest(parameterized.TestCase):
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         {
-            'n_e': {0: {0: 1.5, 1: 1}},
+            'n_e': {0: {0: 1.5e20, 1: 1e20}},
             'n_e_nbar_is_fGW': False,
             'n_e_right_bc_is_fGW': False,
-            'nbar': 1,
+            'nbar': 1e20,
             'normalize_n_e_to_nbar': False,
         },
     )
@@ -105,12 +106,12 @@ class GettersTest(parameterized.TestCase):
       # When normalize_n_e_to_nbar=False, take n_e_right_bc from n_e[0.0][1.0]
       (None, False, 1.0),
       # Take n_e_right_bc from provided value.
-      (0.85, False, 0.85),
+      (0.85e20, False, 0.85),
       # normalize_n_e_to_nbar=True, n_e_right_bc from n_e[0.0][1.0] and
       # normalize.
       (None, True, 0.8050314),
       # Even when normalize_n_e_to_nbar, boundary condition is absolute.
-      (0.5, True, 0.5),
+      (0.5e20, True, 0.5),
   )
   def test_density_boundary_condition_override(
       self,
@@ -120,10 +121,10 @@ class GettersTest(parameterized.TestCase):
   ):
     """Tests that setting n_e right boundary works."""
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
-        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
         'n_e_right_bc_is_fGW': False,
-        'nbar': 1,
+        'nbar': 1e20,
         'n_e_right_bc': n_e_right_bc,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
     })
@@ -148,14 +149,14 @@ class GettersTest(parameterized.TestCase):
       self,
   ):
     """Tests that normalizing vs. not by nbar gives consistent results."""
-    nbar = 1.0
+    nbar = 1e20
     numerics = numerics_lib.Numerics.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
-        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
         'nbar': nbar,
         'normalize_n_e_to_nbar': True,
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
@@ -167,7 +168,11 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    np.testing.assert_allclose(np.mean(n_e_normalized.value), nbar, rtol=1e-1)
+    nbar_normalized = nbar / constants.DENSITY_SCALING_FACTOR
+
+    np.testing.assert_allclose(
+        np.mean(n_e_normalized.value), nbar_normalized, rtol=1e-1
+    )
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
     static_slice = _create_static_slice_mock(profile_conditions)
@@ -193,11 +198,11 @@ class GettersTest(parameterized.TestCase):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
     numerics = numerics_lib.Numerics.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
-        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': True,
-        'nbar': 1,
+        'nbar': 1e20,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
@@ -225,10 +230,10 @@ class GettersTest(parameterized.TestCase):
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'n_e': {0: {0: 1.5, 1: 1}},
+        'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
         'n_e_right_bc_is_fGW': False,
-        'nbar': 1,
+        'nbar': 1e20,
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

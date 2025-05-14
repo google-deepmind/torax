@@ -57,23 +57,24 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         dynamic_runtime_params_slice.pedestal, DynamicRuntimeParams
     )
     # Convert n_e_ped to reference units.
+    # Ip in MA. a_minor in m. nGW in m^-3.
     nGW = (
         dynamic_runtime_params_slice.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
-        / dynamic_runtime_params_slice.numerics.density_reference
     )
-    n_e_ped_ref = jnp.where(
+    n_e_ped = jnp.where(
         dynamic_runtime_params_slice.pedestal.n_e_ped_is_fGW,
         dynamic_runtime_params_slice.pedestal.n_e_ped * nGW,
         dynamic_runtime_params_slice.pedestal.n_e_ped,
     )
+    n_e_ped_ref = (
+        n_e_ped / dynamic_runtime_params_slice.numerics.density_reference
+    )
 
     # Calculate T_e_ped.
-    temperature_ratio = (
-        dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
-    )
+    temperature_ratio = dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
     Z_impurity = core_profiles.Z_impurity
     Z_i = core_profiles.Z_i
     # Find the value of Z_eff at the pedestal top.

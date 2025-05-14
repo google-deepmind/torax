@@ -24,6 +24,6 @@ CONFIG['pedestal'] = {
     'set_pedestal': True,
     'T_i_T_e_ratio': 1.0,
     'P_ped': 89300.0,
-    'n_e_ped': 0.62,
+    'n_e_ped': 0.62e20,
     'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
 }

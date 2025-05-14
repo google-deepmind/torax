@@ -30,7 +30,7 @@ CONFIG = {
         # initial condition electron temperature for r=0 and r=a_minor
         'T_e': {0.0: {0.0: 15.0, 1.0: 0.2}},
         'T_e_right_bc': 0.2,  # boundary condition electron temp for r=a_minor
-        'n_e_right_bc': 0.25,  # boundary condition density for r=a_minor
+        'n_e_right_bc': 0.25e20,  # boundary condition density for r=a_minor
         # set initial condition density according to Greenwald fraction.
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
@@ -130,9 +130,7 @@ CONFIG = {
         'T_e_ped': (
             4.5
         ),  # electron pedestal top temperature in keV for T_i and T_e
-        'n_e_ped': (
-            0.62
-        ),  # pedestal top electron density in units of density_reference
+        'n_e_ped': 0.62e20,  # pedestal top electron density in m^-3
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius},
     },
     'transport': {

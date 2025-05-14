@@ -105,7 +105,7 @@ class InitialStatesTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
-        'n_e_right_bc': ({0.0: 0.1, 1.0: 2.0}, 'step'),
+        'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

@@ -58,13 +58,15 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
-        / dynamic_runtime_params_slice.numerics.density_reference
     )
-    # Calculate n_e_ped in reference units.
-    n_e_ped_ref = jnp.where(
+    # Calculate n_e_ped in m^-3.
+    n_e_ped = jnp.where(
         pedestal_params.n_e_ped_is_fGW,
         pedestal_params.n_e_ped * nGW,
         pedestal_params.n_e_ped,
+    )
+    n_e_ped_ref = (
+        n_e_ped / dynamic_runtime_params_slice.numerics.density_reference
     )
     return pedestal_model.PedestalModelOutput(
         n_e_ped=n_e_ped_ref,
@@ -72,11 +74,12 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         T_e_ped=pedestal_params.T_e_ped,
         rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
         rho_norm_ped_top_idx=jnp.abs(
-            geo.rho_norm - pedestal_params.rho_norm_ped_top).argmin(),
+            geo.rho_norm - pedestal_params.rho_norm_ped_top
+        ).argmin(),
     )
 
   def __hash__(self) -> int:
-    return hash(('SetTemperatureDensityPedestalModel'))
+    return hash('SetTemperatureDensityPedestalModel')
 
   def __eq__(self, other) -> bool:
     return isinstance(other, SetTemperatureDensityPedestalModel)
