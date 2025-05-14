@@ -35,9 +35,6 @@ class StepFunctionTest(absltest.TestCase):
     dt = jnp.array(0.1)
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     source_profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
@@ -103,12 +100,12 @@ class StepFunctionTest(absltest.TestCase):
     with self.subTest('NaN in one element of source array'):
       nan_array = np.zeros_like(geo.rho)
       nan_array[-1] = np.nan
-      j_bootstrap = dataclasses.replace(
-          torax_state.core_sources.j_bootstrap,
+      bootstrap_current = dataclasses.replace(
+          torax_state.core_sources.bootstrap_current,
           j_bootstrap=nan_array,
       )
       new_core_sources = dataclasses.replace(
-          torax_state.core_sources, j_bootstrap=j_bootstrap
+          torax_state.core_sources, bootstrap_current=bootstrap_current
       )
       new_sim_state_sources = dataclasses.replace(
           torax_state, core_sources=new_core_sources

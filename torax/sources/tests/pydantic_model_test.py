@@ -18,7 +18,6 @@ from absl.testing import parameterized
 import numpy as np
 from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax.sources import base
-from torax.sources import bootstrap_current_source
 from torax.sources import fusion_heat_source
 from torax.sources import gas_puff_source
 from torax.sources import generic_current_source
@@ -46,14 +45,6 @@ class PydanticModelTest(parameterized.TestCase):
               }
           },
           expected_sources_model=gas_puff_source.GasPuffSourceConfig,
-      ),
-      dict(
-          config={
-              'j_bootstrap': {
-                  'bootstrap_multiplier': 0.3,
-              }
-          },
-          expected_sources_model=bootstrap_current_source.BootstrapCurrentSourceConfig,
       ),
       dict(
           config={
@@ -90,7 +81,6 @@ class PydanticModelTest(parameterized.TestCase):
     )
     # Check that the 3 default sources are always present.
     for key in [
-        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME,
         qei_source.QeiSource.SOURCE_NAME,
         generic_current_source.GenericCurrentSource.SOURCE_NAME,
     ]:
@@ -109,10 +99,6 @@ class PydanticModelTest(parameterized.TestCase):
     })
     source_models = source_models_lib.SourceModels(sources, self.neoclassical)
     # The non-standard ones are still off.
-    self.assertEqual(
-        sources.j_bootstrap.mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
     self.assertEqual(
         sources.generic_current.mode,
         source_runtime_params_lib.Mode.ZERO,
@@ -145,10 +131,6 @@ class PydanticModelTest(parameterized.TestCase):
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
     sources = pydantic_model.Sources.from_dict({})
-    self.assertEqual(
-        sources.j_bootstrap.mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
     self.assertEqual(
         sources.generic_current.mode,
         source_runtime_params_lib.Mode.ZERO,

@@ -118,9 +118,6 @@ class SourceModelsTest(parameterized.TestCase):
         },
     )
     profiles = source_profiles.SourceProfiles(
-        j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
-            self.geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
@@ -183,9 +180,6 @@ class SourceModelsTest(parameterized.TestCase):
         },
     )
     profiles = source_profiles.SourceProfiles(
-        j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
-            self.geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
@@ -274,9 +268,6 @@ class SourceModelsTest(parameterized.TestCase):
         },
     )
     profiles = source_profiles.SourceProfiles(
-        j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
-            self.geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),

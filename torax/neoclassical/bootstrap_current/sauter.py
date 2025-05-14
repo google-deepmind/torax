@@ -63,6 +63,12 @@ class SauterModel(base.BootstrapCurrentModel):
         j_bootstrap_face=result.j_bootstrap_face,
     )
 
+  def __eq__(self, other) -> bool:
+    return isinstance(other, self.__class__)
+
+  def __hash__(self) -> int:
+    return hash(self.__class__)
+
 
 class SauterModelConfig(base.BootstrapCurrentModelConfig):
   """Config for the Sauter model implementation of bootstrap current.

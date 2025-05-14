@@ -16,7 +16,6 @@
 from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.neoclassical.conductivity import base as conductivity_base
-from torax.sources import bootstrap_current_source
 from torax.sources import pydantic_model
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source as source_lib
@@ -45,7 +44,6 @@ class SourceModels:
     """
     self._bootstrap_current = neoclassical.bootstrap_current.build_model()
     self._conductivity = neoclassical.conductivity.build_model()
-    self._j_bootstrap = sources.j_bootstrap.build_source()
     self._qei_source = sources.ei_exchange.build_source()
     self._standard_sources = {}
     self._psi_sources = {}
@@ -83,16 +81,6 @@ class SourceModels:
       raise AttributeError('SourceModels is immutable.')
     return super().__setattr__(attr, value)
 
-  # Some sources require direct access, so this class defines properties for
-  # those sources.
-  @property
-  def j_bootstrap(self) -> bootstrap_current_source.BootstrapCurrentSource:
-    return self._j_bootstrap
-
-  @property
-  def j_bootstrap_name(self) -> str:
-    return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-
   @property
   def conductivity(self) -> conductivity_base.ConductivityModel:
     return self._conductivity
@@ -120,7 +108,8 @@ class SourceModels:
 
   def __hash__(self) -> int:
     hashes = [hash(source) for source in self.standard_sources.values()]
-    hashes.append(hash(self.j_bootstrap))
+    hashes.append(hash(self.bootstrap_current))
+    hashes.append(hash(self.conductivity))
     hashes.append(hash(self.qei_source))
     return hash(tuple(hashes))
 
@@ -131,7 +120,8 @@ class SourceModels:
               self.standard_sources[name] == other.standard_sources[name]
               for name in self.standard_sources.keys()
           )
-          and self.j_bootstrap == other.j_bootstrap
+          and self.bootstrap_current == other.bootstrap_current
+          and self.conductivity == other.conductivity
           and self.qei_source == other.qei_source
       )
     return False

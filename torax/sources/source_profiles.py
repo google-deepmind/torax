@@ -92,7 +92,6 @@ class SourceProfiles:
   """
 
   # Special-case profiles.
-  j_bootstrap: BootstrapCurrentProfile
   bootstrap_current: bootstrap_current_base.BootstrapCurrent
   qei: QeiInfo
   # Other profiles organised by the affected core profile. These are the

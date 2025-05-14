@@ -73,9 +73,6 @@ class StateHistoryTest(parameterized.TestCase):
         )(t=0.0)
     )
     self.source_profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            self.geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),

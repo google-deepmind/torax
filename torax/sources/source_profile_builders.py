@@ -102,7 +102,6 @@ def build_source_profiles(
         )
     )
   profiles = source_profiles.SourceProfiles(
-      j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
       bootstrap_current=bootstrap_current,
       qei=qei,
       T_e=explicit_source_profiles.T_e if explicit_source_profiles else {},
@@ -222,7 +221,6 @@ def build_all_zero_profiles(
 ) -> source_profiles.SourceProfiles:
   """Returns a SourceProfiles object with all zero profiles."""
   return source_profiles.SourceProfiles(
-      j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
       bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
       qei=source_profiles.QeiInfo.zeros(geo),
   )

@@ -37,6 +37,12 @@ class ZerosModel(base.BootstrapCurrentModel):
         j_bootstrap_face=jnp.zeros_like(geometry.rho_face),
     )
 
+  def __eq__(self, other) -> bool:
+    return isinstance(other, self.__class__)
+
+  def __hash__(self) -> int:
+    return hash(self.__class__)
+
 
 class ZerosModelConfig(base.BootstrapCurrentModelConfig):
   """Config for the Zeros model implementation of bootstrap current."""

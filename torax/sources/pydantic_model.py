@@ -18,7 +18,6 @@ from typing import Any
 
 import pydantic
 from torax.sources import base
-from torax.sources import bootstrap_current_source as bootstrap_current_source_lib
 from torax.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
 from torax.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
 from torax.sources import electron_cyclotron_source as electron_cyclotron_source_lib
@@ -44,9 +43,6 @@ class Sources(torax_pydantic.BaseModelFrozen):
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
-  j_bootstrap: bootstrap_current_source_lib.BootstrapCurrentSourceConfig = (
-      torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
-  )
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
       {'mode': 'ZERO'}
   )

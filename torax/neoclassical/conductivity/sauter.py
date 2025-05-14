@@ -52,6 +52,12 @@ class SauterModel(base.ConductivityModel):
         sigma_face=result.sigma_face,
     )
 
+  def __eq__(self, other) -> bool:
+    return isinstance(other, self.__class__)
+
+  def __hash__(self) -> int:
+    return hash(self.__class__)
+
 
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""

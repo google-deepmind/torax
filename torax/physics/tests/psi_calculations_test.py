@@ -111,9 +111,6 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )

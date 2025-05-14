@@ -30,9 +30,6 @@ class SourceProfilesTest(parameterized.TestCase):
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
     profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            geo
-        ),
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
         T_i={

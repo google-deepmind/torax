@@ -196,12 +196,6 @@ def _build_source_profiles_with_single_value(
       T_i=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
       n_e=profiles[source_lib.AffectedCoreProfile.NE],
       psi=profiles[source_lib.AffectedCoreProfile.PSI],
-      j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
-          sigma=cell_1d_arr,
-          sigma_face=face_1d_arr,
-          j_bootstrap=cell_1d_arr,
-          j_bootstrap_face=face_1d_arr,
-      ),
       bootstrap_current=bootstrap_current_base.BootstrapCurrent(
           j_bootstrap=cell_1d_arr,
           j_bootstrap_face=face_1d_arr,
