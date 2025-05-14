@@ -15,9 +15,6 @@
 """Library functionality for TORAX."""
 
 import os
-
-import jax
-
 # pylint: disable=g-importing-member
 
 from torax import version
@@ -56,7 +53,7 @@ def set_jax_precision():
       'Unknown JAX precision environment variable: %s' % precision
   )
   if precision == 'f64':
-    jax.config.update('jax_enable_x64', True)
+    os.environ['JAX_ENABLE_X64'] = 'true'
 
 
 set_jax_precision()
