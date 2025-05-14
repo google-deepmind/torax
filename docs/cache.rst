@@ -13,12 +13,12 @@ output of compilation on the filesystem to avoid recompilation each time we
 run Torax (or any other program using Jax). There are several limitations to this:
 if Jax or Torax is updated, or if any config settings affecting the expressions
 built by Torax change, Torax will build a different expression and need to compile
-a new program. Also, as of this writing (August 2024), Jax caches only the
+a new program. Also, as of this writing (May 2025), Jax caches only the
 compilation step, not the tracing step.
 
 See :ref:`how_to_install` for information on how to set your environment variables
 to always use the cache by default.
-The `Jax persistent cache documentation <https://www.google.com/url?sa=D&q=https%3A%2F%2Fjax.readthedocs.io%2Fen%2Flatest%2Fpersistent_compilation_cache.html>`_
+The `Jax persistent cache documentation <https://docs.jax.dev/en/latest/persistent_compilation_cache.html#persistent-compilation-cache>`_
 gives some more information.
 Some particularly useful information includes:
 
