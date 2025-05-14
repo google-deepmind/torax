@@ -200,8 +200,6 @@ class SimTestCase(parameterized.TestCase):
       atol = self.atol
 
     torax_config = self._get_torax_config(config_name)
-    print(f'torax_config: {config_name}')
-    print(torax_config.model_dump_json())
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
     ds = history.simulation_output_to_xr()
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
