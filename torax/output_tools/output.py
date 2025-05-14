@@ -451,15 +451,34 @@ class StateHistory:
         xr_dict[field_name] = data_array
 
     # Get variables from property methods
+    geometry_properties = inspect.getmembers(type(self.geometry))
+    property_names = set([name for name, _ in geometry_properties])
 
-    for name, value in inspect.getmembers(type(self.geometry)):
+    for name, value in geometry_properties:
+      # Skip over saving any variables that are named *_face.
+      if "face" in name:
+        continue
       if name in EXCLUDED_GEOMETRY_NAMES:
         continue
       if isinstance(value, property):
         property_data = value.fget(self.geometry)
+        # Check if there is a corresponding face variable for this property.
+        # If so, extend the data to the cell+boundaries grid.
+        if f"{name}_face" in property_names:
+          face_data = getattr(self.geometry, f"{name}_face")
+          property_data = _extend_cell_grid_to_boundaries(
+              property_data, face_data
+          )
         data_array = self._pack_into_data_array(name, property_data)
         if data_array is not None:
           xr_dict[name] = data_array
+
+    # Remap to avoid outputting _face suffix in output.
+    g0_over_vpr_data_array = self._pack_into_data_array(
+        "g0_over_vpr", self.geometry.g0_over_vpr_face
+    )
+    if g0_over_vpr_data_array is not None:
+      xr_dict["g0_over_vpr"] = g0_over_vpr_data_array
 
     return xr_dict
 
