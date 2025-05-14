@@ -23,7 +23,7 @@ TORAX now has the following physics feature set:
 - Coupling to the QLKNN10D [[van de Plassche et al, Phys. Plasmas 2020]](https://doi.org/10.1063/1.5134126) QuaLiKiz-neural-network surrogate for physics-based turbulent transport
 - General geometry, provided via CHEASE or FBT equilibrium files
     - For testing and demonstration purposes, a single CHEASE equilibrium file is available in the data/geo directory. It corresponds to an ITER hybrid scenario equilibrium based on simulations in [[Citrin et al, Nucl. Fusion 2010]](https://doi.org/10.1088/0029-5515/50/11/115007), and was obtained from [PINT](https://gitlab.com/qualikiz-group/pyntegrated_model). A PINT license file is available in data/geo.
-    - Time dependent geometry is supported by provided a time series of geometry files
+    - Time dependent geometry is supported by providing a time series of geometry files
 
 Additional heating and current drive sources can be provided by prescribed
 formulas, user-provided analytical models, or user-provided prescribed data.
@@ -74,7 +74,7 @@ sudo apt-get install python3-tk
 
 #### Prepare a virtual environment
 
-Install virtualenv (if not already installed):
+Install Virtualenv (if not already installed):
 
 ```shell
 pip install --upgrade pip
@@ -153,9 +153,8 @@ The following command will run TORAX using the default configuration file
 run_torax --config='torax.examples.basic_config'
 ```
 
-Simulation progress is shown by a progress bar in the terminal, displaying
-the current simulation time, and the percentage of the total simulation time
-completed.
+Simulation progress is shown by a terminal progress bar indicating the current
+time and percentage completed.
 
 To run more involved, ITER-inspired simulations, run:
 
@@ -171,7 +170,7 @@ run_torax --config='torax.examples.iterhybrid_predictor_corrector'
 
 Additional configuration is provided through flags which append the above
 run command, and environment variables. For example, for increased output
-verbosity, can run with the `--log_progress` flag.
+verbosity, you can run with the `--log_progress` flag.
 
 ```shell
 run_torax  --config='torax.examples.iterhybrid_rampup' --log_progress
