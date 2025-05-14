@@ -377,8 +377,8 @@ class StateHistory:
     )
 
     xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
-        self.core_sources.j_bootstrap.j_bootstrap,
-        self.core_sources.j_bootstrap.j_bootstrap_face,
+        self.core_sources.bootstrap_current.j_bootstrap,
+        self.core_sources.bootstrap_current.j_bootstrap_face,
     )
 
     # Add source profiles with suffixes indicating which profile they affect.

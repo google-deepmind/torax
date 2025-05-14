@@ -22,6 +22,7 @@ from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.physics import psi_calculations
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -113,6 +114,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
         ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
     static_slice = build_runtime_params.build_static_params_from_config(

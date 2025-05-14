@@ -27,10 +27,10 @@ from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.physics import psi_calculations
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
-from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -316,7 +316,7 @@ def _init_psi_and_psi_derived(
     # First calculate currents without bootstrap.
     external_current = sum(source_profiles.psi.values())
     j_total_hires = _get_j_total_hires(
-        bootstrap_profile=source_profiles.j_bootstrap,
+        bootstrap_profile=source_profiles.bootstrap_current,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
@@ -334,11 +334,10 @@ def _init_psi_and_psi_derived(
         s_face=psi_calculations.calc_s_face(geo, psi),
     )
     # Now calculate currents with bootstrap.
-    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
+    bootstrap_profile = (
+        source_models.bootstrap_current.calculate_bootstrap_current(
+            dynamic_runtime_params_slice, geo, core_profiles
+        )
     )
     j_total_hires = _get_j_total_hires(
         bootstrap_profile=bootstrap_profile,
@@ -366,11 +365,10 @@ def _init_psi_and_psi_derived(
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
   )
-  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
+  bootstrap_profile = (
+      source_models.bootstrap_current.calculate_bootstrap_current(
+          dynamic_runtime_params_slice, geo, core_profiles
+      )
   )
   conductivity = source_models.conductivity.calculate_conductivity(
       dynamic_runtime_params_slice,
@@ -378,7 +376,7 @@ def _init_psi_and_psi_derived(
       core_profiles,
   )
   source_profiles = dataclasses.replace(
-      source_profiles, j_bootstrap=bootstrap_profile
+      source_profiles, bootstrap_current=bootstrap_profile
   )
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
@@ -420,7 +418,7 @@ def _init_psi_and_psi_derived(
 def _get_j_total_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
+    bootstrap_profile: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,
 ) -> jax.Array:
   """Calculates j_total hires."""

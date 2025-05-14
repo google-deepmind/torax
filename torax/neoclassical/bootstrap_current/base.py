@@ -16,6 +16,8 @@
 import abc
 
 import chex
+import jax
+import jax.numpy as jnp
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry as geometry_lib
@@ -28,8 +30,16 @@ from torax.torax_pydantic import torax_pydantic
 @chex.dataclass(kw_only=True, frozen=True)
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
-  j_bootstrap: chex.Array
-  j_bootstrap_face: chex.Array
+  j_bootstrap: jax.Array
+  j_bootstrap_face: jax.Array
+
+  @classmethod
+  def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
+    """Returns a BootstrapCurrent with all values set to zero."""
+    return cls(
+        j_bootstrap=jnp.zeros_like(geometry.rho_norm),
+        j_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
+    )
 
 
 class BootstrapCurrentModel(abc.ABC):

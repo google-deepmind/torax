@@ -18,6 +18,7 @@ import numpy as np
 import scipy
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import run_simulation
 from torax.output_tools import post_processing
 from torax.sources import source_models as source_models_lib
@@ -45,6 +46,9 @@ class PostProcessingTest(parameterized.TestCase):
     ones = np.ones_like(self.geo.rho)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            self.geo
+        ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),

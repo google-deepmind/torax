@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 from torax import constants
 from torax.geometry import geometry
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 import typing_extensions
 
 
@@ -92,6 +93,7 @@ class SourceProfiles:
 
   # Special-case profiles.
   j_bootstrap: BootstrapCurrentProfile
+  bootstrap_current: bootstrap_current_base.BootstrapCurrent
   qei: QeiInfo
   # Other profiles organised by the affected core profile. These are the
   # profiles that are used to compute the core profile equations.
@@ -143,7 +145,7 @@ class SourceProfiles:
         sum_profiles, explicit_source_profiles, implicit_source_profiles)
 
   def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
-    total = self.j_bootstrap.j_bootstrap
+    total = self.bootstrap_current.j_bootstrap
     total += sum(self.psi.values())
     mu0 = constants.CONSTANTS.mu0
     prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B_0 * mu0 * geo.Phi_b / geo.F**2

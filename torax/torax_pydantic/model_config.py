@@ -58,6 +58,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     restart: Optional config for file restart. If None, no file restart is
       performed.
   """
+
   profile_conditions: profile_conditions_lib.ProfileConditions
   numerics: numerics_lib.Numerics
   plasma_composition: plasma_composition_lib.PlasmaComposition
@@ -85,6 +86,21 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='before')
   @classmethod
+  def _move_bootstrap(cls, data: dict[str, Any]) -> dict[str, Any]:
+    configurable_data = copy.deepcopy(data)
+    if (
+        'j_bootstrap' in data['sources']
+        and 'neoclassical' not in configurable_data
+    ):
+      configurable_data['neoclassical'] = {'bootstrap_current': {}}
+      if 'bootstrap_multiplier' in data['sources']['j_bootstrap']:
+        configurable_data['neoclassical']['bootstrap_current'][
+            'bootstrap_multiplier'
+        ] = data['sources']['j_bootstrap']['bootstrap_multiplier']
+    return configurable_data
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
     if 'pedestal_model' not in configurable_data['pedestal']:
@@ -107,8 +123,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     initial_guess_mode_is_linear = (
         False  # pylint: disable=g-long-ternary
         if using_linear_solver
-        else self.solver.initial_guess_mode
-        == enums.InitialGuessMode.LINEAR
+        else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR
     )
 
     if (

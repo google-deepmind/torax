@@ -20,6 +20,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -85,30 +86,9 @@ def build_source_profiles(
         '`explicit_source_profiles` must be provided if explicit is False.'
     )
 
-  # Bootstrap current is a special-case source with multiple outputs, so handle
-  # it here.
-  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
-  if explicit == static_bootstrap_runtime_params.is_explicit:
-    bootstrap_profiles = source_models.j_bootstrap.get_bootstrap(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-  else:
-    if explicit_source_profiles:
-      # We have been passed the pre calculated explicit profiles, so use those.
-      bootstrap_profiles = explicit_source_profiles.j_bootstrap
-    else:
-      # We have not been passed the pre calculated explicit profiles, so return
-      # all zeros.
-      bootstrap_profiles = source_profiles.BootstrapCurrentProfile.zero_profile(
-          geo
-      )
   if explicit:
     qei = source_profiles.QeiInfo.zeros(geo)
+    bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
   else:
     qei = source_models.qei_source.get_qei(
         static_runtime_params_slice=static_runtime_params_slice,
@@ -116,15 +96,17 @@ def build_source_profiles(
         geo=geo,
         core_profiles=core_profiles,
     )
+    bootstrap_current = (
+        source_models.bootstrap_current.calculate_bootstrap_current(
+            dynamic_runtime_params_slice, geo, core_profiles
+        )
+    )
   profiles = source_profiles.SourceProfiles(
-      j_bootstrap=bootstrap_profiles,
+      j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+      bootstrap_current=bootstrap_current,
       qei=qei,
-      T_e=explicit_source_profiles.T_e
-      if explicit_source_profiles
-      else {},
-      T_i=explicit_source_profiles.T_i
-      if explicit_source_profiles
-      else {},
+      T_e=explicit_source_profiles.T_e if explicit_source_profiles else {},
+      T_i=explicit_source_profiles.T_i if explicit_source_profiles else {},
       n_e=explicit_source_profiles.n_e if explicit_source_profiles else {},
       psi=explicit_source_profiles.psi if explicit_source_profiles else {},
   )
@@ -241,6 +223,7 @@ def build_all_zero_profiles(
   """Returns a SourceProfiles object with all zero profiles."""
   return source_profiles.SourceProfiles(
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+      bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
       qei=source_profiles.QeiInfo.zeros(geo),
   )
 

@@ -26,6 +26,7 @@ from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import sim_state
 from torax.output_tools import output
 from torax.output_tools import post_processing
@@ -73,6 +74,9 @@ class StateHistoryTest(parameterized.TestCase):
     )
     self.source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            self.geo
+        ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),

@@ -22,6 +22,7 @@ import jax
 import jax.numpy as jnp
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -126,6 +127,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     if self._needs_source_models:
       calculated_source_profiles = source_profiles.SourceProfiles(
           j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+          bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
           psi={'foo': jnp.full(geo.rho.shape, 13.0)},
           T_e={'foo_source': jnp.full(geo.rho.shape, 17.0)},
           T_i={'foo_sink': jnp.full(geo.rho.shape, 19.0)},

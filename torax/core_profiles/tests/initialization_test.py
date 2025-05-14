@@ -23,11 +23,11 @@ from torax import math_utils
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import geometry
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
-from torax.sources import source_profiles
 from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
@@ -47,7 +47,7 @@ class InitializationTest(parameterized.TestCase):
 
     # Turn on the external current source.
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
-    bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
+    bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
         mock.ANY,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -125,9 +125,6 @@ class InitializationTest(parameterized.TestCase):
     config['geometry']['geometry_type'] = geometry_name
     config['geometry']['n_rho'] = _NRHO
     config['sources'] = {
-        'j_bootstrap': {
-            'bootstrap_multiplier': 0.0,
-        },
         'generic_current': {
             'fraction_of_total_current': _FRACTION_OF_TOTAL_CURRENT
         },
@@ -246,29 +243,30 @@ class InitializationTest(parameterized.TestCase):
     config['geometry']['n_rho'] = _NRHO
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
-
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources1 = {
-        'j_bootstrap': {
-            'bootstrap_multiplier': 0.0,
-            'mode': runtime_params_lib.Mode.MODEL_BASED,
-        },
         'generic_current': {
             'fraction_of_total_current': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
+    neoclassical_1 = {
+        'bootstrap_current': {
+            'model_name': 'zeros',
+        },
+    }
     torax_config.update_fields({
         'profile_conditions': profile_conditions1,
         'sources': sources1,
+        'neoclassical': neoclassical_1,
     })
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
     j_total1, _, _, j_ohmic1, _, _ = _calculate_currents(
         torax_config, source_models
     )
@@ -279,19 +277,25 @@ class InitializationTest(parameterized.TestCase):
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources2 = {
-        'j_bootstrap': {
-            'bootstrap_multiplier': 1.0,
-            'mode': runtime_params_lib.Mode.MODEL_BASED,
-        },
         'generic_current': {
             'fraction_of_total_current': 0.0,
             'mode': runtime_params_lib.Mode.MODEL_BASED,
         },
     }
+    neoclassical_2 = {
+        'bootstrap_current': {
+            'model_name': 'sauter',
+            'bootstrap_multiplier': 1.0,
+        },
+    }
     torax_config.update_fields({
         'profile_conditions': profile_conditions2,
         'sources': sources2,
+        'neoclassical': neoclassical_2,
     })
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
 
     _, _, _, j_ohmic2, j_bootstrap2, _ = _calculate_currents(
         torax_config, source_models
@@ -383,7 +387,7 @@ def _calculate_currents(
   j_total = core_profiles.j_total
   j_total_face = core_profiles.j_total_face
   j_external = sum(core_sources.psi.values())
-  j_bootstrap = core_sources.j_bootstrap.j_bootstrap
+  j_bootstrap = core_sources.bootstrap_current.j_bootstrap
   j_ohmic = j_total - j_external - j_bootstrap
   return j_total, j_total_face, j_external, j_ohmic, j_bootstrap, geo
 

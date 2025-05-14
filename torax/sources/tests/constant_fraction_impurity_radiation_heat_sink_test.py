@@ -106,6 +106,7 @@ class ImpurityRadiationConstantFractionTest(
             core_profiles=mock.ANY,
             calculated_source_profiles=source_profiles.SourceProfiles(
                 j_bootstrap=mock.ANY,
+                bootstrap_current=mock.ANY,
                 qei=mock.ANY,
                 T_e={'foo': el},
                 T_i={'foo_source': ion},

@@ -25,6 +25,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax import state as state_module
 from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import run_simulation
 from torax.orchestration import step_function
 from torax.sources import pydantic_model as sources_pydantic_model
@@ -198,6 +199,10 @@ def _build_source_profiles_with_single_value(
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
           sigma=cell_1d_arr,
           sigma_face=face_1d_arr,
+          j_bootstrap=cell_1d_arr,
+          j_bootstrap_face=face_1d_arr,
+      ),
+      bootstrap_current=bootstrap_current_base.BootstrapCurrent(
           j_bootstrap=cell_1d_arr,
           j_bootstrap_face=face_1d_arr,
       ),

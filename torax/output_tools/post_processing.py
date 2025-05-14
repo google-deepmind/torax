@@ -607,12 +607,12 @@ def make_post_processed_outputs(
   )
 
   I_bootstrap = math_utils.area_integration(
-      sim_state.core_sources.j_bootstrap.j_bootstrap, sim_state.geometry
+      sim_state.core_sources.bootstrap_current.j_bootstrap, sim_state.geometry
   )
 
   j_external = sum(sim_state.core_sources.psi.values())
   psi_current = (
-      j_external + sim_state.core_sources.j_bootstrap.j_bootstrap
+      j_external + sim_state.core_sources.bootstrap_current.j_bootstrap
   )
   j_ohmic = sim_state.core_profiles.j_total - psi_current
 

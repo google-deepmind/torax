@@ -22,6 +22,7 @@ from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
@@ -120,6 +121,9 @@ class SourceModelsTest(parameterized.TestCase):
         j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
             self.geo
         ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
+            self.geo
+        ),
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
@@ -180,6 +184,9 @@ class SourceModelsTest(parameterized.TestCase):
     )
     profiles = source_profiles.SourceProfiles(
         j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
+            self.geo
+        ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
         qei=source_profiles.QeiInfo.zeros(self.geo),
@@ -268,6 +275,9 @@ class SourceModelsTest(parameterized.TestCase):
     )
     profiles = source_profiles.SourceProfiles(
         j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(
+            self.geo
+        ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
         ),
         qei=source_profiles.QeiInfo.zeros(self.geo),

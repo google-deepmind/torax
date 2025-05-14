@@ -20,6 +20,7 @@ import numpy as np
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import post_processing
@@ -37,6 +38,7 @@ class StepFunctionTest(absltest.TestCase):
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
         ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
     dummy_cell_variable = cell_variable.CellVariable(

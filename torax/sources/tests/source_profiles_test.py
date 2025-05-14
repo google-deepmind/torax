@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.sources import source_profiles as source_profiles_lib
 
 
@@ -32,6 +33,7 @@ class SourceProfilesTest(parameterized.TestCase):
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
         ),
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
         T_i={
             'generic_heat': ones,
