@@ -39,7 +39,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
     source = source_models.qei_source
     static_slice = build_runtime_params.build_static_params_from_config(

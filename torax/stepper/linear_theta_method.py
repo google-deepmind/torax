@@ -19,6 +19,7 @@ from torax.config import runtime_params_slice
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper as stepper_lib
@@ -44,6 +45,7 @@ class LinearThetaMethod(stepper_lib.Solver):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -81,20 +83,18 @@ class LinearThetaMethod(stepper_lib.Solver):
     # standard linear solve if
     # static_runtime_params_slice.predictor_corrector=False.
     # init_val is the initialization for the predictor_corrector loop.
-    x_new, _ = (
-        predictor_corrector_method.predictor_corrector_method(
-            dt=dt,
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt=(
-                dynamic_runtime_params_slice_t_plus_dt
-            ),
-            geo_t_plus_dt=geo_t_plus_dt,
-            x_old=x_old,
-            x_new_guess=x_new_guess,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            coeffs_exp=coeffs_exp,
-            coeffs_callback=coeffs_callback,
-        )
+    x_new = predictor_corrector_method.predictor_corrector_method(
+        dt=dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_dt=(
+            dynamic_runtime_params_slice_t_plus_dt
+        ),
+        geo_t_plus_dt=geo_t_plus_dt,
+        x_old=x_old,
+        x_new_guess=x_new_guess,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        coeffs_exp=coeffs_exp,
+        coeffs_callback=coeffs_callback,
     )
 
     coeffs_final = coeffs_callback(
@@ -104,11 +104,19 @@ class LinearThetaMethod(stepper_lib.Solver):
         x_new,
         allow_pereverzev=True,
     )
-    core_sources, core_transport = coeffs_final.auxiliary_outputs
+    core_sources, core_conductivity, core_transport = (
+        coeffs_final.auxiliary_outputs
+    )
 
     solver_numeric_outputs = state.SolverNumericOutputs(
         inner_solver_iterations=1,
         solver_error_state=0,  # linear method always works
     )
 
-    return x_new, core_sources, core_transport, solver_numeric_outputs
+    return (
+        x_new,
+        core_sources,
+        core_conductivity,
+        core_transport,
+        solver_numeric_outputs,
+    )

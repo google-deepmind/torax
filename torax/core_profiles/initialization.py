@@ -128,6 +128,8 @@ def initial_core_profiles(
           dynamic_runtime_params_slice.numerics.density_reference
       ),
       vloop_lcfs=vloop_lcfs,
+      sigma=jnp.zeros_like(geo.rho),
+      sigma_face=jnp.zeros_like(geo.rho_face),
   )
 
   core_profiles = _init_psi_psidot_and_currents(
@@ -482,6 +484,11 @@ def _init_psi_psidot_and_currents(
       geo=geo,
       core_profiles=core_profiles,
   )
+  conductivity = source_models.conductivity.calculate_conductivity(
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+  )
   source_profiles = dataclasses.replace(
       source_profiles, j_bootstrap=bootstrap_profile
   )
@@ -489,12 +496,10 @@ def _init_psi_psidot_and_currents(
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
   psi_sources = source_profiles.total_psi_sources(geo)
-  sigma = source_profiles.j_bootstrap.sigma
-  sigma_face = source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
-      sigma=sigma,
-      sigma_face=sigma_face,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
       resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
       psi=psi,
       geo=geo,
@@ -517,6 +522,8 @@ def _init_psi_psidot_and_currents(
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
   )
 
   return core_profiles

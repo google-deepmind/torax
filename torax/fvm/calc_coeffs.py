@@ -355,6 +355,10 @@ def _calc_coeffs_full(
       .set(True)
   )
 
+  conductivity = source_models.conductivity.calculate_conductivity(
+      dynamic_runtime_params_slice, geo, core_profiles
+  )
+
   # Calculate the implicit source profiles and combines with the explicit
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=source_models,
@@ -364,6 +368,7 @@ def _calc_coeffs_full(
       core_profiles=core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
+      conductivity=conductivity,
   )
 
   # psi source terms. Source matrix is zero for all psi sources
@@ -409,7 +414,7 @@ def _calc_coeffs_full(
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_multiplier
       * geo.rho_norm
-      * merged_source_profiles.j_bootstrap.sigma
+      * conductivity.sigma
       * consts.mu0
       * 16
       * jnp.pi**2
@@ -526,7 +531,7 @@ def _calc_coeffs_full(
       * consts.mu0
       * geo.Phi_b_dot
       * geo.Phi_b
-      * merged_source_profiles.j_bootstrap.sigma_face
+      * conductivity.sigma_face
       * geo.rho_face_norm**2
       / geo.F_face**2
   )
@@ -597,7 +602,7 @@ def _calc_coeffs_full(
   # Add effective Phi_b_dot poloidal flux source term
 
   ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      merged_source_profiles.j_bootstrap.sigma * geo.rho_norm**2 / geo.F**2,
+      conductivity.sigma * geo.rho_norm**2 / geo.F**2,
       geo.rho_norm,
   )
 
@@ -673,7 +678,11 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
-      auxiliary_outputs=(merged_source_profiles, transport_coeffs),
+      auxiliary_outputs=(
+          merged_source_profiles,
+          conductivity,
+          transport_coeffs,
+      ),
   )
 
   return coeffs

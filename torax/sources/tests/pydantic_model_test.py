@@ -16,6 +16,7 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax.sources import base
 from torax.sources import bootstrap_current_source
 from torax.sources import fusion_heat_source
@@ -31,6 +32,10 @@ from torax.torax_pydantic import torax_pydantic
 
 
 class PydanticModelTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.neoclassical = neoclassical_pydantic_model.Neoclassical.from_dict({})
 
   @parameterized.parameters(
       dict(
@@ -102,7 +107,7 @@ class PydanticModelTest(parameterized.TestCase):
             'mode': 'ZERO',  # turn it off.
         },
     })
-    source_models = source_models_lib.SourceModels(sources)
+    source_models = source_models_lib.SourceModels(sources, self.neoclassical)
     # The non-standard ones are still off.
     self.assertEqual(
         sources.j_bootstrap.mode,
@@ -152,7 +157,7 @@ class PydanticModelTest(parameterized.TestCase):
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-    source_models = source_models_lib.SourceModels(sources)
+    source_models = source_models_lib.SourceModels(sources, self.neoclassical)
     self.assertLen(source_models.standard_sources, 1)
 
   def test_adding_a_source_with_prescribed_values(self):

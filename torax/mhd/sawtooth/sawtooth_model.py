@@ -22,6 +22,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.mhd.sawtooth import redistribution_base
 from torax.mhd.sawtooth import trigger_base
+from torax.neoclassical.conductivity import base as base_conductivity
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -73,6 +74,7 @@ class SawtoothModel(stepper.Solver):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles_lib.SourceProfiles,
+      base_conductivity.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -104,6 +106,7 @@ class SawtoothModel(stepper.Solver):
     Returns:
       Updated tuple of evolving CellVariables from CoreProfiles
       Source profiles consistent with redistributed state.
+      Conductivity consistent with redistributed state.
       Transport coefficients consistent with redistributed state.
       SolverNumericOutputs indicating a sawtooth crash.
     """
@@ -118,6 +121,7 @@ class SawtoothModel(stepper.Solver):
     def _redistribute_state() -> tuple[
         tuple[cell_variable.CellVariable, ...],
         source_profiles_lib.SourceProfiles,
+        base_conductivity.Conductivity,
         state.CoreTransport,
         state.SolverNumericOutputs,
     ]:
@@ -136,7 +140,7 @@ class SawtoothModel(stepper.Solver):
       # modify the psi profile. Since we don't calculate the psi PDE here, we
       # assume that for the short sawtooth time we can use the psidot from the
       # beginning of the step interval. This updates the bulk values. Later, the
-      # boundary conditions are also updated at time t_plus_crash_dt when
+      # boundary conditions are also updated at time t_plus_dt when
       # using `updaters.update_all_core_profiles_after_step`.
       evolved_psi_redistributed_value = (
           redistributed_core_profiles.psi.value
@@ -150,12 +154,20 @@ class SawtoothModel(stepper.Solver):
           ),
       )
 
+      conductivity_post_step = (
+          self.source_models.conductivity.calculate_conductivity(
+              dynamic_runtime_params_slice_t_plus_dt,
+              geo_t_plus_dt,
+              redistributed_core_profiles,
+          )
+      )
       core_sources_post_step = source_profile_builders.get_all_source_profiles(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt,
           core_profiles=evolved_core_profiles,
           source_models=self.source_models,
+          conductivity=conductivity_post_step,
       )
 
       x_post_step = tuple(
@@ -182,24 +194,26 @@ class SawtoothModel(stepper.Solver):
       return (
           x_post_step,
           core_sources_post_step,
+          conductivity_post_step,
           core_transport_post_step,
           solver_numeric_outputs_post_step,
       )
 
     # Return redistributed state attributes if triggered, otherwise return
     # unchanged state attributes.
-    x_out, core_sources, core_transport, solver_numeric_outputs = jax.lax.cond(
+    return jax.lax.cond(
         trigger_sawtooth,
         _redistribute_state,
         lambda: (
             tuple([getattr(core_profiles_t, name) for name in evolving_names]),
             core_sources_t,
+            base_conductivity.Conductivity(
+                sigma=core_profiles_t.sigma,
+                sigma_face=core_profiles_t.sigma_face),
             core_transport_t,
             state.SolverNumericOutputs(),
         ),
     )
-
-    return x_out, core_sources, core_transport, solver_numeric_outputs
 
   def __hash__(self) -> int:
     return hash((

@@ -31,6 +31,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.physics import collisions
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -340,6 +341,7 @@ def icrh_model_func(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
     toric_nn: ToricNNWrapper,
 ) -> tuple[chex.Array, ...]:
   """Compute ion/electron heat source terms."""
@@ -489,6 +491,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
+
   model_name: Literal['toric_nn'] = 'toric_nn'
   model_path: str | None = None
   wall_inner: torax_pydantic.Meter = 1.24

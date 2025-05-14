@@ -60,6 +60,7 @@ class SourceTest(parameterized.TestCase):
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
+        conductivity=None,
     )
     np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))
 
@@ -111,6 +112,7 @@ class SourceTest(parameterized.TestCase):
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
+        conductivity=None,
     )
     np.testing.assert_allclose(
         profile[0],
@@ -150,6 +152,7 @@ class SourceTest(parameterized.TestCase):
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
+        conductivity=None,
     )
     self.assertLen(profile, 2)
     np.testing.assert_allclose(
@@ -199,6 +202,7 @@ class SourceTest(parameterized.TestCase):
           geo=mock.ANY,
           core_profiles=mock.ANY,
           calculated_source_profiles=None,
+          conductivity=None,
       )
 
 if __name__ == '__main__':

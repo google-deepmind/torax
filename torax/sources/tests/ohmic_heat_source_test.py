@@ -30,7 +30,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     )
 
   def test_raises_error_if_calculated_source_profiles_is_none(self):
-    """Tests that the source raises an error if calculated_source_profiles is None."""
     source = ohmic_heat_source.OhmicHeatSource(
         model_func=ohmic_heat_source.ohmic_model_func
     )
@@ -60,6 +59,40 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           mock.ANY,
           mock.ANY,
           calculated_source_profiles=None,
+          conductivity=mock.ANY,
+      )
+
+  def test_raises_error_if_conductivity_is_none(self):
+    source = ohmic_heat_source.OhmicHeatSource(
+        model_func=ohmic_heat_source.ohmic_model_func
+    )
+    static_runtime_params_slice = mock.create_autospec(
+        runtime_params_slice.StaticRuntimeParamsSlice,
+        instance=True,
+        sources={
+            self._source_name: (
+                self._source_config_class().build_static_params()  # pytype: disable=not-instantiable
+            )
+        },
+    )
+    dynamic_runtime_params_slice = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        instance=True,
+        sources={self._source_name: mock.ANY},
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        'conductivity is a required argument for'
+        ' ohmic_model_func. This can occur if this source function is used in'
+        ' an explicit source.',
+    ):
+      source.get_value(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          mock.ANY,
+          mock.ANY,
+          calculated_source_profiles=mock.ANY,
+          conductivity=None,
       )
 
 

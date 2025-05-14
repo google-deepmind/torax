@@ -28,6 +28,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -242,6 +243,7 @@ def cyclotron_radiation_albajar(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.ArrayFloat, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
@@ -393,9 +395,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
-  model_name: Literal['albajar_artaud'] = (
-      'albajar_artaud'
-  )
+
+  model_name: Literal['albajar_artaud'] = 'albajar_artaud'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
   beta_min: float = 0.5

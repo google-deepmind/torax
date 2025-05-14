@@ -30,6 +30,7 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.physics import psi_calculations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
@@ -64,6 +65,7 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
   ) -> tuple[
       state.CoreProfiles,
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -140,6 +142,11 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
         solver_error_state=0,
         inner_solver_iterations=1,
     )
+    conductivity = self.source_models.conductivity.calculate_conductivity(
+        dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
+        core_profiles_t_plus_dt,
+    )
 
     return (
         dataclasses.replace(
@@ -156,7 +163,9 @@ class ExplicitSolver(linear_theta_method.LinearThetaMethod):
             source_models=self.source_models,
             explicit=False,
             explicit_source_profiles=explicit_source_profiles,
+            conductivity=conductivity,
         ),
+        conductivity,
         state.CoreTransport.zeros(geo_t),
         solver_numeric_outputs,
     )

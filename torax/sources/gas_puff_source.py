@@ -21,6 +21,7 @@ from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
@@ -50,21 +51,24 @@ def calc_puff_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from puffs."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
-  return (formulas.exponential_profile(
-      decay_start=1.0,
-      width=dynamic_source_runtime_params.puff_decay_length,
-      total=(
-          dynamic_source_runtime_params.S_total
-          / dynamic_runtime_params_slice.numerics.density_reference
+  return (
+      formulas.exponential_profile(
+          decay_start=1.0,
+          width=dynamic_source_runtime_params.puff_decay_length,
+          total=(
+              dynamic_source_runtime_params.S_total
+              / dynamic_runtime_params_slice.numerics.density_reference
+          ),
+          geo=geo,
       ),
-      geo=geo,
-  ),)
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -91,12 +95,13 @@ class GasPuffSourceConfig(base.SourceModelBase):
       [normalized radial coord]
     S_total: total gas puff particles/s
   """
+
   model_name: Literal['exponential'] = 'exponential'
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
-  S_total: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1e22)
+  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1e22
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

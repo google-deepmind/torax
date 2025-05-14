@@ -28,6 +28,7 @@ from torax import state
 from torax.config import plasma_composition
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -198,6 +199,7 @@ def impurity_radiation_mavrin_fit(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
   effective_LZ = calculate_total_impurity_radiation(
@@ -228,9 +230,8 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
   Attributes:
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
-  model_name: Literal['mavrin_fit'] = (
-      'mavrin_fit'
-  )
+
+  model_name: Literal['mavrin_fit'] = 'mavrin_fit'
   radiation_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

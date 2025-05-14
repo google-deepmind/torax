@@ -67,7 +67,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
     )
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

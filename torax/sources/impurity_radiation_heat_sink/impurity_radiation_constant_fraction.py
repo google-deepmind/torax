@@ -21,6 +21,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -37,24 +38,9 @@ def radially_constant_fraction_of_Pin(
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
-  """Model function for radiation heat sink from impurities.
-
-  This model represents a sink in the T_e equation, whose value is a fixed %
-  of the total heating power input.
-
-  Args:
-    unused_static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
-    geo: Geometry object.
-    source_name: Name of the source.
-    unused_core_profiles: Core profiles object.
-    calculated_source_profiles: Source profiles which have already been
-      calculated and can be used to avoid recomputing them.
-
-  Returns:
-    The heat sink profile.
-  """
+  """Model function for radiation heat sink from impurities."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -97,12 +83,11 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   """Configuration for the ImpurityRadiationHeatSink.
 
   Attributes:
-    fraction_P_heating: Fraction of total power density to be
-      absorbed by the impurity.
+    fraction_P_heating: Fraction of total power density to be absorbed by the
+      impurity.
   """
-  model_name: Literal['P_in_scaled_flat_profile'] = (
-      'P_in_scaled_flat_profile'
-  )
+
+  model_name: Literal['P_in_scaled_flat_profile'] = 'P_in_scaled_flat_profile'
   fraction_P_heating: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
@@ -116,9 +101,7 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
-        fraction_P_heating=self.fraction_P_heating.get_value(
-            t
-        ),
+        fraction_P_heating=self.fraction_P_heating.get_value(t),
     )
 
   def build_source(

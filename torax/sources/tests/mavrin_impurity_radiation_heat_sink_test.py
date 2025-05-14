@@ -17,7 +17,6 @@ import numpy as np
 from torax.config import plasma_composition
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.sources.tests import test_lib
@@ -41,15 +40,14 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
     torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4, dx=0.25))
-    source_models = source_models_lib.SourceModels(
-        sources=sources
-    )
     runtime_params = getattr(sources, self._source_name).build_dynamic_params(
         t=0.0
     )
 
     # Extract the source we're testing and check that it's been built correctly
-    impurity_radiation_sink = source_models.standard_sources[self._source_name]
+    source_config = sources.impurity_radiation
+    self.assertIsNotNone(source_config)
+    impurity_radiation_sink = source_config.build_source()
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     assert isinstance(

@@ -55,6 +55,7 @@ class InitializationTest(parameterized.TestCase):
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
         unused_state=mock.ANY,
         unused_calculated_source_profiles=mock.ANY,
+        unused_conductivity=mock.ANY,
     )[0]
     _, j_total_hires = initialization._prescribe_currents(
         bootstrap_profile=bootstrap,
@@ -84,7 +85,9 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -141,7 +144,9 @@ class InitializationTest(parameterized.TestCase):
         initial_psi_from_j=True,
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
 
     torax_config.update_fields({'profile_conditions': profile_conditions1})
     (
@@ -241,7 +246,9 @@ class InitializationTest(parameterized.TestCase):
     config['geometry']['n_rho'] = _NRHO
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
@@ -323,7 +330,9 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
     jtotal1, _, _, _, _, _ = _calculate_currents(torax_config, source_models)
 
     torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
@@ -360,12 +369,16 @@ def _calculate_currents(
       geo=geo,
       source_models=source_models,
   )
+  conductivity = source_models.conductivity.calculate_conductivity(
+      dynamic_slice, geo, core_profiles
+  )
   core_sources = source_profile_builders.get_all_source_profiles(
       static_runtime_params_slice=static_slice,
       dynamic_runtime_params_slice=dynamic_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      conductivity=conductivity,
   )
   j_total = core_profiles.currents.j_total
   j_total_face = core_profiles.currents.j_total_face

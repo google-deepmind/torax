@@ -22,6 +22,7 @@ from jax import numpy as jnp
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.physics import collisions
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -87,6 +88,7 @@ class QeiSource(source.Source):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
   ) -> tuple[chex.Array, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 

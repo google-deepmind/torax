@@ -219,7 +219,7 @@ def newton_raphson_solve_block(
       x_new_guess = tuple(
           [core_profiles_t_plus_dt[name] for name in evolving_names]
       )
-      init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
+      init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,

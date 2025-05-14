@@ -20,6 +20,7 @@ from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
@@ -42,6 +43,7 @@ def calc_generic_particle_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from SBI."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -98,17 +100,16 @@ class GenericParticleSourceConfig(base.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
-  model_name: Literal['gaussian'] = (
-      'gaussian'
-  )
+
+  model_name: Literal['gaussian'] = 'gaussian'
   particle_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
   deposition_location: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  S_total: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1e22)
+  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1e22
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

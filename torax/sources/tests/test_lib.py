@@ -115,7 +115,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -132,8 +132,12 @@ class SingleProfileSourceTestCase(SourceTestCase):
           n_e={},
           qei=source_profiles.QeiInfo.zeros(geo),
       )
+      conductivity = source_models.conductivity.calculate_conductivity(
+          dynamic_runtime_params_slice, geo, core_profiles
+      )
     else:
       calculated_source_profiles = None
+      conductivity = None
     source = source_models.standard_sources[self._source_name]
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -141,6 +145,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
+        conductivity=conductivity,
     )[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
@@ -162,7 +167,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
@@ -189,6 +194,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
+        conductivity=None,
     )
     self.assertLen(value, 2)
     self.assertEqual(value[0].shape, geo.rho.shape)

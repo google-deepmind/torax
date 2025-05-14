@@ -24,6 +24,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.physics import collisions
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -150,6 +151,7 @@ def fusion_heat_model_func(
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
   # pylint: disable=invalid-name
@@ -184,9 +186,8 @@ class FusionHeatSource(source.Source):
 
 class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
-  model_name: Literal['bosch_hale'] = (
-      'bosch_hale'
-  )
+
+  model_name: Literal['bosch_hale'] = 'bosch_hale'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property

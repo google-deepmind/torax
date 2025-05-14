@@ -20,6 +20,7 @@ import jax.numpy as jnp
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.physics import psi_calculations
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
@@ -40,6 +41,7 @@ def ohmic_model_func(
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
+    conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Returns the Ohmic source for electron heat equation."""
   if calculated_source_profiles is None:
@@ -49,17 +51,21 @@ def ohmic_model_func(
         ' an explicit source.'
     )
 
+  if conductivity is None:
+    raise ValueError(
+        'conductivity is a required argument for ohmic_model_func. This can'
+        ' occur if this source function is used in an explicit source.'
+    )
+
   j_total, _, _ = psi_calculations.calc_j_total(
       geo,
       core_profiles.psi,
   )
   psi_sources = calculated_source_profiles.total_psi_sources(geo)
-  sigma = calculated_source_profiles.j_bootstrap.sigma
-  sigma_face = calculated_source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
-      sigma=sigma,
-      sigma_face=sigma_face,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
       resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
       psi=core_profiles.psi,
       geo=geo,

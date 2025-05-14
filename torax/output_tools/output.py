@@ -305,6 +305,7 @@ class StateHistory:
     xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
         core_profiles.Z_impurity, core_profiles.Z_impurity_face
     )
+    xr_dict[SIGMA_PARALLEL] = core_profiles.sigma
 
     # Currents.
     xr_dict[J_TOTAL] = _extend_cell_grid_to_boundaries(
@@ -378,7 +379,6 @@ class StateHistory:
         self.core_sources.j_bootstrap.j_bootstrap,
         self.core_sources.j_bootstrap.j_bootstrap_face,
     )
-    xr_dict[SIGMA_PARALLEL] = self.core_sources.j_bootstrap.sigma
 
     # Add source profiles with suffixes indicating which profile they affect.
     for profile in self.core_sources.T_i:

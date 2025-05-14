@@ -25,6 +25,7 @@ from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import source_profiles
 from torax.stepper import runtime_params
 from torax.stepper import stepper
@@ -78,6 +79,7 @@ class NonlinearThetaMethod(stepper.Solver):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -94,7 +96,13 @@ class NonlinearThetaMethod(stepper.Solver):
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
     )
-    x_new, core_sources, core_transport, solver_numeric_outputs = self._x_new_helper(
+    (
+        x_new,
+        core_sources,
+        core_conductivity,
+        core_transport,
+        solver_numeric_outputs,
+    ) = self._x_new_helper(
         dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -108,7 +116,13 @@ class NonlinearThetaMethod(stepper.Solver):
         evolving_names=evolving_names,
     )
 
-    return x_new, core_sources, core_transport, solver_numeric_outputs
+    return (
+        x_new,
+        core_sources,
+        core_conductivity,
+        core_transport,
+        solver_numeric_outputs,
+    )
 
   @abc.abstractmethod
   def _x_new_helper(
@@ -127,6 +141,7 @@ class NonlinearThetaMethod(stepper.Solver):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -161,6 +176,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -168,31 +184,39 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     solver_params = dynamic_runtime_params_slice_t.solver
     assert isinstance(solver_params, DynamicOptimizerRuntimeParams)
     # Unpack the outputs of the optimizer_solve_block.
-    x_new, solver_numeric_outputs, (core_sources, core_transport) = (
-        optimizer_solve_block.optimizer_solve_block(
-            dt=dt,
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo_t=geo_t,
-            geo_t_plus_dt=geo_t_plus_dt,
-            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-            core_profiles_t=core_profiles_t,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            transport_model=self.transport_model,
-            explicit_source_profiles=explicit_source_profiles,
-            source_models=self.source_models,
-            pedestal_model=self.pedestal_model,
-            coeffs_callback=coeffs_callback,
-            evolving_names=evolving_names,
-            initial_guess_mode=enums.InitialGuessMode(
-                solver_params.initial_guess_mode,
-            ),
-            maxiter=solver_params.n_max_iterations,
-            tol=solver_params.loss_tol,
-        )
+    (
+        x_new,
+        solver_numeric_outputs,
+        (core_sources, core_conductivity, core_transport),
+    ) = optimizer_solve_block.optimizer_solve_block(
+        dt=dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
+        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+        core_profiles_t=core_profiles_t,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        transport_model=self.transport_model,
+        explicit_source_profiles=explicit_source_profiles,
+        source_models=self.source_models,
+        pedestal_model=self.pedestal_model,
+        coeffs_callback=coeffs_callback,
+        evolving_names=evolving_names,
+        initial_guess_mode=enums.InitialGuessMode(
+            solver_params.initial_guess_mode,
+        ),
+        maxiter=solver_params.n_max_iterations,
+        tol=solver_params.loss_tol,
     )
-    return x_new, core_sources, core_transport, solver_numeric_outputs
+    return (
+        x_new,
+        core_sources,
+        core_conductivity,
+        core_transport,
+        solver_numeric_outputs,
+    )
 
 
 class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
@@ -219,6 +243,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
+      conductivity_base.Conductivity,
       state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
@@ -229,32 +254,40 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # error checking based on result of each linear step
 
     # Unpack the outputs of the newton_raphson_solve_block.
-    x_new, solver_numeric_outputs, (core_sources, core_transport) = (
-        newton_raphson_solve_block.newton_raphson_solve_block(
-            dt=dt,
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo_t=geo_t,
-            geo_t_plus_dt=geo_t_plus_dt,
-            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-            core_profiles_t=core_profiles_t,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            transport_model=self.transport_model,
-            pedestal_model=self.pedestal_model,
-            explicit_source_profiles=explicit_source_profiles,
-            source_models=self.source_models,
-            coeffs_callback=coeffs_callback,
-            evolving_names=evolving_names,
-            log_iterations=solver_params.log_iterations,
-            initial_guess_mode=enums.InitialGuessMode(
-                solver_params.initial_guess_mode
-            ),
-            maxiter=solver_params.maxiter,
-            tol=solver_params.residual_tol,
-            coarse_tol=solver_params.residual_coarse_tol,
-            delta_reduction_factor=solver_params.delta_reduction_factor,
-            tau_min=solver_params.tau_min,
-        )
+    (
+        x_new,
+        solver_numeric_outputs,
+        (core_sources, core_conductivity, core_transport),
+    ) = newton_raphson_solve_block.newton_raphson_solve_block(
+        dt=dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
+        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+        core_profiles_t=core_profiles_t,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+        transport_model=self.transport_model,
+        pedestal_model=self.pedestal_model,
+        explicit_source_profiles=explicit_source_profiles,
+        source_models=self.source_models,
+        coeffs_callback=coeffs_callback,
+        evolving_names=evolving_names,
+        log_iterations=solver_params.log_iterations,
+        initial_guess_mode=enums.InitialGuessMode(
+            solver_params.initial_guess_mode
+        ),
+        maxiter=solver_params.maxiter,
+        tol=solver_params.residual_tol,
+        coarse_tol=solver_params.residual_coarse_tol,
+        delta_reduction_factor=solver_params.delta_reduction_factor,
+        tau_min=solver_params.tau_min,
     )
-    return x_new, core_sources, core_transport, solver_numeric_outputs
+    return (
+        x_new,
+        core_sources,
+        core_conductivity,
+        core_transport,
+        solver_numeric_outputs,
+    )

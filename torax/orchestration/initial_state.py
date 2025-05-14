@@ -23,6 +23,7 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.orchestration import step_function
 from torax.output_tools import output
 from torax.output_tools import post_processing
@@ -81,6 +82,9 @@ def _get_initial_state(
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=step_fn.solver.source_models,
+      conductivity=conductivity_base.Conductivity(
+          sigma=initial_core_profiles.sigma,
+          sigma_face=initial_core_profiles.sigma_face),
   )
 
   return state.ToraxSimState(

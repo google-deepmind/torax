@@ -19,49 +19,14 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
-from torax.fvm import cell_variable
-from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import default_configs
 from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
-
-
-def make_zero_core_profiles(
-    geo: geometry.Geometry,
-) -> state.CoreProfiles:
-  """Returns a dummy CoreProfiles object."""
-  zero_cell_variable = cell_variable.CellVariable(
-      value=jnp.zeros_like(geo.rho),
-      dr=geo.drho_norm,
-      right_face_constraint=jnp.ones(()),
-      right_face_grad_constraint=None,
-  )
-  return state.CoreProfiles(
-      currents=state.Currents.zeros(geo),
-      T_i=zero_cell_variable,
-      T_e=zero_cell_variable,
-      psi=zero_cell_variable,
-      psidot=zero_cell_variable,
-      n_e=zero_cell_variable,
-      n_i=zero_cell_variable,
-      n_impurity=zero_cell_variable,
-      q_face=jnp.zeros_like(geo.rho_face),
-      s_face=jnp.zeros_like(geo.rho_face),
-      density_reference=jnp.array(0.0),
-      vloop_lcfs=jnp.array(0.0),
-      Z_i=jnp.zeros_like(geo.rho),
-      Z_i_face=jnp.zeros_like(geo.rho_face),
-      A_i=jnp.zeros(()),
-      Z_impurity=jnp.zeros_like(geo.rho),
-      Z_impurity_face=jnp.zeros_like(geo.rho_face),
-      A_impurity=jnp.zeros(()),
-  )
 
 
 class StateTest(parameterized.TestCase):
@@ -80,7 +45,8 @@ class StateTest(parameterized.TestCase):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
     source_models = source_models_lib.SourceModels(
-        sources=references.config.sources
+        sources=references.config.sources,
+        neoclassical=references.config.neoclassical,
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
@@ -109,7 +75,9 @@ class InitialStatesTest(parameterized.TestCase):
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -144,7 +112,8 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = source_models_lib.SourceModels(sources=torax_config.sources)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical)
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

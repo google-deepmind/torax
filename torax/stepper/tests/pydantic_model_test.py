@@ -15,13 +15,11 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import runtime_params_slice
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
-from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.tests.test_lib import default_configs
+from torax.torax_pydantic import model_config
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -29,33 +27,36 @@ class PydanticModelTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='linear',
-          solver_model=stepper_pydantic_model.LinearThetaMethod,
+          solver_type='linear',
           expected_type=linear_theta_method.LinearThetaMethod,
       ),
       dict(
           testcase_name='newton_raphson',
-          solver_model=stepper_pydantic_model.NewtonRaphsonThetaMethod,
+          solver_type='newton_raphson',
           expected_type=nonlinear_theta_method.NewtonRaphsonThetaMethod,
       ),
       dict(
           testcase_name='optimizer',
-          solver_model=stepper_pydantic_model.OptimizerThetaMethod,
+          solver_type='optimizer',
           expected_type=nonlinear_theta_method.OptimizerThetaMethod,
       ),
   )
-  def test_build_solver_from_config(self, solver_model, expected_type):
+  def test_build_solver_from_config(self, solver_type, expected_type):
     """Builds a solver from the config."""
+    config = default_configs.get_default_config_dict()
+    config['solver'] = {
+        'solver_type': solver_type,
+        'theta_implicit': 0.5,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
 
-    solver_pydantic = solver_model(theta_implicit=0.5)
-    transport = transport_pydantic_model.ConstantTransportModel()
-    transport_model = transport.build_transport_model()
-    pedestal = pedestal_pydantic_model.NoPedestal()
-    pedestal_model = pedestal.build_pedestal_model()
-    sources = source_pydantic_model.Sources.from_dict({})
+    transport_model = torax_config.transport.build_transport_model()
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
     source_models = source_models_lib.SourceModels(
-        sources=sources
+        sources=torax_config.sources,
+        neoclassical=torax_config.neoclassical,
     )
-    solver = solver_pydantic.build_solver(
+    solver = torax_config.solver.build_solver(
         static_runtime_params_slice=mock.create_autospec(
             runtime_params_slice.StaticRuntimeParamsSlice,
             instance=True,
@@ -69,7 +70,7 @@ class PydanticModelTest(parameterized.TestCase):
         pedestal_model=pedestal_model,
     )
     self.assertIsInstance(solver, expected_type)
-    self.assertEqual(solver_pydantic.theta_implicit, 0.5)
+    self.assertEqual(torax_config.solver.theta_implicit, 0.5)
 
 
 if __name__ == '__main__':

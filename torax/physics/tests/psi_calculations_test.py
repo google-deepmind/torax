@@ -105,7 +105,8 @@ class PsiCalculationsTest(parameterized.TestCase):
         'sources.generic_current.mode': 'MODEL_BASED'
     })
     source_models = source_models_lib.SourceModels(
-        sources=references.config.sources
+        sources=references.config.sources,
+        neoclassical=references.config.neoclassical,
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
@@ -133,17 +134,16 @@ class PsiCalculationsTest(parameterized.TestCase):
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,
     )
-    bootstrap_profiles = source_models.j_bootstrap.get_bootstrap(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        core_profiles=initial_core_profiles,
+    conductivity = source_models.conductivity.calculate_conductivity(
+        dynamic_runtime_params_slice,
+        geo,
+        initial_core_profiles,
     )
 
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),
-        sigma=bootstrap_profiles.sigma,
-        sigma_face=bootstrap_profiles.sigma_face,
+        sigma=conductivity.sigma,
+        sigma_face=conductivity.sigma_face,
         resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,

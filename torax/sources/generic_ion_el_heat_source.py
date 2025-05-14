@@ -21,6 +21,7 @@ from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
@@ -87,6 +88,7 @@ def default_formula(
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -128,8 +130,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
 
   Attributes:
     gaussian_width: Gaussian width in normalized radial coordinate
-    gaussian_location: Source Gaussian central location (in normalized
-      r)
+    gaussian_location: Source Gaussian central location (in normalized r)
     P_total: Total heating: high default based on total ITER power including
       alphas
     electron_heat_fraction: Electron heating fraction

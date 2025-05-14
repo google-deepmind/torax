@@ -55,7 +55,7 @@ def _get_model_and_model_inputs(
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = source_models_lib.SourceModels(
-      sources=torax_config.sources
+      sources=torax_config.sources, neoclassical=torax_config.neoclassical
   )
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -314,6 +314,8 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       psi=dummy_cell_variable,
       psidot=dummy_cell_variable,
       vloop_lcfs=1.0,
+      sigma=1.0,
+      sigma_face=1.0,
   )
 
 

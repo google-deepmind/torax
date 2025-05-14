@@ -21,6 +21,7 @@ from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base as source_base_pydantic_model
 from torax.sources import gas_puff_source as gas_puff_source_lib
 from torax.sources import runtime_params
@@ -44,6 +45,7 @@ def double_gas_puff_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from puffs."""
   output = gas_puff_source_lib.calc_puff_source(
@@ -53,6 +55,7 @@ def double_gas_puff_source(
       source_name,
       unused_state,
       unused_calculated_source_profiles,
+      unused_conductivity,
   )
   return 2 * output
 

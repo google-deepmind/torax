@@ -24,6 +24,7 @@ from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
 from torax import state as state_module
+from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax.orchestration import run_simulation
 from torax.orchestration import step_function
 from torax.sources import pydantic_model as sources_pydantic_model
@@ -50,8 +51,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )
+    neoclassical = neoclassical_pydantic_model.Neoclassical.from_dict({})
     source_models = source_models_lib.SourceModels(
-        sources=sources
+        sources=sources, neoclassical=neoclassical
     )
     # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
@@ -127,7 +129,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
 
     def mock_step_fn(
@@ -151,6 +153,11 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
                   geometry_provider(new_t),
                   core_profiles=input_state.core_profiles,
                   source_models=source_models,
+                  conductivity=source_models.conductivity.calculate_conductivity(
+                      dynamic_runtime_params_slice_provider(new_t),
+                      geometry_provider(new_t),
+                      input_state.core_profiles,
+                  ),
               ),
           ),
           previous_post_processed_outputs,

@@ -31,6 +31,7 @@ from jax import numpy as jnp
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles
 
@@ -47,6 +48,7 @@ class SourceProfileFunction(Protocol):
       source_name: str,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
+      unused_conductivity: conductivity_base.Conductivity | None,
   ) -> tuple[chex.Array, ...]:
     ...
 
@@ -112,6 +114,7 @@ class Source(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
   ) -> tuple[chex.Array, ...]:
     """Returns the cell grid profile for this source during one time step.
 
@@ -134,6 +137,8 @@ class Source(abc.ABC):
         addition, different source types will have different availability of
         specific calculated_source_profiles since the calculation order matters.
         See source_profile_builders.py for more details.
+      conductivity: Conductivity profile if it exists. It is only provided for
+        implicit sources.
 
     Returns:
       A tuple of arrays of shape (cell grid length,) with one array per affected
@@ -157,6 +162,7 @@ class Source(abc.ABC):
             self.source_name,
             core_profiles,
             calculated_source_profiles,
+            conductivity,
         )
       case runtime_params_lib.Mode.PRESCRIBED.value:
         if len(self.affected_core_profiles) != len(

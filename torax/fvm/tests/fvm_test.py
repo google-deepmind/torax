@@ -229,7 +229,7 @@ class FVMTest(parameterized.TestCase):
         )
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -363,7 +363,7 @@ class FVMTest(parameterized.TestCase):
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
     )
     initial_core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
@@ -493,7 +493,7 @@ class FVMTest(parameterized.TestCase):
     )
 
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transport_model = torax_config.transport.build_transport_model()

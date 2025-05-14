@@ -18,7 +18,6 @@ Picard iterations to approximate the nonlinear solution. If
 static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
-from typing import Any
 import jax
 from torax import jax_utils
 from torax import state
@@ -40,7 +39,7 @@ def predictor_corrector_method(
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: calc_coeffs.CoeffsCallback,
-) -> tuple[tuple[cell_variable.CellVariable, ...], Any]:
+) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
 
   Args:
@@ -61,8 +60,6 @@ def predictor_corrector_method(
 
   Returns:
     x_new: Solution of evolving core profile state variables
-    auxiliary_outputs: Extra outputs containing auxiliary information from the
-    coeffs_callback computed based on x_new.
   """
 
   # predictor-corrector loop. Will only be traversed once if not in
@@ -105,12 +102,4 @@ def predictor_corrector_method(
     )
   else:
     x_new = loop_body(0, x_new_guess)
-
-  coeffs_final = coeffs_callback(
-      dynamic_runtime_params_slice_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-      x_new,
-      allow_pereverzev=True,
-  )
-  return x_new, coeffs_final.auxiliary_outputs
+  return x_new

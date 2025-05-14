@@ -82,6 +82,8 @@ class CoreProfiles:
       Z_impurity: Impurity charge on cell grid [dimensionless].
       Z_impurity_face: Impurity charge on face grid [dimensionless].
       A_impurity: Impurity mass [amu].
+      sigma: Conductivity on cell grid [S/m].
+      sigma_face: Conductivity on face grid [S/m].
   """
 
   T_i: cell_variable.CellVariable
@@ -104,6 +106,8 @@ class CoreProfiles:
   Z_impurity_face: array_typing.ArrayFloat
   A_impurity: array_typing.ScalarFloat
   # pylint: enable=invalid-name
+  sigma: array_typing.ArrayFloat
+  sigma_face: array_typing.ArrayFloat
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""

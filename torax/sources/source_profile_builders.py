@@ -20,6 +20,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -46,6 +47,7 @@ def build_source_profiles(
     source_models: source_models_lib.SourceModels,
     explicit: bool,
     explicit_source_profiles: source_profiles.SourceProfiles | None = None,
+    conductivity: conductivity_base.Conductivity | None = None,
 ) -> source_profiles.SourceProfiles:
   """Builds explicit profiles or the union of explicit and implicit profiles.
 
@@ -69,6 +71,8 @@ def build_source_profiles(
     explicit_source_profiles: If explicit is False, this argument must be
       provided. It will be used to compute the union of the explicit profiles
       and the implicit profiles computed here.
+    conductivity: Conductivity calculated for this time step. Not provided
+      when calculating the explicit profiles.
 
   Returns:
     SourceProfiles caclulated from the source models. If explicit is True, then
@@ -132,6 +136,7 @@ def build_source_profiles(
       core_profiles=core_profiles,
       source_models=source_models,
       explicit=explicit,
+      conductivity=conductivity,
   )
   return profiles
 
@@ -145,6 +150,7 @@ def build_standard_source_profiles(
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
     explicit: bool = True,
+    conductivity: conductivity_base.Conductivity | None = None,
     calculate_anyway: bool = False,
     psi_only: bool = False,
 ):
@@ -162,6 +168,7 @@ def build_standard_source_profiles(
           geo,
           core_profiles,
           calculated_source_profiles,
+          conductivity,
       )
       _update_standard_source_profiles(
           calculated_source_profiles,
@@ -244,6 +251,7 @@ def get_all_source_profiles(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
+    conductivity: conductivity_base.Conductivity,
 ) -> source_profiles.SourceProfiles:
   """Returns all source profiles for a given time.
 
@@ -259,6 +267,7 @@ def get_all_source_profiles(
     core_profiles: Core profiles that may evolve throughout the course of a
       simulation. These values here are, of course, only the original states.
     source_models: Source models used to compute core source profiles.
+    conductivity: Conductivity calculated for this time step.
 
   Returns:
     Implicit and explicit SourceProfiles from source models based on the core
@@ -281,4 +290,5 @@ def get_all_source_profiles(
       source_models=source_models,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
+      conductivity=conductivity,
   )

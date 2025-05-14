@@ -23,6 +23,7 @@ from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
@@ -56,6 +57,7 @@ def calc_heating_and_current(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for the electron-cyclotron source.
 
@@ -149,9 +151,7 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
     P_total: Gaussian EC total power
   """
 
-  model_name: Literal["gaussian_lin_liu"] = (
-      "gaussian_lin_liu"
-  )
+  model_name: Literal["gaussian_lin_liu"] = "gaussian_lin_liu"
   current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
   )
@@ -164,8 +164,8 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   gaussian_location: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  P_total: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
+  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.0
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
@@ -185,12 +185,8 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
         extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t
         ),
-        gaussian_width=self.gaussian_width.get_value(
-            t
-        ),
-        gaussian_location=self.gaussian_location.get_value(
-            t
-        ),
+        gaussian_width=self.gaussian_width.get_value(t),
+        gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),
     )
 

@@ -90,7 +90,8 @@ class StateHistoryTest(parameterized.TestCase):
         self.torax_config
     )
     source_models = source_models_lib.SourceModels(
-        sources=self.torax_config.sources
+        sources=self.torax_config.sources,
+        neoclassical=self.torax_config.neoclassical,
     )
 
     self.core_profiles = initialization.initial_core_profiles(
@@ -157,9 +158,7 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
-    saved_rmaj = output_xr.children[output.SCALARS].dataset.data_vars[
-        'R_major'
-    ]
+    saved_rmaj = output_xr.children[output.SCALARS].dataset.data_vars['R_major']
     np.testing.assert_allclose(
         saved_rmaj.values[0, ...], self.sim_state.geometry.R_major
     )

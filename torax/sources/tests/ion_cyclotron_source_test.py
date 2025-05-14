@@ -170,7 +170,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
     source = source_models.standard_sources[
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
@@ -199,6 +199,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
+        conductivity=None,
     )
     self.assertLen(ion_and_el, 2)
     self.assertEqual(ion_and_el[0].shape, geo.rho.shape)

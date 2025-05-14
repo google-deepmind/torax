@@ -81,6 +81,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_solver(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,

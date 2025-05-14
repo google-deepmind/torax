@@ -64,6 +64,8 @@ class ScalingLawsTest(parameterized.TestCase):
         Z_impurity_face=mock.ANY,
         A_impurity=mock.ANY,
         density_reference=1e20,
+        sigma=mock.ANY,
+        sigma_face=mock.ANY,
     )
 
     core_profiles = dataclasses.replace(
@@ -130,6 +132,8 @@ class ScalingLawsTest(parameterized.TestCase):
         Z_impurity_face=mock.ANY,
         A_impurity=mock.ANY,
         density_reference=1e20,
+        sigma=mock.ANY,
+        sigma_face=mock.ANY,
     )
     core_profiles = dataclasses.replace(
         core_profiles,

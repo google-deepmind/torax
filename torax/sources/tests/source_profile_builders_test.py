@@ -42,7 +42,7 @@ class SourceModelsTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict())
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

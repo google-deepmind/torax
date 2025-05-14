@@ -25,6 +25,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -115,6 +116,7 @@ class BootstrapCurrentSource(source.Source):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
+      unused_conductivity: conductivity_base.Conductivity | None,
   ) -> tuple[chex.Array, ...]:
     raise NotImplementedError('Call `get_bootstrap` instead.')
 

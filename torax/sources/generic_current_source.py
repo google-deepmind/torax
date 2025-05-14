@@ -24,6 +24,7 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base as source_base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -63,6 +64,7 @@ def calculate_generic_current(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Calculates the external current density profiles on the cell grid."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -80,14 +82,8 @@ def calculate_generic_current(
       / (2 * dynamic_source_runtime_params.gaussian_width**2)
   )
 
-  Cext = (
-      I_generic
-      / math_utils.area_integration(generic_current_form, geo)
-  )
-
-  generic_current_profile = (
-      Cext * generic_current_form
-  )
+  Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
+  generic_current_profile = Cext * generic_current_form
   return (generic_current_profile,)
 
 

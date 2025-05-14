@@ -299,8 +299,8 @@ def update_all_core_profiles_after_step(
       core_profiles_t_plus_dt.psidot,
       value=psi_calculations.calculate_psidot_from_psi_sources(
           psi_sources=psi_sources,
-          sigma=source_profiles.j_bootstrap.sigma,
-          sigma_face=source_profiles.j_bootstrap.sigma_face,
+          sigma=core_profiles_t_plus_dt.sigma,
+          sigma_face=core_profiles_t_plus_dt.sigma_face,
           resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_multiplier,
           psi=psi,
           geo=geo,
@@ -328,6 +328,9 @@ def update_all_core_profiles_after_step(
       A_i=core_profiles_t_plus_dt.A_i,
       A_impurity=core_profiles_t_plus_dt.A_impurity,
       vloop_lcfs=vloop_lcfs,
+      # These have already been updated in the solver.
+      sigma=core_profiles_t_plus_dt.sigma,
+      sigma_face=core_profiles_t_plus_dt.sigma_face,
   )
 
 

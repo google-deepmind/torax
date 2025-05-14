@@ -91,6 +91,7 @@ class ImpurityRadiationConstantFractionTest(
         geo,
         mock.ANY,
         None,
+        None,
     )
 
     impurity_radiation_sink = impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink(
@@ -109,6 +110,7 @@ class ImpurityRadiationConstantFractionTest(
                 T_e={'foo': el},
                 T_i={'foo_source': ion},
             ),
+            conductivity=None,
         )
     )
 
