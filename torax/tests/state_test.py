@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import dataclasses
-from typing import Callable
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -25,40 +24,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import default_configs
-from torax.tests.test_lib import torax_refs
 from torax.torax_pydantic import model_config
-
-
-class StateTest(parameterized.TestCase):
-
-  @parameterized.parameters([
-      dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
-      ),
-  ])
-  def test_sanity_check(
-      self,
-      references_getter: Callable[[], torax_refs.References],
-  ):
-    """Make sure State.sanity_check can be called."""
-    references = references_getter()
-    source_models = source_models_lib.SourceModels(
-        sources=references.config.sources,
-        neoclassical=references.config.neoclassical,
-    )
-    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
-    static_slice = build_runtime_params.build_static_params_from_config(
-        references.config
-    )
-    basic_core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    basic_core_profiles.sanity_check()
 
 
 class InitialStatesTest(parameterized.TestCase):

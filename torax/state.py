@@ -112,12 +112,6 @@ class CoreProfiles:
     state = jax.tree_util.tree_map(idx, self)
     return state
 
-  def sanity_check(self):
-    for field in CoreProfiles.__dataclass_fields__:
-      value = getattr(self, field)
-      if hasattr(value, "sanity_check"):
-        value.sanity_check()
-
   def __str__(self) -> str:
     return f"""
       CoreProfiles(
