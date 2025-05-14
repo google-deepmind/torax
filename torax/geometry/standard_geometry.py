@@ -265,9 +265,7 @@ class StandardGeometryIntermediates:
 
     Args:
       geometry_directory: Directory where to find the CHEASE file describing the
-        magnetic geometry. If None, uses the environment variable
-        TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_directory is not provided, then it defaults to another dir. See
+        magnetic geometry. If None, then it defaults to another dir. See
         implementation.
       geometry_file: CHEASE file name.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
@@ -370,9 +368,7 @@ class StandardGeometryIntermediates:
 
     Args:
       geometry_directory: Directory where to find the FBT file describing the
-        magnetic geometry. If None, uses the environment variable
-        TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_directory is not provided, then it defaults to another dir. See
+        magnetic geometry. If None, then it defaults to another dir. See
         `load_geo_data` implementation.
       LY_object: File name for LY data, or directly an LY single slice dict.
       L_object: File name for L data, or directly an L dict.
@@ -438,9 +434,7 @@ class StandardGeometryIntermediates:
 
     Args:
       geometry_directory: Directory where to find the FBT file describing the
-        magnetic geometry. If None, uses the environment variable
-        TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_directory is not provided, then it defaults to another dir. See
+        magnetic geometry. If None, then it defaults to another dir. See
         `load_geo_data` implementation.
       LY_bundle_object: Either file name for bundled LY data, e.g. as produced
         by liuqe meqlpack, or the data dict itself.
@@ -640,9 +634,7 @@ class StandardGeometryIntermediates:
 
     Args:
       geometry_directory: Directory where to find the EQDSK file describing the
-        magnetic geometry. If None, uses the environment variable
-        TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_directory is not provided, then it defaults to another dir. See
+        magnetic geometry. If None, then it defaults to another dir. See
         implementation.
       geometry_file: EQDSK file name.
       hires_factor: Grid refinement factor for poloidal flux <--> plasma current

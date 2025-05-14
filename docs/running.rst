@@ -31,16 +31,6 @@ Set environment variables
 -------------------------
 All environment variables can be set in shell configuration scripts, e.g. ``.bashrc``, or by shell prompt commands.
 
-TORAX_GEOMETRY_DIR
-^^^^^^^^^^^^^^^^^^
-Path to the geometry file directory. This prefixes the path and filename provided in the ``geometry_file``
-geometry constructor argument in the run config file. If not set, ``TORAX_GEOMETRY_DIR`` defaults to the
-relative path ``torax/data/third_party/geo``.
-
-.. code-block:: console
-
-  export TORAX_GEOMETRY_DIR="<mygeodir>"
-
 TORAX_ERRORS_ENABLED
 ^^^^^^^^^^^^^^^^^^^^
 If true, error checking is enabled in internal routines. Used for debugging.

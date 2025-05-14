@@ -87,8 +87,7 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
-      environment variable.
+    geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
@@ -132,8 +131,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
-      environment variable.
+    geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
@@ -221,8 +219,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_directory: Optionally overrides the `TORAX_GEOMETRY_DIR`
-      environment variable.
+    geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.

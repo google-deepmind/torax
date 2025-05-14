@@ -94,16 +94,6 @@ Enter the TORAX directory and pip install the dependencies.
 TORAX uses the QLKNN_7_11 transport model by default.
 For an alternative transport model, see :ref:`install_qlknn_hyper`.
 
-You may want to set the `TORAX_GEOMETRY_DIR` environment variable to the
-directory containing the geometry files you intend to use.
-
-.. code-block:: console
-
-  export TORAX_GEOMETRY_DIR=/path/to/my/geometry/files
-
-You can set this variable in your ~/.bashrc to avoid having to set it every
-time you start a new terminal.
-
 The following may optionally be added to ~/.bashrc and will cause jax to
 store compiled programs to the filesystem, avoiding recompilation in
 some cases:

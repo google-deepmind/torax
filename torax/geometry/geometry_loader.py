@@ -102,13 +102,8 @@ def load_geo_data(
     geometry_source: GeometrySource,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a CHEASE file into a dictionary."""
-  # The code below does not use os.environ.get() in order to support an internal
-  # version of the code.
   if geometry_dir is None:
-    if 'TORAX_GEOMETRY_DIR' in os.environ:
-      geometry_dir = os.environ['TORAX_GEOMETRY_DIR']
-    else:
-      geometry_dir = os.path.join(torax.__path__[0], 'data/third_party/geo')
+    geometry_dir = os.path.join(torax.__path__[0], 'data/third_party/geo')
   filepath = os.path.join(geometry_dir, geometry_file)
 
   # initialize geometry from file

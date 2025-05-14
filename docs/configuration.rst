@@ -555,10 +555,9 @@ Geometry dicts for all non-circular geometry types can contain the following add
 
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
   Required for all geometry types except ``'circular'``. Sets the geometry file loaded.
-  The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
 
 ``geometry_directory`` (str = None)
-  Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
+  Optionally set the geometry directory. If not set, then the default is ``torax/data/third_party/geo``
 
 ``Ip_from_parameters`` (bool = True)
   Toggles whether total plasma current is read from the configuration file, or from the geometry file.

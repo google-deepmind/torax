@@ -179,17 +179,6 @@ run_torax  --config='torax.examples.iterhybrid_rampup' --log_progress
 
 #### Set environment variables
 
-##### Geometry
-
-Path to the geometry file directory. This prefixes the path and filename
-provided in the `geometry_file` geometry constructor argument in the run
-config file. If not set, `TORAX_GEOMETRY_DIR` defaults to the relative path
-`torax/data/third_party/geo`.
-
-```shell
-$ export TORAX_GEOMETRY_DIR="<mygeodir>"
-```
-
 ##### Error checking
 
 If true, error checking is enabled in internal routines. Used for debugging.
