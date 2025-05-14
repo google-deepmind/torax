@@ -208,22 +208,22 @@ def _override_initial_runtime_params_from_file(
       profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1]
   )
   dynamic_runtime_params_slice.profile_conditions.T_e = (
-      profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
+      profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
   dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
-      profiles_ds.data_vars[output.TEMPERATURE_ELECTRON]
+      profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
   dynamic_runtime_params_slice.profile_conditions.T_i = (
-      profiles_ds.data_vars[output.TEMPERATURE_ION]
+      profiles_ds.data_vars[output.T_I]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
   dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
-      profiles_ds.data_vars[output.TEMPERATURE_ION]
+      profiles_ds.data_vars[output.T_I]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )

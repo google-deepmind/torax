@@ -326,8 +326,8 @@ def load_data(filename: str) -> PlotData:
   dataset = data_tree.dataset
 
   return PlotData(
-      T_i=profiles_dataset[output.TEMPERATURE_ION].to_numpy(),
-      T_e=profiles_dataset[output.TEMPERATURE_ELECTRON].to_numpy(),
+      T_i=profiles_dataset[output.T_I].to_numpy(),
+      T_e=profiles_dataset[output.T_E].to_numpy(),
       n_e=profiles_dataset[output.N_E].to_numpy(),
       n_i=profiles_dataset[output.N_I].to_numpy(),
       n_impurity=profiles_dataset[output.N_IMPURITY].to_numpy(),

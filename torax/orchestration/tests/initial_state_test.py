@@ -75,8 +75,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
   )
   def test_core_profile_final_step(self, test_config):
     profiles = [
-        output.TEMPERATURE_ION,
-        output.TEMPERATURE_ELECTRON,
+        output.T_I,
+        output.T_E,
         output.N_E,
         output.N_I,
         output.PSI,
@@ -104,10 +104,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # Load in the reference core profiles.
     Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
     # All profiles are on a grid with [left_face, cell_grid, right_face]
-    T_e = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
-    T_e_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
-    T_i = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
-    T_i_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+    T_e = ref_profiles[output.T_E][index, 1:-1]
+    T_e_bc = ref_profiles[output.T_E][index, -1]
+    T_i = ref_profiles[output.T_I][index, 1:-1]
+    T_i_bc = ref_profiles[output.T_I][index, -1]
     n_e = ref_profiles[output.N_E][index, 1:-1]
     n_e_right_bc = ref_profiles[output.N_E][index, -1]
     psi = ref_profiles[output.PSI][index, 1:-1]

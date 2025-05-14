@@ -37,8 +37,8 @@ from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 
 _ALL_PROFILES: Final[Sequence[str]] = (
-    output.TEMPERATURE_ION,
-    output.TEMPERATURE_ELECTRON,
+    output.T_I,
+    output.T_E,
     output.PSI,
     output.Q,
     output.MAGNETIC_SHEAR,
@@ -58,7 +58,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          (output.TEMPERATURE_ION, output.TEMPERATURE_ELECTRON),
+          (output.T_I, output.T_E),
           2e-1,
           1e-10,
           'test_implicit.nc',
@@ -344,8 +344,8 @@ class SimTest(sim_test_case.SimTestCase):
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(history.times[-1], torax_config.numerics.t_final)
     profiles_to_check = (
-        (output.TEMPERATURE_ION, history.core_profiles.T_i),
-        (output.TEMPERATURE_ELECTRON, history.core_profiles.T_e),
+        (output.T_I, history.core_profiles.T_i),
+        (output.T_E, history.core_profiles.T_e),
         (output.N_E, history.core_profiles.n_e),
         (output.PSI, history.core_profiles.psi),
         (output.Q, history.core_profiles.q_face),
@@ -396,8 +396,8 @@ class SimTest(sim_test_case.SimTestCase):
       test_config: the config id under test.
     """
     profiles = [
-        output.TEMPERATURE_ION,
-        output.TEMPERATURE_ELECTRON,
+        output.T_I,
+        output.T_E,
         output.N_E,
         output.N_I,
         output.PSI,
@@ -430,10 +430,10 @@ class SimTest(sim_test_case.SimTestCase):
       # Load in the reference core profiles.
       Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
       # All profiles are on a grid with [left_face, cell_grid, right_face]
-      T_e = ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1]
-      T_e_bc = ref_profiles[output.TEMPERATURE_ELECTRON][index, -1]
-      T_i = ref_profiles[output.TEMPERATURE_ION][index, 1:-1]
-      T_i_bc = ref_profiles[output.TEMPERATURE_ION][index, -1]
+      T_e = ref_profiles[output.T_E][index, 1:-1]
+      T_e_bc = ref_profiles[output.T_E][index, -1]
+      T_i = ref_profiles[output.T_I][index, 1:-1]
+      T_i_bc = ref_profiles[output.T_I][index, -1]
       n_e = (
           ref_profiles[output.N_E][index, 1:-1]
           * constants.DENSITY_SCALING_FACTOR

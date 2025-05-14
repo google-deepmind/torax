@@ -74,11 +74,11 @@ def verify_core_profiles(
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
       core_profiles.T_e.value,
-      ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1],
+      ref_profiles[output.T_E][index, 1:-1],
   )
   np.testing.assert_allclose(
       core_profiles.T_i.value,
-      ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
+      ref_profiles[output.T_I][index, 1:-1],
   )
   np.testing.assert_allclose(
       core_profiles.n_e.value, ref_profiles[output.N_E][index, 1:-1]

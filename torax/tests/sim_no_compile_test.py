@@ -24,8 +24,8 @@ from torax.tests.test_lib import sim_test_case
 
 
 _ALL_PROFILES = (
-    output.TEMPERATURE_ION,
-    output.TEMPERATURE_ELECTRON,
+    output.T_I,
+    output.T_E,
     output.PSI,
     output.Q,
     output.MAGNETIC_SHEAR,

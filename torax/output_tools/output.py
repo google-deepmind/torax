@@ -41,8 +41,8 @@ SCALARS = "scalars"
 NUMERICS = "numerics"
 
 # Core profiles.
-TEMPERATURE_ELECTRON = "T_e"
-TEMPERATURE_ION = "T_i"
+T_E = "T_e"
+T_I = "T_i"
 PSI = "psi"
 V_LOOP = "v_loop"
 N_E = "n_e"
@@ -296,8 +296,8 @@ class StateHistory:
     xr_dict = {}
     core_profiles = self.core_profiles
 
-    xr_dict[TEMPERATURE_ELECTRON] = core_profiles.T_e.cell_plus_boundaries()
-    xr_dict[TEMPERATURE_ION] = core_profiles.T_i.cell_plus_boundaries()
+    xr_dict[T_E] = core_profiles.T_e.cell_plus_boundaries()
+    xr_dict[T_I] = core_profiles.T_i.cell_plus_boundaries()
     xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
     xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
     xr_dict[N_E] = core_profiles.n_e.cell_plus_boundaries()

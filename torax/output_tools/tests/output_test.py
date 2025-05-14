@@ -345,7 +345,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     np.testing.assert_equal(
         output_xr.children[output.PROFILES]
-        .dataset.data_vars[output.TEMPERATURE_ELECTRON]
+        .dataset.data_vars[output.T_E]
         .values,
         np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
     )
