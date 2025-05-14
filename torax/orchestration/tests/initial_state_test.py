@@ -118,10 +118,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
     dynamic.profile_conditions.T_e_right_bc = T_e_bc
     dynamic.profile_conditions.T_i = T_i
     dynamic.profile_conditions.T_i_right_bc = T_i_bc
-    dynamic.profile_conditions.n_e = n_e * constants.DENSITY_SCALING_FACTOR
-    dynamic.profile_conditions.n_e_right_bc = (
-        n_e_right_bc * constants.DENSITY_SCALING_FACTOR
-    )
+    dynamic.profile_conditions.n_e = n_e
+    dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
     dynamic.profile_conditions.psi = psi
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
@@ -138,8 +136,12 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
+    # Normalize the ref_profiles to the expected internal CoreProfiles units.
+    ref_profiles[output.N_E] /= constants.DENSITY_SCALING_FACTOR
+    ref_profiles[output.N_I] /= constants.DENSITY_SCALING_FACTOR
     core_profile_helpers.verify_core_profiles(
-        ref_profiles, index, result.core_profiles)
+        ref_profiles, index, result.core_profiles
+    )
 
 
 def _get_step_fn(torax_config):

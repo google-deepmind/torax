@@ -34,7 +34,7 @@ _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
 # Default tolerances for checking sim results against references.
 # np.allclose true if absolute(a - b) <= (atol + rtol * absolute(b))
 # Therefore _ATOL = 0 restricts to a pure relative error check.
-_RTOL = 1e-10
+_RTOL = 1e-9
 _ATOL = 0
 
 

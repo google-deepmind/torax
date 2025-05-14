@@ -16,7 +16,6 @@ import dataclasses
 
 from absl import logging
 import jax.numpy as jnp
-from torax import constants
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -227,17 +226,17 @@ def _override_initial_runtime_params_from_file(
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  # Density in output is still in density_reference. Convert to m^-3.
+  # Density in output is in m^-3.
   dynamic_runtime_params_slice.profile_conditions.n_e = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
-  ) * constants.DENSITY_SCALING_FACTOR
+  )
   dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
-  ) * constants.DENSITY_SCALING_FACTOR
+  )
   dynamic_runtime_params_slice.profile_conditions.psi = (
       profiles_ds.data_vars[output.PSI]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])

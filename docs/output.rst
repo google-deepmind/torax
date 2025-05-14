@@ -105,14 +105,14 @@ core_profiles
 ``T_i`` (time, rho_cell + boundary values)
   Ion temperature in :math:`[keV]`.
 
-``ne`` (time, rho_cell + boundary values)
-  Electron density in units of ``density_reference``.
+``n_e`` (time, rho_cell + boundary values)
+  Electron density in :math:`[m^{-3}]`.
 
 ``n_i`` (time, rho_cell + boundary values)
-  Main ion density in units of ``density_reference``.
+  Main ion density in in :math:`[m^{-3}]`.
 
-``density_reference`` (time)
-  Reference density in :math:`[m^{-3}]`.
+``n_impurity`` (time, rho_cell + boundary values)
+  Impurity ion density in in :math:`[m^{-3}]`.
 
 ``psi`` (time, rho_cell + boundary values)
   Poloidal flux :math:`(\psi)` in :math:`[Wb]`.

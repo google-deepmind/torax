@@ -27,7 +27,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import tree
 import numpy as np
-from torax import constants
 from torax import state
 from torax.orchestration import initial_state
 from torax.orchestration import run_simulation
@@ -414,13 +413,8 @@ class SimTest(sim_test_case.SimTestCase):
       T_e_bc = ref_profiles[output.T_E][index, -1]
       T_i = ref_profiles[output.T_I][index, 1:-1]
       T_i_bc = ref_profiles[output.T_I][index, -1]
-      n_e = (
-          ref_profiles[output.N_E][index, 1:-1]
-          * constants.DENSITY_SCALING_FACTOR
-      )
-      n_e_right_bc = (
-          ref_profiles[output.N_E][index, -1] * constants.DENSITY_SCALING_FACTOR
-      )
+      n_e = ref_profiles[output.N_E][index, 1:-1]
+      n_e_right_bc = ref_profiles[output.N_E][index, -1]
       psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.

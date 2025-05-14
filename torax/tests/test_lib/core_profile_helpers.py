@@ -81,24 +81,26 @@ def verify_core_profiles(
       ref_profiles[output.T_I][index, 1:-1],
   )
   np.testing.assert_allclose(
-      core_profiles.n_e.value, ref_profiles[output.N_E][index, 1:-1]
+      core_profiles.n_e.value,
+      ref_profiles[output.N_E][index, 1:-1],
   )
   np.testing.assert_allclose(
       core_profiles.n_e.right_face_constraint,
       ref_profiles[output.N_E][index, -1],
   )
   np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.n_i.value, ref_profiles[output.N_I][index, 1:-1]
+      core_profiles.n_i.value,
+      ref_profiles[output.N_I][index, 1:-1],
   )
   np.testing.assert_allclose(
       core_profiles.n_i.right_face_constraint,
       ref_profiles[output.N_I][index, -1],
+  )
+  np.testing.assert_allclose(
+      core_profiles.psi.value, ref_profiles[output.PSI][index, 1:-1]
+  )
+  np.testing.assert_allclose(
+      core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
   )
 
   np.testing.assert_allclose(

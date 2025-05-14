@@ -99,23 +99,23 @@ class PlotData:
   Attributes:
     T_i: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
     T_e: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
-    n_e: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the
-      cell grid.
-    n_i: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the
-      cell grid. Corresponds to an bundled ion mixture if specified as such in
-      the config.
+    n_e: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
+      grid.
+    n_i: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
+      grid. Corresponds to a bundled ion mixture if specified as such in the
+      config.
     n_impurity: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on
       the cell grid. Corresponds to an bundled ion mixture if specified as such
       in the config.
-    Z_impurity: Average charge state of the impurity species [dimensionless]
-      on the cell grid.
+    Z_impurity: Average charge state of the impurity species [dimensionless] on
+      the cell grid.
     psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
     v_loop: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
       on the cell grid.
     j_total: Total toroidal current density profile [:math:`\mathrm{MA/m^2}`] on
       the cell grid.
-    j_ohmic: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the
-      cell grid.
+    j_ohmic: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the cell
+      grid.
     j_bootstrap: Bootstrap current density profile [:math:`\mathrm{MA/m^2}`] on
       the cell grid.
     j_ecrh: Electron cyclotron current density profile [:math:`\mathrm{MA/m^2}`]
@@ -178,8 +178,7 @@ class PlotData:
     rho_norm: Normalized toroidal flux coordinate on cell grid + boundaries.
     rho_cell_norm: Normalized toroidal flux coordinate on the cell grid.
     rho_face_norm: Normalized toroidal flux coordinate on the face grid.
-    T_e_volume_avg: Volume-averaged electron temperature
-      [:math:`\mathrm{keV}`].
+    T_e_volume_avg: Volume-averaged electron temperature [:math:`\mathrm{keV}`].
     T_i_volume_avg: Volume-averaged ion temperature [:math:`\mathrm{keV}`].
     n_e_volume_avg: Volume-averaged electron density [:math:`\mathrm{10^{20}
       m^{-3}}`].
@@ -188,6 +187,7 @@ class PlotData:
     W_thermal_total: Total thermal stored energy [:math:`\mathrm{MJ}`].
     q95: Safety factor at 95% of the normalized poloidal flux.
   """
+
   T_i: np.ndarray
   T_e: np.ndarray
   n_e: np.ndarray
@@ -268,11 +268,6 @@ def load_data(filename: str) -> PlotData:
           else np.zeros((len(time), len(ds[output.RHO_FACE_NORM].to_numpy())))
       )
 
-  density_reference = np.expand_dims(
-      data_tree.children[output.SCALARS].dataset[output.N_REF].to_numpy(),
-      axis=1,
-  )
-
   def _transform_data(ds: xr.Dataset):
     """Transforms data in-place to the desired units."""
     # TODO(b/414755419)
@@ -309,9 +304,9 @@ def load_data(filename: str) -> PlotData:
         'I_ecrh': 1e6,  # A to MA
         'I_aux_generic': 1e6,  # A to MA
         'W_thermal_total': 1e6,  # J to MJ
-        output.N_E: density_reference / 1e20,
-        output.N_I: density_reference / 1e20,
-        output.N_IMPURITY: density_reference / 1e20,
+        output.N_E: 1e20,  # m^-3 to 10^{20} m^-3
+        output.N_I: 1e20,  # m^-3 to 10^{20} m^-3
+        output.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
     }
 
     for var_name, scale in transformations.items():

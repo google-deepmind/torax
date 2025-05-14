@@ -22,6 +22,7 @@ from absl import logging
 import chex
 import jax
 import numpy as np
+from torax import constants
 from torax import state
 from torax.geometry import geometry as geometry_lib
 from torax.orchestration import sim_state
@@ -50,7 +51,6 @@ N_I = "n_i"
 Q = "q"
 MAGNETIC_SHEAR = "magnetic_shear"
 N_IMPURITY = "n_impurity"
-N_REF = "n_ref"
 Z_IMPURITY = "Z_impurity"
 
 # Currents.
@@ -218,9 +218,13 @@ class StateHistory:
     geometries = [state.geometry for state in state_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
     stack = lambda *ys: np.stack(ys)
-    self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
+    core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
     )
+    # Rescale output CoreProfiles to have density units in m^-3.
+    # This is done to maintain the same external API following an upcoming
+    # change to the internal CoreProfiles density units.
+    self.core_profiles = _rescale_core_profiles(core_profiles)
     self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
         stack, *core_sources
     )
@@ -317,7 +321,6 @@ class StateHistory:
 
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
-    xr_dict[N_REF] = core_profiles.density_reference
 
     xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
 
@@ -570,3 +573,31 @@ class StateHistory:
       data_tree = stitch_state_files(file_restart, data_tree)
 
     return data_tree
+
+
+def _rescale_core_profiles(
+    core_profiles: state.CoreProfiles,
+) -> state.CoreProfiles:
+  """Rescale core profiles densities to be in m^-3."""
+  return dataclasses.replace(
+      core_profiles,
+      n_e=dataclasses.replace(
+          core_profiles.n_e,
+          value=core_profiles.n_e.value * constants.DENSITY_SCALING_FACTOR,
+          right_face_constraint=core_profiles.n_e.right_face_constraint
+          * constants.DENSITY_SCALING_FACTOR,
+      ),
+      n_i=dataclasses.replace(
+          core_profiles.n_i,
+          value=core_profiles.n_i.value * constants.DENSITY_SCALING_FACTOR,
+          right_face_constraint=core_profiles.n_i.right_face_constraint
+          * constants.DENSITY_SCALING_FACTOR,
+      ),
+      n_impurity=dataclasses.replace(
+          core_profiles.n_impurity,
+          value=core_profiles.n_impurity.value
+          * constants.DENSITY_SCALING_FACTOR,
+          right_face_constraint=core_profiles.n_impurity.right_face_constraint
+          * constants.DENSITY_SCALING_FACTOR,
+      ),
+  )
