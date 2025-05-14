@@ -67,12 +67,9 @@ class PostProcessedOutputs:
       radiation sinks [W]
     P_SOL_total: Total heating power exiting the plasma with all sources and
       sinks
-    P_external_i: Total external ion heating power: auxiliary heating + Ohmic
-      [W]
-    P_external_e: Total external electron heating power: auxiliary heating +
-      Ohmic [W]
-    P_external_total: Total external heating power: auxiliary heating + Ohmic
-      [W]
+    P_aux_i: Total auxiliary ion heating power [W]
+    P_aux_e: Total auxiliary electron heating power [W]
+    P_aux_total: Total auxiliary heating power [W]
     P_external_injected: Total external injected power before absorption [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
@@ -154,9 +151,9 @@ class PostProcessedOutputs:
   P_SOL_i: array_typing.ScalarFloat
   P_SOL_e: array_typing.ScalarFloat
   P_SOL_total: array_typing.ScalarFloat
-  P_external_i: array_typing.ScalarFloat
-  P_external_e: array_typing.ScalarFloat
-  P_external_total: array_typing.ScalarFloat
+  P_aux_i: array_typing.ScalarFloat
+  P_aux_e: array_typing.ScalarFloat
+  P_aux_total: array_typing.ScalarFloat
   P_external_injected: array_typing.ScalarFloat
   P_ei_exchange_i: array_typing.ScalarFloat
   P_ei_exchange_e: array_typing.ScalarFloat
@@ -229,9 +226,9 @@ class PostProcessedOutputs:
         P_SOL_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_SOL_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_SOL_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -308,7 +305,6 @@ EL_HEAT_SOURCE_TRANSFORMATIONS = {
 EXTERNAL_HEATING_SOURCES = [
     'generic_heat',
     'ecrh',
-    'ohmic',
     'icrh',
 ]
 CURRENT_SOURCE_TRANSFORMATIONS = {
@@ -359,8 +355,8 @@ def _calculate_integrated_sources(
   # stored energy).
   integrated['P_SOL_i'] = integrated['P_ei_exchange_i']
   integrated['P_SOL_e'] = integrated['P_ei_exchange_e']
-  integrated['P_external_i'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
-  integrated['P_external_e'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  integrated['P_aux_i'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  integrated['P_aux_e'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
   integrated['P_external_injected'] = jnp.array(
       0.0, dtype=jax_utils.get_dtype()
   )
@@ -382,8 +378,8 @@ def _calculate_integrated_sources(
       integrated['P_SOL_i'] += integrated[f'{value}_i']
       integrated['P_SOL_e'] += integrated[f'{value}_e']
       if key in EXTERNAL_HEATING_SOURCES:
-        integrated['P_external_i'] += integrated[f'{value}_i']
-        integrated['P_external_e'] += integrated[f'{value}_e']
+        integrated['P_aux_i'] += integrated[f'{value}_i']
+        integrated['P_aux_e'] += integrated[f'{value}_e']
 
         # Track injected power for heating sources that have absorption_fraction
         # These are only for sources like ICRH or NBI that are
@@ -408,7 +404,7 @@ def _calculate_integrated_sources(
       )
       integrated['P_SOL_e'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
-        integrated['P_external_e'] += integrated[f'{value}']
+        integrated['P_aux_e'] += integrated[f'{value}']
         integrated['P_external_injected'] += integrated[f'{value}']
     else:
       integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
@@ -421,8 +417,8 @@ def _calculate_integrated_sources(
       integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   integrated['P_SOL_total'] = integrated['P_SOL_i'] + integrated['P_SOL_e']
-  integrated['P_external_total'] = (
-      integrated['P_external_i'] + integrated['P_external_e']
+  integrated['P_aux_total'] = (
+      integrated['P_aux_i'] + integrated['P_aux_e']
   )
 
   return integrated
@@ -484,7 +480,11 @@ def make_post_processed_outputs(
   Q_fusion = (
       integrated_sources['P_alpha_total']
       * 5.0
-      / (integrated_sources['P_external_injected'] + constants.CONSTANTS.eps)
+      / (
+          integrated_sources['P_external_injected']
+          + integrated_sources['P_ohmic_e']
+          + constants.CONSTANTS.eps
+      )
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
@@ -502,7 +502,8 @@ def make_post_processed_outputs(
 
   Ploss = (
       integrated_sources['P_alpha_total']
-      + integrated_sources['P_external_total']
+      + integrated_sources['P_aux_total']
+      + integrated_sources['P_ohmic_e']
   )
 
   if previous_post_processed_outputs is not None:
@@ -550,8 +551,10 @@ def make_post_processed_outputs(
         previous_post_processed_outputs.E_aux
         + sim_state.dt
         * (
-            integrated_sources['P_external_total']
-            + previous_post_processed_outputs.P_external_total
+            integrated_sources['P_aux_total']
+            + integrated_sources['P_ohmic_e']
+            + previous_post_processed_outputs.P_aux_total
+            + previous_post_processed_outputs.P_ohmic_e
         )
         / 2.0
     )

@@ -295,7 +295,7 @@ def load_data(filename: str) -> PlotData:
         'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
         'ei_exchange': 1e6,  # W/m^3 to MW/m^3
         'P_ohmic_e': 1e6,  # W to MW
-        'P_external_total': 1e6,  # W to MW
+        'P_aux_total': 1e6,  # W to MW
         'P_alpha_total': 1e6,  # W to MW
         'P_bremsstrahlung_e': 1e6,  # W to MW
         'P_cyclotron_e': 1e6,  # W to MW
@@ -382,7 +382,7 @@ def load_data(filename: str) -> PlotData:
       I_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
       P_ohmic_e=scalars_dataset['P_ohmic_e'].to_numpy(),
       P_auxiliary=(
-          scalars_dataset['P_external_total'] - scalars_dataset['P_ohmic_e']
+          scalars_dataset['P_aux_total'] - scalars_dataset['P_ohmic_e']
       ).to_numpy(),
       P_alpha_total=scalars_dataset['P_alpha_total'].to_numpy(),
       P_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
