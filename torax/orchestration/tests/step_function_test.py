@@ -88,7 +88,7 @@ class StepFunctionTest(absltest.TestCase):
     with self.subTest('NaN in post processed outputs'):
       new_post_processed_outputs = dataclasses.replace(
           post_processed_outputs,
-          P_external_tot=jnp.array(jnp.nan),
+          P_external_total=jnp.array(jnp.nan),
       )
       error = new_post_processed_outputs.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)

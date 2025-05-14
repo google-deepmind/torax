@@ -110,9 +110,9 @@ class PostProcessingTest(parameterized.TestCase):
         'P_SOL_i',
         'P_SOL_e',
         'P_SOL_total',
-        'P_external_ion',
-        'P_external_el',
-        'P_external_tot',
+        'P_external_i',
+        'P_external_e',
+        'P_external_total',
         'P_external_injected',
         'I_ecrh',
         'I_aux_generic',
@@ -147,13 +147,13 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_external_el']
-        + integrated_sources['P_external_ion'],
-        integrated_sources['P_external_tot'],
+        integrated_sources['P_external_e']
+        + integrated_sources['P_external_i'],
+        integrated_sources['P_external_total'],
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_external_tot']
+        integrated_sources['P_external_total']
         + integrated_sources['P_bremsstrahlung_e'],
         +integrated_sources['P_alpha_total'],
         integrated_sources['P_SOL_total'],
@@ -199,7 +199,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
 
     state_history = run_simulation.run_simulation(torax_config)
     p_fusion = state_history.post_processed_outputs.P_alpha_total
-    p_external = state_history.post_processed_outputs.P_external_tot
+    p_external = state_history.post_processed_outputs.P_external_total
     e_fusion = state_history.post_processed_outputs.E_fusion
     e_external = state_history.post_processed_outputs.E_aux
     t = state_history.times

@@ -382,7 +382,7 @@ def load_data(filename: str) -> PlotData:
       I_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
       P_ohmic_e=scalars_dataset['P_ohmic_e'].to_numpy(),
       P_auxiliary=(
-          scalars_dataset['P_external_tot'] - scalars_dataset['P_ohmic_e']
+          scalars_dataset['P_external_total'] - scalars_dataset['P_ohmic_e']
       ).to_numpy(),
       P_alpha_total=scalars_dataset['P_alpha_total'].to_numpy(),
       P_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
