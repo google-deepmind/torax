@@ -65,7 +65,6 @@ design workflows. TORAX is written in Python using the JAX_ library.
    overview
    installation
    quickstart
-   faq
 
 .. toctree::
    :hidden:
