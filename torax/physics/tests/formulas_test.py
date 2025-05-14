@@ -117,11 +117,7 @@ class FormulasTest(parameterized.TestCase):
         state.CoreProfiles,
         instance=True,
         density_reference=1e20,
-        currents=mock.create_autospec(
-            state.Currents,
-            instance=True,
-            Ip_total=np.pi * 1e6,
-        ),
+        Ip_profile_face=[np.pi * 1e6],
     )
     geo = mock.create_autospec(
         geometry.Geometry,

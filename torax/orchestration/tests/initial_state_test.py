@@ -17,13 +17,13 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-import numpy as np
 from torax import constants
 from torax.config import build_runtime_params
 from torax.orchestration import initial_state
 from torax.orchestration import step_function
 from torax.output_tools import output
 from torax.sources import source_models as source_models_lib
+from torax.tests.test_lib import core_profile_helpers
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
 
@@ -138,7 +138,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
-    _verify_core_profiles(ref_profiles, index, result.core_profiles)
+    core_profile_helpers.verify_core_profiles(
+        ref_profiles, index, result.core_profiles)
 
 
 def _get_step_fn(torax_config):
@@ -180,60 +181,6 @@ def _get_geo_and_runtime_params_slice(torax_config):
       static,
       dynamic_runtime_params_slice_for_init,
       geo_for_init,
-  )
-
-
-def _verify_core_profiles(ref_profiles, index, core_profiles):
-  """Verify core profiles matches a reference at given index."""
-  np.testing.assert_allclose(
-      core_profiles.T_e.value,
-      ref_profiles[output.TEMPERATURE_ELECTRON][index, 1:-1],
-  )
-  np.testing.assert_allclose(
-      core_profiles.T_i.value,
-      ref_profiles[output.TEMPERATURE_ION][index, 1:-1],
-  )
-  np.testing.assert_allclose(
-      core_profiles.n_e.value, ref_profiles[output.N_E][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.n_e.right_face_constraint,
-      ref_profiles[output.N_E][index, -1],
-  )
-  np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.V_LOOP][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.n_i.value, ref_profiles[output.N_I][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.n_i.right_face_constraint,
-      ref_profiles[output.N_I][index, -1],
-  )
-
-  np.testing.assert_allclose(
-      core_profiles.q_face, ref_profiles[output.Q][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_total, ref_profiles[output.J_TOTAL][index, 1:-1]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_total_face[0],
-      ref_profiles[output.J_TOTAL][index, 0],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_total_face[-1],
-      ref_profiles[output.J_TOTAL][index, -1],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.Ip_profile_face,
-      ref_profiles[output.IP_PROFILE][index, :],
   )
 
 

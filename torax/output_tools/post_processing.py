@@ -595,7 +595,7 @@ def make_post_processed_outputs(
   li3 = psi_calculations.calc_li3(
       sim_state.geometry.R_major,
       Wpol,
-      sim_state.core_profiles.currents.Ip_profile_face[-1],
+      sim_state.core_profiles.Ip_profile_face[-1],
   )
 
   safety_factor_fit_outputs = (
@@ -613,7 +613,7 @@ def make_post_processed_outputs(
   psi_current = (
       j_external + sim_state.core_sources.j_bootstrap.j_bootstrap
   )
-  j_ohmic = sim_state.core_profiles.currents.j_total - psi_current
+  j_ohmic = sim_state.core_profiles.j_total - psi_current
 
   # pylint: enable=invalid-name
   return PostProcessedOutputs(

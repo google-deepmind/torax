@@ -37,7 +37,6 @@ def make_zero_core_profiles(
       right_face_grad_constraint=None,
   )
   return state.CoreProfiles(
-      currents=state.Currents.zeros(geo),
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
       psi=zero_cell_variable,
@@ -61,6 +60,9 @@ def make_zero_core_profiles(
       A_impurity=jnp.zeros(()),
       sigma=jnp.zeros_like(geo.rho),
       sigma_face=jnp.zeros_like(geo.rho_face),
+      j_total=jnp.zeros_like(geo.rho),
+      j_total_face=jnp.zeros_like(geo.rho_face),
+      Ip_profile_face=jnp.zeros_like(geo.rho_face),
   )
 
 
@@ -106,14 +108,14 @@ def verify_core_profiles(
       core_profiles.s_face, ref_profiles[output.MAGNETIC_SHEAR][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_total_face[0],
+      core_profiles.j_total_face[0],
       ref_profiles[output.J_TOTAL][index, 0],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_total_face[-1],
+      core_profiles.j_total_face[-1],
       ref_profiles[output.J_TOTAL][index, -1],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.Ip_profile_face,
+      core_profiles.Ip_profile_face,
       ref_profiles[output.IP_PROFILE][index, :],
   )

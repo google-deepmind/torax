@@ -101,7 +101,6 @@ def initial_core_profiles(
   psi = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho), dr=geo.drho_norm
   )
-  currents = state.Currents.zeros(geo)
 
   core_profiles = state.CoreProfiles(
       T_i=T_i,
@@ -117,7 +116,6 @@ def initial_core_profiles(
       A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
       psi=psi,
       psidot=psidot,
-      currents=currents,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       density_reference=jnp.asarray(
@@ -126,6 +124,9 @@ def initial_core_profiles(
       vloop_lcfs=vloop_lcfs,
       sigma=jnp.zeros_like(geo.rho),
       sigma_face=jnp.zeros_like(geo.rho_face),
+      j_total=jnp.zeros_like(geo.rho),
+      j_total_face=jnp.zeros_like(geo.rho_face),
+      Ip_profile_face=jnp.zeros_like(geo.rho_face),
   )
 
   return _init_psi_and_psi_derived(
@@ -135,26 +136,6 @@ def initial_core_profiles(
       core_profiles,
       source_models,
   )
-
-
-def _calculate_currents_from_psi(
-    geo: geometry.Geometry,
-    psi: cell_variable.CellVariable,
-) -> state.Currents:
-  """Creates the initial Currents using psi to calculate j_total."""
-  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo,
-      psi,
-  )
-  # Note that the psi sources here are the standard sources and don't include
-  # the bootstrap current.
-  currents = state.Currents(
-      j_total=j_total,
-      j_total_face=j_total_face,
-      Ip_profile_face=Ip_profile_face,
-  )
-
-  return currents
 
 
 def update_psi_from_j(
@@ -372,12 +353,18 @@ def _init_psi_and_psi_derived(
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
 
+  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
+      geo, psi
+  )
+
   core_profiles = dataclasses.replace(
       core_profiles,
       psi=psi,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
-      currents=_calculate_currents_from_psi(geo, psi),
+      j_total=j_total,
+      j_total_face=j_total_face,
+      Ip_profile_face=Ip_profile_face,
   )
   bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,

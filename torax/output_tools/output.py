@@ -309,10 +309,10 @@ class StateHistory:
 
     # Currents.
     xr_dict[J_TOTAL] = _extend_cell_grid_to_boundaries(
-        core_profiles.currents.j_total, core_profiles.currents.j_total_face
+        core_profiles.j_total, core_profiles.j_total_face
     )
-    xr_dict[IP_PROFILE] = core_profiles.currents.Ip_profile_face
-    xr_dict[IP] = core_profiles.currents.Ip_total
+    xr_dict[IP_PROFILE] = core_profiles.Ip_profile_face
+    xr_dict[IP] = core_profiles.Ip_profile_face[:, -1]
 
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face

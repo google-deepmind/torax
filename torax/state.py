@@ -26,31 +26,7 @@ from torax.geometry import geometry
 from torax.sources import source_profiles
 import typing_extensions
 
-
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
-class Currents:
-  """Dataclass to group currents and related variables (e.g. conductivity)."""
-
-  j_total: array_typing.ArrayFloat
-  j_total_face: array_typing.ArrayFloat
-  # pylint: disable=invalid-name
-  # Using physics notation naming convention
-  Ip_profile_face: array_typing.ArrayFloat  # [A]
-
-  @property
-  def Ip_total(self) -> array_typing.ScalarFloat:
-    """Returns the total plasma current [A]."""
-    return self.Ip_profile_face[..., -1]
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> "Currents":
-    """Returns a Currents with all zeros."""
-    return cls(
-        j_total=jnp.zeros(geo.rho_face.shape),
-        j_total_face=jnp.zeros(geo.rho_face.shape),
-        Ip_profile_face=jnp.zeros(geo.rho_face.shape),
-    )
 
 
 @chex.dataclass(frozen=True, eq=False)
@@ -71,7 +47,6 @@ class CoreProfiles:
       n_e: Electron density [density_reference m^-3].
       n_i: Main ion density [density_reference m^-3].
       n_impurity: Impurity density [density_reference m^-3].
-      currents: Instance of the Currents dataclass.
       q_face: Safety factor.
       s_face: Magnetic shear.
       density_reference: Reference density [m^-3].
@@ -84,6 +59,9 @@ class CoreProfiles:
       A_impurity: Impurity mass [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
+      j_total: Total current density on the cell grid [A/m^2].
+      j_total_face: Total current density on face grid [A/m^2].
+      Ip_profile_face: Plasma current profile on the face grid [A].
   """
 
   T_i: cell_variable.CellVariable
@@ -93,21 +71,21 @@ class CoreProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  currents: Currents
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
   density_reference: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
-  # pylint: disable=invalid-name
   Z_i: array_typing.ArrayFloat
   Z_i_face: array_typing.ArrayFloat
   A_i: array_typing.ScalarFloat
   Z_impurity: array_typing.ArrayFloat
   Z_impurity_face: array_typing.ArrayFloat
   A_impurity: array_typing.ScalarFloat
-  # pylint: enable=invalid-name
   sigma: array_typing.ArrayFloat
   sigma_face: array_typing.ArrayFloat
+  j_total: array_typing.ArrayFloat
+  j_total_face: array_typing.ArrayFloat
+  Ip_profile_face: array_typing.ArrayFloat
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""

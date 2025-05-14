@@ -80,11 +80,13 @@ def calculate_plh_scaling_factor(
   A_deuterium = constants.ION_PROPERTIES_DICT['D']['A']
   P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.A_i
 
+  Ip_total = core_profiles.Ip_profile_face[..., -1]
+
   # Calculate density (in density_reference) corresponding to P_LH_min
   # from Eq 3 Ryter 2014
   n_e_min_P_LH = (
       0.7
-      * (core_profiles.currents.Ip_total / 1e6) ** 0.34
+      * (Ip_total / 1e6) ** 0.34
       * geo.a_minor**-0.95
       * geo.B_0**0.62
       * (geo.R_major / geo.a_minor) ** 0.4
@@ -94,7 +96,7 @@ def calculate_plh_scaling_factor(
   # Calculate P_LH_min at n_e_min from Eq 4 Ryter 2014
   P_LH_min_D = (
       0.36
-      * (core_profiles.currents.Ip_total / 1e6) ** 0.27
+      * (Ip_total / 1e6) ** 0.27
       * geo.B_0**1.25
       * geo.R_major**1.23
       * (geo.R_major / geo.a_minor) ** 0.08
@@ -187,7 +189,7 @@ def calculate_scaling_law_confinement_time(
 
   params = scaling_params[scaling_law]
 
-  scaled_Ip = core_profiles.currents.Ip_total / 1e6  # convert to MA
+  scaled_Ip = core_profiles.Ip_profile_face[-1] / 1e6  # convert to MA
   scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (

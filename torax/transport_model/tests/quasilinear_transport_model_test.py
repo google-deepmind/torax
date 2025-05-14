@@ -29,7 +29,6 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import default_configs
@@ -287,8 +286,6 @@ class FakeQuasilinearTransportModel(
 
 def _get_dummy_core_profiles(value, right_face_constraint):
   """Returns dummy core profiles for testing."""
-  geo = geometry_pydantic_model.CircularConfig().build_geometry()
-  currents = state.Currents.zeros(geo)
   dummy_cell_variable = cell_variable.CellVariable(
       value=value,
       right_face_constraint=right_face_constraint,
@@ -301,7 +298,6 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       n_e=dummy_cell_variable,
       n_i=dummy_cell_variable,
       n_impurity=dummy_cell_variable,
-      currents=currents,
       Z_i=1.0,
       Z_i_face=1.0,
       Z_impurity=1.0,
@@ -316,6 +312,9 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       vloop_lcfs=1.0,
       sigma=1.0,
       sigma_face=1.0,
+      j_total=1.0,
+      j_total_face=1.0,
+      Ip_profile_face=1.0,
   )
 
 

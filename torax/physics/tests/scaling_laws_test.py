@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -54,7 +53,6 @@ class ScalingLawsTest(parameterized.TestCase):
         psi=mock.ANY,
         psidot=mock.ANY,
         vloop_lcfs=mock.ANY,
-        currents=state.Currents.zeros(geo),
         q_face=mock.ANY,
         s_face=mock.ANY,
         Z_i=mock.ANY,
@@ -66,14 +64,9 @@ class ScalingLawsTest(parameterized.TestCase):
         density_reference=1e20,
         sigma=mock.ANY,
         sigma_face=mock.ANY,
-    )
-
-    core_profiles = dataclasses.replace(
-        core_profiles,
-        currents=dataclasses.replace(
-            core_profiles.currents,
-            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-        ),
+        j_total=mock.ANY,
+        j_total_face=mock.ANY,
+        Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
     )
     P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
         scaling_laws.calculate_plh_scaling_factor(geo, core_profiles)
@@ -122,7 +115,6 @@ class ScalingLawsTest(parameterized.TestCase):
         psi=mock.ANY,
         psidot=mock.ANY,
         vloop_lcfs=mock.ANY,
-        currents=state.Currents.zeros(geo),
         q_face=mock.ANY,
         s_face=mock.ANY,
         Z_i=mock.ANY,
@@ -134,13 +126,9 @@ class ScalingLawsTest(parameterized.TestCase):
         density_reference=1e20,
         sigma=mock.ANY,
         sigma_face=mock.ANY,
-    )
-    core_profiles = dataclasses.replace(
-        core_profiles,
-        currents=dataclasses.replace(
-            core_profiles.currents,
-            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-        ),
+        j_total=mock.ANY,
+        j_total_face=mock.ANY,
+        Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
     )
     Ploss = jnp.array(50e6)
 

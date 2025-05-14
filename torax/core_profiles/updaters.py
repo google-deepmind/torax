@@ -48,22 +48,6 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-def _get_updated_currents(
-    geo: geometry.Geometry,
-    psi: array_typing.ArrayFloat,
-) -> state.Currents:
-  """Updates the currents in the core profiles from the source profiles."""
-  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo, psi
-  )
-
-  return state.Currents(
-      j_total=j_total,
-      j_total_face=j_total_face,
-      Ip_profile_face=Ip_profile_face,
-  )
-
-
 def _calculate_psi_value_constraint_from_vloop(
     dt: array_typing.ScalarFloat,
     theta: array_typing.ScalarFloat,
@@ -309,6 +293,10 @@ def update_all_core_profiles_after_step(
       right_face_grad_constraint=None,
   )
 
+  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
+      geo, psi
+  )
+
   return state.CoreProfiles(
       T_i=T_i,
       T_e=T_e,
@@ -320,7 +308,6 @@ def update_all_core_profiles_after_step(
       Z_i_face=Z_i_face,
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
-      currents=_get_updated_currents(geo, psi),
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
@@ -331,6 +318,9 @@ def update_all_core_profiles_after_step(
       # These have already been updated in the solver.
       sigma=core_profiles_t_plus_dt.sigma,
       sigma_face=core_profiles_t_plus_dt.sigma_face,
+      j_total=j_total,
+      j_total_face=j_total_face,
+      Ip_profile_face=Ip_profile_face,
   )
 
 

@@ -380,8 +380,8 @@ def _calculate_currents(
       source_models=source_models,
       conductivity=conductivity,
   )
-  j_total = core_profiles.currents.j_total
-  j_total_face = core_profiles.currents.j_total_face
+  j_total = core_profiles.j_total
+  j_total_face = core_profiles.j_total_face
   j_external = sum(core_sources.psi.values())
   j_bootstrap = core_sources.j_bootstrap.j_bootstrap
   j_ohmic = j_total - j_external - j_bootstrap
