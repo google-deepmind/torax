@@ -14,9 +14,6 @@
 
 """Library functionality for TORAX."""
 
-import os
-
-import jax
 
 # pylint: disable=g-importing-member
 
@@ -48,18 +45,6 @@ __all__ = [
     'StateHistory',
 ]
 
-
-def set_jax_precision():
-  # Default TORAX JAX precision is f64
-  precision = os.getenv('JAX_PRECISION', 'f64')
-  assert precision == 'f64' or precision == 'f32', (
-      'Unknown JAX precision environment variable: %s' % precision
-  )
-  if precision == 'f64':
-    jax.config.update('jax_enable_x64', True)
-
-
-set_jax_precision()
 
 # Throughout TORAX, we maintain the following canonical argument order for
 # common argument names passed to many functions. This is a stylistic

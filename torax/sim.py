@@ -25,6 +25,7 @@ it easier to print error messages in context).
 """
 
 import dataclasses
+import os
 import time
 
 from absl import logging
@@ -38,6 +39,19 @@ from torax.orchestration import sim_state
 from torax.orchestration import step_function
 from torax.output_tools import post_processing
 import tqdm
+
+
+def _set_jax_precision():
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  if precision == 'f64':
+    jax.config.update('jax_enable_x64', True)
+
+
+_set_jax_precision()
 
 
 def _run_simulation(
