@@ -18,7 +18,7 @@ import abc
 import chex
 from torax import array_typing
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax.torax_pydantic import torax_pydantic

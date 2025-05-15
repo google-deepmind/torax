@@ -18,7 +18,7 @@ import functools
 from typing import Literal
 
 import pydantic
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.fvm import enums
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib

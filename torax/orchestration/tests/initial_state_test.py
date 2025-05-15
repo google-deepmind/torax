@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from torax import constants
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.orchestration import initial_state
 from torax.orchestration import step_function
 from torax.output_tools import output

@@ -20,7 +20,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax import array_typing
 from torax import constants
-from torax.config import plasma_composition
+from torax._src.config import plasma_composition
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,

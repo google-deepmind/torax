@@ -21,7 +21,7 @@ import abc
 
 import jax
 from torax import state as state_module
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 
 

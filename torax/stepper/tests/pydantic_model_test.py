@@ -14,7 +14,7 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method

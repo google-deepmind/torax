@@ -21,7 +21,7 @@ import time
 from absl import app
 from absl import flags
 from torax import simulation_app
-from torax.config import config_loader
+from torax._src.config import config_loader
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import paths
 from torax.torax_pydantic import model_config

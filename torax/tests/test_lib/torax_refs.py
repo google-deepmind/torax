@@ -18,8 +18,8 @@ import chex
 from jax import numpy as jnp
 import numpy as np
 from torax import fvm
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.torax_pydantic import model_config

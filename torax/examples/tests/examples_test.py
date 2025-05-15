@@ -16,7 +16,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import config_loader
+from torax._src.config import config_loader
 from torax.torax_pydantic import model_config
 
 

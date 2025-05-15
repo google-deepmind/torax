@@ -25,7 +25,7 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 

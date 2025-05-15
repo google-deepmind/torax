@@ -38,9 +38,9 @@ from collections.abc import Mapping
 import dataclasses
 
 import chex
-from torax.config import numerics
-from torax.config import plasma_composition
-from torax.config import profile_conditions
+from torax._src.config import numerics
+from torax._src.config import plasma_composition
+from torax._src.config import profile_conditions
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
 from torax.mhd import runtime_params as mhd_runtime_params

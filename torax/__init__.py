@@ -21,8 +21,8 @@ import jax
 # pylint: disable=g-importing-member
 
 from torax import version
-from torax.config.config_loader import build_torax_config_from_file
-from torax.config.config_loader import import_module
+from torax._src.config.config_loader import build_torax_config_from_file
+from torax._src.config.config_loader import import_module
 from torax.interpolated_param import InterpolatedVarSingleAxis
 from torax.interpolated_param import InterpolatedVarTimeRho
 from torax.interpolated_param import InterpolationMode

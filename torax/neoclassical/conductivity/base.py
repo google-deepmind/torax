@@ -17,7 +17,7 @@ import abc
 
 import chex
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry as geometry_lib
 from torax.torax_pydantic import torax_pydantic
 

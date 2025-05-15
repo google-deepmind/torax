@@ -18,8 +18,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib

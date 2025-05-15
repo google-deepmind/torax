@@ -22,7 +22,7 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 from torax import simulation_app
-from torax.config import config_loader
+from torax._src.config import config_loader
 from torax.orchestration import run_simulation
 from torax.output_tools import output
 from torax.tests.test_lib import paths

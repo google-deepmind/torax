@@ -16,7 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 import chex
 from torax import math_utils
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib

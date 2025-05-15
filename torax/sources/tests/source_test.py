@@ -16,7 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import electron_cyclotron_source
 from torax.sources import generic_current_source

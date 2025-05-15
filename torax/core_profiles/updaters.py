@@ -34,7 +34,7 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import jax_utils
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import geometry

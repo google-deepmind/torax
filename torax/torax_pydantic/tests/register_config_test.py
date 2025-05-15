@@ -19,7 +19,7 @@ from absl.testing import parameterized
 import chex
 from torax import array_typing
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base as source_base_pydantic_model

@@ -18,10 +18,10 @@ from jax import numpy as jnp
 import numpy as np
 from torax import constants
 from torax import jax_utils
-from torax.config import build_runtime_params
-from torax.config import numerics as numerics_lib
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import numerics as numerics_lib
+from torax._src.config import profile_conditions as profile_conditions_lib
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model

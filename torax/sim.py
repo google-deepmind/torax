@@ -31,8 +31,8 @@ from absl import logging
 import jax
 import numpy as np
 from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import sim_state
 from torax.orchestration import step_function

@@ -17,10 +17,10 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from torax.config import build_runtime_params
-from torax.config import numerics
-from torax.config import plasma_composition
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import numerics
+from torax._src.config import plasma_composition
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import default_configs

@@ -18,7 +18,7 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import constants as constants_module
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib

@@ -31,7 +31,7 @@ from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax import jax_utils
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import pydantic_model_base

@@ -19,9 +19,9 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import jax_utils
-from torax.config import numerics
-from torax.config import profile_conditions
-from torax.config import runtime_params_slice
+from torax._src.config import numerics
+from torax._src.config import profile_conditions
+from torax._src.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.physics import charge_states

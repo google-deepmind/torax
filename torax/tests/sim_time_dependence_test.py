@@ -25,8 +25,8 @@ import jax.numpy as jnp
 import numpy as np
 from torax import sim
 from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib

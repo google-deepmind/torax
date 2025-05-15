@@ -19,7 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from torax import version
-from torax.config import config_loader
+from torax._src.config import config_loader
 from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic

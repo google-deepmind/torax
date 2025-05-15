@@ -14,7 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax.config import plasma_composition
+from torax._src.config import plasma_composition
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib

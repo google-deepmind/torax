@@ -17,7 +17,7 @@ from typing import Literal
 
 import chex
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry as geometry_lib
 from torax.neoclassical.bootstrap_current import base
 from torax.neoclassical.bootstrap_current import runtime_params

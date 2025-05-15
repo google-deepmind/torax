@@ -16,7 +16,7 @@
 
 import chex
 import pydantic
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.mhd import base
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model

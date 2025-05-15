@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax import jax_utils
 from torax import math_utils
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base

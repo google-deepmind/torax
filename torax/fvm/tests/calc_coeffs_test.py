@@ -14,7 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
 from torax.sources import source_models as source_models_lib

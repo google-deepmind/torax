@@ -25,8 +25,8 @@ from torax import array_typing
 from torax import constants
 from torax import jax_utils
 from torax import state
-from torax.config import plasma_composition
-from torax.config import runtime_params_slice
+from torax._src.config import plasma_composition
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.neoclassical.conductivity import base as conductivity_base
 from torax.sources import base

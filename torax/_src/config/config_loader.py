@@ -40,7 +40,7 @@ ExamplePlotConfig: TypeAlias = Literal[
 def torax_path() -> pathlib.Path:
   """Returns the absolute path to the Torax directory."""
 
-  path = pathlib.Path(__file__).parent.parent
+  path = pathlib.Path(__file__).parent.parent.parent
   assert path.is_dir(), f'Path {path} is not a directory.'
   assert path.parts[-1] == 'torax', f'Path {path} is not a Torax directory.'
   return path

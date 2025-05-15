@@ -22,7 +22,7 @@ import jax
 import jax.numpy as jnp
 from torax import array_typing
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 
 # pylint: disable=invalid-name

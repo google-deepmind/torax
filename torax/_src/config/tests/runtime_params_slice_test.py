@@ -15,8 +15,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice as runtime_params_slice_lib
 from torax.tests.test_lib import default_configs
 from torax.torax_pydantic import model_config
 

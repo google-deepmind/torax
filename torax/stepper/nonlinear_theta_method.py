@@ -18,7 +18,7 @@ import abc
 import chex
 import jax
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import enums

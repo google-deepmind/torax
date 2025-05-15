@@ -18,7 +18,7 @@ from jax import numpy as jnp
 import numpy as np
 import scipy
 from torax import state
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import run_simulation

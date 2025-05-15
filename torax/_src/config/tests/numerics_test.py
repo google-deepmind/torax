@@ -14,7 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import numerics
+from torax._src.config import numerics
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.torax_pydantic import torax_pydantic
 

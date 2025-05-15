@@ -37,7 +37,7 @@ module, due to the tuple return type.
   from absl import logging
   from torax import simulation_app
   from torax.examples import basic_config
-  from torax.config import build_sim
+  from torax._src.config import build_sim
 
   def run(_):
     sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)

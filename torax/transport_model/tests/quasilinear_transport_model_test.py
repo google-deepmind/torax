@@ -24,8 +24,8 @@ import numpy as np
 import pydantic
 from torax import constants as constants_module
 from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry

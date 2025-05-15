@@ -19,9 +19,9 @@ import logging
 from typing import Any, Mapping
 import pydantic
 from torax import version
-from torax.config import numerics as numerics_lib
-from torax.config import plasma_composition as plasma_composition_lib
-from torax.config import profile_conditions as profile_conditions_lib
+from torax._src.config import numerics as numerics_lib
+from torax._src.config import plasma_composition as plasma_composition_lib
+from torax._src.config import profile_conditions as profile_conditions_lib
 from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import pydantic_model as mhd_pydantic_model

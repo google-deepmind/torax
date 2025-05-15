@@ -19,7 +19,7 @@ import chex
 import numpy as np
 from torax import array_typing
 from torax import constants
-from torax.config import runtime_validation_utils
+from torax._src.config import runtime_validation_utils
 from torax.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name

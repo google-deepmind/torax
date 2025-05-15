@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib

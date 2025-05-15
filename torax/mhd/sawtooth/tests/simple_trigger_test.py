@@ -19,7 +19,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.mhd import runtime_params as mhd_runtime_params
 from torax.mhd.sawtooth import runtime_params as sawtooth_runtime_params

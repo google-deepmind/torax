@@ -15,8 +15,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax.config import build_runtime_params
-from torax.config import profile_conditions as profile_conditions_lib
+from torax._src.config import build_runtime_params
+from torax._src.config import profile_conditions as profile_conditions_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped

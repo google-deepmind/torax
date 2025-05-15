@@ -21,7 +21,7 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.mhd.sawtooth import runtime_params
 from torax.mhd.sawtooth import trigger_base

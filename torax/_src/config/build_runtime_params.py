@@ -23,7 +23,7 @@ This module also provides a method
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
 import chex
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.torax_pydantic import model_config

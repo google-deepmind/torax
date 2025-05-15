@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.sources import base

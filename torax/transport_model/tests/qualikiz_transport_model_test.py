@@ -18,7 +18,7 @@ from unittest import mock
 
 from absl.testing import absltest
 import numpy as np
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib

@@ -14,7 +14,7 @@
 from unittest import mock
 
 from absl.testing import absltest
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.sources import ohmic_heat_source
 from torax.sources.tests import test_lib
 

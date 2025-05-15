@@ -20,7 +20,7 @@ import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.core_profiles import getters
 from torax.geometry import geometry
 from torax.mhd.sawtooth import flatten_profile

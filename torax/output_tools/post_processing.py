@@ -22,7 +22,7 @@ from torax import constants
 from torax import jax_utils
 from torax import math_utils
 from torax import state
-from torax.config import runtime_params_slice
+from torax._src.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.orchestration import sim_state as sim_state_lib
 from torax.output_tools import safety_factor_fit

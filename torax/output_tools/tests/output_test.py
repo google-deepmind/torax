@@ -23,7 +23,7 @@ from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
 from torax import state
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base

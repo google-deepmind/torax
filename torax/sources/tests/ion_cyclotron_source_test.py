@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import ion_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib

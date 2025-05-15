@@ -17,7 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import constants
-from torax.config import build_runtime_params
+from torax._src.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import fusion_heat_source
 from torax.sources import source_models as source_models_lib
