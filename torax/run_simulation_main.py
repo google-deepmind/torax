@@ -118,7 +118,6 @@ class _UserCommand(enum.Enum):
   MODIFY_CONFIG = ('modify the existing config and reload it', 'mc')
   CHANGE_CONFIG = ('provide a new config file to load', 'cc')
   TOGGLE_LOG_SIM_PROGRESS = ('toggle --log_progress', 'tlp')
-  TOGGLE_PLOT_SIM_PROGRESS = ('toggle --plot_progress', 'tpp')
   TOGGLE_LOG_SIM_OUTPUT = ('toggle --log_output', 'tlo')
   PLOT_RUN = ('plot previous run(s) or against reference if provided', 'pr')
   QUIT = ('quit', 'q', simulation_app.AnsiColors.RED)
@@ -466,8 +465,6 @@ def main(_):
             )
       case _UserCommand.TOGGLE_LOG_SIM_PROGRESS:
         log_sim_progress = _toggle_log_progress(log_sim_progress)
-      case _UserCommand.TOGGLE_PLOT_SIM_PROGRESS:
-        plot_sim_progress = _toggle_plot_progress(plot_sim_progress)
       case _UserCommand.TOGGLE_LOG_SIM_OUTPUT:
         log_sim_output = _toggle_log_output(log_sim_output)
       case _UserCommand.PLOT_RUN:

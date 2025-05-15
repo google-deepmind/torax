@@ -130,8 +130,8 @@ def _log_single_state(
   logging.info('psi: %s', core_profiles.psi.value)
   logging.info('n_e: %s', core_profiles.n_e.value)
   logging.info('n_i: %s', core_profiles.n_i.value)
-  logging.info('q_face: %s', core_profiles.q_face)
-  logging.info('s_face: %s', core_profiles.s_face)
+  logging.info('q: %s', core_profiles.q_face)
+  logging.info('magnetic_shear: %s', core_profiles.s_face)
 
 
 def log_simulation_output_to_stdout(
