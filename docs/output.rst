@@ -3,23 +3,24 @@
 Simulation output structure
 ###########################
 
-TORAX file output is written to a ``state_history.nc`` netCDF file. The ``output_dir``
-string is set in the config dict **runtime_params** key, with default
-``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``.
+TORAX file output is written to a ``state_history.nc`` netCDF file. If running with
+the ``run_simulation_main.py`` or ``run_torax`` script, the ``output_dir``
+is set via flag ``--output_dir``, with default
+``/tmp/torax_results_<YYYYMMDD_HHMMSS>/``.
 
-Currently we do not support backwards compatibility for old netCDF files. The
-prior flat structure of TORAX outputs in a single dataset is at v0.2.0.
+We currently support the output structure for Torax v1.0.0.
 
 The output is an `[xarray] <https://docs.xarray.dev>`_ DataTree.
 
-The Dataset is a hierarchical structure containing ``xarray.DataSet``s
-corresponding to a subset of the TORAX internal ``Geometry``, ``core_profiles``,
-``core_sources``, ``core_transport`` and ``post_processed_outputs`` each of
-which contains ``xarray.DataArray`` type data variables. Note that while sharing
-similar names and contents, these internal objects do not exactly correspond to
-IMAS objects.
+The Dataset is a hierarchical structure containing three ``xarray.DataSet`` :
 
-Also, note that, as of June 2024, TORAX does not have a specific COCOS it
+* ``numerics`` containing simulation numeric quantities.
+* ``scalars`` containing scalar quantities.
+* ``profiles`` containing 1D profile quantities.
+
+Where sensible we have aimed to match names used by the IMAS standard.
+
+Also, note that, TORAX does not have a specific COCOS it
 adheres to, yet. Our team is working on aligning to a specific standard COCOS
 on both the input and output. (CHEASE, which is COCOS 2 is still the supported
 way to provide geometric inputs to TORAX, and we will continue to support CHEASE
@@ -31,16 +32,16 @@ Dimensions
 The DataTree/Dataset variables can have the following dimensions:
 
 * (time)
-* (space)
 * (time, space)
 
-There are two named variants of spatial dimension:
+There are three named variants of spatial dimension:
 
-* **rho_cell**: corresponding to the ``torax.fvm`` cell grid (see :ref:`fvm`).
-* **rho_face**: corresponding to the ``torax.fvm`` face grid (see :ref:`fvm`).
+* **rho_cell_norm**: corresponding to the ``torax.fvm`` cell grid (see :ref:`fvm`).
+* **rho_face_norm**: corresponding to the ``torax.fvm`` face grid (see :ref:`fvm`).
+* **rho_norm**: corresponding to the ``torax.fvm`` cell grid plus boundary values (see :ref:`fvm`).
 
 In all subsequent lists, the dimensions associated with each variable or coordinate
-will be surrounded by parentheses, e.g. (time, rho_cell).
+will be surrounded by parentheses, e.g. (time, rho_norm).
 
 Coordinates
 ===========
@@ -55,11 +56,11 @@ quantities into a single output with on the cell grid as well as the left and
 right face values. These different grids exist due to the finite-volume method.
 
 * ``time`` (time)
-    Times corresponding to each simulation timestep, in units of [s].
+    Times corresponding to each simulation timestep, in units of [:math:`s`].
 
 * ``rho_norm`` (rho_cell + boundary values)
    Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid.
-   The array size is set in the input config by ``geometry['nrho']``.
+   The array size is set in the input config by ``geometry['nrho']+2``.
 
 * ``rho_cell_norm`` (rho_cell)
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid.
@@ -69,437 +70,498 @@ right face values. These different grids exist due to the finite-volume method.
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid.
     The array size is ``geometry['nrho']+1``.
 
-In xarray, Coordinates are also embedded within the data variables. For example,
-a data variable like ``j_bootstrap``, with dimensions (time, rho_cell), will be associated
-with both ``rho_cell`` and ``rho_cell_norm``.
-
 Top level dataset
 =================
-The top level dataset contains an indicator of whether the simulation completed
-successfully as well as the input config that was used to run the simulation.
-
-``sim_error`` ()
-  Indicator if the simulation completed successfully, 0 if successful, 1 if not.
+The top level dataset contains the config used to run the simulation. This can
+be used to rerun a simulation with the same input. Otherwise the top level
+only has references to the child datasets.
 
 ``attrs`` ()
   The ``attrs`` field of a Dataset is used to store metadata about the Dataset
   as a dictionary. We use this field to store the input config as a json string
   under the ``config`` key.
 
-``sawtooth_crash`` (time)
-  Boolean array with a length equal to the number of simulation timesteps,
-  indicating whether the state at that timestep corresponds to a
-  post-sawtooth-crash state.
+To retrieve the input config we can do the following see "Examples" below.
 
 Child datasets
 ==============
 The following datasets are child nodes, the title of each section is the name of
 the child ``DataTree``.
 
-core_profiles
--------------
+numerics
+--------
+The ``numerics`` dataset contains the following data variables.
 
-``T_e`` (time, rho_cell + boundary values)
-  Electron temperature in :math:`[keV]`.
+``sim_error`` ()
+  Indicator if the simulation completed successfully, 0 if successful, 1 if not.
 
-``T_i`` (time, rho_cell + boundary values)
-  Ion temperature in :math:`[keV]`.
+``sawtooth_crash`` (time)
+  Boolean array with a length equal to the number of simulation timesteps,
+  indicating whether the state at that timestep corresponds to a
+  post-sawtooth-crash state.
 
-``n_e`` (time, rho_cell + boundary values)
-  Electron density in :math:`[m^{-3}]`.
+``outer_solver_iterations`` (time)
+  Number of outer solver iterations. This will either be 1 or in the case of
+  any adaptive steps being taken, 1+`num_adaptive_steps`
 
-``n_i`` (time, rho_cell + boundary values)
-  Main ion density in in :math:`[m^{-3}]`.
+``inner_solver_iterations`` (time)
+  Number of inner solver iterations.
 
-``n_impurity`` (time, rho_cell + boundary values)
-  Impurity ion density in in :math:`[m^{-3}]`.
+profiles
+--------
 
-``psi`` (time, rho_cell + boundary values)
-  Poloidal flux :math:`(\psi)` in :math:`[Wb]`.
+This dataset contains radial profiles of various plasma parameters at different times. The radial coordinate is the normalized toroidal flux coordinate.
+Note that the output structure is dependent on the input config for the ``geometry``, ``transport`` and ``sources`` fields.
 
-``psidot`` (time, rho_cell + boundary values)
-  Loop voltage :math:`V_{loop}=\frac{\partial\psi}{\partial t}`.
+For ``sources`` certain profiles are only output if the source is active.
 
-``q_face`` (time, rho_face)
-  q-profile on face grid.
+For ``geometry`` certain profiles are only output if ``circular`` geometry is not used.
 
-``s_face`` (time, rho_face)
-  Magnetic shear on face grid.
+For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` model is used.
 
-``sigma`` (time, rho_cell)
-  Plasma conductivity on cell grid, in :math:`[S/m]`.
+profiles
+--------
 
-``j_bootstrap`` (time, rho_cell + boundary values)
-  Bootstrap current density on cell grid plus boundary values, in :math:`[A/m^2]`
+This dataset contains radial profiles of various plasma parameters at different times. The radial coordinate is the normalized toroidal flux coordinate.
 
-``core_profiles_generic_current_source`` (time, rho_cell)
-  External non-inductive current density on cell grid, as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
+``T_e`` (time, rho_norm)
+  Electron temperature profile [:math:`keV`].
 
-``j_ohmic`` (time, rho_cell)
-  Ohmic current density on cell grid in :math:`[A/m^2]`.
+``T_i`` (time, rho_norm)
+  Ion temperature profile [:math:`keV`].
 
-``j_total`` (time, rho_cell + boundary values)
-  Total current density on cell grid plus boundary values in :math:`[A/m^2]`.
+``psi`` (time, rho_norm)
+  Poloidal flux profile :math:`(\psi)` [:math:`Wb`].
 
-``Ip_profile_face`` (time, rho_face)
-  Current profile on face grid, in :math:`[A]`.
+``v_loop`` (time, rho_norm)
+  Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}` [:math:`V`].
+
+``n_e`` (time, rho_norm)
+  Electron density profile [:math:`m^{-3}`].
+
+``n_i`` (time, rho_norm)
+  Main ion density profile [:math:`m^{-3}`].
+
+``n_impurity`` (time, rho_norm)
+  Impurity density profile [:math:`m^{-3}`].
+
+``Z_impurity`` (time, rho_norm)
+  Effective charge profile of the impurity species [dimensionless].
+
+``j_total`` (time, rho_norm)
+  Total current density profile [:math:`A/m^2`].
+
+``Ip_profile`` (time, rho_face_norm)
+  Total current profile on the face grid [:math:`A`].
+
+``q`` (time, rho_face_norm)
+  Safety factor profile on the face grid [dimensionless].
+
+``magnetic_shear`` (time, rho_face_norm)
+  Magnetic shear profile on the face grid [dimensionless].
+
+``chi_turb_i`` (time, rho_face_norm)
+  Turbulent ion heat conductivity profile [:math:`m^2/s`].
+
+``chi_turb_e`` (time, rho_face_norm)
+  Turbulent electron heat conductivity profile [:math:`m^2/s`].
+
+``D_turb_e`` (time, rho_face_norm)
+  Turbulent electron particle diffusivity profile on the face grid [:math:`m^2/s`].
+
+``V_turb_e`` (time, rho_face_norm)
+  Turbulent electron particle convection profile on the face grid [:math:`m/s`].
+
+``chi_bohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  Bohm electron heat conductivity profile on the face grid. Only output if active.
+
+``chi_gyrobohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  Gyro-Bohm electron heat conductivity profile on the face grid. Only output if active.
+
+``chi_bohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
+  Bohm ion heat conductivity profile on the face grid. Only output if active.
+
+``chi_gyrobohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
+  Gyro-Bohm ion heat conductivity profile on the face grid. Only output if active.
+
+``ei_exchange`` (time, rho_cell_norm)
+  Ion-electron heat exchange density profile on the cell grid [:math:`W/m^3`]. Positive values mean heat source for ions, and heat sink for electrons.
+
+``j_bootstrap`` (time, rho_norm)
+  Bootstrap current density profile [:math:`A/m^2`].
+
+``sigma_parallel`` (time, rho_cell_norm)
+  Plasma conductivity parallel to the magnetic field profile on the cell grid [:math:`S/m`].
+
+``p_cyclotron_radiation_e`` (time, rho_cell_norm) [:math:`W/m^3`]
+  Cyclotron radiation heat sink density profile on the cell grid. Only output if `cyclotron_radiation` source is active.
+
+``p_ecrh_e`` (time, rho_cell_norm)
+  Electron cyclotron heating power density profile on the cell grid [:math:`W/m^3`]. Only output if `ecrh` source is active.
+
+``j_ecrh`` (time, rho_cell_norm)
+  Electron cyclotron heating current density profile on the cell grid [:math:`A/m^2`]. Only output if `ecrh` source is active.
+
+``p_icrh_i`` (time, rho_cell_norm)
+  Ion cyclotron heating power density ion heating profile on the cell grid [:math:`W/m^3`]. Only output if `icrh` source is active.
+
+``p_icrh_e`` (time, rho_cell_norm)
+  Ion cyclotron heating power density electron heating profile on the cell grid [:math:`W/m^3`]. Only output if `icrh` source is active.
+
+``p_alpha_i`` (time, rho_cell_norm)
+  Fusion alpha heating power density profile to ions on the cell grid [:math:`W/m^3`]. Only output if `fusion` source is active.
+
+``p_impurity_radiation_e`` (time, rho_cell_norm)
+  Impurity radiation heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if `impurity_radiation` source is active.
+
+``p_ohmic_e`` (time, rho_cell_norm)
+  Ohmic heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if `ohmic` source is active.
+
+``p_generic_heat_i`` (time, rho_cell_norm)
+  Generic external ion heat source density profile on the cell grid [:math:`W/m^3`]. Only output if `generic_heat` source is active.
+
+``p_alpha_e`` (time, rho_cell_norm)
+  Fusion alpha heating power density profile to electrons on the cell grid [:math:`W/m^3`]. Only output if `fusion` source is active.
+
+``p_generic_heat_e`` (time, rho_cell_norm)
+  Generic external electron heat source density profile on the cell grid [:math:`W/m^3`]. Only output if `generic_heat` source is active.
+
+``j_generic_current`` (time, rho_cell_norm)
+  Generic external non-inductive current density profile on the cell grid [:math:`A/m^2`]. Only output if `generic_current` source is active.
+
+``s_gas_puff`` (time, rho_cell_norm)
+  Gas puff particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `gas_puff` source is active.
+
+``s_generic_particle`` (time, rho_cell_norm)
+  Generic particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `generic_particle` source is active.
+
+``s_pellet`` (time, rho_cell_norm)
+  Pellet particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `pellet` source is active.
+
+``pressure_thermal_i`` (time, rho_face_norm)
+  Ion thermal pressure profile [:math:`Pa`].
+
+``pressure_thermal_e`` (time, rho_face_norm)
+  Electron thermal pressure profile [:math:`Pa`].
+
+``pressure_thermal_total`` (time, rho_face_norm)
+  Total thermal pressure profile [:math:`Pa`].
+
+``pprime`` (time, rho_face_norm)
+  Derivative of total pressure with respect to poloidal flux [:math:`Pa/Wb`].
+
+``FFprime`` (time, rho_face_norm)
+  :math:`FF'` profile on the face grid [:math:`m^2 T^2 / Wb`].
+
+``psi_norm`` (time, rho_face_norm)
+  Normalized poloidal flux profile [dimensionless].
+
+``j_external`` (time, rho_cell_norm)
+  Total external current density profile (including generic and ECRH current) [:math:`A/m^2`].
+
+``j_ohmic`` (time, rho_cell_norm)
+  Ohmic current density profile [:math:`A/m^2`].
+
+``Phi`` (time, rho_norm)
+  Toroidal magnetic flux at each radial grid point [:math:`Wb`].
+
+``volume`` (time, rho_norm)
+  Plasma volume enclosed by each flux surface [:math:`m^3`].
+
+``area`` (time, rho_norm)
+  Poloidal cross-sectional area of each flux surface [:math:`m^2`].
+
+``vpr`` (time, rho_norm)
+  Derivative of plasma volume enclosed by each flux surface with respect to the normalized toroidal flux coordinate rho_norm [:math:`m^3`].
+
+``spr`` (time, rho_norm)
+  Derivative of plasma surface area enclosed by each flux surface, with respect to the normalized toroidal flux coordinate rho_norm [:math:`m^2`].
+
+``elongation`` (time, rho_norm)
+  Elongation of each flux surface [dimensionless].
+
+``g0`` (time, rho_norm)
+  Flux surface averaged :math:`\nabla V`, the radial derivative of the plasma volume [:math:`m^2`].
+
+``g1`` (time, rho_norm)
+  Flux surface averaged :math:`(\nabla V)^2` [:math:`m^4`].
+
+``g2`` (time, rho_norm)
+  Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}`, where R is the major radius along the flux surface being averaged [:math:`m^2`].
+
+``g3`` (time, rho_norm)
+  Flux surface averaged :math:`\frac{1}{R^2}` [:math:`m^{-2}`].
+
+``g2g3_over_rhon`` (time, rho_norm)
+  Ratio of g2g3 to the normalized toroidal flux coordinate rho_norm [dimensionless].
+
+``F`` (time, rho_norm)
+  Flux function :math:`F=B_{tor}R` , constant on any given flux surface [:math:`T m`].
+
+``R_in`` (time, rho_norm)
+  Inner (minimum) radius of each flux surface [:math:`m`].
+
+``R_out`` (time, rho_norm)
+  Outer (maximum) radius of each flux surface [:math:`m`].
+
+``psi_from_geo`` (time, rho_cell_norm)
+  Poloidal flux calculated from geometry (NOT psi calculated self-consistently by the TORAX PDE) on the cell grid [:math:`Wb`].
+
+``psi_from_Ip`` (time, rho_norm)
+  Poloidal flux calculated from the current profile in the geometry file (NOT psi calculated self-consistently by the TORAX PDE) [:math:`Wb`].
+
+``g0_over_vpr_face`` (time, rho_face_norm)
+  Ratio of g0 to vpr on the face grid [dimensionless].
+
+``g1_over_vpr`` (time, rho_cell_norm)
+  Ratio of g1 to vpr on the cell grid [dimensionless].
+
+``g1_over_vpr2`` (time, rho_cell_norm)
+  Ratio of g1 to vpr squared on the cell grid [dimensionless].
+
+``g1_over_vpr2_face`` (time, rho_face_norm)
+  Ratio of g1 to vpr squared on the face grid [dimensionless].
+
+``g1_over_vpr_face`` (time, rho_face_norm)
+  Ratio of g1 to vpr on the face grid [dimensionless].
+
+``r_mid`` (time, rho_cell_norm)
+  Mid-plane radius of each flux surface on the cell grid [:math:`m`].
+
+``r_mid_face`` (time, rho_face_norm)
+  Mid-plane radius of each flux surface on the face grid [:math:`m`].
+
+
+scalars
+-------
+
+This dataset contains time-dependent scalar quantities describing global plasma properties and characteristics.
+
+``Ip`` (time)
+  Plasma current [:math:`A`].
+
+``n_ref`` (time)
+  Reference density used for normalization [:math:`m^{-3}`].
+
+``vloop_lcfs`` (time)
+  Loop voltage at the last closed flux surface (LCFS) [:math:`Wb/s` or :math:`V`]. This is a scalar value derived from the `v_loop` profile.
+
+``W_thermal_i`` (time)
+  Total ion thermal stored energy [:math:`J`].
+
+``W_thermal_e`` (time)
+  Total electron thermal stored energy [:math:`J`].
+
+``W_thermal_total`` (time)
+  Total thermal stored energy [:math:`J`].
+
+``tau_E`` (time)
+  Thermal confinement time [:math:`s`].
+
+``H89P`` (time)
+  H-mode confinement quality factor with respect to the ITER89-P scaling law [dimensionless].
+
+``H98`` (time)
+  H-mode confinement quality factor with respect to the ITER98y2 scaling law [dimensionless].
+
+``H97L`` (time)
+  L-mode confinement quality factor with respect to the ITER97L scaling law [dimensionless].
+
+``H20`` (time)
+  H-mode confinement quality factor with respect to the ITER20 scaling law [dimensionless].
+
+``P_SOL_i`` (time)
+  Total ion heating power exiting the plasma across the LCFS [:math:`W`].
+
+``P_SOL_e`` (time)
+  Total electron heating power exiting the plasma across the LCFS [:math:`W`].
+
+``P_SOL_total`` (time)
+  Total heating power exiting the plasma across the LCFS [:math:`W`].
+
+``P_aux_i`` (time)
+  Total auxiliary ion heating power [:math:`W`].
+
+``P_aux_e`` (time)
+  Total auxiliary electron heating power [:math:`W`].
+
+``P_aux_total`` (time)
+  Total auxiliary heating power [:math:`W`] (sum of ion and electron auxiliary heating).
+
+``P_external_injected`` (time)
+  Total externally injected power into the plasma [:math:`W`]. This is likely equivalent to `P_external_tot`.
+
+``P_ei_exchange_i`` (time)
+  Total electron-ion heat exchange power to ions [:math:`W`].
+
+``P_ei_exchange_e`` (time)
+  Total electron-ion heat exchange power to electrons [:math:`W`].
+
+``P_aux_generic_i`` (time)
+  Total generic auxiliary heating power to ions [:math:`W`].
+
+``P_aux_generic_e`` (time)
+  Total generic auxiliary heating power to electrons [:math:`W`].
+
+``P_aux_generic_total`` (time)
+  Total generic auxiliary heating power [:math:`W`].
+
+``P_alpha_i`` (time)
+  Total fusion alpha heating power to ions [:math:`W`].
+
+``P_alpha_e`` (time)
+  Total fusion alpha heating power to electrons [:math:`W`].
+
+``P_alpha_total`` (time)
+  Total fusion alpha heating power [:math:`W`].
+
+``P_ohmic_e`` (time)
+  Total Ohmic heating power to electrons [:math:`W`].
+
+``P_bremsstrahlung_e`` (time)
+  Total Bremsstrahlung electron heat sink power [:math:`W`].
+
+``P_cyclotron_e`` (time)
+  Total cyclotron radiation heat sink power [:math:`W`].
+
+``P_ecrh_e`` (time)
+  Total electron cyclotron source power to electrons [:math:`W`].
+
+``P_radiation_e`` (time)
+  Total radiative heat sink power (including Bremsstrahlung, Cyclotron, and other radiation) to electrons [:math:`W`].
+
+``I_ecrh`` (time)
+  Total electron cyclotron source current [:math:`A`].
+
+``I_aux_generic`` (time)
+  Total generic auxiliary current [:math:`A`].
+
+``Q_fusion`` (time)
+  Fusion power gain [dimensionless].
+
+``P_icrh_e`` (time)
+  Total ion cyclotron resonance heating power to electrons [:math:`W`].
+
+``P_icrh_i`` (time)
+  Total ion cyclotron resonance heating power to ions [:math:`W`].
+
+``P_icrh_total`` (time)
+  Total ion cyclotron resonance heating power [:math:`W`].
+
+``P_LH_high_density`` (time)
+  H-mode transition power for the high density branch, according to the Martin 2008 scaling law [:math:`W`].
+
+``P_LH_min`` (time)
+  H-mode transition power at the density corresponding to the minimum transition power, from Ryter 2014. [:math:`W`].
+
+``P_LH`` (time)
+  Calculated H-mode transition power, taken as the maximum of `P_LH_min` and `P_LH_high_density`. This does not include an accurate calculation for the low density branch. [:math:`W`].
+
+``n_e_min_P_LH`` (time)
+  Electron density at which the minimum H-mode transition power occurs [:math:`m^{-3}`].
+
+``E_fusion`` (time)
+  Total cumulative fusion energy produced [:math:`J`].
+
+``E_aux`` (time)
+  Total cumulative auxiliary injected energy (Ohmic + auxiliary heating) [:math:`J`].
+
+``T_e_volume_avg`` (time)
+  Volume-averaged electron temperature [:math:`keV`].
+
+``T_i_volume_avg`` (time)
+  Volume-averaged ion temperature [:math:`keV`].
+
+``n_e_volume_avg`` (time)
+  Volume-averaged electron density [dimensionless].
+
+``n_i_volume_avg`` (time)
+  Volume-averaged main ion density [dimensionless].
+
+``n_e_line_avg`` (time)
+  Line-averaged electron density [dimensionless].
+
+``n_i_line_avg`` (time)
+  Line-averaged main ion density [dimensionless].
+
+``fgw_n_e_volume_avg`` (time)
+  Greenwald fraction from volume-averaged electron density [dimensionless].
+
+``fgw_n_e_line_avg`` (time)
+  Greenwald fraction from line-averaged electron density [dimensionless].
+
+``q95`` (time)
+  Safety factor at 95% of the normalized poloidal flux coordinate [dimensionless].
+
+``W_pol`` (time)
+  Total poloidal magnetic energy [:math:`J`].
+
+``li3`` (time)
+  Normalized plasma internal inductance (ITER convention) [dimensionless].
+
+``dW_thermal_dt`` (time)
+  Time derivative of the total thermal stored energy [:math:`W`].
+
+``rho_q_min`` (time)
+  Normalized toroidal flux coordinate at which the minimum safety factor occurs [dimensionless].
+
+``q_min`` (time)
+  Minimum safety factor [dimensionless].
+
+``rho_q_3_2_first`` (time)
+  Normalized toroidal flux coordinate of the first surface where q = 3/2 [dimensionless]. Values of -inf indicate no such surface exists.
+
+``rho_q_3_2_second`` (time)
+  Normalized toroidal flux coordinate of the second surface where q = 3/2 [dimensionless]. Values of -inf indicate no such surface exists.
+
+``rho_q_2_1_first`` (time)
+  Normalized toroidal flux coordinate of the first surface where q = 2 [dimensionless]. Values of -inf indicate no such surface exists.
+
+``rho_q_2_1_second`` (time)
+  Normalized toroidal flux coordinate of the second surface where q = 2 [dimensionless]. Values of -inf indicate no such surface exists.
+
+``rho_q_3_1_first`` (time)
+  Normalized toroidal flux coordinate of the first surface where q = 3 [dimensionless]. Values of -inf indicate no such surface exists.
+
+``rho_q_3_1_second`` (time)
+  Normalized toroidal flux coordinate of the second surface where q = 3 [dimensionless]. Values of -inf indicate no such surface exists.
 
 ``I_bootstrap`` (time)
-  Total bootstrap current, in :math:`[A]`.
+  Total bootstrap current [:math:`A`].
 
-core_sources
-------------
+``R_major`` (time)
+  Major radius [:math:`m`].
 
-Any source which is not included in the input config, will `not` have a corresponding
-output in ``state_history.nc``. This needs to be taken into account in analysis scripts and plotting tools.
-In future we aim to populate core_sources in a more structured way.
+``a_minor`` (time)
+  Minor radius [:math:`m`].
 
-``generic_heat_el`` (time, rho_cell)
-  External electron heat source density, as defined by the generic ``generic_heat``, in :math:`[W/m^3]`.
+``B_0`` (time)
+  Magnetic field strength at the magnetic axis [:math:`T`].
 
-``generic_heat_ion`` (time, rho_cell)
-  External ion heat source density, as defined by the generic ``generic_heat``, in :math:`[W/m^3]`.
+``Phi_b_dot`` (time)
+  Time derivative of the total toroidal magnetic flux [:math:`Wb/s`].
 
-``generic_current`` (time, rho_cell)
-  Generic externl current source density in :math:`[A/m^2]`.
+``Phi_b`` (time)
+  Total toroidal magnetic flux [:math:`Wb`].
 
-``fusion_el`` (time, rho_cell)
-  Fusion electron heat source density in :math:`[W/m^3]`.
+``drho`` (time)
+  Radial grid spacing in the unnormalized rho coordinate [:math:`m`].
 
-``fusion_ion`` (time, rho_cell)
-  Fusion ion heat source density in :math:`[W/m^3]`.
+``drho_norm`` ()
+  Radial grid spacing in the normalized rho coordinate [dimensionless]. This is a fixed scalar value.
 
-``ohmic`` (time, rho_cell)
-  Ohmic electron heat source density in :math:`[W/m^3]`.
+``rho_b`` (time)
+  Value of the unnormalized rho coordinate at the boundary [:math:`m`].
 
-``ei_exchange`` (time, rho_cell)
-  Ion-electron heat exchange density in :math:`[W/m^3]`.
-  Positive values means heat source for ions, and heat sink for electrons.
-
-``gas_puff`` (time, rho_cell)
-  Gas puff particle source density  in :math:`[s^{-1} m^{-3}]`.
-
-``generic_particle`` (time, rho_cell)
-  Generic particle source density  in :math:`[s^{-1} m^{-3}]`.
-
-``pellet`` (time, rho_cell)
-  Pellet particle source density  in :math:`[s^{-1} m^{-3}]`.
-
-``ecrh_el`` (time, rho_cell) [:math:`W/m^3`]:
-  Electron cyclotron heating power density.
-
-``ecrh_j`` (time, rho_cell) [:math:`A/m^2`]:
-  Electron cyclotron current.
-
-
-core_transport
---------------
-
-``chi_face_el`` (time, rho_face)
-  Electron heat conductivity on face grid in :math:`m^2/s`
-
-``chi_face_ion`` (time, rho_face)
-  Ion heat conductivity on face grid in :math:`m^2/s`
-
-``d_face_el`` (time, rho_face)
-  Electron particle diffusivity on face grid in :math:`m^2/s`
-
-``v_face_el`` (time, rho_face)
-  Electron particle convection on face grid in :math:`m/s`
-
-post_processed_outputs
-----------------------
-
-These outputs are calculated by the post_processing module, for both
-analysis and inspection.
-
-``pressure_thermal_ion_face`` (time, rho_face) [Pa]:
-  Ion thermal pressure on the face grid.
-
-``pressure_thermal_el_face`` (time, rho_face) [Pa]:
-  Electron thermal pressure on the face grid.
-
-``pressure_thermal_tot_face`` (time, rho_face) [Pa]:
-  Total thermal pressure on the face grid.
-
-``te_volume_avg`` (time) [keV]:
-  Volume average electron temperature.
-
-``ti_volume_avg`` (time) [keV]:
-  Volume average ion temperature.
-
-``ne_volume_avg`` (time) [density_reference m^-3]:
-  Volume average electron density.
-
-``n_i_volume_avg`` (time) [density_reference m^-3]:
-  Volume average ion density.
-
-``fgw_ne_volume_avg`` (time) [dimensionless]:
-  Greenwald fraction from volume-averaged electron density.
-
-``pprime_face`` (time, rho_face) [Pa/Wb]:
-  Derivative of total pressure with respect to poloidal flux on the face grid.
-
-``W_thermal_ion`` (time) [J]:
-  Ion thermal stored energy.
-
-``W_thermal_el`` (time) [J]:
-  Electron thermal stored energy.
-
-``W_thermal_tot`` (time) [J]:
-  Total thermal stored energy.
-
-``Wpol`` (time) [J]
-  Total magnetic energy
-
-``q95`` (time) [dimensionless]
-  Safety-factor at 95% of the normalized poloidal flux coordinate.
-
-``li3`` (time) [dimensionless]:
-  Normalized plasma internal inductance, ITER convention
-
-``tauE`` (time) [s]:
-  Thermal confinement time defined as ``W_thermal_tot`` / ``P_heating``, where
-  ``P_heating`` is the total heating power into the plasma, including external
-  contributions and fusion heating. Radiative losses are not subtracted from
-  heating power.
-
-``H98`` (time) [dimensionless]:
-  H-mode confinement quality factor with respect to the ITER98y2 scaling law,
-  defined as ``tauE`` / ``tau98_scaling``, where ``tau98_scaling`` is the
-  confinement time defined by the ITER98y2 scaling law, derived from the ITER
-  H-mode confinement database. As for ``tauE``, radiative losses are not
-  subtracted from the ``P_loss`` term used to calculate the empirical scaling
-  law confinement time.
-
-``H97L`` (time) [dimensionless]:
-  L-mode confinement quality factor with respect to the ITER97L scaling law
-  derived from the ITER L-mode confinement database. Defined similarly to ``H98``
-  above, but using the ITER97L scaling law for the confinement time.
-
-``H20`` (time) [dimensionless]:
-  H-mode confinement quality factor with respect to the ITER20 scaling law
-  derived from the updated (2020) ITER confinement database. Defined similarly
-  to ``H98`` above, but using the updated ITER20 scaling law law for the
-  confinement time.
-
-``FFprime_face`` (time, rho_face) [m^2 T^2 / Wb]:
-  :math:`FF'` on the face grid, where F is the toroidal flux function, and
-  F' is its derivative with respect to the poloidal flux.
-
-``psi_norm_face`` (time, rho_face) [dimensionless]:
-  Normalized poloidal flux on the face grid.
-
-``P_sol_ion`` (time) [W]:
-  Total ion heating power exiting the plasma with all sources:
-  auxiliary heating + ion-electron exchange + fusion.
-
-``P_sol_el`` (time) [W]:
-  P_sol_el: Total electron heating power exiting the plasma with all sources
-  and sinks: auxiliary heating + ion-electron exchange + Ohmic + fusion +
-  radiation sinks.
-
-``P_sol_tot`` (time) [W]:
-  Total heating power exiting the plasma with all sources and sinks.
-
-``P_external_ion`` (time) [W]:
-  Total external ion heating power: auxiliary heating + Ohmic.
-
-``P_external_el`` (time) [W]:
-  Total external electron heating power: auxiliary heating + Ohmic.
-
-``P_external_tot`` (time) [W]:
-  Total external heating power: auxiliary heating + Ohmic.
-
-``P_ei_exchange_ion`` (time) [W]:
-  Electron-ion heat exchange power to ions.
-
-``P_ei_exchange_el`` (time) [W]:
-  Electron-ion heat exchange power to electrons.
-
-``P_generic_ion`` (time) [W]:
-  Total `generic_heat` power to ions.
-
-``P_generic_el`` (time) [W]:
-  Total `generic_heat` power to electrons.
-
-``P_generic_tot`` (time) [W]:
-  Total `generic_heat` power.
-
-``P_alpha_ion`` (time) [W]:
-  Total fusion power to ions.
-
-``P_alpha_el`` (time) [W]:
-  Total fusion power to electrons.
-
-``P_alpha_tot`` (time) [W]:
-  Total fusion power to plasma.
-
-``P_ohmic`` (time) [W]:
-  Ohmic heating power to electrons.
-
-``P_brems`` (time) [W]:
-  Bremsstrahlung electron heat sink.
-
-``P_ecrh`` (time) [W]:
-  Total electron cyclotron source power.
-
-``I_ecrh`` (time) [A]:
-  Total electron cyclotron source current.
-
-``I_generic`` (time) [A]:
-  Total generic source current.
-
-``Q_fusion`` (time):
-  Fusion power gain.
-
-``P_icrh_el`` (time) [W]:
-  Ion cyclotron resonance heating to electrons.
-
-``P_icrh_ion`` (time) [W]:
-  Ion cyclotron resonance heating to ions.
-
-``P_icrh_tot`` (time) [W]:
-  Total ion cyclotron resonance heating power.
-
-``P_LH_hi_dens`` (time) [W]: H-mode transition power for high density branch,
-  according to Eq 3 from Martin 2008.
-
-``P_LH_min`` (time) [W]: Minimum H-mode transition power at the minimum density
-  ``ne_min_P_LH``, according to Eq 4 from Ryter 2014.
-
-``P_LH`` (time) [W]: H-mode transition power taken as the maximum of
-  ``P_LH_min`` and ``P_LH_hi_dens``. ``P_LH_min`` and ``P_LH_hi_dens`` are kept
-  in output for increased introspectability.
-
-``ne_min_P_LH`` (time) [density_reference]:  Density corresponding to the minimum P_LH,
-  according to Eq 3 from Ryter 2014.
-
-``E_cumulative_fusion`` (time) [J]:
-  Total cumulative fusion energy.
-
-``E_cumulative_external`` (time) [J]:
-  Total external injected energy (Ohmic + auxiliary heating).
-
-geometry
---------
-
-The geometry dataset contains the following data variables.
-
-Geometry
---------
-
-``Phi`` (time, rho_cell) [Wb]
-  Toroidal magnetic flux at each radial grid point.
-
-``Phi_face`` (time, rho_face) [Wb]
-  Toroidal magnetic flux at each radial face.
-
-``R_major`` (time) [m]
-  Major radius.
-
-``a_minor`` (time) [m]
-  Minor radius.
-
-``B_0`` (time) [T]
-  Magnetic field strength at the magnetic axis.
-
-``volume`` (time, rho_cell) [:math:`m^3`]
-  Plasma volume enclosed by each flux surface.
-
-``volume_face`` (time, rho_face) [:math:`m^3`]
-  Plasma volume enclosed by each flux surface at the faces.
-
-``area`` (time, rho_cell) [:math:`m^2`]
-  Poloidal cross-sectional area of each flux surface.
-
-``area_face`` (time, rho_face) [:math:`m^2`]
-  Poloidal cross-sectional area of each flux surface at the faces.
-
-``vpr`` (time, rho_cell) [:math:`m^3`]
-  Derivative of plasma volume enclosed by each flux surface with respect to the normalized toroidal flux coordinate rho_norm.
-
-``vpr_face`` (time, rho_face) [:math:`m^3`]
-  Derivative of plasma volume enclosed by each flux surface at the faces, with respect to the normalized toroidal flux coordinate rho_face_norm.
-
-``spr`` (time, rho_cell) [:math:`m^2`]
-  Derivative of plasma surface area enclosed by each flux surface, with respect to the normalized toroidal flux coordinate rho_norm.
-
-``spr_face`` (time, rho_face) [:math:`m^2`]
-  Derivative of plasma surface area enclosed by each flux surface at the faces, with respect to the normalized toroidal flux coordinate rho_face_norm.
-
-``delta_face`` (time, rho_face) [dimensionless]
-  Average triangularity of each flux surface at the faces.
-
-``elongation``(time, rho_cell) [dimensionless]
-  Elongation of each flux surface.
-
-``elongation_face`` (time, rho_face) [dimensionless]
-  Elongation of each flux surface at the faces.
-
-``g0`` (time, rho_cell) [:math:`m^2`]
-  Flux surface averaged :math:`\nabla V`, the radial derivative of the plasma volume.
-
-``g0_face`` (time, rho_face) [:math:`m^2`]
-  Flux surface averaged :math:`\nabla V` on the faces.
-
-``g1`` (time, rho_cell) [:math:`m^4`]
-  Flux surface averaged :math:`(\nabla V)^2`.
-
-``g1_face`` (time, rho_face) [:math:`m^4`]
-  Flux surface averaged :math:`(\nabla V)^2` at the faces.
-
-``g2`` (time, rho_cell) [:math:`m^2`]
-  Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}`, where R is the major radius along the flux surface being averaged.
-
-``g2_face`` (time, rho_face) [:math:`m^2`]
-  Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}` at the faces.
-
-``g3`` (time, rho_cell) [:math:`m^{-2}`]
-  Flux surface averaged :math:`\frac{1}{R^2}`.
-
-``g3_face`` (time, rho_face) [:math:`m^{-2}`]
-  Flux surface averaged :math:`\frac{1}{R^2}` at the faces.
-
-``g2g3_over_rhon`` (time, rho_cell) [dimensionless]
-  Ratio of g2g3 to the normalized toroidal flux coordinate rho_norm.
-
-``g2g3_over_rhon_face`` (time, rho_face) [dimensionless]
-  Ratio of g2g3 to the normalized toroidal flux coordinate rho_norm on the face grid.
-
-``F`` (time, rho_cell) [:math:`T m`]
-  Flux function :math:`F=B_{tor}R` , constant on any given flux surface.
-
-``F_face`` (time, rho_face) [:math:`T m`]
-  Flux function :math:`F=B_{tor}R`  on the face grid.
-
-``Rin`` (time, rho_cell) [m]
-  Inner radius of each flux surface.
-
-``Rin_face`` (time, rho_face) [m]
-  Inner radius of each flux surface at the faces.
-
-``Rout``(time, rho_cell) [m]
-  Outer radius of each flux surface.
-
-``Rout_face`` (time, rho_face) [m]
-  Outer radius of each flux surface at the faces.
-
-``Phibdot`` (time) [Wb/s]
-  Time derivative of the toroidal magnetic flux.
-
-``_z_magnetic_axis`` (time) [m]
-  Vertical position of the magnetic axis.
 
 Examples
 ========
 
 To demonstrate xarray and numpy manipulations of output data, the following code carries out
-volume integration of ``alpha_el`` and ``alpha_ion`` at the time closest to t=1. The result equals
-the input config ``sources['alpha']['Ptot']`` at the time closest to t=1.
+volume integration of ``alpha_e`` and ``alpha_i`` at the time closest to t=1. The result equals
+the input config ``sources['fusion']['P_total']`` at the time closest to t=1.
 
-``dt`` is the xarray.DataTree. The netCDF file is assumed to be in the working directory. ``vpr``
-is assumed to not be time varying.
+The netCDF file is assumed to be in the working directory.
 
 .. code-block:: python
 
@@ -507,10 +569,11 @@ is assumed to not be time varying.
   from torax import output
 
   data_tree = output.load_state_file('state_history.nc').sel(time=1.0, method='nearest')
-  alpha_el = data_tree.children['core_sources'].dataset['alpha_el']
-  alpha_ion = data_tree.children['core_sources'].dataset['alpha_ion']
+  alpha_electron = data_tree.profiles.alpha_e
+  alpha_ion = data_tree.profiles.alpha_i
+  vpr = data_tree.profiles.vpr.sel(rho_norm=data_tree.rho_cell_norm)
 
-  Ptot = np.trapz((alpha_el + alpha_ion) * data_tree.vpr, data_tree.rho_cell_norm)
+  P_total = np.trapz((alpha_el + alpha_ion) * vpr, data_tree.rho_cell_norm)
 
 
 It is possible to retrieve the input config from the output for debugging
@@ -525,7 +588,7 @@ purposes or to rerun the simulation.
   data_tree = output.load_state_file('state_history.nc')
   config_dict = json.loads(data_tree.attrs['config'])
   # Check which transport model was used.
-  print(config_dict['transport']['transport_model_config']['transport_model'])
+  print(config_dict['transport']['transport_model'])
   # We can also use ToraxConfig to run the simulation again.
   torax_config = torax.ToraxConfig.from_dict(config_dict)
   new_output = torax.run_simulation(torax_config)
