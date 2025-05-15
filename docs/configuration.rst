@@ -160,7 +160,8 @@ equivalently an ``xarray.DataArray`` object of the form:
 All arrays can be represented as NumPy arrays or lists. The shapes:
 * ``time_array`` is a 1D array of times.
 * ``values_array`` is a 2D array of shape ``(len(time_array), num_values)``.
-* ``rho_norm_array`` is a 1D array of shape ``(num_values,)``.
+* ``rho_norm_array`` either a 1D array of shape ``(num_values,)``, or a 2D array
+  of shape ``(len(time_array), num_values)``.
 
 Shortcuts:
 * ``(rho_norm_array, values_array)``: constant in time profile, useful for
