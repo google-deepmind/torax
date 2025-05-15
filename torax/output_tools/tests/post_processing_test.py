@@ -14,12 +14,15 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
 import scipy
+from torax import state
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax.orchestration import run_simulation
+from torax.orchestration import sim_state
 from torax.output_tools import post_processing
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -147,8 +150,7 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_aux_e']
-        + integrated_sources['P_aux_i'],
+        integrated_sources['P_aux_e'] + integrated_sources['P_aux_i'],
         integrated_sources['P_aux_total'],
     )
 
@@ -185,6 +187,30 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         integrated_sources['P_ei_exchange_i'],
         -integrated_sources['P_ei_exchange_e'],
+    )
+
+  def test_zero_sources_do_not_make_nans(self):
+    source_profiles = source_profiles_lib.SourceProfiles(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
+            self.geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
+    )
+    input_state = sim_state.ToraxSimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=state.SolverNumericOutputs(),
+    )
+    post_processed_outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+    )
+    self.assertEqual(
+        post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR
     )
 
 

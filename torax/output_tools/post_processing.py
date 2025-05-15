@@ -504,6 +504,7 @@ def make_post_processed_outputs(
       integrated_sources['P_alpha_total']
       + integrated_sources['P_aux_total']
       + integrated_sources['P_ohmic_e']
+      + constants.CONSTANTS.eps  # Division guard.
   )
 
   if previous_post_processed_outputs is not None:
