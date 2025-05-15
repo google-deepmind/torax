@@ -69,7 +69,6 @@ Short term development plans include:
 - Coupling to parameterized boundary models
 - Implementation of forward sensitivity calculations w.r.t. control inputs and
 parameters
-- API for easily adding custom source and transport model implementations
 
 Longer term plans include:
 
