@@ -76,6 +76,7 @@ design workflows. TORAX is written in Python using the JAX_ library.
    tutorials
    roadmap
    contributing
+   contribution_tips
    citing
    contact
 

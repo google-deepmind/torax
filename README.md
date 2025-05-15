@@ -133,45 +133,9 @@ You can check that everything runs as it should:
 run_torax --config=examples/basic_config.py --quit
 ```
 
-#### Clone the GitHub repository
-If you plan to do development work on TORAX, you can clone the repository.
-
-Create a code directory where you will install the virtual env and other TORAX
-dependencies.
-
-```shell
-mkdir /path/to/torax_dir && cd "$_"
-```
-Where `/path/to/torax_dir` should be replaced by a path of your choice.
-
-Create a TORAX virtual env (see instructions above).
-
-Download and install the TORAX codebase via http:
-
-```shell
-git clone https://github.com/google-deepmind/torax.git
-```
-or ssh (ensure that you have the appropriate SSH key uploaded to github).
-
-```shell
-git clone git@github.com:google-deepmind/torax.git
-```
-Enter the TORAX directory and pip install the dependencies.
-
-```shell
-cd torax; pip install -e .
-```
-
-If you want to install with the dev dependencies (useful for running `pytest`
-and installing `pyink` for lint checking), or testing documentation, then run
-with the `[dev]` option:
-
-```shell
-cd torax; pip install -e .[dev]
-```
-
-Optional: Install additional GPU support for JAX if your machine has a GPU:
-https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
+If you plan to help develop TORAX, you will need to clone the repository, see
+[contributing](https://torax.readthedocs.io/en/latest/contributing.html) and
+[contribution_tips](https://torax.readthedocs.io/en/latest/contribution_tips.html#contribution-tips)
 
 ### Running an example
 

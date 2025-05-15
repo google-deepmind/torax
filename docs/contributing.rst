@@ -14,9 +14,10 @@ to contribute:
 A wide variety of contributions are welcome. See the :ref:`roadmap` for prioritized projects. In particular, TORAX is envisaged
 as a natural framework for coupling of various ML-surrogates of physics models. These could include surrogates for turbulent
 transport, neoclassical transport, heat and particle sources, line radiation, pedestal physics, and core-edge integration,
-MHD, among others.
+MHD, among others. Before making major contributions please begin a discussion
+on the repo to ensure that the feature is not already in development, and to discuss ideas and design before starting work.
 
-See :ref:`contribution_tips` for more guidance on code review, documentation, and testing.
+See :ref:`contribution_tips` for more guidance on installation, code review, documentation, and testing.
 
 Before you begin
 ----------------
