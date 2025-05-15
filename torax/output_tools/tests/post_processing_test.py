@@ -225,10 +225,10 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config(config_name)
 
     _, state_history = run_simulation.run_simulation(torax_config)
-    p_fusion = state_history.post_processed_outputs.P_alpha_total
-    p_external = state_history.post_processed_outputs.P_aux_total
-    e_fusion = state_history.post_processed_outputs.E_fusion
-    e_external = state_history.post_processed_outputs.E_aux
+    p_fusion = state_history._stacked_post_processed_outputs.P_alpha_total
+    p_external = state_history._stacked_post_processed_outputs.P_aux_total
+    e_fusion = state_history._stacked_post_processed_outputs.E_fusion
+    e_external = state_history._stacked_post_processed_outputs.E_aux
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.

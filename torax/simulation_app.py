@@ -135,12 +135,12 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: state.CoreProfiles,
+    core_profile_history: list[state.CoreProfiles],
     t: np.ndarray,
 ) -> None:
-  _log_single_state(core_profile_history.index(0), t[0])
+  _log_single_state(core_profile_history[0], t[0])
   logging.info('\n')
-  _log_single_state(core_profile_history.index(-1), t[-1])
+  _log_single_state(core_profile_history[-1], t[-1])
 
 
 def can_plot() -> bool:

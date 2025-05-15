@@ -106,12 +106,6 @@ class CoreProfiles:
         [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
     )
 
-  def index(self, i: int) -> typing_extensions.Self:
-    """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
-    idx = lambda x: x[i]
-    state = jax.tree_util.tree_map(idx, self)
-    return state
-
   def __str__(self) -> str:
     return f"""
       CoreProfiles(

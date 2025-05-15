@@ -212,27 +212,31 @@ class StateHistory:
     solver_numeric_outputs = [
         state.solver_numeric_outputs for state in state_history
     ]
-    core_profiles = [state.core_profiles for state in state_history]
-    core_sources = [state.core_sources for state in state_history]
-    transport = [state.core_transport for state in state_history]
-    geometries = [state.geometry for state in state_history]
-    self.geometry = geometry_lib.stack_geometries(geometries)
+    self.core_profiles = [state.core_profiles for state in state_history]
+    self.core_sources = [state.core_sources for state in state_history]
+    self.transport = [state.core_transport for state in state_history]
+    self.geometries = [state.geometry for state in state_history]
+    self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
     stack = lambda *ys: np.stack(ys)
-    core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
-        stack, *core_profiles
+    self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
+        stack, *self.core_profiles
     )
     # Rescale output CoreProfiles to have density units in m^-3.
     # This is done to maintain the same external API following an upcoming
     # change to the internal CoreProfiles density units.
-    self.core_profiles = _rescale_core_profiles(core_profiles)
-    self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
-        stack, *core_sources
+    self._stacked_core_profiles = _rescale_core_profiles(
+        self._stacked_core_profiles
     )
-    self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
-        stack, *transport
+    self._stacked_core_sources: source_profiles.SourceProfiles = (
+        jax.tree_util.tree_map(stack, *self.core_sources)
     )
-    self.post_processed_outputs: post_processing.PostProcessedOutputs = (
-        jax.tree_util.tree_map(stack, *post_processed_outputs_history)
+    self._stacked_core_transport: state.CoreTransport = jax.tree_util.tree_map(
+        stack, *self.transport
+    )
+    self._stacked_post_processed_outputs: (
+        post_processing.PostProcessedOutputs
+    ) = jax.tree_util.tree_map(
+        stack, *post_processed_outputs_history
     )
     self.solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *solver_numeric_outputs)
@@ -409,7 +413,7 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
     xr_dict = {}
-    core_profiles = self.core_profiles
+    core_profiles = self._stacked_core_profiles
 
     xr_dict[T_E] = core_profiles.T_e.cell_plus_boundaries()
     xr_dict[T_I] = core_profiles.T_i.cell_plus_boundaries()
@@ -451,13 +455,13 @@ class StateHistory:
     """Saves the core transport to a dict."""
     xr_dict = {}
 
-    xr_dict[CHI_TURB_I] = self.core_transport.chi_face_ion
-    xr_dict[CHI_TURB_E] = self.core_transport.chi_face_el
-    xr_dict[D_TURB_E] = self.core_transport.d_face_el
-    xr_dict[V_TURB_E] = self.core_transport.v_face_el
+    xr_dict[CHI_TURB_I] = self._stacked_core_transport.chi_face_ion
+    xr_dict[CHI_TURB_E] = self._stacked_core_transport.chi_face_el
+    xr_dict[D_TURB_E] = self._stacked_core_transport.d_face_el
+    xr_dict[V_TURB_E] = self._stacked_core_transport.v_face_el
 
     # Save optional BohmGyroBohm attributes if nonzero.
-    core_transport = self.core_transport
+    core_transport = self._stacked_core_transport
     if (
         np.any(core_transport.chi_face_el_bohm != 0)
         or np.any(core_transport.chi_face_el_gyrobohm != 0)
@@ -486,30 +490,33 @@ class StateHistory:
     xr_dict = {}
 
     xr_dict[qei_source_lib.QeiSource.SOURCE_NAME] = (
-        self.core_sources.qei.qei_coef
-        * (self.core_profiles.T_e.value - self.core_profiles.T_i.value)
+        self._stacked_core_sources.qei.qei_coef
+        * (
+            self._stacked_core_profiles.T_e.value
+            - self._stacked_core_profiles.T_i.value
+        )
     )
 
     xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
-        self.core_sources.bootstrap_current.j_bootstrap,
-        self.core_sources.bootstrap_current.j_bootstrap_face,
+        self._stacked_core_sources.bootstrap_current.j_bootstrap,
+        self._stacked_core_sources.bootstrap_current.j_bootstrap_face,
     )
 
     # Add source profiles with suffixes indicating which profile they affect.
-    for profile in self.core_sources.T_i:
+    for profile in self._stacked_core_sources.T_i:
       if profile == "fusion":
-        xr_dict["p_alpha_i"] = self.core_sources.T_i[profile]
+        xr_dict["p_alpha_i"] = self._stacked_core_sources.T_i[profile]
       else:
-        xr_dict[f"p_{profile}_i"] = self.core_sources.T_i[profile]
-    for profile in self.core_sources.T_e:
+        xr_dict[f"p_{profile}_i"] = self._stacked_core_sources.T_i[profile]
+    for profile in self._stacked_core_sources.T_e:
       if profile == "fusion":
-        xr_dict["p_alpha_e"] = self.core_sources.T_e[profile]
+        xr_dict["p_alpha_e"] = self._stacked_core_sources.T_e[profile]
       else:
-        xr_dict[f"p_{profile}_e"] = self.core_sources.T_e[profile]
-    for profile in self.core_sources.psi:
-      xr_dict[f"j_{profile}"] = self.core_sources.psi[profile]
-    for profile in self.core_sources.n_e:
-      xr_dict[f"s_{profile}"] = self.core_sources.n_e[profile]
+        xr_dict[f"p_{profile}_e"] = self._stacked_core_sources.T_e[profile]
+    for profile in self._stacked_core_sources.psi:
+      xr_dict[f"j_{profile}"] = self._stacked_core_sources.psi[profile]
+    for profile in self._stacked_core_sources.n_e:
+      xr_dict[f"s_{profile}"] = self._stacked_core_sources.n_e[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data)
@@ -524,7 +531,7 @@ class StateHistory:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
     for field_name, data in dataclasses.asdict(
-        self.post_processed_outputs
+        self._stacked_post_processed_outputs
     ).items():
       xr_dict[field_name] = self._pack_into_data_array(field_name, data)
     return xr_dict
@@ -534,7 +541,7 @@ class StateHistory:
   ) -> dict[str, xr.DataArray]:
     """Save geometry to a dict. We skip over hires and non-array quantities."""
     xr_dict = {}
-    geometry_attributes = dataclasses.asdict(self.geometry)
+    geometry_attributes = dataclasses.asdict(self._stacked_geometry)
 
     # Get the variables from dataclass fields.
     for field_name, data in geometry_attributes.items():
@@ -562,7 +569,7 @@ class StateHistory:
         xr_dict[field_name] = data_array
 
     # Get variables from property methods
-    geometry_properties = inspect.getmembers(type(self.geometry))
+    geometry_properties = inspect.getmembers(type(self._stacked_geometry))
     property_names = set([name for name, _ in geometry_properties])
 
     for name, value in geometry_properties:
@@ -572,11 +579,11 @@ class StateHistory:
       if name in EXCLUDED_GEOMETRY_NAMES:
         continue
       if isinstance(value, property):
-        property_data = value.fget(self.geometry)
+        property_data = value.fget(self._stacked_geometry)
         # Check if there is a corresponding face variable for this property.
         # If so, extend the data to the cell+boundaries grid.
         if f"{name}_face" in property_names:
-          face_data = getattr(self.geometry, f"{name}_face")
+          face_data = getattr(self._stacked_geometry, f"{name}_face")
           property_data = _extend_cell_grid_to_boundaries(
               property_data, face_data
           )
@@ -586,7 +593,7 @@ class StateHistory:
 
     # Remap to avoid outputting _face suffix in output.
     g0_over_vpr_data_array = self._pack_into_data_array(
-        "g0_over_vpr", self.geometry.g0_over_vpr_face
+        "g0_over_vpr", self._stacked_geometry.g0_over_vpr_face
     )
     if g0_over_vpr_data_array is not None:
       xr_dict["g0_over_vpr"] = g0_over_vpr_data_array

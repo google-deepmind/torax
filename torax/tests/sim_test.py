@@ -319,16 +319,16 @@ class SimTest(sim_test_case.SimTestCase):
 
     _, history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
-    history_length = history.core_profiles.T_i.value.shape[0]
+    history_length = history._stacked_core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(history.times[-1], torax_config.numerics.t_final)
     profiles_to_check = (
-        (output.T_I, history.core_profiles.T_i),
-        (output.T_E, history.core_profiles.T_e),
-        (output.N_E, history.core_profiles.n_e),
-        (output.PSI, history.core_profiles.psi),
-        (output.Q, history.core_profiles.q_face),
-        (output.MAGNETIC_SHEAR, history.core_profiles.s_face),
+        (output.T_I, history._stacked_core_profiles.T_i),
+        (output.T_E, history._stacked_core_profiles.T_e),
+        (output.N_E, history._stacked_core_profiles.n_e),
+        (output.PSI, history._stacked_core_profiles.psi),
+        (output.Q, history._stacked_core_profiles.q_face),
+        (output.MAGNETIC_SHEAR, history._stacked_core_profiles.s_face),
     )
 
     for profile_name, profile_history in profiles_to_check:
@@ -459,14 +459,16 @@ class SimTest(sim_test_case.SimTestCase):
       )
 
     initial_core_profiles = tree.map(
-        lambda x: x[0] if x is not None else None, sim_outputs.core_profiles
+        lambda x: x[0] if x is not None else None,
+        sim_outputs._stacked_core_profiles,
     )
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, initial_core_profiles
     )
 
     final_core_profiles = tree.map(
-        lambda x: x[-1] if x is not None else None, sim_outputs.core_profiles
+        lambda x: x[-1] if x is not None else None,
+        sim_outputs._stacked_core_profiles,
     )
     core_profile_helpers.verify_core_profiles(
         ref_profiles, -1, final_core_profiles
@@ -500,16 +502,16 @@ class SimTest(sim_test_case.SimTestCase):
     ] = True
     config_vloop_bc['profile_conditions']['vloop_lcfs'] = (
         times,
-        sim_outputs_ip_bc.core_profiles.vloop_lcfs,
+        sim_outputs_ip_bc._stacked_core_profiles.vloop_lcfs,
     )
     torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
     _, sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
 
     profiles_to_check = (
-        sim_outputs_vloop_bc.core_profiles.T_i,
-        sim_outputs_vloop_bc.core_profiles.T_e,
-        sim_outputs_vloop_bc.core_profiles.psi,
-        sim_outputs_vloop_bc.core_profiles.n_e,
+        sim_outputs_vloop_bc._stacked_core_profiles.T_i,
+        sim_outputs_vloop_bc._stacked_core_profiles.T_e,
+        sim_outputs_vloop_bc._stacked_core_profiles.psi,
+        sim_outputs_vloop_bc._stacked_core_profiles.n_e,
     )
 
     for profile in profiles_to_check:

@@ -30,7 +30,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
   def test_change_config(self):
     torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
-    _, history = run_simulation.run_simulation(torax_config)
+    simulation_xr, _ = run_simulation.run_simulation(torax_config)
 
     original_value = torax_config.profile_conditions.nbar
     new_value = original_value.value * 1.1
@@ -38,12 +38,12 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     torax_config.update_fields(
         {'profile_conditions.nbar': new_value}
     )
-    _, new_history = run_simulation.run_simulation(torax_config)
+    new_simulation_xr, _ = run_simulation.run_simulation(torax_config)
 
     self.assertFalse(
         np.array_equal(
-            history.core_profiles.n_e.value[-1],
-            new_history.core_profiles.n_e.value[-1],
+            simulation_xr.profiles.n_e.values[-1],
+            new_simulation_xr.profiles.n_e.values[-1],
         )
     )
 

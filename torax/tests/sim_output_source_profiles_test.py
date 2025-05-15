@@ -170,7 +170,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     ):
       _, state_history = run_simulation.run_simulation(torax_config)
 
-    for i, v in enumerate(state_history.core_sources.n_e['generic_particle']):
+    for i, v in enumerate(
+        state_history._stacked_core_sources.n_e['generic_particle']
+    ):
       np.testing.assert_allclose(v, i + 1)
 
 
