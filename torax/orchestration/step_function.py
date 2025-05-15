@@ -303,7 +303,7 @@ class SimulationStepFn:
     Returns:
       Time step duration (dt)
     """
-    # TODO(b/335598388): We call the transport model both here and in the the
+    # TODO(b/335598388): We call the transport model both here and in the
     # Stepper / CoeffsCallback. We should still refactor the design to more
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.

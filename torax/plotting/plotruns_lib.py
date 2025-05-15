@@ -105,7 +105,7 @@ class PlotData:
       grid. Corresponds to a bundled ion mixture if specified as such in the
       config.
     n_impurity: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on
-      the cell grid. Corresponds to an bundled ion mixture if specified as such
+      the cell grid. Corresponds to a bundled ion mixture if specified as such
       in the config.
     Z_impurity: Average charge state of the impurity species [dimensionless] on
       the cell grid.

@@ -368,7 +368,7 @@ def update_geometries_with_Phibdot(
 ) -> tuple[Geometry, Geometry]:
   """Update Phibdot in the geometry dataclasses used in the time interval.
 
-  Phibdot is used in calc_coeffs to calcuate terms related to time-dependent
+  Phibdot is used in calc_coeffs to calculate terms related to time-dependent
   geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
   each given time interval. This means that geo_t_plus_dt.Phibdot will not
   necessarily be the same as the geo_t.Phibdot at the next time step.

@@ -51,7 +51,7 @@ class GeometryProvider(Protocol):
   .. code-block:: python
 
     geo = circular_geometry.build_circular_geometry(...)
-    constant_geo_provider = lamdba t: geo
+    constant_geo_provider = lambda t: geo
 
     def func_expecting_geo_provider(gp: GeometryProvider):
       ... # do something with the provider.

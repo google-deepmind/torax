@@ -194,7 +194,7 @@ class PsiCalculationsTest(parameterized.TestCase):
 
     calculated_Wpol = psi_calculations.calc_Wpol(geo, psi_cell_variable)
 
-    # Relatively low tolerence because the analytical formula is not exact for
+    # Relatively low tolerance because the analytical formula is not exact for
     # our circular geometry, but approximates it at low inverse aspect ratio.
     np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
 

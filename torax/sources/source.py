@@ -88,7 +88,7 @@ class Source(abc.ABC):
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by `output_shape`.
-    model_func: The function used when the the runtime type is set to
+    model_func: The function used when the runtime type is set to
       "MODEL_BASED". If not provided, then it defaults to returning zeros.
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.

@@ -134,7 +134,7 @@ class TransportModel(abc.ABC):
     """Applies min/max and pedestal region clipping to transport coefficients."""
     transport = dynamic_runtime_params_slice.transport
 
-    # set minimum and maximum transport coefficents for PDE stability
+    # set minimum and maximum transport coefficients for PDE stability
     chi_face_ion = jnp.clip(
         transport_coeffs.chi_face_ion, transport.chi_min, transport.chi_max,
     )

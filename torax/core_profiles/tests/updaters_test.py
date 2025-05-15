@@ -261,7 +261,7 @@ class UpdatersTest(parameterized.TestCase):
   def test_update_vloop_lcfs_from_psi(self):
     """Consistency check for _update_vloop_lcfs_from_psi.
 
-    Check the the output inverts _calculate_psi_value_constraint_from_vloop
+    Check the output inverts _calculate_psi_value_constraint_from_vloop
     as expected.
     """
 

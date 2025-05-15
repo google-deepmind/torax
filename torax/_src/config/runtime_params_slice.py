@@ -69,7 +69,7 @@ class DynamicRuntimeParamsSlice:
 
   Note that "dynamic" does NOT mean time dependent necessarily (though these
   params can be time dependent). Here "dynamic" means these params can change
-  without trigerring or requiring a recompile.
+  without triggering or requiring a recompile.
 
   While the parameters are not necessarily time-dependent, that is how the class
   gets its name: a config "slice" refers to a subset of the overall TORAX config

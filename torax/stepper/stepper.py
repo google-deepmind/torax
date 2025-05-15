@@ -130,7 +130,7 @@ class Solver(abc.ABC):
         x_new and additional post_processing.
     """
 
-    # This base class method can be completely overriden by a subclass, but
+    # This base class method can be completely overridden by a subclass, but
     # most can make use of the boilerplate here and just implement `_x_new`.
 
     # Don't call solver functions on an empty list
