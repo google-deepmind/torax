@@ -38,4 +38,4 @@ We can then run the simulation:
   # to access the data. Example below shows how to access the fusion gain
   # at time=2 seconds.
   data_tree = results.simulation_output_to_xr()
-  Q_fusion_t2 = data_tree.post_processed_outputs.Q_fusion.sel(time=2, method='nearest')
+  Q_fusion_t2 = data_tree.scalars.Q_fusion.sel(time=2, method='nearest')
