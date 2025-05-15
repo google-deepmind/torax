@@ -80,6 +80,20 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
+          testcase_name='3_tuple_input_time_rho_t=0',
+          time_rho_interpolated_input=(
+              np.array([0.0, 1.0]),
+              np.array(
+                  [[0.125, 0.375, 0.625, 0.875], [0.125, 0.375, 0.625, 0.875]]
+              ),
+              np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+          ),
+          nx=4,
+          dx=0.25,
+          time=0.0,
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
+      ),
+      dict(
           testcase_name='3_tuple_input_t=1',
           time_rho_interpolated_input=(
               np.array([0.0, 1.0]),
@@ -203,6 +217,24 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
       dict(
+          testcase_name='xarray_input_full_t=0.5',
+          time_rho_interpolated_input=xr.DataArray(
+              data=np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+              coords={
+                  'time': [0.0, 1.0],
+                  'rho_norm': (
+                      ('time', 'value'),
+                      np.array([_RHO_NORM_ARRAY, _RHO_NORM_ARRAY]),
+                  ),
+              },
+              dims=['time', 'value'],
+          ),
+          nx=4,
+          dx=0.25,
+          time=0.5,
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
+      ),
+      dict(
           testcase_name='single_dict_t=0',
           time_rho_interpolated_input={
               0.25: 18.0,
@@ -235,6 +267,17 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           dx=0.95,
           time=0.0,
           expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
+      ),
+      dict(
+          testcase_name='nested_dict_t=0.5',
+          time_rho_interpolated_input={
+              0.0: {0.125: 1.0, 0.375: 2.0, 0.625: 3.0, 0.875: 4.0},
+              1.0: {0.125: 5.0, 0.375: 6.0, 0.625: 7.0, 0.875: 8.0},
+          },
+          nx=4,
+          dx=0.25,
+          time=0.5,
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
       # Single float represents a constant (in time and rho) profile.
       dict(

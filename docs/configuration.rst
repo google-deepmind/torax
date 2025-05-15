@@ -93,40 +93,13 @@ To extend configuration parameters where time-dependence is not enabled, to have
 
 Time-varying arrays
 -------------------
-Time-varying arrays can be defined using either primitives, an
-``xarray.DataArray`` or a ``tuple`` of ``Array``.
+Parameters marked as **time-varying-array** are interpolated on a grid (time, :math:`\hat{\rho}`).
 
-Specifying interpolation methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-By default piecewise linear interpolation is used to interpolate values in time.
-To specify a different interpolation method, use the following syntax of a tuple
-with two elements. The first element in the tuple is the usual value for the
-time-varying-array (as defined below), the second value is a dict with keys
-``time_interpolation_mode`` and ``rho_interpolation_mode`` and values the
-desired interpolation modes.
+**time-varying-array** parameters can be defined using either a nested dictionary,
+or in the form of arrays (represented as a ``xarray.DataArray`` object or a ``tuple`` of arrays).
 
-.. code-block:: python
+**Note**: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
 
-  (time_varying_array_value, {'time_interpolation_mode': 'STEP', 'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
-
-Currently two interpolation modes are supported:
-
-* ``'STEP'``
-* ``'PIECEWISE_LINEAR'``
-
-Using primitives
-^^^^^^^^^^^^^^^^
-
-For fields labelled with **time-varying-array** time-dependence is set by assigning a dict of dicts to the parameter.
-
-The outer dict defines a time-series with ``{time: value}`` pairs.
-The ``value`` itself is interpreted as a radial profile, being made up of {rho: value} pairs.
-It behaves similarly to the **time-varying-scalar** but any interpolation will happen along the
-:math:`\hat{\rho}` axis and can take any of the formats defined for a **time-varying-scalar** above.
-
-Note: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
-
-None of the keys need to be sorted in order of time. Ordering is carried out internally.
 In the case of non-evolving parameters for each evaluation of the TORAX solver (PDE solver), time-dependent variables
 are interpolated first along the :math:`\hat{\rho}` axis at the cell grid centers and then linearly interpolated in time
 at both time :math:`t` and time :math:`t+dt`..
@@ -134,16 +107,25 @@ at both time :math:`t` and time :math:`t+dt`..
 For :math:`t` greater than or less than the largest or smallest defined time then the interpolation scheme
 will be applied from the closest time value.
 
+Using a nested dictionary
+^^^^^^^^^^^^^^^^
+This is of the form:
+.. code-block:: python
+
+  {time_1: {rho_11: value_11, rho_12: value_12, ...}, time_2: ...}
+
+At each ``time_i``, we have a radial profile composed of  ``{rho: value}`` pairs.
+The ordering of the dict does not matter.
+
+
 Shortcuts:
 
-Passing a single float value is interpreted as defining a constant profile for all times.
+* Passing a single float value is interpreted as defining a constant profile for all times.
 For example ``T_i: 6.0`` would be equivalent to passing in ``T_i: {0.0: {0.0: 6.0}}``.
-
-Passing a single dict (instead of dict of dicts) is a shortcut for defining the rho profile
-for :math:`t=0.0`. For example ``T_i: {0.0: 18.0, 0.95: 5.0, 1.0: 0.2}`` is a shortcut for
+* Passing a single dict (instead of dict of dicts) is a shortcut for defining the rho profile
+for :math:`t=0.0`. For example, ``T_i: {0.0: 18.0, 0.95: 5.0, 1.0: 0.2}`` is a shortcut for
 ``T_i: {0.0: {0: 18.0, 0.95: 5.0, 1.0: 0.2}}`` where :math:`t=0.0` is arbitrary
 (due to constant extrapolation for any input :math:`t=0.0`).
-
 
 Examples:
 
@@ -153,7 +135,7 @@ Examples:
 
   T_i = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}}
 
-Note: due to constant extrapolation the t=0.0 here is an arbitrary number and could be anything.
+Note: due to constant extrapolation, the ``t=0.0`` here is an arbitrary number and could be anything.
 
 2. Define a time-dependent :math:`T_{i}` profile initialised with a pedestal and, if the ion equation is not being
 evolved by the PDE, to have a prescribed time evolution which decays to a
@@ -163,30 +145,47 @@ constant :math:`T_{i}=1` by :math:`t=80.0`.
 
   T_i = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}, 80: 1.0}
 
-Using ``xarray.DataArray``
+
+Using arrays
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-If a ``xarray.DataArray`` is specified then it is expected to have a
-``time`` and ``rho_norm`` coordinate. The values of the data array are the values
-at each time and rho_norm.
+This can be a tuple of arrays ``(time_array, rho_norm_array, values_array)``, or
+equivalently an ``xarray.DataArray`` object of the form:
+.. code-block:: python
 
-Using ``tuple`` of ``Array``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If a ``tuple`` of ``Array`` is used, the tuple must have structure of,
-``(time_array, rho_norm_array, values_array)`` or ``(rho_norm_array, values_array)``.
-The latter is a useful shortcut for defining an initial condition or a constant profile.
+  xarray.DataArray(
+    data=values_array,
+    coords={'time': time_array, 'rho_norm': rho_norm_array}
+  )
 
-In the case of ``(time_array, rho_norm_array, values_array)``:
-``time_array`` and ``rho_norm_array`` are expected to map to 1D array values and
-represent the time and rho_norm coordinates.
-``values_array`` is expected to map to a 2D array with shape
-``(len(time_array), len(rho_norm_array))`` and represent the values at the given
-time and rho_norm.
+All arrays can be represented as NumPy arrays or lists. The shapes:
+* ``time_array`` is a 1D array of times.
+* ``values_array`` is a 2D array of shape ``(len(time_array), num_values)``.
+* ``rho_norm_array`` either a 1D array of shape ``(num_values,)``, or a 2D array
+  of shape ``(len(time_array), num_values)``.
 
-In the case of ``(rho_norm_array, values_array)``:
-``rho_norm_array`` is expected to map to a 1D array values and represent the
-rho_norm coordinates.
-``values_array`` is expected to map to a 1D array with shape
-``len(rho_norm_array)`` and represent the values at the given rho_norm.
+Shortcuts:
+* ``(rho_norm_array, values_array)``: constant in time profile, useful for
+  defining an initial condition or a constant profile. Note that both arrays
+  are now 1D arrays.
+
+
+Specifying interpolation methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default, piecewise linear interpolation is used to interpolate values both in
+time and in :math:`\hat{\rho}`. To specify a different interpolation method:
+
+.. code-block:: python
+
+  (time_varying_array_value, {'time_interpolation_mode': 'STEP', 'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
+
+where ``time_varying_array_value`` is any of the above inputs
+(nested dictionary, arrays, etc.).
+
+Currently two interpolation modes are supported:
+
+* ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series (default).
+* ``'STEP'``: stepwise change in values following each traversal above a time value in the time-series.
+
 
 .. _config_details:
 
