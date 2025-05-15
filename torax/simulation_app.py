@@ -61,7 +61,6 @@ from absl import logging
 import jax
 import numpy as np
 from torax import state
-from torax.geometry import geometry
 from torax.orchestration import run_simulation
 from torax.torax_pydantic import model_config
 import xarray as xr
@@ -137,10 +136,8 @@ def _log_single_state(
 
 def log_simulation_output_to_stdout(
     core_profile_history: state.CoreProfiles,
-    geo: geometry.Geometry,
     t: np.ndarray,
 ) -> None:
-  del geo
   _log_single_state(core_profile_history.index(0), t[0])
   logging.info('\n')
   _log_single_state(core_profile_history.index(-1), t[-1])
@@ -188,7 +185,7 @@ def main(
   torax_config = get_config()
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
-  state_history = run_simulation.run_simulation(
+  data_tree, state_history = run_simulation.run_simulation(
       torax_config, log_sim_progress, progress_bar=log_sim_progress_bar,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
@@ -196,15 +193,13 @@ def main(
   if plot_sim_progress:
     raise NotImplementedError('Plotting progress is temporarily disabled.')
 
-  data_tree = state_history.simulation_output_to_xr(torax_config.restart)
-
   output_dir = output_dir if output_dir else _DEFAULT_OUTPUT_DIR
   output_file = _write_simulation_output_to_dir(output_dir, data_tree)
 
   if log_sim_output:
     log_simulation_output_to_stdout(
-        state_history.core_profiles, state_history.geometry, state_history.times
+        state_history.core_profiles,
+        data_tree.time.values,
     )
 
   return output_file
-

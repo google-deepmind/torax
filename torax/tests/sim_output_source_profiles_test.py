@@ -168,7 +168,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     with mock.patch.object(
         step_function.SimulationStepFn, '__call__', new=mock_step_fn
     ):
-      state_history = run_simulation.run_simulation(torax_config)
+      _, state_history = run_simulation.run_simulation(torax_config)
 
     for i, v in enumerate(state_history.core_sources.n_e['generic_particle']):
       np.testing.assert_allclose(v, i + 1)

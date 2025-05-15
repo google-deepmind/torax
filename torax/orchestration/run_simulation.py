@@ -31,14 +31,27 @@ from torax.orchestration import step_function
 from torax.output_tools import output
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
+import xarray as xr
 
 
 def run_simulation(
     torax_config: model_config.ToraxConfig,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
-) -> output.StateHistory:
-  """Runs a TORAX simulation using the config and returns the outputs."""
+) -> tuple[xr.DataTree, output.StateHistory]:
+  """Runs a TORAX simulation using the config and returns the outputs.
+
+  Args:
+    torax_config: The TORAX config to use for the simulation.
+    log_timestep_info: Whether to log the timestep information.
+    progress_bar: Whether to show a progress bar.
+
+  Returns:
+    A tuple of the simulation outputs in the form of a DataTree and the state
+    history which is intended for helpful use with debugging as it contains
+    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
+    `PostProcessedOutputs` dataclasses for each step of the simulation.
+  """
   # TODO(b/384767453): Remove the need for the step_fn and stepper to take the
   # transport model and pedestal model.
   transport_model = torax_config.transport.build_transport_model()
@@ -116,10 +129,14 @@ def run_simulation(
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,
   )
-
-  return output.StateHistory(
+  state_history = output.StateHistory(
       state_history=state_history,
       post_processed_outputs_history=post_processed_outputs_history,
       sim_error=sim_error,
       torax_config=torax_config,
+  )
+
+  return (
+      state_history.simulation_output_to_xr(torax_config.restart),
+      state_history,
   )

@@ -224,7 +224,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     config_name = 'test_all_transport_fusion_qlknn.py'
     torax_config = self._get_torax_config(config_name)
 
-    state_history = run_simulation.run_simulation(torax_config)
+    _, state_history = run_simulation.run_simulation(torax_config)
     p_fusion = state_history.post_processed_outputs.P_alpha_total
     p_external = state_history.post_processed_outputs.P_aux_total
     e_fusion = state_history.post_processed_outputs.E_fusion

@@ -248,6 +248,117 @@ class StateHistory:
         [state.solver_numeric_outputs.sawtooth_crash for state in state_history]
     )
 
+  def simulation_output_to_xr(
+      self,
+      file_restart: file_restart_pydantic_model.FileRestart | None = None,
+  ) -> xr.DataTree:
+    """Build an xr.DataTree of the simulation output.
+
+    Args:
+      file_restart: If provided, contains information on a file this sim was
+        restarted from, this is useful in case we want to stitch that to the
+        beginning of this sim output.
+
+    Returns:
+      A xr.DataTree containing a single top level xr.Dataset and four child
+      datasets. The top level dataset contains the following variables:
+        - time: The time of the simulation.
+        - rho_norm: The normalized toroidal coordinate on the cell grid with the
+            left and right face boundaries added.
+        - rho_face_norm: The normalized toroidal coordinate on the face grid.
+        - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
+        - config: The ToraxConfig used to run the simulation serialized to JSON.
+      The child datasets contain the following variables:
+        - numerics: Contains data variables for numeric quantities to do with
+            the simulation.
+        - profiles: Contains data variables for 1D profiles.
+        - scalars: Contains data variables for scalars.
+    """
+    # Cleanup structure by excluding QeiInfo from core_sources altogether.
+    # Add attribute to dataset variables with explanation of contents + units.
+
+    # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
+    time = xr.DataArray(self.times, dims=[TIME], name=TIME)
+    rho_face_norm = xr.DataArray(
+        self.rho_face_norm, dims=[RHO_FACE_NORM], name=RHO_FACE_NORM
+    )
+    rho_cell_norm = xr.DataArray(
+        self.rho_cell_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
+    )
+    rho_norm = xr.DataArray(
+        self.rho_norm,
+        dims=[RHO_NORM],
+        name=RHO_NORM,
+    )
+
+    coords = {
+        TIME: time,
+        RHO_FACE_NORM: rho_face_norm,
+        RHO_CELL_NORM: rho_cell_norm,
+        RHO_NORM: rho_norm,
+    }
+
+    # Update dict with flattened StateHistory dataclass containers
+    all_dicts = [
+        self._save_core_profiles(),
+        self._save_core_transport(),
+        self._save_core_sources(),
+        self._save_post_processed_outputs(),
+        self._save_geometry(),
+    ]
+    flat_dict = {}
+    for key, value in itertools.chain(*(d.items() for d in all_dicts)):
+      if key not in flat_dict:
+        flat_dict[key] = value
+      else:
+        raise ValueError(f"Duplicate key: {key}")
+    numerics_dict = {
+        SIM_ERROR: self.sim_error.value,
+        SAWTOOTH_CRASH: xr.DataArray(
+            self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
+        ),
+        OUTER_SOLVER_ITERATIONS: xr.DataArray(
+            self.solver_numeric_outputs.outer_solver_iterations,
+            dims=[TIME],
+            name=OUTER_SOLVER_ITERATIONS,
+        ),
+        INNER_SOLVER_ITERATIONS: xr.DataArray(
+            self.solver_numeric_outputs.inner_solver_iterations,
+            dims=[TIME],
+            name=INNER_SOLVER_ITERATIONS,
+        ),
+    }
+    numerics = xr.Dataset(numerics_dict)
+    profiles_dict = {
+        k: v
+        for k, v in flat_dict.items()
+        if v is not None and v.values.ndim == 2  # pytype: disable=attribute-error
+    }
+    profiles = xr.Dataset(profiles_dict)
+    scalars_dict = {
+        k: v
+        for k, v in flat_dict.items()
+        if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
+    }
+    scalars = xr.Dataset(scalars_dict)
+    data_tree = xr.DataTree(
+        children={
+            NUMERICS: xr.DataTree(dataset=numerics),
+            PROFILES: xr.DataTree(dataset=profiles),
+            SCALARS: xr.DataTree(dataset=scalars),
+        },
+        dataset=xr.Dataset(
+            data_vars=None,
+            coords=coords,
+            attrs={CONFIG: self.torax_config.model_dump_json()},
+        ),
+    )
+
+    if file_restart is not None and file_restart.stitch:
+      data_tree = stitch_state_files(file_restart, data_tree)
+
+    return data_tree
+
   def _pack_into_data_array(
       self,
       name: str,
@@ -481,117 +592,6 @@ class StateHistory:
       xr_dict["g0_over_vpr"] = g0_over_vpr_data_array
 
     return xr_dict
-
-  def simulation_output_to_xr(
-      self,
-      file_restart: file_restart_pydantic_model.FileRestart | None = None,
-  ) -> xr.DataTree:
-    """Build an xr.DataTree of the simulation output.
-
-    Args:
-      file_restart: If provided, contains information on a file this sim was
-        restarted from, this is useful in case we want to stitch that to the
-        beggining of this sim output.
-
-    Returns:
-      A xr.DataTree containing a single top level xr.Dataset and four child
-      datasets. The top level dataset contains the following variables:
-        - time: The time of the simulation.
-        - rho_norm: The normalized toroidal coordinate on the cell grid with the
-            left and right face boundaries added.
-        - rho_face_norm: The normalized toroidal coordinate on the face grid.
-        - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
-        - config: The ToraxConfig used to run the simulation serialized to JSON.
-      The child datasets contain the following variables:
-        - numerics: Contains data variables for numeric quantities to do with
-            the simulation.
-        - profiles: Contains data variables for 1D profiles.
-        - scalars: Contains data variables for scalars.
-    """
-    # Cleanup structure by excluding QeiInfo from core_sources altogether.
-    # Add attribute to dataset variables with explanation of contents + units.
-
-    # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
-    time = xr.DataArray(self.times, dims=[TIME], name=TIME)
-    rho_face_norm = xr.DataArray(
-        self.rho_face_norm, dims=[RHO_FACE_NORM], name=RHO_FACE_NORM
-    )
-    rho_cell_norm = xr.DataArray(
-        self.rho_cell_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
-    )
-    rho_norm = xr.DataArray(
-        self.rho_norm,
-        dims=[RHO_NORM],
-        name=RHO_NORM,
-    )
-
-    coords = {
-        TIME: time,
-        RHO_FACE_NORM: rho_face_norm,
-        RHO_CELL_NORM: rho_cell_norm,
-        RHO_NORM: rho_norm,
-    }
-
-    # Update dict with flattened StateHistory dataclass containers
-    all_dicts = [
-        self._save_core_profiles(),
-        self._save_core_transport(),
-        self._save_core_sources(),
-        self._save_post_processed_outputs(),
-        self._save_geometry(),
-    ]
-    flat_dict = {}
-    for key, value in itertools.chain(*(d.items() for d in all_dicts)):
-      if key not in flat_dict:
-        flat_dict[key] = value
-      else:
-        raise ValueError(f"Duplicate key: {key}")
-    numerics_dict = {
-        SIM_ERROR: self.sim_error.value,
-        SAWTOOTH_CRASH: xr.DataArray(
-            self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
-        ),
-        OUTER_SOLVER_ITERATIONS: xr.DataArray(
-            self.solver_numeric_outputs.outer_solver_iterations,
-            dims=[TIME],
-            name=OUTER_SOLVER_ITERATIONS,
-        ),
-        INNER_SOLVER_ITERATIONS: xr.DataArray(
-            self.solver_numeric_outputs.inner_solver_iterations,
-            dims=[TIME],
-            name=INNER_SOLVER_ITERATIONS,
-        ),
-    }
-    numerics = xr.Dataset(numerics_dict)
-    profiles_dict = {
-        k: v
-        for k, v in flat_dict.items()
-        if v is not None and v.values.ndim == 2  # pytype: disable=attribute-error
-    }
-    profiles = xr.Dataset(profiles_dict)
-    scalars_dict = {
-        k: v
-        for k, v in flat_dict.items()
-        if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
-    }
-    scalars = xr.Dataset(scalars_dict)
-    data_tree = xr.DataTree(
-        children={
-            NUMERICS: xr.DataTree(dataset=numerics),
-            PROFILES: xr.DataTree(dataset=profiles),
-            SCALARS: xr.DataTree(dataset=scalars),
-        },
-        dataset=xr.Dataset(
-            data_vars=None,
-            coords=coords,
-            attrs={CONFIG: self.torax_config.model_dump_json()},
-        ),
-    )
-
-    if file_restart is not None and file_restart.stitch:
-      data_tree = stitch_state_files(file_restart, data_tree)
-
-    return data_tree
 
 
 def _rescale_core_profiles(

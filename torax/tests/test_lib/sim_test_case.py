@@ -203,8 +203,9 @@ class SimTestCase(parameterized.TestCase):
       atol = _ATOL
 
     torax_config = self._get_torax_config(config_name)
-    history = run_simulation.run_simulation(torax_config, progress_bar=False)
-    ds = history.simulation_output_to_xr()
+    output_xr, _ = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
 
     if ref_name is None:
@@ -213,12 +214,12 @@ class SimTestCase(parameterized.TestCase):
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 
     self._check_profiles_vs_expected(
-        t=history.times,
+        t=output_xr.time.values,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=rtol,
         atol=atol,
         output_file=output_file,
-        ds=ds,
+        ds=output_xr,
         write_output=write_output,
     )

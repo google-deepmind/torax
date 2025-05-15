@@ -317,7 +317,7 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions.T_e': 6.0,
     })
 
-    history = run_simulation.run_simulation(torax_config, progress_bar=False)
+    _, history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
     history_length = history.core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
@@ -454,7 +454,7 @@ class SimTest(sim_test_case.SimTestCase):
     with mock.patch.object(
         initial_state, '_get_initial_state', wraps=wrapped_get_initial_state
     ):
-      sim_outputs = run_simulation.run_simulation(
+      _, sim_outputs = run_simulation.run_simulation(
           torax_config, progress_bar=False
       )
 
@@ -489,7 +489,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Run the first sim
     config_ip_bc = self._get_config_dict(test_config + '.py')
     torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
-    sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
+    _, sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
     middle_index = len(sim_outputs_ip_bc.times) // 2
     times = sim_outputs_ip_bc.times
 
@@ -503,7 +503,7 @@ class SimTest(sim_test_case.SimTestCase):
         sim_outputs_ip_bc.core_profiles.vloop_lcfs,
     )
     torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
-    sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
+    _, sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
 
     profiles_to_check = (
         sim_outputs_vloop_bc.core_profiles.T_i,
@@ -529,7 +529,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_nans_trigger_error(self):
     """Verify that NaNs in profile evolution triggers early stopping and an error."""
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
-    state_history = run_simulation.run_simulation(torax_config)
+    _, state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
