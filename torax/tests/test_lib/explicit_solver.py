@@ -27,13 +27,13 @@ from jax import numpy as jnp
 from torax import constants
 from torax import state
 from torax._src.config import runtime_params_slice
-from torax.core_profiles import updaters
-from torax.fvm import diffusion_terms
-from torax.geometry import geometry
-from torax.neoclassical.conductivity import base as conductivity_base
-from torax.physics import psi_calculations
-from torax.sources import source_profile_builders
-from torax.sources import source_profiles
+from torax._src.core_profiles import updaters
+from torax._src.fvm import diffusion_terms
+from torax._src.geometry import geometry
+from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import psi_calculations
+from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as solver_pydantic_model
 from torax.transport_model import constant as constant_transport_model

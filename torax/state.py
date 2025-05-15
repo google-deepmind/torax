@@ -21,8 +21,8 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
 import typing_extensions
 
 # pylint: disable=invalid-name

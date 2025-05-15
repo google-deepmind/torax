@@ -33,10 +33,10 @@ import numpy as np
 from torax import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
-from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.orchestration import sim_state
-from torax.orchestration import step_function
-from torax.output_tools import post_processing
+from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.orchestration import sim_state
+from torax._src.orchestration import step_function
+from torax._src.output_tools import post_processing
 import tqdm
 
 

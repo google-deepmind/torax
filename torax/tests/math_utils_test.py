@@ -20,8 +20,8 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
 from torax import math_utils
-from torax.geometry import geometry
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import geometry
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 
 jax.config.update('jax_enable_x64', True)
 

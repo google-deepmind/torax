@@ -17,14 +17,14 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions as profile_conditions_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.pedestal_model import set_tped_nped
-from torax.sources import generic_current_source
-from torax.sources import pydantic_model as sources_pydantic_model
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import set_tped_nped
+from torax._src.sources import generic_current_source
+from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax.tests.test_lib import default_configs
-from torax.torax_pydantic import model_config
-from torax.torax_pydantic import torax_pydantic
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):

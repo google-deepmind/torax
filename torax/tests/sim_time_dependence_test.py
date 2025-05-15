@@ -27,20 +27,20 @@ from torax import sim
 from torax import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
-from torax.fvm import cell_variable
-from torax.geometry import geometry
-from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.orchestration import run_simulation
-from torax.orchestration import sim_state
-from torax.orchestration import step_function
-from torax.output_tools import post_processing
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import source_models as source_models_lib
-from torax.sources import source_profile_builders
-from torax.sources import source_profiles
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
+from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_state
+from torax._src.orchestration import step_function
+from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.sources import source_models as source_models_lib
+from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import model_config
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 

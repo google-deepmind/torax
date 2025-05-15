@@ -27,7 +27,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax import run_simulation_main
 from torax import simulation_app
-from torax.output_tools import output as output_lib
+from torax._src.output_tools import output as output_lib
 from torax.tests.test_lib import paths
 import xarray as xr
 

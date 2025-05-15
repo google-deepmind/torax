@@ -17,7 +17,7 @@ import chex
 import pydantic
 from torax import array_typing
 from torax import constants
-from torax.torax_pydantic import torax_pydantic
+from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
 

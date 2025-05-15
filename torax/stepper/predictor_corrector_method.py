@@ -22,11 +22,11 @@ import jax
 from torax import jax_utils
 from torax import state
 from torax._src.config import runtime_params_slice
-from torax.fvm import block_1d_coeffs
-from torax.fvm import calc_coeffs
-from torax.fvm import cell_variable
-from torax.fvm import implicit_solve_block
-from torax.geometry import geometry
+from torax._src.fvm import block_1d_coeffs
+from torax._src.fvm import calc_coeffs
+from torax._src.fvm import cell_variable
+from torax._src.fvm import implicit_solve_block
+from torax._src.geometry import geometry
 
 
 def predictor_corrector_method(

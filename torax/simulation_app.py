@@ -61,8 +61,8 @@ from absl import logging
 import jax
 import numpy as np
 from torax import state
-from torax.orchestration import run_simulation
-from torax.torax_pydantic import model_config
+from torax._src.orchestration import run_simulation
+from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 import shutil

@@ -41,14 +41,14 @@ import chex
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
 from torax._src.config import profile_conditions
-from torax.geometry import geometry
-from torax.geometry import standard_geometry
-from torax.mhd import runtime_params as mhd_runtime_params
-from torax.neoclassical import runtime_params as neoclassical_params
-from torax.pedestal_model import runtime_params as pedestal_model_params
-from torax.sources import runtime_params as sources_params
+from torax._src.geometry import geometry
+from torax._src.geometry import standard_geometry
+from torax._src.mhd import runtime_params as mhd_runtime_params
+from torax._src.neoclassical import runtime_params as neoclassical_params
+from torax._src.pedestal_model import runtime_params as pedestal_model_params
+from torax._src.sources import runtime_params as sources_params
+from torax._src.torax_pydantic import torax_pydantic
 from torax.stepper import runtime_params as solver_params
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
 import typing_extensions
 

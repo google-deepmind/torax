@@ -15,10 +15,10 @@
 """Pydantic config for time step calculators."""
 
 import enum
+from torax._src.torax_pydantic import torax_pydantic
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator
-from torax.torax_pydantic import torax_pydantic
 
 
 @enum.unique

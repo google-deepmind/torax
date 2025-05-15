@@ -24,20 +24,20 @@ from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
 from torax import state as state_module
-from torax.neoclassical import pydantic_model as neoclassical_pydantic_model
-from torax.neoclassical.bootstrap_current import base as bootstrap_current_base
-from torax.orchestration import run_simulation
-from torax.orchestration import step_function
-from torax.sources import pydantic_model as sources_pydantic_model
-from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
-from torax.sources import source_profile_builders
-from torax.sources import source_profiles as source_profiles_lib
+from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.orchestration import run_simulation
+from torax._src.orchestration import step_function
+from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import source as source_lib
+from torax._src.sources import source_models as source_models_lib
+from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_solver as explicit_solver_lib
 from torax.tests.test_lib import sim_test_case
-from torax.torax_pydantic import model_config
-from torax.torax_pydantic import torax_pydantic
 
 
 _ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')

@@ -24,8 +24,8 @@ import jax
 from jax import numpy as jnp
 from torax import state
 from torax._src.config import runtime_params_slice
-from torax.geometry import geometry
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_model_wrapper

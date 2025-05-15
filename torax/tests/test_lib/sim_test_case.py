@@ -23,10 +23,10 @@ import jax.numpy as jnp
 import numpy as np
 from torax import simulation_app
 from torax._src.config import config_loader
-from torax.orchestration import run_simulation
-from torax.output_tools import output
+from torax._src.orchestration import run_simulation
+from torax._src.output_tools import output
+from torax._src.torax_pydantic import model_config
 from torax.tests.test_lib import paths
-from torax.torax_pydantic import model_config
 
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'

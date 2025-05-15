@@ -22,7 +22,7 @@ import abc
 import jax
 from torax import state as state_module
 from torax._src.config import runtime_params_slice
-from torax.geometry import geometry
+from torax._src.geometry import geometry
 
 
 class TimeStepCalculator(abc.ABC):

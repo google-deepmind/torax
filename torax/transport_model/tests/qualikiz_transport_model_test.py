@@ -19,11 +19,11 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax.core_profiles import initialization
-from torax.pedestal_model import pedestal_model
-from torax.sources import source_models as source_models_lib
+from torax._src.core_profiles import initialization
+from torax._src.pedestal_model import pedestal_model
+from torax._src.sources import source_models as source_models_lib
+from torax._src.torax_pydantic import model_config
 from torax.tests.test_lib import default_configs
-from torax.torax_pydantic import model_config
 
 
 # pylint: disable=g-import-not-at-top
@@ -97,7 +97,10 @@ class QualikizTransportModelTest(absltest.TestCase):
             geo,
             core_profiles,
             pedestal_model.PedestalModelOutput(
-                rho_norm_ped_top=np.inf, T_i_ped=0.0, T_e_ped=0.0, n_e_ped=0.0,
+                rho_norm_ped_top=np.inf,
+                T_i_ped=0.0,
+                T_e_ped=0.0,
+                n_e_ped=0.0,
                 rho_norm_ped_top_idx=geo.torax_mesh.nx,
             ),
         )

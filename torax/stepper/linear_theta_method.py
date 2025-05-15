@@ -16,11 +16,11 @@
 import jax
 from torax import state
 from torax._src.config import runtime_params_slice
-from torax.fvm import calc_coeffs
-from torax.fvm import cell_variable
-from torax.geometry import geometry
-from torax.neoclassical.conductivity import base as conductivity_base
-from torax.sources import source_profiles
+from torax._src.fvm import calc_coeffs
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
+from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper as stepper_lib
 

@@ -18,10 +18,10 @@ import numpy as np
 from torax import interpolated_param
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax.tests.test_lib import default_configs
-from torax.torax_pydantic import model_config
-from torax.torax_pydantic import torax_pydantic
 import xarray as xr
 
 

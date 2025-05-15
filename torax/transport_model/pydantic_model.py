@@ -22,8 +22,8 @@ from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
 import pydantic
-from torax.torax_pydantic import interpolated_param_1d
-from torax.torax_pydantic import torax_pydantic
+from torax._src.torax_pydantic import interpolated_param_1d
+from torax._src.torax_pydantic import torax_pydantic
 from torax.transport_model import bohm_gyrobohm
 from torax.transport_model import constant
 from torax.transport_model import critical_gradient

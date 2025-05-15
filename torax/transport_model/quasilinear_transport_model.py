@@ -17,8 +17,8 @@ import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import state
-from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 import typing_extensions

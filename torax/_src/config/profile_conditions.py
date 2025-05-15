@@ -18,7 +18,7 @@ import dataclasses
 import chex
 import pydantic
 from torax import array_typing
-from torax.torax_pydantic import torax_pydantic
+from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 # pylint: disable=invalid-name
 
@@ -72,7 +72,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       condition.
     use_vloop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
       dspsi_lcfs/dt ). If use_vloop_lcfs_boundary_condition is True, then the
-      specfied Vloop at the LCFS is used as the boundary condition for the psi
+      specified Vloop at the LCFS is used as the boundary condition for the psi
       equation; otherwise, Ip is used as the boundary condition.
     vloop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
     T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is

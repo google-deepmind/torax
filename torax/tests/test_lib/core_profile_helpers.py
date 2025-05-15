@@ -17,9 +17,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import state
-from torax.fvm import cell_variable
-from torax.geometry import geometry
-from torax.output_tools import output
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
+from torax._src.output_tools import output
 
 
 # pylint: disable=invalid-name

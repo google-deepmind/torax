@@ -24,7 +24,7 @@ from jax import numpy as jnp
 from torax import jax_utils
 from torax import state as state_module
 from torax._src.config import runtime_params_slice
-from torax.geometry import geometry
+from torax._src.geometry import geometry
 from torax.time_step_calculator import time_step_calculator
 
 
