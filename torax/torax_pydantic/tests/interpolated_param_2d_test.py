@@ -236,6 +236,17 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           time=0.0,
           expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
       ),
+      dict(
+          testcase_name='nested_dict_t=0.5',
+          time_rho_interpolated_input={
+              0.0: {0.125: 1.0, 0.375: 2.0, 0.625: 3.0, 0.875: 4.0},
+              1.0: {0.125: 5.0, 0.375: 6.0, 0.625: 7.0, 0.875: 8.0},
+          },
+          nx=4,
+          dx=0.25,
+          time=0.5,
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
+      ),
       # Single float represents a constant (in time and rho) profile.
       dict(
           testcase_name='float_t=0.0',
