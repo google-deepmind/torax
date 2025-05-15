@@ -116,7 +116,7 @@ def import_module(path: str | pathlib.Path) -> dict[str, Any]:
       raise ValueError(
           f'The file {path} could not be found. If it is a relative path, it'
           ' could not be resolved relative to the working directory'
-          f' { os.getcwd()} or the Torax directory {torax_path()}.'
+          f' {os.getcwd()} or the Torax directory {torax_path()}.'
       )
     path = new_path
 
