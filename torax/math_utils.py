@@ -41,7 +41,6 @@ class IntegralPreservationQuantity(enum.Enum):
   VALUE = 'value'
 
 
-@array_typing.typed
 @functools.partial(
     jax_utils.jit,
     static_argnames=['preserved_quantity',],
@@ -194,7 +193,6 @@ def cumulative_trapezoid(
   return out
 
 
-@array_typing.typed
 @jax_utils.jit
 def cell_integration(
     x: array_typing.ArrayFloat, geo: geometry.Geometry

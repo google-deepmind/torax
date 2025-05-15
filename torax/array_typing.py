@@ -12,36 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-"""Common types and helpers for using jaxtyping in TORAX."""
-
-from typing import Callable, TypeVar
+"""Common types for using jaxtyping in TORAX."""
 import chex
 import jaxtyping as jt
-import typeguard
 
-F = TypeVar("F", bound=Callable)
 ScalarFloat = jt.Float[chex.Array | float, ""]
 ScalarBool = jt.Bool[chex.Array | bool, ""]
 ScalarInt = jt.Int[chex.Array | int, ""]
 ArrayFloat = jt.Float[chex.Array, "rhon"]
 ArrayBool = jt.Bool[chex.Array, "rhon"]
-
-
-def typed(function: F) -> F:
-  """Helper decorator for using jaxtyping for shape and dtype checking.
-
-  Example usage:
-  @typed
-  def f(x: ScalarFloat) -> ScalarFloat:
-    ...
-
-  Jaxtyping is enabled by default, to globally disable jaxtyping set
-  JAXTYPING_DISABLE=True.
-
-  Args:
-    function: The function to shape check.
-
-  Returns:
-    The decorated function.
-  """
-  return jt.jaxtyped(function, typechecker=typeguard.typechecked)
