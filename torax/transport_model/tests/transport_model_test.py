@@ -35,7 +35,11 @@ class TransportSmoothingTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Register the fake transport config exactly once.
+    # Snapshot the original annotation so we can restore it in tearDown()
+    field = model_config.ToraxConfig.model_fields['transport']
+    self._original_annotation = field.annotation
+
+    # Register FakeTransportConfig exactly once
     field = model_config.ToraxConfig.model_fields['transport']
     ann = field.annotation
     try:
@@ -46,6 +50,13 @@ class TransportSmoothingTest(parameterized.TestCase):
     if FakeTransportConfig not in existing:
       field.annotation |= FakeTransportConfig
       model_config.ToraxConfig.model_rebuild(force=True)
+
+  def tearDown(self):
+    # Restore exacty what was there before Setup()
+    field = model_config.ToraxConfig.model_fields['transport']
+    field.annotation = self._original_annotation
+    model_config.ToraxConfig.model_rebuild(force=True)
+    super().tearDown()
 
   def test_smoothing(self):
     """Tests that smoothing works as expected."""
