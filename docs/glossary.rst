@@ -11,17 +11,32 @@ Glossary of Terms
 
 :math:`\psi`: poloidal flux
 
-:math:`\hat{\rho}`: The normalized toroidal flux coordinate. used as the radial coordinate in the TORAX 1D mesh.
-:math:`\hat{\rho}` is a flux surface label, being constant on a closed surface of magnetic flux.
-The toroidal flux coordinate is defined as :math:`\rho=\sqrt{\frac{\Phi}{\pi B}}`, where :math:`\Phi` is the
-toroidal magnetic flux enclosed by the magnetic flux surface being labelled. :math:`B` is the magnetic field at the
-magnetic axis. The :math:`\hat{\rho}=\rho/\rho_{LCFS}`, where :math:`\rho_{LCFS}` is the
+:math:`\hat{\rho}`: The normalized toroidal flux coordinate. used as the radial
+coordinate in the TORAX 1D mesh.
+
+:math:`\hat{\rho}` is a flux surface label, being constant on a closed surface
+of magnetic flux. The toroidal flux coordinate is defined as
+:math:`\rho=\sqrt{\frac{\Phi}{\pi B}}`, where :math:`\Phi` is the toroidal
+magnetic flux enclosed by the magnetic flux surface being labelled. :math:`B` is
+the magnetic field at the magnetic axis.
+The :math:`\hat{\rho}=\rho/\rho_{LCFS}`, where :math:`\rho_{LCFS}` is the
 toroidal flux coordinate at the last-closed-flux-surface, in units of meters.
 
-**evolving profiles**: ``core_profile`` variables (:math:`T_i`, :math:`T_e`, :math:`n_e`, :math:`\psi`)
-which are evolved by the PDE, as determined in the **numerics** dataclass (see :ref:`configuration`).
+**evolving profiles**: ``core_profile`` variables
+(:math:`T_i`, :math:`T_e`, :math:`n_e`, :math:`\psi`) which are evolved by the
+PDE, as determined in the **numerics** configuration (see :ref:`configuration`).
 
-**prescribed profiles**: ``core_profile`` variables that are not being evolved by the PDE, but have time-dependent
-variables in the **profile_conditions** dataclass (see :ref:`configuration`) that determine their values
+**prescribed profiles**: ``core_profile`` variables that are not being evolved
+by the PDE, but have time-dependent variables in the **profile_conditions**
+configuration (see :ref:`configuration`) that determine their values
 throughout the simulation.
 
+**dynamic runtime parameters**: configuration variables, often time-dependent,
+whose modification will not retrigger JAX compilation when rerunning TORAX
+within a process. Examples are boundary conditions, initial conditions, and
+source parameters.
+
+**static runtime parameters**: configuration variables, non-time-dependent,
+whose modification will retrigger JAX compilation when rerunning TORAX within a
+process. Examples are mesh size and model names (which modify the functions
+used and thus the computational graph).
