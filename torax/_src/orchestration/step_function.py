@@ -34,8 +34,8 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.stepper import stepper as solver_lib
+from torax._src.time_step_calculator import time_step_calculator as ts
 from torax._src.transport_model import transport_model as transport_model_lib
-from torax.time_step_calculator import time_step_calculator as ts
 
 
 def _check_for_errors(

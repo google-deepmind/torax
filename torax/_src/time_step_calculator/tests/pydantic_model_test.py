@@ -14,9 +14,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import pydantic
-from torax.time_step_calculator import chi_time_step_calculator
-from torax.time_step_calculator import fixed_time_step_calculator
-from torax.time_step_calculator import pydantic_model as time_step_pydantic_model
+from torax._src.time_step_calculator import chi_time_step_calculator
+from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import pydantic_model as time_step_pydantic_model
 
 
 class PydanticModelTest(parameterized.TestCase):
