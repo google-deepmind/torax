@@ -21,8 +21,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source_profiles
-from torax.stepper import predictor_corrector_method
-from torax.stepper import stepper as stepper_lib
+from torax._src.stepper import predictor_corrector_method
+from torax._src.stepper import stepper as stepper_lib
 
 
 class LinearThetaMethod(stepper_lib.Solver):

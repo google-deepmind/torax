@@ -22,12 +22,12 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
+from torax._src.stepper import linear_theta_method
+from torax._src.stepper import nonlinear_theta_method
+from torax._src.stepper import runtime_params
+from torax._src.stepper import stepper as solver_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_model as transport_model_lib
-from torax.stepper import linear_theta_method
-from torax.stepper import nonlinear_theta_method
-from torax.stepper import runtime_params
-from torax.stepper import stepper as solver_lib
 
 # pylint: disable=invalid-name
 
