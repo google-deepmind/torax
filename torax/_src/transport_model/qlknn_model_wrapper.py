@@ -20,8 +20,8 @@ import immutabledict
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax.transport_model import base_qlknn_model
-from torax.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import base_qlknn_model
+from torax._src.transport_model import qualikiz_based_transport_model
 
 
 # Convert flux names from Qualikiz to TORAX.

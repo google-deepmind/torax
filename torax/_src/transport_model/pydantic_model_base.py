@@ -19,8 +19,8 @@ import chex
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
-from torax.transport_model import runtime_params
-from torax.transport_model import transport_model
+from torax._src.transport_model import runtime_params
+from torax._src.transport_model import transport_model
 import typing_extensions
 
 

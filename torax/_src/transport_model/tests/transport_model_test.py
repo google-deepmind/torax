@@ -25,9 +25,9 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import transport_model as transport_model_lib
 from torax.tests.test_lib import default_configs
-from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
-from torax.transport_model import transport_model as transport_model_lib
 
 
 class TransportSmoothingTest(parameterized.TestCase):

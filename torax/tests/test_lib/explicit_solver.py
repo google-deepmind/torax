@@ -34,9 +34,9 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
+from torax._src.transport_model import constant as constant_transport_model
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as solver_pydantic_model
-from torax.transport_model import constant as constant_transport_model
 
 
 class ExplicitSolver(linear_theta_method.LinearThetaMethod):

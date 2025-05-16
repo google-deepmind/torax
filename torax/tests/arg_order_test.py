@@ -39,11 +39,11 @@ from torax._src.sources import generic_current_source
 from torax._src.sources import qei_source
 from torax._src.sources import source
 from torax._src.sources import source_models
+from torax._src.transport_model import qlknn_transport_model
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper
-from torax.transport_model import qlknn_transport_model
 
 
 class ArgOrderTest(parameterized.TestCase):

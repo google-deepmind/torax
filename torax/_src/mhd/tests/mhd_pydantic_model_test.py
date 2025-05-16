@@ -24,8 +24,8 @@ from torax._src.mhd.sawtooth import sawtooth_model
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import transport_model as transport_model_lib
 from torax.tests.test_lib import default_configs
-from torax.transport_model import transport_model as transport_model_lib
 
 
 class MHDPydanticModelTest(parameterized.TestCase):

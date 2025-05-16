@@ -30,9 +30,9 @@ from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
 from torax.stepper import pydantic_model as solver_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
 from typing_extensions import Self
 

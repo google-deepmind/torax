@@ -14,14 +14,14 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from fusion_surrogates.qlknn.models import registry
-from torax.transport_model import bohm_gyrobohm
-from torax.transport_model import constant
-from torax.transport_model import critical_gradient
-from torax.transport_model import pydantic_model as transport_pydantic_model
-from torax.transport_model import qlknn_10d
-from torax.transport_model import qlknn_transport_model
-from torax.transport_model import runtime_params
-from torax.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import constant
+from torax._src.transport_model import critical_gradient
+from torax._src.transport_model import pydantic_model as transport_pydantic_model
+from torax._src.transport_model import qlknn_10d
+from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import runtime_params
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -63,7 +63,7 @@ class PydanticModelTest(parameterized.TestCase):
   def test_build_qualikiz_transport_model(self):
     try:
       # pylint: disable=g-import-not-at-top
-      from torax.transport_model import qualikiz_transport_model
+      from torax._src.transport_model import qualikiz_transport_model
       # pylint: enable=g-import-not-at-top
     except ImportError:
       self.skipTest('Qualikiz transport model is not available.')

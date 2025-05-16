@@ -48,8 +48,8 @@ from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import runtime_params as transport_model_params
 from torax.stepper import runtime_params as solver_params
-from torax.transport_model import runtime_params as transport_model_params
 import typing_extensions
 
 # Many of the variables follow scientific or mathematical notation, so disable

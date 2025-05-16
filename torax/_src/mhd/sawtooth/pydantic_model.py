@@ -25,7 +25,7 @@ from torax._src.mhd.sawtooth import simple_trigger
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import torax_pydantic
-from torax.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class SawtoothConfig(torax_pydantic.BaseModelFrozen):

@@ -24,12 +24,12 @@ from fusion_surrogates.qlknn.models import registry
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
-from torax.transport_model import bohm_gyrobohm
-from torax.transport_model import constant
-from torax.transport_model import critical_gradient
-from torax.transport_model import pydantic_model_base
-from torax.transport_model import qlknn_10d
-from torax.transport_model import qlknn_transport_model
+from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import constant
+from torax._src.transport_model import critical_gradient
+from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import qlknn_10d
+from torax._src.transport_model import qlknn_transport_model
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -341,7 +341,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 
 try:
   # pylint: disable=g-import-not-at-top
-  from torax.transport_model import qualikiz_transport_model
+  from torax._src.transport_model import qualikiz_transport_model
   # pylint: enable=g-import-not-at-top
   TransportConfig = Union[
       QLKNNTransportModel,

@@ -28,7 +28,7 @@ from torax.tests.test_lib import default_configs
 
 # pylint: disable=g-import-not-at-top
 try:
-  from torax.transport_model import qualikiz_transport_model
+  from torax._src.transport_model import qualikiz_transport_model
 
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:

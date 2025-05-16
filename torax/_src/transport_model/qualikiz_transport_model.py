@@ -34,8 +34,8 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.transport_model import pydantic_model_base
-from torax.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import qualikiz_based_transport_model
 
 
 @chex.dataclass(frozen=True)

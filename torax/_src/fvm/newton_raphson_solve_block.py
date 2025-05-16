@@ -37,8 +37,8 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
+from torax._src.transport_model import transport_model as transport_model_lib
 from torax.stepper import predictor_corrector_method
-from torax.transport_model import transport_model as transport_model_lib
 
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate

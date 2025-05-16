@@ -20,7 +20,7 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.physics import psi_calculations
-from torax.transport_model import quasilinear_transport_model
+from torax._src.transport_model import quasilinear_transport_model
 
 
 @chex.dataclass(frozen=True)

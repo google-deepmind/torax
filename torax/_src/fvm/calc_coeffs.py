@@ -29,7 +29,7 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
