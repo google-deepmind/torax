@@ -5,6 +5,7 @@
 .. _pint_link: https://gitlab.com/qualikiz-group/pyntegrated_model
 .. _raptor_link: https://iopscience.iop.org/article/10.1088/0741-3335/54/2/025002
 .. _toricnn_link: https://meetings.aps.org/Meeting/DPP24/Session/NP12.106
+.. _pereverzev-corrigan_link: https://doi.org/10.1016/j.cpc.2008.05.006
 
 .. Define substitutions using link targets
 .. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
@@ -13,3 +14,4 @@
 .. |pint| replace:: `PINT <pint_link_>`_
 .. |raptor| replace:: `[Felici et al, Plasma Phys. Control. Fusion 2012] <raptor_link_>`_
 .. |toricnn| replace:: `[Wallace et al, APS 2024] <toricnn_link_>`_
+.. |pereverzev-corrigan-method| replace:: `Pereverzev-Corrigan method <pereverzev-corrigan_link_>`_
