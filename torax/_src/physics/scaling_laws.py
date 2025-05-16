@@ -24,9 +24,9 @@ Functions:
 
 import jax
 from jax import numpy as jnp
-from torax import constants
-from torax import math_utils
-from torax import state
+from torax._src import constants
+from torax._src import math_utils
+from torax._src import state
 from torax._src.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid

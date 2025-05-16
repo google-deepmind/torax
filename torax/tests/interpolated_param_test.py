@@ -19,7 +19,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import interpolated_param
+from torax._src import interpolated_param
 import xarray as xr
 
 

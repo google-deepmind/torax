@@ -22,8 +22,8 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
-from torax import constants as constants_module
-from torax import state
+from torax._src import constants as constants_module
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization

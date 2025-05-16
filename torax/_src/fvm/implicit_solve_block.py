@@ -20,7 +20,7 @@ import dataclasses
 import functools
 import jax
 from jax import numpy as jnp
-from torax import jax_utils
+from torax._src import jax_utils
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import fvm_conversions

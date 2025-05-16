@@ -30,9 +30,9 @@ Functions:
 import chex
 import jax
 from jax import numpy as jnp
-from torax import array_typing
-from torax import constants
-from torax import jax_utils
+from torax._src import array_typing
+from torax._src import constants
+from torax._src import jax_utils
 from torax._src.fvm import cell_variable
 from torax._src.fvm import convection_terms
 from torax._src.fvm import diffusion_terms

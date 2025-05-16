@@ -19,7 +19,7 @@ from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
-from torax import state
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base

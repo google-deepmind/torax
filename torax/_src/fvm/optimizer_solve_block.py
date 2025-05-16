@@ -19,7 +19,7 @@ See function docstring for details.
 from typing import TypeAlias
 
 import jax
-from torax import state
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs

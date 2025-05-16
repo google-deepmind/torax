@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dataclass representing runtime parameter inputs to the pedestal models."""
-import chex
-from torax._src import array_typing
+"""Pytest fixture for working around UnparsedFlagAccessError when running tests."""
+
+import sys
+
+from absl import flags
+# Need to import absltest to get --test_srcdir defined.
+from absl.testing import absltest  # pylint: disable=unused-import
+import pytest
 
 
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams:
-  """Input params for the pedestal model."""
-  set_pedestal: array_typing.ScalarBool
+@pytest.fixture(scope='session', autouse=True)
+def parse_flags():
+  # Only pass the first item, because pytest flags shouldn't be parsed as absl
+  # flags.
+  flags.FLAGS(sys.argv[:1])

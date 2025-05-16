@@ -22,7 +22,7 @@ from typing import Final
 import chex
 import jax
 from jax import numpy as jnp
-from torax import state
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib

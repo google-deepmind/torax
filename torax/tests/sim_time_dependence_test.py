@@ -23,8 +23,8 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import sim
-from torax import state
+from torax._src import sim
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable

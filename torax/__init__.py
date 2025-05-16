@@ -23,13 +23,13 @@ import jax
 from torax import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
+from torax._src.interpolated_param import InterpolatedVarSingleAxis
+from torax._src.interpolated_param import InterpolatedVarTimeRho
+from torax._src.interpolated_param import InterpolationMode
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
+from torax._src.state import SimError
 from torax._src.torax_pydantic.model_config import ToraxConfig
-from torax.interpolated_param import InterpolatedVarSingleAxis
-from torax.interpolated_param import InterpolatedVarTimeRho
-from torax.interpolated_param import InterpolationMode
-from torax.state import SimError
 
 # pylint: enable=g-importing-member
 

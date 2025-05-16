@@ -21,10 +21,10 @@ import chex
 import immutabledict
 import jax.numpy as jnp
 import numpy as np
-from torax import array_typing
-from torax import constants
-from torax import jax_utils
-from torax import state
+from torax._src import array_typing
+from torax._src import constants
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry

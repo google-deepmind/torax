@@ -17,11 +17,11 @@
 import chex
 import jax
 from jax import numpy as jnp
-from torax import array_typing
-from torax import constants
-from torax import jax_utils
-from torax import math_utils
-from torax import state
+from torax._src import array_typing
+from torax._src import constants
+from torax._src import jax_utils
+from torax._src import math_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib

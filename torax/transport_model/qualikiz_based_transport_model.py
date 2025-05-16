@@ -15,8 +15,8 @@
 
 import chex
 from jax import numpy as jnp
-from torax import constants as constants_module
-from torax import state
+from torax._src import constants as constants_module
+from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.physics import psi_calculations

@@ -17,8 +17,8 @@ import functools
 
 import jax
 from jax import numpy as jnp
-from torax import array_typing
-from torax import jax_utils
+from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src.config import numerics
 from torax._src.config import profile_conditions
 from torax._src.config import runtime_params_slice

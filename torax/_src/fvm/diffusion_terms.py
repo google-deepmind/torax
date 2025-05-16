@@ -19,7 +19,7 @@ Builds the diffusion terms of the discrete matrix equation.
 
 import chex
 from jax import numpy as jnp
-from torax import math_utils
+from torax._src import math_utils
 from torax._src.fvm import cell_variable
 
 

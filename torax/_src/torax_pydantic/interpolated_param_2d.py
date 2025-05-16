@@ -20,8 +20,8 @@ from typing import Any, Literal, TypeAlias
 import chex
 import numpy as np
 import pydantic
-from torax import interpolated_param
-from torax import jax_utils
+from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 from typing_extensions import Annotated

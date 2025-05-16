@@ -18,8 +18,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax import jax_utils
-from torax import math_utils
+from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry

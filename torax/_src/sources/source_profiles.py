@@ -19,7 +19,7 @@ from typing import Literal
 import chex
 import jax
 import jax.numpy as jnp
-from torax import constants
+from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 import typing_extensions

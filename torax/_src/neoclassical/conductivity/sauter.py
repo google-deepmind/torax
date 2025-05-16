@@ -15,7 +15,7 @@
 
 from typing import Literal
 
-from torax import state
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base

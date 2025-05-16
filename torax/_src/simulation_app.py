@@ -35,7 +35,7 @@ module, due to the tuple return type.
 
   from absl import app
   from absl import logging
-  from torax import simulation_app
+  from torax._src import simulation_app
   from torax.examples import basic_config
   from torax._src.config import build_sim
 
@@ -60,7 +60,7 @@ from typing import Callable, Final
 from absl import logging
 import jax
 import numpy as np
-from torax import state
+from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.torax_pydantic import model_config
 import xarray as xr

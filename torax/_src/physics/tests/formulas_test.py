@@ -16,9 +16,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax import constants
-from torax import jax_utils
-from torax import state
+from torax._src import constants
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

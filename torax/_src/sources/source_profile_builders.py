@@ -16,8 +16,8 @@
 import functools
 
 import chex
-from torax import jax_utils
-from torax import state
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base

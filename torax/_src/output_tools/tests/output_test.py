@@ -22,7 +22,7 @@ import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
-from torax import state
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable

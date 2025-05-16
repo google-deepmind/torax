@@ -19,8 +19,8 @@ static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
 import jax
-from torax import jax_utils
-from torax import state
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs

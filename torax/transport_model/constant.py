@@ -18,8 +18,8 @@ A simple model assuming constant transport.
 """
 import chex
 from jax import numpy as jnp
-from torax import array_typing
-from torax import state
+from torax._src import array_typing
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib

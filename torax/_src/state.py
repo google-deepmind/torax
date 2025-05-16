@@ -20,7 +20,7 @@ from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
-from torax import array_typing
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 import typing_extensions

@@ -22,9 +22,9 @@ import inspect
 from absl.testing import absltest
 from absl.testing import parameterized
 import torax
-from torax import sim
-from torax import state
 from torax._src import physics
+from torax._src import sim
+from torax._src import state
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs

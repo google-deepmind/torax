@@ -24,8 +24,8 @@ from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import jax_utils
-from torax import state as state_module
+from torax._src import jax_utils
+from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs

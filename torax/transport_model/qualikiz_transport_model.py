@@ -29,8 +29,8 @@ import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
-from torax import jax_utils
-from torax import state
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib

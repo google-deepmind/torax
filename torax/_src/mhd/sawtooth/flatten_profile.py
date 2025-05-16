@@ -16,8 +16,8 @@
 
 import dataclasses
 from jax import numpy as jnp
-from torax import array_typing
-from torax import math_utils
+from torax._src import array_typing
+from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry

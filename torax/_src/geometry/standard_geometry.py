@@ -25,8 +25,8 @@ import chex
 import contourpy
 import numpy as np
 import scipy
-from torax import constants
-from torax import interpolated_param
+from torax._src import constants
+from torax._src import interpolated_param
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider

@@ -23,7 +23,7 @@ import immutabledict
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import jax_utils
+from torax._src import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 import typing_extensions

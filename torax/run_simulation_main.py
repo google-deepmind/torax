@@ -30,7 +30,7 @@ from absl import flags
 from absl import logging
 import jax
 import torax
-from torax import simulation_app
+from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.torax_pydantic import model_config
 from torax.plotting import plotruns_lib

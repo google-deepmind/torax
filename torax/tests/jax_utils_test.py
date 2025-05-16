@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
-from torax import jax_utils
+from torax._src import jax_utils
 
 
 class JaxUtilsTest(parameterized.TestCase):

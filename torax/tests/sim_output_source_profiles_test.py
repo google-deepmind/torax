@@ -23,7 +23,7 @@ from unittest import mock
 from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
-from torax import state as state_module
+from torax._src import state as state_module
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation

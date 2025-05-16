@@ -16,8 +16,8 @@
 import enum
 
 import chex
-from torax import array_typing
-from torax import interpolated_param
+from torax._src import array_typing
+from torax._src import interpolated_param
 
 
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput

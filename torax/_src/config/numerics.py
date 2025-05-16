@@ -15,8 +15,8 @@
 """Numerics parameters used throughout TORAX simulations."""
 import chex
 import pydantic
-from torax import array_typing
-from torax import constants
+from torax._src import array_typing
+from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 

@@ -18,8 +18,8 @@ This is the dataclass runtime config exposed to the user. The actual model gets
 a time-interpolated version of this config via the DynamicRuntimeParams.
 """
 import chex
-from torax import array_typing
-from torax import jax_utils
+from torax._src import array_typing
+from torax._src import jax_utils
 
 
 # pylint: disable=invalid-name

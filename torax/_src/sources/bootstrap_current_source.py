@@ -15,8 +15,8 @@
 """Sauter model implementation - to be moved to neoclassical."""
 import chex
 from jax import numpy as jnp
-from torax import constants
-from torax import jax_utils
+from torax._src import constants
+from torax._src import jax_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles

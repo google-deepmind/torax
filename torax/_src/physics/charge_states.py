@@ -18,8 +18,8 @@ from typing import Final, Mapping, Sequence
 import immutabledict
 from jax import numpy as jnp
 import numpy as np
-from torax import array_typing
-from torax import constants
+from torax._src import array_typing
+from torax._src import constants
 from torax._src.config import plasma_composition
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):

@@ -31,9 +31,9 @@ import dataclasses
 import functools
 import jax
 from jax import numpy as jnp
-from torax import array_typing
-from torax import jax_utils
-from torax import state
+from torax._src import array_typing
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable

@@ -15,7 +15,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import interpolated_param
+from torax._src import interpolated_param
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

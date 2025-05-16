@@ -16,9 +16,9 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
-from torax import array_typing
-from torax import math_utils
-from torax import state
+from torax._src import array_typing
+from torax._src import math_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base

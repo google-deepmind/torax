@@ -15,7 +15,7 @@
 """Dynamic runtime params for sawtooth model."""
 
 import chex
-from torax import array_typing
+from torax._src import array_typing
 
 
 @chex.dataclass(frozen=True)

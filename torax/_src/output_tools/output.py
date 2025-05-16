@@ -22,8 +22,8 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-from torax import constants
-from torax import state
+from torax._src import constants
+from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing

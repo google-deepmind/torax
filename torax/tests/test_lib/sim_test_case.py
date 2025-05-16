@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import numpy as np
-from torax import simulation_app
+from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output

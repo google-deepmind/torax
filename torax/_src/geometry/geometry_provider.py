@@ -23,8 +23,8 @@ from typing import Protocol, Type
 
 import chex
 import numpy as np
-from torax import interpolated_param
-from torax import jax_utils
+from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions

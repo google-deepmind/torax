@@ -24,7 +24,7 @@ new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
 
-from torax import sim
+from torax._src import sim
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function

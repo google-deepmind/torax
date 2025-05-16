@@ -27,7 +27,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import tree
 import numpy as np
-from torax import state
+from torax._src import state
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output

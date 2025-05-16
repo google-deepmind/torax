@@ -16,7 +16,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import state
+from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output

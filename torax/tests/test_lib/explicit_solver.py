@@ -24,8 +24,8 @@ from typing import Literal
 
 import jax
 from jax import numpy as jnp
-from torax import constants
-from torax import state
+from torax._src import constants
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
 from torax._src.fvm import diffusion_terms

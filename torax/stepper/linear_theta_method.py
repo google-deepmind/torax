@@ -14,7 +14,7 @@
 
 """The LinearThetaMethod solver class."""
 import jax
-from torax import state
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
