@@ -71,12 +71,12 @@ class SawtoothModelTest(parameterized.TestCase):
         'mhd': {
             'sawtooth': {
                 'trigger_model': {
-                    'trigger_model_type': 'simple',
+                    'model_name': 'simple',
                     'minimum_radius': 0.2,
                     's_critical': 0.2,
                 },
                 'redistribution_model': {
-                    'redistribution_model_type': 'simple',
+                    'model_name': 'simple',
                     'flattening_factor': 1.01,
                     'mixing_radius_multiplier': 1.5,
                 },

@@ -90,10 +90,10 @@ class MHDPydanticModelTest(parameterized.TestCase):
     config['mhd'] = {
         'sawtooth': {
             'trigger_model': {
-                'trigger_model_type': 'simple',
+                'model_name': 'simple',
                 'minimum_radius': 0.06,
             },
-            'redistribution_model': {'redistribution_model_type': 'simple'},
+            'redistribution_model': {'model_name': 'simple'},
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

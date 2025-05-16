@@ -130,7 +130,7 @@ class SimpleTriggerConfig(trigger_base.TriggerConfig):
   s_critical: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  trigger_model_type: Literal['simple'] = 'simple'
+  model_name: Literal['simple'] = 'simple'
 
   def build_dynamic_params(
       self,

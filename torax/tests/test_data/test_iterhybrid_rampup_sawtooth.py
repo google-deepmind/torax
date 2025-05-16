@@ -33,12 +33,12 @@ CONFIG['transport']['rho_inner'] = 0.15
 CONFIG['mhd'] = {
     'sawtooth': {
         'trigger_model': {
-            'trigger_model_type': 'simple',
+            'model_name': 'simple',
             'minimum_radius': 0.05,
             's_critical': 0.15,
         },
         'redistribution_model': {
-            'redistribution_model_type': 'simple',
+            'model_name': 'simple',
             'flattening_factor': 1.001,
             'mixing_radius_multiplier': 1.3,
         },

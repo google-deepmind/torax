@@ -38,11 +38,11 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
   """
 
   trigger_model: Union[simple_trigger.SimpleTriggerConfig] = pydantic.Field(
-      discriminator='trigger_model_type'
+      discriminator='model_name'
   )
 
   redistribution_model: simple_redistribution.SimpleRedistributionConfig = (
-      pydantic.Field(discriminator='redistribution_model_type')
+      pydantic.Field(discriminator='model_name')
   )
 
   crash_step_duration: torax_pydantic.Second = 1e-3

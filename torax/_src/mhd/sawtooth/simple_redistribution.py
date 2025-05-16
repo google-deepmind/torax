@@ -200,7 +200,7 @@ class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
-  redistribution_model_type: Literal['simple'] = 'simple'
+  model_name: Literal['simple'] = 'simple'
   mixing_radius_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.1)
   )

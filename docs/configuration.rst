@@ -1203,7 +1203,7 @@ model will be disabled.
 sawtooth
 ^^^^^^^^
 
-``trigger_model_type`` (str [default = 'simple'])
+``model_name`` (str [default = 'simple'])
   Currently only 'simple' is supported.
 
 ``simple`` trigger model parameters:
@@ -1216,7 +1216,7 @@ sawtooth
   normalized radius (:math:`\hat{\rho}`) of the q=1 surface required to trigger
   a crash.
 
-``redistribution_model_type`` (str [default = 'simple'])
+``model_name`` (str [default = 'simple'])
   Currently only 'simple' is supported.
 
 ``simple`` redistribution model parameters:
