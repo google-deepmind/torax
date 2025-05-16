@@ -70,9 +70,9 @@ class ConfigTest(parameterized.TestCase):
     )
     with self.subTest("pedestal_model_set"):
       self.assertEqual(
-          config_pydantic.pedestal.pedestal_model,
-          config_dict["pedestal"]["pedestal_model"]
-          if "pedestal_model" in config_dict["pedestal"]
+          config_pydantic.pedestal.model_name,
+          config_dict["pedestal"]["model_name"]
+          if "model_name" in config_dict["pedestal"]
           else "no_pedestal",
       )
     with self.subTest("transport_model_set"):

@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
-    'pedestal_model': 'set_P_ped_n_ped',
+    'model_name': 'set_P_ped_n_ped',
     'set_pedestal': True,
     'T_i_T_e_ratio': 1.0,
     'P_ped': 89300.0,

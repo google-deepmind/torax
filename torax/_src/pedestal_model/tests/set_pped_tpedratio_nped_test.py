@@ -56,7 +56,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         n_e_ped /= constants.DENSITY_SCALING_FACTOR
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'pedestal_model': 'set_P_ped_n_ped',
+        'model_name': 'set_P_ped_n_ped',
         'set_pedestal': True,
         'n_e_ped': n_e_ped,
         'n_e_ped_is_fGW': n_e_ped_is_fGW,

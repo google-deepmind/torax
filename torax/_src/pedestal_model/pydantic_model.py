@@ -61,7 +61,7 @@ class SetPpedTpedRatioNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  pedestal_model: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
+  model_name: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
   P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
@@ -110,7 +110,7 @@ class SetTpedNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  pedestal_model: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
+  model_name: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
   n_e_ped: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7e20)
   )
@@ -154,7 +154,7 @@ class NoPedestal(BasePedestal):
   Note that setting `set_pedestal` to True with a NoPedestal model is the
   equivalent of setting it to False.
   """
-  pedestal_model: Literal['no_pedestal'] = 'no_pedestal'
+  model_name: Literal['no_pedestal'] = 'no_pedestal'
 
   def build_pedestal_model(
       self,

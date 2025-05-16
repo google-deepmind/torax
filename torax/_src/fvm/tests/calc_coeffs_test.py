@@ -46,7 +46,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
-                set_pedestal=set_pedestal, pedestal_model='set_T_ped_n_ped'
+                set_pedestal=set_pedestal, model_name='set_T_ped_n_ped'
             ),
             sources=sources_config,
             solver=dict(

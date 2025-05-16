@@ -55,7 +55,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         n_e_ped /= constants.DENSITY_SCALING_FACTOR
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'pedestal_model': 'set_T_ped_n_ped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'T_i_ped': T_i_ped,
         'T_e_ped': T_e_ped,

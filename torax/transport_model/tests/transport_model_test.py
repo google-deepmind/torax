@@ -228,7 +228,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         'n_e_right_bc': 0.5,
     }
     config['pedestal'] = {
-        'pedestal_model': 'set_T_ped_n_ped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
     }
     config['geometry'] = {'geometry_type': 'circular'}

@@ -352,9 +352,6 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``n_e_right_bc_is_fGW`` (bool = False)
   Toggle units of ``n_e_right_bc``.
 
-``set_pedestal`` (**time-varying-scalar** [default = True])
-  Description for the set_pedestal field (add a more specific description if needed).
-
 ``current_profile_nu`` (float = 3.0)
   Peaking factor of initial current, either total or "Ohmic": :math:`j = j_0(1 - r^2/a^2)^{\text{current\_profile\_nu}}`. Used if ``initial_psi_from_j`` is True. In that case, then this sets the peaking factor of either the total or Ohmic initial current profile, depending on the ``initial_j_is_total_current`` flag.
 
@@ -423,8 +420,8 @@ In TORAX we aim to support different models for computing the pedestal width,
 and electron density, ion temperature and electron temperature at the pedestal
 top. These models will only be used if the ``set_pedestal`` flag is set to True.
 
-``pedestal_model`` (str [default = 'no_pedestal'])
-The model can be configured by setting the ``pedestal_model`` key in the
+``model_name`` (str [default = 'no_pedestal'])
+The model can be configured by setting the ``model_name`` key in the
 ``pedestal`` section of the configuration. If this field is not set, then
 the default model is ``no_pedestal``.
 
@@ -1522,7 +1519,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           },
       },
       'pedestal': {
-          'pedestal_model': 'set_T_ped_n_ped',
+          'model_name': 'set_T_ped_n_ped',
           'set_pedestal': True,
           'T_i_ped': 1.0,
           'T_e_ped': 1.0,

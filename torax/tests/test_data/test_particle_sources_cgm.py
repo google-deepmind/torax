@@ -56,7 +56,7 @@ CONFIG = {
         'bootstrap_current': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_T_ped_n_ped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'n_e_ped': 1.0e20,
     },

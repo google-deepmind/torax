@@ -71,7 +71,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       discriminator='transport_model'
   )
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field(
-      discriminator='pedestal_model'
+      discriminator='model_name'
   )
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   time_step_calculator: (
@@ -88,8 +88,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    if 'pedestal_model' not in configurable_data['pedestal']:
-      configurable_data['pedestal']['pedestal_model'] = 'no_pedestal'
+    if 'model_name' not in configurable_data['pedestal']:
+      configurable_data['pedestal']['model_name'] = 'no_pedestal'
     if 'transport_model' not in configurable_data['transport']:
       configurable_data['transport']['transport_model'] = 'constant'
     if 'solver_type' not in configurable_data['solver']:

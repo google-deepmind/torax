@@ -43,7 +43,7 @@ CONFIG = {
     'neoclassical': {
         'bootstrap_current': {},
     },
-    'pedestal': {'pedestal_model': 'set_T_ped_n_ped', 'set_pedestal': True},
+    'pedestal': {'model_name': 'set_T_ped_n_ped', 'set_pedestal': True},
     'transport': {
         'transport_model': 'constant',
         # constant params.

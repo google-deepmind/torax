@@ -85,7 +85,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the pedestal runtime params are time dependent."""
     pedestal = pedestal_pydantic_model.SetTpedNped.from_dict(
         dict(
-            pedestal_model='set_T_ped_n_ped',
+            model_name='set_T_ped_n_ped',
             T_i_ped={0.0: 0.0, 1.0: 1.0},
             T_e_ped={0.0: 1.0, 1.0: 2.0},
             n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
