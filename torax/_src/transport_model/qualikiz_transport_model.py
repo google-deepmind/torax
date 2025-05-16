@@ -389,7 +389,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   """Model for the Qualikiz transport model.
 
   Attributes:
-    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
+    model_name: The transport model to use. Hardcoded to 'qualikiz'.
     n_max_runs: Set frequency of full QuaLiKiz contour solutions.
     n_processes: Set number of cores used QuaLiKiz calculations.
     collisionality_multiplier: Collisionality multiplier.
@@ -404,7 +404,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
       D.
   """
 
-  transport_model: Literal['qualikiz'] = 'qualikiz'
+  model_name: Literal['qualikiz'] = 'qualikiz'
   n_max_runs: pydantic.PositiveInt = 2
   n_processes: pydantic.PositiveInt = 8
   collisionality_multiplier: pydantic.PositiveFloat = 1.0

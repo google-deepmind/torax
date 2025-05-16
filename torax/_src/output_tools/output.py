@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-
+from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
@@ -28,7 +28,7 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.sources import qei_source as qei_source_lib
-from torax._src.sources import source_profiles
+from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import model_config
 import xarray as xr
@@ -207,19 +207,20 @@ class StateHistory:
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
-    self.sim_error = sim_error
-    self.torax_config = torax_config
-    solver_numeric_outputs = [
+    self._sim_error = sim_error
+    self._torax_config = torax_config
+    self._post_processed_outputs = post_processed_outputs_history
+    self._solver_numeric_outputs = [
         state.solver_numeric_outputs for state in state_history
     ]
-    self.core_profiles = [state.core_profiles for state in state_history]
-    self.core_sources = [state.core_sources for state in state_history]
-    self.transport = [state.core_transport for state in state_history]
-    self.geometries = [state.geometry for state in state_history]
+    self._core_profiles = [state.core_profiles for state in state_history]
+    self._core_sources = [state.core_sources for state in state_history]
+    self._transport = [state.core_transport for state in state_history]
+    self._geometries = [state.geometry for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
     stack = lambda *ys: np.stack(ys)
     self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
-        stack, *self.core_profiles
+        stack, *self._core_profiles
     )
     # Rescale output CoreProfiles to have density units in m^-3.
     # This is done to maintain the same external API following an upcoming
@@ -227,30 +228,88 @@ class StateHistory:
     self._stacked_core_profiles = _rescale_core_profiles(
         self._stacked_core_profiles
     )
-    self._stacked_core_sources: source_profiles.SourceProfiles = (
-        jax.tree_util.tree_map(stack, *self.core_sources)
+    self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
+        jax.tree_util.tree_map(stack, *self._core_sources)
     )
     self._stacked_core_transport: state.CoreTransport = jax.tree_util.tree_map(
-        stack, *self.transport
+        stack, *self._transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
     ) = jax.tree_util.tree_map(
         stack, *post_processed_outputs_history
     )
-    self.solver_numeric_outputs: state.SolverNumericOutputs = (
-        jax.tree_util.tree_map(stack, *solver_numeric_outputs)
+    self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
+        jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
-    self.times = np.array([state.t for state in state_history])
-    # The rho grid does not change in time so we can just take the first one.
-    self.rho_cell_norm = state_history[0].geometry.rho_norm
-    self.rho_face_norm = state_history[0].geometry.rho_face_norm
-    self.rho_norm = np.concatenate([[0.0], self.rho_cell_norm, [1.0]])
+    self._times = np.array([state.t for state in state_history])
     chex.assert_rank(self.times, 1)
+    # The rho grid does not change in time so we can just take the first one.
+    self._rho_cell_norm = state_history[0].geometry.rho_norm
+    self._rho_face_norm = state_history[0].geometry.rho_face_norm
+    self._rho_norm = np.concatenate([[0.0], self.rho_cell_norm, [1.0]])
 
-    self.sawtooth_crash = np.array(
-        [state.solver_numeric_outputs.sawtooth_crash for state in state_history]
-    )
+  @property
+  def torax_config(self) -> model_config.ToraxConfig:
+    """Returns the ToraxConfig used to run the simulation."""
+    return self._torax_config
+
+  @property
+  def sim_error(self) -> state.SimError:
+    """Returns the simulation error state."""
+    return self._sim_error
+
+  @property
+  def times(self) -> chex.Array:
+    """Returns the time of the simulation."""
+    return self._times
+
+  @property
+  def rho_cell_norm(self) -> chex.Array:
+    """Returns the normalized toroidal coordinate on the cell grid."""
+    return self._rho_cell_norm
+
+  @property
+  def rho_face_norm(self) -> chex.Array:
+    """Returns the normalized toroidal coordinate on the face grid."""
+    return self._rho_face_norm
+
+  @property
+  def rho_norm(self) -> chex.Array:
+    """Returns the rho on the cell grid with the left and right face boundaries."""
+    return self._rho_norm
+
+  @property
+  def geometries(self) -> Sequence[geometry_lib.Geometry]:
+    """Returns the geometries of the simulation."""
+    return self._geometries
+
+  @property
+  def core_profiles(self) -> Sequence[state.CoreProfiles]:
+    """Returns the core profiles."""
+    return self._core_profiles
+
+  @property
+  def source_profiles(self) -> Sequence[source_profiles_lib.SourceProfiles]:
+    """Returns the source profiles for the simulation."""
+    return self._core_sources
+
+  @property
+  def core_transport(self) -> Sequence[state.CoreTransport]:
+    """Returns the core transport for the simulation."""
+    return self._transport
+
+  @property
+  def solver_numeric_outputs(self) -> Sequence[state.SolverNumericOutputs]:
+    """Returns the solver numeric outputs."""
+    return self._solver_numeric_outputs
+
+  @property
+  def post_processed_outputs(
+      self,
+  ) -> Sequence[post_processing.PostProcessedOutputs]:
+    """Returns the post processed outputs for the simulation."""
+    return self._post_processed_outputs
 
   def simulation_output_to_xr(
       self,
@@ -319,15 +378,17 @@ class StateHistory:
     numerics_dict = {
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
-            self.sawtooth_crash, dims=[TIME], name=SAWTOOTH_CRASH
+            self._stacked_solver_numeric_outputs.sawtooth_crash,
+            dims=[TIME],
+            name=SAWTOOTH_CRASH,
         ),
         OUTER_SOLVER_ITERATIONS: xr.DataArray(
-            self.solver_numeric_outputs.outer_solver_iterations,
+            self._stacked_solver_numeric_outputs.outer_solver_iterations,
             dims=[TIME],
             name=OUTER_SOLVER_ITERATIONS,
         ),
         INNER_SOLVER_ITERATIONS: xr.DataArray(
-            self.solver_numeric_outputs.inner_solver_iterations,
+            self._stacked_solver_numeric_outputs.inner_solver_iterations,
             dims=[TIME],
             name=INNER_SOLVER_ITERATIONS,
         ),

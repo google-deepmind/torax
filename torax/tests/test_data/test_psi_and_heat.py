@@ -48,7 +48,7 @@ CONFIG = {
         'set_pedestal': True,
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
     },
     'solver': {
         'solver_type': 'linear',

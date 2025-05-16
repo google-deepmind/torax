@@ -61,7 +61,7 @@ CONFIG = {
         'n_e_ped': 1.0e20,
     },
     'transport': {
-        'transport_model': 'CGM',
+        'model_name': 'CGM',
         # cgm params.
         'chi_D_ratio': 8,
         'VR_D_ratio': {0: -3.0, 1: 0.0},

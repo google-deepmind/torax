@@ -64,11 +64,12 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
     },
     'solver': {
         'solver_type': 'linear',
         'use_predictor_corrector': False,
+        'use_pereverzev': False,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

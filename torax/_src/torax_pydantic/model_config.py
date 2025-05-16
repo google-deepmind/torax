@@ -18,7 +18,7 @@ import copy
 import logging
 from typing import Any, Mapping
 import pydantic
-from torax import version
+from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
 from torax._src.config import profile_conditions as profile_conditions_lib
@@ -68,7 +68,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       discriminator='solver_type'
   )
   transport: transport_model_pydantic_model.TransportConfig = pydantic.Field(
-      discriminator='transport_model'
+      discriminator='model_name'
   )
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field(
       discriminator='model_name'
@@ -90,15 +90,15 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     configurable_data = copy.deepcopy(data)
     if 'model_name' not in configurable_data['pedestal']:
       configurable_data['pedestal']['model_name'] = 'no_pedestal'
-    if 'transport_model' not in configurable_data['transport']:
-      configurable_data['transport']['transport_model'] = 'constant'
+    if 'model_name' not in configurable_data['transport']:
+      configurable_data['transport']['model_name'] = 'constant'
     if 'solver_type' not in configurable_data['solver']:
       configurable_data['solver']['solver_type'] = 'linear'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    using_nonlinear_transport_model = self.transport.transport_model in [
+    using_nonlinear_transport_model = self.transport.model_name in [
         'qlknn',
         'CGM',
     ]
