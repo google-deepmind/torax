@@ -1,7 +1,7 @@
-.. _running:
-
 It is convenient to set up a Python virtual environment for running TORAX, as
 described in :ref:`installation`.
+
+.. _running:
 
 Running simulations
 ###################
