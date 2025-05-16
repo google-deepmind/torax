@@ -39,7 +39,7 @@ To run one of these, run for example:
   run_torax --config='examples/iterhybrid_rampup.py'
 
 The configuration files can be inspected on
-`GitHub <https://github.com/google-deepmind/torax/tree/main/torax/examples>`_ or
+`GitHub <https://github.com/google-deepmind/torax/tree/v1.0.0/torax/examples>`_ or
 by cloning the repository.
 
 Post-simulation

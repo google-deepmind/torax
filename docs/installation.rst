@@ -1,3 +1,5 @@
+.. include:: links.rst
+
 .. _installation:
 
 Installation Guide
@@ -66,36 +68,17 @@ development work, this is the recommended method.
 
   pip install torax
 
-
-
 Install TORAX from Github
------------------------
+-------------------------
 
-If you plan to develop TORAX, we recommend installing from source.
+If you plan to develop TORAX, we recommend installing from source. See
+:ref:`contribution_tips` for an installation guide.
 
-Download and install the TORAX codebase via http:
+JAX environment variables
+-------------------------
 
-.. code-block:: console
-
-  git clone https://github.com/google-deepmind/torax.git
-
-or ssh (ensure that you have the appropriate SSH key uploaded to github).
-
-.. code-block:: console
-
-  git clone git@github.com:google-deepmind/torax.git
-
-Enter the TORAX directory and pip install the dependencies.
-
-.. code-block:: console
-
-  cd torax; pip install -e .[dev]
-
-TORAX uses the QLKNN_7_11 transport model by default.
-For an alternative transport model, see :ref:`install_qlknn_hyper`.
-
-The following may optionally be added to ~/.bashrc and will cause jax to
-store compiled programs to the filesystem, avoiding recompilation in
+The following may optionally be added to ``~/.bashrc`` and will cause jax to
+store compiled functions to the filesystem, avoiding recompilation in
 some cases:
 
 .. code-block:: console
@@ -107,30 +90,29 @@ some cases:
 For more information see :ref:`cache`.
 
 (Optional) GPU support
--------------------
+----------------------
 
 Install additional GPU support for JAX if your machine has a GPU:
 https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 
 
-.. _install_qlknn_hyper:
-
 (Optional) Install QLKNN-hyper
--------------------
+------------------------------
 
-An alternative to QLKNN_7_11 is to use QLKNN-hyper-10D, also known as QLKNN10D
-(`K.L. van de Plassche PoP 2020 <https://doi.org/10.1063/1.5134126>`_).
-QLKNN_7_11 is based on QuaLiKiz 2.8.1 which has an improved collision operator
-compared to the QLKNN10D training set. QLKNN_7_11 training data includes
-impurity density gradients as an input feature and has better coverage of the
-near-LCFS region compared to QLKNN-hyper-10D. However, it is still widely used
-in other simulators, so it can be useful for comparative studies for instance.
+TORAX uses the |qlknn_7_11| transport model by default, an upgrade to the
+QLKNN-hyper-10D (QLKNN10D) neural network surrogate model of QuaLiKiz
+|qlknn10d|. QLKNN_7_11 is based on QuaLiKiz 2.8.1 which has an improved
+collision operator compared to the QLKNN10D training set. QLKNN_7_11 training
+data also includes impurity density gradients as an input feature and has better
+coverage of the near-LCFS region compared to QLKNN-hyper-10D.
 
-Download QLKNN dependencies:
+However, certain use-cases may require the use of QLKNN10D, such as for
+comparative studies with other simulators. To install QLKNN10D, first
+download the QLKNN dependencies at a location of your choice:
 
 .. code-block:: console
 
   git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 
-To use this transport model, you need to set ``model_path`` in the
+To use QLKNN10D , you then need to set ``model_path`` in the
 ``transport`` section of your TORAX config to the path of the cloned repository.

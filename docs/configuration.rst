@@ -412,8 +412,6 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``adaptive_n_source_prefactor`` (float [default = 1e8])
   Prefactor for adaptive source term for setting density internal boundary conditions.
 
-.. _time_step_calculator:
-
 pedestal
 --------
 In TORAX we aim to support different models for computing the pedestal width,

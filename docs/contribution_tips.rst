@@ -3,8 +3,8 @@
 Contribution tips
 #################
 
-Installation
-============
+Installing from source
+======================
 
 Create a code directory where you will install the virtual env and other TORAX
 dependencies.
