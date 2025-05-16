@@ -79,7 +79,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     """Tests that the core transport output has the right shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs(
         {
-            'transport_model': 'qualikiz_based',
+            'model_name': 'qualikiz_based',
             'collisionality_multiplier': 1.0,
             'avoid_big_negative_s': True,
             'q_sawtooth_proxy': True,
@@ -104,7 +104,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     """Tests that the qualikiz inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs(
         {
-            'transport_model': 'qualikiz_based',
+            'model_name': 'qualikiz_based',
             'collisionality_multiplier': 1.0,
             'avoid_big_negative_s': True,
             'q_sawtooth_proxy': True,
@@ -240,7 +240,7 @@ class QualikizBasedTransportModelConfig(
       D.
   """
 
-  transport_model: Literal['qualikiz_based'] = 'qualikiz_based'
+  model_name: Literal['qualikiz_based'] = 'qualikiz_based'
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True

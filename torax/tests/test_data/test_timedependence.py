@@ -63,7 +63,7 @@ CONFIG = {
         'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         'apply_inner_patch': True,
         'chi_i_inner': 2.0,
         'chi_e_inner': 2.0,

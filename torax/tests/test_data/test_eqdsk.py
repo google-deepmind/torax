@@ -74,7 +74,7 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         'apply_inner_patch': True,
         'D_e_inner': 1,
         'V_e_inner': 0.0,
