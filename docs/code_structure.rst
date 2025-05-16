@@ -40,15 +40,15 @@ For reference, the standard workflow while using TORAX is:
 
 #.
    Use |torax.run_simulation()|_ to run the simulation. This takes a
-   |ToraxConfig| and returns an ``xarray.Dataset`` containing the simulation
-   state as described in :ref:`output`.
+   |torax.ToraxConfig| and returns an ``xarray.Dataset`` containing the
+   simulation state as described in :ref:`output`.
 
 The rest of this section details each of these components and a few more.
 
 Note that although TORAX is designed such that you can bring your own models
 for transport, sources, etc, this still requires some TORAX development work for
 interfacing. Future work with expose the TORAX for seamless coupling. See the
-:ref:`model-interface` section for more details.
+:ref:`model-integration` section for more details.
 
 torax_pydantic
 ^^^^^^^^^^^^^^
@@ -192,8 +192,6 @@ time step in TORAX and decides when the simulation is over.
 .. _run_simulation_main.py: https://github.com/google-deepmind/torax/blob/main/run_simulation_main.py
 .. |torax/examples/| replace:: ``torax/examples/``
 .. _torax/examples/: https://github.com/google-deepmind/torax/tree/main/torax/examples
-.. |torax.sim.run_simulation()| replace:: ``torax.sim.run_simulation()``
-.. _torax.sim.run_simulation(): https://github.com/google-deepmind/torax/blob/main/torax/orchestration/run_simulation.py
 .. |TimeStepCalculator| replace:: ``TimeStepCalculator``
 .. _TimeStepCalculator: https://github.com/google-deepmind/torax/blob/main/torax/_src/time_step_calculator/time_step_calculator.py
 .. |Solver| replace:: ``Solver``
@@ -232,8 +230,8 @@ time step in TORAX and decides when the simulation is over.
 .. _initial_state.py: https://github.com/google-deepmind/torax/blob/main/torax/_src/orchestration/initial_state.py
 .. |run_simulation.py| replace:: ``run_simulation.py``
 .. _run_simulation.py: https://github.com/google-deepmind/torax/blob/main/torax/_src/orchestration/run_simulation.py
-.. |torax.sim.run_simulation()| replace:: ``torax.sim.run_simulation()``
-.. _torax.sim.run_simulation(): https://github.com/google-deepmind/torax/blob/main/torax/_src/orchestration/run_simulation.py
+.. |torax.run_simulation()| replace:: ``torax.run_simulation()``
+.. _torax.run_simulation(): https://github.com/google-deepmind/torax/blob/main/torax/_src/orchestration/run_simulation.py
 .. |torax.ToraxConfig| replace:: ``torax.ToraxConfig``
 .. _torax.ToraxConfig: https://github.com/google-deepmind/torax/blob/main/torax/_src/torax_pydantic/model_config.py
 .. |torax.mhd| replace:: ``torax.mhd``
