@@ -45,6 +45,8 @@ CONFIG = {
         'convection_dirichlet_mode': 'semi-implicit',
         'convection_neumann_mode': 'semi-implicit',
         'use_pereverzev': True,
+        'chi_pereverzev': 20.0,
+        'D_pereverzev': 10.0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
