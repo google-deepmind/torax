@@ -447,18 +447,21 @@ The following models are available:
 
 * Polynomial fits to ADAS data from `Mavrin, 2018. <https://doi.org/10.1080/10420150.2018.1462361>`_
   Provides radiative cooling rates for the following impurity species:
-    - Helium
-    - Lithium
-    - Beryllium
-    - Carbon
-    - Nitrogen
-    - Oxygen
-    - Neon
-    - Argon
-    - Krypton
-    - Xenon
-    - Tungsten
+
+  * Helium
+  * Lithium
+  * Beryllium
+  * Carbon
+  * Nitrogen
+  * Oxygen
+  * Neon
+  * Argon
+  * Krypton
+  * Xenon
+  * Tungsten
+
   These cooling curves are multiplied by the electron density and impurity densities to obtain the impurity radiation power density.
+
   The valid temperature range of the fit is [0.1-100] keV.
 
 Ion Cyclotron Resonance Heating

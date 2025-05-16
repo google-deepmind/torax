@@ -46,7 +46,7 @@ will be surrounded by parentheses, e.g. (time, rho_norm).
 Coordinates
 ===========
 
-All the ``Dataset``s in the output contains the following Coordinates. In order
+All the ``Dataset`` objects in the output contains the following Coordinates. In order
 for users of TORAX outputs to not have to worry about TORAX internals we provide
 outputs on the following coordinates. Some TORAX outputs are only computed on
 the face grid (such as transport coefficients), some only on the cell (such as
@@ -554,8 +554,8 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   Value of the unnormalized rho coordinate at the boundary [:math:`m`].
 
 
-Examples
-========
+Working with output data
+========================
 
 To demonstrate xarray and numpy manipulations of output data, the following code carries out
 volume integration of ``alpha_e`` and ``alpha_i`` at the time closest to t=1. The result equals

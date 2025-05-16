@@ -150,6 +150,7 @@ Using arrays
 ^^^^^^^^^^^^
 This can be a tuple of arrays ``(time_array, rho_norm_array, values_array)``, or
 equivalently an ``xarray.DataArray`` object of the form:
+
 .. code-block:: python
 
   xarray.DataArray(

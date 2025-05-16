@@ -156,7 +156,7 @@ full simulation time, and are not affected by the time slider.
 By creating a custom Python module with a PLOT_CONFIG variable set to a
 FigureProperties instance you can thus completely customize which variables are
 plotted by Torax by defining a new FigureProperties instance. For examples, see
-torax/plotting/configs/*.py.
+torax/plotting/configs/\*.py.
 
 Interactive Time Slider
 =======================
@@ -164,5 +164,5 @@ Interactive Time Slider
 When plotting with ``plot_torax``, an interactive time slider appears below the plots.
 This slider allows you to scroll through the simulation output at different timesteps.
 The spatial profile plots defined above are dynamically updated when the slider is
-manipulated. The time series plots, defined with `plot_type=PlotType.TIME_SERIES`
+manipulated. The time series plots, defined with ``plot_type=PlotType.TIME_SERIES``
 stay constant, plotting variables against the full Torax simulation timescale.

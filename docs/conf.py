@@ -77,7 +77,8 @@ intersphinx_mapping = {
 suppress_warnings = [
     'ref.citation',  # Many duplicated citations in numpy/scipy docstrings.
     'ref.footnote',  # Many unreferenced footnotes in numpy/scipy docstrings
-    'misc.highlighting_failure', # https://github.com/ipython/ipython/issues/14142
+    'misc.highlighting_failure',  # https://github.com/ipython/ipython/issues/14142
+    'autosectionlabel.*',  # Many duplicate heading titles that we want to keep.
 ]
 
 # Add any paths that contain templates here, relative to this directory.
