@@ -18,7 +18,7 @@ import copy
 import logging
 from typing import Any, Mapping
 import pydantic
-from torax import version
+from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
 from torax._src.config import profile_conditions as profile_conditions_lib

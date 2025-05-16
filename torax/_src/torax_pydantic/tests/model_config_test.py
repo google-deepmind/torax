@@ -18,7 +18,7 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-from torax import version
+from torax._src import version
 from torax._src.config import config_loader
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
