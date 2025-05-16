@@ -20,10 +20,6 @@ from torax._src.config import config_loader
 from torax._src.torax_pydantic import model_config
 
 
-PYTHON_MODULE_PREFIX = '.examples.'
-PYTHON_CONFIG_PACKAGE = 'torax'
-
-
 class ExamplesTest(parameterized.TestCase):
   """Smoke tests for the configs in the example folder."""
 
