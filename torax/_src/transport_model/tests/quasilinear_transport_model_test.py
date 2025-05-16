@@ -104,7 +104,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         geo,
         core_profiles,
         pedestal_model_outputs,
-    ) = _get_model_and_model_inputs({'transport_model': 'quasilinear'})
+    ) = _get_model_and_model_inputs({'model_name': 'quasilinear'})
     core_transport = transport_model(
         dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
@@ -147,7 +147,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   ):
     """Tests that the DV_effective approach options behaves as expected."""
     model, model_inputs = _get_model_and_model_inputs({
-        'transport_model': 'quasilinear',
+        'model_name': 'quasilinear',
         'DV_effective': DV_effective,
         'An_min': An_min,
         'D_e_min': 0.0,
@@ -322,7 +322,7 @@ class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
   """QuasilinearTransportConfig for testing purposes."""
 
   # pylint: disable=invalid-name
-  transport_model: Literal['quasilinear'] = 'quasilinear'
+  model_name: Literal['quasilinear'] = 'quasilinear'
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 

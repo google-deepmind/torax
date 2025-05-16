@@ -140,7 +140,7 @@ CONFIG = {
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
         'apply_inner_patch': True,
         'D_e_inner': 0.25,

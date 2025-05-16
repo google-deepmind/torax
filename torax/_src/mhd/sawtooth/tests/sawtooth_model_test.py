@@ -67,7 +67,7 @@ class SawtoothModelTest(parameterized.TestCase):
             'use_pereverzev': False,
         },
         'time_step_calculator': {'calculator_type': 'fixed'},
-        'transport': {'transport_model': 'constant'},
+        'transport': {'model_name': 'constant'},
         'mhd': {
             'sawtooth': {
                 'trigger_model': {
