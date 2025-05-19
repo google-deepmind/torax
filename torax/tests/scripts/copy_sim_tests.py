@@ -21,7 +21,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 
-from torax.tests import test_lib
+from torax.tests import scripts
 
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',
@@ -76,7 +76,7 @@ def _copy_sim_test_outputs(failed_test_file: str) -> None:
 
   # Copy old_file to new_file, overwriting new_file if it exists.
   # Only copy references where the test name matches the reference name.
-  if failed_test_file == test_lib.get_data_file(test_name):
+  if failed_test_file == scripts.get_data_file(test_name):
     shutil.copy(new_file, old_file)
     print(f'\nCopied {new_file} to {old_file}\n')
 

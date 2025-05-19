@@ -21,7 +21,7 @@ from absl import app
 from absl import flags
 import numpy as np
 from torax._src.output_tools import output
-from torax.tests import test_lib
+from torax.tests import scripts
 import xarray as xr
 
 
@@ -75,7 +75,7 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
   reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
 
   old_file = os.path.join(
-      reference_test_data_dir, test_lib.get_data_file(test_name)
+      reference_test_data_dir, scripts.get_data_file(test_name)
   )
   new_file = os.path.join(
       failed_test_output_dir, failed_test_file
