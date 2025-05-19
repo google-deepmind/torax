@@ -361,11 +361,7 @@ def _load_from_arrays(
   """Loads the data from numpy arrays.
 
   Args:
-    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values). - In the
-      former case times and rho_norm are assumed to be 1D arrays of equal
-      length, values is a 2D array with shape (len(times), len(rho_norm)). - In
-      the latter case rho_norm and values are assumed to be 1D arrays of equal
-      length (shortcut for initial condition profile).
+    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values).
 
   Returns:
     A mapping from time to (rho_norm, values)
@@ -384,12 +380,15 @@ def _load_from_arrays(
     rho_norm = np.asarray(arrays[1], dtype=jax_utils.get_np_dtype())
     values = np.asarray(arrays[2], dtype=jax_utils.get_np_dtype())
 
-    if values.shape != (len(times), len(rho_norm)):
+    if values.ndim != 2:
       raise ValueError(
-          'values must be of shape (len(times), len(rho_norm)). Given: '
-          f'{values.shape}.'
+          f'The values array must have ndim=2, but got {values.ndim}.'
       )
-    return {t: (rho_norm, values[i, :]) for i, t in enumerate(times)}
+
+    if rho_norm.ndim == 1:
+      rho_norm = np.stack([rho_norm] * len(times))
+
+    return {t: (rho_norm[i], values[i]) for i, t in enumerate(times)}
   else:
     raise ValueError(f'arrays must be length 2 or 3. Given: {len(arrays)}.')
 
