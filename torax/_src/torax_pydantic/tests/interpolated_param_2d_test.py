@@ -215,6 +215,24 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
       dict(
+          testcase_name='xarray_input_full_t=0.5',
+          time_rho_interpolated_input=xr.DataArray(
+              data=np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+              coords={
+                  'time': [0.0, 1.0],
+                  'rho_norm': (
+                      ('time', 'value'),
+                      np.array([_RHO_NORM_ARRAY, _RHO_NORM_ARRAY]),
+                  ),
+              },
+              dims=['time', 'value'],
+          ),
+          nx=4,
+          dx=0.25,
+          time=0.5,
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
+      ),
+      dict(
           testcase_name='single_dict_t=0',
           time_rho_interpolated_input={
               0.25: 18.0,

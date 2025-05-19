@@ -205,7 +205,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         data = data[0]
 
     if isinstance(data, xr.DataArray):
-      value = _load_from_xr_array(data)
+      value = _load_from_arrays(data)
     elif isinstance(data, tuple):
       values = []
       for v in data:
@@ -332,43 +332,33 @@ def _load_from_primitives(
   return loaded_values
 
 
-def _load_from_xr_array(
-    xr_array: xr.DataArray,
-) -> Mapping[float, tuple[chex.Array, chex.Array]]:
-  """Loads the data from an xr.DataArray."""
-  if 'time' not in xr_array.coords:
-    raise ValueError('"time" must be a coordinate in given dataset.')
-  if interpolated_param.RHO_NORM not in xr_array.coords:
-    raise ValueError(
-        f'"{interpolated_param.RHO_NORM}" must be a coordinate in given'
-        ' dataset.'
-    )
-  values = {
-      t: (
-          np.asarray(xr_array.rho_norm.data, dtype=jax_utils.get_np_dtype()),
-          np.asarray(
-              xr_array.sel(time=t).values, dtype=jax_utils.get_np_dtype()
-          ),
-      )
-      for t in xr_array.time.data
-  }
-  return values
-
-
 def _load_from_arrays(
-    arrays: tuple[chex.Array, ...],
+    arrays: tuple[chex.Array, ...] | xr.DataArray,
 ) -> Mapping[float, tuple[np.ndarray, np.ndarray]]:
   """Loads the data from numpy arrays.
 
   Args:
-    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values).
+    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values), or an
+      xarray.DataArray.
 
   Returns:
     A mapping from time to (rho_norm, values)
   """
+
+  if isinstance(arrays, xr.DataArray):
+    if interpolated_param.RHO_NORM not in arrays.coords:
+      raise ValueError(
+          f'"{interpolated_param.RHO_NORM}" must be a coordinate in given'
+          ' dataset.'
+      )
+    if 'time' in arrays.coords:
+      arrays = (arrays.time.data, arrays.rho_norm.data, arrays.data)
+    else:
+      arrays = (arrays.rho_norm.data, arrays.data)
+
   if len(arrays) == 2:
     # Shortcut for initial condition profile.
-    rho_norm, values = arrays
+    rho_norm, values = arrays  # pytype: disable=bad-unpacking
     return {
         0.0: (
             np.asarray(rho_norm, dtype=jax_utils.get_np_dtype()),
