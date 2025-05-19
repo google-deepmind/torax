@@ -74,7 +74,7 @@ def run_loop(
       cases, only the time will be relevant from the ToraxSimState (in order to
       support time-dependent geometries).
     initial_state: The starting state of the simulation. This includes both the
-      state variables which the stepper.Stepper will evolve (like ion temp, psi,
+      state variables which the solver.Solver will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
     initial_post_processed_outputs: The post-processed outputs at the start of
       the simulation. This is used to calculate cumulative quantities.
@@ -234,7 +234,7 @@ def _log_timestep(
   """Logs basic timestep info."""
   log_str = (
       f'Simulation time: {current_state.t:.5f}, previous dt:'
-      f' {current_state.dt:.6f}, previous stepper iterations:'
+      f' {current_state.dt:.6f}, previous solver iterations:'
       f' {current_state.solver_numeric_outputs.outer_solver_iterations}'
   )
   # TODO(b/330172917): once tol and coarse_tol are configurable in the

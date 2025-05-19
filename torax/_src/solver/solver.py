@@ -223,7 +223,7 @@ class Solver(abc.ABC):
   ]:
     """Calculates new values of the changing variables.
 
-    Subclasses must either implement `_x_new` so that `Stepper.__call__`
+    Subclasses must either implement `_x_new` so that `Solver.__call__`
     will work, or implement a different `__call__`.
 
     Args:

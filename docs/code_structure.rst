@@ -123,7 +123,7 @@ as a |StandardGeometryProvider|.
 solver
 ^^^^^^^
 
-|stepper| contains PDE time solvers that discretize the PDE in time and solve
+|solver| contains PDE time solvers that discretize the PDE in time and solve
 for the next time step with linear or nonlinear methods.
 
 Inside the |Solver| implementations is where JAX is actually used to compute

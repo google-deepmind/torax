@@ -11,9 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Runtime params for the solver."""
+import chex
 
-"""Stepper.
 
-This module is the PDE time stepper. It discretizes the PDE in time and solves
-for the next time step with linear or nonlinear methods.
-"""
+@chex.dataclass(frozen=True)
+class StaticRuntimeParams:
+  """Static params for the solver."""
+
+  theta_implicit: float
+  convection_dirichlet_mode: str
+  convection_neumann_mode: str
+  use_pereverzev: bool
+  use_predictor_corrector: bool
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams:
+  """Input params for the solver which can be used as compiled args."""
+
+  chi_pereverzev: float
+  D_pereverzev: float  # pylint: disable=invalid-name
+  n_corrector_steps: int

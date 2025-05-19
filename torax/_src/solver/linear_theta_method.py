@@ -20,12 +20,12 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.solver import predictor_corrector_method
+from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles
-from torax._src.stepper import predictor_corrector_method
-from torax._src.stepper import stepper as stepper_lib
 
 
-class LinearThetaMethod(stepper_lib.Solver):
+class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
   def _x_new(

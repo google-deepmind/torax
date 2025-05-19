@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pydantic config for Stepper."""
+"""Pydantic config for Solver."""
 import abc
 import functools
 from typing import Literal
@@ -21,11 +21,11 @@ import pydantic
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.solver import linear_theta_method
+from torax._src.solver import nonlinear_theta_method
+from torax._src.solver import runtime_params
+from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_models as source_models_lib
-from torax._src.stepper import linear_theta_method
-from torax._src.stepper import nonlinear_theta_method
-from torax._src.stepper import runtime_params
-from torax._src.stepper import stepper as solver_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_model as transport_model_lib
 

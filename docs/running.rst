@@ -31,11 +31,11 @@ the ``output_dir`` flag (see :ref:`torax_flags`), or the default
 More involved examples in ``torax/examples`` include non-rigorous mockups of the
 ITER hybrid scenario:
 
-* ``iterhybrid_predictor_corrector.py``: flat-top phase with the linear stepper
+* ``iterhybrid_predictor_corrector.py``: flat-top phase with the linear solver
   using predictor-corrector iterations.
 
 * ``iterhybrid_rampup.py``: time-dependent rampup phase with the nonlinear
-  Newton-Raphson stepper.
+  Newton-Raphson solver.
 
 To run one of these, run for example:
 

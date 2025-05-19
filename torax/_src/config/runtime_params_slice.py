@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Inputs to TORAX steppers and functions based on the input runtime parameters.
+"""Inputs to TORAX solvers and functions based on the input runtime parameters.
 
-When running a TORAX simulation, the stepper is (by default) a JAX-compiled
+When running a TORAX simulation, the solver is (by default) a JAX-compiled
 function, meaning it has two types of arguments: "dynamic" and "static".
 
 The "dynamic" arguments can change from call to call. These arguments must be
@@ -27,10 +27,10 @@ Note that the "dynamic" arguments are NOT necessarily time-dependent. They do
 not need to vary from time step to time step (though they can). They can change
 from time step to time step, or from simulation run to simulation run, without
 triggering a recompile. Changing these params without needing to recompile the
-stepper is the defining quality of the dynamic arguments.
+solver is the defining quality of the dynamic arguments.
 
 The "static" arguments are compile-time constant. Any changes to them would
-trigger a recompilation of the stepper. These arguments don't have the same
+trigger a recompilation of the solver. These arguments don't have the same
 restrictions as the dynamic arguments both in terms of types and how they are
 used.
 """
@@ -46,8 +46,8 @@ from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
+from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
-from torax._src.stepper import runtime_params as solver_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
 import typing_extensions

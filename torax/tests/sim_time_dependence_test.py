@@ -35,11 +35,11 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.solver import linear_theta_method
+from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
-from torax._src.stepper import linear_theta_method
-from torax._src.stepper import pydantic_model as stepper_pydantic_model
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -150,7 +150,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     mock_run_loop.assert_called_once()
 
 
-class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):
+class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
   """Fake solver config that allows us to hook into the error logic."""
 
   solver_type: Literal['fake'] = 'fake'

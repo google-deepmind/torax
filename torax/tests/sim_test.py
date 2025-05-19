@@ -300,7 +300,7 @@ class SimTest(sim_test_case.SimTestCase):
       )
 
   def test_no_op(self):
-    """Tests that running the stepper with all equations off is a no-op."""
+    """Tests that running the solver with all equations off is a no-op."""
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
     torax_config.update_fields({
         'numerics.t_final': 0.1,  # Modify final step.

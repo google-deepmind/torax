@@ -59,7 +59,7 @@ class TimeStepCalculator(abc.ABC):
       core_profiles: state_module.CoreProfiles,
       core_transport: state_module.CoreTransport,
   ) -> jax.Array:
-    """Returns the next time step duration and internal time stepper state.
+    """Returns the next time step duration.
 
     Args:
       dynamic_runtime_params_slice: Input runtime parameters that can change

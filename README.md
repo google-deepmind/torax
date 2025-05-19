@@ -179,7 +179,7 @@ $ export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
 ```
 
 #### Set flags
-`log_progress` - output simulation time, dt, and number of stepper iterations
+`log_progress` - output simulation time, dt, and number of solver iterations
 (dt backtracking with nonlinear solver) carried out at each timestep.
 
 ```shell

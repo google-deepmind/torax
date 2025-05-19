@@ -26,9 +26,9 @@ from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.solver import runtime_params
+from torax._src.solver import solver
 from torax._src.sources import source_profiles
-from torax._src.stepper import runtime_params
-from torax._src.stepper import stepper
 
 
 @chex.dataclass(frozen=True)
@@ -49,7 +49,7 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   tau_min: float
 
 
-class NonlinearThetaMethod(stepper.Solver):
+class NonlinearThetaMethod(solver.Solver):
   """Time step update using theta method.
 
   Attributes:

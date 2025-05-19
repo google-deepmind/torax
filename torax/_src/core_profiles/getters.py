@@ -144,7 +144,7 @@ def get_updated_electron_density(
   return n_e
 
 
-# jitted since also used outside the stepper
+# jitted since also used outside the solver
 @functools.partial(
     jax_utils.jit, static_argnames=['static_runtime_params_slice']
 )

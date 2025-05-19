@@ -31,9 +31,9 @@ from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.stepper import stepper as solver_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -304,7 +304,7 @@ class SimulationStepFn:
       Time step duration (dt)
     """
     # TODO(b/335598388): We call the transport model both here and in the
-    # Stepper / CoeffsCallback. We should still refactor the design to more
+    # Solver / CoeffsCallback. We should still refactor the design to more
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.
     transport_coeffs = _calculate_transport_coeffs(
@@ -358,7 +358,7 @@ class SimulationStepFn:
   ]:
     """Performs a simulation step with given dt.
 
-    Stepper may fail to converge in which case adaptive_step() can be used to
+    Solver may fail to converge in which case adaptive_step() can be used to
     try smaller time step durations.
 
     Args:

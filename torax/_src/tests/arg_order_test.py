@@ -32,16 +32,16 @@ from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.fvm import residual_and_loss
 from torax._src.orchestration import run_loop
+from torax._src.solver import linear_theta_method
+from torax._src.solver import nonlinear_theta_method
+from torax._src.solver import predictor_corrector_method
+from torax._src.solver import solver
 from torax._src.sources import bootstrap_current_source
 from torax._src.sources import formulas
 from torax._src.sources import generic_current_source
 from torax._src.sources import qei_source
 from torax._src.sources import source
 from torax._src.sources import source_models
-from torax._src.stepper import linear_theta_method
-from torax._src.stepper import nonlinear_theta_method
-from torax._src.stepper import predictor_corrector_method
-from torax._src.stepper import stepper
 from torax._src.transport_model import qlknn_transport_model
 
 
@@ -126,7 +126,7 @@ class ArgOrderTest(parameterized.TestCase):
       dict(module=linear_theta_method),
       dict(module=nonlinear_theta_method),
       dict(module=predictor_corrector_method),
-      dict(module=stepper),
+      dict(module=solver),
       dict(module=qlknn_transport_model),
   ])
   def test_arg_order(self, module):

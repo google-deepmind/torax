@@ -110,7 +110,7 @@ class FVMTest(parameterized.TestCase):
     # An implicit solver using an implicit source term will correctly have
     # y > 0 on the first step.
     #
-    # Mapping this onto the terminology of `stepper.implicit_solve_block`, we
+    # Mapping this onto the terminology of `solver.implicit_solve_block`, we
     # use a grid with only one cell per channel, with one channel representing
     # x and the other representing y.
 

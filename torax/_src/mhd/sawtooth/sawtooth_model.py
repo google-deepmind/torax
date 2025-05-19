@@ -24,10 +24,10 @@ from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
 from torax._src.neoclassical.conductivity import base as base_conductivity
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.solver import solver
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.stepper import stepper
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -36,7 +36,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 # b. Porcelli model with free parameters and fast ion sensitivities.
 # c. "Smooth" version that can work with forward-sensitivity-analysis and
 #    stationary-state applications without the need for averaging.
-class SawtoothModel(stepper.Solver):
+class SawtoothModel(solver.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
   def __init__(

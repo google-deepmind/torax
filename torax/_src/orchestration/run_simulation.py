@@ -52,7 +52,7 @@ def run_simulation(
     the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
     `PostProcessedOutputs` dataclasses for each step of the simulation.
   """
-  # TODO(b/384767453): Remove the need for the step_fn and stepper to take the
+  # TODO(b/384767453): Remove the need for the step_fn and solver to take the
   # transport model and pedestal model.
   transport_model = torax_config.transport.build_transport_model()
   pedestal_model = torax_config.pedestal.build_pedestal_model()

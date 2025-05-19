@@ -15,7 +15,7 @@
 """Config for ITER hybrid scenario based parameters with nonlinear solver.
 
 ITER hybrid scenario based (roughly) on van Mulders Nucl. Fusion 2021.
-With Newton-Raphson stepper and adaptive timestep (backtracking)
+With Newton-Raphson solver and adaptive timestep (backtracking)
 """
 
 

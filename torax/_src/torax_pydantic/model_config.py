@@ -27,8 +27,8 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
-from torax._src.stepper import pydantic_model as solver_pydantic_model
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic

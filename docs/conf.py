@@ -269,7 +269,7 @@ rst_epilog = f"""
 .. _TimeStepCalculator_target: {github_base_url}/torax/_src/time_step_calculator/time_step_calculator.py
 
 .. |Solver| replace:: `Solver <Solver_target_>`_
-.. _Solver_target: {github_base_url}/torax/_src/stepper/stepper.py
+.. _Solver_target: {github_base_url}/torax/_src/solver/solver.py
 
 .. |SourceModels| replace:: `SourceModels <SourceModels_target_>`_
 .. _SourceModels_target: {github_base_url}/torax/_src/sources/source_models.py
@@ -301,8 +301,8 @@ rst_epilog = f"""
 .. |config.runtime_params_slice| replace:: `config.runtime_params_slice <torax_src_config_runtime_params_slice_target_>`_
 .. _torax_src_config_runtime_params_slice_target: {github_base_url}/torax/_src/config/runtime_params_slice.py
 
-.. |stepper| replace:: `stepper <torax_src_stepper_target_>`_
-.. _torax_src_stepper_target: {github_base_url}/torax/_src/stepper
+.. |solver| replace:: `solver <torax_src_solver_target_>`_
+.. _torax_src_solver_target: {github_base_url}/torax/_src/solver
 
 .. |sources| replace:: `sources <torax_src_sources_target_>`_
 .. _torax_src_sources_target: {github_base_url}/torax/_src/sources

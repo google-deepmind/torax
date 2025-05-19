@@ -237,7 +237,7 @@ def calc_coeffs(
       triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of stepper being used, this may or
+      of the solver. Depending on the type of solver being used, this may or
       may not be equal to the original plasma profiles at the beginning of the
       time step.
     transport_model: A TransportModel subclass, calculates transport coeffs.
@@ -317,7 +317,7 @@ def _calc_coeffs_full(
       triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of stepper being used, this may or
+      of the solver. Depending on the type of solver being used, this may or
       may not be equal to the original plasma profiles at the beginning of the
       time step.
     transport_model: A TransportModel subclass, calculates transport coeffs.

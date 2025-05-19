@@ -15,7 +15,7 @@
 """Tests BgB transport.
 
 - BgB transport model (heat + particle transport)
-- Linear stepper with Pereverzev-Corrigan
+- Linear solver with Pereverzev-Corrigan
 - Chi time step calculator
 - Circular geometry
 - Sources:

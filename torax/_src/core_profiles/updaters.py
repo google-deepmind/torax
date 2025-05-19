@@ -230,7 +230,7 @@ def update_all_core_profiles_after_step(
     evolving_names: tuple[str, ...],
     dt: array_typing.ScalarFloat,
 ) -> state.CoreProfiles:
-  """Returns a new core profiles after the stepper has finished.
+  """Returns a new core profiles after the solver has finished.
 
   Updates the evolved variables and derived variables like q_face, psidot, etc.
 
