@@ -12,4 +12,11 @@ exposed this as part of the TORAX API.
 
 If you would like to use this please reach out to us. We aim to expose this
 functionality as part of the TORAX API in the very near future to further
-facilitate the integration of custom models.
+facilitate the integration of custom models, and further expand the
+documentation.
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Model Integration Topics
+
+   interfacing_with_surrogates

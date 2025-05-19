@@ -310,6 +310,9 @@ rst_epilog = f"""
 .. |QLKNN| replace:: `QLKNN <QLKNN_target_>`_
 .. _QLKNN_target: {github_base_url}/torax/_src/transport_model/qlknn_transport_model.py
 
+.. |QuaLiKiz| replace:: `QuaLiKiz <qualikiz_target_>`_
+.. _qualikiz_target: {github_base_url}/torax/_src/transport_model/qualikiz_transport_model.py
+
 .. |transport_model| replace:: `transport_model <torax_src_transport_model_target_>`_
 .. _torax_src_transport_model_target: {github_base_url}/torax/_src/transport_model
 
