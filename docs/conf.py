@@ -38,10 +38,10 @@ copyright = '2024, The TORAX Authors.'
 author = 'The TORAX authors'
 
 # The short X.Y version
-version = ''
+version = 'v1.0.0'
 # The full version, including alpha/beta/rc tags
 release = ''
-
+github_base_url = f'https://github.com/google-deepmind/torax/tree/{version}'
 
 # -- General configuration ---------------------------------------------------
 
@@ -247,3 +247,103 @@ autodoc_type_aliases = {
 # Remove auto-generated API docs from sidebars. They take too long to build.
 remove_from_toctrees = ['_autosummary/*']
 
+# Various github links with dynamic version from "version"
+
+rst_epilog = f"""
+.. |default_plot_config.py| replace:: `default_plot_config.py <default_plot_config_target_>`_
+.. _default_plot_config_target: {github_base_url}/torax/plotting/configs/default_plot_config.py
+
+.. |run_simulation_main.py| replace:: `run_simulation_main.py <run_simulation_main_target_>`_
+.. _run_simulation_main_target: {github_base_url}/torax/run_simulation_main.py
+
+.. |torax/examples/| replace:: `torax/examples/ <torax_examples_dir_target_>`_
+.. _torax_examples_dir_target: {github_base_url}/torax/examples/
+
+.. |basic_config.py| replace:: `basic_config.py <basic_config_target_>`_
+.. _basic_config_target: {github_base_url}/torax/examples/basic_config.py
+
+.. |torax/tutorials/| replace:: `torax/tutorials/ <torax_tutorials_dir_target_>`_
+.. _torax_tutorials_dir_target: {github_base_url}/torax/tutorials/
+
+.. |TimeStepCalculator| replace:: `TimeStepCalculator <TimeStepCalculator_target_>`_
+.. _TimeStepCalculator_target: {github_base_url}/torax/_src/time_step_calculator/time_step_calculator.py
+
+.. |Solver| replace:: `Solver <Solver_target_>`_
+.. _Solver_target: {github_base_url}/torax/_src/stepper/stepper.py
+
+.. |SourceModels| replace:: `SourceModels <SourceModels_target_>`_
+.. _SourceModels_target: {github_base_url}/torax/_src/sources/source_models.py
+
+.. |TransportModel| replace:: `TransportModel <TransportModel_target_>`_
+.. _TransportModel_target: {github_base_url}/torax/_src/transport_model/transport_model.py
+
+.. |PedestalModel| replace:: `PedestalModel <PedestalModel_target_>`_
+.. _PedestalModel_target: {github_base_url}/torax/_src/pedestal_model/pedestal_model.py
+
+.. |state| replace:: `state <torax_src_state_target_>`_
+.. _torax_src_state_target: {github_base_url}/torax/_src/state.py
+
+.. |ToraxSimState| replace:: `ToraxSimState <torax_src_state_ToraxSimState_target_>`_
+.. _torax_src_state_ToraxSimState_target: {github_base_url}/torax/_src/state.py
+
+.. |geometry| replace:: `geometry <geometry_package_target_>`_
+.. _geometry_package_target: {github_base_url}/torax/_src/geometry/
+
+.. |torax.Geometry| replace:: `torax.Geometry <Geometry_target_>`_
+.. _Geometry_target: {github_base_url}/torax/_src/geometry/geometry.py
+
+.. |GeometryProvider| replace:: `GeometryProvider <GeometryProvider_target_>`_
+.. _GeometryProvider_target: {github_base_url}/torax/_src/geometry/geometry_provider.py
+
+.. |StandardGeometryProvider| replace:: `StandardGeometryProvider <StandardGeometryProvider_target_>`_
+.. _StandardGeometryProvider_target: {github_base_url}/torax/_src/geometry/standard_geometry.py
+
+.. |config.runtime_params_slice| replace:: `config.runtime_params_slice <torax_src_config_runtime_params_slice_target_>`_
+.. _torax_src_config_runtime_params_slice_target: {github_base_url}/torax/_src/config/runtime_params_slice.py
+
+.. |stepper| replace:: `stepper <torax_src_stepper_target_>`_
+.. _torax_src_stepper_target: {github_base_url}/torax/_src/stepper
+
+.. |sources| replace:: `sources <torax_src_sources_target_>`_
+.. _torax_src_sources_target: {github_base_url}/torax/_src/sources
+
+.. |QLKNN| replace:: `QLKNN <QLKNN_target_>`_
+.. _QLKNN_target: {github_base_url}/torax/_src/transport_model/qlknn_transport_model.py
+
+.. |transport_model| replace:: `transport_model <torax_src_transport_model_target_>`_
+.. _torax_src_transport_model_target: {github_base_url}/torax/_src/transport_model
+
+.. |pedestal_model| replace:: `pedestal_model <torax_src_pedestal_model_target_>`_
+.. _torax_src_pedestal_model_target: {github_base_url}/torax/_src/pedestal_model
+
+.. |time_step_calculator| replace:: `time_step_calculator <torax_src_time_step_calculator_target_>`_
+.. _torax_src_time_step_calculator_target: {github_base_url}/torax/_src/time_step_calculator
+
+.. |output_tools| replace:: `output_tools <torax_src_output_tools_target_>`_
+.. _torax_src_output_tools_target: {github_base_url}/torax/_src/output_tools
+
+.. |orchestration.step_function.py| replace:: `orchestration.step_function.py <step_function_py_target_>`_
+.. _step_function_py_target: {github_base_url}/torax/_src/orchestration/step_function.py
+
+.. |orchestration.initial_state.py| replace:: `orchestration.initial_state.py <initial_state_py_target_>`_
+.. _initial_state_py_target: {github_base_url}/torax/_src/orchestration/initial_state.py
+
+.. |torax.run_simulation| replace:: `torax.run_simulation.py <torax_run_simulation_target_>`_
+.. _torax_run_simulation_target: {github_base_url}/torax/_src/orchestration/run_simulation.py
+
+.. |torax.run_simulation()| replace:: `torax.run_simulation() <torax_run_simulation_func_target_>`_
+.. _torax_run_simulation_func_target: {github_base_url}/torax/_src/orchestration/run_simulation.py
+
+.. |torax.ToraxConfig| replace:: `torax.ToraxConfig <torax_ToraxConfig_target_>`_
+.. _torax_ToraxConfig_target: {github_base_url}/torax/_src/torax_pydantic/model_config.py
+
+.. |torax.StateHistory| replace:: `torax.StateHistory <torax_StateHistory_target_>`_
+.. _torax_StateHistory_target: {github_base_url}/torax/_src/output_tools/output.py
+
+
+.. |mhd| replace:: `mhd <torax_src_mhd_target_>`_
+.. _torax_src_mhd_target: {github_base_url}/torax/_src/mhd
+
+.. |neoclassical| replace:: `neoclassical <torax_src_neoclassical_target_>`_
+.. _torax_src_neoclassical_target: {github_base_url}/torax/_src/neoclassical
+"""

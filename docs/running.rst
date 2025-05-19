@@ -7,17 +7,14 @@ Running simulations
 ###################
 
 TORAX comes with several pre-packaged example configuration files. These can be
-inspected on
-`GitHub <https://github.com/google-deepmind/torax/tree/main/torax/examples>`_ or
-by cloning the repository. See :ref:`configuration` for details of all input
-configuration fields.
+inspected on GitHub at |torax/examples/|, or by cloning the repository. See
+:ref:`configuration` for details of all input configuration fields.
 
 The following command will run TORAX using the prepackaged configuration file
-`basic_config.py <https://github.com/google-deepmind/torax/tree/main/torax/examples/basic_config.py>`_.
-When inspecting the configuration file, note that empty dicts as configuration
-values or missing variables signify that default values are used. See
-:ref:`configuration` for the full list of configuration variables and their
-default values.
+|basic_config.py|. When inspecting the configuration file, note that empty dicts
+as configuration values or missing variables signify that default values are
+used. See :ref:`configuration` for the full list of configuration variables and
+their default values.
 
 .. code-block:: console
 

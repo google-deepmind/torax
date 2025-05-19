@@ -443,7 +443,7 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
   can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
 
-The following ``model_name``s are currently supported:
+The following ``model_name`` options are currently supported:
 
 no_pedestal
 ^^^^^^^^^^^

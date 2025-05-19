@@ -1,11 +1,10 @@
 Tutorials
 #########
 
-Tutorials are available at
-https://github.com/google-deepmind/torax/tree/main/torax/tutorials. The tutorial
-is comprised of a series of exercises. An additional notebook containing
-suggested solutions is also available. The tutorial is tested for TORAX v1.0.0
-and is not guaranteed to work with later major versions due to API changes.
+Tutorials are available at |torax/tutorials/|. The tutorial is comprised of a
+series of exercises. An additional notebook containing suggested solutions is
+also available. The tutorial is tested for TORAX v1.0.0 and is not guaranteed to
+work with later major versions due to API changes.
 
 The tutorials are intended to be run in either a Jupyter or Colab notebook. It
 is currently necessary to build your own notebook kernel in the same environment

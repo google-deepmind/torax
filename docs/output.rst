@@ -12,7 +12,8 @@ We currently support the below output structure for Torax V1.
 
 The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated/xarray.DataTree.html>`_.
 
-The DataTree is a hierarchical structure containing three ``xarray.DataSet``s:
+The DataTree is a hierarchical structure containing three ``xarray.DataSet``
+objects:
 
 * ``numerics`` containing simulation numeric quantities.
 * ``scalars`` containing scalar quantities.

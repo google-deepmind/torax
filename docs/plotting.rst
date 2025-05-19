@@ -53,9 +53,9 @@ how they are arranged. This flag accepts the path to a Python file containing
 a ``PLOT_CONFIG`` variable which is an instance of
 ``torax.plotting.plotruns_lib.FigureProperties``. This variable specifies the
 layout and properties of the plot. If no ``--plot_config`` is specified, the
-default configuration
-`default_plot_config.py <https://github.com/google-deepmind/torax/tree/main/torax/plotting/configs/default_plot_config.py>`_.
-is used.
+default configuration |default_plot_config.py| is used.
+
+|version| is the version of the Torax codebase.
 
 Prepackaged Plot Configurations
 -------------------------------
