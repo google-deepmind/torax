@@ -46,6 +46,7 @@ CONFIG = {
         'solver_type': 'linear',
         'use_predictor_corrector': False,
         'theta_implicit': 1.0,
+        'use_pereverzev': False,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

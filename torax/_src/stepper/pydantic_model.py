@@ -54,14 +54,14 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   theta_implicit: torax_pydantic.UnitInterval = 1.0
   use_predictor_corrector: bool = False
-  n_corrector_steps: pydantic.PositiveInt = 1
+  n_corrector_steps: pydantic.PositiveInt = 10
   convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
       'ghost'
   )
   convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
   use_pereverzev: bool = False
-  chi_pereverzev: pydantic.PositiveFloat = 20.0
-  D_pereverzev: pydantic.NonNegativeFloat = 10.0
+  chi_pereverzev: pydantic.PositiveFloat = 30.0
+  D_pereverzev: pydantic.NonNegativeFloat = 15.0
 
   @property
   @abc.abstractmethod
@@ -204,7 +204,7 @@ class OptimizerThetaMethod(BaseSolver):
   solver_type: Literal['optimizer'] = 'optimizer'
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 100
-  loss_tol: float = 1e-12
+  loss_tol: float = 1e-10
 
   @property
   def linear_solver(self) -> bool:
