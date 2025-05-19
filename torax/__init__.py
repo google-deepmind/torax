@@ -23,12 +23,15 @@ import jax
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
-from torax._src.interpolated_param import InterpolatedVarSingleAxis
-from torax._src.interpolated_param import InterpolatedVarTimeRho
-from torax._src.interpolated_param import InterpolationMode
+from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
+from torax._src.output_tools.post_processing import PostProcessedOutputs
+from torax._src.sources.source_profiles import SourceProfiles
+from torax._src.state import CoreProfiles
+from torax._src.state import CoreTransport
 from torax._src.state import SimError
+from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.model_config import ToraxConfig
 
 # pylint: enable=g-importing-member
@@ -39,13 +42,16 @@ __version_info__ = version.TORAX_VERSION_INFO
 __all__ = [
     'build_torax_config_from_file',
     'import_module',
-    'InterpolatedVarSingleAxis',
-    'InterpolatedVarTimeRho',
-    'InterpolationMode',
     'run_simulation',
+    'CoreProfiles',
+    'CoreTransport',
+    'Geometry',
+    'PostProcessedOutputs',
     'SimError',
-    'ToraxConfig',
+    'SolverNumericOutputs',
+    'SourceProfiles',
     'StateHistory',
+    'ToraxConfig',
 ]
 
 
@@ -60,56 +66,3 @@ def set_jax_precision():
 
 
 set_jax_precision()
-
-# Throughout TORAX, we maintain the following canonical argument order for
-# common argument names passed to many functions. This is a stylistic
-# convention that helps to remember the order of arguments for a function.
-# For each individual function only a subset of these are
-# passed, but the order should be maintained.
-CANONICAL_ORDER = [
-    't',
-    'dt',
-    'source_type',
-    'static_runtime_params_slice',
-    'static_source_runtime_params',
-    'dynamic_runtime_params_slice',
-    'dynamic_runtime_params_slice_t',
-    'dynamic_runtime_params_slice_t_plus_dt',
-    'dynamic_runtime_params_slice_provider',
-    'unused_config',
-    'dynamic_source_runtime_params',
-    'geo',
-    'geo_t',
-    'geo_t_plus_dt',
-    'geometry_provider',
-    'source_name',
-    'x_old',
-    'state',
-    'unused_state',
-    'core_profiles',
-    'core_profiles_t',
-    'core_profiles_t_plus_dt',
-    'T_i',
-    'T_e',
-    'n_e',
-    'n_i',
-    'psi',
-    'transport_model',
-    'source_profiles',
-    'source_profile',
-    'explicit_source_profiles',
-    'model_func',
-    'source_models',
-    'pedestal_model',
-    'time_step_calculator',
-    'coeffs_callback',
-    'evolving_names',
-    'step_fn',
-    'spectator',
-    'explicit',
-    'maxiter',
-    'tol',
-    'delta_reduction_factor',
-    'file_restart',
-    'ds',
-]

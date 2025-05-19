@@ -21,7 +21,6 @@ order.
 import inspect
 from absl.testing import absltest
 from absl.testing import parameterized
-import torax
 from torax._src import physics
 from torax._src import sim
 from torax._src import state
@@ -44,6 +43,60 @@ from torax._src.stepper import nonlinear_theta_method
 from torax._src.stepper import predictor_corrector_method
 from torax._src.stepper import stepper
 from torax._src.transport_model import qlknn_transport_model
+
+
+# Throughout TORAX, we maintain the following canonical argument order for
+# common argument names passed to many functions. This is a stylistic
+# convention that helps to remember the order of arguments for a function.
+# For each individual function only a subset of these are
+# passed, but the order should be maintained.
+_CANONICAL_ORDER = [
+    't',
+    'dt',
+    'source_type',
+    'static_runtime_params_slice',
+    'static_source_runtime_params',
+    'dynamic_runtime_params_slice',
+    'dynamic_runtime_params_slice_t',
+    'dynamic_runtime_params_slice_t_plus_dt',
+    'dynamic_runtime_params_slice_provider',
+    'unused_config',
+    'dynamic_source_runtime_params',
+    'geo',
+    'geo_t',
+    'geo_t_plus_dt',
+    'geometry_provider',
+    'source_name',
+    'x_old',
+    'state',
+    'unused_state',
+    'core_profiles',
+    'core_profiles_t',
+    'core_profiles_t_plus_dt',
+    'T_i',
+    'T_e',
+    'n_e',
+    'n_i',
+    'psi',
+    'transport_model',
+    'source_profiles',
+    'source_profile',
+    'explicit_source_profiles',
+    'model_func',
+    'source_models',
+    'pedestal_model',
+    'time_step_calculator',
+    'coeffs_callback',
+    'evolving_names',
+    'step_fn',
+    'spectator',
+    'explicit',
+    'maxiter',
+    'tol',
+    'delta_reduction_factor',
+    'file_restart',
+    'ds',
+]
 
 
 class ArgOrderTest(parameterized.TestCase):
@@ -81,41 +134,41 @@ class ArgOrderTest(parameterized.TestCase):
     fields = inspect.getmembers(module)
     print(module.__name__)
     for name, obj in fields:
-      if name.startswith("_"):
+      if name.startswith('_'):
         # Ignore private fields and methods.
         continue
       if inspect.isfunction(obj):
-        print("\t", name)
+        print('\t', name)
         params = inspect.signature(obj).parameters.keys()
-        print("\t\traw params: ", params)
+        print('\t\traw params: ', params)
         for param in params:
           if param not in self.counts:
             self.counts[param] = 1
           else:
             self.counts[param] += 1
             if self.counts[param] >= self.THRESHOLD:
-              if param not in torax.CANONICAL_ORDER:
-                for other in torax.CANONICAL_ORDER:
+              if param not in _CANONICAL_ORDER:
+                for other in _CANONICAL_ORDER:
                   print(param, other, param == other)
                 raise TypeError(
-                    "Common param not in canonical order: param "
-                    f'"{param}" of {module.__name__}.{name}'
+                    'Common param not in canonical order: param '
+                    f'`{param}` of {module.__name__}.{name}'
                 )
-        params = [param for param in params if param in torax.CANONICAL_ORDER]
-        print("\t\tFiltered params: ", params)
-        idxs = [torax.CANONICAL_ORDER.index(param) for param in params]
-        print("\t\tidxs: ", idxs)
+        params = [param for param in params if param in _CANONICAL_ORDER]
+        print('\t\tFiltered params: ', params)
+        idxs = [_CANONICAL_ORDER.index(param) for param in params]
+        print('\t\tidxs: ', idxs)
         for i in range(1, len(idxs)):
           if idxs[i] <= idxs[i - 1]:
             first_arg_name = params[i - 1]
             second_arg_name = params[i]
             raise TypeError(
-                f'Arguments of name "{first_arg_name}" need to '
-                f'come after arguments of name "{second_arg_name}" '
-                f" but function `{name}` in module `{module.__name__}`"
-                " does not obey this."
+                f'Arguments of name `{first_arg_name}` need to '
+                f'come after arguments of name `{second_arg_name}` '
+                f' but function `{name}` in module `{module.__name__}`'
+                ' does not obey this.'
             )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()

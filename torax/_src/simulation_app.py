@@ -50,7 +50,7 @@ module, due to the tuple return type.
     logging.set_verbosity(logging.INFO)
     app.run(run)
 """
-
+from collections.abc import Sequence
 import datetime
 import enum
 import os
@@ -135,7 +135,7 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: list[state.CoreProfiles],
+    core_profile_history: Sequence[state.CoreProfiles],
     t: np.ndarray,
 ) -> None:
   _log_single_state(core_profile_history[0], t[0])
