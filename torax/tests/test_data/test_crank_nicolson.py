@@ -25,6 +25,7 @@ CONFIG = {
     },
     'numerics': {
         't_final': 1,
+        'chi_timestep_prefactor': 9.,
     },
     'plasma_composition': {},
     'geometry': {

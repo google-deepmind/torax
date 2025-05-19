@@ -141,7 +141,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(True)
   )
-  current_profile_nu: float = 3.0
+  current_profile_nu: float = 1.0
   initial_j_is_total_current: bool = False
   initial_psi_from_j: bool = False
 

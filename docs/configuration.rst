@@ -257,7 +257,7 @@ time-dependence of temperature, density, and current.
 ``n_e_right_bc_is_fGW`` (bool [default = False])
   Toggle units of ``n_e_right_bc``.
 
-``current_profile_nu`` (float [default = 3.0])
+``current_profile_nu`` (float [default = 1.0])
   Peaking factor of initial current, either total or "Ohmic":
   :math:`j = j_0(1 - r^2/a^2)^{\text{current_profile_nu}}`. Used if
   ``initial_psi_from_j`` is ``True``. In that case, then this sets the
@@ -283,20 +283,19 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``t_final`` (float [default = 5.0])
   Simulation end time, in units of seconds.
 
-``exact_t_final`` (bool [default = False])
+``exact_t_final`` (bool [default = True])
   If True, ensures that the simulation end time is exactly ``t_final``, by adapting the final ``dt`` to match.
 
-``max_dt`` (float [default = 1e-1])
+``max_dt`` (float [default = 2.0])
   Maximum size of timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
 
 ``min_dt`` (float [default = 1e-8])
   Minimum timestep allowed in simulation.
 
-``chi_timestep_prefactor`` (float [default = 9.0])
+``chi_timestep_prefactor`` (float [default = 50.0])
   Prefactor in front of ``chi_timestep_calculator`` base timestep :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
-  In most use-cases with implicit solution methods, ``chi_timestep_prefactor`` can be increased further above the conservative default.
 
-``fixed_dt`` (float [default = 1e-2])
+``fixed_dt`` (float [default = 1e-1])
   Timestep used for ``fixed_time_step_calculator`` (see :ref:`time_step_calculator`).
 
 ``evolve_ion_heat`` (bool [default = True])
