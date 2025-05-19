@@ -118,7 +118,7 @@ def run_simulation(
     )
     restart_case = False
 
-  state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(  # pylint: disable=protected-access
+  state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=geometry_provider,
