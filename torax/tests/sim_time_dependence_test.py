@@ -23,13 +23,13 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src import sim
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
@@ -100,7 +100,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    def _fake_sim_run_simulation(
+    def _fake_run_loop(
         static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -141,13 +141,13 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       return (output_state,), (post_processed_outputs,), error
 
     with mock.patch.object(
-        sim, '_run_simulation', wraps=_fake_sim_run_simulation
-    ) as mock_run_simulation:
+        run_loop, 'run_loop', wraps=_fake_run_loop
+    ) as mock_run_loop:
       run_simulation.run_simulation(torax_config)
     # The initial step will not work, so it should take several adaptive time
     # steps to get under the T_i_right_bc threshold set above if adaptive_dt
     # was set to True.
-    mock_run_simulation.assert_called_once()
+    mock_run_loop.assert_called_once()
 
 
 class FakeSolverConfig(stepper_pydantic_model.LinearThetaMethod):

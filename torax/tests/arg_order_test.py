@@ -22,7 +22,6 @@ import inspect
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src import physics
-from torax._src import sim
 from torax._src import state
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
@@ -32,6 +31,7 @@ from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.fvm import residual_and_loss
+from torax._src.orchestration import run_loop
 from torax._src.sources import bootstrap_current_source
 from torax._src.sources import formulas
 from torax._src.sources import generic_current_source
@@ -107,7 +107,7 @@ class ArgOrderTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(module=calc_coeffs),
-      dict(module=sim),
+      dict(module=run_loop),
       dict(module=updaters),
       dict(module=physics),
       dict(module=state),

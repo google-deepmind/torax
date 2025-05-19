@@ -12,17 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for running simulations.
-
-This includes the `run_simulation` main loop, logging functionality,
-and functionality for translating between our particular physics
-simulation and generic fluid dynamics PDE solvers.
-
-Use the TORAX_COMPILATION_ENABLED environment variable to turn
-jax compilation off and on. Compilation is on by default. Turning
-compilation off can sometimes help with debugging (e.g. by making
-it easier to print error messages in context).
-"""
+"""run_loop for iterating over the simulation step function."""
 
 import dataclasses
 import time
@@ -40,7 +30,7 @@ from torax._src.output_tools import post_processing
 import tqdm
 
 
-def _run_simulation(
+def run_loop(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -55,12 +45,12 @@ def _run_simulation(
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
-  """Runs the transport simulation over a prescribed time interval.
+  """Runs the simulation loop.
 
-  This is the main entrypoint for running a TORAX simulation.
+  Iterates over the step function until the time_step_calculator tells us we are
+  done or the simulation hits an error state.
 
-  This function runs a variable number of time steps until the
-  time_step_calculator determines the sim is done, using a Python while loop.
+  Performs logging and updates the progress bar if requested.
 
   Args:
     static_runtime_params_slice: A static set of arguments to provide to the

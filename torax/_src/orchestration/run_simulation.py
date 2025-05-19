@@ -24,9 +24,9 @@ new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
 
-from torax._src import sim
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import run_loop
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.sources import source_models as source_models_lib
@@ -118,7 +118,7 @@ def run_simulation(
     )
     restart_case = False
 
-  state_history, post_processed_outputs_history, sim_error = sim._run_simulation(  # pylint: disable=protected-access
+  state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(  # pylint: disable=protected-access
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=geometry_provider,
