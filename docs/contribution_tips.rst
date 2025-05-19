@@ -77,7 +77,7 @@ following command from the docs folder in the TORAX repository:
 
 This will generate the documentation in the `docs/_build/html` directory. You can then view
 the documentation by opening the `index.html` file in your browser.
-Run `pwd` to find the path to the `docs/_build/html` directory and then point your browser
+Run ``pwd`` to find the path to the `docs/_build/html` directory and then point your browser
 to `file:///path/to/torax/docs/_build/html/index.html`.
 
 The staged documentation is cleaned up from your local repository by running the command:
@@ -120,7 +120,7 @@ in this case running all the geometry tests.
 
 .. code-block:: console
 
-  pytest torax/tests/geometry_test.py
+  pytest torax/_src/geometry/tests/geometry_test.py
 
 Further filtering is possible, for example running only the ``test_face_to_cell`` test (in geometry.py):
 
@@ -139,7 +139,7 @@ by a command (from the TORAX root directory) such as:
 
 .. code-block:: console
 
-  pytest -n <num_workers> torax/_src/tests/sim_test.py
+  pytest -n <num_workers> torax/tests/sim_test.py
 
 If any sim tests fail, they write their output to the ``/tmp/torax_failed_sim_test_outputs/<test_name>.nc``.
 This is useful for debugging, and also to stage new output files for replacing the ground-truth files,
@@ -150,7 +150,7 @@ to the ground-truth files, run the following command from the TORAX root directo
 
 .. code-block:: console
 
-  python3 torax/_src/tests/scripts/compare_sim_tests.py
+  python3 torax/tests/scripts/compare_sim_tests.py
 
 These command has the optional flag ``--failed_test_output_dir <dir>`` which
 takes a directory containing the failed test outputs, instead of the default
@@ -163,7 +163,7 @@ the TORAX repository. Using ``test_qlknnheat`` as an example:
 
 .. code-block:: console
 
-  plot_torax --outfile torax/_src/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat.nc
+  plot_torax --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat.nc
 
 If it is deemed that the new outputs should replace the ground-truth files,
 they can be copied over using the following command, again with this example working
@@ -171,7 +171,7 @@ when run from the TORAX repository root:
 
 .. code-block:: console
 
-  python3 torax/_src/tests/scripts/copy_sim_tests.py
+  python3 torax/tests/scripts/copy_sim_tests.py
 
 Where we also have the optional flag ``--failed_test_output_dir <dir>`` which
 takes a directory containing the failed test outputs, instead of the default
@@ -184,7 +184,7 @@ command from the TORAX root directory:
 
 .. code-block:: console
 
-  python3 torax/_src/tests/scripts/run_and_save_all_benchmarks.py
+  python3 torax/tests/scripts/run_and_save_all_benchmarks.py
 
 This script has the following optional flags:
 

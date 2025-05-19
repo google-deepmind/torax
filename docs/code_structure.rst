@@ -6,8 +6,7 @@ TORAX code structure
 This page describes the structure of the TORAX repository and gives pointers for
 where to find different components in the code base.
 
-This page is just an overview. For more complete details of what's available to
-call and use, see the API docs. And for more information on the logical flow of
+This page is just an overview. For more information on the logical flow of
 TORAX, read through the code and reach out to our team if anything is unclear!
 We strive to make the code readable and understandable with the help of this
 guide, so feedback is appreciated :)
@@ -40,15 +39,14 @@ For reference, the standard workflow while using TORAX is:
 
 #.
    Use |torax.run_simulation()|_ to run the simulation. This takes a
-   |torax.ToraxConfig| and returns an ``xarray.Dataset`` containing the
+   |torax.ToraxConfig| and returns an ``xarray.DataTree`` containing the
    simulation state as described in :ref:`output`.
 
 The rest of this section details each of these components and a few more.
 
 Note that although TORAX is designed such that you can bring your own models
-for transport, sources, etc, this still requires some TORAX development work for
-interfacing. Future work with expose the TORAX for seamless coupling. See the
-:ref:`model-integration` section for more details.
+for transport, sources, etc. Future work will expose this further for seamless
+coupling. See the :ref:`model-integration` section for more details.
 
 torax_pydantic
 ^^^^^^^^^^^^^^
@@ -64,7 +62,7 @@ representation that is easy to work with, and has methods for interpolating etc.
 
 Within the simulation we have the concept of a ``runtime parameter``, which is
 the input to the simulation at a specific time step. Currently we have the
-concept of ``static`` and ``dynamic`` runtime parameters. ```Static``` runtime
+concept of ``static`` and ``dynamic`` runtime parameters. ``Static`` runtime
 parameters are those that do not change during the simulation, such as the main
 ion names and changing these between runs will result in a recompilation of the
 JAX functions. ``Dynamic`` runtime parameters are those that do change during
@@ -76,7 +74,7 @@ orchestration
 ^^^^^^^^^^^^^
 
 |run_simulation.py|_ is the main entrypoint for running a TORAX simulation.
-It takes a ToraxConfig and returns the xarray.Dataset of the simulation as
+It takes a ``ToraxConfig`` and returns the ``xarray.DataTree`` of the simulation as
 described in :ref:`output`. It creates the various models, providers and initial
 state needed for the simulation and creates a ``StepFunction``
 which steps the simulation over time.
@@ -94,7 +92,7 @@ output_tools
 ^^^^^^^^^^^^
 
 The |torax.output_tools|_ module contains the structures of the outputs of
-a TORAX simulation. These are an ``xarray.Dataset`` and a ``StateHistory``
+a TORAX simulation. These are an ``xarray.DataTree`` and a ``StateHistory``
 object which can be used for debugging.
 
 state
@@ -113,14 +111,15 @@ See the ``torax.geometry`` package for different ways to build a
 
 Each ``Geometry`` object represents the geometry at a single point in time.
 A sequence of different geometries at different timesteps can be provided at
-config, and the various ``Geometry``s are constructed upon initialization.
-These are packaged together into a ``GeometryProvider`` which interpolates a
-new ``Geometry`` at each timestep allowing for dynamic time stepping.
+config, and the various ``Geometry`` objects are constructed upon
+initialization. These are packaged together into a ``GeometryProvider`` which
+interpolates a new ``Geometry`` at each timestep allowing for dynamic time
+stepping.
 
 solver
 ^^^^^^^
 
-|torax.solver|_ contains PDE time solvers that discretize the PDE in time and
+|torax.stepper|_ contains PDE time solvers that discretize the PDE in time and
 solve for the next time step with linear or nonlinear methods.
 
 Inside the |Solver|_ implementations is where JAX is actually used to compute
@@ -189,7 +188,7 @@ of |TimeStepCalculator|_, the base class which computes the duration of the next
 time step in TORAX and decides when the simulation is over.
 
 .. |run_simulation_main.py| replace:: ``run_simulation_main.py``
-.. _run_simulation_main.py: https://github.com/google-deepmind/torax/blob/main/run_simulation_main.py
+.. _run_simulation_main.py: https://github.com/google-deepmind/torax/blob/main/torax/run_simulation_main.py
 .. |torax/examples/| replace:: ``torax/examples/``
 .. _torax/examples/: https://github.com/google-deepmind/torax/tree/main/torax/examples
 .. |TimeStepCalculator| replace:: ``TimeStepCalculator``
@@ -210,8 +209,8 @@ time step in TORAX and decides when the simulation is over.
 .. _Geometry: https://github.com/google-deepmind/torax/blob/main/torax/_src/geometry/geometry.py
 .. |torax.config.runtime_params_slice| replace:: ``torax.config.runtime_params_slice``
 .. _torax.config.runtime_params_slice: https://github.com/google-deepmind/torax/blob/main/torax/_src/config/runtime_params_slice.py
-.. |torax.solver| replace:: ``torax.solver``
-.. _torax.solver: https://github.com/google-deepmind/torax/tree/main/torax/_src/stepper
+.. |torax.stepper| replace:: ``torax.stepper``
+.. _torax.stepper: https://github.com/google-deepmind/torax/tree/main/torax/_src/stepper
 .. |torax.sources| replace:: ``torax.sources``
 .. _torax.sources: https://github.com/google-deepmind/torax/tree/main/torax/_src/sources
 .. |QLKNN| replace:: ``QLKNN``

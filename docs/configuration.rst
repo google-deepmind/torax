@@ -27,8 +27,8 @@ This configuration dictionary is converted internally to a Pydantic ``torax.Tora
 model via ``torax.ToraxConfig.from_dict(config_dict)``.
 
 Configuration dictionaries are typically defined in a Python file, and used via
-``run_torax --config='path/to/config.py'``.` The file ```config.py``` must have the
-config dictionary defined as a global variable named ``CONFIG``. See
+``run_torax --config='path/to/config.py'``. The file ```config.py``` must have
+the config dictionary defined as a global variable named ``CONFIG``. See
 ``examples/iterhybrid_rampup.py`` for an example.
 
 See :ref:`structure` for more information on TORAX simulation objects.
@@ -40,7 +40,8 @@ For various definitions, see :ref:`glossary`.
 Time-dependence and parameter interpolation
 ===========================================
 Some TORAX parameters are allowed to vary over time, and are labelled with
-**time-varying-scalar** and **time-varying-array** in :ref:`config_details`.
+**time-varying-scalar** and **time-varying-array** in :ref:`config_details`
+below.
 
 Time-varying scalars
 --------------------
@@ -60,6 +61,7 @@ are interpolated at both time :math:`t` and time :math:`t+dt`.
 interpolation methods
 ^^^^^^^^^^^^^^^^^^^^^
 Currently, two interpolation modes are supported:
+
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series (default).
 * ``'STEP'``: stepwise change in values following each traversal above a time value in the time-series.
 
@@ -69,7 +71,7 @@ listed in the previous section. Specifying no interpolation mode is equivalent
 to ``(inputs, 'PIECEWISE_LINEAR')``.
 
 Examples
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^
 1. Define a time-dependent total current :math:`Ip_{tot}` with piecewise linear interpolation,
 from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from 2MA to 15MA, and then stays flat
 due to constant extrapolation beyond the last time value.
@@ -92,20 +94,21 @@ to :math:`1~keV` at :math:`t=20s`:
 
   T_i_ped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
 
-To extend configuration parameters where time-dependence is not enabled, to have time-dependence, see :ref:`developer-guides`.
 
 Time-varying arrays
 -------------------
-Parameters marked as **time-varying-array** are interpolated on a grid (time, :math:`\hat{\rho}`).
+Parameters marked as **time-varying-array** are interpolated on a grid (:math:`t`, :math:`\hat{\rho}`).
+For each time point, an array of values is defined on the spatial :math:`\hat{\rho}` grid.
 
 **time-varying-array** parameters can be defined using either a nested dictionary,
 or in the form of arrays (represented as a ``xarray.DataArray`` object or a ``tuple`` of arrays).
 
 **Note**: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
 
-In the case of non-evolving parameters for each evaluation of the TORAX solver (PDE solver), time-dependent variables
-are interpolated first along the :math:`\hat{\rho}` axis at the cell grid centers and then linearly interpolated in time
-at both time :math:`t` and time :math:`t+dt`..
+In the case of non-evolving (prescribed) parameters for each evaluation of the
+TORAX solver (PDE solver), time-dependent variables are interpolated first along
+the :math:`\hat{\rho}` axis at the cell grid centers and then linearly
+interpolated in time at both time :math:`t` and time :math:`t+dt`.
 
 For :math:`t` greater than or less than the largest or smallest defined time then the interpolation scheme
 will be applied from the closest time value.
@@ -113,6 +116,7 @@ will be applied from the closest time value.
 Using a nested dictionary
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 This is of the form:
+
 .. code-block:: python
 
   {time_1: {rho_11: value_11, rho_12: value_12, ...}, time_2: ...}
@@ -159,7 +163,7 @@ equivalently an ``xarray.DataArray`` object of the form:
   )
 
 
-All arrays can be represented as NumPy arrays or lists. The shapes:
+All arrays can be represented as NumPy arrays or lists.
 
 * ``time_array`` is a 1D array of times.
 * ``values_array`` is a 2D array of shape ``(len(time_array), num_values)``.
@@ -184,7 +188,7 @@ time and in :math:`\hat{\rho}`. To specify a different interpolation method:
 where ``time_varying_array_value`` is any of the above inputs
 (nested dictionary, arrays, etc.).
 
-Currently two interpolation modes are supported:
+Currently two interpolation modes are supported as for **time-varying-scalar**:
 
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series (default).
 * ``'STEP'``: stepwise change in values following each traversal above a time value in the time-series.
@@ -196,6 +200,127 @@ Detailed configuration structure
 ================================
 
 Data types and default values are written in parentheses. Any declared parameter in a run-specific config, overrides the default value.
+
+Profile conditions
+------------------
+
+Configures boundary conditions, initial conditions, and (optionally) prescribed
+time-dependence of temperature, density, and current.
+
+``Ip`` (**time-varying-scalar** [default = 15.0e6])
+  Total plasma current in A. Note that if ``Ip_from_parameters=False`` in geometry, then this Ip will be overwritten by values from the geometry data. Boundary condition for the :math:`\psi` equation if ``use_vloop_lcfs_boundary_condition`` is False. If ``use_vloop_lcfs_boundary_condition`` is True, only used as an initial condition.
+
+``use_vloop_lcfs_boundary_condition`` (bool = False)
+  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If ``use_vloop_lcfs_boundary_condition`` is True, then the specified Vloop at the LCFS is used to construct the boundary condition for the psi equation; otherwise, Ip is used to construct the boundary condition.
+
+``vloop_lcfs`` (**time-varying-scalar** [default = 0.0])
+  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at the next timestep. This is ignored if ``use_vloop_lcfs_boundary_condition`` is False.
+
+``T_i_right_bc`` (**time-varying-scalar** [default = None])
+  Temperature boundary condition at r=a_minor. If this is ``None`` the boundary condition will instead be taken from ``T_i`` at :math:`\hat{\rho}=1`.
+
+``T_e_right_bc`` (**time-varying-scalar** [default = None])
+  Temperature boundary condition at r=a_minor. If this is ``None`` the boundary condition will instead be taken from ``T_e`` at :math:`\hat{\rho}=1`.
+
+``T_i`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
+  Prescribed or evolving values for ion temperature at different times in units of keV.
+
+``T_e`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
+  Prescribed or evolving values for electron temperature at different times in units of keV.
+
+``psi`` (**time-varying-array** | None [default = None])
+  Initial values for poloidal flux. If provided, the initial ``psi`` will be
+  taken from here. Otherwise, the initial ``psi`` will be calculated from either
+  the geometry or the "current_profile_nu formula" dependant on the
+  ``initial_psi_from_j`` field.
+
+``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
+  Prescribed or evolving values for electron density at different times.
+
+  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time-dependent ``n_e`` is ignored, and only the initial value is used.
+
+``normalize_n_e_to_nbar`` (bool = False)
+  Whether to renormalize the density profile to have the desired line averaged density ``nbar``.
+
+``nbar`` (**time-varying-scalar** [default = 0.85e20])
+  Line averaged density. In units of :math:`m^{-3}` if ``n_e_nbar_is_fGW = False``. In Greenwald fraction if ``n_e_nbar_is_fGW = True``. :math:`n_{GW} = I_p/(\pi a^2)` with a in m, :math:`n_{GW}` in :math:`10^{20} m^{-3}`, Ip in MA.
+
+``n_e_nbar_is_fGW`` (bool = False)
+  Toggle units of ``nbar``.
+
+``n_e_right_bc`` (**time-varying-scalar** | None [default = None])
+  Density boundary condition for r=a_minor. In units of m^-3 if
+  ``n_e_right_bc_is_fGW = False``. In Greenwald fraction if
+  ``n_e_right_bc_is_fGW = True``. If ``n_e_right_bc`` is ``None`` then the
+  boundary condition will instead be taken from ``n_e`` at :math:`\hat{\rho}=1`.
+
+``n_e_right_bc_is_fGW`` (bool [default = False])
+  Toggle units of ``n_e_right_bc``.
+
+``current_profile_nu`` (float [default = 3.0])
+  Peaking factor of initial current, either total or "Ohmic":
+  :math:`j = j_0(1 - r^2/a^2)^{\text{current_profile_nu}}`. Used if
+  ``initial_psi_from_j`` is ``True``. In that case, then this sets the
+  peaking factor of either the total or Ohmic initial current profile, depending
+  on the ``initial_j_is_total_current`` flag.
+
+``initial_j_is_total_current`` (bool [default = False])
+  Toggle if the initial current formula set by ``current_profile_nu`` is the total current, or the Ohmic current. If Ohmic current, then the magnitude of the Ohmic current is set such that the initial total non-inductive current + total Ohmic current equals ``Ip``
+
+``initial_psi_from_j`` (bool [default = False])
+  Toggles if the initial psi calculation is based on the "current_profile_nu" current formula, or from the psi available in the numerical geometry file. This setting is ignored for the ad-hoc circular geometry, which has no numerical geometry.
+
+.. _numerics_dataclass:
+
+numerics
+--------
+
+Configures simulation control such as time settings and timestep calculation, equations being solved, constant numerical variables.
+
+``t_initial`` (float [default = 0.0])
+  Simulation start time, in units of seconds.
+
+``t_final`` (float [default = 5.0])
+  Simulation end time, in units of seconds.
+
+``exact_t_final`` (bool [default = False])
+  If True, ensures that the simulation end time is exactly ``t_final``, by adapting the final ``dt`` to match.
+
+``max_dt`` (float [default = 1e-1])
+  Maximum size of timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
+
+``min_dt`` (float [default = 1e-8])
+  Minimum timestep allowed in simulation.
+
+``chi_timestep_prefactor`` (float [default = 9.0])
+  Prefactor in front of ``chi_timestep_calculator`` base timestep :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
+  In most use-cases with implicit solution methods, ``chi_timestep_prefactor`` can be increased further above the conservative default.
+
+``fixed_dt`` (float [default = 1e-2])
+  Timestep used for ``fixed_time_step_calculator`` (see :ref:`time_step_calculator`).
+
+``evolve_ion_heat`` (bool [default = True])
+  Solve the ion heat equation in the time-dependent PDE.
+
+``evolve_electron_heat`` (bool [default = True])
+  Solve the electron heat equation in the time-dependent PDE.
+
+``evolve_current`` (bool [default = False])
+  Solve the current diffusion equation (evolving :math:`\psi`) in the time-dependent PDE.
+
+``evolve_density`` (bool [default = False])
+  Solve the electron density equation in the time-dependent PDE.
+
+``resistivity_multiplier`` (**time-varying-scalar** [default = 1.0])
+  1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
+  diffusion timescale to be closer to the energy confinement timescale, for testing purposes.
+
+``adaptive_T_source_prefactor`` (float [default = 1e10])
+  Prefactor for adaptive source term for setting temperature internal boundary conditions.
+
+``adaptive_n_source_prefactor`` (float [default = 1e8])
+  Prefactor for adaptive source term for setting density internal boundary conditions.
+
 
 plasma_composition
 ------------------
@@ -226,7 +351,7 @@ Defines the distribution of ion species.  The keys and their meanings are as fol
   If provided, this value will be used instead of the Z calculated from the ``main_ion`` specification.
 
 ``A_i_override`` (**time-varying-scalar** | None [default = None])
-  An optional override for the main ion's mass (A) in amu units or average mass of an IonMixture.
+  An optional override for the main ion's mass (A) in amu units or average mass of an ion mixture.
   If provided, this value will be used instead of the A calculated from the ``main_ion`` specification.
 
 ``Z_impurity_override`` (**time-varying-scalar** | None [default = None])
@@ -303,115 +428,6 @@ The following ion symbols are recognized for ``main_ion`` and ``impurity`` input
   *   Xe (Xenon)
   *   W (Tungsten)
 
-Profile conditions
-------------------
-
-Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
-
-``Ip`` (**time-varying-scalar** [default = 15.0e6])
-  Total plasma current in A. Note that if ``Ip_from_parameters=False`` in geometry, then this Ip will be overwritten by values from the geometry data. Boundary condition for the :math:`\psi` equation if ``use_vloop_lcfs_boundary_condition`` is False. If ``use_vloop_lcfs_boundary_condition`` is True, only used as an initial condition.
-
-``use_vloop_lcfs_boundary_condition`` (bool = False)
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If ``use_vloop_lcfs_boundary_condition`` is True, then the specified Vloop at the LCFS is used to construct the boundary condition for the psi equation; otherwise, Ip is used to construct the boundary condition.
-
-``vloop_lcfs`` (**time-varying-scalar** [default = 0.0])
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at the next timestep. This is ignored if ``use_vloop_lcfs_boundary_condition`` is False.
-
-``T_i_right_bc`` (**time-varying-scalar** [default = None])
-  Temperature boundary condition at r=a_minor. If this is `None` the boundary condition will instead be taken from `T_i` at rhon=1.
-
-``T_e_right_bc`` (**time-varying-scalar** [default = None])
-  Temperature boundary condition at r=a_minor. If this is `None` the boundary condition will instead be taken from `T_e` at rhon=1.
-
-``T_i`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for ion temperature at different times in units of keV.
-
-``T_e`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for electron temperature at different times in units of keV.
-
-``psi`` (**time-varying-array** | None [default = None])
-  Initial values for psi. If provided, the initial psi will be taken from here. Otherwise, the initial psi will be calculated from either the geometry or the "current_profile_nu formula" dependant on the `initial_psi_from_j` field.
-
-``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
-  Prescribed or evolving values for electron density at different times.
-
-  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then time-dependent ``n_e`` is ignored, and only the initial value is used.
-
-``normalize_n_e_to_nbar`` (bool = False)
-  Whether to renormalize the density profile to have the desired line averaged density ``nbar``.
-
-``nbar`` (**time-varying-scalar** [default = 0.85e20])
-  Line averaged density. In units of m^-3 if ``n_e_nbar_is_fGW = False``. In Greenwald fraction if ``n_e_nbar_is_fGW = True``. :math:`n_{GW} = I_p/(\pi a^2)` with a in m, :math:`n_{GW}` in :math:`10^{20} m^{-3}`, Ip in MA.
-
-``n_e_nbar_is_fGW`` (bool = False)
-  Toggle units of nbar.
-
-``n_e_right_bc`` (**time-varying-scalar** | None [default = None])
-  Density boundary condition for r=a_minor. In units of m^-3 if ``n_e_right_bc_is_fGW = False``. In Greenwald fraction if ``n_e_right_bc_is_fGW = True``. If ``n_e_right_bc`` is `None` then the boundary condition will instead be taken from ``n_e`` at rho_norm=1. In this case, ``n_e_right_bc_is_absolute`` in the StaticRuntimeParams will be set to `False` and ``n_e_right_bc_is_fGW`` will be set to ``n_e_nbar_is_fGW``. If ``n_e_right_bc`` is not `None` then ``n_e_right_bc_is_absolute`` will be set to `True`.
-
-``n_e_right_bc_is_fGW`` (bool = False)
-  Toggle units of ``n_e_right_bc``.
-
-``current_profile_nu`` (float = 3.0)
-  Peaking factor of initial current, either total or "Ohmic": :math:`j = j_0(1 - r^2/a^2)^{\text{current\_profile\_nu}}`. Used if ``initial_psi_from_j`` is True. In that case, then this sets the peaking factor of either the total or Ohmic initial current profile, depending on the ``initial_j_is_total_current`` flag.
-
-``initial_j_is_total_current`` (bool = False)
-  Toggle if the initial current formula set by ``current_profile_nu`` is the total current, or the Ohmic current. If Ohmic current, then the magnitude of the Ohmic current is set such that the initial total non-inductive current + total Ohmic current equals ``Ip``
-
-``initial_psi_from_j`` (bool = False)
-  Toggles if the initial psi calculation is based on the "current_profile_nu" current formula, or from the psi available in the numerical geometry file. This setting is ignored for the ad-hoc circular geometry, which has no numerical geometry.
-
-.. _numerics_dataclass:
-
-numerics
---------
-
-Configures simulation control such as time settings and timestep calculation, equations being solved, constant numerical variables.
-
-``t_initial`` (float [default = 0.0])
-  Simulation start time, in units of seconds.
-
-``t_final`` (float [default = 5.0])
-  Simulation end time, in units of seconds.
-
-``exact_t_final`` (bool [default = False])
-  If True, ensures that the simulation end time is exactly ``t_final``, by adapting the final ``dt`` to match.
-
-``max_dt`` (float [default = 1e-1])
-  Maximum size of timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
-
-``min_dt`` (float [default = 1e-8])
-  Minimum timestep allowed in simulation.
-
-``chi_timestep_prefactor`` (float [default = 9.0])
-  Prefactor in front of ``chi_timestep_calculator`` base timestep :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
-  In most use-cases with implicit solution methods, ``chi_timestep_prefactor`` can be increased further above the conservative default.
-
-``fixed_dt`` (float [default = 1e-2])
-  Timestep used for ``fixed_time_step_calculator`` (see :ref:`time_step_calculator`).
-
-``evolve_ion_heat`` (bool [default = True])
-  Solve the ion heat equation in the time-dependent PDE.
-
-``evolve_electron_heat`` (bool [default = True])
-  Solve the electron heat equation in the time-dependent PDE.
-
-``evolve_current`` (bool [default = False])
-  Solve the current diffusion equation (evolving :math:`\psi`) in the time-dependent PDE.
-
-``evolve_density`` (bool [default = False])
-  Solve the electron density equation in the time-dependent PDE.
-
-``resistivity_multiplier`` (**time-varying-scalar** [default = 1.0])
-  1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
-  diffusion timescale to be closer to the energy confinement timescale, for testing purposes.
-
-``adaptive_T_source_prefactor`` (float [default = 1e10])
-  Prefactor for adaptive source term for setting temperature internal boundary conditions.
-
-``adaptive_n_source_prefactor`` (float [default = 1e8])
-  Prefactor for adaptive source term for setting density internal boundary conditions.
-
 pedestal
 --------
 In TORAX we aim to support different models for computing the pedestal width,
@@ -419,16 +435,16 @@ and electron density, ion temperature and electron temperature at the pedestal
 top. These models will only be used if the ``set_pedestal`` flag is set to True.
 
 ``model_name`` (str [default = 'no_pedestal'])
-The model can be configured by setting the ``model_name`` key in the
-``pedestal`` section of the configuration. If this field is not set, then
-the default model is ``no_pedestal``.
+  The model can be configured by setting the ``model_name`` key in the
+  ``pedestal`` section of the configuration. If this field is not set, then
+  the default model is ``no_pedestal``.
 
 ``set_pedestal`` (**time-varying-scalar** [default = False])
   If True use the configured pedestal model to set internal boundary conditions. Do not set internal boundary conditions if False.
   Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
   can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
 
-The following models are currently supported:
+The following ``model_name``s are currently supported:
 
 no_pedestal
 ^^^^^^^^^^^
@@ -463,7 +479,7 @@ Set the pedestal width, electron density and ion temperature by providing the
 total pressure at the pedestal and the ratio of ion to electron temperature.
 
 ``P_ped`` (**time-varying-scalar** [default = 10.0])
-  The plasma pressure at the pedestal in units of :math:`[Pa]`.
+  The plasma pressure at the pedestal in units of :math:`Pa`.
 
 ``n_e_ped`` (**time-varying-scalar** [default = 0.7])
   Electron density at the pedestal top.
@@ -512,26 +528,28 @@ Geometry dicts for all geometry types can contain the following additional keys.
 
 Geometry dicts for all non-circular geometry types can contain the following additional keys.
 
-``geometry_file`` (str [default = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols' (for CHEASE) or 'EQDSK_ITERhybrid_COCOS02.eqdsk' (for EQDSK)])
+``geometry_file`` (str [default = "see below"])
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
+  The default is set to ``‘ITER_hybrid_citrin_equil_cheasedata.mat2cols’`` for
+  CHEASE geometry and ``EQDSK_ITERhybrid_COCOS02.eqdsk``` for EQDSK geometry.
 
 ``geometry_directory`` (str | None [default = None])
   Optionally set the geometry directory. This should be set to an absolute path. If not set, then the default is ``torax/data/third_party/geo``
 
 ``Ip_from_parameters`` (bool [default = True])
   Toggles whether total plasma current is read from the configuration file, or from the geometry file.
-  If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+  If ``True``, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
 
 Geometry dicts for analytical circular geometry require the following additional keys.
 
 ``R_major`` (float [default = 6.2])
-  Major radius (R) in meters.
+  Major radius "R" in meters.
 
 ``a_minor`` (float [default = 2.0])
-  Minor radius (a) in meters.
+  Minor radius "a" in meters.
 
 ``B_0`` (float [default = 5.3])
-  Vacuum toroidal magnetic field on axis [T].
+  Vacuum toroidal magnetic field on axis in :math:`T`.
 
 ``elongation_LCFS`` (float [default = 1.72])
   Sets the plasma elongation used for volume, area and q-profile corrections.
@@ -539,13 +557,13 @@ Geometry dicts for analytical circular geometry require the following additional
 Geometry dicts for CHEASE geometry require the following additional keys for denormalization.
 
 ``R_major`` (float [default = 6.2])
-  Major radius (R) in meters.
+  Major radius "R" in meters.
 
 ``a_minor`` (float [default = 2.0])
-  Minor radius (a) in meters.
+  Minor radius "a" in meters.
 
 ``B_0`` (float [default = 5.3])
-  Vacuum toroidal magnetic field on axis [T].
+  Vacuum toroidal magnetic field on axis :math:`T`.
 
 Geometry dicts for FBT geometry require the following additional keys.
 
@@ -607,12 +625,12 @@ Alternatively, for FBT data specifically, TORAX supports loading a bundle of LY
 files packaged within a single ``.mat`` file using LIUQE meqlpack. This eliminates
 the need to specify multiple individual LY files in the ``geometry_configs`` parameter.
 
-To use this feature, set ``LY_bundle_file`` to the corresponding ``.mat`` file containing
+To use this feature, set ``LY_bundle_object`` to the corresponding ``.mat`` file containing
 the LY bundle. Optionally set ``LY_to_torax_times`` as a NumPy array corresponding to times
 of the individual LY slices within the bundle. If not provided, then the times are taken
 from the bundle file itself.
 
-Note that ``LY_bundle_file`` cannot coexist with ``LY_file`` or ``geometry_configs`` in the
+Note that ``LY_bundle_object`` cannot coexist with ``LY_file`` or ``geometry_configs`` in the
 same configuration, and will raise an error if so.
 
 All file loading and geometry processing is done upon simulation initialization.
@@ -630,9 +648,9 @@ transport model.
   Select the transport model according to the following options:
 
 * ``'constant'``
-  Constant transport coefficients
+  Constant transport coefficients.
 * ``'CGM'``
-  Critical Gradient Model
+  Critical Gradient Model.
 * ``'bohm-gyrobohm'``
   Bohm-GyroBohm model.
 * ``'qlknn'``
@@ -659,7 +677,7 @@ transport model.
   Upper allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
 
 ``apply_inner_patch`` (**time-varying-scalar** [default = False])
-  If True, set a patch for inner core transport coefficients below `rho_inner`.
+  If ``True``, set a patch for inner core transport coefficients below ``rho_inner``.
   Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
 
 ``D_e_inner``  (**time-varying-scalar** [default = 0.2])
@@ -678,7 +696,7 @@ transport model.
   :math:`\hat{\rho}` below which inner patch is applied.
 
 ``apply_outer_patch`` (**time-varying-scalar** [default = False])
-  If True, set a patch for outer core transport coefficients above ``rho_outer``.
+  If ``True``, set a patch for outer core transport coefficients above ``rho_outer``.
   Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
 
 ``D_e_outer``  (**time-varying-scalar** [default = 0.2])
@@ -698,7 +716,7 @@ transport model.
 
 ``smoothing_width`` (float [default = 0.0])
   Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
-  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1
+  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
 
 ``smooth_everywhere`` (bool [default = False])
   Smooth across entire radial domain regardless of inner and outer patches.
@@ -738,7 +756,7 @@ Runtime parameters for the Critical Gradient Model (CGM).
   Ratio of ion heat conductivity to electron particle diffusion.
 
 ``VR_D_ratio`` (**time-varying-scalar** [default = 0.0])
-  Ratio of major radius * electron particle convection to electron particle diffusion.
+  Ratio of major radius :math:`\times` electron particle convection to electron particle diffusion.
   Sets the electron particle convection in the model. Negative values will set a peaked
   electron density profile in the absence of sources.
 
@@ -807,13 +825,13 @@ It is recommended to not set ``model_name``,  or
   Name of the model. Used to select a model from the ``fusion_surrogates`` library.
 
 ``include_ITG`` (bool [default = True])
-  If True, include ITG modes in the total fluxes.
+  If ``True``, include ITG modes in the total fluxes.
 
 ``include_TEM`` (bool [default = True])
-  If True, include TEM modes in the total fluxes.
+  If ``True``, include TEM modes in the total fluxes.
 
 ``include_ETG`` (bool [default = True])
-  If True, include ETG modes in the total electron heat flux.
+  If ``True``, include ETG modes in the total electron heat flux.
 
 ``ITG_flux_ratio_correction`` (float [default = 1.0])
   Increase the electron heat flux in ITG modes by this factor.
@@ -836,7 +854,7 @@ It is recommended to not set ``model_name``,  or
   collision operator in QuaLiKiz, in place since ``QLKNN10D`` was developed.
 
 ``avoid_big_negative_s`` (bool [default = True])
-  If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
+  If ``True``, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
   to compensate for the lack of slab ITG modes in QuaLiKiz.
 
 ``q_sawtooth_proxy`` (bool [default = True])
@@ -845,7 +863,7 @@ It is recommended to not set ``model_name``,  or
   :math:`q=1` and :math:`\hat{s}=0.1`.
 
 ``DV_effective`` (bool [default = False])
-  If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
+  If ``True``, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DV_effective==True``.
@@ -867,11 +885,11 @@ Runtime parameters for the QuaLiKiz model.
   Collisionality multiplier for sensitivity analysis.
 
 ``avoid_big_negative_s`` (bool [default = True])
-  If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
+  If ``True``, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
   to compensate for the lack of slab ITG modes in QuaLiKiz.
 
 ``smag_alpha_correction`` (bool [default = True])
-  If True, reduce input magnetic shear by :math:`0.5*\alpha_{MHD}` to capture the main impact of
+  If ``True``, reduce input magnetic shear by :math:`0.5*\alpha_{MHD}` to capture the main impact of
   :math:`\alpha_{MHD}`, which was not itself part of the ``QLKNN`` training set.
 
 ``q_sawtooth_proxy`` (bool [default = True])
@@ -880,7 +898,7 @@ Runtime parameters for the QuaLiKiz model.
   :math:`q=1` and :math:`\hat{s}=0.1`.
 
 ``DV_effective`` (bool [default = False])
-  If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
+  If ``True``, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
 
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DV_effective==True``.
@@ -888,8 +906,11 @@ Runtime parameters for the QuaLiKiz model.
 sources
 -------
 
-dict with nested dicts containing the runtime parameters of all TORAX heat, particle, and current sources. The following runtime parameters
-are common to all sources, with defaults depending on the specific source. See :ref:`physics_models` For details on the source physics models.
+Dictionary with nested dictionaries containing the configurable runtime
+parameters of all TORAX heat, particle, and current sources. The following
+runtime parameters are common to all sources, with defaults depending on the
+specific source. See :ref:`physics_models` For details on the source physics
+models.
 
 Any source which is not explicitly included in the sources dict, is set to zero. To include a source with default
 options, the source dict should contain an empty dict. For example, for setting ``ei_exchange``, with default options,
@@ -906,7 +927,7 @@ The configurable runtime parameters of each source are as follows:
 ``prescribed_values`` (**time-varying-array** [default = {0: {0: 0, 1: 0}}])
   Time varying array of prescribed values for the source. Used if ``mode`` is ``'PRESCRIBED'``.
 
-``mode`` (str)
+``mode`` (str [default = 'zero'])
   Defines how the source values are computed. Currently the options are:
 
 * ``'ZERO'``
@@ -914,7 +935,7 @@ The configurable runtime parameters of each source are as follows:
 
 * ``'MODEL'``
     Source values come from a model in code. Specific model selection where more
-    than one model is available can be done by specifying a ``model_func``.
+    than one model is available can be done by specifying a ``model_name``.
     This is documented in the individual source sections.
 
 * ``'PRESCRIBED'``
@@ -936,8 +957,9 @@ For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purp
         'fusion': {'mode': 'ZERO'},
     }
 
-To set 'j_ext' to a prescribed value based on a tuple of numpy arrays, e.g. as defined or loaded from a file in the
-preamble to the CONFIG dict within config module, set:
+To set 'generic_current' to a prescribed value based on a tuple of numpy arrays,
+e.g. as defined or loaded from a file in the preamble to the CONFIG dict within
+config module, set:
 
 .. code-block:: python
 
@@ -952,7 +974,7 @@ coordinates, and ``current_profiles`` is a 2D numpy array of the current profile
 and can be set to anything convenient.
 
 
-``is_explicit`` (bool)
+``is_explicit`` (bool [default = False])
   Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
   beginning of a time step, or do not have any dependance on state. Implicit sources depend on updated states as the iterative solvers evolve the state through the
   course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
@@ -1059,11 +1081,11 @@ Generic external current profile, parameterized as a Gaussian.
 ``gaussian_width`` (**time-varying-scalar** [default = 0.05])
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
-``I_generic`` (**time-varying-scalar** [default = 3.0])
-  Total current in MA. Only used if ``use_absolute_current==True``.
+``I_generic`` (**time-varying-scalar** [default = 3.0e6])
+  Total current in A. Only used if ``use_absolute_current==True``.
 
 ``fraction_of_total_current`` (**time-varying-scalar** [default = 0.2])
-  Sets total ``j_ext`` to be a fraction ``fraction_of_total_current`` of the total plasma current.
+  Sets total ``generic_current`` to be a fraction ``fraction_of_total_current`` of the total plasma current.
   Only used if ``use_absolute_current==False``.
 
 ``use_absolute_current`` (bool [default = False])
@@ -1083,7 +1105,7 @@ A utility source module that allows for a time-dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``P_total`` (**time-varying-scalar** [default = 120e6])
-  Total source power in W. High default based on total ITER power including alphas
+  Total source power in W. High default based on total ITER power including alphas.
 
 ``electron_heat_fraction`` (**time-varying-scalar** [default = 0.66666])
   Electron heating fraction.
@@ -1105,7 +1127,7 @@ Time-dependent Gaussian particle source. No first-principle-based model is yet i
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``S_total`` (**time-varying-scalar** [default = 1e22])
-  Total particle source.
+  Total particle source in units of particles/s.
 
 icrh
 ^^^^
@@ -1203,13 +1225,13 @@ sawtooth
 
 ``simple`` trigger model parameters:
 
-* ``s_critical`` (**time-varying-scalar** [default = 0.1]): The critical magnetic
-  shear value at the q=1 surface. A crash is triggered only if the shear exceeds
-  this value.
+* ``s_critical`` (**time-varying-scalar** [default = 0.1])
+  The critical magnetic shear value at the q=1 surface. A crash is triggered
+  only if the shear exceeds this value.
 
-* ``minimum_radius`` (**time-varying-scalar** [default = 0.05]): The minimum
-  normalized radius (:math:`\hat{\rho}`) of the q=1 surface required to trigger
-  a crash.
+* ``minimum_radius`` (**time-varying-scalar** [default = 0.05])
+  The minimum normalized radius (:math:`\hat{\rho}`) of the q=1 surface required
+  to trigger a crash.
 
 ``model_name`` (str [default = 'simple'])
   Currently only 'simple' is supported.
@@ -1224,7 +1246,8 @@ sawtooth
     radius :math:`\hat{\rho}_{mix}`.
 
 ``crash_step_duration`` (float [default = 1e-3]):
-  Duration of a sawtooth crash step.
+  Duration of a sawtooth crash step in seconds. This is how much the solver time
+  will be bumped forward during a crash.
 
 solver
 -------
@@ -1253,7 +1276,7 @@ parameters pertaining to a specific solver are defined in the relevant section b
 ``use_predictor_corrector`` (bool [default = True])
   Enables use_predictor_corrector iterations with the linear solver.
 
-``n_corrector_steps`` (int [default = 1])
+``n_corrector_steps`` (int [default = 10])
   Number of corrector steps for the predictor-corrector linear solver. 0 means a pure linear solve with no corrector steps.
   Must be a positive integer.
 
@@ -1262,10 +1285,10 @@ parameters pertaining to a specific solver are defined in the relevant section b
   Critical for stable calculation of stiff transport, at the cost of introducing non-physical lag during transient. Also used for
   the ``linear_step`` initial guess mode in the nonlinear solvers.
 
-``chi_pereverzev`` (float [default = 20.0])
+``chi_pereverzev`` (float [default = 30.0])
   Large heat conductivity used for the Pereverzev-Corrigan term.
 
-``D_pereverzev`` (float [default = 10.0])
+``D_pereverzev`` (float [default = 15.0])
   Large particle diffusion used for the Pereverzev-Corrigan term.
 
 linear
@@ -1279,7 +1302,7 @@ newton_raphson
 .. _log_iterations:
 
 ``log_iterations`` (bool [default = False])
-  If True, logs information about the internal state of the Newton-Raphson
+  If ``True``, logs information about the internal state of the Newton-Raphson
   solver. For the first iteration, this contains the initial residual value and
   time-step size. For subsequent iterations, this contains the iteration step
   number, the current value of the residual, and the current value of ``tau``,
@@ -1299,7 +1322,7 @@ newton_raphson
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
     If used, is recommended to do so with the use_predictor_corrector solver and
     several corrector steps. It is also strongly recommended to
-    use_pereverzev=True if a stiff transport model like qlknn is used.
+    ``use_pereverzev=True`` if a stiff transport model like qlknn is used.
 
 ``residual_tol`` (float [default = 1e-5])
   PDE residual magnitude tolerance for successfully exiting the iterative solver.
@@ -1320,7 +1343,8 @@ newton_raphson
 ``tau_min`` (float [default = 0.01])
   tau is the relative reduction in step size: delta/delta_original, following backtracking line search,
   where delta_original is the step in state :math:`x` that minimizes the linearized PDE system. If following some iterations,
-  ``tau`` :math:`<` ``tau_min``, , then the solver will exit in an unconverged state. The step will still be accepted if ``residual < coarse_tol``,
+  ``tau < tau_min``, then the solver will exit in an unconverged
+  state. The step will still be accepted if ``residual < coarse_tol``,
   otherwise dt backtracking will take place if enabled.
 
 optimizer
@@ -1339,7 +1363,7 @@ optimizer
     several corrector steps. It is also strongly recommended to
     use_pereverzev=True if a stiff transport model like qlknn is used.
 
-``loss_tol`` (float [default = 1e-12])
+``loss_tol`` (float [default = 1e-10])
   PDE loss magnitude tolerance for successfully exiting the iterative solver.
   Note: the default tolerance here is smaller than the default tolerance for
   the Newton-Raphson solver because it's a tolerance on the loss (square of the
@@ -1374,7 +1398,7 @@ neoclassical
 
 bootstrap_current
 ^^^^^^^^^^^^^^^^^
-``model_name`` (str)
+``model_name`` (str [default = 'sauter'])
   The name of the model to use. If not provided, the default is to use the Sauter model with default values.
   One of ``sauter`` or ``zeros`` is supported.
 
@@ -1392,26 +1416,29 @@ conductivity
 Additional Notes
 ================
 
-.. _dynamic_vs_static:
+.. _trigger_recompilation:
 
-Dynamic vs. Static Parameters
------------------------------
+What triggers a recompilation?
+------------------------------
 
-Dynamic parameters: These can be changed without recompiling the simulation code. Examples include time-dependent parameters like heating power or external current.
+Most config options can be changed without recompiling the simulation code.
 
-Static parameters: These define the fundamental structure of the simulation and require JAX recompilation if changed.
+Some define the fundamental structure of the simulation and require JAX recompilation if changed.
 Examples include the number of grid points or the choice of transport model. A partial list is provided below.
 
-* ``runtime_params['geometry']['nrho']``
-* ``runtime_params['numerics']['evolve_ion_heat']``
-* ``runtime_params['numerics']['evolve_electron_heat']``
-* ``runtime_params['numerics']['evolve_current']``
-* ``runtime_params['numerics']['evolve_density']``
-* ``transport['transport_model']``
-* ``solver['solver_type']``
-* ``time_step_calculator['time_step_calculator_type']``
-* ``sources['source_name']['is_explicit']``
-* ``sources['source_name']['mode']``
+* ``CONFIG['geometry']['nrho']``
+* ``CONFIG['numerics']['evolve_ion_heat']``
+* ``CONFIG['numerics']['evolve_electron_heat']``
+* ``CONFIG['numerics']['evolve_current']``
+* ``CONFIG['numerics']['evolve_density']``
+* ``CONFIG['transport']['model_name']``
+* ``CONFIG['solver']['solver_type']``
+* ``CONFIG['time_step_calculator']['time_step_calculator_type']``
+* ``CONFIG['sources']['source_name']['is_explicit']``
+* ``CONFIG['sources']['source_name']['mode']``
+
+In the future we aim to provide more transparency at the config level for which
+configuration options recompilation is required.
 
 Config example
 ==============
@@ -1429,7 +1456,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'Z_eff': 1.6,
       },
       'profile_conditions': {
-          'Ip': {0: 3, 80: 10.5},
+          'Ip': {0: 3e6, 80: 10.5e6},
           # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
           'T_i_right_bc': 0.1,  # boundary condition ion temp for r=a_minor

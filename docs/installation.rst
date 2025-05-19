@@ -116,3 +116,4 @@ download the QLKNN dependencies at a location of your choice:
 
 To use QLKNN10D , you then need to set ``model_path`` in the
 ``transport`` section of your TORAX config to the path of the cloned repository.
+See :ref:`configuration` for more details.

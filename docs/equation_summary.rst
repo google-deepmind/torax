@@ -124,12 +124,14 @@ sequence of precalculated magnetic geometries. Time derivative terms are
 calculated by interpolating the geometry data at the time points across a
 time interval at each solver step, and carrying out numeric differentiation.
 
-The boundary conditions are as follows. All equations have a zero-derivative
-boundary condition at :math:`\hat{\rho}=0`. The :math:`T_i`, :math:`T_e`,
-:math:`n_e` equations have Dirichlet (fixed) boundary conditions at
-:math:`\hat{\rho}=1`, which are user-defined. The :math:`\psi` equation has a
-Neumann (derivative) boundary condition at :math:`\hat{\rho}=1`, which sets the
-total plasma current through the relation:
+Boundary conditions
+===================
+
+All equations have a zero-derivative boundary condition at :math:`\hat{\rho}=0`.
+The :math:`T_i`, :math:`T_e`, :math:`n_e` equations have Dirichlet (fixed)
+boundary conditions at :math:`\hat{\rho}=1`, which are user-defined.
+The :math:`\psi` equation has a Neumann (derivative) boundary condition at
+:math:`\hat{\rho}=1`, which sets the total plasma current through the relation:
 
 .. math::
 

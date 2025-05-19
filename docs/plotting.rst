@@ -28,7 +28,7 @@ TORAX root directory:
 Replace ``<full_path_to_simulation_output>`` with the full path to your
 simulation's output file. Optionally, specify a custom plot configuration module
 using ``--plot_config``, with the path for the Python file containing the
-`PLOT_CONFIG` variable. See :ref:`customizable_plot_configs` for more
+``PLOT_CONFIG`` variable. See :ref:`customizable_plot_configs` for more
 details.
 
 Comparing Two Runs
@@ -50,8 +50,8 @@ Customizable Plot Configurations
 
 The ``--plot_config`` flag allows you to define which quantities are plotted and
 how they are arranged. This flag accepts the path to a Python file containing
-a `PLOT_CONFIG` variable which is an instance of
-`torax.plotting.plotruns_lib.FigureProperties`. This variable specifies the
+a ``PLOT_CONFIG`` variable which is an instance of
+``torax.plotting.plotruns_lib.FigureProperties``. This variable specifies the
 layout and properties of the plot. If no ``--plot_config`` is specified, the
 default configuration
 `default_plot_config.py <https://github.com/google-deepmind/torax/tree/main/torax/plotting/configs/default_plot_config.py>`_.
@@ -89,7 +89,7 @@ Example usage:
 These plot configurations can also be passed as input into the ``run_torax``
 script using the ``--plot_config`` flag. See :ref:`torax_flags`.
 
-The `PLOT_CONFIG` from `plotting/configs/simple_plot_config.py` is shown
+The ``PLOT_CONFIG`` from ``plotting/configs/simple_plot_config.py`` is shown
 below as an example.
 
 .. code-block:: python
@@ -153,7 +153,7 @@ below as an example.
 Customizing Plots
 -----------------
 
-The `FigureProperties` dataclass offers several options for customizing the
+The ``FigureProperties`` dataclass offers several options for customizing the
 plot layout and content. Dataclass fields and defaults are as follows:
 
 - ``rows`` (int): Number of rows in the figure.
@@ -181,15 +181,15 @@ like this:
   ),
 
 
-The fields in `PlotProperties` are as follows:
+The fields in ``PlotProperties`` are as follows:
 
 - ``attrs``: Tuple of attribute names from the ``PlotData`` dataclass used to
   retrieve the data for plotting.
 - ``labels``: Tuple of labels for the plotted lines, one label per attribute in
-  `attrs`.
+  ``attrs``.
 - ``ylabel``: Label for the y-axis.
 - ``legend_fontsize`` (int | None): Legend font size. If None, defaults to
-  ``default_legend_fontsize`` in `FigureProperties`.
+  ``default_legend_fontsize`` in ``FigureProperties``.
 - ``upper_percentile`` (float=100.0): Filters out outlier data above a given
   percentile for plotting purposes.
 - ``lower_percentile`` (float=0.0): Filters out outlier data below a given

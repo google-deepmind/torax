@@ -22,20 +22,14 @@ We can then run the simulation:
 
 .. code-block:: python
 
-  # returns a torax.output.StateHistory object
-  results = torax.run_simulation(torax_config)
+  # returns the output XArray DataTree and a torax.StateHistory object.
+  data_tree, state_history = torax.run_simulation(torax_config)
 
   # Check that the simulation completed successfully.
-  if results.sim_error != torax.SimError.NO_ERROR:
+  if state_history.sim_error != torax.SimError.NO_ERROR:
     raise ValueError(
         f'TORAX failed to run the simulation with error: {results.sim_error}.'
     )
 
-  # Example data: access the fusion gain time series
-  Q_fusion = results.post_processed_outputs.Q_fusion
-
-  # Optionally save the results as an xarray datatree and use xarray methods
-  # to access the data. Example below shows how to access the fusion gain
-  # at time=2 seconds.
-  data_tree = results.simulation_output_to_xr()
+  # Example below shows how to access the fusion gain at time=2 seconds.
   Q_fusion_t2 = data_tree.scalars.Q_fusion.sel(time=2, method='nearest')

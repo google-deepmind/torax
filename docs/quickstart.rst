@@ -26,7 +26,7 @@ completed.
 More involved examples in ``torax/examples`` include non-rigorous mockups of the
 ITER hybrid scenario:
 
-* ``iterhybrid_predictor_corrector.py``: flattop phase with the linear stepper
+* ``iterhybrid_predictor_corrector.py``: flat-top phase with the linear stepper
   using predictor-corrector iterations.
 
 * ``iterhybrid_rampup.py``: time-dependent ramppup phase with the nonlinear
@@ -82,7 +82,7 @@ If no ``--plot_config`` is specified, the default configuration at
 ``plotting/configs/default_plot_config.py`` is used. See :ref:`plotting` for
 more details.
 
-A slider allows to scroll through the output of all simulation timesteps.
+A slider allows scrolling through the output of all simulation timesteps.
 
 Cleaning up
 -----------

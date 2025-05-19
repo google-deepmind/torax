@@ -8,11 +8,11 @@ the ``run_simulation_main.py`` or ``run_torax`` script, the ``output_dir``
 is set via flag ``--output_dir``, with default
 ``/tmp/torax_results_<YYYYMMDD_HHMMSS>/``.
 
-We currently support the output structure for Torax v1.0.0.
+We currently support the below output structure for Torax V1.
 
-The output is an `[xarray] <https://docs.xarray.dev>`_ DataTree.
+The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated/xarray.DataTree.html>`_.
 
-The Dataset is a hierarchical structure containing three ``xarray.DataSet`` :
+The DataTree is a hierarchical structure containing three ``xarray.DataSet``s:
 
 * ``numerics`` containing simulation numeric quantities.
 * ``scalars`` containing scalar quantities.
@@ -36,9 +36,11 @@ The DataTree/Dataset variables can have the following dimensions:
 
 There are three named variants of spatial dimension:
 
-* **rho_cell_norm**: corresponding to the ``torax.fvm`` cell grid (see :ref:`fvm`).
-* **rho_face_norm**: corresponding to the ``torax.fvm`` face grid (see :ref:`fvm`).
-* **rho_norm**: corresponding to the ``torax.fvm`` cell grid plus boundary values (see :ref:`fvm`).
+* **rho_cell_norm**: corresponding to the ``torax.fvm`` cell grid.
+* **rho_face_norm**: corresponding to the ``torax.fvm`` face grid.
+* **rho_norm**: corresponding to the ``torax.fvm`` cell grid plus boundary values.
+
+See :ref:`fvm` for more details on the grids.
 
 In all subsequent lists, the dimensions associated with each variable or coordinate
 will be surrounded by parentheses, e.g. (time, rho_norm).
@@ -47,13 +49,15 @@ Coordinates
 ===========
 
 All the ``Dataset`` objects in the output contains the following Coordinates. In order
-for users of TORAX outputs to not have to worry about TORAX internals we provide
-outputs on the following coordinates. Some TORAX outputs are only computed on
-the face grid (such as transport coefficients), some only on the cell (such as
-source profiles) and some are computed on both (like the core profiles
-evolved by the PDE). In cases where both are computed we merge the computed
-quantities into a single output with on the cell grid as well as the left and
-right face values. These different grids exist due to the finite-volume method.
+for users of TORAX outputs to not have to worry about TORAX internals such as
+interpolation routines or the grid on which a value is computed we provide
+outputs on three different grids depending on the available data for an output.
+Some TORAX outputs are only computed on the face grid (such as transport
+coefficients), some only on the cell (such as source profiles) and some are
+computed on both (like the core profiles evolved by the PDE).
+In cases where both are computed we merge the computed quantities into a single
+output on the cell grid as well as the left and right face values. These
+different grids exist due to the finite-volume method.
 
 * ``time`` (time)
     Times corresponding to each simulation timestep, in units of [:math:`s`].
@@ -70,6 +74,8 @@ right face values. These different grids exist due to the finite-volume method.
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid.
     The array size is ``geometry['nrho']+1``.
 
+The coordinate for a given data variable is then attached to the given variable.
+
 Top level dataset
 =================
 The top level dataset contains the config used to run the simulation. This can
@@ -81,11 +87,11 @@ only has references to the child datasets.
   as a dictionary. We use this field to store the input config as a json string
   under the ``config`` key.
 
-To retrieve the input config we can do the following see "Examples" below.
+To retrieve the input config, see :ref:`output_examples` below.
 
-Child datasets
-==============
-The following datasets are child nodes, the title of each section is the name of
+Child datatrees
+===============
+The following datatrees are child nodes, the title of each section is the name of
 the child ``DataTree``.
 
 numerics
@@ -119,11 +125,6 @@ For ``geometry`` certain profiles are only output if ``circular`` geometry is no
 
 For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` model is used.
 
-profiles
---------
-
-This dataset contains radial profiles of various plasma parameters at different times. The radial coordinate is the normalized toroidal flux coordinate.
-
 ``T_e`` (time, rho_norm)
   Electron temperature profile [:math:`keV`].
 
@@ -131,7 +132,7 @@ This dataset contains radial profiles of various plasma parameters at different 
   Ion temperature profile [:math:`keV`].
 
 ``psi`` (time, rho_norm)
-  Poloidal flux profile :math:`(\psi)` [:math:`Wb`].
+  Poloidal flux profile :math:`\psi` [:math:`Wb`].
 
 ``v_loop`` (time, rho_norm)
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}` [:math:`V`].
@@ -194,49 +195,49 @@ This dataset contains radial profiles of various plasma parameters at different 
   Plasma conductivity parallel to the magnetic field profile on the cell grid [:math:`S/m`].
 
 ``p_cyclotron_radiation_e`` (time, rho_cell_norm) [:math:`W/m^3`]
-  Cyclotron radiation heat sink density profile on the cell grid. Only output if `cyclotron_radiation` source is active.
+  Cyclotron radiation heat sink density profile on the cell grid. Only output if ``cyclotron_radiation`` source is active.
 
 ``p_ecrh_e`` (time, rho_cell_norm)
-  Electron cyclotron heating power density profile on the cell grid [:math:`W/m^3`]. Only output if `ecrh` source is active.
+  Electron cyclotron heating power density profile on the cell grid [:math:`W/m^3`]. Only output if ``ecrh`` source is active.
 
 ``j_ecrh`` (time, rho_cell_norm)
-  Electron cyclotron heating current density profile on the cell grid [:math:`A/m^2`]. Only output if `ecrh` source is active.
+  Electron cyclotron heating current density profile on the cell grid [:math:`A/m^2`]. Only output if ``ecrh`` source is active.
 
 ``p_icrh_i`` (time, rho_cell_norm)
-  Ion cyclotron heating power density ion heating profile on the cell grid [:math:`W/m^3`]. Only output if `icrh` source is active.
+  Ion cyclotron heating power density ion heating profile on the cell grid [:math:`W/m^3`]. Only output if ``icrh`` source is active.
 
 ``p_icrh_e`` (time, rho_cell_norm)
-  Ion cyclotron heating power density electron heating profile on the cell grid [:math:`W/m^3`]. Only output if `icrh` source is active.
+  Ion cyclotron heating power density electron heating profile on the cell grid [:math:`W/m^3`]. Only output if ``icrh`` source is active.
 
 ``p_alpha_i`` (time, rho_cell_norm)
-  Fusion alpha heating power density profile to ions on the cell grid [:math:`W/m^3`]. Only output if `fusion` source is active.
+  Fusion alpha heating power density profile to ions on the cell grid [:math:`W/m^3`]. Only output if ``fusion`` source is active.
 
 ``p_impurity_radiation_e`` (time, rho_cell_norm)
-  Impurity radiation heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if `impurity_radiation` source is active.
+  Impurity radiation heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if ``impurity_radiation`` source is active.
 
 ``p_ohmic_e`` (time, rho_cell_norm)
-  Ohmic heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if `ohmic` source is active.
+  Ohmic heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if ``ohmic`` source is active.
 
 ``p_generic_heat_i`` (time, rho_cell_norm)
-  Generic external ion heat source density profile on the cell grid [:math:`W/m^3`]. Only output if `generic_heat` source is active.
+  Generic external ion heat source density profile on the cell grid [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
 
 ``p_alpha_e`` (time, rho_cell_norm)
-  Fusion alpha heating power density profile to electrons on the cell grid [:math:`W/m^3`]. Only output if `fusion` source is active.
+  Fusion alpha heating power density profile to electrons on the cell grid [:math:`W/m^3`]. Only output if ``fusion`` source is active.
 
 ``p_generic_heat_e`` (time, rho_cell_norm)
-  Generic external electron heat source density profile on the cell grid [:math:`W/m^3`]. Only output if `generic_heat` source is active.
+  Generic external electron heat source density profile on the cell grid [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
 
 ``j_generic_current`` (time, rho_cell_norm)
-  Generic external non-inductive current density profile on the cell grid [:math:`A/m^2`]. Only output if `generic_current` source is active.
+  Generic external non-inductive current density profile on the cell grid [:math:`A/m^2`]. Only output if ``generic_current`` source is active.
 
 ``s_gas_puff`` (time, rho_cell_norm)
-  Gas puff particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `gas_puff` source is active.
+  Gas puff particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``gas_puff`` source is active.
 
 ``s_generic_particle`` (time, rho_cell_norm)
-  Generic particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `generic_particle` source is active.
+  Generic particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``generic_particle`` source is active.
 
 ``s_pellet`` (time, rho_cell_norm)
-  Pellet particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if `pellet` source is active.
+  Pellet particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``pellet`` source is active.
 
 ``pressure_thermal_i`` (time, rho_face_norm)
   Ion thermal pressure profile [:math:`Pa`].
@@ -455,7 +456,7 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   H-mode transition power at the density corresponding to the minimum transition power, from Ryter 2014. [:math:`W`].
 
 ``P_LH`` (time)
-  Calculated H-mode transition power, taken as the maximum of `P_LH_min` and `P_LH_high_density`. This does not include an accurate calculation for the low density branch. [:math:`W`].
+  Calculated H-mode transition power, taken as the maximum of ``P_LH_min`` and ``P_LH_high_density``. This does not include an accurate calculation for the low density branch. [:math:`W`].
 
 ``n_e_min_P_LH`` (time)
   Electron density at which the minimum H-mode transition power occurs [:math:`m^{-3}`].
@@ -553,6 +554,7 @@ This dataset contains time-dependent scalar quantities describing global plasma 
 ``rho_b`` (time)
   Value of the unnormalized rho coordinate at the boundary [:math:`m`].
 
+.. _output_examples:
 
 Working with output data
 ========================

@@ -32,28 +32,28 @@ TORAX, at v1.0.0, has the following physics and numerics feature set:
     * Multiple solver options for PDE time evolution
 
       * Linear with Pereverzev-Corrigan terms, and predictor-corrector steps for
-        approximating the nonlinear solution
+        approximating the nonlinear solution.
       * Nonlinear solver with Newton-Raphson iterations, with line search and
-        timestep backtracking
-      * Nonlinear solver with optimization using the jaxopt library
+        timestep backtracking.
+      * Nonlinear solver with optimization using the jaxopt library.
       * Poloidal flux boundary conditions based on either total current or loop
         voltage at the last-closed-flux-surface.
 
   * Ohmic power, ion-electron heat exchange, fusion power, Bremsstrahlung,
     impurity line radiation, an ICRH ML-surrogate |toricnn| (as-yet covering
-    limited regimes)
+    limited regimes).
   * Bootstrap current and neoclassical conductivity with the analytical Sauter
-    model
+    model.
   * Coupling to the |qlknn_7_11| and QLKNN10D |qlknn10d| QuaLiKiz-neural-network
     surrogates for physics-based turbulent transport. The semi-empirical
     Bohm-GyroBohm model is also available.
-  * General geometry, provided via CHEASE, FBT, or EQDSK equilibrium files
-  * Sawtooth triggering and profile redistribution
+  * General geometry, provided via CHEASE, FBT, or EQDSK equilibrium files.
+  * Sawtooth triggering and profile redistribution.
   * Simple pedestal models using a local adaptive source to set internal
-    boundary conditions
+    boundary conditions.
   * API for setting time-dependent boundary conditions, prescribed sources, and
     prescribed profiles optionally evolved by the PDE, from a variety of input
-    data structures or user-provided analytical models
+    data structures or user-provided analytical models.
 
     * For testing and demonstration purposes, a single CHEASE equilibrium file
       is available in the data/geo directory. It corresponds to an ITER hybrid

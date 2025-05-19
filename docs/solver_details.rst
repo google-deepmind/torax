@@ -329,11 +329,11 @@ as follows.
 
     \Delta t_{ \mathrm{base}}=\frac{(d\hat{\rho})^2}{2\chi_{\max}}
 
-  where
-  :math:`\Delta t = c_{ \mathrm{mult}}^{dt} \Delta t_{ \mathrm{base}}`. :math:`c_{ \mathrm{mult}}^{dt}`
-  is a user-configurable prefactor.  In practice,
-  :math:`c_{ \mathrm{mult}}^{dt}` can be significantly larger than unity for
-  implicit solution methods.
+    where
+    :math:`\Delta t = c_{ \mathrm{mult}}^{dt} \Delta t_{ \mathrm{base}}`. :math:`c_{ \mathrm{mult}}^{dt}`
+    is a user-configurable prefactor.  In practice,
+    :math:`c_{ \mathrm{mult}}^{dt}` can be significantly larger than unity for
+    implicit solution methods.
 
 The adaptive timestep method protects against traversing through fast transients
 in the simulation, by enforcing :math:`\Delta t \propto \chi`.

@@ -29,8 +29,7 @@ Some particularly useful information includes:
 
 One Torax-specific cache gotcha is that the cache may not be used if Torax runtime
 error handling is turned on (it is off by default)
-via the TORAX_ERRORS_ENABLED environment variable or
-`torax.jax_utils.enable_errors`.
+via the ``TORAX_ERRORS_ENABLED`` environment variable.
 This is because runtime error handling injects Python callbacks into the Jax
 program, and Jax can't serialize arbitrary callable Python objects into its
 cache. Most Torax tests have runtime error handling enabled to catch correctness
@@ -41,8 +40,8 @@ persistent cache key is a function of the built graph, not the args to
 function where the jit decorator is applied. This means that our hash
 functions for custom classes that are arguments to the outermost function
 don't need to be designed to hash the same across runs of the Python
-interpreter. An example of this is hashing by `id` which works with the
-persistent cache even though the `id` of an object will change if the object is
+interpreter. An example of this is hashing by ``id`` which works with the
+persistent cache even though the ``id`` of an object will change if the object is
 recreated. See https://github.com/google-deepmind/torax/pull/276 for more
 detail.
 

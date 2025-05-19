@@ -34,7 +34,7 @@ the ``output_dir`` flag (see :ref:`torax_flags`), or the default
 More involved examples in ``torax/examples`` include non-rigorous mockups of the
 ITER hybrid scenario:
 
-* ``iterhybrid_predictor_corrector.py``: flattop phase with the linear stepper
+* ``iterhybrid_predictor_corrector.py``: flat-top phase with the linear stepper
   using predictor-corrector iterations.
 
 * ``iterhybrid_rampup.py``: time-dependent rampup phase with the nonlinear
@@ -116,8 +116,8 @@ of inner solver iterations.
 
 ``plot_config`` (default: `plotting/configs/default_plot_config.py`) -
 Sets the plotting configuration used for the post-simulation plotting options.
-This flag should give the path to a Python file containing a `PLOT_CONFIG`
-variable which is an instance of `torax.plotting.plotruns_lib.FigureProperties`.
+This flag should give the path to a Python file containing a ``PLOT_CONFIG``
+variable which is an instance of ``torax.plotting.plotruns_lib.FigureProperties``.
 By default, `plotting/configs/default_plot_config.py` is used.
 See :ref:`plotting` for further details and examples. An example using a
 non-default plot config is shown below.
@@ -162,11 +162,9 @@ following menu.
   previously used can be reloaded, including any changes that the user has
   implemented in the interim.
 
-For both the **mc** and **cc** options, if in the new config file, the only
-different config variables compared to the previous run are `dynamic` variables
-(see :ref:`dynamic_vs_static`), then the new simulation can be run without
-recompilation. `Static` config variables which will trigger recompilation
-include variables related to:
+For both the **mc** and **cc** options (see :ref:`trigger_recompilation`) for
+discussion on whether a recompilation is required or not. In general things
+that modify the simulation problem will trigger recompile, for example changing:
 
   * Grid resolution
   * Evolved variables (equations being solved)
