@@ -19,8 +19,8 @@ import os
 from typing import Any, Final, Optional, Sequence
 from absl.testing import parameterized
 import chex
-import jax.numpy as jnp
 import numpy as np
+from torax._src import constants
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
@@ -78,8 +78,7 @@ class SimTestCase(parameterized.TestCase):
     profiles_dataset = data_tree.children[output.PROFILES].dataset
     self.assertNotEmpty(profiles)
     ref_profiles = {
-        profile: profiles_dataset[profile].to_numpy()
-        for profile in profiles
+        profile: profiles_dataset[profile].to_numpy() for profile in profiles
     }
     ref_time = profiles_dataset[output.TIME].to_numpy()
     self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
@@ -110,7 +109,7 @@ class SimTestCase(parameterized.TestCase):
       # Concatenate all information for the step, so we give a report on all
       # mistakes in a step simultaneously
       actual = [t[step : step + 1]]
-      ref = [jnp.expand_dims(ref_t, axis=0)]
+      ref = [np.expand_dims(ref_t, axis=0)]
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
         actual_value = (
@@ -124,9 +123,13 @@ class SimTestCase(parameterized.TestCase):
         actual.append(actual_value)
         ref.append(ref_value)
         names.extend([f'{profile_name}_{i}' for i in range(ref_value.shape[0])])
-      actual = jnp.concatenate(actual)
-      ref = jnp.concatenate(ref)
-      err_norms.append(np.sqrt(np.square(actual - ref).sum()))
+      actual = np.concatenate(actual)
+      ref = np.concatenate(ref)
+      err_norms.append(
+          np.sqrt(
+              np.square((actual - ref) / (ref + constants.CONSTANTS.eps)).sum()
+          )
+      )
 
       # Log mismatch if we find the first mismatch on this step
       mismatch_this_step = (not mismatch_found) and not np.allclose(
@@ -151,7 +154,7 @@ class SimTestCase(parameterized.TestCase):
         ]
         for i in range(actual.shape[0]):
           match = np.allclose(actual[i], ref[i], rtol=rtol, atol=atol)
-          rele = np.abs((actual[i] - ref[i])/ref[i])
+          rele = np.abs((actual[i] - ref[i]) / ref[i])
           msg.append(f'{names[i]}\t{actual[i]}\t{ref[i]}\t{rele:e}\t{match}')
         msg = '\n'.join(msg)
         msgs.append(msg)
@@ -173,7 +176,7 @@ class SimTestCase(parameterized.TestCase):
 
     if msgs:
       # Insert a message about error increasing over time before other messages
-      msg = ['Error over time: \tIdx\tError norm']
+      msg = ['Rel error over time: \tIdx\tRel error norm']
       msg.extend([f'\t{i}\t{e}' for i, e in enumerate(err_norms)])
       msg = '\n'.join(msg)
 
