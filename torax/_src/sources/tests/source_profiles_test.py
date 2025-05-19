@@ -23,8 +23,8 @@ from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import torax_pydantic
-from torax.tests.test_lib import default_sources
 
 
 # pylint: disable=invalid-name
@@ -58,9 +58,7 @@ class SourceProfilesTest(parameterized.TestCase):
       np.testing.assert_allclose(summed_T_e, ones * 10 * geo.vpr)
 
     with self.subTest('with_jit'):
-      sum_temp = jax.jit(
-          profiles.total_sources, static_argnames=('source_type')
-      )
+      sum_temp = jax.jit(profiles.total_sources, static_argnames='source_type')
       jitted_T_i = sum_temp('T_i', geo)
       np.testing.assert_allclose(jitted_T_i, ones * 4 * geo.vpr)
       jitted_T_e = sum_temp('T_e', geo)
@@ -149,6 +147,7 @@ def _build_source_profiles_with_single_value(
           implicit_ei=cell_1d_arr,
       ),
   )
+
 
 if __name__ == '__main__':
   absltest.main()

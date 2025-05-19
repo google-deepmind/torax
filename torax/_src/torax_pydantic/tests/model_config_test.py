@@ -20,9 +20,9 @@ from absl.testing import parameterized
 import chex
 from torax._src import version
 from torax._src.config import config_loader
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax.tests.test_lib import default_configs
 
 
 def get_unique_objects(x: Any, object_ids: list[int]) -> list[int]:
@@ -120,12 +120,8 @@ class ConfigTest(parameterized.TestCase):
     )
 
     # Check that the caches are invalidated.
-    config_pydantic.plasma_composition.Z_eff.get_value(
-        t=0.2, grid_type="cell"
-    )
-    config_pydantic.plasma_composition.Z_eff.get_value(
-        t=0.2, grid_type="face"
-    )
+    config_pydantic.plasma_composition.Z_eff.get_value(t=0.2, grid_type="cell")
+    config_pydantic.plasma_composition.Z_eff.get_value(t=0.2, grid_type="face")
 
     config_pydantic.update_fields({
         "geometry.geometry_configs.config.n_rho": new_n_rho,
@@ -142,15 +138,11 @@ class ConfigTest(parameterized.TestCase):
     )
 
     with self.subTest("nrho_updated_reset_mesh_cache"):
-      v1_cell = (
-          config_pydantic.plasma_composition.Z_eff.get_value(
-              t=0.2, grid_type="cell"
-          )
+      v1_cell = config_pydantic.plasma_composition.Z_eff.get_value(
+          t=0.2, grid_type="cell"
       )
-      v1_face = (
-          config_pydantic.plasma_composition.Z_eff.get_value(
-              t=0.2, grid_type="face"
-          )
+      v1_face = config_pydantic.plasma_composition.Z_eff.get_value(
+          t=0.2, grid_type="face"
       )
       self.assertLen(v1_cell, new_n_rho)
       self.assertLen(v1_face, new_n_rho + 1)

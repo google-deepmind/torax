@@ -19,8 +19,8 @@ from torax._src.config import build_runtime_params
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class PydanticModelTest(parameterized.TestCase):

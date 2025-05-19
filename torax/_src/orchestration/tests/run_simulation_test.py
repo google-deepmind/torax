@@ -19,7 +19,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
-from torax.tests.test_lib import sim_test_case
+from torax._src.test_utils import sim_test_case
 import xarray as xr
 
 

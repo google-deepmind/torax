@@ -27,11 +27,11 @@ from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import quasilinear_transport_model
-from torax.tests.test_lib import default_configs
 
 
 def _get_config_and_model_inputs(
@@ -61,8 +61,7 @@ def _get_config_and_model_inputs(
       geo=geo,
       source_models=source_models,
   )
-  return torax_config, (
-      dynamic_runtime_params_slice, geo, core_profiles)
+  return torax_config, (dynamic_runtime_params_slice, geo, core_profiles)
 
 
 class QualikizTransportModelTest(parameterized.TestCase):
@@ -70,30 +69,24 @@ class QualikizTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields['transport'].annotation |= (
-        QualikizBasedTransportModelConfig
-    )
+    model_config.ToraxConfig.model_fields[
+        'transport'
+    ].annotation |= QualikizBasedTransportModelConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    torax_config, model_inputs = _get_config_and_model_inputs(
-        {
-            'model_name': 'qualikiz_based',
-            'collisionality_multiplier': 1.0,
-            'avoid_big_negative_s': True,
-            'q_sawtooth_proxy': True,
-        }
-    )
+    torax_config, model_inputs = _get_config_and_model_inputs({
+        'model_name': 'qualikiz_based',
+        'collisionality_multiplier': 1.0,
+        'avoid_big_negative_s': True,
+        'q_sawtooth_proxy': True,
+    })
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(
-        *model_inputs
-    )
+    pedestal_model_outputs = pedestal_model(*model_inputs)
 
-    core_transport = transport_model(
-        *model_inputs, pedestal_model_outputs
-    )
+    core_transport = transport_model(*model_inputs, pedestal_model_outputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
@@ -102,15 +95,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""
-    torax_config, model_inputs = _get_config_and_model_inputs(
-        {
-            'model_name': 'qualikiz_based',
-            'collisionality_multiplier': 1.0,
-            'avoid_big_negative_s': True,
-            'q_sawtooth_proxy': True,
-            'smag_alpha_correction': True,
-        }
-    )
+    torax_config, model_inputs = _get_config_and_model_inputs({
+        'model_name': 'qualikiz_based',
+        'collisionality_multiplier': 1.0,
+        'avoid_big_negative_s': True,
+        'q_sawtooth_proxy': True,
+        'smag_alpha_correction': True,
+    })
     transport_model = torax_config.transport.build_transport_model()
     dynamic_runtime_params_slice, geo, core_profiles = model_inputs
     assert isinstance(
@@ -265,6 +256,8 @@ class QualikizBasedTransportModelConfig(
         An_min=self.An_min,
         **base_kwargs,
     )
+
+
 # pylint: enable=undefined-variable
 
 

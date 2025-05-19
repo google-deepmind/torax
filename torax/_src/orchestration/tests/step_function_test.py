@@ -25,7 +25,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax.tests.test_lib import core_profile_helpers
+from torax._src.test_utils import core_profile_helpers
 
 
 class StepFunctionTest(absltest.TestCase):

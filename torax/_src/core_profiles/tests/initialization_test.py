@@ -28,9 +28,9 @@ from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import default_configs
+from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
-from torax.tests.test_lib import torax_refs
 
 # pylint: disable=invalid-name
 

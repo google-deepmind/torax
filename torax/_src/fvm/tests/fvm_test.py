@@ -29,8 +29,8 @@ from torax._src.fvm import residual_and_loss
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_sources
 
 
 class FVMTest(parameterized.TestCase):
@@ -209,9 +209,7 @@ class FVMTest(parameterized.TestCase):
     source_config = default_sources.get_default_source_config()
     source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion'][
-        'mode'
-    ] = source_runtime_params.Mode.ZERO
+    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
@@ -229,7 +227,8 @@ class FVMTest(parameterized.TestCase):
         )
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
+        sources=torax_config.sources,
+        neoclassical=torax_config.neoclassical,
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -334,9 +333,7 @@ class FVMTest(parameterized.TestCase):
     source_config = default_sources.get_default_source_config()
     source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion'][
-        'mode'
-    ] = source_runtime_params.Mode.ZERO
+    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
@@ -363,7 +360,8 @@ class FVMTest(parameterized.TestCase):
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
+        sources=torax_config.sources,
+        neoclassical=torax_config.neoclassical,
     )
     initial_core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
@@ -458,9 +456,7 @@ class FVMTest(parameterized.TestCase):
     source_config = default_sources.get_default_source_config()
     source_config['ei_exchange']['Qei_multiplier'] = 0.0
     source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion'][
-        'mode'
-    ] = source_runtime_params.Mode.ZERO
+    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
@@ -493,7 +489,8 @@ class FVMTest(parameterized.TestCase):
     )
 
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
+        sources=torax_config.sources,
+        neoclassical=torax_config.neoclassical,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transport_model = torax_config.transport.build_transport_model()

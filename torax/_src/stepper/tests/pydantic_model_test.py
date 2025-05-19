@@ -18,8 +18,8 @@ from torax._src.config import runtime_params_slice
 from torax._src.sources import source_models as source_models_lib
 from torax._src.stepper import linear_theta_method
 from torax._src.stepper import nonlinear_theta_method
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class PydanticModelTest(parameterized.TestCase):

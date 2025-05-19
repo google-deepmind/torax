@@ -26,9 +26,9 @@ from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import formulas
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax.tests.test_lib import default_configs
 
 SMALL_VALUE = 1e-6
 

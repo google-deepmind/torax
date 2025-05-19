@@ -25,8 +25,8 @@ from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import paths
 
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'

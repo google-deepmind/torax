@@ -17,8 +17,8 @@ from torax._src.core_profiles import initialization
 from torax._src.sources import qei_source
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class QeiSourceTest(test_lib.SourceTestCase):
@@ -31,6 +31,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         source_config_class=qei_source.QeiSourceConfig,
         needs_source_models=False,
     )
+
   # pytype: enable=signature-mismatch
 
   def test_source_value(self):

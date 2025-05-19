@@ -27,7 +27,7 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax.tests.test_lib import torax_refs
+from torax._src.test_utils import torax_refs
 
 _trapz = jax.scipy.integrate.trapezoid
 

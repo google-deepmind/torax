@@ -23,8 +23,8 @@ from absl import flags
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import paths
 
 import shutil
 
@@ -74,9 +74,7 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         torax_config, progress_bar=False
     )
     output_file = os.path.join(output_dir, f'{config_name}.nc')
-    simulation_app.write_output_to_file(
-        output_file, simulation_xr
-    )
+    simulation_app.write_output_to_file(output_file, simulation_xr)
     print(f'Finished running {config_name}, output saved to {output_file}')
   except Exception as e:  # pylint: disable=broad-except
     print(f'Failed to run {config_name}: {e}')

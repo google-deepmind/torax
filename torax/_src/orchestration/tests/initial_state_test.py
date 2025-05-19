@@ -23,9 +23,9 @@ from torax._src.orchestration import initial_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.sources import source_models as source_models_lib
+from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import core_profile_helpers
-from torax.tests.test_lib import sim_test_case
 
 # pylint: disable=invalid-name
 

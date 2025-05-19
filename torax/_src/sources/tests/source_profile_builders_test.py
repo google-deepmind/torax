@@ -28,8 +28,8 @@ from torax._src.sources import source
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class SourceModelsTest(parameterized.TestCase):
@@ -41,7 +41,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
     torax_config = model_config.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict())
+        default_configs.get_default_config_dict()
+    )
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources, neoclassical=torax_config.neoclassical
     )
@@ -54,7 +55,8 @@ class SourceModelsTest(parameterized.TestCase):
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config)
+        torax_config
+    )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -174,8 +176,10 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),
-                                   jnp.ones(self.geo.rho.shape))
+                prescribed_values=(
+                    jnp.ones(self.geo.rho.shape),
+                    jnp.ones(self.geo.rho.shape),
+                )
             )
         },
     )

@@ -22,9 +22,9 @@ from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.sources import generic_current_source
 from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax.tests.test_lib import default_configs
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):

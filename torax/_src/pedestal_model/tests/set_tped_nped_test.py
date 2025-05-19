@@ -20,8 +20,8 @@ from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import source_models as source_models_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 # pylint: disable=invalid-name
 

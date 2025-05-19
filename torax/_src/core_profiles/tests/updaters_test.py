@@ -22,8 +22,8 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 # pylint: disable=invalid-name

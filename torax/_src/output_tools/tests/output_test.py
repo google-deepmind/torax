@@ -32,9 +32,9 @@ from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import core_profile_helpers
-from torax.tests.test_lib import default_sources
 import xarray as xr
 
 

@@ -28,7 +28,7 @@ import numpy as np
 from torax import run_simulation_main
 from torax._src import simulation_app
 from torax._src.output_tools import output as output_lib
-from torax.tests.test_lib import paths
+from torax._src.test_utils import paths
 import xarray as xr
 
 _TMP_DIR: Final[str] = "/tmp/torax_test_output"

@@ -21,8 +21,8 @@ from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import source_models as source_models_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 # pylint: disable=invalid-name
 
@@ -110,9 +110,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
           / (jnp.pi * geo.a_minor**2)
           * 1e20
       )
-      expected_n_e_ped *= (
-          nGW / constants.DENSITY_SCALING_FACTOR
-      )
+      expected_n_e_ped *= nGW / constants.DENSITY_SCALING_FACTOR
     else:
       expected_n_e_ped /= constants.DENSITY_SCALING_FACTOR
     np.testing.assert_allclose(pedestal_model_output.n_e_ped, expected_n_e_ped)

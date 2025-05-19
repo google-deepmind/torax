@@ -20,8 +20,8 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import updaters
 from torax._src.sources import source_models as source_models_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class BoundaryConditionsTest(parameterized.TestCase):
@@ -65,9 +65,11 @@ class BoundaryConditionsTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial)
+        t=torax_config.numerics.t_initial
+    )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical,
+        sources=torax_config.sources,
+        neoclassical=torax_config.neoclassical,
     )
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -75,7 +77,8 @@ class BoundaryConditionsTest(parameterized.TestCase):
         )
     )
     initial_dynamic_runtime_params_slice = provider(
-        t=torax_config.numerics.t_initial)
+        t=torax_config.numerics.t_initial
+    )
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config
     )
@@ -96,13 +99,26 @@ class BoundaryConditionsTest(parameterized.TestCase):
         geo_t_plus_dt=geo,
     )
     # pylint: disable=invalid-name
-    T_i = dataclasses.replace(core_profiles.T_i, **bc['T_i'],)
-    T_e = dataclasses.replace(core_profiles.T_e, **bc['T_e'],)
+    T_i = dataclasses.replace(
+        core_profiles.T_i,
+        **bc['T_i'],
+    )
+    T_e = dataclasses.replace(
+        core_profiles.T_e,
+        **bc['T_e'],
+    )
     psi = dataclasses.replace(core_profiles.psi, **bc['psi'])
-    n_e = dataclasses.replace(core_profiles.n_e, **bc['n_e'],)
-    n_i = dataclasses.replace(core_profiles.n_i, **bc['n_i'],)
+    n_e = dataclasses.replace(
+        core_profiles.n_e,
+        **bc['n_e'],
+    )
+    n_i = dataclasses.replace(
+        core_profiles.n_i,
+        **bc['n_i'],
+    )
     n_impurity = dataclasses.replace(
-        core_profiles.n_impurity, **bc['n_impurity'],
+        core_profiles.n_impurity,
+        **bc['n_impurity'],
     )
     updated = dataclasses.replace(
         core_profiles,

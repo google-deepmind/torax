@@ -26,10 +26,10 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.test_utils import default_configs
+from torax._src.test_utils import default_sources
+from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
-from torax.tests.test_lib import default_sources
-from torax.tests.test_lib import sim_test_case
 
 
 class PostProcessingTest(parameterized.TestCase):

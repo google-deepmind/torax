@@ -17,8 +17,8 @@ from absl.testing import parameterized
 import jax
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice as runtime_params_slice_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_configs
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
@@ -26,7 +26,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self._torax_config = model_config.ToraxConfig.from_dict(
-        default_configs.get_default_config_dict())
+        default_configs.get_default_config_dict()
+    )
     self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
 
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
@@ -66,9 +67,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         self._torax_config
     )
     new_config = default_configs.get_default_config_dict()
-    new_config['numerics']['evolve_ion_heat'] = (
-        not self._torax_config.numerics.evolve_ion_heat
-    )
+    new_config['numerics'][
+        'evolve_ion_heat'
+    ] = not self._torax_config.numerics.evolve_ion_heat
     new_torax_config = model_config.ToraxConfig.from_dict(new_config)
     static_slice2 = build_runtime_params.build_static_params_from_config(
         new_torax_config

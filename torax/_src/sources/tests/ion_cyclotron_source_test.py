@@ -28,9 +28,9 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax.tests.test_lib import default_configs
 
 # Internal import.
 # Internal import.

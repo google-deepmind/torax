@@ -20,7 +20,7 @@ from torax._src.core_profiles import initialization
 from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
-from torax.tests.test_lib import torax_refs
+from torax._src.test_utils import torax_refs
 
 
 # pylint: disable=invalid-name

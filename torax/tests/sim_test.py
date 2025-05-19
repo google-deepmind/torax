@@ -31,9 +31,9 @@ from torax._src import state
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import core_profile_helpers
-from torax.tests.test_lib import sim_test_case
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_I,

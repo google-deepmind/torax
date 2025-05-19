@@ -19,8 +19,8 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
-from torax.tests.test_lib import default_sources
 
 
 class CoreProfileSettersTest(parameterized.TestCase):
