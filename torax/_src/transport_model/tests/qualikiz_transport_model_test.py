@@ -54,7 +54,7 @@ class QualikizTransportModelTest(absltest.TestCase):
 
     # Building the model inputs.
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'transport_model': 'qualikiz'}
+    config['transport'] = {'model_name': 'qualikiz'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
         sources=torax_config.sources, neoclassical=torax_config.neoclassical

@@ -45,7 +45,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'transport_model': 'fake',
+        'model_name': 'fake',
         'apply_inner_patch': True,
         'apply_outer_patch': True,
         'rho_inner': 0.3,
@@ -216,7 +216,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing everywhere works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'transport_model': 'fake',
+        'model_name': 'fake',
         'apply_inner_patch': True,
         'apply_outer_patch': True,
         'rho_inner': 0.3,
@@ -441,7 +441,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
 
-  transport_model: Literal['fake'] = 'fake'
+  model_name: Literal['fake'] = 'fake'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()

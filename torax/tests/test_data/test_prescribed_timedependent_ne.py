@@ -64,7 +64,7 @@ CONFIG = {
         'generic_current': {},
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         'apply_inner_patch': True,
         'chi_i_inner': 2.0,
         'chi_e_inner': 2.0,

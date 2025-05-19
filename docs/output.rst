@@ -590,7 +590,7 @@ purposes or to rerun the simulation.
   data_tree = output.load_state_file('state_history.nc')
   config_dict = json.loads(data_tree.attrs['config'])
   # Check which transport model was used.
-  print(config_dict['transport']['transport_model'])
+  print(config_dict['transport']['model_name'])
   # We can also use ToraxConfig to run the simulation again.
   torax_config = torax.ToraxConfig.from_dict(config_dict)
   new_output = torax.run_simulation(torax_config)

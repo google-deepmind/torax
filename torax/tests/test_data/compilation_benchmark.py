@@ -65,7 +65,7 @@ CONFIG = {
         'n_e_ped': 1e20,
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         'qlknn_params': {
             'DV_effective': False,
         },

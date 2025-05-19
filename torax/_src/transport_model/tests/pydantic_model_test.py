@@ -119,10 +119,10 @@ class PydanticModelTest(parameterized.TestCase):
   ):
     """Tests that the model name is resolved correctly."""
     transport = transport_pydantic_model.QLKNNTransportModel(
-        model_name=model_name,
+        qlknn_model_name=model_name,
         model_path=model_path,
     )
-    self.assertEqual(transport.model_name, expected_model_name)
+    self.assertEqual(transport.qlknn_model_name, expected_model_name)
 
   @parameterized.parameters(
       {'model_name': qlknn_10d.QLKNN10D_NAME, 'model_path': ''},
@@ -134,7 +134,7 @@ class PydanticModelTest(parameterized.TestCase):
   def test_qlknn_model_errors(self, model_name, model_path):
     with self.assertRaises(ValueError):
       transport_pydantic_model.QLKNNTransportModel(
-          model_name=model_name,
+          qlknn_model_name=model_name,
           model_path=model_path,
       )
 

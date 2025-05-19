@@ -59,7 +59,7 @@ CONFIG = {
         'set_pedestal': True,
     },
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
         'chi_i': 0.5,
         'chi_e': 0.5,
     },

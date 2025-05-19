@@ -224,7 +224,7 @@ class FVMTest(parameterized.TestCase):
             solver=dict(
                 use_predictor_corrector=False, theta_implicit=theta_implicit
             ),
-            transport=dict(transport_model='constant', chi_min=0, chi_i=1),
+            transport=dict(model_name='constant', chi_min=0, chi_i=1),
             time_step_calculator=dict(),
         )
     )
@@ -347,7 +347,7 @@ class FVMTest(parameterized.TestCase):
             pedestal=dict(),
             sources=source_config,
             solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
-            transport=dict(transport_model='constant', chi_min=0, chi_i=1),
+            transport=dict(model_name='constant', chi_min=0, chi_i=1),
             time_step_calculator=dict(),
         )
     )
@@ -471,7 +471,7 @@ class FVMTest(parameterized.TestCase):
             pedestal=dict(),
             sources=source_config,
             solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
-            transport=dict(transport_model='constant', chi_min=0, chi_i=1),
+            transport=dict(model_name='constant', chi_min=0, chi_i=1),
             time_step_calculator=dict(),
         )
     )

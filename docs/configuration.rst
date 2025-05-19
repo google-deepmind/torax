@@ -644,7 +644,7 @@ Select and configure various transport models. The dictionary consists of keys
 common to all transport models, and additional keys pertaining to a specific
 transport model.
 
-``transport_model`` (str [default = 'constant'])
+``model_name`` (str [default = 'constant'])
   Select the transport model according to the following options:
 
 * ``'constant'``
@@ -810,18 +810,18 @@ to load, as well as model parameters. To determine which model to load,
 TORAX uses the following logic:
 
 * If ``model_path`` is provided, then we load the model from this path.
-* Otherwise, if ``model_name`` is provided, we load that model from registered
-  models in the ``fusion_surrogates`` library.
-* If ``model_name`` is not set either, we load the default QLKNN model from
-  ``fusion_surrogates`` (currently ``QLKNN_7_11``).
+* Otherwise, if ``qlknn_model_name`` is provided, we load that model from
+  registered models in the ``fusion_surrogates`` library.
+* If ``qlknn_model_name`` is not set either, we load the default QLKNN model
+  from ``fusion_surrogates`` (currently ``QLKNN_7_11``).
 
-It is recommended to not set ``model_name``,  or
+It is recommended to not set ``qlknn_model_name``,  or
 ``model_path`` to use the default QLKNN model.
 
 ``model_path`` (str [default = ''])
-  Path to the model. Takes precedence over ``model_name``.
+  Path to the model. Takes precedence over ``qlknn_model_name``.
 
-``model_name`` (str [default = ''])
+``qlknn_model_name`` (str [default = ''])
   Name of the model. Used to select a model from the ``fusion_surrogates`` library.
 
 ``include_ITG`` (bool [default = True])
@@ -1516,7 +1516,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'ei_exchange': {},
       },
       'transport': {
-          'transport_model': 'qlknn',
+          'model_name': 'qlknn',
           'apply_inner_patch': True,
           'D_e_inner': 0.25,
           'V_e_inner': 0.0,

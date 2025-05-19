@@ -78,9 +78,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   QLKNN model.
 
   Attributes:
-    transport_model: The transport model to use. Hardcoded to 'qlknn'.
+    model_name: The transport model to use. Hardcoded to 'qlknn'.
     model_path: Path to the model. Takes precedence over `model_name`.
-    model_name: Name of the model to use. Used to select a model from the
+    qlknn_model_name: Name of the model to use. Used to select a model from the
       `fusion_surrogates` library.
     include_ITG: Whether to include ITG modes.
     include_TEM: Whether to include TEM modes.
@@ -103,9 +103,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
-  transport_model: Literal['qlknn'] = 'qlknn'
+  model_name: Literal['qlknn'] = 'qlknn'
   model_path: str = ''
-  model_name: str = ''
+  qlknn_model_name: str = ''
   include_ITG: bool = True
   include_TEM: bool = True
   include_ETG: bool = True
@@ -125,12 +125,12 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
     data = copy.deepcopy(data)
 
-    data['model_name'] = _resolve_qlknn_model_name(
-        model_name=data.get('model_name', ''),
+    data['qlknn_model_name'] = _resolve_qlknn_model_name(
+        model_name=data.get('qlknn_model_name', ''),
         model_path=data.get('model_path', ''),
     )
 
-    if data['model_name'] == qlknn_10d.QLKNN10D_NAME:
+    if data['qlknn_model_name'] == qlknn_10d.QLKNN10D_NAME:
       if 'collisionality_multiplier' not in data:
         # Correction factor to a more recent QLK collision operator.
         data['collisionality_multiplier'] = 0.25
@@ -145,7 +145,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
 
   def build_transport_model(self) -> qlknn_transport_model.QLKNNTransportModel:
     return qlknn_transport_model.QLKNNTransportModel(
-        path=self.model_path, name=self.model_name
+        path=self.model_path, name=self.qlknn_model_name
     )
 
   def build_dynamic_params(
@@ -174,13 +174,13 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   """Model for the Constant transport model.
 
   Attributes:
-    transport_model: The transport model to use. Hardcoded to 'constant'.
+    model_name: The transport model to use. Hardcoded to 'constant'.
     chi_i: coefficient in ion heat equation diffusion term in m^2/s.
     chi_e: coefficient in electron heat equation diffusion term in m^2/s.
     D_e: diffusion coefficient in electron density equation in m^2/s.
     V_e: convection coefficient in electron density equation in m^2/s.
   """
-  transport_model: Literal['constant'] = 'constant'
+  model_name: Literal['constant'] = 'constant'
   chi_i: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -214,7 +214,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   """Model for the Critical Gradient transport model.
 
   Attributes:
-    transport_model: The transport model to use. Hardcoded to 'CGM'.
+    model_name: The transport model to use. Hardcoded to 'CGM'.
     alpha: Exponent of chi power law: chi ∝ (R/LTi - R/LTi_crit)^alpha.
     chi_stiff: Stiffness parameter.
     chi_e_i_ratio: Ratio of electron to ion heat transport coefficient (ion
@@ -225,7 +225,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
       model.
   """
 
-  transport_model: Literal['CGM'] = 'CGM'
+  model_name: Literal['CGM'] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
   chi_e_i_ratio: interpolated_param_1d.TimeVaryingScalar = (
@@ -261,7 +261,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   """Model for the Bohm + Gyro-Bohm transport model.
 
   Attributes:
-    transport_model: The transport model to use. Hardcoded to 'bohm-gyrobohm'.
+    model_name: The transport model to use. Hardcoded to 'bohm-gyrobohm'.
     chi_e_bohm_coeff: Prefactor for Bohm term for electron heat conductivity.
     chi_e_gyrobohm_coeff: Prefactor for GyroBohm term for electron heat
       conductivity.
@@ -279,7 +279,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
     D_face_c2: Constant for the electron diffusivity weighting factor.
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
-  transport_model: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
+  model_name: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)
   )

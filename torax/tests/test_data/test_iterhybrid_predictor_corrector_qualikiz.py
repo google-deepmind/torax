@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['transport'] = {
-    'transport_model': 'qualikiz',
+    'model_name': 'qualikiz',
     # set inner core transport coefficients (ad-hoc MHD/EM transport)
     'apply_inner_patch': True,
     'D_e_inner': 0.25,

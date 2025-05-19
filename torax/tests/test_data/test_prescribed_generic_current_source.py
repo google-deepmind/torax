@@ -81,7 +81,7 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
         # constant params.
         # diffusion coefficient in electron density equation in m^2/s
         'D_e': 0.5,

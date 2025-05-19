@@ -89,7 +89,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'geometry': {
             'geometry_type': 'circular',
         },
-        'transport': {'transport_model': 'fake'},
+        'transport': {'model_name': 'fake'},
         'solver': {
             'solver_type': 'fake',
             'inner_solver_iterations': inner_solver_iterations,
@@ -315,7 +315,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
 
-  transport_model: Literal['fake'] = 'fake'
+  model_name: Literal['fake'] = 'fake'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()

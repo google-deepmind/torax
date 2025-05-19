@@ -37,7 +37,7 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'CGM',
+        'model_name': 'CGM',
     },
     'solver': {
         'solver_type': 'linear',

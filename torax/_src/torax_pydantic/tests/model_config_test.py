@@ -77,9 +77,9 @@ class ConfigTest(parameterized.TestCase):
       )
     with self.subTest("transport_model_set"):
       self.assertEqual(
-          config_pydantic.transport.transport_model,
-          config_dict["transport"]["transport_model"]
-          if "transport_model" in config_dict["transport"]
+          config_pydantic.transport.model_name,
+          config_dict["transport"]["model_name"]
+          if "model_name" in config_dict["transport"]
           else "constant",
       )
     # The full model should always be serializable.
@@ -175,7 +175,7 @@ class ConfigTest(parameterized.TestCase):
     # Use a basic config and modify it to test the warning.
     config_dict = default_configs.get_default_config_dict()
 
-    config_dict["transport"] = {"transport_model": transport_model}
+    config_dict["transport"] = {"model_name": transport_model}
     config_dict["solver"] = {
         "solver_type": solver_type,
         "use_pereverzev": use_pereverzev,

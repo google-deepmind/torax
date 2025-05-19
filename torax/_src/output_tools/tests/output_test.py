@@ -59,7 +59,7 @@ class StateHistoryTest(parameterized.TestCase):
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
-            'transport_model': 'constant',
+            'model_name': 'constant',
             'chi_i': 2.0,
         },
         'pedestal': {},
@@ -291,7 +291,7 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.attrs[output.CONFIG])
-    self.assertEqual(config_dict['transport']['transport_model'], 'constant')
+    self.assertEqual(config_dict['transport']['model_name'], 'constant')
     self.assertEqual(config_dict['transport']['chi_i']['value'][1][0], 2.0)
     # Default values are expected to be set in the saved config
     self.assertEqual(config_dict['transport']['chi_e']['value'][1][0], 1.0)
