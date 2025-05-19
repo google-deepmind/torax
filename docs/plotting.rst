@@ -94,7 +94,7 @@ below as an example.
 
 .. code-block:: python
 
-  from torax.plotting import plotruns_lib
+  from torax._src.plotting import plotruns_lib
 
   PLOT_CONFIG = plotruns_lib.FigureProperties(
       rows=2,
@@ -152,6 +152,21 @@ below as an example.
 
 Customizing Plots
 -----------------
+
+Customizing plots is not currently exposed as part of the public API. If you
+would like to customize plots below is detailed how you can do so for Torax
+version 1.0.0 but this is not guaranteed to be supported in development.
+
+In the near future we aim to provide a stable and supported API for customizing
+plots.
+
+For now there are three objects that are useful for customizing plots:
+
+.. code-block:: python
+
+  from torax._src.plotting.plotruns_lib import FigureProperties
+  from torax._src.plotting.plotruns_lib import PlotProperties
+  from torax._src.plotting.plotruns_lib import PlotType
 
 The ``FigureProperties`` dataclass offers several options for customizing the
 plot layout and content. Dataclass fields and defaults are as follows:

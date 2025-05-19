@@ -18,7 +18,7 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.config import config_loader
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 from torax.tests.test_lib import paths
 
 

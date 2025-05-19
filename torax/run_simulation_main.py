@@ -32,8 +32,8 @@ import jax
 import torax
 from torax._src import simulation_app
 from torax._src.config import config_loader
+from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
-from torax.plotting import plotruns_lib
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '

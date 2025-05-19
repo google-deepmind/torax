@@ -21,8 +21,8 @@ import sys
 import types
 import typing
 from typing import Any, Literal, TypeAlias
+from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
-from torax.plotting import plotruns_lib
 
 
 ExampleConfig: TypeAlias = Literal[

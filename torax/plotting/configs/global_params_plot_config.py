@@ -14,7 +14,7 @@
 
 """Plotting configuration for global plasma parameters vs time."""
 
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
