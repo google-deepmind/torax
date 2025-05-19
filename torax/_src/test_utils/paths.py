@@ -24,6 +24,6 @@ def test_data_dir() -> pathlib.Path:
   """Absolute path of "test_data" directory."""
   src_dir = pathlib.Path(absltest.TEST_SRCDIR.value)
   torax_dir = 'torax/'
-  path = src_dir.joinpath(torax_dir, 'tests/test_data')
+  path = src_dir.joinpath(torax_dir, '_src/test_data')
   assert path.is_dir(), f'Path {path} is not a directory.'
   return path
