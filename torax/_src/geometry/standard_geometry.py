@@ -19,26 +19,20 @@ CHEASE, FBT, etc.
 """
 
 import dataclasses
+import logging
 from collections.abc import Mapping
 from typing import Any
-import logging
 
 import chex
 import contourpy
 import numpy as np
 import scipy
-from torax._src import constants
-from torax._src import interpolated_param
-from torax._src.geometry import geometry
-from torax._src.geometry import geometry_loader
-from torax._src.geometry import geometry_provider
-from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
-from torax import constants, interpolated_param
-from torax.geometry import geometry, geometry_loader, geometry_provider
+from torax._src import constants, interpolated_param
+from torax._src.geometry import geometry, geometry_loader, geometry_provider
+from torax._src.torax_pydantic import torax_pydantic
 from torax.torax_imastools.equilibrium import geometry_from_IMAS
-from torax.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
