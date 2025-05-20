@@ -96,11 +96,11 @@ exclude = ["*tests*"]
 
 [tool.pytest.ini_options]
 addopts = [
-    "--ignore=torax/tests/test_data",
+    "--ignore=torax/_src/test_data",
     "--ignore=torax/tests/scripts",
     "--ignore-glob=*lib*",
     # Leads to an ImportError in collection for `pytest` without qualikiz_tools.
     "--ignore=torax/_src/transport_model/qualikiz_wrapper.py",
 ]
-testpaths = "**/tests"
+testpaths = ["**/tests", "**/integration_tests"]
 python_files = "*.py"

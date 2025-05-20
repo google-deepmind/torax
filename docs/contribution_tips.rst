@@ -130,16 +130,16 @@ Further filtering is possible, for example running only the ``test_face_to_cell`
 
 Which runs any test containing the string expression ``face_to_cell``.
 
-Where appropiate, please add tests for your changes.
+Where appropriate, please add tests for your changes.
 
 An important class of test is the sim test. These are integration tests running
-the configs in the ``torax/tests/test_data/`` directory, and comparing to the ground-truth
+the configs in the ``torax/_src/test_data/`` directory, and comparing to the ground-truth
 ``.nc`` TORAX outputs found in the same directory. Sim tests can be triggered separately
 by a command (from the TORAX root directory) such as:
 
 .. code-block:: console
 
-  pytest -n <num_workers> torax/tests/sim_test.py
+  pytest -n <num_workers> torax/_src/integration_tests/sim_test.py
 
 If any sim tests fail, they write their output to the ``/tmp/torax_failed_sim_test_outputs/<test_name>.nc``.
 This is useful for debugging, and also to stage new output files for replacing the ground-truth files,
@@ -163,7 +163,7 @@ the TORAX repository. Using ``test_qlknnheat`` as an example:
 
 .. code-block:: console
 
-  plot_torax --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat.nc
+  plot_torax --outfile torax/_src/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat.nc
 
 If it is deemed that the new outputs should replace the ground-truth files,
 they can be copied over using the following command, again with this example working
