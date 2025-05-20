@@ -88,8 +88,8 @@ def geometry_from_IMAS(
     else:
         raise ValueError("equilibrium_object must be a string (file path) or an IDS")
     IMAS_data = equilibrium.time_slice[0]
-    B0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0])  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
-    Rmaj = np.asarray(equilibrium.vacuum_toroidal_field.r0)  # Should it be replaced by IMAS_data.boundary.geometric_axis.r ?
+    B_0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0])  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
+    R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)  # Should it be replaced by IMAS_data.boundary.geometric_axis.r ?
 
     # Poloidal flux (switch sign between ddv3 and ddv4)
     # psi = -1 * IMAS_data.profiles_1d.psi #ddv3
@@ -99,8 +99,8 @@ def geometry_from_IMAS(
     Phi = -1 * IMAS_data.profiles_1d.phi
 
     # midplane radii
-    Rin = IMAS_data.profiles_1d.r_inboard
-    Rout = IMAS_data.profiles_1d.r_outboard
+    R_in = IMAS_data.profiles_1d.r_inboard
+    R_out = IMAS_data.profiles_1d.r_outboard
     # toroidal field flux function
     F = -1 * IMAS_data.profiles_1d.f
 
@@ -121,9 +121,9 @@ def geometry_from_IMAS(
     else:
         rho_tor = IMAS_data.profiles_1d.rho_tor
         if len(rho_tor) == 0:
-            if B0 is None or len(IMAS_data.profiles_1d.phi) == 0:
+            if B_0 is None or len(IMAS_data.profiles_1d.phi) == 0:
                 raise ValueError("rho_tor not provided and cannot be calculated from given equilibrium IDS")
-            rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B0))
+            rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
         # dpsidrhotor = -1 * np.gradient(IMAS_data.profiles_1d.psi) \
         #    / np.gradient(rho_tor)           #ddv3
         dpsidrhotor = (
@@ -144,12 +144,12 @@ def geometry_from_IMAS(
     flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1  # C2/C1
 
     # jtor = dI/drhon / (drho/dS) = dI/drhon / spr
-    # spr = vpr / ( 2 * np.pi * Rmaj)
+    # spr = vpr / ( 2 * np.pi * R_major)
     # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
     jtor = -1 * IMAS_data.profiles_1d.j_phi
     rhon = IMAS_data.profiles_1d.rho_tor_norm
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
-    spr = vpr / (2 * np.pi * Rmaj)
+    spr = vpr / (2 * np.pi * R_major)
     Ip_profile = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)
 
     # To check
@@ -157,14 +157,14 @@ def geometry_from_IMAS(
 
     return {
         "Ip_from_parameters": Ip_from_parameters,
-        "Rmaj": Rmaj,
-        "Rmin": np.asarray(IMAS_data.boundary.minor_radius),
-        "B": B0,
+        "R_major": R_major,
+        "a_minor": np.asarray(IMAS_data.boundary.minor_radius),
+        "B_0": B_0,
         "psi": psi,
         "Ip_profile": Ip_profile,
         "Phi": Phi,
-        "Rin": Rin,
-        "Rout": Rout,
+        "R_in": R_in,
+        "R_out": R_out,
         "F": F,
         "int_dl_over_Bp": int_dl_over_Bp,
         "flux_surf_avg_1_over_R2": flux_surf_avg_1_over_R2,
@@ -207,20 +207,20 @@ def geometry_to_IMAS(
     equilibrium.ids_properties.homogeneous_time = 1  # Should be 0 or 1 ?
     equilibrium.ids_properties.comment = "equilibrium IDS built from ToraxSimState object."
     equilibrium.time.resize(1)
-    equilibrium.time = [SimState.t]  # What time should be set ? Needed for B0
-    equilibrium.vacuum_toroidal_field.r0 = geometry.Rmaj
+    equilibrium.time = [SimState.t]  # What time should be set ? Needed for B_0
+    equilibrium.vacuum_toroidal_field.r0 = geometry.R_major
     equilibrium.vacuum_toroidal_field.b0.resize(1)
-    equilibrium.vacuum_toroidal_field.b0[0] = -1 * geometry.B0
+    equilibrium.vacuum_toroidal_field.b0[0] = -1 * geometry.B_0
     equilibrium.time_slice.resize(1)
     eq = equilibrium.time_slice[0]
-    eq.boundary.geometric_axis.r = geometry.Rmaj
-    eq.boundary.minor_radius = geometry.Rmin
+    eq.boundary.geometric_axis.r = geometry.R_major
+    eq.boundary.minor_radius = geometry.a_minor
     # determine sign how?
     eq.profiles_1d.psi = core_profiles.psi.value.copy()
     # determine sign how?
     eq.profiles_1d.phi = -1 * geometry.Phi
-    eq.profiles_1d.r_inboard = geometry.Rin
-    eq.profiles_1d.r_outboard = geometry.Rout
+    eq.profiles_1d.r_inboard = geometry.R_in
+    eq.profiles_1d.r_outboard = geometry.R_out
 
     eq.profiles_1d.triangularity_upper = face_to_cell(geometry.delta_upper_face)
     eq.profiles_1d.triangularity_lower = face_to_cell(geometry.delta_lower_face)
@@ -230,7 +230,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.j_phi = -1 * geometry.jtot
     eq.profiles_1d.volume = geometry.volume
     eq.profiles_1d.area = geometry.area
-    eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi / (np.pi * geometry.B0))
+    eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi / (np.pi * geometry.B_0))
     eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.cell_centers
 
     dvoldpsi = (
@@ -254,7 +254,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.pressure = face_to_cell(post_processed_outputs.pressure_thermal_tot_face)
     eq.profiles_1d.dpressure_dpsi = face_to_cell(post_processed_outputs.pprime_face)
 
-    # <j.B>/B0, could be useful to calculate and use instead of FF'
+    # <j.B>/B_0, could be useful to calculate and use instead of FF'
     # determine sign how?
     eq.profiles_1d.f = -1 * geometry.F  # Is probably not self-consistent due to the evolution of the state by the solver.
     eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime_face)
