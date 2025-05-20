@@ -7,17 +7,16 @@ name = "torax"
 description = "Differentiable 1D tokamak plasma transport simulator in JAX."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {file = "LICENSE"}
-authors = [{name = "TORAX authors", email="torax-team@google.com"}]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "TORAX authors", email="torax-dev@google.com"}]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Science/Research",
 ]
 
 dependencies = [
     "absl-py>=2.0.0",
     "typing_extensions>=4.2.0",
-    "typeguard>=2.13.3,<3",
     "immutabledict>=1.0.0",
     "jax>=0.4.32",
     "jaxlib>=0.4.32",
@@ -43,8 +42,14 @@ dependencies = [
     "imas-python",
 ]
 
-# `version` is automatically set to use the `torax.__version__`
 dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = {attr = "torax._src.version.TORAX_VERSION"}
+
+[project.scripts]
+run_torax = "torax.run_simulation_main:run"
+plot_torax = "torax.plotting.plotruns:run"
 
 [project.urls]
 homepage = "https://github.com/google-deepmind/torax"
@@ -84,10 +89,15 @@ pyink-indentation = 2
 pyink-use-majority-quotes = true
 
 [tool.setuptools]
-include-package-data = true
+include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ["torax*"]
+exclude = ["*tests*"]
+
+[tool.setuptools.package-data]
+"torax.data.third_party.geo" = ["*"]
+
 
 [tool.pytest.ini_options]
 addopts = [
@@ -95,7 +105,7 @@ addopts = [
     "--ignore=torax/tests/scripts",
     "--ignore-glob=*lib*",
     # Leads to an ImportError in collection for `pytest` without qualikiz_tools.
-    "--ignore=torax/transport_model/qualikiz_wrapper.py",
+    "--ignore=torax/_src/transport_model/qualikiz_wrapper.py",
 ]
 testpaths = "**/tests"
 python_files = "*.py"

@@ -14,24 +14,24 @@
 
 """Simple plotting configuration for Torax runs."""
 
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
     cols=3,
     axes=(
         plotruns_lib.PlotProperties(
-            attrs=('ti', 'te'),
+            attrs=('T_i', 'T_e'),
             labels=(r'$T_i$', r'$T_e$'),
             ylabel='Temperature [keV]',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('ne',),
+            attrs=('n_e',),
             labels=(r'$n_e$',),
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('chi_i', 'chi_e'),
+            attrs=('chi_turb_i', 'chi_turb_e'),
             labels=(r'$\chi_i$', r'$\chi_e$'),
             ylabel=r'Heat conductivity $[m^2/s]$',
             upper_percentile=98.0,  # Exclude outliers
@@ -40,10 +40,10 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             attrs=(
-                'j',
-                'johm',
+                'j_total',
+                'j_ohmic',
                 'j_bootstrap',
-                'generic_current_source',
+                'j_generic_current',
                 'j_ecrh',
             ),
             labels=(
@@ -62,7 +62,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel='Safety factor',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('s',),
+            attrs=('magnetic_shear',),
             labels=(r'$\hat{s}$',),
             ylabel='Magnetic shear',
         ),

@@ -21,15 +21,8 @@ import re
 import subprocess
 from absl.testing import absltest
 from absl.testing import parameterized
-import sys
+from torax import run_simulation_main
 import torax
-torax_path, = torax.__path__ # Not sure why this is a length 1 list
-# run_simulation_main.py is in the repo root, which is the parent directory
-# of the actual module
-torax_repo_path = os.path.abspath(os.path.join(torax_path, os.pardir))
-import sys
-sys.path.append(torax_repo_path)
-import run_simulation_main
 
 
 class PersistentCacheTest(parameterized.TestCase):
@@ -45,8 +38,7 @@ class PersistentCacheTest(parameterized.TestCase):
     cache = cache.full_path
 
     flags = [
-        '--config_package=torax',
-        '--config=.tests.test_data.test_iterhybrid_rampup_short',
+        '--config=tests/test_data/test_iterhybrid_rampup_short.py',
         f'--jax_compilation_cache_dir={cache}',
         '--jax_persistent_cache_min_entry_size_bytes=-1',
         '--jax_persistent_cache_min_compile_time_secs=0.0',
@@ -54,7 +46,7 @@ class PersistentCacheTest(parameterized.TestCase):
         '--alsologtostderr',
         '--jax_debug_log_modules=jax._src.compilation_cache,jax._src.compiler',
     ]
-    run_simulation_main_path = os.path.join(torax_repo_path,
+    run_simulation_main_path = os.path.join(torax.__path__[0],
     'run_simulation_main.py')
     assert os.path.exists(run_simulation_main_path)
     command = ['python3', run_simulation_main_path]

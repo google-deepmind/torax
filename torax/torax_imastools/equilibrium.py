@@ -24,7 +24,6 @@ try:
     from imas.ids_toplevel import IDSToplevel
 except ImportError:
     IDSToplevel = Any
-from torax import constants
 from torax import state
 from torax.geometry import geometry_loader
 from torax.torax_imastools.util import requires_module, face_to_cell
@@ -85,8 +84,8 @@ def geometry_from_IMAS(
     else:
         raise ValueError("equilibrium_object must be a string (file path) or an IDS")
     IMAS_data = equilibrium.time_slice[0]
-    B0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0]) #Shoudld it be replaced by .time_slice[0].global_quantities.b_field_phi ?
-    Rmaj = np.asarray(equilibrium.vacuum_toroidal_field.r0) #Shoudld it be replaced by IMAS_data.boundary.geometric_axis.r ?
+    B0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0])  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
+    Rmaj = np.asarray(equilibrium.vacuum_toroidal_field.r0)  # Should it be replaced by IMAS_data.boundary.geometric_axis.r ?
 
     # Poloidal flux (switch sign between ddv3 and ddv4)
     # psi = -1 * IMAS_data.profiles_1d.psi #ddv3
@@ -104,7 +103,7 @@ def geometry_from_IMAS(
     # Flux surface integrals of various geometry quantities
     # IDS Contour integrals
     if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
-        dvoldpsi = 1 * IMAS_data.profiles_1d.dvolume_dpsi #Sign changed ddv4
+        dvoldpsi = 1 * IMAS_data.profiles_1d.dvolume_dpsi  # Sign changed ddv4
     else:
         dvoldpsi = (
             1
@@ -231,9 +230,9 @@ def geometry_to_IMAS(
     eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.cell_centers
 
     dvoldpsi = (
-          1
-          * np.gradient(eq.profiles_1d.volume)
-          / np.gradient(eq.profiles_1d.psi)
+        1
+        * np.gradient(eq.profiles_1d.volume)
+        / np.gradient(eq.profiles_1d.psi)
     )
     dpsidrhotor = (
         1
@@ -243,7 +242,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.dvolume_dpsi = dvoldpsi
     eq.profiles_1d.dpsi_drho_tor = dpsidrhotor
     eq.profiles_1d.gm1 = geometry.g3
-    eq.profiles_1d.gm7 = geometry.g0/(dvoldpsi * dpsidrhotor)
+    eq.profiles_1d.gm7 = geometry.g0 / (dvoldpsi * dpsidrhotor)
     eq.profiles_1d.gm3 = geometry.g1 / (dpsidrhotor ** 2 * dvoldpsi**2)
     eq.profiles_1d.gm2 = geometry.g2 / (dpsidrhotor ** 2 * dvoldpsi**2)
 

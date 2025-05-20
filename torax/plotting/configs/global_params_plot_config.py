@@ -14,7 +14,7 @@
 
 """Plotting configuration for global plasma parameters vs time."""
 
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
@@ -27,7 +27,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
     axes=(
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('i_total', 'i_bootstrap', 'i_generic', 'i_ecrh'),
+            attrs=('Ip_profile', 'I_bootstrap', 'I_aux_generic', 'I_ecrh'),
             labels=(
                 r'$I_\mathrm{p}$',
                 r'$I_\mathrm{bs}$',
@@ -45,27 +45,27 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('W_thermal_tot',),
+            attrs=('W_thermal_total',),
             labels=(r'$W_\mathrm{therm\_tot}$',),
             ylabel='Total thermal stored energy [MJ]',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('te_volume_avg', 'ti_volume_avg'),
+            attrs=('T_e_volume_avg', 'T_i_volume_avg'),
             labels=(
                 r'$\mathrm{<T_e>_V}$',
                 r'$\mathrm{<T_i>_V}$',
             ),
-            ylabel='Volume average Te and Ti [keV]',
+            ylabel='Volume average T_e and T_i [keV]',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('ne_volume_avg', 'ni_volume_avg'),
+            attrs=('n_e_volume_avg', 'n_i_volume_avg'),
             labels=(
                 r'$\mathrm{<n_e>_V}$',
                 r'$\mathrm{<n_i>_V}$',
             ),
-            ylabel='Volume average ne and ni $[10^{20}~m^{-3}]$',
+            ylabel='Volume average n_e and n_i $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,

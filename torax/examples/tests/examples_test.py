@@ -13,13 +13,12 @@
 # limitations under the License.
 
 """Tests for the example configs in the example folder."""
-import importlib
-import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.tests.test_lib import paths
-from torax.torax_pydantic import model_config
+from torax._src.config import config_loader
+from torax._src.torax_pydantic import model_config
+
 
 PYTHON_MODULE_PREFIX = '.examples.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -34,13 +33,10 @@ class ExamplesTest(parameterized.TestCase):
       'iterhybrid_rampup',
   ])
   def test_validation_of_configs(self, config_name_no_py: str):
-    config_path = os.path.join(paths.examples_dir(), config_name_no_py + '.py')
-    assert os.path.exists(config_path), config_path
-    python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
-    config_module = importlib.import_module(
-        python_config_module, PYTHON_CONFIG_PACKAGE
-    )
-    model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    example_config_paths = config_loader.example_config_paths()
+    example_config_path = example_config_paths[config_name_no_py]
+    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    self.assertIsInstance(cfg, model_config.ToraxConfig)
 
 
 if __name__ == '__main__':

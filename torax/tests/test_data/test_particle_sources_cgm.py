@@ -19,57 +19,58 @@ CGM transport model. Pedestal. Particle sources
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,
-            'ne_bound_right': 0.2,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,
+        'n_e_right_bc': 0.2e20,
+        # set flat Ohmic current to provide larger range of current
+        # evolution for test
+        'current_profile_nu': 0,
     },
+    'numerics': {
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
     'sources': {
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'generic_particle_source': {
-            'S_tot': 0.3e22,
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_particle': {
+            'S_total': 0.3e22,
         },
-        'gas_puff_source': {
-            'S_puff_tot': 0.5e22,
+        'gas_puff': {
+            'S_total': 0.5e22,
         },
-        'pellet_source': {
-            'S_pellet_tot': 1.0e22,
+        'pellet': {
+            'S_total': 1.0e22,
         },
-        'j_bootstrap': {},
-        'generic_current_source': {},
+        'generic_current': {},
+    },
+    'neoclassical': {
+        'bootstrap_current': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'neped': 1.0,
+        'n_e_ped': 1.0e20,
     },
     'transport': {
-        'transport_model': 'CGM',
+        'model_name': 'CGM',
         # cgm params.
         'chi_D_ratio': 8,
-        'VR_D_ratio': {0: -3.0, 1: 0.0}
+        'VR_D_ratio': {0: -3.0, 1: 0.0},
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': False,
         'use_pereverzev': True,
-        'd_per': 0.0,
+        'D_pereverzev': 0.0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

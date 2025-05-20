@@ -23,7 +23,7 @@ from absl import app
 from absl import logging
 from absl.flags import argparse_flags
 import matplotlib
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 
 
 matplotlib.use('TkAgg')
@@ -42,7 +42,7 @@ def parse_flags(_):
   )
   parser.add_argument(
       '--plot_config',
-      default='torax.plotting.configs.default_plot_config',
+      default='plotting/configs/default_plot_config.py',
       help='Name of the plot config module.',
   )
   return parser.parse_args()
@@ -64,5 +64,10 @@ def main(args):
     plotruns_lib.plot_run(plot_config, args.outfile[0], args.outfile[1])
 
 
-if __name__ == '__main__':
+# Method used by the `plot_torax` binary.
+def run():
   app.run(main, flags_parser=parse_flags)
+
+
+if __name__ == '__main__':
+  run()

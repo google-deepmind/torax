@@ -16,35 +16,35 @@
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {},  # use default profile conditions
-        'plasma_composition': {},  # use default plasma composition
-        'numerics': {},  # use default numerics
-    },
+    'profile_conditions': {},  # use default profile conditions
+    'plasma_composition': {},  # use default plasma composition
+    'numerics': {},  # use default numerics
     # circular geometry is only for testing and prototyping
     'geometry': {
         'geometry_type': 'circular',
     },
+    'neoclassical': {
+        'bootstrap_current': {},
+    },
     'sources': {
         # Current sources (for psi equation)
-        'j_bootstrap': {},
-        'generic_current_source': {},
-        # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {},
-        'gas_puff_source': {},
-        'pellet_source': {},
+        'generic_current': {},
+        # Electron density sources/sink (for the n_e equation).
+        'generic_particle': {},
+        'gas_puff': {},
+        'pellet': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {},
-        'fusion_heat_source': {},
-        'qei_source': {},
-        'ohmic_heat_source': {},
+        'generic_heat': {},
+        'fusion': {},
+        'ei_exchange': {},
+        'ohmic': {},
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
     },
-    'stepper': {
-        'stepper_type': 'linear',
+    'solver': {
+        'solver_type': 'linear',
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

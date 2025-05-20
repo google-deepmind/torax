@@ -14,4 +14,3 @@ installation instructions, and a basic primer for running and plotting.
    overview
    installation
    quickstart
-   faq

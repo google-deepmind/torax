@@ -11,5 +11,4 @@ underlying libraries, and API.
 
    code_structure
    fvm
-   api/modules.rst
    model_integration

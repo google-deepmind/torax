@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-CONFIG['sources']['impurity_radiation_heat_sink'] = {
-    'model_function_name': 'radially_constant_fraction_of_Pin',
-    'fraction_of_total_power_density': 0.1
+CONFIG['sources']['impurity_radiation'] = {
+    'model_name': 'P_in_scaled_flat_profile',
+    'fraction_P_heating': 0.1
 }

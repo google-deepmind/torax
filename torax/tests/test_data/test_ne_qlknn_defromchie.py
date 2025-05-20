@@ -20,58 +20,61 @@ scaled from chi_e
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,  # initial density (Greenwald fraction units)
-            'ne_bound_right': 0.2,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
+        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'n_e_right_bc': 0.2e20,
+        # set flat Ohmic current to provide larger range of current
+        # evolution for test
+        'current_profile_nu': 0,
     },
+    'numerics': {
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
         'Ip_from_parameters': True,
     },
     'sources': {
-        'generic_ion_el_heat_source': {
-            'w': 0.18202270915319393,
+        'generic_heat': {
+            'gaussian_width': 0.18202270915319393,
         },
-        'qei_source': {},
-        'generic_particle_source': {
-            'S_tot': 0.3e22,
+        'ei_exchange': {},
+        'generic_particle': {
+            'S_total': 0.3e22,
         },
-        'gas_puff_source': {
-            'S_puff_tot': 0.5e22,
+        'gas_puff': {
+            'S_total': 0.5e22,
         },
-        'pellet_source': {
-            'S_pellet_tot': 1.0e22,
+        'pellet': {
+            'S_total': 1.0e22,
         },
-        'j_bootstrap': {},
-        'generic_current_source': {},
+        'generic_current': {},
+    },
+    'neoclassical': {
+        'bootstrap_current': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'neped': 1.0,
+        'n_e_ped': 1.0e20,
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         # qlknn params.
-        'DVeff': False,
+        'DV_effective': False,
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': True,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': True,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

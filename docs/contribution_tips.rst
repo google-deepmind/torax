@@ -3,6 +3,51 @@
 Contribution tips
 #################
 
+Installing from source
+======================
+
+Create a code directory where you will install the virtual env and other TORAX
+dependencies.
+
+```shell
+mkdir /path/to/torax_dir && cd "$_"
+```
+Where `/path/to/torax_dir` should be replaced by a path of your choice.
+
+Create a TORAX virtual env.
+
+```shell
+python3 -m venv toraxvenv
+source toraxvenv/bin/activate
+```
+
+Download and install the TORAX codebase via http:
+
+```shell
+git clone https://github.com/google-deepmind/torax.git
+```
+or ssh (ensure that you have the appropriate SSH key uploaded to github).
+
+```shell
+git clone git@github.com:google-deepmind/torax.git
+```
+Enter the TORAX directory and pip install the dependencies.
+
+```shell
+cd torax; pip install -e .
+```
+
+If you want to install with the dev dependencies (useful for running `pytest`
+and installing `pyink` for lint checking), then run with the `[dev]`:
+
+```shell
+cd torax; pip install -e .[dev]
+```
+
+Optional: Install additional GPU support for JAX if your machine has a GPU:
+https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
+
+
 Code reviews
 ============
 
@@ -28,10 +73,12 @@ following command from the docs folder in the TORAX repository:
 
 .. code-block:: console
 
-  make docs
+  make html
 
-This will generate the documentation in the `docs` directory. You can then view
-the documentation by opening the `index.html` file in your browser, i.e. point your browser to `file:///path/to/torax/docs/index.html`.
+This will generate the documentation in the `docs/_build/html` directory. You can then view
+the documentation by opening the `index.html` file in your browser.
+Run ``pwd`` to find the path to the `docs/_build/html` directory and then point your browser
+to `file:///path/to/torax/docs/_build/html/index.html`.
 
 The staged documentation is cleaned up from your local repository by running the command:
 
@@ -73,7 +120,7 @@ in this case running all the geometry tests.
 
 .. code-block:: console
 
-  pytest torax/tests/geometry.py
+  pytest torax/_src/geometry/tests/geometry_test.py
 
 Further filtering is possible, for example running only the ``test_face_to_cell`` test (in geometry.py):
 
@@ -92,9 +139,9 @@ by a command (from the TORAX root directory) such as:
 
 .. code-block:: console
 
-  pytest -n <num_workers> torax/tests/sim.py
+  pytest -n <num_workers> torax/tests/sim_test.py
 
-If any sim tests fail, they write their output to the ``/tmp/torax_failed_sim_test_outputs/<test_name>`` directory.
+If any sim tests fail, they write their output to the ``/tmp/torax_failed_sim_test_outputs/<test_name>.nc``.
 This is useful for debugging, and also to stage new output files for replacing the ground-truth files,
 if you expect that your change to the code produces different outputs.
 
@@ -116,7 +163,7 @@ the TORAX repository. Using ``test_qlknnheat`` as an example:
 
 .. code-block:: console
 
-  python3 torax/plotting/plotruns.py --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat/state_history.nc
+  plot_torax --outfile torax/tests/test_data/test_qlknnheat.nc /tmp/torax_failed_sim_test_outputs/test_qlknnheat.nc
 
 If it is deemed that the new outputs should replace the ground-truth files,
 they can be copied over using the following command, again with this example working
@@ -150,7 +197,7 @@ The ``compare_sim_tests.py`` can be used for sanity checking the outputs, and th
 to the same output directory as the ``run_and_save_all_benchmarks.py`` script.
 
 .. important::
-  When making changes to the output structure, e.g. adding or removing fields,
+  When making changes to the output structure, e.g. adding fields,
   a subset of the sim tests will fail. To pass these specific tests, it is
   required to update ``implicit.nc``, ``test_changing_config_before.nc``, and
   ``test_changing_config_after.nc``. However, the recommended workflow when

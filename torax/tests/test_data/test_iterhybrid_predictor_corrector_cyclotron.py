@@ -17,4 +17,4 @@ import copy
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-CONFIG['sources']['cyclotron_radiation_heat_sink'] = {}
+CONFIG['sources']['cyclotron_radiation'] = {}

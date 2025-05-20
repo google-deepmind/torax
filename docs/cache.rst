@@ -13,12 +13,12 @@ output of compilation on the filesystem to avoid recompilation each time we
 run Torax (or any other program using Jax). There are several limitations to this:
 if Jax or Torax is updated, or if any config settings affecting the expressions
 built by Torax change, Torax will build a different expression and need to compile
-a new program. Also, as of this writing (August 2024), Jax caches only the
+a new program. Also, as of this writing (May 2025), Jax caches only the
 compilation step, not the tracing step.
 
 See :ref:`how_to_install` for information on how to set your environment variables
 to always use the cache by default.
-The `Jax persistent cache documentation <https://www.google.com/url?sa=D&q=https%3A%2F%2Fjax.readthedocs.io%2Fen%2Flatest%2Fpersistent_compilation_cache.html>`_
+The `Jax persistent cache documentation <https://docs.jax.dev/en/latest/persistent_compilation_cache.html#persistent-compilation-cache>`_
 gives some more information.
 Some particularly useful information includes:
 
@@ -29,8 +29,7 @@ Some particularly useful information includes:
 
 One Torax-specific cache gotcha is that the cache may not be used if Torax runtime
 error handling is turned on (it is off by default)
-via the TORAX_ERRORS_ENABLED environment variable or
-`torax.jax_utils.enable_errors`.
+via the ``TORAX_ERRORS_ENABLED`` environment variable.
 This is because runtime error handling injects Python callbacks into the Jax
 program, and Jax can't serialize arbitrary callable Python objects into its
 cache. Most Torax tests have runtime error handling enabled to catch correctness
@@ -41,8 +40,8 @@ persistent cache key is a function of the built graph, not the args to
 function where the jit decorator is applied. This means that our hash
 functions for custom classes that are arguments to the outermost function
 don't need to be designed to hash the same across runs of the Python
-interpreter. An example of this is hashing by `id` which works with the
-persistent cache even though the `id` of an object will change if the object is
+interpreter. An example of this is hashing by ``id`` which works with the
+persistent cache even though the ``id`` of an object will change if the object is
 recreated. See https://github.com/google-deepmind/torax/pull/276 for more
 detail.
 

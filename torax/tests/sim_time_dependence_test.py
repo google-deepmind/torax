@@ -23,26 +23,26 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pydantic
-from torax import sim
-from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params_slice
-from torax.geometry import geometry
-from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.orchestration import run_simulation
-from torax.orchestration import step_function
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import source_models as source_models_lib
-from torax.sources import source_profile_builders
-from torax.sources import source_profiles
-from torax.stepper import linear_theta_method
-from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.torax_pydantic import model_config
-from torax.transport_model import pydantic_model as transport_pydantic_model
-from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
-from torax.transport_model import transport_model as transport_model_lib
-from typing_extensions import Annotated
+from torax._src import state
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
+from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
+from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.orchestration import run_loop
+from torax._src.orchestration import run_simulation
+from torax._src.orchestration import sim_state
+from torax._src.orchestration import step_function
+from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.solver import linear_theta_method
+from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.sources import source_models as source_models_lib
+from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class SimWithTimeDependenceTest(parameterized.TestCase):
@@ -51,16 +51,12 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    transport_pydantic_model.Transport.model_fields[
-        'transport_model_config'
+    model_config.ToraxConfig.model_fields[
+        'transport'
     ].annotation |= FakeTransportConfig
-    transport_pydantic_model.Transport.model_rebuild(force=True)
-
-    stepper_pydantic_model.Stepper.model_fields[
-        'stepper_config'
-    ].annotation |= Annotated[FakeStepperConfig, pydantic.Tag('fake')]
-    stepper_pydantic_model.Stepper.model_rebuild(force=True)
-
+    model_config.ToraxConfig.model_fields[
+        'solver'
+    ].annotation |= FakeSolverConfig
     model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
@@ -70,7 +66,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   def test_time_dependent_params_update_in_adaptive_dt(
       self,
       adaptive_dt: bool,
-      expected_outer_stepper_iterations: int,
+      expected_outer_solver_iterations: int,
       expected_error_state: int,
       expected_combined_value: float,
       inner_solver_iterations: list[int],
@@ -78,25 +74,24 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
 
     config = {
-        'runtime_params': {
-            'profile_conditions': {
-                'Ti_bound_right': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-                'ne_bound_right': 0.5,
-            },
-            'numerics': {
-                'adaptive_dt': adaptive_dt,
-                # 1 time step in, the Ti_bound_right will be 2.0
-                'fixed_dt': 1.0,
-                'dt_reduction_factor': 1.5,
-                't_final': 1.0,
-            },
+        'profile_conditions': {
+            'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+            'n_e_right_bc': 0.5,
         },
+        'numerics': {
+            'adaptive_dt': adaptive_dt,
+            # 1 time step in, the T_i_right_bc will be 2.0
+            'fixed_dt': 1.0,
+            'dt_reduction_factor': 1.5,
+            't_final': 1.0,
+        },
+        'plasma_composition': {},
         'geometry': {
             'geometry_type': 'circular',
         },
-        'transport': {'transport_model': 'fake'},
-        'stepper': {
-            'stepper_type': 'fake',
+        'transport': {'model_name': 'fake'},
+        'solver': {
+            'solver_type': 'fake',
             'inner_solver_iterations': inner_solver_iterations,
         },
         'pedestal': {},
@@ -105,19 +100,19 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    def _fake_sim_run_simulation(
+    def _fake_run_loop(
         static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         geometry_provider: geometry_provider_lib.GeometryProvider,
-        initial_state: state.ToraxSimState,
-        initial_post_processed_outputs: state.PostProcessedOutputs,
+        initial_state: sim_state.ToraxSimState,
+        initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
         restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
     ) -> tuple[
-        tuple[state.ToraxSimState, ...],
-        tuple[state.PostProcessedOutputs, ...],
+        tuple[sim_state.ToraxSimState, ...],
+        tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
       del log_timestep_info, progress_bar, restart_case
@@ -129,15 +124,15 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           initial_post_processed_outputs,
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.outer_stepper_iterations,
-          expected_outer_stepper_iterations,
+          output_state.solver_numeric_outputs.outer_solver_iterations,
+          expected_outer_solver_iterations,
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.inner_solver_iterations,
+          output_state.solver_numeric_outputs.inner_solver_iterations,
           np.sum(inner_solver_iterations),
       )
       self.assertEqual(
-          output_state.stepper_numeric_outputs.stepper_error_state,
+          output_state.solver_numeric_outputs.solver_error_state,
           expected_error_state,
       )
       np.testing.assert_allclose(
@@ -146,47 +141,53 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       return (output_state,), (post_processed_outputs,), error
 
     with mock.patch.object(
-        sim, '_run_simulation', wraps=_fake_sim_run_simulation
-    ) as mock_run_simulation:
+        run_loop, 'run_loop', wraps=_fake_run_loop
+    ) as mock_run_loop:
       run_simulation.run_simulation(torax_config)
     # The initial step will not work, so it should take several adaptive time
-    # steps to get under the Ti_bound_right threshold set above if adaptive_dt
+    # steps to get under the T_i_right_bc threshold set above if adaptive_dt
     # was set to True.
-    mock_run_simulation.assert_called_once()
+    mock_run_loop.assert_called_once()
 
 
-class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
-  """Fake stepper config that allows us to hook into the error logic."""
-  stepper_type: Literal['fake'] = 'fake'
-  param: str = 'Ti_bound_right'
+class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
+  """Fake solver config that allows us to hook into the error logic."""
+
+  solver_type: Literal['fake'] = 'fake'
+  param: str = 'T_i_right_bc'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None
 
-  def build_stepper(
-      self, transport_model, source_models, pedestal_model
-  ) -> 'FakeStepper':
-    return FakeStepper(
+  def build_solver(
+      self,
+      static_runtime_params_slice,
+      transport_model,
+      source_models,
+      pedestal_model,
+  ) -> 'FakeSolver':
+    return FakeSolver(
         param=self.param,
         max_value=self.max_value,
-        inner_solver_iterations=self.inner_solver_iterations,
+        static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        inner_solver_iterations=self.inner_solver_iterations,
     )
 
 
-class FakeStepper(linear_theta_method.LinearThetaMethod):
-  """Fake stepper that allows us to hook into the error logic.
+class FakeSolver(linear_theta_method.LinearThetaMethod):
+  """Fake solver that allows us to hook into the error logic.
 
   Given the name of a time-dependent param in the runtime_params, and a max
   value for
-  that param, this stepper returns a successful state if the config values for
+  that param, this solver returns a successful state if the config values for
   that param in the config at time t and config at time t+dt sum to less than
   max value.
 
   The number of inner solver iterations can also be specified.
 
-  This stepper returns the input state as is and doesn't actually use the
+  This solver returns the input state as is and doesn't actually use the
   transport model or sources provided. They are given just to match the base
   class api.
   """
@@ -195,11 +196,13 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
       self,
       param: str,
       max_value: float,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
       inner_solver_iterations: list[int] | None = None,
   ):
+    self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
@@ -210,9 +213,11 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
         if inner_solver_iterations is not None
         else []
     )
+    self.evolving_names = ()
 
   def __call__(
       self,
+      t: jax.Array,
       dt: jax.Array,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -221,12 +226,12 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
+      core_sources_t: source_profiles.SourceProfiles,
+      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
-      state.CoreProfiles,
-      source_profiles.SourceProfiles,
-      state.CoreTransport,
-      state.StepperNumericOutputs,
+      tuple[cell_variable.CellVariable, ...],
+      sim_state.ToraxSimState,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
@@ -262,16 +267,20 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
     )
 
     def get_return_value(error_code: int):
-      return (
-          core_profiles_t,
-          core_sources,
-          transport,
-          state.StepperNumericOutputs(
-              outer_stepper_iterations=1,
-              stepper_error_state=error_code,
+      intermediate_state = sim_state.ToraxSimState(
+          t=t + dt,
+          dt=dt,
+          core_profiles=core_profiles_t_plus_dt,
+          core_transport=transport,
+          core_sources=core_sources,
+          geometry=geo_t_plus_dt,
+          solver_numeric_outputs=state.SolverNumericOutputs(
+              outer_solver_iterations=1,
+              solver_error_state=error_code,
               inner_solver_iterations=current_inner_solver_iterations,
           ),
       )
+      return (), intermediate_state
 
     return jax.lax.cond(
         combined < self._max_value,
@@ -306,7 +315,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
 
-  transport_model: Literal['fake'] = 'fake'
+  model_name: Literal['fake'] = 'fake'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()

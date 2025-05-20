@@ -14,7 +14,7 @@
 
 """Plotting configuration for Torax runs focusing on source profiles."""
 
-from torax.plotting import plotruns_lib
+from torax._src.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
@@ -29,21 +29,21 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         # volatile nature of the data. Do not include first timepoint since
         # chi is defined as zero there and may unduly affect ylim.
         plotruns_lib.PlotProperties(
-            attrs=('ti', 'te'),
+            attrs=('T_i', 'T_e'),
             labels=(r'$T_\mathrm{i}$', r'$T_\mathrm{e}$'),
             ylabel='Temperature [keV]',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('ne',),
+            attrs=('n_e',),
             labels=(r'$n_\mathrm{e}$',),
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
             attrs=(
-                'j',
-                'johm',
+                'j_total',
+                'j_ohmic',
                 'j_bootstrap',
-                'generic_current_source',
+                'j_generic_current',
                 'j_ecrh',
             ),
             labels=(
@@ -59,12 +59,12 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
             attrs=(
-                'p_auxiliary',
-                'p_ohmic',
-                'p_alpha',
-                'p_rad',
-                'p_brems',
-                'p_cycl',
+                'P_auxiliary',
+                'P_ohmic_e',
+                'P_alpha_total',
+                'P_bremsstrahlung_e',
+                'P_radiation_e',
+                'P_cyclotron_e',
             ),
             labels=(
                 r'$P_\mathrm{aux}$',
@@ -80,11 +80,11 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             attrs=(
-                'q_icrh_i',
-                'q_icrh_e',
-                'q_ecrh',
-                'q_gen_i',
-                'q_gen_e',
+                'p_icrh_i',
+                'p_icrh_e',
+                'p_ecrh_e',
+                'p_generic_heat_i',
+                'p_generic_heat_e',
             ),
             labels=(
                 r'$Q_\mathrm{ICRH,i}$',
@@ -97,7 +97,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('q_alpha_i', 'q_alpha_e', 'q_ohmic', 'q_ei'),
+            attrs=('p_alpha_i', 'p_alpha_e', 'p_ohmic_e', 'ei_exchange'),
             labels=(
                 r'$Q_\mathrm{alpha,i}$',
                 r'$Q_\mathrm{alpha,e}$',
@@ -108,7 +108,11 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('q_brems', 'q_rad', 'q_cycl'),
+            attrs=(
+                'p_bremsstrahlung_e',
+                'p_impurity_radiation_e',
+                'p_cyclotron_radiation_e',
+            ),
             labels=(
                 r'$Q_\mathrm{brems}$',
                 r'$Q_\mathrm{rad}$',
@@ -118,7 +122,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('s_puff', 's_generic', 's_pellet'),
+            attrs=('s_gas_puff', 's_generic_particle', 's_pellet'),
             labels=(
                 r'$S_\mathrm{puff}$',
                 r'$S_\mathrm{generic}$',

@@ -17,27 +17,29 @@
 These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
+
 import copy
+import dataclasses
 import importlib
-from typing import Sequence, Final
+from typing import Final, Sequence
 from unittest import mock
 
 import numpy as np
 from absl.testing import absltest, parameterized
 from jax import tree
 
-from torax import output, state
-from torax.orchestration import initial_state, run_simulation
-from torax.tests.test_lib import sim_test_case
-from torax.torax_pydantic import model_config
+from torax._src import state
+from torax._src.orchestration import initial_state, run_simulation
+from torax._src.output_tools import output
+from torax._src.test_utils import core_profile_helpers, sim_test_case
+from torax._src.torax_pydantic import model_config
 
 _ALL_PROFILES: Final[Sequence[str]] = (
-    'temp_ion',
-    'temp_el',
-    'psi',
-    'q_face',
-    's_face',
-    'ne',
+    output.T_I,
+    output.T_E,
+    output.PSI,
+    output.Q,
+    output.N_E,
 )
 
 
@@ -53,9 +55,9 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          ('temp_ion', 'temp_el'),
+          (output.T_I, output.T_E),
           2e-1,
-          1e-10,
+          0,
           'test_implicit.nc',
       ),
       # Tests implicit solver with theta=1.0 (backwards Euler)
@@ -103,9 +105,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_fusion_qlknn',
           'test_all_transport_fusion_qlknn.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
       # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
@@ -117,7 +116,8 @@ class SimTest(sim_test_case.SimTestCase):
           'test_eqdsk',
           'test_eqdsk.py',
       ),
-      # Tests Bremsstrahlung heat sink with time dependent Zimp and Zeff. CHEASE
+      # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
+      # CHEASE
       (
           'test_bremsstrahlung_time_dependent_Zimp',
           'test_bremsstrahlung_time_dependent_Zimp.py',
@@ -132,12 +132,12 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
       ),
-      # Tests time-dependent pedestal, Ptot, Ip. CHEASE geometry. QLKNN.
+      # Tests time-dependent pedestal, P_total, Ip. CHEASE geometry. QLKNN.
       (
           'test_timedependence',
           'test_timedependence.py',
       ),
-      # Tests prescribed time-dependent ne (tied to GW frac with evolving Ip).
+      # Tests prescribed time-dependent n_e (tied to GW frac with evolving Ip).
       (
           'test_prescribed_timedependent_ne',
           'test_prescribed_timedependent_ne.py',
@@ -147,8 +147,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
-          _ALL_PROFILES,
-          1e-8,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
@@ -159,8 +157,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterbaseline_mockup',
           'test_iterbaseline_mockup.py',
-          _ALL_PROFILES,
-          1e-10,
       ),
       # Tests full integration for ITER-hybrid-like config. Linear solver.
       (
@@ -185,13 +181,10 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_clip_inputs',
           'test_iterhybrid_predictor_corrector_clip_inputs.py',
       ),
-      # Predictor-corrector solver with non-constant Zeff profile.
+      # Predictor-corrector solver with non-constant Z_eff profile.
       (
           'test_iterhybrid_predictor_corrector_zeffprofile',
           'test_iterhybrid_predictor_corrector_zeffprofile.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
       # Predictor-corrector solver with a time-dependent isotope mix.
       (
@@ -227,19 +220,13 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_cyclotron',
           'test_iterhybrid_predictor_corrector_cyclotron.py',
-          _ALL_PROFILES,
-          0,
-          1e-8,
       ),
-      # Tests current and density rampup for for ITER-hybrid-like-config
+      # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
-          _ALL_PROFILES,
-          0,
-          1e-6,
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
@@ -247,9 +234,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
-          _ALL_PROFILES,
-          0,
-          1e-6,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector
@@ -276,7 +260,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_ip_chease_vloop.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from nu formula.
+      # Initial Ip from parameters and psi from current_profile_nu formula.
       (
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
@@ -286,7 +270,7 @@ class SimTest(sim_test_case.SimTestCase):
       self,
       config_name: str,
       profiles: Sequence[str] = _ALL_PROFILES,
-      rtol: float | None = 0.,
+      rtol: float | None = None,
       atol: float | None = None,
       ref_name: str | None = None,
   ):
@@ -321,42 +305,47 @@ class SimTest(sim_test_case.SimTestCase):
     """Test that the integration tests can actually fail."""
 
     # Run test_qei but pass in the reference result from test_implicit.
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       self._test_run_simulation(
           'test_qei.py',
-          ('temp_ion', 'temp_el'),
+          ('T_i', 'T_e'),
           ref_name='test_implicit.nc',
           write_output=False,
       )
 
   def test_no_op(self):
-    """Tests that running the stepper with all equations off is a no-op."""
+    """Tests that running the solver with all equations off is a no-op."""
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
     torax_config.update_fields({
-        'runtime_params.numerics.t_final': 0.1,  # Modify final step.
-        'runtime_params.numerics.ion_heat_eq': False,
-        'runtime_params.numerics.el_heat_eq': False,
-        'runtime_params.numerics.current_eq': False,
-        'runtime_params.numerics.dens_eq': False,
+        'numerics.t_final': 0.1,  # Modify final step.
+        'numerics.evolve_ion_heat': False,
+        'numerics.evolve_electron_heat': False,
+        'numerics.evolve_current': False,
+        'numerics.evolve_density': False,
         # Keep profiles fixed.
-        'runtime_params.profile_conditions.Ip_tot': 3.0,
-        'runtime_params.profile_conditions.ne': 1.0,
-        'runtime_params.profile_conditions.ne_bound_right': 1.0,
-        'runtime_params.profile_conditions.ne_is_fGW': False,
-        'runtime_params.profile_conditions.Ti': 6.0,
-        'runtime_params.profile_conditions.Te': 6.0,
+        'profile_conditions.Ip': 3.0e6,  # MA.
+        'profile_conditions.n_e': 1.0,
+        'profile_conditions.n_e_right_bc': 1.0,
+        'profile_conditions.n_e_nbar_is_fGW': False,
+        'profile_conditions.T_i': 6.0,
+        'profile_conditions.T_e': 6.0,
     })
 
-    history = run_simulation.run_simulation(torax_config, progress_bar=False)
+    _, history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
-    history_length = history.core_profiles.temp_ion.value.shape[0]
+    history_length = history._stacked_core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
-    self.assertGreater(
-        history.times[-1], torax_config.runtime_params.numerics.t_final
+    self.assertGreater(history.times[-1], torax_config.numerics.t_final)
+    profiles_to_check = (
+        (output.T_I, history._stacked_core_profiles.T_i),
+        (output.T_E, history._stacked_core_profiles.T_e),
+        (output.N_E, history._stacked_core_profiles.n_e),
+        (output.PSI, history._stacked_core_profiles.psi),
+        (output.Q, history._stacked_core_profiles.q_face),
+        (output.MAGNETIC_SHEAR, history._stacked_core_profiles.s_face),
     )
 
-    for torax_profile in _ALL_PROFILES:
-      profile_history = history.core_profiles[torax_profile]
+    for profile_name, profile_history in profiles_to_check:
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
@@ -365,13 +354,13 @@ class SimTest(sim_test_case.SimTestCase):
           [np.all(profile == first_profile) for profile in profile_history]
       ):
         for i in range(1, len(profile_history)):
-          # Most profiles should be == but jtot, q_face, and s_face can be
+          # Most profiles should be == but j_total, q_face, and s_face can be
           # merely allclose because they are recalculated on each step.
           if not np.allclose(profile_history[i], first_profile):
             msg = (
                 'Profile changed over time despite all equations being '
                 'disabled.\n'
-                f'Profile name: {torax_profile}\n'
+                f'Profile name: {profile_name}\n'
                 f'Initial value: {first_profile}\n'
                 f'Failing time index: {i}\n'
                 f'Failing value: {profile_history[i]}\n'
@@ -400,37 +389,28 @@ class SimTest(sim_test_case.SimTestCase):
       test_config: the config id under test.
     """
     profiles = [
-        output.TEMP_ION,
-        output.TEMP_ION_RIGHT_BC,
-        output.TEMP_EL,
-        output.TEMP_EL_RIGHT_BC,
-        output.NE,
-        output.NI,
-        output.NE_RIGHT_BC,
-        output.NI_RIGHT_BC,
+        output.T_I,
+        output.T_E,
+        output.N_E,
+        output.N_I,
         output.PSI,
-        output.PSIDOT,
-        output.IP_PROFILE_FACE,
-        output.NREF,
-        output.Q_FACE,
-        output.S_FACE,
+        output.V_LOOP,
+        output.IP_PROFILE,
+        output.Q,
+        output.MAGNETIC_SHEAR,
         output.J_BOOTSTRAP,
-        output.J_BOOTSTRAP_FACE,
-        output.JOHM,
-        output.EXTERNAL_CURRENT,
-        output.JTOT,
-        output.JTOT_FACE,
-        output.I_BOOTSTRAP,
-        output.SIGMA,
+        output.J_OHMIC,
+        output.J_EXTERNAL,
+        output.J_TOTAL,
+        output.SIGMA_PARALLEL,
     ]
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
     index = len(ref_time) // 2
     loading_time = ref_time[index]
 
     # Build the sim and runtime params at t=`loading_time`.
-    config = self._get_config_dict(test_config + '.py')
-    config['runtime_params']['numerics']['t_initial'] = loading_time
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = self._get_torax_config(test_config + '.py')
+    torax_config.update_fields({'numerics.t_initial': loading_time})
 
     original_get_initial_state = initial_state._get_initial_state
 
@@ -441,42 +421,43 @@ class SimTest(sim_test_case.SimTestCase):
         step_fn,
     ):
       # Load in the reference core profiles.
-      Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
-      temp_el = ref_profiles[output.TEMP_EL][index, :]
-      temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
-      temp_ion = ref_profiles[output.TEMP_ION][index, :]
-      temp_ion_bc = ref_profiles[output.TEMP_ION_RIGHT_BC][index]
-      ne = ref_profiles[output.NE][index, :]
-      ne_bound_right = ref_profiles[output.NE_RIGHT_BC][index]
-      psi = ref_profiles[output.PSI][index, :]
+      Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
+      # All profiles are on a grid with [left_face, cell_grid, right_face]
+      T_e = ref_profiles[output.T_E][index, 1:-1]
+      T_e_bc = ref_profiles[output.T_E][index, -1]
+      T_i = ref_profiles[output.T_I][index, 1:-1]
+      T_i_bc = ref_profiles[output.T_I][index, -1]
+      n_e = ref_profiles[output.N_E][index, 1:-1]
+      n_e_right_bc = ref_profiles[output.N_E][index, -1]
+      psi = ref_profiles[output.PSI][index, 1:-1]
 
       # Override the dynamic runtime params with the loaded values.
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
-      dynamic_runtime_params_slice.profile_conditions.Te = temp_el
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
-          temp_el_bc
-      )
-      dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
-          temp_ion_bc
-      )
-      dynamic_runtime_params_slice.profile_conditions.ne = ne
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
-          ne_bound_right
+      dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
+      dynamic_runtime_params_slice.profile_conditions.T_e = T_e
+      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = T_e_bc
+      dynamic_runtime_params_slice.profile_conditions.T_i = T_i
+      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = T_i_bc
+      dynamic_runtime_params_slice.profile_conditions.n_e = n_e
+      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
+          n_e_right_bc
       )
       dynamic_runtime_params_slice.profile_conditions.psi = psi
-      # When loading from file we want ne not to have transformations.
-      # Both ne and the boundary condition are given in absolute values
+      # When loading from file we want n_e not to have transformations.
+      # Both n_e and the boundary condition are given in absolute values
       # (not fGW).
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
+      # Additionally we want to avoid normalizing to nbar.
+      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = (
           False
       )
-      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
-          True
+      dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
+      static_runtime_params_slice = dataclasses.replace(
+          static_runtime_params_slice,
+          profile_conditions=dataclasses.replace(
+              static_runtime_params_slice.profile_conditions,
+              n_e_right_bc_is_absolute=True,
+              normalize_n_e_to_nbar=False,
+          ),
       )
-      # Additionally we want to avoid normalizing to nbar.
-      dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
       return original_get_initial_state(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
@@ -487,18 +468,25 @@ class SimTest(sim_test_case.SimTestCase):
     with mock.patch.object(
         initial_state, '_get_initial_state', wraps=wrapped_get_initial_state
     ):
-      sim_outputs = run_simulation.run_simulation(
-          torax_config, progress_bar=False)
+      _, sim_outputs = run_simulation.run_simulation(
+          torax_config, progress_bar=False
+      )
 
     initial_core_profiles = tree.map(
-        lambda x: x[0] if x is not None else None, sim_outputs.core_profiles
+        lambda x: x[0] if x is not None else None,
+        sim_outputs._stacked_core_profiles,
     )
-    verify_core_profiles(ref_profiles, index, initial_core_profiles)
+    core_profile_helpers.verify_core_profiles(
+        ref_profiles, index, initial_core_profiles
+    )
 
     final_core_profiles = tree.map(
-        lambda x: x[-1] if x is not None else None, sim_outputs.core_profiles
+        lambda x: x[-1] if x is not None else None,
+        sim_outputs._stacked_core_profiles,
     )
-    verify_core_profiles(ref_profiles, -1, final_core_profiles)
+    core_profile_helpers.verify_core_profiles(
+        ref_profiles, -1, final_core_profiles
+    )
     # pylint: enable=invalid-name
 
   def test_ip_bc_vloop_bc_equivalence(self):
@@ -513,41 +501,42 @@ class SimTest(sim_test_case.SimTestCase):
     close. This is a strong test that the VLoop BC is working as expected.
     """
     test_config = 'test_timedependence'
-    profiles = [
-        output.TEMP_ION,
-        output.TEMP_EL,
-        output.NE,
-        output.PSI,
-    ]
 
     # Run the first sim
     config_ip_bc = self._get_config_dict(test_config + '.py')
     torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
-    sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
+    _, sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
     middle_index = len(sim_outputs_ip_bc.times) // 2
     times = sim_outputs_ip_bc.times
 
     # Run the second sim
     config_vloop_bc = copy.deepcopy(config_ip_bc)
-    config_vloop_bc['runtime_params']['profile_conditions'][
+    config_vloop_bc['profile_conditions'][
         'use_vloop_lcfs_boundary_condition'
     ] = True
-    config_vloop_bc['runtime_params']['profile_conditions']['vloop_lcfs'] = (
+    config_vloop_bc['profile_conditions']['vloop_lcfs'] = (
         times,
-        sim_outputs_ip_bc.core_profiles.vloop_lcfs,
+        sim_outputs_ip_bc._stacked_core_profiles.vloop_lcfs,
     )
     torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
-    sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
+    _, sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
 
-    for profile in profiles:
+    profiles_to_check = (
+        sim_outputs_vloop_bc._stacked_core_profiles.T_i,
+        sim_outputs_vloop_bc._stacked_core_profiles.T_e,
+        sim_outputs_vloop_bc._stacked_core_profiles.psi,
+        sim_outputs_vloop_bc._stacked_core_profiles.n_e,
+    )
+
+    for profile in profiles_to_check:
       np.testing.assert_allclose(
-          sim_outputs_ip_bc.core_profiles[profile].value[middle_index, :],
-          sim_outputs_vloop_bc.core_profiles[profile].value[middle_index, :],
+          profile.value[middle_index, :],
+          profile.value[middle_index, :],
           rtol=1e-3,
       )
       np.testing.assert_allclose(
-          sim_outputs_ip_bc.core_profiles[profile].value[-1, :],
-          sim_outputs_vloop_bc.core_profiles[profile].value[-1, :],
+          profile.value[-1, :],
+          profile.value[-1, :],
           rtol=1e-3,
       )
 
@@ -556,81 +545,10 @@ class SimTest(sim_test_case.SimTestCase):
   def test_nans_trigger_error(self):
     """Verify that NaNs in profile evolution triggers early stopping and an error."""
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
-    state_history = run_simulation.run_simulation(torax_config)
+    _, state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
-    self.assertLess(
-        state_history.times[-1],
-        torax_config.runtime_params.numerics.t_final,
-    )
-
-def verify_core_profiles(ref_profiles, index, core_profiles):
-  """Verify core profiles matches a reference at given index."""
-  np.testing.assert_allclose(
-      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ne.value, ref_profiles[output.NE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ne.right_face_constraint,
-      ref_profiles[output.NE_RIGHT_BC][index],
-  )
-  np.testing.assert_allclose(
-      core_profiles.psi.value, ref_profiles[output.PSI][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ni.value, ref_profiles[output.NI][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.ni.right_face_constraint,
-      ref_profiles[output.NI_RIGHT_BC][index],
-  )
-
-  np.testing.assert_allclose(
-      core_profiles.q_face, ref_profiles[output.Q_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.s_face, ref_profiles[output.S_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.nref, ref_profiles[output.NREF][index]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap,
-      ref_profiles[output.J_BOOTSTRAP][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.external_current_source,
-      ref_profiles[output.EXTERNAL_CURRENT][index, :],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.I_bootstrap,
-      ref_profiles[output.I_BOOTSTRAP][index],
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.Ip_profile_face,
-      ref_profiles[output.IP_PROFILE_FACE][index, :],
-  )
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
 
 
 if __name__ == '__main__':

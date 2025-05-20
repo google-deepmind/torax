@@ -15,12 +15,12 @@
 """Tests BgB transport.
 
 - BgB transport model (heat + particle transport)
-- Linear stepper with Pereverzev-Corrigan
+- Linear solver with Pereverzev-Corrigan
 - Chi time step calculator
 - Circular geometry
 - Sources:
   - No bootstrap
-  - generic_current_source
+  - generic_current
   - generic particle source
   - gas puff
   - pellet
@@ -30,48 +30,51 @@
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.8,
-            'ne_bound_right': 0.5,
-            'ne_bound_right_is_fGW': True,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.8,
+        'n_e_right_bc': 0.5,
+        'n_e_right_bc_is_fGW': True,
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
     },
+    'numerics': {
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
+    'neoclassical': {
+        'bootstrap_current': {},
+    },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current_source': {},
-        'j_bootstrap': {},
-        # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {},
-        'gas_puff_source': {},
-        'pellet_source': {},
+        'generic_current': {},
+        # Electron density sources/sink (for the n_e equation).
+        'generic_particle': {},
+        'gas_puff': {},
+        'pellet': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'neped': 0.8,
-        'neped_is_fGW': True,
+        'n_e_ped': 0.8,
+        'n_e_ped_is_fGW': True,
     },
     'transport': {
-        'transport_model': 'bohm-gyrobohm',
+        'model_name': 'bohm-gyrobohm',
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': False,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

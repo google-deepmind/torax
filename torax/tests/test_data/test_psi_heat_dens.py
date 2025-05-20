@@ -18,44 +18,43 @@ Constant transport coefficient model. Pedestal
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'nbar': 0.85,  # initial density (in Greenwald fraction units)
-            'ne_bound_right': 0.5,
-            'nu': 0,
-        },
-        'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
-            'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
-        },
+    'profile_conditions': {
+        'nbar': 0.85,  # initial density (in Greenwald fraction units)
+        'n_e_right_bc': 0.5e20,
+        'current_profile_nu': 0,
     },
+    'numerics': {
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_density': True,
+        'evolve_current': True,
+        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        't_final': 2,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
     'sources': {
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'j_bootstrap': {},
-        'generic_current_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_current': {},
     },
-    'pedestal': {
-        'pedestal_model': 'set_tped_nped',
-        'set_pedestal': True},
+    'neoclassical': {
+        'bootstrap_current': {},
+    },
+    'pedestal': {'model_name': 'set_T_ped_n_ped', 'set_pedestal': True},
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
         # constant params.
         # diffusion coefficient in electron density equation in m^2/s
-        'De_const': 0.5,
+        'D_e': 0.5,
         # convection coefficient in electron density equation in m^2/s
-        'Ve_const': -0.2,
+        'V_e': -0.2,
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': False,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

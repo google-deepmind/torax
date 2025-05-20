@@ -16,95 +16,92 @@
 
 
 CONFIG = {
-    'runtime_params': {
-        'plasma_composition': {
-            'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
-            'impurity': 'Ne',
-            'Zeff': 1.6,  # sets impurity density
-        },
-        'profile_conditions': {
-            'Ip_tot': 10.5,  # total plasma current in MA
-            # boundary + initial conditions for T and n
-            # initial condition ion temperature for r=0 and r=Rmin
-            'Ti': {0.0: {0.0: 15.0, 1.0: 0.2}},
-            'Ti_bound_right': (
-                0.2
-            ),  # boundary condition ion temperature for r=Rmin
-            # initial condition electron temperature for r=0 and r=Rmin
-            'Te': {0.0: {0.0: 15.0, 1.0: 0.2}},
-            'Te_bound_right': (
-                0.2
-            ),  # boundary condition electron temp for r=Rmin
-            'ne_bound_right': 0.25,  # boundary condition density for r=Rmin
-            # set initial condition density according to Greenwald fraction.
-            'ne_is_fGW': True,
-            'nbar': 0.8,  # original simulation goes up to ~0.9
-            'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-        },
-        'numerics': {
-            # simulation control
-            't_final': 3,  # length of simulation time in seconds
-            # 1/multiplication factor for sigma (conductivity) to reduce current
-            # diffusion timescale to be closer to heat diffusion timescale.
-            'resistivity_mult': 200,
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'current_eq': True,
-            'dens_eq': True,
-            'maxdt': 0.5,
-            # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-            # likely be increased further beyond this default.
-            'dtmult': 50,
-            'dt_reduction_factor': 3,
-        },
+    'plasma_composition': {
+        'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
+        'impurity': 'Ne',
+        'Z_eff': 1.6,  # sets impurity density
+    },
+    'profile_conditions': {
+        'Ip': 10.5e6,  # total plasma current in A
+        # boundary + initial conditions for T and n
+        # initial condition ion temperature for r=0 and r=a_minor
+        'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},
+        'T_i_right_bc': 0.2,  # boundary condition ion temperature for r=a_minor
+        # initial condition electron temperature for r=0 and r=a_minor
+        'T_e': {0.0: {0.0: 15.0, 1.0: 0.2}},
+        'T_e_right_bc': 0.2,  # boundary condition electron temp for r=a_minor
+        'n_e_right_bc': 0.25e20,  # boundary condition density for r=a_minor
+        # set initial condition density according to Greenwald fraction.
+        'n_e_nbar_is_fGW': True,
+        'normalize_n_e_to_nbar': True,
+        'nbar': 0.8,  # original simulation goes up to ~0.9
+        'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
+    },
+    'numerics': {
+        # simulation control
+        't_final': 3,  # length of simulation time in seconds
+        # 1/multiplication factor for sigma (conductivity) to reduce current
+        # diffusion timescale to be closer to heat diffusion timescale.
+        'resistivity_multiplier': 200,
+        'evolve_ion_heat': True,
+        'evolve_electron_heat': True,
+        'evolve_current': True,
+        'evolve_density': True,
+        'max_dt': 0.5,
+        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
+        # likely be increased further beyond this default.
+        'chi_timestep_prefactor': 50,
+        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
         'Ip_from_parameters': True,
-        'Rmaj': 6.2,  # major radius (R) in meters
-        'Rmin': 2.0,  # minor radius (a) in meters
-        'B0': 5.3,  # Toroidal magnetic field on axis [T]
+        'R_major': 6.2,  # major radius (R) in meters
+        'a_minor': 2.0,  # minor radius (a) in meters
+        'B_0': 5.3,  # Toroidal magnetic field on axis [T]
+    },
+    'neoclassical': {
+        'bootstrap_current': {
+            # Multiplication factor for bootstrap current (note fbs~0.3 in
+            # original simu)
+            'bootstrap_multiplier': 1.0,
+        },
     },
     'sources': {
         # Current sources (for psi equation)
-        'j_bootstrap': {
-            # Multiplication factor for bootstrap current (note fbs~0.3 in
-            # original simu)
-            'bootstrap_mult': 1.0,
-        },
-        'generic_current_source': {
+        'generic_current': {
             # total "external" current fraction
-            'fext': 0.46,
+            'fraction_of_total_current': 0.46,
             # width of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'wext': 0.075,
+            'gaussian_width': 0.075,
             # radius of "external" Gaussian current profile (normalized radial
             # coordinate)
-            'rext': 0.36,
+            'gaussian_location': 0.36,
         },
-        # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {
+        # Electron density sources/sink (for the n_e equation).
+        'generic_particle': {
             # total particle source
-            'S_tot': 2.05e20,
+            'S_total': 2.05e20,
             # particle source Gaussian central location (normalized radial
             # coordinate)
             'deposition_location': 0.3,
             # particle source Gaussian width (normalized radial coordinate)
             'particle_width': 0.25,
         },
-        'gas_puff_source': {
+        'gas_puff': {
             # pellets behave like a gas puff for this simulation with
             # exponential decay therefore use the puff structure for pellets
             # exponential decay length of gas puff ionization (normalized radial
             # coordinate)
             'puff_decay_length': 0.3,
             # total pellet particles/s
-            'S_puff_tot': 6.0e21,
+            'S_total': 6.0e21,
         },
-        'pellet_source': {
+        'pellet': {
             # total pellet particles/s (continuous pellet model)
-            'S_pellet_tot': 0.0e22,
+            'S_total': 0.0e22,
             # Gaussian width of pellet deposition (normalized radial coordinate)
             # in continuous pellet model
             'pellet_width': 0.1,
@@ -113,55 +110,57 @@ CONFIG = {
             'pellet_deposition_location': 0.85,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {
-            'rsource': 0.12741589640723575,
+        'generic_heat': {
+            'gaussian_location': 0.12741589640723575,
             # Gaussian width in normalized radial coordinate r
-            'w': 0.07280908366127758,
+            'gaussian_width': 0.07280908366127758,
             # total heating (including accounting for radiation) r
-            'Ptot': 51.0e6,
+            'P_total': 51.0e6,
             # electron heating fraction r
-            'el_heat_fraction': 0.68,
+            'electron_heat_fraction': 0.68,
         },
-        'fusion_heat_source': {},
-        'qei_source': {
+        'fusion': {},
+        'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
-            'Qei_mult': 1.0,
+            'Qei_multiplier': 1.0,
         },
     },
     'pedestal': {
-        'pedestal_model': 'set_tped_nped',
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
-        'Tiped': 4.5,  # ion pedestal top temperature in keV for Ti and Te
-        'Teped': 4.5,  # electron pedestal top temperature in keV for Ti and Te
-        'neped': 0.62,  # pedestal top electron density in units of nref
+        'T_i_ped': 4.5,  # ion pedestal top temperature in keV for T_i and T_e
+        'T_e_ped': (
+            4.5
+        ),  # electron pedestal top temperature in keV for T_i and T_e
+        'n_e_ped': 0.62e20,  # pedestal top electron density in m^-3
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius},
     },
     'transport': {
-        'transport_model': 'qlknn',
+        'model_name': 'qlknn',
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
         'apply_inner_patch': True,
-        'De_inner': 0.25,
-        'Ve_inner': 0.0,
-        'chii_inner': 1.0,
-        'chie_inner': 1.0,
+        'D_e_inner': 0.25,
+        'V_e_inner': 0.0,
+        'chi_i_inner': 1.0,
+        'chi_e_inner': 1.0,
         'rho_inner': 0.2,  # radius below which patch transport is applied
         # set outer core transport coefficients (L-mode near edge region)
         'apply_outer_patch': True,
-        'De_outer': 0.1,
-        'Ve_outer': 0.0,
-        'chii_outer': 2.0,
-        'chie_outer': 2.0,
+        'D_e_outer': 0.1,
+        'V_e_outer': 0.0,
+        'chi_i_outer': 2.0,
+        'chi_e_outer': 2.0,
         'rho_outer': 0.9,  # radius above which patch transport is applied
         # allowed chi and diffusivity bounds
-        'chimin': 0.05,  # minimum chi
-        'chimax': 100,  # maximum chi (can be helpful for stability)
-        'Demin': 0.05,  # minimum electron diffusivity
+        'chi_min': 0.05,  # minimum chi
+        'chi_max': 100,  # maximum chi (can be helpful for stability)
+        'D_e_min': 0.05,  # minimum electron diffusivity
         # qlknn params.
-        'DVeff': True,
+        'DV_effective': True,
         'include_ITG': True,  # to toggle ITG modes on or off
         'include_TEM': True,  # to toggle TEM modes on or off
         'include_ETG': True,  # to toggle ETG modes on or off
-        # ensure that smag - alpha > -0.2 always, to compensate for no slab
+        # ensure that smag - fusion > -0.2 always, to compensate for no slab
         # modes
         'avoid_big_negative_s': True,
         # minimum |R/Lne| below which effective V is used instead of
@@ -169,14 +168,14 @@ CONFIG = {
         'An_min': 0.05,
         'ITG_flux_ratio_correction': 1,
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': True,
-        'corrector_steps': 1,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': True,
+        'n_corrector_steps': 1,
         # (deliberately) large heat conductivity for Pereverzev rule
-        'chi_per': 30,
+        'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
-        'd_per': 15,
+        'D_pereverzev': 15,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

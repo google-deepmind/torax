@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests Crank-Nicolson method, Ti+Te, no Pei, no pedestal, constant chi.
+"""Tests Crank-Nicolson method, T_i+T_e, no Pei, no pedestal, constant chi.
 
 The ground truth for this test was generated using implicit method, we
 just check that Crank-Nicolson doesn't deviate too far from that.
@@ -20,39 +20,39 @@ just check that Crank-Nicolson doesn't deviate too far from that.
 
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-        },
-        'numerics': {
-            't_final': 1,
-        },
+    'profile_conditions': {
+        'n_e_right_bc': 0.5e20,
     },
+    'numerics': {
+        't_final': 1,
+        'chi_timestep_prefactor': 9.,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current_source': {},
-        # Electron density sources/sink (for the ne equation).
-        'generic_particle_source': {},
-        'gas_puff_source': {},
-        'pellet_source': {},
+        'generic_current': {},
+        # Electron density sources/sink (for the n_e equation).
+        'generic_particle': {},
+        'gas_puff': {},
+        'pellet': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_ion_el_heat_source': {},
-        'qei_source': {
+        'generic_heat': {},
+        'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
-            'Qei_mult': 0.0,
+            'Qei_multiplier': 0.0,
         },
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'constant',
+        'model_name': 'constant',
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
-        'theta_imp': 0.5,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': False,
+        'theta_implicit': 0.5,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

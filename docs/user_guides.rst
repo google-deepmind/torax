@@ -24,3 +24,4 @@ input and output, the TORAX equation summary, solver details, and physics model 
    equation_summary
    solver_details
    physics_models
+   electron-cyclotron-derivation

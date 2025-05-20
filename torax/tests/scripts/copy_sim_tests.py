@@ -21,7 +21,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 
-from torax.tests import test_lib
+from torax.tests import scripts
 
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',
@@ -57,26 +57,26 @@ def _copy_all_failed_sim_test_outputs() -> None:
         'Make sure failed tests exist in output directory.'
     )
 
-  for failed_test_dir in os.listdir(failed_test_output_dir):
-    _copy_sim_test_outputs(failed_test_dir)
+  for failed_test_file in os.listdir(failed_test_output_dir):
+    _copy_sim_test_outputs(failed_test_file)
 
 
-def _copy_sim_test_outputs(failed_test_dir: str) -> None:
+def _copy_sim_test_outputs(failed_test_file: str) -> None:
   """Compares xarray outputs of failed sim tests to their references.
 
   Args:
-    failed_test_dir: Name of the failed test directory.
+    failed_test_file: Name of the failed test directory.
   """
+  test_name = failed_test_file.split('.')[0]
+
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
   reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
-  old_file = os.path.join(reference_test_data_dir, failed_test_dir + '.nc')
-  new_file = os.path.join(
-      failed_test_output_dir, failed_test_dir, 'state_history.nc'
-  )
+  old_file = os.path.join(reference_test_data_dir, failed_test_file)
+  new_file = os.path.join(failed_test_output_dir, failed_test_file)
 
   # Copy old_file to new_file, overwriting new_file if it exists.
   # Only copy references where the test name matches the reference name.
-  if failed_test_dir == test_lib.get_data_file(failed_test_dir)[:-3]:
+  if failed_test_file == scripts.get_data_file(test_name):
     shutil.copy(new_file, old_file)
     print(f'\nCopied {new_file} to {old_file}\n')
 

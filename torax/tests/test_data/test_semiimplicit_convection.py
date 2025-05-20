@@ -15,40 +15,38 @@
 """Tests semi-implicit convection as carried out with FiPy.
 
 Semi-implicit convection can lead to numerical instability at boundary
-condition. No pedestal, implicit + pereverzev-corrigan, Ti+Te,
+condition. No pedestal, implicit + pereverzev-corrigan, T_i+T_e,
 Pei standard dens, chi from CGM.
 """
 
 CONFIG = {
-    'runtime_params': {
-        'profile_conditions': {
-            'ne_bound_right': 0.5,
-        },
-        'numerics': {
-            't_final': 0.5,
-        },
+    'profile_conditions': {
+        'n_e_right_bc': 0.5e20,
     },
+    'numerics': {
+        't_final': 0.5,
+    },
+    'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
     },
     'sources': {
-        'j_bootstrap': {
-            'bootstrap_mult': 0.0,
-        },
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'generic_current_source': {},
+        'generic_heat': {},
+        'ei_exchange': {},
+        'generic_current': {},
     },
     'pedestal': {},
     'transport': {
-        'transport_model': 'CGM',
+        'model_name': 'CGM',
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
+    'solver': {
+        'solver_type': 'linear',
+        'use_predictor_corrector': False,
         'convection_dirichlet_mode': 'semi-implicit',
         'convection_neumann_mode': 'semi-implicit',
         'use_pereverzev': True,
+        'chi_pereverzev': 20.0,
+        'D_pereverzev': 10.0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

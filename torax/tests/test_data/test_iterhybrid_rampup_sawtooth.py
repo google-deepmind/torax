@@ -18,27 +18,27 @@ from torax.tests.test_data import test_iterhybrid_rampup
 
 
 CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
-assert(isinstance(CONFIG['runtime_params']['profile_conditions'], dict))
-CONFIG['runtime_params']['profile_conditions']['initial_psi_from_j'] = True
-CONFIG['runtime_params']['profile_conditions']['nu'] = 2.0
-CONFIG['sources']['generic_current_source']['fext'] = 0.0
-CONFIG['sources']['generic_ion_el_heat_source']['Ptot'] = 0.0
-CONFIG['sources']['ohmic_heat_source'] = {}
-CONFIG['runtime_params']['numerics']['resistivity_mult'] = 10.0
-CONFIG['runtime_params']['numerics']['fixed_dt'] = 1.0
-CONFIG['transport']['chii_inner'] = 0.2
-CONFIG['transport']['chie_inner'] = 0.2
-CONFIG['transport']['De_inner'] = 0.02
+assert(isinstance(CONFIG['profile_conditions'], dict))
+CONFIG['profile_conditions']['initial_psi_from_j'] = True
+CONFIG['profile_conditions']['current_profile_nu'] = 2.0
+CONFIG['sources']['generic_current']['fraction_of_total_current'] = 0.0
+CONFIG['sources']['generic_heat']['P_total'] = 0.0
+CONFIG['sources']['ohmic'] = {}
+CONFIG['numerics']['resistivity_multiplier'] = 10.0
+CONFIG['numerics']['fixed_dt'] = 1.0
+CONFIG['transport']['chi_i_inner'] = 0.2
+CONFIG['transport']['chi_e_inner'] = 0.2
+CONFIG['transport']['D_e_inner'] = 0.02
 CONFIG['transport']['rho_inner'] = 0.15
 CONFIG['mhd'] = {
     'sawtooth': {
-        'trigger_model_config': {
-            'trigger_model_type': 'simple',
+        'trigger_model': {
+            'model_name': 'simple',
             'minimum_radius': 0.05,
             's_critical': 0.15,
         },
-        'redistribution_model_config': {
-            'redistribution_model_type': 'simple',
+        'redistribution_model': {
+            'model_name': 'simple',
             'flattening_factor': 1.001,
             'mixing_radius_multiplier': 1.3,
         },
