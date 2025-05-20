@@ -29,13 +29,14 @@ try:
     from imas.ids_toplevel import IDSToplevel
 except ImportError:
     IDSToplevel = Any
-from torax import post_processing
-from torax.config import build_runtime_params
-from torax.orchestration.run_simulation import prep_simulation
-from torax.tests.test_lib import sim_test_case
+
+from torax._src.output_tools import post_processing
+from torax._src.config import build_runtime_params
+from torax._src.orchestration.run_simulation import prep_simulation
+from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import model_config
 from torax.torax_imastools.equilibrium import geometry_to_IMAS
 from torax.torax_imastools.util import load_IMAS_data
-from torax.torax_pydantic import model_config
 
 
 @pytest.mark.skipif(
@@ -89,9 +90,10 @@ class EquilibriumTest(sim_test_case.SimTestCase):
             _,
             _,
         ) = prep_simulation(torax_config)
+
         dynamic_runtime_params_slice_for_init, _ = (
             build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-                t=torax_config.runtime_params.numerics.t_initial,
+                t=torax_config.numerics.t_initial,
                 dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
                 geometry_provider=geometry_provider,
             )

@@ -24,8 +24,9 @@ try:
     from imas.ids_toplevel import IDSToplevel
 except ImportError:
     IDSToplevel = Any
-from torax import state
-from torax.geometry import geometry_loader
+from torax._src.orchestration import sim_state
+from torax._src.output_tools import post_processing
+from torax._src.geometry import geometry_loader
 from torax.torax_imastools.util import requires_module, face_to_cell
 
 @requires_module("imas")
@@ -179,8 +180,8 @@ def geometry_from_IMAS(
 
 @requires_module("imas")
 def geometry_to_IMAS(
-    SimState: state.ToraxSimState,
-    post_processed_outputs: state.PostProcessedOutputs,
+    SimState: sim_state.ToraxSimState,
+    post_processed_outputs: post_processing.PostProcessedOutputs,
     equilibrium_in: IDSToplevel | None = None,
 ) -> IDSToplevel:
     """Constructs an IMAS equilibrium IDS from a StandardGeometry object.
