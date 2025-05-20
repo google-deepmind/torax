@@ -251,13 +251,13 @@ def geometry_to_IMAS(
     eq.profiles_1d.gm2 = geometry.g2 / (dpsidrhotor ** 2 * dvoldpsi**2)
 
     # Quantities computed by the transport code useful for coupling with equilibrium code
-    eq.profiles_1d.pressure = face_to_cell(post_processed_outputs.pressure_thermal_tot_face)
-    eq.profiles_1d.dpressure_dpsi = face_to_cell(post_processed_outputs.pprime_face)
+    eq.profiles_1d.pressure = face_to_cell(post_processed_outputs.pressure_thermal_total)
+    eq.profiles_1d.dpressure_dpsi = face_to_cell(post_processed_outputs.pprime)
 
     # <j.B>/B_0, could be useful to calculate and use instead of FF'
     # determine sign how?
     eq.profiles_1d.f = -1 * geometry.F  # Is probably not self-consistent due to the evolution of the state by the solver.
-    eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime_face)
+    eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime)
     eq.profiles_1d.q = face_to_cell(core_profiles.q_face)
 
     # Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
