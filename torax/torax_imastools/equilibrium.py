@@ -55,7 +55,7 @@ def geometry_from_IMAS(
     geometry_dir: str | None = None,
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
-    hires_fac: int = 4,
+    hires_factor: int = 4,
 ) -> Dict:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
     Args:
@@ -70,7 +70,7 @@ def geometry_from_IMAS(
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
       n_rho: Radial grid points (num cells)
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
     Returns:
       A StandardGeometry instance based on the input file. This can then be
@@ -176,7 +176,7 @@ def geometry_from_IMAS(
         "elongation": IMAS_data.profiles_1d.elongation,
         "vpr": vpr,
         "n_rho": n_rho,
-        "hires_fac": hires_fac,
+        "hires_factor": hires_factor,
         "z_magnetic_axis": z_magnetic_axis,
     }
 

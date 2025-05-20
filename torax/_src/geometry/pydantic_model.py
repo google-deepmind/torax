@@ -254,7 +254,7 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     geometry_type: Always set to 'imas'.
     n_rho: Number of radial grid points.
-    hires_fac: Only used when the initial condition ``psi`` is from plasma
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_dir: Optionally overrides the `TORAX_GEOMETRY_DIR` environment
@@ -267,7 +267,7 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
 
   geometry_type: Annotated[Literal['imas'], TIME_INVARIANT] = 'imas'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
-  hires_fac: pydantic.PositiveInt = 4
+  hires_factor: pydantic.PositiveInt = 4
   geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
   equilibrium_object: str | Any = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = False

@@ -936,7 +936,7 @@ class StandardGeometryIntermediates:
       geometry_dir: str | None,
       Ip_from_parameters: bool,
       n_rho: int,
-      hires_fac: int,
+      hires_factor: int,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
@@ -949,7 +949,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
       n_rho: Radial grid points (num cells)
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
 
     Returns:
@@ -961,7 +961,7 @@ class StandardGeometryIntermediates:
         geometry_dir=geometry_dir,
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,
-        hires_fac=hires_fac,
+        hires_factor=hires_factor,
     )
     return cls(geometry_type=geometry.GeometryType.IMAS, **inputs)
 
