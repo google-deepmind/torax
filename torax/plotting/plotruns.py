@@ -18,11 +18,11 @@ Includes a time slider. Reads output files with xarray data or legacy h5 data.
 
 Plots are configured by a plot_config module.
 """
-import importlib
 from absl import app
 from absl import logging
 from absl.flags import argparse_flags
 import matplotlib
+from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 
 
@@ -51,8 +51,9 @@ def parse_flags(_):
 def main(args):
   plot_config_module_path = args.plot_config
   try:
-    plot_config_module = importlib.import_module(plot_config_module_path)
-    plot_config = plot_config_module.PLOT_CONFIG
+    plot_config = config_loader.import_module(plot_config_module_path)[
+        'PLOT_CONFIG'
+    ]
   except (ModuleNotFoundError, AttributeError) as e:
     logging.exception(
         'Error loading plot config: %s: %s', plot_config_module_path, e
