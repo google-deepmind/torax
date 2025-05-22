@@ -14,8 +14,10 @@
 
 """Base pydantic config for Transport models."""
 import abc
+import warnings
 
 import chex
+import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
@@ -35,6 +37,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     D_e_max: maximum electron density diffusivity.
     V_e_min: minimum electron density convection.
     V_e_max: minimum electron density convection.
+    rho_min: normalized radius above which this model is applied.
+    rho_max: normalized radius below which this model is applied.
     apply_inner_patch: set inner core transport coefficients (ad-hoc MHD/EM
       transport).
     D_e_inner: inner core electron density diffusivity.
@@ -62,6 +66,12 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
   V_e_min: torax_pydantic.MeterPerSecond = -50.0
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
+  rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   apply_inner_patch: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -109,6 +119,16 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       raise ValueError('D_e_min must be less than D_e_max.')
     if not self.V_e_min < self.V_e_max:
       raise ValueError('V_e_min must be less than V_e_max.')
+    if np.any(self.apply_inner_patch.value) or np.any(
+        self.apply_outer_patch.value
+    ):
+      warnings.warn(
+          'As of torax v1.0.2, apply_inner_patch and apply_outer_patch are'
+          ' deprecated and will be removed in a future release. Consider using'
+          ' a CombinedTransportModel for the inner and outer regions instead'
+          ' (see https://torax.readthedocs.io/en/latest/configuration.html#transport'
+          ' for more information).'
+      )
     return self
 
   def build_dynamic_params(
@@ -121,6 +141,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
         D_e_max=self.D_e_max,
         V_e_min=self.V_e_min,
         V_e_max=self.V_e_max,
+        rho_min=self.rho_min.get_value(t),
+        rho_max=self.rho_max.get_value(t),
         apply_inner_patch=self.apply_inner_patch.get_value(t),
         D_e_inner=self.D_e_inner.get_value(t),
         V_e_inner=self.V_e_inner.get_value(t),

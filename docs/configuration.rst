@@ -657,6 +657,18 @@ transport model.
   A QuaLiKiz Neural Network surrogate model, the default is `QLKNN_7_11 <https://github.com/google-deepmind/fusion_surrogates>`_.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear gyrokinetic transport model.
+* ``'combined'``
+  An additive transport model, where contributions from a list of other models are summed to produce a combined total.
+
+``rho_min`` (float [default = 0.0])
+  :math:`\hat{\rho}` above which transport model is applied.
+
+.. versionadded:: 1.0.2
+
+``rho_max`` (float [default = 1.0])
+  :math:`\hat{\rho}` below which transport model is applied.
+
+.. versionadded:: 1.0.2
 
 ``chi_min`` (float [default = 0.05])
   Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
@@ -676,50 +688,77 @@ transport model.
 ``V_e_max`` (float [default = 50.0])
   Upper allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
 
-``apply_inner_patch`` (**time-varying-scalar** [default = False])
-  If ``True``, set a patch for inner core transport coefficients below ``rho_inner``.
-  Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
-
-``D_e_inner``  (**time-varying-scalar** [default = 0.2])
-  Particle diffusivity value for inner transport patch.
-
-``V_e_inner``  (**time-varying-scalar** [default = 0.0])
-  Particle convection value for inner transport patch.
-
-``chi_i_inner``  (**time-varying-scalar** [default = 1.0])
-  Ion heat conduction value for inner transport patch.
-
-``chi_e_inner`` (**time-varying-scalar** [default = 1.0])
-  Electron heat conduction value for inner transport patch.
-
-``rho_inner`` (float [default = 0.3])
-  :math:`\hat{\rho}` below which inner patch is applied.
-
-``apply_outer_patch`` (**time-varying-scalar** [default = False])
-  If ``True``, set a patch for outer core transport coefficients above ``rho_outer``.
-  Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
-
-``D_e_outer``  (**time-varying-scalar** [default = 0.2])
-  Particle diffusivity value for outer transport patch.
-
-``V_e_outer``  (**time-varying-scalar** [default = 0.0])
-  Particle convection value for outer transport patch.
-
-``chi_i_outer``  (**time-varying-scalar** [default = 1.0])
-  Ion heat conduction value for outer transport patch.
-
-``chi_e_outer`` (**time-varying-scalar** [default = 1.0])
-  Electron heat conduction value for outer transport patch.
-
-``rho_outer`` (float [default = 0.9])
-  :math:`\hat{\rho}` above which outer patch is applied.
-
 ``smoothing_width`` (float [default = 0.0])
   Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
   If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
 
 ``smooth_everywhere`` (bool [default = False])
   Smooth across entire radial domain regardless of inner and outer patches.
+
+``apply_inner_patch`` (**time-varying-scalar** [default = False])
+  If ``True``, set a patch for inner core transport coefficients below ``rho_inner``.
+  Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
+
+  .. deprecated:: 1.0.2
+    Use a ``CombinedTransportModel``, combining the desired transport model with a ``constant`` component set for the inner patch instead.
+
+``D_e_inner``  (**time-varying-scalar** [default = 0.2])
+  Particle diffusivity value for inner transport patch.
+
+  .. deprecated:: 1.0.2
+
+``V_e_inner``  (**time-varying-scalar** [default = 0.0])
+  Particle convection value for inner transport patch.
+
+  .. deprecated:: 1.0.2
+
+``chi_i_inner``  (**time-varying-scalar** [default = 1.0])
+  Ion heat conduction value for inner transport patch.
+
+  .. deprecated:: 1.0.2
+
+``chi_e_inner`` (**time-varying-scalar** [default = 1.0])
+  Electron heat conduction value for inner transport patch.
+
+  .. deprecated:: 1.0.2
+
+``rho_inner`` (float [default = 0.3])
+  :math:`\hat{\rho}` below which inner patch is applied.
+
+  .. deprecated:: 1.0.2
+
+``apply_outer_patch`` (**time-varying-scalar** [default = False])
+  If ``True``, set a patch for outer core transport coefficients above ``rho_outer``.
+  Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
+
+  .. deprecated:: 1.0.2
+    Use a ``CombinedTransportModel``, combining the desired transport model with a ``constant`` component set for the outer patch instead.
+
+``D_e_outer``  (**time-varying-scalar** [default = 0.2])
+  Particle diffusivity value for outer transport patch.
+
+  .. deprecated:: 1.0.2
+
+``V_e_outer``  (**time-varying-scalar** [default = 0.0])
+  Particle convection value for outer transport patch.
+
+  .. deprecated:: 1.0.2
+
+``chi_i_outer``  (**time-varying-scalar** [default = 1.0])
+  Ion heat conduction value for outer transport patch.
+
+  .. deprecated:: 1.0.2
+
+``chi_e_outer`` (**time-varying-scalar** [default = 1.0])
+  Electron heat conduction value for outer transport patch.
+
+  .. deprecated:: 1.0.2
+
+``rho_outer`` (float [default = 0.9])
+  :math:`\hat{\rho}` above which outer patch is applied.
+
+  .. deprecated:: 1.0.2
+
 
 constant
 ^^^^^^^^
@@ -902,6 +941,24 @@ Runtime parameters for the QuaLiKiz model.
 
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DV_effective==True``.
+
+
+combined
+^^^^^^^^
+
+.. versionadded:: 1.0.2
+
+Runtime parameters for combined (additive) transport model.
+In this model, transport coefficients are added together from a list of component models defined on potentially different radial zones.
+Post-processing (clipping and smoothing) is performed on the summed value.
+
+``transport_models`` (list[dict])
+  A list containing config dicts for the component transport models.
+
+   .. warning::
+    TORAX will throw a ``ValueError`` if any of the component transport model config have ``apply_inner_patch`` or ``apply_outer_patch`` set to True.
+    Patches and post-processing options should be set in the config of the ``combined`` model only.
+
 
 sources
 -------
