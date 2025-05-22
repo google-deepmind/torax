@@ -24,32 +24,7 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 import typing_extensions
 
-
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
-class BootstrapCurrentProfile:
-  """Bootstrap current profile.
-
-  Attributes:
-    sigma: plasma conductivity with neoclassical corrections on cell grid.
-    sigma_face: plasma conductivity with neoclassical corrections on face grid.
-    j_bootstrap: Bootstrap current density (Amps / m^2)
-    j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
-  """
-
-  sigma: jax.Array
-  sigma_face: jax.Array
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
-
-  @classmethod
-  def zero_profile(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    return BootstrapCurrentProfile(
-        sigma=jnp.zeros_like(geo.rho),
-        sigma_face=jnp.zeros_like(geo.rho_face),
-        j_bootstrap=jnp.zeros_like(geo.rho),
-        j_bootstrap_face=jnp.zeros_like(geo.rho_face),
-    )
 
 
 @chex.dataclass(frozen=True)

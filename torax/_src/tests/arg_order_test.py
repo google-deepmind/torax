@@ -36,7 +36,6 @@ from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
 from torax._src.solver import predictor_corrector_method
 from torax._src.solver import solver
-from torax._src.sources import bootstrap_current_source
 from torax._src.sources import formulas
 from torax._src.sources import generic_current_source
 from torax._src.sources import qei_source
@@ -117,7 +116,6 @@ class ArgOrderTest(parameterized.TestCase):
       dict(module=newton_raphson_solve_block),
       dict(module=optimizer_solve_block),
       dict(module=residual_and_loss),
-      dict(module=bootstrap_current_source),
       dict(module=generic_current_source),
       dict(module=formulas),
       dict(module=qei_source),
