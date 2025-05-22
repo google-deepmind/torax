@@ -28,7 +28,7 @@ class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
   Ip: array_typing.ScalarFloat
-  vloop_lcfs: array_typing.ScalarFloat
+  v_loop_lcfs: array_typing.ScalarFloat
   T_i_right_bc: array_typing.ScalarFloat
   T_e_right_bc: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
@@ -52,7 +52,7 @@ class DynamicProfileConditions:
 class StaticRuntimeParams:
   """Static params for profile conditions."""
 
-  use_vloop_lcfs_boundary_condition: bool
+  use_v_loop_lcfs_boundary_condition: bool
   normalize_n_e_to_nbar: bool
   # Whether to use absolute ne_bound_right or ne[-1] for setting BC.
   # Set by ne_bound_right condition.
@@ -68,13 +68,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   Attributes:
     Ip: Total plasma current in A. Note that if Ip_from_parameters=False in
       geometry, then this Ip will be overwritten by values from the geometry
-      data. If use_vloop_lcfs_boundary_condition, only used as an initial
+      data. If use_v_loop_lcfs_boundary_condition, only used as an initial
       condition.
-    use_vloop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
-      dspsi_lcfs/dt ). If use_vloop_lcfs_boundary_condition is True, then the
+    use_v_loop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
+      dspsi_lcfs/dt ). If use_v_loop_lcfs_boundary_condition is True, then the
       specified Vloop at the LCFS is used as the boundary condition for the psi
       equation; otherwise, Ip is used as the boundary condition.
-    vloop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
+    v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
     T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
       `None` the boundary condition will instead be taken from `T_i` and `T_e`
       at rhon=1.
@@ -115,8 +115,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
-  use_vloop_lcfs_boundary_condition: bool = False
-  vloop_lcfs: torax_pydantic.TimeVaryingScalar = (
+  use_v_loop_lcfs_boundary_condition: bool = False
+  v_loop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   T_i_right_bc: torax_pydantic.PositiveTimeVaryingScalar | None = None
@@ -195,6 +195,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
       dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
+
     def _get_value(x):
       if isinstance(
           x, (torax_pydantic.TimeVaryingScalar, torax_pydantic.TimeVaryingArray)
@@ -209,7 +210,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   def build_static_params(self) -> StaticRuntimeParams:
     """Builds static runtime params from the config."""
     return StaticRuntimeParams(
-        use_vloop_lcfs_boundary_condition=self.use_vloop_lcfs_boundary_condition,
+        use_v_loop_lcfs_boundary_condition=self.use_v_loop_lcfs_boundary_condition,
         normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
         n_e_right_bc_is_absolute=False if self.n_e_right_bc is None else True,
     )

@@ -309,7 +309,7 @@ def _get_dummy_core_profiles(value, right_face_constraint):
       s_face=1.0,
       psi=dummy_cell_variable,
       psidot=dummy_cell_variable,
-      vloop_lcfs=1.0,
+      v_loop_lcfs=1.0,
       sigma=1.0,
       sigma_face=1.0,
       j_total=1.0,

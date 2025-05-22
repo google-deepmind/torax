@@ -209,13 +209,13 @@ Configures boundary conditions, initial conditions, and (optionally) prescribed
 time-dependence of temperature, density, and current.
 
 ``Ip`` (**time-varying-scalar** [default = 15.0e6])
-  Total plasma current in A. Note that if ``Ip_from_parameters=False`` in geometry, then this Ip will be overwritten by values from the geometry data. Boundary condition for the :math:`\psi` equation if ``use_vloop_lcfs_boundary_condition`` is False. If ``use_vloop_lcfs_boundary_condition`` is True, only used as an initial condition.
+  Total plasma current in A. Note that if ``Ip_from_parameters=False`` in geometry, then this Ip will be overwritten by values from the geometry data. Boundary condition for the :math:`\psi` equation if ``use_v_loop_lcfs_boundary_condition`` is False. If ``use_v_loop_lcfs_boundary_condition`` is True, only used as an initial condition.
 
-``use_vloop_lcfs_boundary_condition`` (bool = False)
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If ``use_vloop_lcfs_boundary_condition`` is True, then the specified Vloop at the LCFS is used to construct the boundary condition for the psi equation; otherwise, Ip is used to construct the boundary condition.
+``use_v_loop_lcfs_boundary_condition`` (bool = False)
+  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If ``use_v_loop_lcfs_boundary_condition`` is True, then the specified Vloop at the LCFS is used to construct the boundary condition for the psi equation; otherwise, Ip is used to construct the boundary condition.
 
-``vloop_lcfs`` (**time-varying-scalar** [default = 0.0])
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at the next timestep. This is ignored if ``use_vloop_lcfs_boundary_condition`` is False.
+``v_loop_lcfs`` (**time-varying-scalar** [default = 0.0])
+  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at the next timestep. This is ignored if ``use_v_loop_lcfs_boundary_condition`` is False.
 
 ``T_i_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary condition will instead be taken from ``T_i`` at :math:`\hat{\rho}=1`.

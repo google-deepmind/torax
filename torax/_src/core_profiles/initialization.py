@@ -50,6 +50,7 @@ def initial_core_profiles(
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
+
   Returns:
     Initial core profiles.
   """
@@ -79,17 +80,17 @@ def initial_core_profiles(
           T_e,
       )
   )
-  # Set vloop_lcfs. Two branches:
-  # 1. Set the vloop_lcfs from profile_conditions if using the vloop BC option
-  # 2. Initialize vloop_lcfs to 0 if using the Ip boundary condition for psi.
-  # In case 2, vloop_lcfs will be updated every timestep based on the psi_lcfs
+  # Set v_loop_lcfs. Two branches:
+  # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
+  # 2. Initialize v_loop_lcfs to 0 if using the Ip boundary condition for psi.
+  # In case 2, v_loop_lcfs will be updated every timestep based on the psi_lcfs
   # values across the time interval. Since there is is one more time value than
-  # time intervals, the vloop_lcfs time-series is underconstrained. Therefore,
-  # after the first timestep we reset vloop_lcfs[0] to vloop_lcfs[1].
+  # time intervals, the v_loop_lcfs time-series is underconstrained. Therefore,
+  # after the first timestep we reset v_loop_lcfs[0] to v_loop_lcfs[1].
 
-  vloop_lcfs = (
-      jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
-      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+  v_loop_lcfs = (
+      jnp.array(dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs)
+      if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
       else jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
 
@@ -121,7 +122,7 @@ def initial_core_profiles(
       density_reference=jnp.asarray(
           dynamic_runtime_params_slice.numerics.density_reference
       ),
-      vloop_lcfs=vloop_lcfs,
+      v_loop_lcfs=v_loop_lcfs,
       sigma=jnp.zeros_like(geo.rho),
       sigma_face=jnp.zeros_like(geo.rho_face),
       j_total=jnp.zeros_like(geo.rho),
@@ -142,20 +143,20 @@ def update_psi_from_j(
     Ip: array_typing.ScalarFloat,
     geo: geometry.Geometry,
     j_total_hires: jax.Array,
-    use_vloop_lcfs_boundary_condition: bool = False,
+    use_v_loop_lcfs_boundary_condition: bool = False,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
 
   For increased accuracy of psi, a hi-res grid is used, due to the double
     integration. Presently used only for initialization. Therefore Ip is
-    a valid source of truth for Ip, even if use_vloop_lcfs_boundary_condition
+    a valid source of truth for Ip, even if use_v_loop_lcfs_boundary_condition
     is True.
 
   Args:
     Ip: Total plasma current [A].
     geo: Torus geometry.
     j_total_hires: High resolution version of j_total [A/m^2].
-    use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
+    use_v_loop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -187,8 +188,8 @@ def update_psi_from_j(
       geo,
   )
 
-  if use_vloop_lcfs_boundary_condition:
-    # For vloop_lcfs, we will prescribe a rate of change of psi at the LCFS
+  if use_v_loop_lcfs_boundary_condition:
+    # For v_loop_lcfs, we will prescribe a rate of change of psi at the LCFS
     # For the first timestep, we need an initial value for psi at the LCFS, so
     # we set it to match the desired plasma current.
     right_face_grad_constraint = None
@@ -237,8 +238,8 @@ def _init_psi_and_psi_derived(
   Returns:
     Refined core profiles.
   """
-  use_vloop_bc = (
-      static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+  use_v_loop_bc = (
+      static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
   )
 
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
@@ -264,7 +265,7 @@ def _init_psi_and_psi_derived(
     )
 
     # Set the BCs to ensure the correct Ip
-    if use_vloop_bc:
+    if use_v_loop_bc:
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
       # to achieve the desired Ip
       right_face_grad_constraint = None
@@ -304,9 +305,11 @@ def _init_psi_and_psi_derived(
     # by make_ip_consistent
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,  # Use psi from equilibrium
-        right_face_grad_constraint=None if use_vloop_bc else dpsi_drhonorm_edge,
+        right_face_grad_constraint=None
+        if use_v_loop_bc
+        else dpsi_drhonorm_edge,
         right_face_constraint=geo.psi_from_Ip_face[-1]
-        if use_vloop_bc
+        if use_v_loop_bc
         else None,
         dr=geo.drho_norm,
     )
@@ -325,7 +328,7 @@ def _init_psi_and_psi_derived(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         j_total_hires,
-        use_vloop_lcfs_boundary_condition=use_vloop_bc,
+        use_v_loop_lcfs_boundary_condition=use_v_loop_bc,
     )
     core_profiles = dataclasses.replace(
         core_profiles,
@@ -349,7 +352,7 @@ def _init_psi_and_psi_derived(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         j_total_hires,
-        use_vloop_lcfs_boundary_condition=use_vloop_bc,
+        use_v_loop_lcfs_boundary_condition=use_v_loop_bc,
     )
 
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
@@ -391,18 +394,18 @@ def _init_psi_and_psi_derived(
       geo=geo,
   )
 
-  # psidot boundary condition. If vloop_lcfs is not prescribed then we set it
+  # psidot boundary condition. If v_loop_lcfs is not prescribed then we set it
   # to the last calculated psidot for the initialisation since we have no
   # other information.
-  vloop_lcfs = (
-      dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
-      if use_vloop_bc
+  v_loop_lcfs = (
+      dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs
+      if use_v_loop_bc
       else psidot[-1]
   )
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psidot,
-      right_face_constraint=vloop_lcfs,
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
   core_profiles = dataclasses.replace(
@@ -445,7 +448,7 @@ def _get_j_total_hires(
   ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
-    Ctot_hires = Ip/ denom
+    Ctot_hires = Ip / denom
     j_total_hires = jformula_hires * Ctot_hires
   else:
     I_non_inductive = math_utils.area_integration(psi_current, geo)

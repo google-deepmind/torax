@@ -63,7 +63,7 @@ IP_PROFILE = "Ip_profile"
 SIGMA_PARALLEL = "sigma_parallel"
 
 IP = "Ip"
-VLOOP_LCFS = "vloop_lcfs"
+V_LOOP_LCFS = "v_loop_lcfs"
 
 # Core transport.
 CHI_TURB_I = "chi_turb_i"
@@ -498,7 +498,7 @@ class StateHistory:
     xr_dict[Q] = core_profiles.q_face
     xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
 
-    xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
+    xr_dict[V_LOOP_LCFS] = core_profiles.v_loop_lcfs
 
     xr_dict = {
         name: self._pack_into_data_array(

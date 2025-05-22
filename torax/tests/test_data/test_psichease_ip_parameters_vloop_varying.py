@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Tests CHEASE geometry when setting Ip from config, with varying vloop.
+"""Tests CHEASE geometry when setting Ip from config, with varying v_loop.
 
 * Ip from parameters
 * implicit
@@ -25,14 +25,14 @@ import numpy as np
 
 times = np.linspace(0, 3, 100)
 # 1 Hz frequency
-vloop = 8.7 + 10 * np.sin(2 * np.pi * times)
+v_loop = 8.7 + 10 * np.sin(2 * np.pi * times)
 
 
 CONFIG = {
     'profile_conditions': {
         'n_e_right_bc': 0.5e20,
-        'use_vloop_lcfs_boundary_condition': True,
-        'vloop_lcfs': (times, vloop),
+        'use_v_loop_lcfs_boundary_condition': True,
+        'v_loop_lcfs': (times, v_loop),
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.85,

@@ -164,7 +164,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      vloop_lcfs=scalars_dataset.vloop_lcfs.values,
+      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
   )
   numerics_dataset = data_tree.children[output.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()

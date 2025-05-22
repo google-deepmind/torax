@@ -345,7 +345,7 @@ This dataset contains time-dependent scalar quantities describing global plasma 
 ``n_ref`` (time)
   Reference density used for normalization [:math:`m^{-3}`].
 
-``vloop_lcfs`` (time)
+``v_loop_lcfs`` (time)
   Loop voltage at the last closed flux surface (LCFS) [:math:`Wb/s` or :math:`V`]. This is a scalar value derived from the `v_loop` profile.
 
 ``W_thermal_i`` (time)

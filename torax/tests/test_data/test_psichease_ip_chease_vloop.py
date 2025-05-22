@@ -17,14 +17,14 @@
 * Ip from CHEASE
 * implicit
 * psi (current diffusion) only
-* vloop boundary condition
+* v_loop boundary condition
 """
 
 CONFIG = {
     'profile_conditions': {
         'n_e_right_bc': 0.5e20,
-        'use_vloop_lcfs_boundary_condition': True,
-        'vloop_lcfs': 7.5,
+        'use_v_loop_lcfs_boundary_condition': True,
+        'v_loop_lcfs': 7.5,
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.85,

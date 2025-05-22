@@ -475,13 +475,13 @@ class SimTest(sim_test_case.SimTestCase):
     )
     # pylint: enable=invalid-name
 
-  def test_ip_bc_vloop_bc_equivalence(self):
+  def test_ip_bc_v_loop_bc_equivalence(self):
     """Tests the equivalence of the Ip BC and the VLoop BC.
 
     In this test we:
     - Run a sim with the Ip BC.
-    - Get from the output the vloop_lcfs
-    - Run a second sim with the Vloop BC using vloop_lcfs from the first sim
+    - Get from the output the v_loop_lcfs
+    - Run a second sim with the Vloop BC using v_loop_lcfs from the first sim
     - Compare core profiles between the two sims. Exact equivalence is not
     expected since the boundary condition numerics are different, but should be
     close. This is a strong test that the VLoop BC is working as expected.
@@ -496,22 +496,22 @@ class SimTest(sim_test_case.SimTestCase):
     times = sim_outputs_ip_bc.times
 
     # Run the second sim
-    config_vloop_bc = copy.deepcopy(config_ip_bc)
-    config_vloop_bc['profile_conditions'][
-        'use_vloop_lcfs_boundary_condition'
+    config_v_loop_bc = copy.deepcopy(config_ip_bc)
+    config_v_loop_bc['profile_conditions'][
+        'use_v_loop_lcfs_boundary_condition'
     ] = True
-    config_vloop_bc['profile_conditions']['vloop_lcfs'] = (
+    config_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
-        sim_outputs_ip_bc._stacked_core_profiles.vloop_lcfs,
+        sim_outputs_ip_bc._stacked_core_profiles.v_loop_lcfs,
     )
-    torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
-    _, sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
+    torax_config = model_config.ToraxConfig.from_dict(config_v_loop_bc)
+    _, sim_outputs_v_loop_bc = run_simulation.run_simulation(torax_config)
 
     profiles_to_check = (
-        sim_outputs_vloop_bc._stacked_core_profiles.T_i,
-        sim_outputs_vloop_bc._stacked_core_profiles.T_e,
-        sim_outputs_vloop_bc._stacked_core_profiles.psi,
-        sim_outputs_vloop_bc._stacked_core_profiles.n_e,
+        sim_outputs_v_loop_bc._stacked_core_profiles.T_i,
+        sim_outputs_v_loop_bc._stacked_core_profiles.T_e,
+        sim_outputs_v_loop_bc._stacked_core_profiles.psi,
+        sim_outputs_v_loop_bc._stacked_core_profiles.n_e,
     )
 
     for profile in profiles_to_check:

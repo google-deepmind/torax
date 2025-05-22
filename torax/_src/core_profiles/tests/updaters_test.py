@@ -258,23 +258,23 @@ class UpdatersTest(parameterized.TestCase):
         expected_T_i_right_bc,
     )
 
-  def test_update_vloop_lcfs_from_psi(self):
-    """Consistency check for _update_vloop_lcfs_from_psi.
+  def test_update_v_loop_lcfs_from_psi(self):
+    """Consistency check for _update_v_loop_lcfs_from_psi.
 
-    Check the output inverts _calculate_psi_value_constraint_from_vloop
+    Check the output inverts _calculate_psi_value_constraint_from_v_loop
     as expected.
     """
 
     dt = 1.0
     theta = 1.0
-    vloop_lcfs_t = 0.1
-    vloop_lcfs_t_plus_dt_expected = 0.2
+    v_loop_lcfs_t = 0.1
+    v_loop_lcfs_t_plus_dt_expected = 0.2
     psi_lcfs_t = 0.5
-    psi_lcfs_t_plus_dt = updaters._calculate_psi_value_constraint_from_vloop(
+    psi_lcfs_t_plus_dt = updaters._calculate_psi_value_constraint_from_v_loop(
         dt,
         theta,
-        vloop_lcfs_t,
-        vloop_lcfs_t_plus_dt_expected,
+        v_loop_lcfs_t,
+        v_loop_lcfs_t_plus_dt_expected,
         psi_lcfs_t,
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
@@ -290,12 +290,12 @@ class UpdatersTest(parameterized.TestCase):
         right_face_grad_constraint=0.0,
     )
 
-    vloop_lcfs_t_plus_dt = updaters._update_vloop_lcfs_from_psi(
+    v_loop_lcfs_t_plus_dt = updaters._update_v_loop_lcfs_from_psi(
         psi_t, psi_t_plus_dt, dt
     )
 
     np.testing.assert_allclose(
-        vloop_lcfs_t_plus_dt, vloop_lcfs_t_plus_dt_expected
+        v_loop_lcfs_t_plus_dt, v_loop_lcfs_t_plus_dt_expected
     )
 
 

@@ -49,7 +49,7 @@ class CoreProfiles:
       q_face: Safety factor.
       s_face: Magnetic shear.
       density_reference: Reference density [m^-3].
-      vloop_lcfs: Loop voltage at LCFS (V).
+      v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
@@ -73,7 +73,7 @@ class CoreProfiles:
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
   density_reference: array_typing.ScalarFloat
-  vloop_lcfs: array_typing.ScalarFloat
+  v_loop_lcfs: array_typing.ScalarFloat
   Z_i: array_typing.ArrayFloat
   Z_i_face: array_typing.ArrayFloat
   A_i: array_typing.ScalarFloat

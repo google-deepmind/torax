@@ -48,18 +48,18 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-def _calculate_psi_value_constraint_from_vloop(
+def _calculate_psi_value_constraint_from_v_loop(
     dt: array_typing.ScalarFloat,
     theta: array_typing.ScalarFloat,
-    vloop_lcfs_t: array_typing.ScalarFloat,
-    vloop_lcfs_t_plus_dt: array_typing.ScalarFloat,
+    v_loop_lcfs_t: array_typing.ScalarFloat,
+    v_loop_lcfs_t_plus_dt: array_typing.ScalarFloat,
     psi_lcfs_t: array_typing.ScalarFloat,
 ) -> jax.Array:
   """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
-  theta_weighted_vloop_lcfs = (
+  theta_weighted_v_loop_lcfs = (
       1 - theta
-  ) * vloop_lcfs_t + theta * vloop_lcfs_t_plus_dt
-  return psi_lcfs_t + theta_weighted_vloop_lcfs * dt
+  ) * v_loop_lcfs_t + theta * v_loop_lcfs_t_plus_dt
+  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
 
 
 @functools.partial(
@@ -248,12 +248,8 @@ def update_all_core_profiles_after_step(
     dt: The size of the last timestep.
   """
 
-  T_i = _get_update(
-      x_new, evolving_names, core_profiles_t_plus_dt, 'T_i'
-  )
-  T_e = _get_update(
-      x_new, evolving_names, core_profiles_t_plus_dt, 'T_e'
-  )
+  T_i = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'T_i')
+  T_e = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'T_e')
   psi = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'psi')
   n_e = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'n_e')
 
@@ -269,10 +265,10 @@ def update_all_core_profiles_after_step(
 
   psi_sources = source_profiles.total_psi_sources(geo)
 
-  vloop_lcfs = (
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs  # pylint: disable=g-long-ternary
-      if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-      else _update_vloop_lcfs_from_psi(
+  v_loop_lcfs = (
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
+      if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+      else _update_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
           psi,
           dt,
@@ -289,7 +285,7 @@ def update_all_core_profiles_after_step(
           psi=psi,
           geo=geo,
       ),
-      right_face_constraint=vloop_lcfs,
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
 
@@ -314,7 +310,7 @@ def update_all_core_profiles_after_step(
       density_reference=core_profiles_t_plus_dt.density_reference,
       A_i=core_profiles_t_plus_dt.A_i,
       A_impurity=core_profiles_t_plus_dt.A_impurity,
-      vloop_lcfs=vloop_lcfs,
+      v_loop_lcfs=v_loop_lcfs,
       # These have already been updated in the solver.
       sigma=core_profiles_t_plus_dt.sigma,
       sigma_face=core_profiles_t_plus_dt.sigma_face,
@@ -339,16 +335,14 @@ def compute_boundary_conditions_for_t_plus_dt(
     static_runtime_params_slice: Static (concrete) runtime parameters
     dynamic_runtime_params_slice_t: Dynamic runtime parameters for the current
       timestep. Will not be used if
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is
-      used
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs is
+      None, i.e. if the dirichlet psi boundary condition based on Ip is used
     dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters for the
       next timestep
     geo_t_plus_dt: Geometry object for the next timestep
     core_profiles_t: Core profiles at the current timestep. Will not be used if
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is
-      used
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs is
+      None, i.e. if the dirichlet psi boundary condition based on Ip is used
 
   Returns:
     Mapping from State attribute names to dictionaries updating attributes of
@@ -422,18 +416,18 @@ def compute_boundary_conditions_for_t_plus_dt(
                   Ip=profile_conditions_t_plus_dt.Ip,
                   geo=geo_t_plus_dt,
               )
-              if not static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+              if not static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
-              _calculate_psi_value_constraint_from_vloop(  # pylint: disable=g-long-ternary
+              _calculate_psi_value_constraint_from_v_loop(  # pylint: disable=g-long-ternary
                   dt=dt,
-                  vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
-                  vloop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.vloop_lcfs,
+                  v_loop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.v_loop_lcfs,
+                  v_loop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.v_loop_lcfs,
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
                   theta=static_runtime_params_slice.solver.theta_implicit,
               )
-              if static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+              if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
               else None
           ),
       ),
@@ -528,18 +522,18 @@ def provide_core_profiles_t_plus_dt(
 
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
 # for general theta_implicit values.
-def _update_vloop_lcfs_from_psi(
+def _update_v_loop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
     dt: array_typing.ScalarFloat,
 ) -> jax.Array:
-  """Updates the vloop_lcfs for the next timestep.
+  """Updates the v_loop_lcfs for the next timestep.
 
-  For the Ip boundary condition case, the vloop_lcfs formula is in principle
+  For the Ip boundary condition case, the v_loop_lcfs formula is in principle
   calculated from:
 
   (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
-    vloop_lcfs_t_plus_dt*theta_implicit - vloop_lcfs_t*(1-theta_implicit)
+    v_loop_lcfs_t_plus_dt*theta_implicit - v_loop_lcfs_t*(1-theta_implicit)
 
   However this set of equations is underdetermined. We thus restrict this
   calculation assuming a fully implicit system, i.e. theta_implicit=1, which is
@@ -552,9 +546,9 @@ def _update_vloop_lcfs_from_psi(
     dt: The size of the last timestep.
 
   Returns:
-    The updated vloop_lcfs for the next timestep.
+    The updated v_loop_lcfs for the next timestep.
   """
   psi_lcfs_t = psi_t.face_value()[-1]
   psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
-  vloop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
-  return vloop_lcfs_t_plus_dt
+  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
+  return v_loop_lcfs_t_plus_dt
