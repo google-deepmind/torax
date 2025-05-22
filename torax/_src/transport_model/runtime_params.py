@@ -33,6 +33,8 @@ class DynamicRuntimeParams:
   D_e_max: float
   V_e_min: float
   V_e_max: float
+  rho_min: float
+  rho_max: float
   apply_inner_patch: array_typing.ScalarBool
   D_e_inner: array_typing.ScalarFloat
   V_e_inner: array_typing.ScalarFloat
@@ -53,4 +55,9 @@ class DynamicRuntimeParams:
         self.rho_outer,
         self.rho_outer <= self.rho_inner,
         'rho_outer must be greater than rho_inner.',
+    )
+    jax_utils.error_if(
+        self.rho_max,
+        self.rho_max <= self.rho_min,
+        'rho_max must be greater than rho_min.',
     )
