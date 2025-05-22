@@ -320,7 +320,7 @@ def _helium3_tail_temperature(
   """Use a "Stix distribution" to estimate the tail temperature of He3."""
   helium3_mass = 3.016
   helium3_charge = 2
-  helium3_fraction = minority_concentration / 100  # Min conc provided in %.
+  helium3_fraction = minority_concentration
   absorbed_power_density = power_deposition_he3 * P_total
   n_e20 = core_profiles.n_e.value * core_profiles.density_reference / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
@@ -374,7 +374,8 @@ def icrh_model_func(
       frequency=dynamic_source_runtime_params.frequency,
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density,
-      minority_concentration=dynamic_source_runtime_params.minority_concentration,
+      minority_concentration=dynamic_source_runtime_params.minority_concentration
+      * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
       z0=geo.z_magnetic_axis(),
@@ -486,8 +487,8 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     wall_outer: Outer radial location of first wall at plasma midplane level
       [m].
     frequency: ICRF wave frequency [Hz].
-    minority_concentration: He3 minority concentration relative to the electron
-      density in %.
+    minority_concentration: He3 minority fractional concentration relative to
+      the electron density.
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
@@ -500,7 +501,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       120e6
   )
   minority_concentration: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(3.0)
+      torax_pydantic.ValidatedDefault(0.03)
   )
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       10e6

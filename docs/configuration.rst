@@ -1156,8 +1156,8 @@ environment variable which should point to a compatible JSON file.
 ``frequency`` (**time-varying-scalar** [default = 120e6])
   ICRF wave frequency in Hz.
 
-``minority_concentration`` (**time-varying-scalar** [default = 3.0])
-  Helium-3 minority concentration relative to the electron density in %.
+``minority_concentration`` (**time-varying-scalar** [default = 0.03])
+  Helium-3 minority fractional concentration relative to the electron density.
 
 ``P_total`` (**time-varying-scalar** [default = 10e6])
   Total injected source power in W.

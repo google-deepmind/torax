@@ -56,7 +56,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         frequency=120.0e6,
         volume_average_temperature=6,
         volume_average_density=5,
-        minority_concentration=2.0,
+        minority_concentration=2.0,  # In percentage.
         gap_inner=0.01,
         gap_outer=0.01,
         z0=0.0,
