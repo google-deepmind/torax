@@ -180,12 +180,25 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
       self, qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs
   ) -> jax.Array:
     """Converts QualikizInputs to model inputs."""
+    # The order of keys from self.inputs_and_ranges.keys() now determines
+    # the order of features passed to the model.
+    # This assumes 'ator' and 'exb_shear_rate' were added to QualikizInputs
+    # with these exact names.
+    feature_list = []
+    for key in self.inputs_and_ranges.keys():
+        # For the original inputs that are properties in QualikizInputs (Ati, Ate, Ane)
+        if key == 'Ati':
+            feature_list.append(qualikiz_inputs.Ati)
+        elif key == 'Ate':
+            feature_list.append(qualikiz_inputs.Ate)
+        elif key == 'Ane':
+            feature_list.append(qualikiz_inputs.Ane)
+        # For other inputs that are direct attributes
+        else:
+            feature_list.append(getattr(qualikiz_inputs, key))
     return jnp.array(
-        [
-            getattr(qualikiz_inputs, key)
-            for key in self.inputs_and_ranges.keys()
-        ],
-        dtype=jax_utils.get_dtype(),
+          feature_list,
+          dtype=jax_utils.get_dtype(),
     ).T
 
   @property
@@ -200,4 +213,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
         'x': {'min': 0.09, 'max': 0.99},
         'Ti_Te': {'min': 0.25, 'max': 2.5},
         'log_nu_star_face': {'min': -5.0, 'max': 0.0},
+        # New inputs added below
+        'ator': {'min': -5.0, 'max': 10.0}, # Placeholder range
+        'exb_shear_rate': {'min': 0.0, 'max': 5.0} # Placeholder range
     }
