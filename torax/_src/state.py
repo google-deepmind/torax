@@ -85,6 +85,8 @@ class CoreProfiles:
   j_total: array_typing.ArrayFloat
   j_total_face: array_typing.ArrayFloat
   Ip_profile_face: array_typing.ArrayFloat
+  omega_tor: cell_variable.CellVariable
+
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
@@ -115,6 +117,7 @@ class CoreProfiles:
         n_e={self.n_e},
         n_impurity={self.n_impurity},
         n_i={self.n_i},
+        omega_tor={self.omega_tor},
       )
     """
 
