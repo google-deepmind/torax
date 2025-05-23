@@ -43,6 +43,9 @@ class DynamicProfileConditions:
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.ScalarFloat
   n_e_right_bc_is_fGW: bool
+  # Toroidal rotation profile on the cell grid.
+  omega_tor: array_typing.ArrayFloat
+  omega_tor_right_bc: array_typing.ScalarFloat
   current_profile_nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
@@ -144,6 +147,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   current_profile_nu: float = 1.0
   initial_j_is_total_current: bool = False
   initial_psi_from_j: bool = False
+  omega_tor: torax_pydantic.TimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0: {0: 0.0, 1: 0.0}})
+  )
+  omega_tor_right_bc: torax_pydantic.TimeVaryingScalar | None = None
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:
@@ -167,6 +174,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       _sanity_check_profile_boundary_conditions(self.T_e, 'T_e')
     if self.n_e_right_bc is None:
       _sanity_check_profile_boundary_conditions(self.n_e, 'n_e')
+    if self.omega_tor_right_bc is None:
+      _sanity_check_profile_boundary_conditions(self.omega_tor, 'omega_tor')
     return self
 
   def build_dynamic_params(
@@ -195,6 +204,11 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
       dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
+
+    if self.omega_tor_right_bc is None:
+      dynamic_params['omega_tor_right_bc'] = self.omega_tor.get_value(
+          t, grid_type='face_right'
+      )
 
     def _get_value(x):
       if isinstance(
