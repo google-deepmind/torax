@@ -74,12 +74,19 @@ class TransportModel(abc.ABC):
         pedestal_model_outputs,
     )
 
-    # Apply min/max clipping and pedestal region clipping
-    transport_coeffs = self._apply_clipping(
+    # Restrict the model to operating in its permissible rho domain
+    transport_coeffs = self._apply_domain_restriction(
         dynamic_runtime_params_slice,
         geo,
         transport_coeffs,
         pedestal_model_outputs,
+    )
+
+    # Apply min/max clipping
+    transport_coeffs = self._apply_clipping(
+        dynamic_runtime_params_slice,
+        geo,
+        transport_coeffs,
     )
 
     # Apply inner and outer transport patch
@@ -124,55 +131,65 @@ class TransportModel(abc.ABC):
       other: The object to compare to.
     """
 
-  def _apply_clipping(
+  def _apply_domain_restriction(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       transport_coeffs: state.CoreTransport,
       pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    """Applies min/max and pedestal region clipping to transport coefficients."""
+    """Sets transport coefficients to zero outside the model's domain"""
+    active_mask = (
+        (geo.rho_face_norm >= dynamic_runtime_params_slice.transport.rho_min)
+        & (geo.rho_face_norm <= dynamic_runtime_params_slice.transport.rho_max)
+        & (geo.rho_face_norm <= pedestal_model_outputs.rho_norm_ped_top)
+    )
+
+    chi_face_ion = jnp.where(active_mask, transport_coeffs.chi_face_ion, 0.0)
+    chi_face_el = jnp.where(active_mask, transport_coeffs.chi_face_el, 0.0)
+    d_face_el = jnp.where(active_mask, transport_coeffs.d_face_el, 0.0)
+    v_face_el = jnp.where(active_mask, transport_coeffs.v_face_el, 0.0)
+
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
+
+  def _apply_clipping(
+      self,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      transport_coeffs: state.CoreTransport,
+  ) -> state.CoreTransport:
+    """Applies min/max clipping to transport coefficients for PDE stability."""
     transport = dynamic_runtime_params_slice.transport
 
-    # set minimum and maximum transport coefficients for PDE stability
     chi_face_ion = jnp.clip(
-        transport_coeffs.chi_face_ion, transport.chi_min, transport.chi_max,
+        transport_coeffs.chi_face_ion,
+        transport.chi_min,
+        transport.chi_max,
     )
-
-    # set minimum and maximum chi for PDE stability
     chi_face_el = jnp.clip(
-        transport_coeffs.chi_face_el, transport.chi_min, transport.chi_max,
+        transport_coeffs.chi_face_el,
+        transport.chi_min,
+        transport.chi_max,
     )
-
     d_face_el = jnp.clip(
-        transport_coeffs.d_face_el, transport.D_e_min, transport.D_e_max,
+        transport_coeffs.d_face_el,
+        transport.D_e_min,
+        transport.D_e_max,
     )
+    # NOTE: previously, clipping was applied separately to the pedestal and
+    # elsewhere. This meant ve in the pedestal was set to 0.0, rather than vemin.
+    # Unsure if this represents physics I am not aware of, or if this change
+    # is an overreach [TB, 22 May 2025]
     v_face_el = jnp.clip(
-        transport_coeffs.v_face_el, transport.V_e_min, transport.V_e_max,
-    )
-
-    # set low transport in pedestal region to facilitate PDE solver
-    # (more consistency between desired profile and transport coefficients)
-    mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
-    chi_face_ion = jnp.where(
-        mask,
-        dynamic_runtime_params_slice.transport.chi_min,
-        chi_face_ion,
-    )
-    chi_face_el = jnp.where(
-        mask,
-        dynamic_runtime_params_slice.transport.chi_min,
-        chi_face_el,
-    )
-    d_face_el = jnp.where(
-        mask,
-        dynamic_runtime_params_slice.transport.D_e_min,
-        d_face_el,
-    )
-    v_face_el = jnp.where(
-        mask,
-        0.0,
-        v_face_el,
+        transport_coeffs.v_face_el,
+        transport.V_e_min,
+        transport.V_e_max,
     )
 
     return dataclasses.replace(
