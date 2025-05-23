@@ -71,6 +71,16 @@ def initial_core_profiles(
       geo,
   )
 
+    # Initialize omega_tor CellVariable
+  omega_tor = cell_variable.CellVariable(
+      value=dynamic_runtime_params_slice.profile_conditions.omega_tor,
+      left_face_grad_constraint=jnp.zeros(()),
+      right_face_grad_constraint=None,
+      right_face_constraint=dynamic_runtime_params_slice.profile_conditions.omega_tor_right_bc,
+      dr=geo.drho_norm,
+      name='omega_tor',
+  )
+
   n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
@@ -128,6 +138,7 @@ def initial_core_profiles(
       j_total=jnp.zeros_like(geo.rho),
       j_total_face=jnp.zeros_like(geo.rho_face),
       Ip_profile_face=jnp.zeros_like(geo.rho_face),
+      omega_tor=omega_tor,
   )
 
   return _init_psi_and_psi_derived(
