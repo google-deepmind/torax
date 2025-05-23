@@ -31,6 +31,7 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import model_config
+from torax._src.fvm import cell_variable
 
 # pylint: disable=invalid-name
 
@@ -343,6 +344,89 @@ class InitializationTest(parameterized.TestCase):
     jtotal2, _, _, _, _, _ = _calculate_currents(torax_config, source_models)
 
     np.testing.assert_allclose(jtotal1, jtotal2)
+
+
+def test_initial_core_profiles_omega_tor(self):
+    """Tests initialization of omega_tor in CoreProfiles."""
+    config_dict = default_configs.get_default_config_dict()
+
+    # Define sample omega_tor profile and boundary condition
+    omega_tor_profile_coeffs = {0.0: {0.0: 2.0, 1.0: 0.5}}  # Linearly decreasing profile
+    omega_tor_bc_right = 0.1
+
+    config_dict['profile_conditions']['omega_tor'] = omega_tor_profile_coeffs
+    config_dict['profile_conditions']['omega_tor_right_bc'] = omega_tor_bc_right
+
+    # Ensure these are not None if the main config might have them as None
+    # For this test, T_i_right_bc, T_e_right_bc, n_e_right_bc must be defined
+    # if their main profiles don't provide a value at rho=1.0, or if they are None.
+    # The default config usually provides these.
+    if config_dict['profile_conditions'].get('T_i_right_bc') is None:
+        # Default configs provide these as time varying arrays.
+        # We need to ensure they are set if we simplify to scalar for test.
+        # However, the default config should be fine.
+        pass
+    if config_dict['profile_conditions'].get('T_e_right_bc') is None:
+        pass
+    if config_dict['profile_conditions'].get('n_e_right_bc') is None:
+        pass
+
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
+
+    t_initial = torax_config.numerics.t_initial
+
+    dynamic_runtime_params_slice_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(t=t_initial)
+
+    geo_provider = torax_config.geometry.build_provider
+    geo = geo_provider(t=t_initial)
+
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_params_from_config(torax_config)
+    )
+
+    core_profiles_out = initialization.initial_core_profiles(
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+
+    # Assertions
+    self.assertIsInstance(core_profiles_out.omega_tor, cell_variable.CellVariable)
+
+    # Expected omega_tor values on the cell grid
+    # This comes directly from the dynamic_runtime_params_slice after interpolation by TimeVaryingArray
+    expected_omega_tor_values = dynamic_runtime_params_slice.profile_conditions.omega_tor
+
+    np.testing.assert_allclose(
+        core_profiles_out.omega_tor.value,
+        expected_omega_tor_values,
+        atol=1e-6,
+        err_msg="omega_tor profile values do not match expected.",
+    )
+
+    self.assertEqual(
+        core_profiles_out.omega_tor.right_face_constraint,
+        omega_tor_bc_right,
+        msg="omega_tor right face constraint does not match.",
+    )
+
+    # Assuming default left boundary condition is zero gradient
+    np.testing.assert_allclose(
+        core_profiles_out.omega_tor.left_face_grad_constraint,
+        0.0,
+        atol=1e-9, # Comparing float with 0.0
+        err_msg="omega_tor left face gradient constraint is not zero.",
+    )
 
 
 def _calculate_currents(
