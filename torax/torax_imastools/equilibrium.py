@@ -150,8 +150,12 @@ def geometry_from_IMAS(
     rhon = IMAS_data.profiles_1d.rho_tor_norm
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
     spr = vpr / (2 * np.pi * R_major)
-    Ip_profile = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)
+    Ip_profile_unscaled = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)    # this Ip_profile by integration results in a discrepancy between this term and the total ip from IDS
 
+    # Because of the discrepancy between Ip_profile[-1] (computed by integration) and global_quantities.ip, here we will scale Ip_profile such that the total plasma current is equal
+    Ip_total = -1 * IMAS_data.global_quantities.ip
+    Ip_profile = Ip_profile_unscaled * (Ip_total / Ip_profile_unscaled[-1])       # scaled Ip profile such that the total plasma current is consistent
+    
     # To check
     z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
