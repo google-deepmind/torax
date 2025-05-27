@@ -50,6 +50,7 @@ class CellVariable:
     right_face_grad_constraint: A jax scalar specifying the undetermined value
       of the gradient on the rightmost face variable.
   """
+
   # t* means match 0 or more leading time dimensions.
   value: jt.Float[chex.Array, 't* cell']
   dr: jt.Float[chex.Array, 't*']
@@ -76,6 +77,8 @@ class CellVariable:
     `__post_init__` could in principle make changes.
     """
     # Automatically check dtypes of all numeric fields
+
+    assert hasattr(self, 'items')  # Needed to avoid linter warning.
     for name, value in self.items():
       if isinstance(value, jax.Array):
         if value.dtype != jnp.float64 and jax.config.read('jax_enable_x64'):
@@ -231,13 +234,9 @@ class CellVariable:
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
     if self.left_face_constraint is not None:
-      output_string += (
-          f', left_face_constraint={self.left_face_constraint}'
-      )
+      output_string += f', left_face_constraint={self.left_face_constraint}'
     if self.right_face_constraint is not None:
-      output_string += (
-          f', right_face_constraint={self.right_face_constraint}'
-      )
+      output_string += f', right_face_constraint={self.right_face_constraint}'
     if self.left_face_grad_constraint is not None:
       output_string += (
           f', left_face_grad_constraint={self.left_face_grad_constraint}'
@@ -256,4 +255,35 @@ class CellVariable:
     return jnp.concatenate(
         [left_value, self.value, right_value],
         axis=-1,
+    )
+
+  def __eq__(self, other: object) -> bool:
+
+    if not isinstance(other, CellVariable):
+      return False
+
+    def _compare_optional_arrays(
+        arr1: chex.Array | None, arr2: chex.Array | None
+    ) -> bool:
+      if arr1 is None and arr2 is None:
+        return True
+      if arr1 is None or arr2 is None:
+        return False
+      return jnp.array_equal(arr1, arr2)
+
+    return (
+        jnp.array_equal(self.value, other.value)
+        and jnp.array_equal(self.dr, other.dr)
+        and _compare_optional_arrays(
+            self.left_face_constraint, other.left_face_constraint
+        )
+        and _compare_optional_arrays(
+            self.right_face_constraint, other.right_face_constraint
+        )
+        and _compare_optional_arrays(
+            self.left_face_grad_constraint, other.left_face_grad_constraint
+        )
+        and _compare_optional_arrays(
+            self.right_face_grad_constraint, other.right_face_grad_constraint
+        )
     )

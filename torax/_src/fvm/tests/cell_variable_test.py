@@ -64,7 +64,9 @@ class CellVariableTest(parameterized.TestCase):
     )
 
     grad = var.face_grad()
-    np.testing.assert_array_equal(grad, jnp.array([0., 10., 30., -20., 0.]))
+    np.testing.assert_array_equal(
+        grad, jnp.array([0.0, 10.0, 30.0, -20.0, 0.0])
+    )
 
   def test_face_grad_unconstrained_with_input(self):
     var = cell_variable.CellVariable(
@@ -74,7 +76,8 @@ class CellVariableTest(parameterized.TestCase):
 
     grad = var.face_grad(x=jnp.array([4.0, 1.0, 5.0, 3.0]))
     np.testing.assert_array_equal(
-        grad, jnp.array([0., 1.0 / -3.0, 3.0 / 4.0, -2.0 / -2.0, 0.]))
+        grad, jnp.array([0.0, 1.0 / -3.0, 3.0 / 4.0, -2.0 / -2.0, 0.0])
+    )
 
   def test_face_grad_grad_constraint(self):
     var = cell_variable.CellVariable(
@@ -84,7 +87,9 @@ class CellVariableTest(parameterized.TestCase):
         right_face_grad_constraint=jnp.array(2.0),
     )
     grad = var.face_grad()
-    np.testing.assert_array_equal(grad, jnp.array([1.0, 10., 30., -20., 2.0]))
+    np.testing.assert_array_equal(
+        grad, jnp.array([1.0, 10.0, 30.0, -20.0, 2.0])
+    )
 
   def test_face_grad_value_constraint(self):
     dr = 0.1
@@ -109,7 +114,8 @@ class CellVariableTest(parameterized.TestCase):
         dr=jnp.array(0.1),
     )
     batched_var: cell_variable.CellVariable = jax.tree_util.tree_map(
-        lambda *ys: np.stack(ys), *[var, var],
+        lambda *ys: np.stack(ys),
+        *[var, var],
     )
     with self.subTest('raises error on face_grad'):
       with self.assertRaises(AssertionError):
@@ -331,6 +337,157 @@ class CellVariableTest(parameterized.TestCase):
         cell_plus_boundaries, np.array(expected_output)
     )
 
+  def test_eq_equal_objects(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertEqual(var1, var2)
+
+  def test_eq_different_value(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 3.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_dr(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 3.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 3.0]),
+        dr=jnp.array(0.2),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_left_face_constraint(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(2.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_left_face_grad_constraint(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array(0.0),
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array(1.0),
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_right_face_constraint(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=jnp.array(0.0),
+        right_face_grad_constraint=None,
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=jnp.array(1.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_right_face_grad_constraint(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(1.0),
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_different_constraints_set(self):
+    var1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    var2 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(1.0),
+        left_face_grad_constraint=None,
+        right_face_constraint=jnp.array(1.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertNotEqual(var1, var2)
+
+  def test_eq_not_cell_variable(self):
+    var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 3.0]),
+        dr=jnp.array(0.1),
+        right_face_constraint=jnp.array(3.0),
+        right_face_grad_constraint=None,
+    )
+    self.assertNotEqual(var, jnp.array(3.0))
+    self.assertNotEqual(var, np.array(3.0))
+    self.assertNotEqual(var, 3.0)
+    self.assertNotEqual(var, 'I am not a CellVariable')
 
 if __name__ == '__main__':
   absltest.main()
