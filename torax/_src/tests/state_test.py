@@ -71,7 +71,7 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         core_profiles.T_e.right_face_constraint, 42.0
     )
-    np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1)
+    np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1e20)
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""

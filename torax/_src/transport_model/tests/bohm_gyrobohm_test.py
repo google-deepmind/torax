@@ -18,7 +18,6 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import numerics
 from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
@@ -98,11 +97,6 @@ class BohmGyroBohmTest(absltest.TestCase):
             avg_A=2.0,
         ),
     )
-    numerics_mock = mock.create_autospec(
-        numerics.Numerics,
-        instance=True,
-        density_reference=100,
-    )
 
     # Create the dynamic runtime params slice mock with nested mocks.
     dynamic_params = mock.create_autospec(
@@ -110,7 +104,6 @@ class BohmGyroBohmTest(absltest.TestCase):
         instance=True,
         transport=transport_mock,
         plasma_composition=plasma_composition_mock,
-        numerics=numerics_mock,
     )
     return dynamic_params
 

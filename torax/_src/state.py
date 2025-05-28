@@ -43,12 +43,11 @@ class CoreProfiles:
       T_e: Electron temperature [keV].
       psi: Poloidal flux [Wb].
       psidot: Time derivative of poloidal flux (loop voltage) [V].
-      n_e: Electron density [density_reference m^-3].
-      n_i: Main ion density [density_reference m^-3].
-      n_impurity: Impurity density [density_reference m^-3].
+      n_e: Electron density [m^-3].
+      n_i: Main ion density [m^-3].
+      n_impurity: Impurity density [m^-3].
       q_face: Safety factor.
       s_face: Magnetic shear.
-      density_reference: Reference density [m^-3].
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
@@ -72,7 +71,6 @@ class CoreProfiles:
   n_impurity: cell_variable.CellVariable
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
-  density_reference: array_typing.ScalarFloat
   v_loop_lcfs: array_typing.ScalarFloat
   Z_i: array_typing.ArrayFloat
   Z_i_face: array_typing.ArrayFloat

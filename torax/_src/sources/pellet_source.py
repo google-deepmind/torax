@@ -54,10 +54,7 @@ def calc_pellet_source(
       formulas.gaussian_profile(
           center=dynamic_source_runtime_params.pellet_deposition_location,
           width=dynamic_source_runtime_params.pellet_width,
-          total=(
-              dynamic_source_runtime_params.S_total
-              / dynamic_runtime_params_slice.numerics.density_reference
-          ),
+          total=dynamic_source_runtime_params.S_total,
           geo=geo,
       ),
   )

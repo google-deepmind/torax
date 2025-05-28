@@ -40,10 +40,10 @@ class ScalingLawsTest(parameterized.TestCase):
     # property needed in calculate_plh_scaling_factor.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho_norm) * 2,
+            value=jnp.ones_like(geo.rho_norm) * 2e20,
             left_face_grad_constraint=jnp.zeros(()),
             right_face_grad_constraint=None,
-            right_face_constraint=jnp.array(2.0),
+            right_face_constraint=jnp.array(2.0e20),
             dr=geo.drho_norm,
         ),
         n_i=mock.ANY,
@@ -61,7 +61,6 @@ class ScalingLawsTest(parameterized.TestCase):
         Z_impurity=mock.ANY,
         Z_impurity_face=mock.ANY,
         A_impurity=mock.ANY,
-        density_reference=1e20,
         sigma=mock.ANY,
         sigma_face=mock.ANY,
         j_total=mock.ANY,
@@ -77,7 +76,9 @@ class ScalingLawsTest(parameterized.TestCase):
     expected_PLH_min = (
         0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08 * (2.0141 / 3)
     )
-    expected_n_e_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
+    expected_n_e_min_P_LH = (
+        0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 * 1e19
+    )
     np.testing.assert_allclose(
         P_LH_hi_dens / 1e6, expected_PLH_hi_dens, rtol=1e-6
     )
@@ -102,10 +103,10 @@ class ScalingLawsTest(parameterized.TestCase):
     # property needed in calculate_plh_scaling_factor.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho_norm) * 2,
+            value=jnp.ones_like(geo.rho_norm) * 2e20,
             left_face_grad_constraint=jnp.zeros(()),
             right_face_grad_constraint=None,
-            right_face_constraint=jnp.array(2.0),
+            right_face_constraint=jnp.array(2.0e20),
             dr=geo.drho_norm,
         ),
         n_i=mock.ANY,
@@ -123,7 +124,6 @@ class ScalingLawsTest(parameterized.TestCase):
         Z_impurity=mock.ANY,
         Z_impurity_face=mock.ANY,
         A_impurity=mock.ANY,
-        density_reference=1e20,
         sigma=mock.ANY,
         sigma_face=mock.ANY,
         j_total=mock.ANY,

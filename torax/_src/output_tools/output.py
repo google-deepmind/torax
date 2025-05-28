@@ -22,7 +22,6 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -222,12 +221,6 @@ class StateHistory:
     self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *self._core_profiles
     )
-    # Rescale output CoreProfiles to have density units in m^-3.
-    # This is done to maintain the same external API following an upcoming
-    # change to the internal CoreProfiles density units.
-    self._stacked_core_profiles = _rescale_core_profiles(
-        self._stacked_core_profiles
-    )
     self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
         jax.tree_util.tree_map(stack, *self._core_sources)
     )
@@ -236,9 +229,7 @@ class StateHistory:
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree_util.tree_map(
-        stack, *post_processed_outputs_history
-    )
+    ) = jax.tree_util.tree_map(stack, *post_processed_outputs_history)
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
@@ -608,7 +599,10 @@ class StateHistory:
     for field_name, data in geometry_attributes.items():
       if (
           "hires" in field_name
-          or "face" in field_name
+          or (
+              field_name.endswith("_face")
+              and field_name.removesuffix("_face") in geometry_attributes
+          )
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or field_name == "j_total"
@@ -619,9 +613,18 @@ class StateHistory:
         data = _extend_cell_grid_to_boundaries(
             data, geometry_attributes[f"{field_name}_face"]
         )
+      # Remap to avoid outputting _face suffix in output.
+      if field_name.endswith("_face"):
+        field_name = field_name.removesuffix("_face")
+      if field_name == "Ip_profile":
+        # Ip_profile exists in core profiles so rename to avoid duplicate.
+        field_name = "Ip_profile_from_geo"
       if field_name == "psi":
         # Psi also exists in core profiles so rename to avoid duplicate.
         field_name = "psi_from_geo"
+      if field_name == "_z_magnetic_axis":
+        # This logic only reached if not None. Avoid leading underscore in name.
+        field_name = "z_magnetic_axis"
       data_array = self._pack_into_data_array(
           field_name,
           data,
@@ -635,7 +638,10 @@ class StateHistory:
 
     for name, value in geometry_properties:
       # Skip over saving any variables that are named *_face.
-      if "face" in name:
+      if (
+          name.endswith("_face")
+          and name.removesuffix("_face") in property_names
+      ):
         continue
       if name in EXCLUDED_GEOMETRY_NAMES:
         continue
@@ -650,41 +656,10 @@ class StateHistory:
           )
         data_array = self._pack_into_data_array(name, property_data)
         if data_array is not None:
+          # Remap to avoid outputting _face suffix in output. Done only for
+          # _face variables with no corresponding non-face variable.
+          if name.endswith("_face"):
+            name = name.removesuffix("_face")
           xr_dict[name] = data_array
 
-    # Remap to avoid outputting _face suffix in output.
-    g0_over_vpr_data_array = self._pack_into_data_array(
-        "g0_over_vpr", self._stacked_geometry.g0_over_vpr_face
-    )
-    if g0_over_vpr_data_array is not None:
-      xr_dict["g0_over_vpr"] = g0_over_vpr_data_array
-
     return xr_dict
-
-
-def _rescale_core_profiles(
-    core_profiles: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Rescale core profiles densities to be in m^-3."""
-  return dataclasses.replace(
-      core_profiles,
-      n_e=dataclasses.replace(
-          core_profiles.n_e,
-          value=core_profiles.n_e.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_e.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_i=dataclasses.replace(
-          core_profiles.n_i,
-          value=core_profiles.n_i.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_i.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_impurity=dataclasses.replace(
-          core_profiles.n_impurity,
-          value=core_profiles.n_impurity.value
-          * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_impurity.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-  )

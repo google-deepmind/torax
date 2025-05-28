@@ -69,9 +69,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         dynamic_runtime_params_slice.pedestal.n_e_ped * nGW,
         dynamic_runtime_params_slice.pedestal.n_e_ped,
     )
-    n_e_ped_ref = (
-        n_e_ped / dynamic_runtime_params_slice.numerics.density_reference
-    )
 
     # Calculate T_e_ped.
     temperature_ratio = dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
@@ -89,28 +86,27 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         Z_i_ped, Z_impurity_ped, Z_eff_ped
     )
     # Calculate n_i and n_impurity.
-    n_i_ped = dilution_factor_ped * n_e_ped_ref
-    n_impurity_ped = (n_e_ped_ref - Z_i_ped * n_i_ped) / Z_impurity_ped
+    n_i_ped = dilution_factor_ped * n_e_ped
+    n_impurity_ped = (n_e_ped - Z_i_ped * n_i_ped) / Z_impurity_ped
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
-    prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
     T_e_ped = (
         dynamic_runtime_params_slice.pedestal.P_ped
         / (
-            n_e_ped_ref  # Electron pressure contribution.
+            n_e_ped  # Electron pressure contribution.
             + temperature_ratio * n_i_ped  # Ion pressure contribution.
             + temperature_ratio
             * n_impurity_ped  # Impurity pressure contribution.
         )
-        / prefactor
+        / constants.CONSTANTS.keV2J
     )
 
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
     return pedestal_model.PedestalModelOutput(
-        n_e_ped=n_e_ped_ref,
+        n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,

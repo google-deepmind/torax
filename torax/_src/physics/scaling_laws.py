@@ -61,10 +61,7 @@ def calculate_plh_scaling_factor(
       corresponding to the P_LH_min.
   """
 
-  line_avg_n_e = (
-      math_utils.line_average(core_profiles.n_e.value, geo)
-      * core_profiles.density_reference
-  )
+  line_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
 
   # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
   P_LH_hi_dens_D = (
@@ -82,8 +79,7 @@ def calculate_plh_scaling_factor(
 
   Ip_total = core_profiles.Ip_profile_face[..., -1]
 
-  # Calculate density (in density_reference) corresponding to P_LH_min
-  # from Eq 3 Ryter 2014
+  # Calculate density corresponding to P_LH_min from Eq 3 Ryter 2014
   n_e_min_P_LH = (
       0.7
       * (Ip_total / 1e6) ** 0.34
@@ -91,7 +87,6 @@ def calculate_plh_scaling_factor(
       * geo.B_0**0.62
       * (geo.R_major / geo.a_minor) ** 0.4
       * 1e19
-      / core_profiles.density_reference
   )
   # Calculate P_LH_min at n_e_min from Eq 4 Ryter 2014
   P_LH_min_D = (
@@ -192,9 +187,8 @@ def calculate_scaling_law_confinement_time(
   scaled_Ip = core_profiles.Ip_profile_face[-1] / 1e6  # convert to MA
   scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B_0
-  line_avg_n_e = (
+  line_avg_n_e = (  # convert to 10^19 m^-3
       math_utils.line_average(core_profiles.n_e.value, geo)
-      * core_profiles.density_reference
       / 1e19
   )
   R = geo.R_major

@@ -21,6 +21,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
@@ -83,8 +84,8 @@ class CoeffsCallback:
         (stiff) transport coefficients. The nonlinear solver solves the system
         more rigorously and Pereverzev-Corrigan terms are not needed.
       explicit_call: If True, then if theta_implicit=1, only a reduced
-        Block1DCoeffs is calculated since most explicit coefficients will not
-        be used.
+        Block1DCoeffs is calculated since most explicit coefficients will not be
+        used.
 
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.
@@ -128,15 +129,6 @@ def _calculate_pereverzev_flux(
   """Adds Pereverzev-Corrigan flux to diffusion terms."""
 
   consts = constants.CONSTANTS
-  true_n_e_face = (
-      core_profiles.n_e.face_value()
-
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
-  true_n_i_face = (
-      core_profiles.n_i.face_value()
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
 
   geo_factor = jnp.concatenate(
       [jnp.ones(1), geo.g1_over_vpr_face[1:] / geo.g0_face[1:]]
@@ -144,14 +136,14 @@ def _calculate_pereverzev_flux(
 
   chi_face_per_ion = (
       geo.g1_over_vpr_face
-      * true_n_i_face
+      * core_profiles.n_i.face_value()
       * consts.keV2J
       * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
-      * true_n_e_face
+      * core_profiles.n_e.face_value()
       * consts.keV2J
       * dynamic_runtime_params_slice.solver.chi_pereverzev
   )
@@ -237,9 +229,9 @@ def calc_coeffs(
       triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of solver being used, this may or
-      may not be equal to the original plasma profiles at the beginning of the
-      time step.
+      of the solver. Depending on the type of solver being used, this may or may
+      not be equal to the original plasma profiles at the beginning of the time
+      step.
     transport_model: A TransportModel subclass, calculates transport coeffs.
     explicit_source_profiles: Precomputed explicit source profiles. These
       profiles either do not depend on the core profiles or depend on the
@@ -317,9 +309,9 @@ def _calc_coeffs_full(
       triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of solver being used, this may or
-      may not be equal to the original plasma profiles at the beginning of the
-      time step.
+      of the solver. Depending on the type of solver being used, this may or may
+      not be equal to the original plasma profiles at the beginning of the time
+      step.
     transport_model: A TransportModel subclass, calculates transport coeffs.
     explicit_source_profiles: Precomputed explicit source profiles. These
       profiles either do not depend on the core profiles or depend on the
@@ -377,38 +369,10 @@ def _calc_coeffs_full(
   # fill source vector based on both original and updated core profiles
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  true_n_e = (
-      core_profiles.n_e.value
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
-  true_n_i = (
-      core_profiles.n_i.value
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
-
-  true_n_e_face = (
-      core_profiles.n_e.face_value()
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
-  true_n_i_face = (
-      core_profiles.n_i.face_value()
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
-
   # Transient term coefficient vector (has radial dependence through r, n)
-  toc_T_i = (
-      1.5
-      * geo.vpr ** (-2.0 / 3.0)
-      * consts.keV2J
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
+  toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV2J
   tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
-  toc_T_e = (
-      1.5
-      * geo.vpr ** (-2.0 / 3.0)
-      * consts.keV2J
-      * dynamic_runtime_params_slice.numerics.density_reference
-  )
+  toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV2J
   tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
@@ -443,10 +407,16 @@ def _calc_coeffs_full(
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
-      geo.g1_over_vpr_face * true_n_i_face * consts.keV2J * chi_face_ion
+      geo.g1_over_vpr_face
+      * core_profiles.n_i.face_value()
+      * consts.keV2J
+      * chi_face_ion
   )
   full_chi_face_el = (
-      geo.g1_over_vpr_face * true_n_e_face * consts.keV2J * chi_face_el
+      geo.g1_over_vpr_face
+      * core_profiles.n_e.face_value()
+      * consts.keV2J
+      * chi_face_el
   )
 
   # entire coefficient preceding dne/dr in particle equation
@@ -504,7 +474,7 @@ def _calc_coeffs_full(
       / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
-      * true_n_i_face
+      * core_profiles.n_i.face_value()
       * consts.keV2J
   )
 
@@ -515,7 +485,7 @@ def _calc_coeffs_full(
       / geo.Phi_b
       * geo.rho_face_norm
       * geo.vpr_face
-      * true_n_e_face
+      * core_profiles.n_e.face_value()
       * consts.keV2J
   )
 
@@ -582,7 +552,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * geo.rho_norm
-      * true_n_i
+      * core_profiles.n_i.value
       * core_profiles.T_i.value
       * consts.keV2J
   )
@@ -594,7 +564,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * geo.rho_norm
-      * true_n_e
+      * core_profiles.n_e.value
       * core_profiles.T_e.value
       * consts.keV2J
   )
@@ -663,11 +633,13 @@ def _calc_coeffs_full(
       for row_block in evolving_names
   )
 
+  # var_to_source ends up as a vector in the constructed PDE. Therefore any
+  # scalings from CoreProfiles state variables to x must be applied here too.
   var_to_source = {
-      'T_i': source_i,
-      'T_e': source_e,
-      'psi': source_psi,
-      'n_e': source_n_e,
+      'T_i': source_i / convertors.SCALING_FACTORS['T_i'],
+      'T_e': source_e / convertors.SCALING_FACTORS['T_e'],
+      'psi': source_psi / convertors.SCALING_FACTORS['psi'],
+      'n_e': source_n_e / convertors.SCALING_FACTORS['n_e'],
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
