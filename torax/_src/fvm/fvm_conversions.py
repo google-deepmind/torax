@@ -17,6 +17,7 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax._src import state
+from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 
 
@@ -42,6 +43,8 @@ def vec_to_cell_variable_tuple(
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Converts a flat array of core profile state vars to CellVariable tuple.
 
+  Requires an input CoreProfiles to provide boundary condition information.
+
   Args:
     x_vec: A flat array of evolving core profile state variables. The order of
       the variables in the array must match the order of the evolving_names.
@@ -53,8 +56,23 @@ def vec_to_cell_variable_tuple(
     A tuple of updated CellVariables.
   """
   x_split = jnp.split(x_vec, len(evolving_names))
-  x_out = [
-      dataclasses.replace(core_profiles[name], value=value)
-      for name, value in zip(evolving_names, x_split)
+
+  # First scale the core profiles to match the scaling in x_split, then
+  # update the values in the scaled core profiles with new values from x_split.
+  scaled_evolving_cp_list = [
+      convertors.scale_cell_variable(
+          core_profiles[name],
+          scaling_factor=1 / convertors.get_scaling_factor(name),
+      )
+      for name in evolving_names
   ]
+
+  x_out = [
+      dataclasses.replace(
+          scaled_evolving_cp,
+          value=value,
+      )
+      for scaled_evolving_cp, value in zip(scaled_evolving_cp_list, x_split)
+  ]
+
   return tuple(x_out)

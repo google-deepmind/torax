@@ -52,11 +52,11 @@ def core_profiles_to_solver_x_tuple(
 
   for name in evolving_names:
     original_units_cv = getattr(core_profiles, name)
-    scaling_factor = _get_scaling_factor(name)
+    scaling_factor = get_scaling_factor(name)
     # Scale for solver (divide by scaling_factor)
-    solver_x_tuple_cv = _scale_cell_variable(
-        original_units_cv,
-        1 / scaling_factor,
+    solver_x_tuple_cv = scale_cell_variable(
+        cv=original_units_cv,
+        scaling_factor=1 / scaling_factor,
     )
     x_tuple_for_solver_list.append(solver_x_tuple_cv)
 
@@ -88,25 +88,25 @@ def solver_x_tuple_to_core_profiles(
 
   for i, var_name in enumerate(evolving_names):
     solver_x_tuple_cv = x_new[i]
-    scaling_factor = _get_scaling_factor(var_name)
+    scaling_factor = get_scaling_factor(var_name)
     # Unscale from solver (multiply by scaling_factor)
-    original_units_cv = _scale_cell_variable(
-        solver_x_tuple_cv,
-        scaling_factor,
+    original_units_cv = scale_cell_variable(
+        cv=solver_x_tuple_cv,
+        scaling_factor=scaling_factor,
     )
     updated_vars[var_name] = original_units_cv
 
   return dataclasses.replace(core_profiles, **updated_vars)
 
 
-def _get_scaling_factor(var_name: str) -> float:
+def get_scaling_factor(var_name: str) -> float:
   """Returns the scaling factor for a given variable name."""
   if var_name in _SCALING_FACTORS:
     return _SCALING_FACTORS[var_name]
   return 1.0  # No explicit scaling factor for this variable.
 
 
-def _scale_cell_variable(
+def scale_cell_variable(
     cv: cell_variable.CellVariable,
     scaling_factor: float,
 ) -> cell_variable.CellVariable:
@@ -114,7 +114,7 @@ def _scale_cell_variable(
 
   Args:
     cv: The CellVariable to scale.
-    scaling_factor: The factor to scale by.
+    scaling_factor: The factor to scale values and boundary conditions by.
 
   Returns:
     A new CellVariable with scaled or unscaled values.
