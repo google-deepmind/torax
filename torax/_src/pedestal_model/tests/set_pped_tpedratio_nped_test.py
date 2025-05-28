@@ -16,7 +16,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -49,11 +48,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     if n_e_ped_is_fGW:
       if isinstance(n_e_ped, dict):
         n_e_ped = {
-            key: value / constants.DENSITY_SCALING_FACTOR
+            key: value / 1e20
             for key, value in n_e_ped.items()
         }
       else:
-        n_e_ped /= constants.DENSITY_SCALING_FACTOR
+        n_e_ped /= 1e20
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_P_ped_n_ped',
@@ -110,9 +109,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
           / (jnp.pi * geo.a_minor**2)
           * 1e20
       )
-      expected_n_e_ped *= nGW / constants.DENSITY_SCALING_FACTOR
-    else:
-      expected_n_e_ped /= constants.DENSITY_SCALING_FACTOR
+      expected_n_e_ped *= nGW
+
     np.testing.assert_allclose(pedestal_model_output.n_e_ped, expected_n_e_ped)
 
     if isinstance(T_i_T_e_ratio, (float, int)):

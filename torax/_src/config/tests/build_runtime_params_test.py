@@ -233,10 +233,23 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the profile conditions can set the electron density."""
 
     config = default_configs.get_default_config_dict()
+
+    # Set correct order of magnitudes to pass Pydantic validation.
+    if n_e_right_bc is not None:
+      n_e_right_bc = 1.0 if n_e_right_bc_is_fGW else 1.0e20
+    nbar = 1.0 if n_e_nbar_is_fGW else 1.0e20
+    n_e = (
+        {0.0: {0.0: 1.5, 1.0: 1.0}}
+        if n_e_nbar_is_fGW
+        else {0.0: {0.0: 1.5e20, 1.0: 1.0e20}}
+    )
+
     config['profile_conditions'] = {
         'n_e_right_bc': n_e_right_bc,
         'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
         'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
+        'nbar': nbar,
+        'n_e': n_e,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     static_slice = build_runtime_params.build_static_params_from_config(

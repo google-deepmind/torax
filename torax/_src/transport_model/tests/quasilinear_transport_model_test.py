@@ -14,7 +14,7 @@
 from collections.abc import Mapping
 import dataclasses
 from typing import Any, Literal
-
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -165,11 +165,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
   def test_calculate_chiGB(self):
     """Tests that chiGB is calculated correctly."""
-    core_profiles = _get_dummy_core_profiles(
-        value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
-    )
+
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.T_i.face_value(),
+        reference_temperature=np.array(1.0),
         reference_magnetic_field=1.0,
         reference_mass=1.0,
         reference_length=1.0,
@@ -183,9 +181,25 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
   def test_calculate_alpha(self):
     """Tests that alpha is calculated correctly."""
-    core_profiles = _get_dummy_core_profiles(
-        value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
+
+    def _get_cell_variable(value):
+      return cell_variable.CellVariable(
+          value=jnp.array([value]),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(value),
+          dr=jnp.array(1.0),
+      )
+
+    core_profiles = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        T_i=_get_cell_variable(1.0),
+        T_e=_get_cell_variable(1.0),
+        n_e=_get_cell_variable(1.0e20),
+        n_i=_get_cell_variable(1.0e20),
+        n_impurity=_get_cell_variable(1.0e20),
     )
+
     normalized_logarithmic_gradients = (
         quasilinear_transport_model.NormalizedLogarithmicGradients(
             lref_over_lti=np.array([0.0, 1.0]),
@@ -197,7 +211,6 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
     alpha = quasilinear_transport_model.calculate_alpha(
         core_profiles=core_profiles,
-        density_reference=1e20,
         q=np.array(1.0),
         reference_magnetic_field=1.0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
@@ -282,40 +295,6 @@ class FakeQuasilinearTransportModel(
 
   def __eq__(self, other) -> bool:
     return isinstance(other, type(self))
-
-
-def _get_dummy_core_profiles(value, right_face_constraint):
-  """Returns dummy core profiles for testing."""
-  dummy_cell_variable = cell_variable.CellVariable(
-      value=value,
-      right_face_constraint=right_face_constraint,
-      right_face_grad_constraint=None,
-      dr=jnp.array(1.0),
-  )
-  return state.CoreProfiles(
-      T_i=dummy_cell_variable,
-      T_e=dummy_cell_variable,
-      n_e=dummy_cell_variable,
-      n_i=dummy_cell_variable,
-      n_impurity=dummy_cell_variable,
-      Z_i=1.0,
-      Z_i_face=1.0,
-      Z_impurity=1.0,
-      Z_impurity_face=1.0,
-      A_i=1.0,
-      A_impurity=1.0,
-      density_reference=1.0,
-      q_face=1.0,
-      s_face=1.0,
-      psi=dummy_cell_variable,
-      psidot=dummy_cell_variable,
-      v_loop_lcfs=1.0,
-      sigma=1.0,
-      sigma_face=1.0,
-      j_total=1.0,
-      j_total_face=1.0,
-      Ip_profile_face=1.0,
-  )
 
 
 class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):

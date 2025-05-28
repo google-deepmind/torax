@@ -50,7 +50,6 @@ class SauterModel(base.BootstrapCurrentModel):
     assert isinstance(bootstrap_params, DynamicRuntimeParams)
     result = _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
-        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
@@ -94,7 +93,6 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
 def _calculate_bootstrap_current(
     *,
     bootstrap_multiplier: float,
-    density_reference: float,
     Z_eff_face: chex.Array,
     Z_i_face: chex.Array,
     n_e: cell_variable.CellVariable,
@@ -111,9 +109,6 @@ def _calculate_bootstrap_current(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_n_e_face = n_e.face_value() * density_reference
-  true_n_i_face = n_i.face_value() * density_reference
-
   # local r/R0 on face grid
   epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
   epseff = (
@@ -124,12 +119,12 @@ def _calculate_bootstrap_current(
 
   # Spitzer conductivity
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(T_e.face_value() * 1e3)
+      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
   )
   lnLami = (
       30
       - 3 * jnp.log(Z_i_face)
-      - 0.5 * jnp.log(true_n_i_face)
+      - 0.5 * jnp.log(n_i.face_value())
       + 1.5 * jnp.log(T_i.face_value() * 1e3)
   )
 
@@ -137,7 +132,7 @@ def _calculate_bootstrap_current(
       6.921e-18
       * q_face
       * geo.R_major
-      * true_n_e_face
+      * n_e.face_value()
       * Z_eff_face
       * lnLame
       / (
@@ -149,7 +144,7 @@ def _calculate_bootstrap_current(
       4.9e-18
       * q_face
       * geo.R_major
-      * true_n_i_face
+      * n_i.face_value()
       * Z_eff_face**4
       * lnLami
       / (
@@ -229,8 +224,8 @@ def _calculate_bootstrap_current(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
-  pe = true_n_e_face * (T_e.face_value()) * 1e3 * 1.6e-19
-  pi = true_n_i_face * (T_i.face_value()) * 1e3 * 1.6e-19
+  pe = n_e.face_value() * T_e.face_value() * 1e3 * 1.6e-19
+  pi = n_i.face_value() * T_i.face_value() * 1e3 * 1.6e-19
 
   dpsi_drnorm = psi.face_grad()
   dlnne_drnorm = n_e.face_grad() / n_e.face_value()

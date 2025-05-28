@@ -17,7 +17,6 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import step_function
@@ -136,9 +135,6 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
-    # Normalize the ref_profiles to the expected internal CoreProfiles units.
-    ref_profiles[output.N_E] /= constants.DENSITY_SCALING_FACTOR
-    ref_profiles[output.N_I] /= constants.DENSITY_SCALING_FACTOR
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )

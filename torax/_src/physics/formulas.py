@@ -68,9 +68,10 @@ def calculate_pressure(
   n_impurity = core_profiles.n_impurity.face_value()
   T_i = core_profiles.T_i.face_value()
   T_e = core_profiles.T_e.face_value()
-  prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
-  pressure_thermal_el_face = n_e * T_e * prefactor
-  pressure_thermal_ion_face = (n_i + n_impurity) * T_i * prefactor
+  pressure_thermal_el_face = n_e * T_e * constants.CONSTANTS.keV2J
+  pressure_thermal_ion_face = (
+      (n_i + n_impurity) * T_i * constants.CONSTANTS.keV2J
+  )
   pressure_thermal_tot_face = (
       pressure_thermal_el_face + pressure_thermal_ion_face
   )
@@ -95,8 +96,6 @@ def calc_pprime(
       with respect to the normalized toroidal flux coordinate, on the face grid.
   """
 
-  prefactor = constants.CONSTANTS.keV2J * core_profiles.density_reference
-
   _, _, p_total = calculate_pressure(core_profiles)
   psi = core_profiles.psi.face_value()
   n_e = core_profiles.n_e.face_value()
@@ -111,7 +110,7 @@ def calc_pprime(
   dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
 
-  dptot_drhon = prefactor * (
+  dptot_drhon = constants.CONSTANTS.keV2J * (
       n_e * dte_drhon
       + n_i * dti_drhon
       + n_impurity * dti_drhon
@@ -207,7 +206,7 @@ def calculate_greenwald_fraction(
   Different averaging can be used, e.g. volume-averaged or line-averaged.
 
   Args:
-    n_e_avg: Averaged electron density [density_reference m^-3]
+    n_e_avg: Averaged electron density [m^-3]
     core_profiles: CoreProfiles object containing information on currents and
       densities.
     geo: Geometry object
@@ -219,5 +218,5 @@ def calculate_greenwald_fraction(
   gw_limit = (
       core_profiles.Ip_profile_face[-1] * 1e-6 / (jnp.pi * geo.a_minor**2)
   )
-  fgw = n_e_avg * core_profiles.density_reference / (gw_limit * 1e20)
+  fgw = n_e_avg / (gw_limit * 1e20)
   return fgw

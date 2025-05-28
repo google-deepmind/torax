@@ -69,7 +69,6 @@ class FormulasTest(parameterized.TestCase):
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        density_reference=1e20,
         T_i=_make_constant_core_profile(1.0),
         T_e=_make_constant_core_profile(2.0),
         n_e=_make_constant_core_profile(3.0),
@@ -81,17 +80,9 @@ class FormulasTest(parameterized.TestCase):
     # Make sure that we are grabbing the values from the face grid.
     self.assertEqual(p_el.shape, self.geo.rho_face.shape)
     # Ignore boundary condition terms and just check formula sanity.
-    np.testing.assert_allclose(
-        p_el, 6 * constants.CONSTANTS.keV2J * core_profiles.density_reference
-    )
-    np.testing.assert_allclose(
-        p_ion,
-        2.75 * constants.CONSTANTS.keV2J * core_profiles.density_reference,
-    )
-    np.testing.assert_allclose(
-        p_tot,
-        8.75 * constants.CONSTANTS.keV2J * core_profiles.density_reference,
-    )
+    np.testing.assert_allclose(p_el, 6 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_ion, 2.75 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_tot, 8.75 * constants.CONSTANTS.keV2J)
 
   def test_calculate_stored_thermal_energy(self):
     """Test that stored thermal energy is computed correctly."""
@@ -111,12 +102,11 @@ class FormulasTest(parameterized.TestCase):
 
   def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
-    n_e = 1.0
+    n_e = 1.0e20
 
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
-        density_reference=1e20,
         Ip_profile_face=[np.pi * 1e6],
     )
     geo = mock.create_autospec(

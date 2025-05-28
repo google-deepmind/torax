@@ -135,7 +135,7 @@ CONFIG = {
         'T_i_ped': 1.0,  # ion pedestal top temperature in keV for T_i
         'T_e_ped': 1.0,  # electron pedestal top temperature in keV for T_e
         'n_e_ped_is_fGW': True,
-        # pedestal top electron density in units of density_reference
+        # pedestal top electron density in units of fGW
         'n_e_ped': {0: 0.3, 80: 0.7},
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },

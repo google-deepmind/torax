@@ -216,7 +216,6 @@ def impurity_radiation_mavrin_fit(
       * core_profiles.n_e.value
       * core_profiles.n_impurity.value
       * dynamic_source_runtime_params.radiation_multiplier
-      * dynamic_runtime_params_slice.numerics.density_reference**2
   )
 
   # The impurity radiation heat sink is a negative source, so we return a

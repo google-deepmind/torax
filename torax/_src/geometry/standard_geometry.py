@@ -906,7 +906,7 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         R_major=R_major,
         a_minor=a_minor,
-        B_0=B_0,
+        B_0=np.array(B_0),
         # TODO(b/335204606): handle COCOS shenanigans
         psi=psi_interpolant * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
@@ -925,7 +925,7 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_factor=hires_factor,
-        z_magnetic_axis=Zaxis,
+        z_magnetic_axis=np.array(Zaxis),
     )
 
 

@@ -73,7 +73,6 @@ class QeiSource(source.Source):
         == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
             static_runtime_params_slice,
-            dynamic_runtime_params_slice,
             dynamic_source_runtime_params,
             geo,
             core_profiles,
@@ -103,7 +102,6 @@ class QeiSource(source.Source):
 
 def _model_based_qei(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -113,7 +111,6 @@ def _model_based_qei(
   zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = collisions.coll_exchange(
       core_profiles=core_profiles,
-      density_reference=dynamic_runtime_params_slice.numerics.density_reference,
       Qei_multiplier=dynamic_source_runtime_params.Qei_multiplier,
   )
   implicit_ii = -qei_coef

@@ -76,7 +76,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     config = {
         'profile_conditions': {
             'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-            'n_e_right_bc': 0.5,
+            'n_e_right_bc': 0.5e20,
         },
         'numerics': {
             'adaptive_dt': adaptive_dt,

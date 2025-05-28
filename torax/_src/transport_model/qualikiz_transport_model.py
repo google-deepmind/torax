@@ -100,7 +100,6 @@ class QualikizTransportModel(
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
-        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
@@ -355,13 +354,7 @@ def _extract_qualikiz_plan(
       'smag': np.array(qualikiz_inputs.smag),
       'alpha': np.array(qualikiz_inputs.alpha),
       'Te': np.array(core_profiles.T_e.face_value()),
-      'ne': (
-          np.array(
-              core_profiles.n_e.face_value()
-              * dynamic_runtime_params_slice.numerics.density_reference
-          )
-          / 1e19
-      ),
+      'ne': np.array(core_profiles.n_e.face_value()) / 1e19,
       'Ate': np.array(qualikiz_inputs.Ate),
       'Ane': np.array(qualikiz_inputs.Ane),
       'Ti0': np.array(core_profiles.T_i.face_value()),
