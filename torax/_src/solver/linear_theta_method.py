@@ -16,6 +16,7 @@
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -54,9 +55,11 @@ class LinearThetaMethod(solver_lib.Solver):
     # Not used in this implementation.
     del core_sources_t, core_transport_t
 
-    x_old = tuple([core_profiles_t[name] for name in evolving_names])
-    x_new_guess = tuple(
-        [core_profiles_t_plus_dt[name] for name in evolving_names]
+    x_old = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles_t, evolving_names
+    )
+    x_new_guess = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles_t_plus_dt, evolving_names
     )
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
