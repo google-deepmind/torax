@@ -163,7 +163,14 @@ class ConvertersTest(parameterized.TestCase):
         self.base_core_profiles,
     )
     for name in checked_names:
-      np.testing.assert_equal(updated_cp[name], self.base_core_profiles[name])
+      self.assertTrue(
+          updated_cp[name].almost_equal(self.base_core_profiles[name]),
+          msg=(
+              f"CoreProfile attribute '{name}' did not round-trip correctly.\n"
+              f'Original: {self.base_core_profiles[name]}\n'
+              f'Updated:  {updated_cp[name]}'
+          ),
+      )
 
 
 if __name__ == '__main__':

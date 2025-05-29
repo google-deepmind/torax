@@ -257,6 +257,40 @@ class CellVariable:
         axis=-1,
     )
 
+  def almost_equal(
+      self, other: object, atol: float = 1e-7, rtol: float = 0.0
+  ) -> bool:
+    """Tests near equality of two CellVariables with tolerances."""
+
+    if not isinstance(other, CellVariable):
+      return False
+
+    def _compare_optional_arrays(
+        arr1: chex.Array | None, arr2: chex.Array | None
+    ) -> bool:
+      if arr1 is None and arr2 is None:
+        return True
+      if arr1 is None or arr2 is None:
+        return False
+      return jnp.allclose(arr1, arr2, atol=atol, rtol=rtol)
+
+    return (
+        jnp.allclose(self.value, other.value, atol=atol, rtol=rtol)
+        and jnp.allclose(self.dr, other.dr, atol=atol, rtol=rtol)
+        and _compare_optional_arrays(
+            self.left_face_constraint, other.left_face_constraint
+        )
+        and _compare_optional_arrays(
+            self.right_face_constraint, other.right_face_constraint
+        )
+        and _compare_optional_arrays(
+            self.left_face_grad_constraint, other.left_face_grad_constraint
+        )
+        and _compare_optional_arrays(
+            self.right_face_grad_constraint, other.right_face_grad_constraint
+        )
+    )
+
   def __eq__(self, other: object) -> bool:
 
     if not isinstance(other, CellVariable):

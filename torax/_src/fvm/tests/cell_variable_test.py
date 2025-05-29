@@ -489,5 +489,105 @@ class CellVariableTest(parameterized.TestCase):
     self.assertNotEqual(var, 3.0)
     self.assertNotEqual(var, 'I am not a CellVariable')
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='near_identical_values',
+          var1_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          var2_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0 + 1e-7]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          expected_almost_equal=True,
+      ),
+      dict(
+          testcase_name='near_identical_right_face_constraint',
+          var1_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          var2_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0 + 1e-7),
+              'right_face_grad_constraint': None,
+          },
+          expected_almost_equal=True,
+      ),
+      dict(
+          testcase_name='not_near_identical_values',
+          var1_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          var2_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0 + 1e-5]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          expected_almost_equal=False,
+      ),
+      dict(
+          testcase_name='not_near_identical_right_face_constraint',
+          var1_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          var2_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0 + 1e-5),
+              'right_face_grad_constraint': None,
+          },
+          expected_almost_equal=False,
+      ),
+      dict(
+          testcase_name='near_identical_right_face_constraint_low_precision',
+          var1_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0),
+              'right_face_grad_constraint': None,
+          },
+          var2_kwargs={
+              'dr': np.array(0.4),
+              'value': np.array([1.0]),
+              'right_face_constraint': np.array(1.0 + 1e-5),
+              'right_face_grad_constraint': None,
+          },
+          expected_almost_equal=True,
+          atol=1e-4,
+      ),
+  )
+  def test_almost_equal(
+      self,
+      var1_kwargs,
+      var2_kwargs,
+      expected_almost_equal,
+      atol=1e-6
+  ):
+    var1 = cell_variable.CellVariable(**var1_kwargs)
+    var2 = cell_variable.CellVariable(**var2_kwargs)
+    if expected_almost_equal:
+      self.assertTrue(var1.almost_equal(var2, atol=atol))
+      self.assertTrue(var2.almost_equal(var1, atol=atol))
+    else:
+      self.assertFalse(var1.almost_equal(var2, atol=atol))
+      self.assertFalse(var2.almost_equal(var1, atol=atol))
+
+
 if __name__ == '__main__':
   absltest.main()
