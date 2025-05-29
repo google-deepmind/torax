@@ -68,9 +68,7 @@ def coll_exchange(
   weighted_Z_eff = _calculate_weighted_Z_eff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(
-          Qei_multiplier * 1.5 * core_profiles.n_e.value
-      )
+      jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Z_eff)
@@ -83,7 +81,6 @@ def coll_exchange(
 def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    Z_eff_face: jax.Array,
     collisionality_multiplier: float,
 ) -> jax.Array:
   """Calculates nustar.
@@ -93,7 +90,6 @@ def calc_nu_star(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    Z_eff_face: Effective ion charge on face grid.
     collisionality_multiplier: Collisionality multiplier in QLKNN for
       sensitivity testing.
 
@@ -114,7 +110,12 @@ def calc_nu_star(
       lambda_ei_face,
   )
 
-  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Z_eff_face * collisionality_multiplier
+  nu_e = (
+      1
+      / jnp.exp(log_tau_e_Z1)
+      * core_profiles.Z_eff_face
+      * collisionality_multiplier
+  )
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.R_major

@@ -374,7 +374,7 @@ def _calculate_currents(
       source_models=source_models,
   )
   conductivity = source_models.conductivity.calculate_conductivity(
-      dynamic_slice, geo, core_profiles
+      geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
       static_runtime_params_slice=static_slice,

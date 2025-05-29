@@ -20,7 +20,6 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
@@ -31,13 +30,12 @@ class SauterModel(base.ConductivityModel):
 
   def calculate_conductivity(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.Conductivity:
     """Calculates conductivity."""
     result = _calculate_conductivity(
-        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
+        Z_eff_face=core_profiles.Z_eff_face,
         n_e=core_profiles.n_e,
         T_e=core_profiles.T_e,
         q_face=core_profiles.q_face,
