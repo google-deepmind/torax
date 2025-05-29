@@ -19,9 +19,11 @@ import immutabledict
 from torax._src import state
 from torax._src.fvm import cell_variable
 
-# Can be extended to include other variables.
-_SCALING_FACTORS: Final[Mapping[str, float]] = immutabledict.immutabledict({
-    'n_e': 1.0,  # Placeholder until constants.DENSITY_SCALING_FACTOR is used
+SCALING_FACTORS: Final[Mapping[str, float]] = immutabledict.immutabledict({
+    'T_i': 1.0,
+    'T_e': 1.0,
+    'n_e': 1e20,
+    'psi': 1.0,
 })
 
 
@@ -52,11 +54,10 @@ def core_profiles_to_solver_x_tuple(
 
   for name in evolving_names:
     original_units_cv = getattr(core_profiles, name)
-    scaling_factor = get_scaling_factor(name)
-    # Scale for solver (divide by scaling_factor)
+    # Scale for solver (divide by scaling factor)
     solver_x_tuple_cv = scale_cell_variable(
         cv=original_units_cv,
-        scaling_factor=1 / scaling_factor,
+        scaling_factor=1 / SCALING_FACTORS[name],
     )
     x_tuple_for_solver_list.append(solver_x_tuple_cv)
 
@@ -88,22 +89,14 @@ def solver_x_tuple_to_core_profiles(
 
   for i, var_name in enumerate(evolving_names):
     solver_x_tuple_cv = x_new[i]
-    scaling_factor = get_scaling_factor(var_name)
-    # Unscale from solver (multiply by scaling_factor)
+    # Unscale from solver (multiply by scaling factor)
     original_units_cv = scale_cell_variable(
         cv=solver_x_tuple_cv,
-        scaling_factor=scaling_factor,
+        scaling_factor=SCALING_FACTORS[var_name],
     )
     updated_vars[var_name] = original_units_cv
 
   return dataclasses.replace(core_profiles, **updated_vars)
-
-
-def get_scaling_factor(var_name: str) -> float:
-  """Returns the scaling factor for a given variable name."""
-  if var_name in _SCALING_FACTORS:
-    return _SCALING_FACTORS[var_name]
-  return 1.0  # No explicit scaling factor for this variable.
 
 
 def scale_cell_variable(

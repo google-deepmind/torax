@@ -322,7 +322,7 @@ def _helium3_tail_temperature(
   helium3_charge = 2
   helium3_fraction = minority_concentration
   absorbed_power_density = power_deposition_he3 * P_total
-  n_e20 = core_profiles.n_e.value * core_profiles.density_reference / 1e20
+  n_e20 = core_profiles.n_e.value / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
   # He3 distribution based on an analytic solution to the FP equation.
   xi = (
@@ -373,7 +373,8 @@ def icrh_model_func(
   toric_inputs = ToricNNInputs(
       frequency=dynamic_source_runtime_params.frequency,
       volume_average_temperature=volume_average_temperature,
-      volume_average_density=volume_average_density,
+      volume_average_density=volume_average_density
+      / 1e20,  # convert to 10^20 m^-3
       minority_concentration=dynamic_source_runtime_params.minority_concentration
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,

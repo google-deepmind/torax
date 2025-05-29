@@ -62,7 +62,7 @@ def vec_to_cell_variable_tuple(
   scaled_evolving_cp_list = [
       convertors.scale_cell_variable(
           core_profiles[name],
-          scaling_factor=1 / convertors.get_scaling_factor(name),
+          scaling_factor=1 / convertors.SCALING_FACTORS[name],
       )
       for name in evolving_names
   ]

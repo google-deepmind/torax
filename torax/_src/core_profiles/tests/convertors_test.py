@@ -67,7 +67,6 @@ class ConvertersTest(parameterized.TestCase):
         psidot=mock.ANY,
         q_face=mock.ANY,
         s_face=mock.ANY,
-        density_reference=mock.ANY,
         v_loop_lcfs=mock.ANY,
         Z_i=mock.ANY,
         Z_i_face=mock.ANY,
@@ -90,26 +89,32 @@ class ConvertersTest(parameterized.TestCase):
     )
     self.assertLen(solver_x_tuple, 3)
 
-    np.testing.assert_array_equal(
-        solver_x_tuple[0].value, self.base_core_profiles.T_e.value
+    np.testing.assert_array_almost_equal(
+        solver_x_tuple[0].value, self.base_core_profiles.T_e.value, decimal=10
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         solver_x_tuple[0].right_face_constraint,
         self.base_core_profiles.T_e.right_face_constraint,
+        decimal=10,
     )
-    np.testing.assert_array_equal(
-        solver_x_tuple[1].value, self.base_core_profiles.n_e.value
+    np.testing.assert_array_almost_equal(
+        solver_x_tuple[1].value,
+        self.base_core_profiles.n_e.value / convertors.SCALING_FACTORS['n_e'],
+        decimal=10,
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         solver_x_tuple[1].right_face_constraint,
-        self.base_core_profiles.n_e.right_face_constraint,
+        self.base_core_profiles.n_e.right_face_constraint
+        / convertors.SCALING_FACTORS['n_e'],
+        decimal=10,
     )
-    np.testing.assert_array_equal(
-        solver_x_tuple[2].value, self.base_core_profiles.psi.value
+    np.testing.assert_array_almost_equal(
+        solver_x_tuple[2].value, self.base_core_profiles.psi.value, decimal=10
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         solver_x_tuple[2].right_face_grad_constraint,
         self.base_core_profiles.psi.right_face_grad_constraint,
+        decimal=10,
     )
 
   def test_solver_x_tuple_to_core_profiles(self):
@@ -141,13 +146,21 @@ class ConvertersTest(parameterized.TestCase):
         self.base_core_profiles,
     )
 
-    np.testing.assert_array_equal(updated_cp.T_e.value, x_new_T_e_val)
-    np.testing.assert_array_equal(updated_cp.n_e.value, x_new_n_e_val)
-    np.testing.assert_array_equal(updated_cp.psi.value, x_new_psi_val)
+    np.testing.assert_array_almost_equal(
+        updated_cp.T_e.value, x_new_T_e_val, decimal=10
+    )
+    np.testing.assert_array_almost_equal(
+        updated_cp.n_e.value,
+        x_new_n_e_val * convertors.SCALING_FACTORS['n_e'],
+        decimal=10,
+    )
+    np.testing.assert_array_almost_equal(
+        updated_cp.psi.value, x_new_psi_val, decimal=10
+    )
 
     # Check non-evolving variables are untouched from the template
-    np.testing.assert_array_equal(
-        updated_cp.T_i.value, self.base_core_profiles.T_i.value
+    np.testing.assert_array_almost_equal(
+        updated_cp.T_i.value, self.base_core_profiles.T_i.value, decimal=10
     )
 
   def test_core_profiles_to_x_round_trip(self):

@@ -94,16 +94,16 @@ class PostProcessedOutputs:
     P_LH_min: Minimum H-mode transition power for at n_e_min_P_LH [W]
     P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
       [W]
-    n_e_min_P_LH: Density corresponding to the P_LH_min [density_reference]
+    n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
     E_aux: Total external injected energy (Ohmic + auxiliary heating) [J]
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
-    n_e_volume_avg: Volume average electron density [density_reference m^-3]
-    n_e_volume_avg: Volume average electron density [density_reference m^-3]
-    n_i_volume_avg: Volume average main ion density [density_reference m^-3]
-    n_e_line_avg: Line averaged electron density [density_reference m^-3]
-    n_i_line_avg: Line averaged main ion density [density_reference m^-3]
+    n_e_volume_avg: Volume average electron density [m^-3]
+    n_e_volume_avg: Volume average electron density [m^-3]
+    n_i_volume_avg: Volume average main ion density [m^-3]
+    n_e_line_avg: Line averaged electron density [m^-3]
+    n_i_line_avg: Line averaged main ion density [m^-3]
     fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
       [dimensionless]
     fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density
@@ -576,8 +576,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
-  # Calculate n_e and n_i (main ion) volume and line averages
-  # [density_reference m^-3]
+  # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.n_e.value, sim_state.geometry
   )

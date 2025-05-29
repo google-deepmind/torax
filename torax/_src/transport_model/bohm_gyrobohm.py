@@ -83,23 +83,20 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
 
-    true_n_e_face = (
-        core_profiles.n_e.face_value()
-        * dynamic_runtime_params_slice.numerics.density_reference
-    )
-    true_n_e_grad_face = (
-        core_profiles.n_e.face_grad()
-        * dynamic_runtime_params_slice.numerics.density_reference
-    )
-
     # Bohm term of heat transport
     chi_e_B = (
         geo.r_mid_face
         * core_profiles.q_face**2
-        / (constants_module.CONSTANTS.qe * geo.B_0 * true_n_e_face)
+        / (
+            constants_module.CONSTANTS.qe
+            * geo.B_0
+            * core_profiles.n_e.face_value()
+        )
         * (
-            jnp.abs(true_n_e_grad_face) * core_profiles.T_e.face_value()
-            + jnp.abs(core_profiles.T_e.face_grad()) * true_n_e_face
+            jnp.abs(core_profiles.n_e.face_grad())
+            * core_profiles.T_e.face_value()
+            + jnp.abs(core_profiles.T_e.face_grad())
+            * core_profiles.n_e.face_value()
         )
         * constants_module.CONSTANTS.keV2J
         / geo.rho_b

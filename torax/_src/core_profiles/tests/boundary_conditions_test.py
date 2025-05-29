@@ -30,7 +30,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
       dict(
           n_e={0.0: {0.0: 1.5e20, 1.0: 1.0e20}},
           n_e_right_bc=None,
-          expected_n_e_right_bc=1.0,  # Value from profile.
+          expected_n_e_right_bc=1.0e20,  # Value from profile.
       ),
       dict(
           n_e={0.0: {0.0: 1.5e20, 1.0: 1.0e20}},
@@ -38,7 +38,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
               (np.array([0.0, 0.1]), np.array([0.1e20, 2.0e20])),
               'step',
           ),
-          expected_n_e_right_bc=2.0,  # Value from boundary condition.
+          expected_n_e_right_bc=2.0e20,  # Value from boundary condition.
       ),
   )
   def test_setting_boundary_conditions(

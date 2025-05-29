@@ -163,7 +163,7 @@ def reference_calc_fusion(geo, core_profiles):
   Pfus = (
       Efus
       * 0.25
-      * (core_profiles.n_i.face_value() * constants.DENSITY_SCALING_FACTOR) ** 2
+      * core_profiles.n_i.face_value() ** 2
       * sigmav
   )  # [W/m^3]
   P_total = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]

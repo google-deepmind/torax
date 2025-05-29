@@ -22,7 +22,6 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -221,12 +220,6 @@ class StateHistory:
     stack = lambda *ys: np.stack(ys)
     self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *self._core_profiles
-    )
-    # Rescale output CoreProfiles to have density units in m^-3.
-    # This is done to maintain the same external API following an upcoming
-    # change to the internal CoreProfiles density units.
-    self._stacked_core_profiles = _rescale_core_profiles(
-        self._stacked_core_profiles
     )
     self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
         jax.tree_util.tree_map(stack, *self._core_sources)
@@ -660,31 +653,3 @@ class StateHistory:
       xr_dict["g0_over_vpr"] = g0_over_vpr_data_array
 
     return xr_dict
-
-
-def _rescale_core_profiles(
-    core_profiles: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Rescale core profiles densities to be in m^-3."""
-  return dataclasses.replace(
-      core_profiles,
-      n_e=dataclasses.replace(
-          core_profiles.n_e,
-          value=core_profiles.n_e.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_e.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_i=dataclasses.replace(
-          core_profiles.n_i,
-          value=core_profiles.n_i.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_i.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_impurity=dataclasses.replace(
-          core_profiles.n_impurity,
-          value=core_profiles.n_impurity.value
-          * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_impurity.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-  )

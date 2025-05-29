@@ -37,7 +37,6 @@ class SauterModel(base.ConductivityModel):
   ) -> base.Conductivity:
     """Calculates conductivity."""
     result = _calculate_conductivity(
-        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
         Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
         n_e=core_profiles.n_e,
         T_e=core_profiles.T_e,
@@ -67,7 +66,6 @@ class SauterModelConfig(base.ConductivityModelConfig):
 @jax_utils.jit
 def _calculate_conductivity(
     *,
-    density_reference: float,
     Z_eff_face: chex.Array,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
@@ -80,8 +78,6 @@ def _calculate_conductivity(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_n_e_face = n_e.face_value() * density_reference
-
   # # local r/R0 on face grid
   epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
   epseff = (
@@ -93,7 +89,7 @@ def _calculate_conductivity(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_n_e_face) + jnp.log(T_e.face_value() * 1e3)
+      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
   )
 
   sigsptz = (
@@ -104,7 +100,7 @@ def _calculate_conductivity(
       6.921e-18
       * q_face
       * geo.R_major
-      * true_n_e_face
+      * n_e.face_value()
       * Z_eff_face
       * lnLame
       / (

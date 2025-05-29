@@ -105,7 +105,6 @@ def get_prescribed_core_profile_values(
   if not static_runtime_params_slice.evolve_density:
     n_e_cell_variable = getters.get_updated_electron_density(
         static_runtime_params_slice,
-        dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
@@ -295,7 +294,6 @@ def update_all_core_profiles_after_step(
       s_face=psi_calculations.calc_s_face(
           geo, updated_core_profiles_t_plus_dt.psi
       ),
-      density_reference=core_profiles_t_plus_dt.density_reference,
       A_i=core_profiles_t_plus_dt.A_i,
       A_impurity=core_profiles_t_plus_dt.A_impurity,
       v_loop_lcfs=v_loop_lcfs,
@@ -344,7 +342,6 @@ def compute_boundary_conditions_for_t_plus_dt(
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
       static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt.numerics,
       profile_conditions_t_plus_dt,
       geo_t_plus_dt,
   )

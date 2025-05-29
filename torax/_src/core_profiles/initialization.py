@@ -66,7 +66,6 @@ def initial_core_profiles(
   )
   n_e = getters.get_updated_electron_density(
       static_runtime_params_slice,
-      dynamic_runtime_params_slice.numerics,
       dynamic_runtime_params_slice.profile_conditions,
       geo,
   )
@@ -119,9 +118,6 @@ def initial_core_profiles(
       psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
-      density_reference=jnp.asarray(
-          dynamic_runtime_params_slice.numerics.density_reference
-      ),
       v_loop_lcfs=v_loop_lcfs,
       sigma=jnp.zeros_like(geo.rho),
       sigma_face=jnp.zeros_like(geo.rho_face),

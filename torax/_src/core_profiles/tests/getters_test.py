@@ -16,7 +16,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
@@ -75,7 +74,7 @@ class GettersTest(parameterized.TestCase):
 
   def test_n_e_core_profile_setter(self):
     """Tests that setting n_e works."""
-    expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
+    expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         {
             'n_e': {0: {0: 1.5e20, 1: 1e20}},
@@ -91,7 +90,6 @@ class GettersTest(parameterized.TestCase):
     static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
@@ -103,15 +101,14 @@ class GettersTest(parameterized.TestCase):
     )
 
   @parameterized.parameters(
-      # When normalize_n_e_to_nbar=False, take n_e_right_bc from n_e[0.0][1.0]
-      (None, False, 1.0),
+      # When normalize_n_e_to_nbar=False, take n_e_right_bc from n_e
+      (None, False, 1.0e20),
       # Take n_e_right_bc from provided value.
-      (0.85e20, False, 0.85),
-      # normalize_n_e_to_nbar=True, n_e_right_bc from n_e[0.0][1.0] and
-      # normalize.
-      (None, True, 0.8050314),
+      (0.85e20, False, 0.85e20),
+      # normalize_n_e_to_nbar=True, n_e_right_bc from n_e and normalize.
+      (None, True, 0.8050314e20),
       # Even when normalize_n_e_to_nbar, boundary condition is absolute.
-      (0.5e20, True, 0.5),
+      (0.5e20, True, 0.5e20),
   )
   def test_density_boundary_condition_override(
       self,
@@ -134,7 +131,6 @@ class GettersTest(parameterized.TestCase):
     static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
@@ -163,22 +159,18 @@ class GettersTest(parameterized.TestCase):
     static_slice = _create_static_slice_mock(profile_conditions)
     n_e_normalized = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
 
-    nbar_normalized = nbar / constants.DENSITY_SCALING_FACTOR
-
     np.testing.assert_allclose(
-        np.mean(n_e_normalized.value), nbar_normalized, rtol=1e-1
+        np.mean(n_e_normalized.value), nbar, rtol=1e-1
     )
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
     static_slice = _create_static_slice_mock(profile_conditions)
     n_e_unnormalized = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
@@ -209,7 +201,6 @@ class GettersTest(parameterized.TestCase):
     static_slice = _create_static_slice_mock(profile_conditions)
     n_e_fGW = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
@@ -217,7 +208,6 @@ class GettersTest(parameterized.TestCase):
 
     n_e = getters.get_updated_electron_density(
         static_slice,
-        numerics.build_dynamic_params(1.0),
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
@@ -227,7 +217,7 @@ class GettersTest(parameterized.TestCase):
     self.assertNotEqual(ratio[0], 1.0)
 
   def test_get_ion_density_and_charge_states(self):
-    expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
+    expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
@@ -257,7 +247,6 @@ class GettersTest(parameterized.TestCase):
     )
     n_e = getters.get_updated_electron_density(
         static_slice,
-        dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
