@@ -152,6 +152,7 @@ class ConfigTest(parameterized.TestCase):
       ("qlknn_lin_no_per", "qlknn", "linear", None, False, True),
       ("cgm_lin_no_per", "CGM", "linear", None, False, True),
       ("qlknn_lin_per", "qlknn", "linear", None, True, False),
+      ("qualikiz_lin_per", "qualikiz", "linear", None, True, False),
       ("qlknn_newton_no_per_0", "qlknn", "newton_raphson", 0, False, False),
       ("qlknn_newton_no_per_1", "qlknn", "newton_raphson", 1, False, True),
       ("qlknn_newton_per_1", "qlknn", "newton_raphson", 1, True, False),

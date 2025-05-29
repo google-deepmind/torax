@@ -99,6 +99,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     using_nonlinear_transport_model = self.transport.model_name in [
+        'qualikiz',
         'qlknn',
         'CGM',
     ]
