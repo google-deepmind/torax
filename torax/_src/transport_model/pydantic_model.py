@@ -16,15 +16,18 @@
 
 import copy
 import dataclasses
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, Sequence
+import typing_extensions
 
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
+import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import combined
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
@@ -343,7 +346,7 @@ try:
   # pylint: disable=g-import-not-at-top
   from torax._src.transport_model import qualikiz_transport_model
   # pylint: enable=g-import-not-at-top
-  TransportConfig = Union[
+  CombinedCompatibleTransportModel = Union[
       QLKNNTransportModel,
       ConstantTransportModel,
       CriticalGradientTransportModel,
@@ -351,9 +354,64 @@ try:
       qualikiz_transport_model.QualikizTransportModelConfig,
   ]
 except ImportError:
-  TransportConfig = Union[
+  CombinedCompatibleTransportModel = Union[
       QLKNNTransportModel,
       ConstantTransportModel,
       CriticalGradientTransportModel,
       BohmGyroBohmTransportModel,
   ]
+
+
+class CombinedTransportModel(pydantic_model_base.TransportBase):
+  """Model for the Combined transport model.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'combined'.
+    transport_models: A sequence of transport models, whose outputs will be
+      summed to give the combined transport coefficients.
+  """
+  model_name: Literal['combined'] = 'combined'
+  transport_models: Sequence[CombinedCompatibleTransportModel]
+
+  def build_transport_model(self) -> combined.CombinedTransportModel:
+    model_list = [
+        model.build_transport_model() for model in self.transport_models
+    ]
+    return combined.CombinedTransportModel(transport_models=model_list)
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> combined.DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    model_params_list = [
+        model.build_dynamic_params(t) for model in self.transport_models
+    ]
+    return combined.DynamicRuntimeParams(
+        transport_model_params=model_params_list,
+        **base_kwargs,
+    )
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    super()._check_fields()
+    if any([
+        np.any(model.apply_inner_patch.value)
+        or np.any(model.apply_outer_patch.value)
+        for model in self.transport_models
+    ]):
+      raise ValueError(
+          'apply_inner_patch and apply_outer_patch and should be set in the'
+          ' config for CombinedTransportModel only, rather than its component'
+          ' models.'
+      )
+    if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
+      raise ValueError(
+          'rho_min and rho_max should not be set for CombinedTransportModel, as'
+          ' it should be applied across the whole rho domain.'
+      )
+    return self
+
+
+TransportConfig = Union[
+    CombinedTransportModel, CombinedCompatibleTransportModel
+]
