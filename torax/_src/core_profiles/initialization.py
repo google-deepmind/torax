@@ -70,14 +70,12 @@ def initial_core_profiles(
       geo,
   )
 
-  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
-      getters.get_ion_density_and_charge_states(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          n_e,
-          T_e,
-      )
+  ions = getters.get_updated_ions(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      n_e,
+      T_e,
   )
   # Set v_loop_lcfs. Two branches:
   # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
@@ -106,14 +104,14 @@ def initial_core_profiles(
       T_i=T_i,
       T_e=T_e,
       n_e=n_e,
-      n_i=n_i,
-      Z_i=Z_i,
-      Z_i_face=Z_i_face,
-      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
-      n_impurity=n_impurity,
-      Z_impurity=Z_impurity,
-      Z_impurity_face=Z_impurity_face,
-      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+      n_i=ions.n_i,
+      Z_i=ions.Z_i,
+      Z_i_face=ions.Z_i_face,
+      A_i=ions.A_i,
+      n_impurity=ions.n_impurity,
+      Z_impurity=ions.Z_impurity,
+      Z_impurity_face=ions.Z_impurity_face,
+      A_impurity=ions.A_impurity,
       psi=psi,
       psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face),
