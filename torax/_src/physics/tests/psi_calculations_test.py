@@ -134,7 +134,6 @@ class PsiCalculationsTest(parameterized.TestCase):
         calculated_source_profiles=source_profiles,
     )
     conductivity = source_models.conductivity.calculate_conductivity(
-        dynamic_runtime_params_slice,
         geo,
         initial_core_profiles,
     )
