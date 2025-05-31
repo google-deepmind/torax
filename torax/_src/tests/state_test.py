@@ -26,6 +26,8 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
+# pylint: disable=invalid-name
+
 
 class InitialStatesTest(parameterized.TestCase):
 
@@ -65,12 +67,8 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
-    np.testing.assert_allclose(
-        core_profiles.T_i.right_face_constraint, 27.7
-    )
-    np.testing.assert_allclose(
-        core_profiles.T_e.right_face_constraint, 42.0
-    )
+    np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)
+    np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)
     np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1e20)
 
   def test_core_profiles_quasineutrality_check(self):
@@ -79,7 +77,8 @@ class InitialStatesTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical)
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config

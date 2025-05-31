@@ -17,7 +17,6 @@ import abc
 
 import chex
 from torax._src import state
-from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -35,7 +34,6 @@ class ConductivityModel(abc.ABC):
   @abc.abstractmethod
   def calculate_conductivity(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> Conductivity:

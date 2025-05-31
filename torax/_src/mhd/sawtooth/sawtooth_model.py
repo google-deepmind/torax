@@ -157,7 +157,6 @@ class SawtoothModel(solver.Solver):
 
       conductivity_post_step = (
           self.source_models.conductivity.calculate_conductivity(
-              dynamic_runtime_params_slice_t_plus_dt,
               geo_t_plus_dt,
               redistributed_core_profiles,
           )

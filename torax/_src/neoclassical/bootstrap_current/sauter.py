@@ -50,7 +50,7 @@ class SauterModel(base.BootstrapCurrentModel):
     assert isinstance(bootstrap_params, DynamicRuntimeParams)
     result = _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
-        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
+        Z_eff_face=core_profiles.Z_eff_face,
         Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
         n_i=core_profiles.n_i,

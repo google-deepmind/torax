@@ -348,7 +348,7 @@ def _calc_coeffs_full(
   )
 
   conductivity = source_models.conductivity.calculate_conductivity(
-      dynamic_runtime_params_slice, geo, core_profiles
+      geo, core_profiles
   )
 
   # Calculate the implicit source profiles and combines with the explicit
