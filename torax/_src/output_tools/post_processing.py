@@ -287,8 +287,6 @@ class PostProcessedOutputs:
       return state.SimError.NO_ERROR
 
 
-_trapz = jax.scipy.integrate.trapezoid
-
 # TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'generic_heat': 'P_aux_generic',
