@@ -22,6 +22,8 @@ from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.torax_pydantic import torax_pydantic
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -55,6 +57,12 @@ class PydanticModelTest(parameterized.TestCase):
       expected_transport_model: type[transport_model_lib.TransportModel],
   ):
     transport = pydantic_model()
+
+    # Any TimeVaryingArrays in the transport model must have a grid set, so we
+    # need to define a geometry. We use a circular geometry for convenience.
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(transport, geo.torax_mesh)
+
     dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
     self.assertIsInstance(dynamic_runtime_params, expected_dynamic_params)
     transport_model = transport.build_transport_model()
@@ -114,9 +122,7 @@ class PydanticModelTest(parameterized.TestCase):
           expected_model_name=qlknn_10d.QLKNN10D_NAME,
       ),
   )
-  def test_qlknn_model_name(
-      self, model_name, model_path, expected_model_name
-  ):
+  def test_qlknn_model_name(self, model_name, model_path, expected_model_name):
     """Tests that the model name is resolved correctly."""
     transport = transport_pydantic_model.QLKNNTransportModel(
         qlknn_model_name=model_name,

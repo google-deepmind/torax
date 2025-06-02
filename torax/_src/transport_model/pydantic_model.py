@@ -22,7 +22,6 @@ from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
 import pydantic
-from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import constant
@@ -180,19 +179,18 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
     D_e: diffusion coefficient in electron density equation in m^2/s.
     V_e: convection coefficient in electron density equation in m^2/s.
   """
+
   model_name: Literal['constant'] = 'constant'
-  chi_i: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_i: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  chi_e: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  D_e: torax_pydantic.PositiveTimeVaryingScalar = (
+  D_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  V_e: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(-0.33)
-  )
+  V_e: torax_pydantic.TimeVaryingArray = torax_pydantic.ValidatedDefault(-0.33)
 
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
@@ -202,10 +200,10 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   ) -> constant.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return constant.DynamicRuntimeParams(
-        chi_i=self.chi_i.get_value(t),
-        chi_e=self.chi_e.get_value(t),
-        D_e=self.D_e.get_value(t),
-        V_e=self.V_e.get_value(t),
+        chi_i=self.chi_i.get_value(t, 'face'),
+        chi_e=self.chi_e.get_value(t, 'face'),
+        D_e=self.D_e.get_value(t, 'face'),
+        V_e=self.V_e.get_value(t, 'face'),
         **base_kwargs,
     )
 
@@ -228,13 +226,13 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   model_name: Literal['CGM'] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
-  chi_e_i_ratio: interpolated_param_1d.TimeVaryingScalar = (
+  chi_e_i_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
-  VR_D_ratio: interpolated_param_1d.TimeVaryingScalar = (
+  VR_D_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
 
@@ -310,7 +308,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   D_face_c2: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.3)
   )
-  V_face_coeff: interpolated_param_1d.TimeVaryingScalar = (
+  V_face_coeff: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(-0.1)
   )
 

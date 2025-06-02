@@ -838,18 +838,21 @@ transport model.
 constant
 ^^^^^^^^
 
-Runtime parameters for the constant chi transport model.
+Runtime parameters for the prescribed transport model. This model can be used
+to implement constant coefficients (e.g. `chi_i` = 1.0 for all rho), as well as
+time-varying prescribed transport profiles of arbitrary form (such as an
+exponential decay) using the time-varying-array syntax.
 
-``chi_i`` (**time-varying-scalar** [default = 1.0])
+``chi_i`` (**time-varying-array** [default = 1.0])
   Ion heat conductivity. In units of :math:`m^2/s`.
 
-``chi_e`` (**time-varying-scalar** [default = 1.0])
+``chi_e`` (**time-varying-array** [default = 1.0])
   Electron heat conductivity. In units of :math:`m^2/s`.
 
-``D_e`` (**time-varying-scalar** [default = 1.0])
+``D_e`` (**time-varying-array** [default = 1.0])
   Electron particle diffusion. In units of :math:`m^2/s`.
 
-``V_e`` (**time-varying-scalar** [default = -0.33])
+``V_e`` (**time-varying-array** [default = -0.33])
   Electron particle convection. In units of :math:`m^2/s`.
 
 CGM
