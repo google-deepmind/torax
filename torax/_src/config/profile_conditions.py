@@ -14,13 +14,21 @@
 
 """Profile condition parameters used throughout TORAX simulations."""
 import dataclasses
-
+from typing import Callable, Final
 import chex
+import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 # pylint: disable=invalid-name
+
+# Order of magnitude validations to catch common config errors.
+_MIN_IP_AMPS: Final[float] = 1e3
+_MIN_DENSITY_M3: Final[float] = 1e10
+_MAX_DENSITY_GW: Final[float] = 1e2
+_MAX_TEMPERATURE_KEV: Final[float] = 1e3
+_MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 
 @chex.dataclass
@@ -147,26 +155,199 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:
+    error_messages = []
 
     def _sanity_check_profile_boundary_conditions(
         values,
         value_name,
+        errors_list,
     ):
       """Check that the profile is defined at rho=1.0 for various cases."""
-      error_message = (
-          f'As no right boundary condition was set for {value_name}, the'
-          f' profile for {value_name} must include a rho=1.0 boundary'
-          ' condition.'
-      )
       if not values.right_boundary_conditions_defined:
-        raise ValueError(error_message)
+        error_message = (
+            f'As no right boundary condition was set for {value_name}, the'
+            f' profile for {value_name} must include a rho=1.0 boundary'
+            ' condition.'
+        )
+        errors_list.append(error_message)
 
     if self.T_i_right_bc is None:
-      _sanity_check_profile_boundary_conditions(self.T_i, 'T_i')
+      _sanity_check_profile_boundary_conditions(self.T_i, 'T_i', error_messages)
     if self.T_e_right_bc is None:
-      _sanity_check_profile_boundary_conditions(self.T_e, 'T_e')
+      _sanity_check_profile_boundary_conditions(self.T_e, 'T_e', error_messages)
     if self.n_e_right_bc is None:
-      _sanity_check_profile_boundary_conditions(self.n_e, 'n_e')
+      _sanity_check_profile_boundary_conditions(self.n_e, 'n_e', error_messages)
+
+    # Validate plasma current input order of magnitude.
+    if np.any(self.Ip.value < _MIN_IP_AMPS):
+      failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+          self.Ip.value, self.Ip.time, lambda x: x < _MIN_IP_AMPS
+      )
+      error_messages.append(
+          f'Plasma current Ip at time {time_at_fail}s is {failed_val:.2e} A,'
+          f' which is below the minimum threshold of {_MIN_IP_AMPS:.0e} A.'
+          ' Possible cause: erroneous input Ip in MA instead of A.'
+      )
+
+    # Validate plasma density inputs order of magnitude.
+    if not self.n_e_nbar_is_fGW and self.normalize_n_e_to_nbar:
+      if np.any(self.nbar.value < _MIN_DENSITY_M3):
+        failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+            self.nbar.value, self.nbar.time, lambda x: x < _MIN_DENSITY_M3
+        )
+        error_messages.append(
+            'Density inputs set in m^-3 units. Line-averaged density nbar at'
+            f' time {time_at_fail}s is {failed_val:.2e} m^-3  which is below'
+            f' the minimum threshold of {_MIN_DENSITY_M3:.0e} m^-3. Possible'
+            ' cause: erroneous input nbar in normalized units instead of m^-3.'
+        )
+
+    if self.n_e_nbar_is_fGW and self.normalize_n_e_to_nbar:
+      if np.any(self.nbar.value > _MAX_DENSITY_GW):
+        failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+            self.nbar.value, self.nbar.time, lambda x: x > _MAX_DENSITY_GW
+        )
+        error_messages.append(
+            'Density inputs set in Greenwald fraction. Line-averaged density'
+            f' nbar time {time_at_fail}s is {failed_val:.2e} fGW which is'
+            f' above the maximum threshold of {_MAX_DENSITY_GW:.0e} fGW.'
+            ' Possible cause: erroneous input nbar in m^-3 instead of fGW.'
+        )
+
+    if not self.n_e_nbar_is_fGW and not self.normalize_n_e_to_nbar:
+      for n_e_time, n_e_value in self.n_e.value.items():
+        if np.any(n_e_value[1] < _MIN_DENSITY_M3):
+          failed_val, rho_norm_at_fail = (
+              _get_first_failing_value_and_time_or_rho(
+                  n_e_value[1], n_e_value[0], lambda x: x < _MIN_DENSITY_M3
+              )
+          )
+          error_messages.append(
+              f'Density inputs set in m^-3 units. n_e at time {n_e_time}s and'
+              f' rho_norm {rho_norm_at_fail} is {failed_val:.2e} m^-3  which is'
+              f' below the minimum threshold of {_MIN_DENSITY_M3:.0e} m^-3.'
+              ' Possible cause: erroneous input n_e in normalized units instead'
+              ' of m^-3.'
+          )
+        break
+
+    if self.n_e_nbar_is_fGW and not self.normalize_n_e_to_nbar:
+      for n_e_time, n_e_value in self.n_e.value.items():
+        if np.any(n_e_value[1] > _MAX_DENSITY_GW):
+          (
+              failed_val,
+              rho_norm_at_fail,
+          ) = _get_first_failing_value_and_time_or_rho(
+              n_e_value[1], n_e_value[0], lambda x: x > _MAX_DENSITY_GW
+          )
+          error_messages.append(
+              'Density inputs set in Greenwald fraction. n_e at time'
+              f' {n_e_time}s and rho_norm {rho_norm_at_fail} is'
+              f' {failed_val:.2e} m^-3  which is above the maximum threshold of'
+              f' {_MAX_DENSITY_GW:.0e} fGW. Possible cause: erroneous input n_e'
+              ' in m^-3 instead of fGW.'
+          )
+          break
+
+    if self.n_e_right_bc is not None:
+      if not self.n_e_right_bc_is_fGW:
+        if np.any(self.n_e_right_bc.value < _MIN_DENSITY_M3):
+          failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+              self.n_e_right_bc.value,
+              self.n_e_right_bc.time,
+              lambda x: x < _MIN_DENSITY_M3,
+          )
+          error_messages.append(
+              'Density boundary condition inputs set in m^-3 units,'
+              f' n_e_right_bc at time {time_at_fail}s is {failed_val:.2e} m^-3'
+              f' which is below the minimum threshold of {_MIN_DENSITY_M3:.0e}'
+              ' m^-3. Possible cause: erroneous input n_e_right_bc in'
+              ' normalized units instead of m^-3.'
+          )
+      else:
+        if np.any(self.n_e_right_bc.value > _MAX_DENSITY_GW):
+          failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+              self.n_e_right_bc.value,
+              self.n_e_right_bc.time,
+              lambda x: x > _MAX_DENSITY_GW,
+          )
+          error_messages.append(
+              'Density boundary condition inputs set in Greenwald fraction,'
+              f' n_e_right_bc at time {time_at_fail}s is {failed_val:.2e} fGW'
+              f' which is above the maximum threshold of {_MAX_DENSITY_GW:.0e}'
+              ' fGW. Possible cause: erroneous input n_e_right_bc in m^-3'
+              ' instead of fGW.'
+          )
+
+    # Validate temperature inputs order of magnitude.
+    for T_e_time, T_e_value in self.T_e.value.items():
+      if np.any(T_e_value[1] > _MAX_TEMPERATURE_KEV):
+        (
+            failed_val,
+            rho_norm_at_fail,
+        ) = _get_first_failing_value_and_time_or_rho(
+            T_e_value[1], T_e_value[0], lambda x: x > _MAX_TEMPERATURE_KEV
+        )
+        error_messages.append(
+            f'T_e at time {T_e_time}s and rho_norm {rho_norm_at_fail} is'
+            f' {failed_val:.2e} which is above the maximum threshold of'
+            f' {_MAX_TEMPERATURE_KEV:.0e} keV. Possible cause: erroneous'
+            ' input T_e in eV instead of keV.'
+        )
+        break
+
+    for T_i_time, T_i_value in self.T_i.value.items():
+      if np.any(T_i_value[1] > _MAX_TEMPERATURE_KEV):
+        (
+            failed_val,
+            rho_norm_at_fail,
+        ) = _get_first_failing_value_and_time_or_rho(
+            T_i_value[1], T_i_value[0], lambda x: x > _MAX_TEMPERATURE_KEV
+        )
+        error_messages.append(
+            f'T_i at time {T_i_time}s and rho_norm {rho_norm_at_fail} is'
+            f' {failed_val:.2e} which is above the maximum threshold of'
+            f' {_MAX_TEMPERATURE_KEV:.0e} keV. Possible cause: erroneous'
+            ' input T_i in eV instead of keV.'
+        )
+        break
+
+    if self.T_e_right_bc is not None:
+      if np.any(self.T_e_right_bc.value > _MAX_TEMPERATURE_BC_KEV):
+        failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+            self.T_e_right_bc.value,
+            self.T_e_right_bc.time,
+            lambda x: x > _MAX_TEMPERATURE_BC_KEV,
+        )
+        error_messages.append(
+            f'T_e_right_bc at time {time_at_fail}s is {failed_val:.2e} keV'
+            ' which is above the maximum threshold of'
+            f' {_MAX_TEMPERATURE_BC_KEV:.0e} keV. Possible cause: erroneous'
+            ' input T_e_right_bc in eV instead of keV.'
+        )
+
+    if self.T_i_right_bc is not None:
+      if np.any(self.T_i_right_bc.value > _MAX_TEMPERATURE_BC_KEV):
+        failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
+            self.T_i_right_bc.value,
+            self.T_i_right_bc.time,
+            lambda x: x > _MAX_TEMPERATURE_BC_KEV,
+        )
+        error_messages.append(
+            f'T_i_right_bc at time {time_at_fail}s is {failed_val:.2e} keV'
+            ' which is above the maximum threshold of'
+            f' {_MAX_TEMPERATURE_BC_KEV:.0e} keV. Possible cause: erroneous'
+            ' input T_i_right_bc in eV instead of keV.'
+        )
+
+    if error_messages:
+      error_message_preamble = (
+          f'{len(error_messages)} errors were found in profile conditions'
+          ' config:\n\n'
+      )
+      final_error_message = '\n\n'.join(error_messages)
+      raise ValueError(error_message_preamble + final_error_message)
+
     return self
 
   def build_dynamic_params(
@@ -214,3 +395,30 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
         n_e_right_bc_is_absolute=False if self.n_e_right_bc is None else True,
     )
+
+
+def _get_first_failing_value_and_time_or_rho(
+    values: np.ndarray,
+    time_or_rho: np.ndarray,
+    comparator: Callable[[np.ndarray], np.ndarray],
+) -> tuple[float, float]:
+  """Returns the first failing value and time or rho for a given comparator.
+
+  If values came from a TimeVaryingScalar, then time_or_rho will be the time.
+  If values came from a TimeVaryingArray, then time_or_rho will be the rho.
+
+  Args:
+    values: The values to check.
+    time_or_rho: The time or rho associated with the values.
+    comparator: A function that takes an array of values and returns an array of
+      bools indicating whether each value passes the check.
+
+  Returns:
+    A tuple of (first_failing_value, time_or_rho)
+  """
+  fail_indices = np.where(comparator(values))[0]
+  if fail_indices.size == 0:
+    raise ValueError(
+        '_get_first_failing_time was called with no failing values.'
+    )
+  return values[fail_indices[0]], time_or_rho[fail_indices[0]]

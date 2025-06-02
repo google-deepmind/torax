@@ -163,9 +163,7 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    np.testing.assert_allclose(
-        np.mean(n_e_normalized.value), nbar, rtol=1e-1
-    )
+    np.testing.assert_allclose(np.mean(n_e_normalized.value), nbar, rtol=1e-1)
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
     static_slice = _create_static_slice_mock(profile_conditions)
@@ -190,9 +188,9 @@ class GettersTest(parameterized.TestCase):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
     numerics = numerics_lib.Numerics.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
-        'n_e': {0: {0: 1.5e20, 1: 1e20}},
+        'n_e': {0: {0: 1.5, 1: 1}},
         'n_e_nbar_is_fGW': True,
-        'nbar': 1e20,
+        'nbar': 1.0,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
         'n_e_right_bc': 0.5e20,
     })
@@ -204,7 +202,19 @@ class GettersTest(parameterized.TestCase):
         profile_conditions.build_dynamic_params(1.0),
         self.geo,
     )
-    profile_conditions._update_fields({'n_e_nbar_is_fGW': False})
+    profile_conditions._update_fields(
+        {
+            'n_e_nbar_is_fGW': False,
+            'n_e': {0: {0: 1.5e20, 1: 1e20}},
+            'nbar': 1e20,
+        },
+    )
+    # Need to reset n_e grid after private _update_fields. Otherwise, the grid
+    # is None. Cannot use public ToraxConfig.update_fields since
+    # profile_conditions is not a ToraxConfig.
+    torax_pydantic.set_grid(
+        profile_conditions, self.geo.torax_mesh, mode='relaxed'
+    )
 
     n_e = getters.get_updated_electron_density(
         static_slice,

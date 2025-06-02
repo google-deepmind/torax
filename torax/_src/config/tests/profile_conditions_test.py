@@ -15,6 +15,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pydantic
 from torax._src import interpolated_param
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions
@@ -157,7 +158,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       dict(testcase_name='int', values=1, raises=True),
       dict(
           testcase_name='invalid dict shortcut',
-          values={0.0: 0.0, 0.9: 1.0},
+          values={0.0: 0.1, 0.9: 1.0},
           raises=True,
       ),
       dict(
@@ -167,17 +168,17 @@ class ProfileConditionsTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='invalid dict',
-          values={0.0: {0.0: 0.0, 0.9: 1.0}},
+          values={0.0: {0.1: 0.1, 0.9: 1.0}},
           raises=True,
       ),
       dict(
           testcase_name='valid dict',
-          values={0.0: {0.0: 0.1, 1.0: 1.0}},
+          values={0.0: {0.1: 0.1, 1.0: 1.0}},
           raises=False,
       ),
       dict(
           testcase_name='invalid numpy shortcut',
-          values=(np.array([0.1, 0.9]), np.array([0.0, 1.0])),
+          values=(np.array([0.1, 0.9]), np.array([0.1, 1.0])),
           raises=True,
       ),
       dict(
@@ -229,7 +230,9 @@ class ProfileConditionsTest(parameterized.TestCase):
   ):
     """Tests that an error is raised if the boundary condition is not defined."""
     if raises:
-      with self.assertRaises(ValueError):
+      with self.assertRaisesRegex(
+          pydantic.ValidationError, 'must include a rho=1.0 boundary'
+      ):
         profile_conditions.ProfileConditions(
             T_i=values,
             T_i_right_bc=None,
@@ -239,6 +242,263 @@ class ProfileConditionsTest(parameterized.TestCase):
           T_i=values,
           T_i_right_bc=None,
       )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_Ip',
+          config_overrides={'Ip': 1e4},
+      ),
+      dict(
+          testcase_name='invalid_Ip_too_low',
+          config_overrides={'Ip': 1e2},
+          expected_error_msg='below the minimum threshold',
+      ),
+      dict(
+          testcase_name='invalid_Ip_time_varying_too_low',
+          config_overrides={'Ip': {0.0: 5e3, 1.0: 1e2}},
+          expected_error_msg='below the minimum threshold',
+      ),
+  )
+  def test_Ip_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_nbar_m3',
+          config_overrides={
+              'nbar': 1e20,
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': False,
+          },
+      ),
+      dict(
+          testcase_name='invalid_nbar_m3_too_low',
+          config_overrides={
+              'nbar': 1e9,
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': False,
+          },
+          expected_error_msg='below the minimum threshold',
+      ),
+      dict(
+          testcase_name='nbar_m3_not_normalized_no_error',
+          config_overrides={
+              'nbar': 1e9,
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': False,
+          },
+      ),
+      dict(
+          testcase_name='valid_nbar_fGW',
+          config_overrides={
+              'nbar': 0.5,
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': True,
+          },
+      ),
+      dict(
+          testcase_name='invalid_nbar_fGW_too_high',
+          config_overrides={
+              'nbar': 1.1e2,
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': True,
+          },
+          expected_error_msg='above the maximum threshold',
+      ),
+      dict(
+          testcase_name='nbar_fGW_too_low_but_not_used_so_no_error',
+          config_overrides={
+              'nbar': 1.1e2,
+              'n_e': {0: {0: 0.85, 1: 0.85}},
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': True,
+          },
+      ),
+      dict(
+          testcase_name='invalid_nbar_m3_time_varying_too_low',
+          config_overrides={
+              'nbar': {0: 1e20, 1: 1e9},
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': False,
+          },
+          expected_error_msg='below the minimum threshold',
+      ),
+  )
+  def test_nbar_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_ne_m3',
+          config_overrides={
+              'n_e': {0: {0: 1e20, 1: 1e20}},
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': False,
+          },
+      ),
+      dict(
+          testcase_name='invalid_ne_m3_too_low',
+          config_overrides={
+              'n_e': {0: {0: 1e11, 0.5: 1e9, 1: 1e11}},
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': False,
+          },
+          expected_error_msg='below the minimum threshold',
+      ),
+      dict(
+          testcase_name='valid_ne_m3_normalized_to_nbar',
+          config_overrides={
+              'n_e': {0: {0: 1e9, 1: 1e9}},
+              'normalize_n_e_to_nbar': True,
+              'n_e_nbar_is_fGW': False,
+          },
+      ),
+      dict(
+          testcase_name='valid_ne_fGW',
+          config_overrides={
+              'n_e': {0: {0: 0.5, 1: 0.5}},
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': True,
+          },
+      ),
+      dict(
+          testcase_name='invalid_ne_fGW_too_high',
+          config_overrides={
+              'n_e': {0: {0: 0.5, 0.5: 1.1e2, 1: 0.5}},
+              'normalize_n_e_to_nbar': False,
+              'n_e_nbar_is_fGW': True,
+          },
+          expected_error_msg='above the maximum threshold',
+      ),
+  )
+  def test_ne_profile_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_ne_right_bc_m3',
+          config_overrides={'n_e_right_bc': 1e20, 'n_e_right_bc_is_fGW': False},
+      ),
+      dict(
+          testcase_name='invalid_ne_right_bc_m3_too_low',
+          config_overrides={'n_e_right_bc': 1e9, 'n_e_right_bc_is_fGW': False},
+          expected_error_msg='below the minimum threshold',
+      ),
+      dict(
+          testcase_name='valid_ne_right_bc_fGW',
+          config_overrides={'n_e_right_bc': 0.5, 'n_e_right_bc_is_fGW': True},
+      ),
+      dict(
+          testcase_name='invalid_ne_right_bc_fGW_too_high',
+          config_overrides={'n_e_right_bc': 1.1e2, 'n_e_right_bc_is_fGW': True},
+          expected_error_msg='above the maximum threshold',
+      ),
+  )
+  def test_ne_right_bc_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_Te',
+          config_overrides={'T_e': {0: {0: 10.0, 1: 1.0}}},
+      ),
+      dict(
+          testcase_name='invalid_Te_too_high',
+          config_overrides={'T_e': {0: {0: 1.1e3, 1: 1.0}}},
+          expected_error_msg='above the maximum threshold',
+      ),
+      dict(
+          testcase_name='invalid_Te_time_varying_too_high',
+          config_overrides={
+              'T_e': {0: {0: 10.0, 1: 1.0}, 1.0: {0: 1.1e3, 1: 1.0}}
+          },
+          expected_error_msg='above the maximum threshold',
+      ),
+      dict(
+          testcase_name='valid_Ti',
+          config_overrides={'T_i': {0: {0: 10.0, 1: 1.0}}},
+      ),
+      dict(
+          testcase_name='invalid_Ti_too_high',
+          config_overrides={'T_i': {0: {0: 1.1e3, 1: 1.0}}},
+          expected_error_msg='above the maximum threshold',
+      ),
+  )
+  def test_temperature_profile_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='valid_Te_right_bc',
+          config_overrides={'T_e_right_bc': 0.1},
+      ),
+      dict(
+          testcase_name='invalid_Te_right_bc_too_high',
+          config_overrides={'T_e_right_bc': 1e2},
+          expected_error_msg='above the maximum threshold',
+      ),
+      dict(
+          testcase_name='valid_Ti_right_bc',
+          config_overrides={'T_i_right_bc': 0.1},
+      ),
+      dict(
+          testcase_name='invalid_Ti_right_bc_too_high',
+          config_overrides={'T_i_right_bc': 1e2},
+          expected_error_msg='above the maximum threshold',
+      ),
+      dict(
+          testcase_name='invalid_Ti_right_bc_time_varying_too_high',
+          config_overrides={'T_i_right_bc': {0: 10.0, 1: 1.1e2}},
+          expected_error_msg='above the maximum threshold',
+      ),
+  )
+  def test_temperature_bc_order_of_magnitude_validation(
+      self, config_overrides, expected_error_msg=None
+  ):
+    if expected_error_msg:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  def test_multiple_validation_errors(self):
+    config_overrides = {
+        'Ip': 1e2,
+        'T_e': {0: {0: 2e3, 1: 1.0}, 1.0: {0: 1e6, 1: 1e10}},
+        'T_i_right_bc': 1e2,
+    }
+    with self.assertRaisesRegex(ValueError, '3 errors were found'):
+      profile_conditions.ProfileConditions(**config_overrides)
 
 
 if __name__ == '__main__':
