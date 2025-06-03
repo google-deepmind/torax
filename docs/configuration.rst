@@ -1547,7 +1547,7 @@ optimizer
 time_step_calculator
 --------------------
 
-``time_step_calculator_type`` (str [default = 'chi'])
+``calculator_type`` (str [default = 'chi'])
   The name of the ``time_step_calculator``, a method which calculates ``dt`` at
   every timestep. Two methods are currently available:
 
@@ -1615,7 +1615,7 @@ choice of transport model. A partial list is provided below.
 * ``CONFIG['numerics']['evolve_density']``
 * ``CONFIG['transport']['model_name']``
 * ``CONFIG['solver']['solver_type']``
-* ``CONFIG['time_step_calculator']['time_step_calculator_type']``
+* ``CONFIG['time_step_calculator']['calculator_type']``
 * ``CONFIG['sources']['source_name']['is_explicit']``
 * ``CONFIG['sources']['source_name']['mode']``
 
