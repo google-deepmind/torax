@@ -110,18 +110,16 @@ def get_prescribed_core_profile_values(
     )
   else:
     n_e_cell_variable = core_profiles.n_e
-  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
-      getters.get_ion_density_and_charge_states(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          n_e_cell_variable,
-          T_e_cell_variable,
-      )
+  ions = getters.get_updated_ions(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      n_e_cell_variable,
+      T_e_cell_variable,
   )
   n_e = n_e_cell_variable.value
-  n_i = n_i.value
-  n_impurity = n_impurity.value
+  n_i = ions.n_i.value
+  n_impurity = ions.n_impurity.value
 
   return {
       'T_i': T_i,
@@ -129,10 +127,12 @@ def get_prescribed_core_profile_values(
       'n_e': n_e,
       'n_i': n_i,
       'n_impurity': n_impurity,
-      'Z_i': Z_i,
-      'Z_i_face': Z_i_face,
-      'Z_impurity': Z_impurity,
-      'Z_impurity_face': Z_impurity_face,
+      'Z_i': ions.Z_i,
+      'Z_i_face': ions.Z_i_face,
+      'Z_impurity': ions.Z_impurity,
+      'Z_impurity_face': ions.Z_impurity_face,
+      'A_i': ions.A_i,
+      'A_impurity': ions.A_impurity,
   }
 
 
@@ -171,24 +171,24 @@ def update_core_profiles_during_step(
       x_new, evolving_names, core_profiles
   )
 
-  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
-      getters.get_ion_density_and_charge_states(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          updated_core_profiles.n_e,
-          updated_core_profiles.T_e,
-      )
+  ions = getters.get_updated_ions(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      updated_core_profiles.n_e,
+      updated_core_profiles.T_e,
   )
 
   return dataclasses.replace(
       updated_core_profiles,
-      n_i=n_i,
-      n_impurity=n_impurity,
-      Z_i=Z_i,
-      Z_i_face=Z_i_face,
-      Z_impurity=Z_impurity,
-      Z_impurity_face=Z_impurity_face,
+      n_i=ions.n_i,
+      n_impurity=ions.n_impurity,
+      Z_i=ions.Z_i,
+      Z_i_face=ions.Z_i_face,
+      Z_impurity=ions.Z_impurity,
+      Z_impurity_face=ions.Z_impurity_face,
+      A_i=ions.A_i,
+      A_impurity=ions.A_impurity,
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
   )
@@ -234,14 +234,12 @@ def update_all_core_profiles_after_step(
       x_new, evolving_names, core_profiles_t_plus_dt
   )
 
-  n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face = (
-      getters.get_ion_density_and_charge_states(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo,
-          updated_core_profiles_t_plus_dt.n_e,
-          updated_core_profiles_t_plus_dt.T_e,
-      )
+  ions = getters.get_updated_ions(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo,
+      updated_core_profiles_t_plus_dt.n_e,
+      updated_core_profiles_t_plus_dt.T_e,
   )
 
   psi_sources = source_profiles.total_psi_sources(geo)
@@ -281,12 +279,12 @@ def update_all_core_profiles_after_step(
       T_e=updated_core_profiles_t_plus_dt.T_e,
       psi=updated_core_profiles_t_plus_dt.psi,
       n_e=updated_core_profiles_t_plus_dt.n_e,
-      n_i=n_i,
-      n_impurity=n_impurity,
-      Z_i=Z_i,
-      Z_i_face=Z_i_face,
-      Z_impurity=Z_impurity,
-      Z_impurity_face=Z_impurity_face,
+      n_i=ions.n_i,
+      n_impurity=ions.n_impurity,
+      Z_i=ions.Z_i,
+      Z_i_face=ions.Z_i_face,
+      Z_impurity=ions.Z_impurity,
+      Z_impurity_face=ions.Z_impurity_face,
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(
           geo, updated_core_profiles_t_plus_dt.psi
@@ -294,8 +292,8 @@ def update_all_core_profiles_after_step(
       s_face=psi_calculations.calc_s_face(
           geo, updated_core_profiles_t_plus_dt.psi
       ),
-      A_i=core_profiles_t_plus_dt.A_i,
-      A_impurity=core_profiles_t_plus_dt.A_impurity,
+      A_i=ions.A_i,
+      A_impurity=ions.A_impurity,
       v_loop_lcfs=v_loop_lcfs,
       # These have already been updated in the solver.
       sigma=core_profiles_t_plus_dt.sigma,
@@ -501,6 +499,8 @@ def provide_core_profiles_t_plus_dt(
       Z_i_face=Z_i_face,
       Z_impurity=updated_values['Z_impurity'],
       Z_impurity_face=Z_impurity_face,
+      A_i=updated_values['A_i'],
+      A_impurity=updated_values['A_impurity'],
   )
   return core_profiles_t_plus_dt
 

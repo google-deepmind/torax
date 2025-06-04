@@ -15,6 +15,7 @@
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import functools
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -29,6 +30,20 @@ from torax._src.physics import formulas
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
+
+
+@chex.dataclass(frozen=True)
+class Ions:
+  """Helper container for holding ion attributes."""
+
+  n_i: cell_variable.CellVariable
+  n_impurity: cell_variable.CellVariable
+  Z_i: array_typing.ArrayFloat
+  Z_i_face: array_typing.ArrayFloat
+  Z_impurity: array_typing.ArrayFloat
+  Z_impurity_face: array_typing.ArrayFloat
+  A_i: array_typing.ScalarFloat
+  A_impurity: array_typing.ScalarFloat
 
 
 def get_updated_ion_temperature(
@@ -146,21 +161,14 @@ def get_updated_electron_density(
 @functools.partial(
     jax_utils.jit, static_argnames=['static_runtime_params_slice']
 )
-def get_ion_density_and_charge_states(
+def get_updated_ions(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-) -> tuple[
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated ion densities based on state.
+) -> Ions:
+  """Updated ion density, charge state, and mass based on state and config.
 
   Main ion and impurities are each treated as a single effective ion, but could
   be comparised of multiple species within an IonMixture. The main ion and
@@ -179,14 +187,19 @@ def get_ion_density_and_charge_states(
     T_e: Electron temperature profile [keV].
 
   Returns:
-    n_i: Ion density profile [m^-3].
-    n_impurity: Impurity density profile [m^-3].
-    Z_i: Average charge state of main ion on cell grid [amu].
-      Typically just the average of the atomic numbers since these are normally
-      low Z ions and can be assumed to be fully ionized.
-    Z_i_face: Average charge state of main ion on face grid [amu].
-    Z_impurity: Average charge state of impurities on cell grid [amu].
-    Z_impurity_face: Average charge state of impurities on face grid [amu].
+    Ion container with the following attributes:
+      n_i: Ion density profile [m^-3].
+      n_impurity: Impurity density profile [m^-3].
+      Z_i: Average charge state of main ion on cell grid [dimensionless].
+        Typically just the average of the atomic numbers since these are
+        normally low Z ions and can be assumed to be fully ionized.
+      Z_i_face: Average charge state of main ion on face grid [dimensionless].
+      Z_impurity: Average charge state of impurities on cell grid
+      [dimensionless].
+      Z_impurity_face: Average charge state of impurities on face grid
+      [dimensionless].
+      A_i: Average atomic number of main ion [amu].
+      A_impurity: Average atomic number of impurities [amu].
   """
 
   Z_i, Z_i_face, Z_impurity, Z_impurity_face = _get_charge_states(
@@ -238,7 +251,16 @@ def get_ion_density_and_charge_states(
       right_face_grad_constraint=None,
       right_face_constraint=n_impurity_right_face_constraint,
   )
-  return n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face
+  return Ions(
+      n_i=n_i,
+      n_impurity=n_impurity,
+      Z_i=Z_i,
+      Z_i_face=Z_i_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
+      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+  )
 
 
 def _get_charge_states(

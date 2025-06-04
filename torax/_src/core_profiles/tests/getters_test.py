@@ -226,7 +226,7 @@ class GettersTest(parameterized.TestCase):
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
 
-  def test_get_ion_density_and_charge_states(self):
+  def test_get_updated_ion_data(self):
     expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
@@ -260,30 +260,28 @@ class GettersTest(parameterized.TestCase):
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
-    n_i, n_impurity, Z_i, _, Z_impurity, _ = (
-        getters.get_ion_density_and_charge_states(
-            static_slice,
-            dynamic_runtime_params_slice,
-            geo,
-            n_e,
-            T_e,
-        )
+    ions = getters.get_updated_ions(
+        static_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        n_e,
+        T_e,
     )
 
     Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
 
     dilution_factor = formulas.calculate_main_ion_dilution_factor(
-        Z_i, Z_impurity, Z_eff
+        ions.Z_i, ions.Z_impurity, Z_eff
     )
     np.testing.assert_allclose(
-        n_i.value,
+        ions.n_i.value,
         expected_value * dilution_factor,
         atol=1e-6,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        n_impurity.value,
-        (expected_value - n_i.value * Z_i) / Z_impurity,
+        ions.n_impurity.value,
+        (expected_value - ions.n_i.value * ions.Z_i) / ions.Z_impurity,
         atol=1e-6,
         rtol=1e-6,
     )
