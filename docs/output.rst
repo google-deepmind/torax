@@ -120,38 +120,42 @@ profiles
 This dataset contains radial profiles of various plasma parameters at different times. The radial coordinate is the normalized toroidal flux coordinate.
 Note that the output structure is dependent on the input config for the ``geometry``, ``transport`` and ``sources`` fields.
 
-For ``sources`` certain profiles are only output if the source is active.
+Note that certain profiles are only output for specific input configurations.
+These are called out in the list of profiles below, and generate relate to:
 
-For ``geometry`` certain profiles are only output if ``circular`` geometry is not used.
+* ``sources`` profiles which are only output if the source is active.
 
-For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` model is used.
+* ``transport`` profiles which are only output if the ``bohm-gyrobohm`` model is
+  used.
+
+* ``geometry`` profiles which are only output for non ``circular`` geometries.
 
 ``area`` (time, rho_norm)
   Poloidal cross-sectional area of each flux surface [:math:`m^2`].
 
 ``chi_bohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm electron heat conductivity profile on the face grid. Only output if active.
+  Bohm component of electron heat conductivity. Only output if active.
 
 ``chi_bohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm ion heat conductivity profile on the face grid. Only output if active.
+  Bohm component of ion heat conductivity. Only output if active.
 
 ``chi_gyrobohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm electron heat conductivity profile on the face grid. Only output if active.
+  Gyro-Bohm component of electron heat conductivity. Only output if active.
 
 ``chi_gyrobohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm ion heat conductivity profile on the face grid. Only output if active.
+  Gyro-Bohm component of ion heat conductivity. Only output if active.
 
 ``chi_turb_e`` (time, rho_face_norm)
-  Turbulent electron heat conductivity profile [:math:`m^2/s`].
+  Total turbulent electron heat conductivity [:math:`m^2/s`].
 
 ``chi_turb_i`` (time, rho_face_norm)
-  Turbulent ion heat conductivity profile [:math:`m^2/s`].
+  Total turbulent ion heat conductivity [:math:`m^2/s`].
 
 ``D_turb_e`` (time, rho_face_norm)
-  Turbulent electron particle diffusivity profile on the face grid [:math:`m^2/s`].
+  Total turbulent electron particle diffusivity [:math:`m^2/s`].
 
 ``ei_exchange`` (time, rho_cell_norm)
-  Ion-electron heat exchange density profile on the cell grid [:math:`W/m^3`]. Positive values mean heat source for ions, and heat sink for electrons.
+  Ion-electron heat exchange power density profile [:math:`W/m^3`]. Positive values mean heat source for ions, and heat sink for electrons.
 
 ``elongation`` (time, rho_norm)
   Elongation of each flux surface [dimensionless].
@@ -160,28 +164,23 @@ For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` mode
   Flux function :math:`F=B_{tor}R` , constant on any given flux surface [:math:`T m`].
 
 ``FFprime`` (time, rho_face_norm)
-  :math:`FF'` profile on the face grid [:math:`m^2 T^2 / Wb`].
+  :math:`FF'`, where :math:`F'` is the derivative of the flux function with
+  respect to poloidal flux [:math:`m^2 T^2 / Wb`].
 
 ``g0`` (time, rho_norm)
   Flux surface averaged :math:`\nabla V`, the radial derivative of the plasma volume [:math:`m^2`].
 
-``g0_over_vpr_face`` (time, rho_face_norm)
-  Ratio of g0 to vpr on the face grid [dimensionless].
+``g0_over_vpr`` (time, rho_face_norm)
+  Ratio of g0 to vpr [dimensionless].
 
 ``g1`` (time, rho_norm)
   Flux surface averaged :math:`(\nabla V)^2` [:math:`m^4`].
 
-``g1_over_vpr`` (time, rho_cell_norm)
-  Ratio of g1 to vpr on the cell grid [dimensionless].
+``g1_over_vpr`` (time, rho_norm)
+  Ratio of g1 to vpr [dimensionless].
 
-``g1_over_vpr2`` (time, rho_cell_norm)
-  Ratio of g1 to vpr squared on the cell grid [dimensionless].
-
-``g1_over_vpr2_face`` (time, rho_face_norm)
-  Ratio of g1 to vpr squared on the face grid [dimensionless].
-
-``g1_over_vpr_face`` (time, rho_face_norm)
-  Ratio of g1 to vpr on the face grid [dimensionless].
+``g1_over_vpr2`` (time, rho_norm)
+  Ratio of g1 to vpr-squared [dimensionless].
 
 ``g2`` (time, rho_norm)
   Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}`, where R is the major radius along the flux surface being averaged [:math:`m^2`].
@@ -193,67 +192,69 @@ For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` mode
   Flux surface averaged :math:`\frac{1}{R^2}` [:math:`m^{-2}`].
 
 ``Ip_profile`` (time, rho_face_norm)
-  Total current profile on the face grid [:math:`A`].
+  Total cumulative current profile [:math:`A`].
 
 ``j_bootstrap`` (time, rho_norm)
-  Bootstrap current density profile [:math:`A/m^2`].
+  Bootstrap current density [:math:`A/m^2`].
 
 ``j_ecrh`` (time, rho_cell_norm)
-  Electron cyclotron heating current density profile on the cell grid [:math:`A/m^2`]. Only output if ``ecrh`` source is active.
+  Electron cyclotron heating current density [:math:`A/m^2`]. Only output if ``ecrh`` source is active.
 
 ``j_external`` (time, rho_cell_norm)
-  Total external current density profile (including generic and ECRH current) [:math:`A/m^2`].
+  Total external current density (including generic and ECRH current) [:math:`A/m^2`].
 
 ``j_generic_current`` (time, rho_cell_norm)
-  Generic external non-inductive current density profile on the cell grid [:math:`A/m^2`]. Only output if ``generic_current`` source is active.
+  Generic external non-inductive current density [:math:`A/m^2`]. Only output if ``generic_current`` source is active.
 
 ``j_ohmic`` (time, rho_cell_norm)
-  Ohmic current density profile [:math:`A/m^2`].
+  Ohmic current density [:math:`A/m^2`].
 
 ``j_total`` (time, rho_norm)
-  Total current density profile [:math:`A/m^2`].
+  Total toroidal current density [:math:`A/m^2`].
 
 ``magnetic_shear`` (time, rho_face_norm)
-  Magnetic shear profile on the face grid [dimensionless].
+  Magnetic shear [dimensionless], defined as
+  :math:`-\frac{\hat{\rho}}{\iota}\frac{\partial\iota}{\partial\hat{\rho}}`,
+  where :math:`\iota \equiv 1/q` .
 
 ``n_e`` (time, rho_norm)
-  Electron density profile [:math:`m^{-3}`].
+  Electron density [:math:`m^{-3}`].
 
 ``n_i`` (time, rho_norm)
-  Main ion density profile [:math:`m^{-3}`].
+  Main ion density [:math:`m^{-3}`].
 
 ``n_impurity`` (time, rho_norm)
-  Impurity density profile [:math:`m^{-3}`].
+  Impurity density [:math:`m^{-3}`].
 
 ``p_alpha_e`` (time, rho_cell_norm)
-  Fusion alpha heating power density profile to electrons on the cell grid [:math:`W/m^3`]. Only output if ``fusion`` source is active.
+  Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output if ``fusion`` source is active.
 
 ``p_alpha_i`` (time, rho_cell_norm)
-  Fusion alpha heating power density profile to ions on the cell grid [:math:`W/m^3`]. Only output if ``fusion`` source is active.
+  Fusion alpha heating power density to ions [:math:`W/m^3`]. Only output if ``fusion`` source is active.
 
 ``p_cyclotron_radiation_e`` (time, rho_cell_norm) [:math:`W/m^3`]
-  Cyclotron radiation heat sink density profile on the cell grid. Only output if ``cyclotron_radiation`` source is active.
+  Cyclotron radiation heat sink density (only relevant for electrons). Only output if ``cyclotron_radiation`` source is active.
 
 ``p_ecrh_e`` (time, rho_cell_norm)
-  Electron cyclotron heating power density profile on the cell grid [:math:`W/m^3`]. Only output if ``ecrh`` source is active.
+  Electron cyclotron heating power density (only relevant for electrons) [:math:`W/m^3`]. Only output if ``ecrh`` source is active.
 
 ``p_generic_heat_e`` (time, rho_cell_norm)
-  Generic external electron heat source density profile on the cell grid [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
+  Generic external heat source power density to electrons [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
 
 ``p_generic_heat_i`` (time, rho_cell_norm)
-  Generic external ion heat source density profile on the cell grid [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
+  Generic external heat source power density to ions [:math:`W/m^3`]. Only output if ``generic_heat`` source is active.
 
 ``p_icrh_e`` (time, rho_cell_norm)
-  Ion cyclotron heating power density electron heating profile on the cell grid [:math:`W/m^3`]. Only output if ``icrh`` source is active.
+  Ion cyclotron heating power density to electrons [:math:`W/m^3`]. Only output if ``icrh`` source is active.
 
 ``p_icrh_i`` (time, rho_cell_norm)
-  Ion cyclotron heating power density ion heating profile on the cell grid [:math:`W/m^3`]. Only output if ``icrh`` source is active.
+  Ion cyclotron heating power density to ions [:math:`W/m^3`]. Only output if ``icrh`` source is active.
 
 ``p_impurity_radiation_e`` (time, rho_cell_norm)
-  Impurity radiation heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if ``impurity_radiation`` source is active.
+  Impurity radiation heat sink density (only relevant for electrons) [:math:`W/m^3`]. Only output if ``impurity_radiation`` source is active.
 
 ``p_ohmic_e`` (time, rho_cell_norm)
-  Ohmic heat sink density profile on the cell grid [:math:`W/m^3`]. Only output if ``ohmic`` source is active.
+  Ohmic heating power density [:math:`W/m^3`] (only relevant for electrons). Only output if ``ohmic`` source is active.
 
 ``Phi`` (time, rho_norm)
   Toroidal magnetic flux at each radial grid point [:math:`Wb`].
@@ -262,22 +263,22 @@ For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` mode
   Derivative of total pressure with respect to poloidal flux [:math:`Pa/Wb`].
 
 ``pressure_thermal_e`` (time, rho_face_norm)
-  Electron thermal pressure profile [:math:`Pa`].
+  Electron thermal pressure [:math:`Pa`].
 
 ``pressure_thermal_i`` (time, rho_face_norm)
-  Ion thermal pressure profile [:math:`Pa`].
+  Ion thermal pressure  [:math:`Pa`].
 
 ``pressure_thermal_total`` (time, rho_face_norm)
-  Total thermal pressure profile [:math:`Pa`].
+  Total thermal pressure [:math:`Pa`].
 
 ``psi`` (time, rho_norm)
   Poloidal flux profile :math:`\psi` [:math:`Wb`].
 
 ``psi_from_geo`` (time, rho_cell_norm)
-  Poloidal flux calculated from geometry (NOT psi calculated self-consistently by the TORAX PDE) on the cell grid [:math:`Wb`].
+  Poloidal flux provided by the input geometry file (NOT psi calculated self-consistently by the TORAX PDE) on the cell grid [:math:`Wb`].
 
 ``psi_from_Ip`` (time, rho_norm)
-  Poloidal flux calculated from the current profile in the geometry file (NOT psi calculated self-consistently by the TORAX PDE) [:math:`Wb`].
+  Poloidal flux calculated from the current profile provided by the input geometry file (NOT psi calculated self-consistently by the TORAX PDE) [:math:`Wb`].
 
 ``psi_norm`` (time, rho_face_norm)
   Normalized poloidal flux profile [dimensionless].
@@ -288,41 +289,38 @@ For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` mode
 ``R_in`` (time, rho_norm)
   Inner (minimum) radius of each flux surface [:math:`m`].
 
-``r_mid`` (time, rho_cell_norm)
-  Mid-plane radius of each flux surface on the cell grid [:math:`m`].
-
-``r_mid_face`` (time, rho_face_norm)
-  Mid-plane radius of each flux surface on the face grid [:math:`m`].
+``r_mid`` (time, rho_norm)
+  Mid-plane radius of each flux surface [:math:`m`].
 
 ``R_out`` (time, rho_norm)
   Outer (maximum) radius of each flux surface [:math:`m`].
 
 ``s_gas_puff`` (time, rho_cell_norm)
-  Gas puff particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``gas_puff`` source is active.
+  Gas puff particle source density [:math:`s^{-1} m^{-3}`]. Only output if ``gas_puff`` source is active.
 
 ``s_generic_particle`` (time, rho_cell_norm)
-  Generic particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``generic_particle`` source is active.
+  Generic particle source density [:math:`s^{-1} m^{-3}`]. Only output if ``generic_particle`` source is active.
 
 ``s_pellet`` (time, rho_cell_norm)
-  Pellet particle source density profile on the cell grid [:math:`s^{-1} m^{-3}`]. Only output if ``pellet`` source is active.
+  Pellet particle source density [:math:`s^{-1} m^{-3}`]. Only output if ``pellet`` source is active.
 
 ``sigma_parallel`` (time, rho_cell_norm)
-  Plasma conductivity parallel to the magnetic field profile on the cell grid [:math:`S/m`].
+  Plasma conductivity parallel to the magnetic field [:math:`S/m`].
 
 ``spr`` (time, rho_norm)
   Derivative of plasma surface area enclosed by each flux surface, with respect to the normalized toroidal flux coordinate rho_norm [:math:`m^2`].
 
 ``T_e`` (time, rho_norm)
-  Electron temperature profile [:math:`keV`].
+  Electron temperature [:math:`keV`].
 
 ``T_i`` (time, rho_norm)
-  Ion temperature profile [:math:`keV`].
+  Ion temperature [:math:`keV`].
 
 ``v_loop`` (time, rho_norm)
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}` [:math:`V`].
 
 ``V_turb_e`` (time, rho_face_norm)
-  Turbulent electron particle convection profile on the face grid [:math:`m/s`].
+  Turbulent electron particle convection [:math:`m/s`].
 
 ``volume`` (time, rho_norm)
   Plasma volume enclosed by each flux surface [:math:`m^3`].
@@ -330,8 +328,12 @@ For ``transport`` certain profiles are only output if the ``bohm-gyrobohm`` mode
 ``vpr`` (time, rho_norm)
   Derivative of plasma volume enclosed by each flux surface with respect to the normalized toroidal flux coordinate rho_norm [:math:`m^3`].
 
+``Z_eff`` (time, rho_norm)
+  Effective charge profile defined as
+  :math:`(Z_i^2n_i + Z_{impurity}^2n_{impurity})/n_e` [dimensionless].
+
 ``Z_impurity`` (time, rho_norm)
-  Effective charge profile of the impurity species [dimensionless].
+  Averaged charge profile of the impurity species [dimensionless].
 
 scalars
 -------
@@ -351,7 +353,7 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   Radial grid spacing in the unnormalized rho coordinate [:math:`m`].
 
 ``drho_norm`` ()
-  Radial grid spacing in the normalized rho coordinate [dimensionless]. This is a fixed scalar value.
+  Radial grid spacing in the normalized rho coordinate [dimensionless].
 
 ``E_aux`` (time)
   Total cumulative auxiliary injected energy (Ohmic + auxiliary heating) [:math:`J`].
@@ -407,12 +409,6 @@ This dataset contains time-dependent scalar quantities describing global plasma 
 ``n_i_volume_avg`` (time)
   Volume-averaged main ion density [dimensionless].
 
-``n_e_min_P_LH`` (time)
-  Electron density at which the minimum H-mode transition power occurs [:math:`m^{-3}`].
-
-``n_ref`` (time)
-  Reference density used for normalization [:math:`m^{-3}`].
-
 ``P_alpha_e`` (time)
   Total fusion alpha heating power to electrons [:math:`W`].
 
@@ -444,10 +440,10 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   Total Bremsstrahlung electron heat sink power [:math:`W`].
 
 ``P_cyclotron_e`` (time)
-  Total cyclotron radiation heat sink power [:math:`W`].
+  Total cyclotron radiation heat sink power (only relevant for electrons) [:math:`W`].
 
 ``P_ecrh_e`` (time)
-  Total electron cyclotron source power to electrons [:math:`W`].
+  Total electron cyclotron source power (only relevant for electrons) [:math:`W`].
 
 ``P_ei_exchange_e`` (time)
   Total electron-ion heat exchange power to electrons [:math:`W`].
@@ -456,7 +452,9 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   Total electron-ion heat exchange power to ions [:math:`W`].
 
 ``P_external_injected`` (time)
-  Total externally injected power into the plasma [:math:`W`]. This is likely equivalent to `P_external_tot`.
+  Total externally injected power into the plasma [:math:`W`]. This will be
+  larger than ``P_external_tot`` if any source has a value of
+  ``absorption_fraction`` less than 1.
 
 ``P_icrh_e`` (time)
   Total ion cyclotron resonance heating power to electrons [:math:`W`].
@@ -477,10 +475,10 @@ This dataset contains time-dependent scalar quantities describing global plasma 
   H-mode transition power at the density corresponding to the minimum transition power, from Ryter 2014. [:math:`W`].
 
 ``P_ohmic_e`` (time)
-  Total Ohmic heating power to electrons [:math:`W`].
+  Total Ohmic heating power (only relevant for electrons) [:math:`W`].
 
 ``P_radiation_e`` (time)
-  Total radiative heat sink power (including Bremsstrahlung, Cyclotron, and other radiation) to electrons [:math:`W`].
+  Total radiative heat sink power (including Bremsstrahlung, Cyclotron, and other radiation). Only relevant for electrons [:math:`W`].
 
 ``P_SOL_e`` (time)
   Total electron heating power exiting the plasma across the LCFS [:math:`W`].
