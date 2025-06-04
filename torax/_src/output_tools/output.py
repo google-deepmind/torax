@@ -599,10 +599,15 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
-    for field_name, data in dataclasses.asdict(
-        self._stacked_post_processed_outputs
-    ).items():
-      xr_dict[field_name] = self._pack_into_data_array(field_name, data)
+    for field in dataclasses.fields(self._stacked_post_processed_outputs):
+      attr_name = field.name
+      attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
+      if hasattr(attr_value, "cell_plus_boundaries"):
+        # Handles stacked CellVariable-like objects.
+        data_to_save = attr_value.cell_plus_boundaries()
+      else:
+        data_to_save = attr_value
+      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
     return xr_dict
 
   def _save_geometry(

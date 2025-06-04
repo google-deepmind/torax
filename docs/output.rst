@@ -283,13 +283,13 @@ These are called out in the list of profiles below, and generate relate to:
 ``pprime`` (time, rho_face_norm)
   Derivative of total pressure with respect to poloidal flux [:math:`Pa/Wb`].
 
-``pressure_thermal_e`` (time, rho_face_norm)
+``pressure_thermal_e`` (time, rho_norm)
   Electron thermal pressure [:math:`Pa`].
 
-``pressure_thermal_i`` (time, rho_face_norm)
+``pressure_thermal_i`` (time, rho_norm)
   Ion thermal pressure  [:math:`Pa`].
 
-``pressure_thermal_total`` (time, rho_face_norm)
+``pressure_thermal_total`` (time, rho_norm)
   Total thermal pressure [:math:`Pa`].
 
 ``psi`` (time, rho_norm)

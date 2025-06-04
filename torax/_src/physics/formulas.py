@@ -27,14 +27,13 @@ Functions:
     - calculate_greenwald_fraction: Calculates the Greenwald fraction from the
       averaged electron density (can be line-averaged or volume-averaged).
 """
-import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src import state
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-
-_trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
 
@@ -51,34 +50,56 @@ def calculate_main_ion_dilution_factor(
 
 def calculate_pressure(
     core_profiles: state.CoreProfiles,
-) -> tuple[array_typing.ArrayFloat, ...]:
-  """Calculates pressure from density and temperatures on the face grid.
+) -> tuple[cell_variable.CellVariable, ...]:
+  """Calculates pressure from density and temperatures.
 
   Args:
     core_profiles: CoreProfiles object containing information on temperatures
       and densities.
 
   Returns:
-    pressure_thermal_el_face: Electron thermal pressure [Pa]
-    pressure_thermal_ion_face: Ion thermal pressure [Pa]
-    pressure_thermal_tot_face: Total thermal pressure [Pa]
+    pressure_thermal_el: Electron thermal pressure [Pa]
+    pressure_thermal_ion: Ion thermal pressure [Pa]
+    pressure_thermal_tot: Total thermal pressure [Pa]
   """
-  n_e = core_profiles.n_e.face_value()
-  n_i = core_profiles.n_i.face_value()
-  n_impurity = core_profiles.n_impurity.face_value()
-  T_i = core_profiles.T_i.face_value()
-  T_e = core_profiles.T_e.face_value()
-  pressure_thermal_el_face = n_e * T_e * constants.CONSTANTS.keV2J
-  pressure_thermal_ion_face = (
-      (n_i + n_impurity) * T_i * constants.CONSTANTS.keV2J
+
+  pressure_thermal_el = cell_variable.CellVariable(
+      value=core_profiles.n_e.value
+      * core_profiles.T_e.value
+      * constants.CONSTANTS.keV2J,
+      dr=core_profiles.n_e.dr,
+      right_face_constraint=core_profiles.n_e.right_face_constraint
+      * core_profiles.T_e.right_face_constraint
+      * constants.CONSTANTS.keV2J,
+      right_face_grad_constraint=None,
   )
-  pressure_thermal_tot_face = (
-      pressure_thermal_el_face + pressure_thermal_ion_face
+
+  pressure_thermal_ion = cell_variable.CellVariable(
+      value=core_profiles.T_i.value
+      * constants.CONSTANTS.keV2J
+      * (core_profiles.n_i.value + core_profiles.n_impurity.value),
+      dr=core_profiles.n_i.dr,
+      right_face_constraint=core_profiles.T_i.right_face_constraint
+      * constants.CONSTANTS.keV2J
+      * (
+          core_profiles.n_i.right_face_constraint
+          + core_profiles.n_impurity.right_face_constraint
+      ),
+      right_face_grad_constraint=None,
   )
+
+  pressure_thermal_tot = cell_variable.CellVariable(
+      value=pressure_thermal_el.value + pressure_thermal_ion.value,
+      dr=pressure_thermal_el.dr,
+      right_face_constraint=pressure_thermal_el.right_face_constraint
+      + pressure_thermal_ion.right_face_constraint,
+      right_face_grad_constraint=None,
+  )
+
   return (
-      pressure_thermal_el_face,
-      pressure_thermal_ion_face,
-      pressure_thermal_tot_face,
+      pressure_thermal_el,
+      pressure_thermal_ion,
+      pressure_thermal_tot,
   )
 
 
@@ -119,10 +140,17 @@ def calc_pprime(
       + dnimp_drhon * T_i
   )
 
+  p_total_face = p_total.face_value()
+
   # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
   # difference approximation for second derivative at edge.
   pprime_face_axis = jnp.expand_dims(
-      (2 * p_total[0] - 5 * p_total[1] + 4 * p_total[2] - p_total[3])
+      (
+          2 * p_total_face[0]
+          - 5 * p_total_face[1]
+          + 4 * p_total_face[2]
+          - p_total_face[3]
+      )
       / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),
       axis=0,
   )
@@ -171,9 +199,9 @@ def calc_FFprime(
 
 
 def calculate_stored_thermal_energy(
-    p_el: array_typing.ArrayFloat,
-    p_ion: array_typing.ArrayFloat,
-    p_tot: array_typing.ArrayFloat,
+    p_el: cell_variable.CellVariable,
+    p_ion: cell_variable.CellVariable,
+    p_tot: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> tuple[array_typing.ScalarFloat, ...]:
   """Calculates stored thermal energy from pressures.
@@ -189,9 +217,9 @@ def calculate_stored_thermal_energy(
     wth_ion: Ion thermal stored energy [J]
     wth_tot: Total thermal stored energy [J]
   """
-  wth_el = _trapz(1.5 * p_el * geo.vpr_face, geo.rho_face_norm)
-  wth_ion = _trapz(1.5 * p_ion * geo.vpr_face, geo.rho_face_norm)
-  wth_tot = _trapz(1.5 * p_tot * geo.vpr_face, geo.rho_face_norm)
+  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)
+  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)
+  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)
 
   return wth_el, wth_ion, wth_tot
 
