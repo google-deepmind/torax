@@ -16,7 +16,6 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -36,11 +35,6 @@ class SauterTest(absltest.TestCase):
         instance=True,
         neoclassical=neoclassical_runtime_params.DynamicRuntimeParams(
             bootstrap_current=dynamic_bootstap_params),
-        plasma_composition=mock.create_autospec(
-            plasma_composition.PlasmaComposition,
-            instance=True,
-            Z_eff_face=jnp.ones_like(geo.rho_face),
-        ),
     )
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
@@ -60,6 +54,7 @@ class SauterTest(absltest.TestCase):
             value=jnp.linspace(100, 200, n_rho), dr=geo.drho_norm
         ),
         Z_i_face=jnp.linspace(1000, 2000, n_rho + 1),
+        Z_eff_face=jnp.linspace(1.0, 1.0, n_rho + 1),
         q_face=jnp.linspace(1, 5, n_rho + 1),
     )
 

@@ -16,8 +16,6 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import plasma_composition
-from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical.conductivity import sauter
@@ -28,15 +26,6 @@ class SauterTest(absltest.TestCase):
   def test_sauter_bootstrap_current_is_correct_shape(self):
     n_rho = 10
     geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
-    dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
-        instance=True,
-        plasma_composition=mock.create_autospec(
-            plasma_composition.PlasmaComposition,
-            instance=True,
-            Z_eff_face=jnp.ones_like(geo.rho_face),
-        ),
-    )
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         T_i=cell_variable.CellVariable(
@@ -55,12 +44,12 @@ class SauterTest(absltest.TestCase):
             value=jnp.linspace(100, 200, n_rho), dr=geo.drho_norm
         ),
         Z_i_face=jnp.linspace(1000, 2000, n_rho + 1),
+        Z_eff_face=jnp.linspace(1.0, 1.0, n_rho + 1),
         q_face=jnp.linspace(1, 5, n_rho + 1),
     )
 
     model = sauter.SauterModel()
     result = model.calculate_conductivity(
-        dynamic_params,
         geo,
         core_profiles,
     )

@@ -76,7 +76,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     Z_i = core_profiles.Z_i
     # Find the value of Z_eff at the pedestal top.
     rho_norm_ped_top = dynamic_runtime_params_slice.pedestal.rho_norm_ped_top
-    Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+    Z_eff = core_profiles.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
     Z_eff_ped = jnp.take(Z_eff, ped_idx)

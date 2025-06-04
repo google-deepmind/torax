@@ -370,7 +370,6 @@ def _init_psi_and_psi_derived(
       )
   )
   conductivity = source_models.conductivity.calculate_conductivity(
-      dynamic_runtime_params_slice,
       geo,
       core_profiles,
   )
