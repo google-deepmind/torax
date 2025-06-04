@@ -362,8 +362,11 @@ These are called out in the list of profiles below, and generate relate to:
   Effective charge profile defined as
   :math:`(Z_i^2n_i + Z_{impurity}^2n_{impurity})/n_e` [dimensionless].
 
+``Z_i`` (time, rho_norm)
+  Averaged main ion charge profile [dimensionless].
+
 ``Z_impurity`` (time, rho_norm)
-  Averaged charge profile of the impurity species [dimensionless].
+  Averaged impurity charge profile [dimensionless].
 
 scalars
 -------
@@ -373,6 +376,12 @@ properties and characteristics.
 
 ``a_minor`` (time)
   Minor radius [:math:`m`].
+
+``A_i`` (time)
+  Averaged main ion mass [amu].
+
+``A_impurity`` (time)
+  Averaged impurity mass [amu].
 
 ``B_0`` (time)
   Magnetic field strength at the magnetic axis [:math:`T`].

@@ -34,6 +34,7 @@ import xarray as xr
 
 import os
 
+# pylint: disable=invalid-name
 
 # Dataset names.
 PROFILES = "profiles"
@@ -52,18 +53,17 @@ MAGNETIC_SHEAR = "magnetic_shear"
 N_IMPURITY = "n_impurity"
 Z_IMPURITY = "Z_impurity"
 Z_EFF = "Z_eff"
-
-# Currents.
+SIGMA_PARALLEL = "sigma_parallel"
+V_LOOP_LCFS = "v_loop_lcfs"
 J_TOTAL = "j_total"
+IP_PROFILE = "Ip_profile"
+IP = "Ip"
+
+# Calculated or derived currents.
 J_OHMIC = "j_ohmic"
 J_EXTERNAL = "j_external"
 J_BOOTSTRAP = "j_bootstrap"
 I_BOOTSTRAP = "I_bootstrap"
-IP_PROFILE = "Ip_profile"
-SIGMA_PARALLEL = "sigma_parallel"
-
-IP = "Ip"
-V_LOOP_LCFS = "v_loop_lcfs"
 
 # Core transport.
 CHI_TURB_I = "chi_turb_i"
@@ -464,44 +464,57 @@ class StateHistory:
   def _save_core_profiles(
       self,
   ) -> dict[str, xr.DataArray | None]:
-    """Saves the core profiles to a dict."""
+    """Saves the stacked core profiles to a dictionary of xr.DataArrays."""
     xr_dict = {}
-    core_profiles = self._stacked_core_profiles
+    stacked_core_profiles = self._stacked_core_profiles
 
-    xr_dict[T_E] = core_profiles.T_e.cell_plus_boundaries()
-    xr_dict[T_I] = core_profiles.T_i.cell_plus_boundaries()
-    xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
-    xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
-    xr_dict[N_E] = core_profiles.n_e.cell_plus_boundaries()
-    xr_dict[N_I] = core_profiles.n_i.cell_plus_boundaries()
-    xr_dict[N_IMPURITY] = core_profiles.n_impurity.cell_plus_boundaries()
-    xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
-        core_profiles.Z_impurity, core_profiles.Z_impurity_face
-    )
-    xr_dict[Z_EFF] = _extend_cell_grid_to_boundaries(
-        core_profiles.Z_eff, core_profiles.Z_eff_face
-    )
-    xr_dict[SIGMA_PARALLEL] = core_profiles.sigma
-
-    # Currents.
-    xr_dict[J_TOTAL] = _extend_cell_grid_to_boundaries(
-        core_profiles.j_total, core_profiles.j_total_face
-    )
-    xr_dict[IP_PROFILE] = core_profiles.Ip_profile_face
-    xr_dict[IP] = core_profiles.Ip_profile_face[:, -1]
-
-    xr_dict[Q] = core_profiles.q_face
-    xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
-
-    xr_dict[V_LOOP_LCFS] = core_profiles.v_loop_lcfs
-
-    xr_dict = {
-        name: self._pack_into_data_array(
-            name,
-            data,
-        )
-        for name, data in xr_dict.items()
+    # Map from CoreProfiles attribute name to the desired output name.
+    # Needed for attributes that are not 1:1 with the output name.
+    # Other attributes will use the same name as in CoreProfiles
+    output_name_map = {
+        "psidot": V_LOOP,
+        "sigma": SIGMA_PARALLEL,
+        "Ip_profile_face": IP_PROFILE,
+        "q_face": Q,
+        "s_face": MAGNETIC_SHEAR,
     }
+
+    core_profile_field_names = {
+        f.name for f in dataclasses.fields(stacked_core_profiles)
+    }
+
+    for field in dataclasses.fields(stacked_core_profiles):
+      attr_name = field.name
+      attr_value = getattr(stacked_core_profiles, attr_name)
+
+      output_key = output_name_map.get(attr_name, attr_name)
+
+      # Skip _face attributes if their cell counterpart exists;
+      # they are handled when the cell attribute is processed.
+      if attr_name.endswith("_face") and (
+          attr_name.removesuffix("_face") in core_profile_field_names
+      ):
+        continue
+
+      if hasattr(attr_value, "cell_plus_boundaries"):
+        # Handles stacked CellVariable-like objects.
+        data_to_save = attr_value.cell_plus_boundaries()
+      else:
+        face_attr_name = f"{attr_name}_face"
+        if face_attr_name in core_profile_field_names:
+          # Combine cell and edge face values.
+          face_value = getattr(stacked_core_profiles, face_attr_name)
+          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+        else:  # cell array with no face counterpart, or a scalar value
+          data_to_save = attr_value
+
+      xr_dict[output_key] = self._pack_into_data_array(
+          output_key, data_to_save
+      )
+
+    # Handle derived quantities
+    Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
+    xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)
 
     return xr_dict
 
