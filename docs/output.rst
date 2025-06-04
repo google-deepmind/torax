@@ -593,6 +593,18 @@ properties and characteristics.
   Normalized toroidal flux coordinate at which the minimum safety factor occurs
   [dimensionless].
 
+``S_gas_puff`` (time)
+  Integrated gas puff particle source rate [:math:`s^{-1}`].
+
+``S_generic_particle`` (time)
+  Integrated generic particle source rate [:math:`s^{-1}`].
+
+``S_pellet`` (time)
+  Integrated pellet particle source rate [:math:`s^{-1}`].
+
+``S_total`` (time)
+  Total particle source rate from all active sources [:math:`s^{-1}`].
+
 ``T_e_volume_avg`` (time)
   Volume-averaged electron temperature [:math:`keV`].
 
