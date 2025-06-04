@@ -22,9 +22,11 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import formulas
+from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -283,6 +285,85 @@ class GettersTest(parameterized.TestCase):
         ions.n_impurity.value,
         (expected_value - ions.n_i.value * ions.Z_i) / ions.Z_impurity,
         atol=1e-6,
+        rtol=1e-6,
+    )
+
+  def test_Z_eff_calculation(self):
+    config = default_configs.get_default_config_dict()
+    config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    source_models = source_models_lib.SourceModels(
+        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    )
+    dynamic_provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    dynamic_runtime_params_slice, geo = (
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=torax_config.numerics.t_initial,
+            dynamic_runtime_params_slice_provider=dynamic_provider,
+            geometry_provider=torax_config.geometry.build_provider,
+        )
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    )
+    core_profiles = initialization.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+
+    # dynamic_runtime_params_slice.plasma_composition.Z_eff_face is not
+    # expected to match core_profiles.Z_eff_face, since the main ion dilution
+    # does not scale linearly with Z_eff, and thus Z_eff calculated from the
+    # face values of the core profiles will not match the interpolated
+    # Z_eff_face from plasma_composition. Only the cell grid Z_eff and
+    # edge Z_eff should match exactly, since those were actually used to
+    # calculate n_i and n_impurity.
+    expected_Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+    expected_Z_eff_edge = (
+        dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
+    )
+
+    calculated_Z_eff = getters._calculate_Z_eff(
+        core_profiles.Z_i,
+        core_profiles.Z_impurity,
+        core_profiles.n_i.value,
+        core_profiles.n_impurity.value,
+        core_profiles.n_e.value,
+    )
+
+    calculated_Z_eff_face = getters._calculate_Z_eff(
+        core_profiles.Z_i_face,
+        core_profiles.Z_impurity_face,
+        core_profiles.n_i.face_value(),
+        core_profiles.n_impurity.face_value(),
+        core_profiles.n_e.face_value(),
+    )
+
+    np.testing.assert_allclose(
+        core_profiles.Z_eff,
+        expected_Z_eff,
+        err_msg=(
+            'Calculated Z_eff does not match expectation from config.\n'
+            f'Calculated Z_eff: {calculated_Z_eff}\n'
+            f'Expected Z_eff: {expected_Z_eff}'
+        ),
+        rtol=1e-6,
+    )
+
+    np.testing.assert_allclose(
+        core_profiles.Z_eff_face[-1],
+        expected_Z_eff_edge,
+        err_msg=(
+            'Calculated Z_eff edge does not match expectation from config.\n'
+            f'Calculated Z_eff edge: {calculated_Z_eff_face[-1]}\n'
+            f'Expected Z_eff edge: {expected_Z_eff_edge}'
+        ),
         rtol=1e-6,
     )
 

@@ -44,6 +44,8 @@ class Ions:
   Z_impurity_face: array_typing.ArrayFloat
   A_i: array_typing.ScalarFloat
   A_impurity: array_typing.ScalarFloat
+  Z_eff: array_typing.ArrayFloat
+  Z_eff_face: array_typing.ArrayFloat
 
 
 def get_updated_ion_temperature(
@@ -209,7 +211,7 @@ def get_updated_ions(
   )
 
   Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-  Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
+  Z_eff_edge = dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
 
   dilution_factor = jnp.where(
       Z_eff == 1.0,
@@ -218,10 +220,10 @@ def get_updated_ions(
   )
 
   dilution_factor_edge = jnp.where(
-      Z_eff_face[-1] == 1.0,
+      Z_eff_edge == 1.0,
       1.0,
       formulas.calculate_main_ion_dilution_factor(
-          Z_i_face[-1], Z_impurity_face[-1], Z_eff_face[-1]
+          Z_i_face[-1], Z_impurity_face[-1], Z_eff_edge
       ),
   )
 
@@ -251,6 +253,19 @@ def get_updated_ions(
       right_face_grad_constraint=None,
       right_face_constraint=n_impurity_right_face_constraint,
   )
+
+  # Z_eff from plasma composition is imposed and can be passed to CoreProfiles.
+  # However, we must recalculate Z_eff_face from the updated densities and
+  # charge states since linearly interpolated Z_eff (which is what plasma
+  # composition Z_eff_face is) would not be physically consistent.
+  Z_eff_face = _calculate_Z_eff(
+      Z_i_face,
+      Z_impurity_face,
+      n_i.face_value(),
+      n_impurity.face_value(),
+      n_e.face_value(),
+  )
+
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
@@ -260,6 +275,8 @@ def get_updated_ions(
       Z_impurity_face=Z_impurity_face,
       A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
       A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+      Z_eff=dynamic_runtime_params_slice.plasma_composition.Z_eff,
+      Z_eff_face=Z_eff_face,
   )
 
 
@@ -297,3 +314,14 @@ def _get_charge_states(
   )
 
   return Z_i, Z_i_face, Z_impurity, Z_impurity_face
+
+
+def _calculate_Z_eff(
+    Z_i: array_typing.ArrayFloat,
+    Z_impurity: array_typing.ArrayFloat,
+    n_i: array_typing.ArrayFloat,
+    n_impurity: array_typing.ArrayFloat,
+    n_e: array_typing.ArrayFloat,
+) -> array_typing.ArrayFloat:
+  """Calculates Z_eff based on impurity and main_ion."""
+  return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

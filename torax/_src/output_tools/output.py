@@ -51,6 +51,7 @@ Q = "q"
 MAGNETIC_SHEAR = "magnetic_shear"
 N_IMPURITY = "n_impurity"
 Z_IMPURITY = "Z_impurity"
+Z_EFF = "Z_eff"
 
 # Currents.
 J_TOTAL = "j_total"
@@ -476,6 +477,9 @@ class StateHistory:
     xr_dict[N_IMPURITY] = core_profiles.n_impurity.cell_plus_boundaries()
     xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
         core_profiles.Z_impurity, core_profiles.Z_impurity_face
+    )
+    xr_dict[Z_EFF] = _extend_cell_grid_to_boundaries(
+        core_profiles.Z_eff, core_profiles.Z_eff_face
     )
     xr_dict[SIGMA_PARALLEL] = core_profiles.sigma
 

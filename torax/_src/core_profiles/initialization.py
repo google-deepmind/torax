@@ -112,6 +112,8 @@ def initial_core_profiles(
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
       A_impurity=ions.A_impurity,
+      Z_eff=ions.Z_eff,
+      Z_eff_face=ions.Z_eff_face,
       psi=psi,
       psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face),

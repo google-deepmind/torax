@@ -133,6 +133,8 @@ def get_prescribed_core_profile_values(
       'Z_impurity_face': ions.Z_impurity_face,
       'A_i': ions.A_i,
       'A_impurity': ions.A_impurity,
+      'Z_eff': ions.Z_eff,
+      'Z_eff_face': ions.Z_eff_face,
   }
 
 
@@ -189,6 +191,8 @@ def update_core_profiles_during_step(
       Z_impurity_face=ions.Z_impurity_face,
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
+      Z_eff=ions.Z_eff,
+      Z_eff_face=ions.Z_eff_face,
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
   )
@@ -294,6 +298,8 @@ def update_all_core_profiles_after_step(
       ),
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
+      Z_eff=ions.Z_eff,
+      Z_eff_face=ions.Z_eff_face,
       v_loop_lcfs=v_loop_lcfs,
       # These have already been updated in the solver.
       sigma=core_profiles_t_plus_dt.sigma,
@@ -501,6 +507,8 @@ def provide_core_profiles_t_plus_dt(
       Z_impurity_face=Z_impurity_face,
       A_i=updated_values['A_i'],
       A_impurity=updated_values['A_impurity'],
+      Z_eff=updated_values['Z_eff'],
+      Z_eff_face=updated_values['Z_eff_face'],
   )
   return core_profiles_t_plus_dt
 

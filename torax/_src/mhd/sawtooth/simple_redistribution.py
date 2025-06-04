@@ -133,6 +133,8 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           Z_impurity_face=core_profiles_t.Z_impurity_face,
           A_i=core_profiles_t.A_i,
           A_impurity=core_profiles_t.A_impurity,
+          Z_eff=core_profiles_t.Z_eff,
+          Z_eff_face=core_profiles_t.Z_eff_face,
       )
     if static_runtime_params_slice.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(

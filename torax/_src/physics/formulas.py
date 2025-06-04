@@ -44,7 +44,7 @@ def calculate_main_ion_dilution_factor(
     Z_i: array_typing.ScalarFloat,
     Z_impurity: array_typing.ArrayFloat,
     Z_eff: array_typing.ArrayFloat,
-) -> jax.Array:
+) -> array_typing.ArrayFloat:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 

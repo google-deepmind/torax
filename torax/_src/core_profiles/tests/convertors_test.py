@@ -70,6 +70,8 @@ class ConvertersTest(parameterized.TestCase):
         v_loop_lcfs=mock.ANY,
         Z_i=mock.ANY,
         Z_i_face=mock.ANY,
+        Z_eff=mock.ANY,
+        Z_eff_face=mock.ANY,
         A_i=mock.ANY,
         Z_impurity=mock.ANY,
         Z_impurity_face=mock.ANY,
