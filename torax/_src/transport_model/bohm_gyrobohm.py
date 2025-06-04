@@ -54,10 +54,11 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
   def _call_implementation(
       self,
+      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     r"""Calculates transport coefficients using the BohmGyroBohm model.
 
@@ -68,20 +69,22 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     https://torax.readthedocs.io/en/latest/physics_models.html
 
     Args:
-      dynamic_runtime_params_slice: Input runtime parameters that can change
-        without triggering a JAX recompilation.
+      transport_dynamic_runtime_params: Input runtime parameters for this
+        transport model. Can change without triggering a JAX recompilation.
+      dynamic_runtime_params_slice: Input runtime parameters for all components
+        of the simulation that can change without triggering a JAX
+        recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_outputs: Output of the pedestal model.
+      pedestal_model_output: Output of the pedestal model.
 
     Returns:
       coeffs: The transport coefficients
     """
-    del pedestal_model_outputs  # Unused.
+    del pedestal_model_output  # Unused.
     # pylint: disable=invalid-name
-    assert isinstance(
-        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
-    )
+    # Required for pytype
+    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
     # Bohm term of heat transport
     chi_e_B = (
@@ -123,24 +126,24 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     # Calibrated transport coefficients
     chi_e_bohm = (
-        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_e_bohm_multiplier
+        transport_dynamic_runtime_params.chi_e_bohm_coeff
+        * transport_dynamic_runtime_params.chi_e_bohm_multiplier
         * chi_e_B
     )
     chi_e_gyrobohm = (
-        dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_e_gyrobohm_multiplier
+        transport_dynamic_runtime_params.chi_e_gyrobohm_coeff
+        * transport_dynamic_runtime_params.chi_e_gyrobohm_multiplier
         * chi_e_gB
     )
 
     chi_i_bohm = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
+        transport_dynamic_runtime_params.chi_i_bohm_coeff
+        * transport_dynamic_runtime_params.chi_i_bohm_multiplier
         * chi_i_B
     )
     chi_i_gyrobohm = (
-        dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
+        transport_dynamic_runtime_params.chi_i_gyrobohm_coeff
+        * transport_dynamic_runtime_params.chi_i_gyrobohm_multiplier
         * chi_i_gB
     )
 
@@ -150,10 +153,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     # Electron diffusivity
     weighting = (
-        dynamic_runtime_params_slice.transport.D_face_c1
+        transport_dynamic_runtime_params.D_face_c1
         + (
-            dynamic_runtime_params_slice.transport.D_face_c2
-            - dynamic_runtime_params_slice.transport.D_face_c1
+            transport_dynamic_runtime_params.D_face_c2
+            - transport_dynamic_runtime_params.D_face_c1
         )
         * geo.rho_face_norm
     )
@@ -170,7 +173,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     ])
 
     # Electron convectivity set proportional to the electron diffusivity
-    v_face_el = dynamic_runtime_params_slice.transport.V_face_coeff * d_face_el
+    v_face_el = transport_dynamic_runtime_params.V_face_coeff * d_face_el
 
     return state.CoreTransport(
         chi_face_ion=chi_i,

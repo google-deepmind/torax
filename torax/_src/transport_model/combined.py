@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The ConstantTransportModel class.
+"""The CombinedTransportModel class.
 
-A simple model assuming constant transport.
+A class for combining transport models.
 """
+
+from typing import Sequence
+
 import chex
-from jax import numpy as jnp
-from torax._src import array_typing
+import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -26,26 +28,22 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model
 
+# pylint: disable=protected-access
 
-# pylint: disable=invalid-name
+
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.DynamicRuntimeParams docstring for more info.
-  """
-
-  chi_i: array_typing.ScalarFloat
-  chi_e: array_typing.ScalarFloat
-  D_e: array_typing.ScalarFloat
-  V_e: array_typing.ScalarFloat
+  transport_model_params: Sequence[runtime_params_lib.DynamicRuntimeParams]
 
 
-class ConstantTransportModel(transport_model.TransportModel):
-  """Calculates various coefficients related to particle transport."""
+class CombinedTransportModel(transport_model.TransportModel):
+  """Combines coefficients from a list of transport models."""
 
-  def __init__(self):
+  def __init__(
+      self, transport_models: Sequence[transport_model.TransportModel]
+  ):
     super().__init__()
+    self.transport_models = transport_models
     self._frozen = True
 
   def _call_implementation(
@@ -56,7 +54,7 @@ class ConstantTransportModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    r"""Calculates transport coefficients using the Constant model.
+    r"""Calculates transport coefficients using the Combined model.
 
     Args:
       transport_dynamic_runtime_params: Input runtime parameters for this
@@ -71,37 +69,51 @@ class ConstantTransportModel(transport_model.TransportModel):
     Returns:
       coeffs: The transport coefficients
     """
-    del (
-        core_profiles,
-        pedestal_model_output,
-    )  # Not needed for this transport model
     # Required for pytype
     assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
-    chi_face_ion = transport_dynamic_runtime_params.chi_i * jnp.ones_like(
-        geo.rho_face
-    )
-    chi_face_el = transport_dynamic_runtime_params.chi_e * jnp.ones_like(
-        geo.rho_face
-    )
-    d_face_el = transport_dynamic_runtime_params.D_e * jnp.ones_like(
-        geo.rho_face
-    )
-    v_face_el = transport_dynamic_runtime_params.V_e * jnp.ones_like(
-        geo.rho_face
+    component_transport_coeffs_list = []
+
+    for component_model, component_params in zip(
+        self.transport_models,
+        transport_dynamic_runtime_params.transport_model_params,
+    ):
+      # Use the component model's _call_implementation, rather than __call__
+      # directly. This ensures postprocessing (clipping, smoothing, patches) are
+      # performed on the output of CombinedTransportModel rather than its
+      # component models.
+      component_transport_coeffs = component_model._call_implementation(
+          component_params,
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles,
+          pedestal_model_output,
+      )
+
+      # Apply domain restriction
+      # This is a property of each component_model, so needs to be applied
+      # at the component model level rather than the global level
+      component_transport_coeffs = component_model._apply_domain_restriction(
+          component_params,
+          geo,
+          component_transport_coeffs,
+          pedestal_model_output,
+      )
+
+      component_transport_coeffs_list.append(component_transport_coeffs)
+
+    combined_transport_coeffs = jax.tree.map(
+        lambda *leaves: sum(leaves),
+        *component_transport_coeffs_list,
     )
 
-    return state.CoreTransport(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-    )
+    return combined_transport_coeffs
 
   def __hash__(self):
-    # All ConstantTransportModels are equivalent and can hash the same
-    return hash('ConstantTransportModel')
+    return hash(tuple(self.transport_models))
 
   def __eq__(self, other):
-    # All ConstantTransportModels are equivalent
-    return isinstance(other, ConstantTransportModel)
+    return (
+        isinstance(other, CombinedTransportModel)
+        and self.transport_models == other.transport_models
+    )

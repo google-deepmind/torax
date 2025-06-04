@@ -71,6 +71,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_bohmgyrobohm_all',
           'test_bohmgyrobohm_all.py',
       ),
+      # Tests combined transport model
+      (
+          'test_combined_transport',
+          'test_combined_transport.py',
+      ),
       # Test that we are able to reproduce FiPy's behavior in a case where
       # FiPy is unstable
       (

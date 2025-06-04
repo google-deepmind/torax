@@ -763,6 +763,19 @@ transport model.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear
   gyrokinetic transport model.
+* ``'combined'``
+  An additive transport model, where contributions from a list of component
+  models are summed to produce a combined total.
+
+``rho_min`` (float [default = 0.0])
+  :math:`\hat{\rho}` above which the transport model is applied. For
+  ``rho_min > 0``, the model will be active in the range
+  ``rho_min < rho <= rho_max``. For ``rho_min == 0``, it will be active in the
+  range ``rho_min <= rho <= rho_max``.
+
+``rho_max`` (float [default = 1.0])
+  :math:`\hat{\rho}` below which the transport model is applied. See comment
+  about ``rho_min`` for more detail.
 
 ``chi_min`` (float [default = 0.05])
   Lower allowed bound for heat conductivities :math:`\chi`, in units of
@@ -788,10 +801,19 @@ transport model.
   Upper allowed bound for particle convection :math:`V`, in units of
   :math:`m^2/s`.
 
+``smoothing_width`` (float [default = 0.0])
+  Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
+  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
+
+``smooth_everywhere`` (bool [default = False])
+  Smooth across entire radial domain regardless of inner and outer patches.
+
 ``apply_inner_patch`` (**time-varying-scalar** [default = False])
   If ``True``, set a patch for inner core transport coefficients below
   ``rho_inner``. Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or
-  EM (e.g. KBM) transport in the inner-core.
+  EM (e.g. KBM) transport in the inner-core. If using a
+  `CombinedTransportModel`, ensure that the inner patch is only set on the
+  global model rather than its component models to avoid conflicts.
 
 ``D_e_inner``  (**time-varying-scalar** [default = 0.2])
   Particle diffusivity value for inner transport patch.
@@ -812,6 +834,9 @@ transport model.
   If ``True``, set a patch for outer core transport coefficients above
   ``rho_outer``. Useful for the L-mode near-edge region where models like
   QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
+  If using a `CombinedTransportModel`, ensure that the outer patch is
+  only set on the global model rather than its component models to avoid
+  conflicts.
 
 ``D_e_outer``  (**time-varying-scalar** [default = 0.2])
   Particle diffusivity value for outer transport patch.
@@ -828,12 +853,6 @@ transport model.
 ``rho_outer`` (float [default = 0.9])
   :math:`\hat{\rho}` above which outer patch is applied.
 
-``smoothing_width`` (float [default = 0.0])
-  Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
-  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
-
-``smooth_everywhere`` (bool [default = False])
-  Smooth across entire radial domain regardless of inner and outer patches.
 
 constant
 ^^^^^^^^
@@ -1032,6 +1051,74 @@ Runtime parameters for the QuaLiKiz model.
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+
+combined
+^^^^^^^^
+
+A combined (additive) model, where the total transport coefficients are
+calculated by summing contributions from a list of component models. Each
+component model is active only within its defined radial domain, set using
+``rho_min``` and ``rho_max``. These zones can be overlapping or
+non-overlapping; in regions of overlap, the total transport coefficients are
+computed by adding the contributions from component models active at those
+coordinates. Post-processing (clipping and smoothing) is performed on the
+summed value.
+
+The runtime parameters are as follows.
+
+``transport_models`` (list[dict])
+  A list containing config dicts for the component transport models.
+
+   .. warning::
+    TORAX will throw a ``ValueError`` if any of the component transport
+    model configs have ``apply_inner_patch`` or ``apply_outer_patch`` set
+    to True. Patches must be set in the config of the ``combined`` model
+    only.
+
+..
+    The code for generating the plots for this example is found in
+    docs/scripts/combined_transport_example.py
+
+Example:
+
+.. code-block:: python
+
+    'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+        {
+          'model_name': 'constant',
+            'chi_i': 1.0,
+            'rho_max': 0.3,
+        },
+        {
+          'model_name': 'constant',
+            'chi_i': 2.0,
+            'rho_min': 0.2
+            'rho_max': 0.5,
+        },
+        {
+          'model_name': 'constant',
+            'chi_i': 0.5,
+            'rho_min': 0.5
+            'rho_max': 1.0,
+        },
+      ],
+    }
+
+This would produce a ``chi_i`` profile that looks like the following.
+
+.. image:: images/combined_transport_example.png
+  :width: 400
+  :alt: A stepwise constant chi_i profile
+
+Note that in the region :math:`[0, 0.2]`, only the first component is active,
+so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
+active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.5]`,
+only the second model is active (``chi_i = 2.0``), and in :math:`(0.5, 1.0]`
+only the fourth model is active (``chi_i = 0.5``).
+
 
 sources
 -------

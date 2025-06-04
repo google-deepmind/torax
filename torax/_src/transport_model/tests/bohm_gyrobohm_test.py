@@ -141,10 +141,18 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
 
     output_A = self.model._call_implementation(
-        dyn_params_A, self.geo, self.core_profiles, self.pedestal_outputs
+        dyn_params_A.transport,
+        dyn_params_A,
+        self.geo,
+        self.core_profiles,
+        self.pedestal_outputs,
     )
     output_B = self.model._call_implementation(
-        dyn_params_B, self.geo, self.core_profiles, self.pedestal_outputs
+        dyn_params_B.transport,
+        dyn_params_B,
+        self.geo,
+        self.core_profiles,
+        self.pedestal_outputs,
     )
 
     np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
@@ -178,10 +186,18 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
 
     output_A = self.model._call_implementation(
-        dyn_params_A, self.geo, self.core_profiles, self.pedestal_outputs
+        dyn_params_A.transport,
+        dyn_params_A,
+        self.geo,
+        self.core_profiles,
+        self.pedestal_outputs,
     )
     output_B = self.model._call_implementation(
-        dyn_params_B, self.geo, self.core_profiles, self.pedestal_outputs
+        dyn_params_B.transport,
+        dyn_params_B,
+        self.geo,
+        self.core_profiles,
+        self.pedestal_outputs,
     )
 
     # Verify that the raw fields (which are computed before applying the

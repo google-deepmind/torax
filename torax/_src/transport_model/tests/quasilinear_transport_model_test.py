@@ -257,6 +257,7 @@ class FakeQuasilinearTransportModel(
 
   def _call_implementation(
       self,
+      transport_dynamic_runtime_params: quasilinear_transport_model.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,

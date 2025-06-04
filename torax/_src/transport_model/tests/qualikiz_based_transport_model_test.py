@@ -31,7 +31,6 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
-from torax._src.transport_model import quasilinear_transport_model
 
 
 def _get_config_and_model_inputs(
@@ -165,33 +164,29 @@ class FakeQualikizBasedTransportModel(
 
   def _call_implementation(
       self,
+      transport_runtime_params: qualikiz_based_transport_model.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    transport = dynamic_runtime_params_slice.transport
     # Assert required for pytype.
     assert isinstance(
-        transport,
+        transport_runtime_params,
         qualikiz_based_transport_model.DynamicRuntimeParams,
     )
+
     qualikiz_inputs = self._prepare_qualikiz_inputs(
-        transport=dynamic_runtime_params_slice.transport,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-    )
-    # Assert required for pytype.
-    assert isinstance(
-        transport,
-        quasilinear_transport_model.DynamicRuntimeParams,
     )
     return self._make_core_transport(
         qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
         qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
         pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
         quasilinear_inputs=qualikiz_inputs,
-        transport=transport,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
