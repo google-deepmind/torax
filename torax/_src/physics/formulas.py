@@ -26,6 +26,8 @@ Functions:
       pressures.
     - calculate_greenwald_fraction: Calculates the Greenwald fraction from the
       averaged electron density (can be line-averaged or volume-averaged).
+    - calculate_beta_volume_avg: Calculates the volume-averaged plasma beta
+      based on thermal pressure.
 """
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -248,3 +250,71 @@ def calculate_greenwald_fraction(
   )
   fgw = n_e_avg / (gw_limit * 1e20)
   return fgw
+
+
+def calculate_betas(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates the beta_tor, beta_pol, and beta_N plasma beta quantities.
+
+  beta_tor is defined as the ratio of volume-averaged plasma pressure to
+  toroidal magnetic pressure on-axis:
+
+  beta_tor = P_total_volume_avg / (B0^2 / (2 * mu0))
+
+  beta_pol is defined as the ratio of volume-averaged plasma pressure to
+  averaged poloidal magnetic pressure at the LCFS:
+
+  beta_pol = P_total_volume_avg / (Bpol_lcfs^2 / (2 * mu0))
+
+  Using an approximation for Bpol_lcfs^2 = mu0^2 * Ip^2 / 4*pi^2*a_V^2, where
+  a_V is the effective minor radius satisfying the volume calculation
+  V = 2 * pi^2 * R_0 * a_V^2, we get:
+
+  beta_pol = 4 * V * P_total_volume_avg / (mu0 * Ip^2 * R_0)
+
+  beta_N is the normalized toroidal plasma beta in percent:
+
+  beta_N = beta_tor * (a * B0 / Ip) * 1e8
+  where beta_tor is fractional toroidal beta. Ip is in A, a is minor radius.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    Tuple of beta_tor, beta_pol, and beta_N
+  """
+  _, _, p_total = calculate_pressure(core_profiles)
+  p_total_volume_avg = math_utils.volume_average(p_total.value, geo)
+
+  magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu0)
+  # Add a division guard though B0 should typically be non-zero.
+  beta_tor = p_total_volume_avg / (
+      magnetic_pressure_on_axis + constants.CONSTANTS.eps
+  )
+
+  beta_pol = (
+      4.0
+      * geo.volume[-1]
+      * p_total_volume_avg
+      / (
+          constants.CONSTANTS.mu0
+          * core_profiles.Ip_profile_face[-1] ** 2
+          * geo.R_major
+          + constants.CONSTANTS.eps
+      )
+  )
+
+  beta_N = (
+      1e8
+      * beta_tor
+      * (
+          geo.a_minor
+          * geo.B_0
+          / (core_profiles.Ip_profile_face[-1] + constants.CONSTANTS.eps)
+      )
+  )
+
+  return beta_tor, beta_pol, beta_N

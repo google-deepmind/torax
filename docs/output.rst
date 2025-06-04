@@ -386,6 +386,23 @@ properties and characteristics.
 ``B_0`` (time)
   Magnetic field strength at the magnetic axis [:math:`T`].
 
+``beta_N`` (time)
+  Normalized beta (thermal) in percent [dimensionless]. Defined as
+  :math:`\beta_N = 10^8\frac{a B_0}{I_p}\beta_t.`, with :math:`B_0` in T and
+  :math:`I_p` in A.
+
+``beta_pol`` (time)
+  Volume-averaged plasma poloidal beta (thermal) [dimensionless]:
+  :math:`\beta_p = \langle P_{th} \rangle_V/(B_{\theta,lcfs}^2/(2\mu_0))`
+  Approximated by taking :math:`B_{\theta,lcfs} \approx \mu_0 I_p / (2\pi a_V)`,
+  where :math:`a_V` is a minor radius definition satisfying the volume relation
+  :math:`V = 2\pi^2R_0a_V^2`. This leads to:
+  :math:`\beta_p = \frac{4V \langle P_{th} \rangle_V}{\mu_0 I_p^2 R_0}=\frac{8W_{th}}{3\mu_0 I_p^2 R_0}`.
+
+``beta_tor`` (time)
+  Volume-averaged plasma toroidal beta (thermal) [dimensionless]. Defined as
+  :math:`\langle P_{th} \rangle_V/(B_0^2/(2\mu_0))`.
+
 ``dW_thermal_dt`` (time)
   Time derivative of the total thermal stored energy [:math:`W`].
 

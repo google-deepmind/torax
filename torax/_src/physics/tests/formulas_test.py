@@ -32,7 +32,19 @@ class FormulasTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    self.geo = geometry_pydantic_model.CircularConfig(
+        n_rho=10, a_minor=1.0
+    ).build_geometry()
+    self.core_profiles = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        T_i=_make_constant_core_profile(self.geo, 1.0),
+        T_e=_make_constant_core_profile(self.geo, 2.0),
+        n_e=_make_constant_core_profile(self.geo, 3.0e20),
+        n_i=_make_constant_core_profile(self.geo, 2.5e20),
+        n_impurity=_make_constant_core_profile(self.geo, 0.25e20),
+        Ip_profile_face=[np.pi * 1e6],
+    )
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
@@ -55,22 +67,12 @@ class FormulasTest(parameterized.TestCase):
   def test_calculate_pressure(self):
     """Test that pressure is computed correctly."""
 
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-        T_i=_make_constant_core_profile(self.geo, 1.0),
-        T_e=_make_constant_core_profile(self.geo, 2.0),
-        n_e=_make_constant_core_profile(self.geo, 3.0),
-        n_i=_make_constant_core_profile(self.geo, 2.5),
-        n_impurity=_make_constant_core_profile(self.geo, 0.25),
-    )
-
-    p_el, p_ion, p_tot = formulas.calculate_pressure(core_profiles)
+    p_el, p_ion, p_tot = formulas.calculate_pressure(self.core_profiles)
 
     # Ignore boundary condition terms and just check formula sanity.
-    np.testing.assert_allclose(p_el.value, 6 * constants.CONSTANTS.keV2J)
-    np.testing.assert_allclose(p_ion.value, 2.75 * constants.CONSTANTS.keV2J)
-    np.testing.assert_allclose(p_tot.value, 8.75 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_el.value, 6e20 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_ion.value, 2.75e20 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_tot.value, 8.75e20 * constants.CONSTANTS.keV2J)
 
   def test_calculate_stored_thermal_energy(self):
     """Test that stored thermal energy is computed correctly."""
@@ -89,21 +91,10 @@ class FormulasTest(parameterized.TestCase):
 
   def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
-    n_e = 1.0e20
-
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-        Ip_profile_face=[np.pi * 1e6],
-    )
-    geo = mock.create_autospec(
-        geometry.Geometry,
-        instance=True,
-        a_minor=1.0,
-    )
+    n_e_avg = 1.0e20
 
     fgw_n_e_volume_avg_calculated = formulas.calculate_greenwald_fraction(
-        n_e, core_profiles, geo
+        n_e_avg, self.core_profiles, self.geo
     )
 
     fgw_n_e_volume_avg_expected = 1.0
@@ -111,6 +102,19 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(
         fgw_n_e_volume_avg_calculated, fgw_n_e_volume_avg_expected
     )
+
+  def test_calculate_betas(self):
+    """Test that betas are calculated correctly."""
+
+    beta_tor, beta_pol, beta_N = formulas.calculate_betas(
+        self.core_profiles, self.geo
+    )
+    beta_tor_expected = 0.012512999
+    beta_pol_expected = 1.353139877
+    beta_N_expected = 2.110996008
+    np.testing.assert_allclose(beta_tor, beta_tor_expected)
+    np.testing.assert_allclose(beta_pol, beta_pol_expected)
+    np.testing.assert_allclose(beta_N, beta_N_expected)
 
 
 def _make_constant_core_profile(

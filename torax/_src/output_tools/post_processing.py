@@ -138,6 +138,9 @@ class PostProcessedOutputs:
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
     S_total: Total integrated particle sources [s^-1]
+    beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
+    beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
+    beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
   """
 
   pressure_thermal_i: cell_variable.CellVariable
@@ -214,6 +217,9 @@ class PostProcessedOutputs:
   S_gas_puff: array_typing.ScalarFloat
   S_pellet: array_typing.ScalarFloat
   S_generic_particle: array_typing.ScalarFloat
+  beta_tor: array_typing.ScalarFloat
+  beta_pol: array_typing.ScalarFloat
+  beta_N: array_typing.ScalarFloat
   S_total: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
@@ -308,6 +314,9 @@ class PostProcessedOutputs:
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
@@ -681,7 +690,10 @@ def make_post_processed_outputs(
   )
   j_ohmic = sim_state.core_profiles.j_total - psi_current
 
-  # pylint: enable=invalid-name
+  beta_tor, beta_pol, beta_N = formulas.calculate_betas(
+      sim_state.core_profiles, sim_state.geometry
+  )
+
   return PostProcessedOutputs(
       pressure_thermal_i=pressure_thermal_ion,
       pressure_thermal_e=pressure_thermal_el,
@@ -728,4 +740,7 @@ def make_post_processed_outputs(
       I_bootstrap=I_bootstrap,
       j_external=j_external,
       j_ohmic=j_ohmic,
+      beta_tor=beta_tor,
+      beta_pol=beta_pol,
+      beta_N=beta_N,
   )
