@@ -66,6 +66,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_implicit',
           'test_implicit.py',
       ),
+      # Tests prescribed transport
+      (
+          'test_prescribed_transport',
+          'test_prescribed_transport.py',
+      ),
       # Tests BgB model heat transport only
       (
           'test_bohmgyrobohm_all',
