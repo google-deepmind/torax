@@ -46,10 +46,11 @@ class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
 
 
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'
-_DEFAULT_QLK_EXEC_PATH = '~/qualikiz/QuaLiKiz'
-_QLK_EXEC_PATH = os.environ.get(
-    'TORAX_QLK_EXEC_PATH', _DEFAULT_QLK_EXEC_PATH
-)
+
+
+def _get_qlk_exec_path() -> str:
+  default_qlk_exec_path = '~/qualikiz/QuaLiKiz'
+  return os.environ.get('TORAX_QLK_EXEC_PATH', default_qlk_exec_path)
 
 
 class QualikizTransportModel(
@@ -136,10 +137,10 @@ class QualikizTransportModel(
       verbose: bool = True,
   ) -> None:
     """Runs QuaLiKiz using command line tools. Loose coupling with TORAX."""
-
+    execution_path = _get_qlk_exec_path()
     run = qualikiz_runtools.QuaLiKizRun(
         parent_dir=self._qlkrun_parentdir.name,
-        binaryrelpath=_QLK_EXEC_PATH,
+        binaryrelpath=execution_path,
         name=self._qlkrun_name,
         qualikiz_plan=qualikiz_plan,
         verbose=verbose,
@@ -163,7 +164,7 @@ class QualikizTransportModel(
         'mpirun',
         '-np',
         str(n_processes),
-        _QLK_EXEC_PATH,
+        execution_path,
     ]
     process = subprocess.Popen(
         command,
