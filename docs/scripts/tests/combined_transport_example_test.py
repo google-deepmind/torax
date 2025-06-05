@@ -13,14 +13,24 @@
 # limitations under the License.
 
 from absl.testing import absltest
-from torax.docs.scripts import combined_transport_example
+import pathlib
+from torax._src.config import config_loader
+
+_SCRIPT_DIR = pathlib.Path(__file__).parent.parent
+_COMBINED_TRANSPORT_EXAMPLE_SCRIPT_PATH = (
+    _SCRIPT_DIR / "combined_transport_example.py"
+)
+
+_combined_transport_example_module = config_loader.import_module(
+    _COMBINED_TRANSPORT_EXAMPLE_SCRIPT_PATH
+)
 
 
 class CombinedTransportExampleTest(absltest.TestCase):
 
   def test_combined_transport_example_runs_without_errors(self):
-    combined_transport_example.main([])
+    _combined_transport_example_module["main"]([])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()
