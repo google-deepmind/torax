@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Any, Literal, Sequence, Union
+from typing import Any, Literal, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -31,8 +31,6 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 import typing_extensions
-
-# pytype: disable=invalid-annotation
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -345,20 +343,24 @@ try:
   # pylint: disable=g-import-not-at-top
   from torax._src.transport_model import qualikiz_transport_model
   # pylint: enable=g-import-not-at-top
-  CombinedCompatibleTransportModel = Union[
-      QLKNNTransportModel,
-      ConstantTransportModel,
-      CriticalGradientTransportModel,
-      BohmGyroBohmTransportModel,
-      qualikiz_transport_model.QualikizTransportModelConfig,
-  ]
+  # Since CombinedCompatibleTransportModel is not constant, because of the
+  # try/except block, unions using this type will cause invalid-annotation
+  # errors in pytype.
+  CombinedCompatibleTransportModel = (
+      QLKNNTransportModel
+      | ConstantTransportModel
+      | CriticalGradientTransportModel
+      | BohmGyroBohmTransportModel
+      | qualikiz_transport_model.QualikizTransportModelConfig
+  )
+
 except ImportError:
-  CombinedCompatibleTransportModel = Union[
-      QLKNNTransportModel,
-      ConstantTransportModel,
-      CriticalGradientTransportModel,
-      BohmGyroBohmTransportModel,
-  ]
+  CombinedCompatibleTransportModel = (
+      QLKNNTransportModel
+      | ConstantTransportModel
+      | CriticalGradientTransportModel
+      | BohmGyroBohmTransportModel
+  )
 
 
 class CombinedTransportModel(pydantic_model_base.TransportBase):
@@ -372,7 +374,7 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
       default_factory=list
-  )
+  )  # pytype: disable=invalid-annotation
   model_name: Literal['combined'] = 'combined'
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
@@ -419,6 +421,5 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
     return self
 
 
-TransportConfig = Union[
-    CombinedTransportModel, CombinedCompatibleTransportModel
-]
+TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
+
