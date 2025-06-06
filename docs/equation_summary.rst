@@ -55,7 +55,7 @@ TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
     \left(\frac{\partial}{\partial t}-
     \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}
     {\partial\hat{\rho}}\hat{\rho}\right)\left[ n_e V' \right] = \\
-    \frac{\partial}{\partial \hat{\rho}} \left[D_e n_e \frac{g_1}{V'}
+    \frac{\partial}{\partial \hat{\rho}} \left[D_e \frac{g_1}{V'}
     \frac{\partial n_e}{\partial \hat{\rho}} - g_0V_e n_e \right] + V'S_n
     \end{multline}
 
