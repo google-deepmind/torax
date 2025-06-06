@@ -196,13 +196,19 @@ class SimulationStepFn:
     ):
       assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
       dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
-      dynamic_runtime_params_slice_t_plus_crash_dt, geo_t_plus_crash_dt = (
-          build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-              t=input_state.t + dt_crash,
-              dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-              geometry_provider=geometry_provider,
-          )
+
+      (
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t,
+          geo_t_plus_crash_dt,
+      ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+          input_state.t,
+          dt_crash,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
       )
+
       # If no sawtooth crash is triggered, output_state and
       # post_processed_outputs will be the same as the input state and
       # previous_post_processed_outputs.
