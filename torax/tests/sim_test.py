@@ -20,19 +20,18 @@ previously executed TORAX reference:
 
 import copy
 import dataclasses
+import importlib
 from typing import Final, Sequence
 from unittest import mock
 
-from absl.testing import absltest
-from absl.testing import parameterized
-from jax import tree
 import numpy as np
+from absl.testing import absltest, parameterized
+from jax import tree
+
 from torax._src import state
-from torax._src.orchestration import initial_state
-from torax._src.orchestration import run_simulation
+from torax._src.orchestration import initial_state, run_simulation
 from torax._src.output_tools import output
-from torax._src.test_utils import core_profile_helpers
-from torax._src.test_utils import sim_test_case
+from torax._src.test_utils import core_profile_helpers, sim_test_case
 from torax._src.torax_pydantic import model_config
 
 _ALL_PROFILES: Final[Sequence[str]] = (
@@ -295,6 +294,21 @@ class SimTest(sim_test_case.SimTestCase):
         rtol=rtol,
         atol=atol,
         ref_name=ref_name,
+    )
+
+  @parameterized.parameters([
+      dict(config_name='test_imas.py'),
+      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
+  ])
+  def test_imas(self, config_name):
+    """Integration test comparing to reference output from TORAX."""
+    if importlib.util.find_spec('imaspy') is None:
+      self.skipTest('IMASPy optional dependency')
+    self._test_run_simulation(
+        config_name,
+        _ALL_PROFILES,
+        rtol=0,
+        atol=None,
     )
 
   def test_fail(self):
