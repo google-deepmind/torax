@@ -398,6 +398,8 @@ def _calc_coeffs_full(
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
   d_face_psi = geo.g2g3_over_rhon_face
+  # No poloidal flux convection term
+  v_face_psi = jnp.zeros_like(d_face_psi)
 
   if static_runtime_params_slice.evolve_density:
     if d_face_el is None or v_face_el is None:
@@ -494,18 +496,6 @@ def _calc_coeffs_full(
       -1.0 / 2.0 * geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   )
 
-  # Add Phi_b_dot terms to poloidal flux convection
-  v_face_psi = (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phi_b_dot
-      * geo.Phi_b
-      * conductivity.sigma_face
-      * geo.rho_face_norm**2
-      / geo.F_face**2
-  )
-
   # Fill heat transport equation sources. Initialize source matrices to zero
 
   source_i = merged_source_profiles.total_sources('T_i', geo)
@@ -542,47 +532,60 @@ def _calc_coeffs_full(
 
   # Add effective Phi_b_dot heat source terms
 
-  # second derivative of volume profile with respect to r_norm
-  vprpr_norm = jnp.gradient(geo.vpr, geo.rho_norm)
+  d_vpr53_rhon_n_e_drhon = jnp.gradient(
+      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
+      geo.rho_norm,
+  )
+  d_vpr53_rhon_n_i_drhon = jnp.gradient(
+      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
+      geo.rho_norm,
+  )
 
   source_i += (
-      1.0
-      / 2.0
-      * vprpr_norm
+      3.0
+      / 4.0
+      * geo.vpr ** (-2.0 / 3.0)
+      * d_vpr53_rhon_n_i_drhon
       * geo.Phi_b_dot
       / geo.Phi_b
-      * geo.rho_norm
-      * core_profiles.n_i.value
       * core_profiles.T_i.value
       * consts.keV2J
   )
 
   source_e += (
-      1.0
-      / 2.0
-      * vprpr_norm
+      3.0
+      / 4.0
+      * geo.vpr ** (-2.0 / 3.0)
+      * d_vpr53_rhon_n_e_drhon
       * geo.Phi_b_dot
       / geo.Phi_b
-      * geo.rho_norm
-      * core_profiles.n_e.value
       * core_profiles.T_e.value
       * consts.keV2J
   )
 
-  # Add effective Phi_b_dot poloidal flux source term
+  d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
 
-  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      conductivity.sigma * geo.rho_norm**2 / geo.F**2,
-      geo.rho_norm,
+  # Add effective Phi_b_dot particle source terms
+  source_n_e += (
+      1.0
+      / 2.0
+      * d_vpr_rhon_drhon
+      * geo.Phi_b_dot
+      / geo.Phi_b
+      * core_profiles.n_e.value
   )
 
+  # Add effective Phi_b_dot poloidal flux source term
   source_psi += (
-      -8.0
+      8.0
       * jnp.pi**2
       * consts.mu0
       * geo.Phi_b_dot
       * geo.Phi_b
-      * ddrnorm_sigma_rnorm2_over_f2
+      * geo.rho_norm**2
+      * conductivity.sigma
+      / geo.F**2
+      * core_profiles.psi.grad()
   )
 
   # Build arguments to solver based on which variables are evolving
