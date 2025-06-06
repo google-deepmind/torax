@@ -263,7 +263,6 @@ def update_all_core_profiles_after_step(
       value=psi_calculations.calculate_psidot_from_psi_sources(
           psi_sources=psi_sources,
           sigma=core_profiles_t_plus_dt.sigma,
-          sigma_face=core_profiles_t_plus_dt.sigma_face,
           resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_multiplier,
           psi=updated_core_profiles_t_plus_dt.psi,
           geo=geo,

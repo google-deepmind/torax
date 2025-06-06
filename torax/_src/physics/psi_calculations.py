@@ -275,7 +275,6 @@ def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.ArrayFloat,
     sigma: array_typing.ArrayFloat,
-    sigma_face: array_typing.ArrayFloat,
     resistivity_multiplier: float,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
@@ -297,42 +296,24 @@ def calculate_psidot_from_psi_sources(
   )
   # Calculate diffusion term coefficient
   d_face_psi = geo.g2g3_over_rhon_face
-  # Add phibdot terms to poloidal flux convection
-  v_face_psi = (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phi_b_dot
-      * geo.Phi_b
-      * sigma_face
-      * geo.rho_face_norm**2
-      / geo.F_face**2
-  )
+  v_face_psi = jnp.zeros_like(d_face_psi)
 
-  # Add effective phibdot poloidal flux source term
-  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
-  )
-
+  # Add effective Phi_b_dot poloidal flux source term
   psi_sources += (
-      -8.0
+      8.0
       * jnp.pi**2
       * consts.mu0
       * geo.Phi_b_dot
       * geo.Phi_b
-      * ddrnorm_sigma_rnorm2_over_f2
+      * geo.rho_norm**2
+      * sigma
+      / geo.F**2
+      * psi.grad()
   )
 
   diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
       d_face_psi, psi
   )
-
-  # Set the psi convection term for psidot used in ohmic power, always with
-  # the default 'ghost' mode. Impact of different modes would mildly impact
-  # Ohmic power at the LCFS which has negligible impact on simulations.
-  # Allowing it to be configurable introduces more complexity in the code by
-  # needing to pass in the mode from the static_runtime_params across multiple
-  # functions.
   conv_mat, conv_vec = convection_terms.make_convection_terms(
       v_face_psi, d_face_psi, psi
   )
