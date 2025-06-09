@@ -141,7 +141,6 @@ class PsiCalculationsTest(parameterized.TestCase):
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),
         sigma=conductivity.sigma,
-        sigma_face=conductivity.sigma_face,
         resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,

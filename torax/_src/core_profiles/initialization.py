@@ -383,7 +383,6 @@ def _init_psi_and_psi_derived(
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
       sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
       resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
       psi=psi,
       geo=geo,
