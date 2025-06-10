@@ -128,7 +128,7 @@ def _calculate_bootstrap_current(
       + 1.5 * jnp.log(T_i.face_value() * 1e3)
   )
 
-  nuestar = (
+  nu_e_star = (
       6.921e-18
       * q_face
       * geo.R_major
@@ -140,7 +140,7 @@ def _calculate_bootstrap_current(
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
-  nuistar = (
+  nu_i_star = (
       4.9e-18
       * q_face
       * geo.R_major
@@ -156,24 +156,24 @@ def _calculate_bootstrap_current(
   # Calculate terms needed for bootstrap current
   denom = (
       1.0
-      + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - ftrap) * nuestar / Z_eff_face
+      + (1 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
+      + 0.5 * (1.0 - ftrap) * nu_e_star / Z_eff_face
   )
   ft31 = ftrap / denom
   ft32ee = ftrap / (
       1
-      + 0.26 * (1 - ftrap) * jnp.sqrt(nuestar)
-      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Z_eff_face)
+      + 0.26 * (1 - ftrap) * jnp.sqrt(nu_e_star)
+      + 0.18 * (1 - 0.37 * ftrap) * nu_e_star / jnp.sqrt(Z_eff_face)
   )
   ft32ei = ftrap / (
       1
-      + (1 + 0.6 * ftrap) * jnp.sqrt(nuestar)
-      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Z_eff_face)
+      + (1 + 0.6 * ftrap) * jnp.sqrt(nu_e_star)
+      + 0.85 * (1 - 0.37 * ftrap) * nu_e_star * (1 + Z_eff_face)
   )
   ft34 = ftrap / (
       1.0
-      + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Z_eff_face
+      + (1 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
+      + 0.5 * (1.0 - 0.5 * ftrap) * nu_e_star / Z_eff_face
   )
 
   F32ee = (
@@ -213,13 +213,10 @@ def _calculate_bootstrap_current(
 
   alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)
   alpha = (
-      alpha0
-      + 0.25
-      * (1 - ftrap**2)
-      * jnp.sqrt(nuistar)
-      / (1 + 0.5 * jnp.sqrt(nuistar))
-      + 0.315 * nuistar**2 * ftrap**6
-  ) / (1 + 0.15 * nuistar**2 * ftrap**6)
+      (alpha0 + 0.25 * (1 - ftrap**2) * jnp.sqrt(nu_i_star))
+      / (1 + 0.5 * jnp.sqrt(nu_i_star))
+      + 0.315 * nu_i_star**2 * ftrap**6
+  ) / (1 + 0.15 * nu_i_star**2 * ftrap**6)
 
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0

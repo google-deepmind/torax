@@ -94,7 +94,7 @@ def _calculate_conductivity(
       1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
   )
 
-  nuestar = (
+  nu_e_star = (
       6.921e-18
       * q_face
       * geo.R_major
@@ -110,8 +110,8 @@ def _calculate_conductivity(
   # Neoclassical correction to spitzer conductivity
   ft33 = ftrap / (
       1.0
-      + (0.55 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.45 * (1.0 - ftrap) * nuestar / (Z_eff_face**1.5)
+      + (0.55 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
+      + 0.45 * (1.0 - ftrap) * nu_e_star / (Z_eff_face**1.5)
   )
   signeo_face = 1.0 - ft33 * (
       1.0
