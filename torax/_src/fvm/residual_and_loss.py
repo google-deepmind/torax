@@ -214,7 +214,7 @@ def theta_method_block_residual(
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_model: pedestal_model_lib.PedestalModel,
-) -> tuple[jax.Array, AuxiliaryOutput]:
+) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
   Args:
@@ -296,7 +296,7 @@ def theta_method_block_residual(
   rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec
 
   residual = lhs - rhs
-  return residual, coeffs_new.auxiliary_outputs
+  return residual
 
 
 @functools.partial(
@@ -310,7 +310,7 @@ def theta_method_block_residual(
     ],
 )
 def theta_method_block_jacobian(*args, **kwargs):
-  return jax.jacfwd(theta_method_block_residual, has_aux=True)(*args, **kwargs)
+  return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
 
 
 @functools.partial(
@@ -373,7 +373,7 @@ def theta_method_block_loss(
     loss: mean squared loss of theta method residual.
   """
 
-  residual, _ = theta_method_block_residual(
+  residual = theta_method_block_residual(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,

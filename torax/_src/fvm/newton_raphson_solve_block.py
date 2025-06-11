@@ -290,13 +290,12 @@ def newton_raphson_solve_block(
   )
 
   # initialize state dict being passed around Newton-Raphson iterations
-  residual_vec_init_x_new, aux_output_init_x_new = residual_fun(init_x_new_vec)
+  residual_vec_init_x_new = residual_fun(init_x_new_vec)
   initial_state = {
       'x': init_x_new_vec,
       'iterations': jnp.array(0, dtype=jax_utils.get_int_dtype()),
       'residual': residual_vec_init_x_new,
       'last_tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
-      'aux_output': aux_output_init_x_new,
   }
 
   # log initial state if requested
@@ -386,7 +385,7 @@ def body(
       delta_reduction_factor=delta_reduction_factor,
   )
 
-  a_mat, _ = jacobian_fun(input_state['x'])  # Ignore the aux output here.
+  a_mat = jacobian_fun(input_state['x'])
   rhs = -input_state['residual']
   # delta = x_new - x_old
   # tau = delta/delta0, where delta0 is the delta that sets the linearized
@@ -399,7 +398,6 @@ def body(
       'delta': jnp.linalg.solve(a_mat, rhs),
       'residual_old': input_state['residual'],
       'residual_new': input_state['residual'],
-      'aux_output_new': input_state['aux_output'],
       'tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
   }
   output_delta_state = jax_utils.py_while(
@@ -416,7 +414,6 @@ def body(
           + 1
       ),
       'last_tau': output_delta_state['tau'],
-      'aux_output': output_delta_state['aux_output_new'],
   }
   if log_iterations:
     _log_iterations(
@@ -450,10 +447,9 @@ def delta_cond(
   # afterwards check sanity on the output (NaN checking)
   # TODO(b/312453092) consider instead sanity-checking x_new
   with jax_utils.enable_errors(False):
-    residual_vec_x_new, aux_output_x_new = residual_fun(x_new)
+    residual_vec_x_new = residual_fun(x_new)
     residual_scalar_x_new = residual_scalar(residual_vec_x_new)
     delta_state['residual_new'] = residual_vec_x_new
-    delta_state['aux_output_new'] = aux_output_x_new
   return jnp.bool_(
       jnp.logical_and(
           jnp.max(delta_state['delta']) > MIN_DELTA,

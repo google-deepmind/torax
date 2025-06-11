@@ -306,7 +306,7 @@ class FVMTest(parameterized.TestCase):
           pedestal_model=pedestal_model,
       )
 
-      residual, _ = residual_and_loss.theta_method_block_residual(
+      residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
@@ -548,7 +548,7 @@ class FVMTest(parameterized.TestCase):
       # When the boundary conditions are not time-dependent and stay at 0,
       # with diffusive transport and zero transport, then the state will stay
       # at all 0, and the residual should be 0.
-      residual, _ = residual_and_loss.theta_method_block_residual(
+      residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice_theta05,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
@@ -569,7 +569,7 @@ class FVMTest(parameterized.TestCase):
       # of the update would generate a residual. When theta_implicit is 0, the
       # residual would still be 0.
       final_right_boundary = jnp.array(1.0)
-      residual, _ = residual_and_loss.theta_method_block_residual(
+      residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice_theta0,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
@@ -591,7 +591,7 @@ class FVMTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
-      residual, _ = residual_and_loss.theta_method_block_residual(
+      residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice_theta05,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
