@@ -25,7 +25,7 @@ try:
 except ImportError:
     IDSToplevel = Any
 from torax._src.geometry import geometry_loader
-from torax.torax_imastools.util import requires_module, face_to_cell
+from torax.torax_imastools.util import face_to_cell
 
 # Imports added for type hinting,
 # TYPE_CHECKING guard to prevent circular import at runtime
@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from torax._src.output_tools import post_processing
 
 
-@requires_module("imas")
 def write_ids_equilibrium_into_config(
     config: dict, equilibrium: IDSToplevel
 ) -> dict[str, np.ndarray]:
@@ -51,7 +50,6 @@ def write_ids_equilibrium_into_config(
     return config
 
 
-@requires_module("imas")
 def geometry_from_IMAS(
     equilibrium_object: str | IDSToplevel,
     geometry_dir: str | None = None,
@@ -181,7 +179,6 @@ def geometry_from_IMAS(
     }
 
 
-@requires_module("imas")
 def geometry_to_IMAS(
     SimState: "sim_state.ToraxSimState",
     post_processed_outputs: "post_processing.PostProcessedOutputs",

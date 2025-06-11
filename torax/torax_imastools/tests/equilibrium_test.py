@@ -21,28 +21,19 @@ from typing import Any, Optional
 import numpy as np
 import pytest
 from absl.testing import absltest, parameterized
-
-from torax.geometry import pydantic_model as geometry_pydantic_model
-
-try:
-    import imas
-    from imas.ids_toplevel import IDSToplevel
-except ImportError:
-    IDSToplevel = Any
+import imas
+from imas.ids_toplevel import IDSToplevel
 
 from torax._src.output_tools import post_processing
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.torax_imastools.equilibrium as imas_equilibrium
 from torax.torax_imastools.util as imas_util
 
 
-@pytest.mark.skipif(
-    importlib.util.find_spec("imas_core") is None,
-    reason="IMAS-Python optional dependency"
-)
 class EquilibriumTest(sim_test_case.SimTestCase):
     """Unit tests for the `toraximastools.equilibrium` module."""
 
@@ -59,9 +50,6 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     ):
         """Test that the default IMAS geometry can be built and converted back
         to IDS."""
-        if importlib.util.find_spec("imas") is None:
-            self.skipTest("IMAS-Python optional dependency")
-
         if rtol is None:
             rtol = self.rtol
         if atol is None:

@@ -265,6 +265,16 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
       ),
+      # Tests IMAS geometry.
+      (
+          'test_imas',
+          'test_imas.py',
+      ),
+      # Tests full integration for ITER-hybrid-like config with IMAS geometry.
+      (
+          'test_iterhybrid_predictor_corrector_imas',
+          'test_iterhybrid_predictor_corrector_imas.py',
+      ),
   )
   def test_run_simulation(
       self,
@@ -284,21 +294,6 @@ class SimTest(sim_test_case.SimTestCase):
         rtol=rtol,
         atol=atol,
         ref_name=ref_name,
-    )
-
-  @parameterized.parameters([
-      dict(config_name='test_imas.py'),
-      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
-  ])
-  def test_imas(self, config_name):
-    """Integration test comparing to reference output from TORAX."""
-    if importlib.util.find_spec('imas') is None:
-      self.skipTest('IMASPy optional dependency')
-    self._test_run_simulation(
-        config_name,
-        _ALL_PROFILES,
-        rtol=0,
-        atol=None,
     )
 
   def test_fail(self):

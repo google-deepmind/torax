@@ -49,7 +49,7 @@ def requires_module(module_name: str):
     return decorator
 
 
-@requires_module("imas")
+@requires_module("imas_core")
 def save_netCDF(
     directory_path: str | None,
     file_name: str | None,
@@ -78,7 +78,7 @@ def save_netCDF(
         netcdf_entry.put(IDS)
 
 
-@requires_module("imas")
+@requires_module("imas_core")
 def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     """Loads the IDS for a single time slice from a specific data
     entry / scenario using the IMAS Access Layer
@@ -112,7 +112,6 @@ def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     return IMAS_data
 
 
-@requires_module("imas")
 def load_IDS_from_netCDF(file_path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice from an IMAS netCDF
     file path"""
@@ -121,7 +120,7 @@ def load_IDS_from_netCDF(file_path: str, ids_name: str) -> IDSToplevel:
     return ids
 
 
-@requires_module("imas")
+@requires_module("imas_core")
 def load_IDS_from_hdf5(directory_path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice from the path of a
     local directory containing it stored with hdf5 backend. The repository must
@@ -132,7 +131,6 @@ def load_IDS_from_hdf5(directory_path: str, ids_name: str) -> IDSToplevel:
     return ids
 
 
-@requires_module("imas")
 def load_IMAS_data(path: str, ids_name: str) -> IDSToplevel:
     """Loads an IDS for a single time slice either from a netCDF
     file path or from an hdf5 file in the given directory path."""

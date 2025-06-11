@@ -39,7 +39,7 @@ dependencies = [
     "pydantic>=2.10.5",
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
-    "imas-python>=2.0.0",
+    "imas-python @ git+ssh://git@github.com/iterorganization/IMAS-Python.git@develop",
 ]
 
 dynamic = ["version"]
@@ -75,6 +75,10 @@ dev = [
 tutorial = [
     "seaborn",
     "notebook",
+]
+
+imas = [
+    'imas_core @ git+ssh://git@git.iter.org/imas/al-core.git@develop',
 ]
 
 [tool.pyink]

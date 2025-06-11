@@ -79,17 +79,11 @@ class GeometryTest(parameterized.TestCase):
     config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
     config.build_geometry()
 
-  @pytest.mark.skipif(
-      importlib.util.find_spec('imas') is None,
-      reason='IMAS-Python optional dependency'
-  )
   @parameterized.parameters([
       dict(equilibrium_object='ITERhybrid_COCOS17_IDS_ddv4.nc'),
   ])
   def test_build_standard_geometry_from_IMAS(self, equilibrium_object):
     """Test that the default IMAS geometry can be built."""
-    if importlib.util.find_spec('imas') is None:
-      self.skipTest('IMAS-Python optional dependency')
     config = geometry_pydantic_model.IMASConfig(equilibrium_object=equilibrium_object)
     config.build_geometry()
 
