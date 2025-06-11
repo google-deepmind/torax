@@ -65,7 +65,6 @@ class LinearThetaMethod(solver_lib.Solver):
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
-        explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
@@ -78,6 +77,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t,
         core_profiles_t,
         x_old,
+        explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
         explicit_call=True,
     )
@@ -98,6 +98,7 @@ class LinearThetaMethod(solver_lib.Solver):
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         coeffs_exp=coeffs_exp,
         coeffs_callback=coeffs_callback,
+        explicit_source_profiles=explicit_source_profiles,
     )
 
     coeffs_final = coeffs_callback(
@@ -105,6 +106,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
         x_new,
+        explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
     )
     core_sources, core_conductivity, core_transport = (

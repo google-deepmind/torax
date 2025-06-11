@@ -196,6 +196,7 @@ def newton_raphson_solve_block(
       geo_t,
       core_profiles_t,
       x_old,
+      explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
   )
 
@@ -211,6 +212,7 @@ def newton_raphson_solve_block(
           geo_t,
           core_profiles_t,
           x_old,
+          explicit_source_profiles=explicit_source_profiles,
           allow_pereverzev=True,
           explicit_call=True,
       )
@@ -229,6 +231,7 @@ def newton_raphson_solve_block(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
+          explicit_source_profiles=explicit_source_profiles,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -340,6 +343,7 @@ def newton_raphson_solve_block(
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
       x_new,
+      explicit_source_profiles=explicit_source_profiles,
       allow_pereverzev=True,
   )
 

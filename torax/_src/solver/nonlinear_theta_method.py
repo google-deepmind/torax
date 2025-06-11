@@ -92,7 +92,6 @@ class NonlinearThetaMethod(solver.Solver):
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
-        explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,

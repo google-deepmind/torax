@@ -41,14 +41,12 @@ class CoeffsCallback:
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
       source_models: source_models_lib.SourceModels,
       evolving_names: tuple[str, ...],
       pedestal_model: pedestal_model_lib.PedestalModel,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
-    self.explicit_source_profiles = explicit_source_profiles
     self.source_models = source_models
     self.evolving_names = evolving_names
     self.pedestal_model = pedestal_model
@@ -59,6 +57,7 @@ class CoeffsCallback:
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
@@ -76,6 +75,12 @@ class CoeffsCallback:
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
+      explicit_source_profiles: Precomputed explicit source profiles. These
+        profiles were configured to always depend on state and parameters at
+        time t during the solver step. They can thus be inputs, since they are
+        not recalculated at time t+plus_dt with updated state during the solver
+        iterations. For sources that are implicit, their explicit profiles are
+        set to all zeros.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
         or as part of calculating the initial guess for the nonlinear solver. In
@@ -111,7 +116,7 @@ class CoeffsCallback:
         geo=geo,
         core_profiles=core_profiles,
         transport_model=self.transport_model,
-        explicit_source_profiles=self.explicit_source_profiles,
+        explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
