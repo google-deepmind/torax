@@ -290,7 +290,7 @@ class FVMTest(parameterized.TestCase):
       # should just be a quadratic bowl with the linear
       # solution as the minimum with approximately zero residual
       # core_profiles_t_plus_dt is not updated since coeffs stay constant here
-      loss, _ = residual_and_loss.theta_method_block_loss(
+      loss = residual_and_loss.theta_method_block_loss(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,

@@ -181,7 +181,6 @@ def optimizer_solve_block(
   (
       x_new_vec,
       final_loss,
-      _,
       solver_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
