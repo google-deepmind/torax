@@ -24,7 +24,7 @@ import numpy as np
 import scipy
 import torax
 
-from torax.torax_imastools.util as imas_util
+from torax.imas_tools.util as imas_util
 
 
 @enum.unique

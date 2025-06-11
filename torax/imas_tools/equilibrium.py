@@ -25,7 +25,7 @@ try:
 except ImportError:
     IDSToplevel = Any
 from torax._src.geometry import geometry_loader
-from torax.torax_imastools.util import face_to_cell
+from torax.imas_tools.util import face_to_cell
 
 # Imports added for type hinting,
 # TYPE_CHECKING guard to prevent circular import at runtime
