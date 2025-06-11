@@ -39,7 +39,7 @@ dependencies = [
     "pydantic>=2.10.5",
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
-    "imas-python",
+    "imas-python>=2.0.0",
 ]
 
 dynamic = ["version"]
@@ -75,10 +75,6 @@ dev = [
 tutorial = [
     "seaborn",
     "notebook",
-]
-
-imas = [
-    "imas>=4.0.0",
 ]
 
 [tool.pyink]

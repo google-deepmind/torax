@@ -34,10 +34,10 @@ from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 
-def prep_simulation(
+def prepare_simulation(
     torax_config: model_config.ToraxConfig,
 ) -> tuple:
-    """Prep a TORAX simulation using the config and returns the necessary
+    """Prepare a TORAX simulation using the config and returns the necessary
     inputs for a simulation."""
     # TODO(b/384767453): Remove the need for the step_fn and solver to take the
     # transport model and pedestal model.
@@ -141,7 +141,7 @@ def run_simulation(
         post_processed_outputs,
         restart_case,
         step_fn,
-    ) = prep_simulation(torax_config)
+    ) = prepare_simulation(torax_config)
 
     state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
         static_runtime_params_slice=static_runtime_params_slice,

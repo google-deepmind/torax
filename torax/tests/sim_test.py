@@ -292,7 +292,7 @@ class SimTest(sim_test_case.SimTestCase):
   ])
   def test_imas(self, config_name):
     """Integration test comparing to reference output from TORAX."""
-    if importlib.util.find_spec('imaspy') is None:
+    if importlib.util.find_spec('imas') is None:
       self.skipTest('IMASPy optional dependency')
     self._test_run_simulation(
         config_name,

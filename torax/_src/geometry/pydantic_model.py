@@ -257,9 +257,9 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    geometry_dir: Optionally overrides the `TORAX_GEOMETRY_DIR` environment
-      variable.
-    equilibrium_object: Either directly the equilbrium IDS containing the relevant data, or the name of the IMAS netCDF file containing the equilibrium.
+    geometry_dir: Optionally overrides the default geometry directory.
+    equilibrium_object: Either directly the equilbrium IDS containing the relevant data,
+      or the path to the IMAS netCDF file containing the equilibrium.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.

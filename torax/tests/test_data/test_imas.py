@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests implementation of CHEASE geometry.
+"""Tests implementation of IMAS geometry.
 
 Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
 """

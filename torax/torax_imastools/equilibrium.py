@@ -14,7 +14,7 @@
 
 """Useful functions for handling of IMAS IDSs and converts them into TORAX
 objects"""
-from typing import Any, Dict, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 import scipy
@@ -27,6 +27,8 @@ except ImportError:
 from torax._src.geometry import geometry_loader
 from torax.torax_imastools.util import requires_module, face_to_cell
 
+# Imports added for type hinting,
+# TYPE_CHECKING guard to prevent circular import at runtime
 if TYPE_CHECKING:
     from torax._src.orchestration import sim_state
     from torax._src.output_tools import post_processing
@@ -34,8 +36,8 @@ if TYPE_CHECKING:
 
 @requires_module("imas")
 def write_ids_equilibrium_into_config(
-    config: Dict, equilibrium: IDSToplevel
-) -> Dict[str, np.ndarray]:
+    config: dict, equilibrium: IDSToplevel
+) -> dict[str, np.ndarray]:
     """Loads the equilibrium into the geometry config.
     Args:
     config: TORAX config object.
@@ -56,16 +58,14 @@ def geometry_from_IMAS(
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
     hires_factor: int = 4,
-) -> Dict:
+) -> dict[str, Any]:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
     Args:
       equilibrium_object: Either directly the equilbrium IDS containing the
         relevant data, or the name of the IMAS netCDF file containing the
         equilibrium.
       geometry_dir: Directory where to find the equilibrium object.
-        If None, uses the environment variable TORAX_GEOMETRY_DIR if
-        available. If that variable is not set and geometry_dir is not
-        provided, then it defaults to another dir. See `load_geo_data`
+        If None, it defaults to another dir. See `load_geo_data`
         implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
@@ -91,9 +91,8 @@ def geometry_from_IMAS(
     B_0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0])  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
     R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)  # Should it be replaced by IMAS_data.boundary.geometric_axis.r ?
 
-    # Poloidal flux (switch sign between ddv3 and ddv4)
-    # psi = -1 * IMAS_data.profiles_1d.psi #ddv3
-    psi = 1 * IMAS_data.profiles_1d.psi  # ddv4
+    # Poloidal flux
+    psi = 1 * IMAS_data.profiles_1d.psi  # Sign changed ddv4
 
     # toroidal flux
     Phi = -1 * IMAS_data.profiles_1d.phi
@@ -114,23 +113,20 @@ def geometry_from_IMAS(
             * np.gradient(IMAS_data.profiles_1d.volume)
             / np.gradient(IMAS_data.profiles_1d.psi)
         )
-    # dpsi_drho_tor (switch sign between ddv3 and ddv4)
+    # dpsi_drho_tor
     if len(IMAS_data.profiles_1d.dpsi_drho_tor) > 0:
-        # dpsidrhotor = -1 * IMAS_data.profiles_1d.dpsi_drho_tor #ddv3
-        dpsidrhotor = 1 * IMAS_data.profiles_1d.dpsi_drho_tor  # ddv4
+        dpsidrhotor = 1 * IMAS_data.profiles_1d.dpsi_drho_tor  # Sign  changed ddv4
     else:
         rho_tor = IMAS_data.profiles_1d.rho_tor
         if len(rho_tor) == 0:
             if B_0 is None or len(IMAS_data.profiles_1d.phi) == 0:
                 raise ValueError("rho_tor not provided and cannot be calculated from given equilibrium IDS")
             rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
-        # dpsidrhotor = -1 * np.gradient(IMAS_data.profiles_1d.psi) \
-        #    / np.gradient(rho_tor)           #ddv3
         dpsidrhotor = (
             1
             * np.gradient(IMAS_data.profiles_1d.psi)
             / np.gradient(rho_tor)
-        )  # ddv4
+        )  # Sign changed ddv4
     flux_surf_avg_RBp = (
         IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi)
     )  # dpsi, C0/C1

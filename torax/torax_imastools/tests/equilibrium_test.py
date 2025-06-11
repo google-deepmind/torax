@@ -32,15 +32,15 @@ except ImportError:
 
 from torax._src.output_tools import post_processing
 from torax._src.config import build_runtime_params
-from torax._src.orchestration.run_simulation import prep_simulation
+from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.torax_imastools.equilibrium import geometry_to_IMAS
-from torax.torax_imastools.util import load_IMAS_data
+from torax.torax_imastools.equilibrium as imas_equilibrium
+from torax.torax_imastools.util as imas_util
 
 
 @pytest.mark.skipif(
-    importlib.util.find_spec("imas") is None,
+    importlib.util.find_spec("imas_core") is None,
     reason="IMAS-Python optional dependency"
 )
 class EquilibriumTest(sim_test_case.SimTestCase):
@@ -72,7 +72,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
         path = os.path.join(
             geometry_dir, config_module.CONFIG["geometry"]["equilibrium_object"]
         )
-        equilibrium_in = load_IMAS_data(path, "equilibrium")
+        equilibrium_in = imas_util.load_IMAS_data(path, "equilibrium")
         # Build TORAXSimState object and write output to equilibrium IDS.
         # Improve resolution to compare the input without losing too much
         # information
@@ -89,7 +89,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
             _,
             _,
             _,
-        ) = prep_simulation(torax_config)
+        ) = run_simulation.prepare_simulation(torax_config)
 
         dynamic_runtime_params_slice_for_init, _ = (
             build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -103,7 +103,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
         )
 
-        equilibrium_out = geometry_to_IMAS(sim_state)
+        equilibrium_out = imas_equilibrium.geometry_to_IMAS(sim_state)
 
         # Compare the output IDS with the input one.
         rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
@@ -185,7 +185,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
                     )
                 except AssertionError:
                     diverging_fields.append(key)
-        if diverging_fields != []:
+        if diverging_fields:
             raise AssertionError(f"Diverging profiles: {diverging_fields}")
 
 

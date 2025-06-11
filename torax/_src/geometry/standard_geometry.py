@@ -32,7 +32,7 @@ import typing_extensions
 from torax._src import constants, interpolated_param
 from torax._src.geometry import geometry, geometry_loader, geometry_provider
 from torax._src.torax_pydantic import torax_pydantic
-from torax.torax_imastools.equilibrium import geometry_from_IMAS
+from torax.torax_imastools.equilibrium as imas_equilibrium
 
 # pylint: disable=invalid-name
 
@@ -943,9 +943,7 @@ class StandardGeometryIntermediates:
     Args:
       equilibrium_object: Either directly the equilbrium IDS containing the relevant data, or the name of the IMAS netCDF file containing the equilibrium.
       geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
-        If None, uses the environment variable TORAX_GEOMETRY_DIR if
-        available. If that variable is not set and geometry_dir is not provided,
-        then it defaults to another dir. See `load_geo_data` implementation.
+        If None, then it defaults to another dir. See implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
       n_rho: Radial grid points (num cells)
@@ -956,7 +954,7 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
-    inputs = geometry_from_IMAS(
+    inputs = imas_equilibrium.geometry_from_IMAS(
         equilibrium_object=equilibrium_object,
         geometry_dir=geometry_dir,
         Ip_from_parameters=Ip_from_parameters,
