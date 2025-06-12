@@ -494,6 +494,8 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 ``rho_norm_ped_top`` (**time-varying-scalar** [default = 0.91])
   Location of pedestal top, in units of :math:`\hat{\rho}`.
 
+.. _geometry_doc:
+
 geometry
 --------
 
@@ -516,6 +518,10 @@ geometry
     The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
     The converter is not guaranteed to work as expected with arbitrary EQDSK input, so please verify carefully.
     Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value.
+
+* ``'imas'``
+    Loads an IMAS netCDF file containing an equilibrium Interface Data Structure (IDS) or directly the equilibrium IDS on the fly.
+    It handles IDSs in Data Dictionary version 4.0.0.
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
@@ -594,6 +600,12 @@ It is only recommended to change the default values if issues arise.
   Multiplication factor of the boundary poloidal flux, used for the contour
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
+
+Geometry dicts for IMAS geometry require the following additional key.
+
+``equilibrium_object`` (str | imas.ids_toplevel.IDSToplevel)
+  Sets the path of the IMAS netCDF file containing the geometry data in an equilibrium IDS to be loaded, or
+  alternatively an equilibrium IDS object directly.
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
 and input files can be defined in a ``geometry_configs`` dict, which is a
@@ -1439,6 +1451,28 @@ Examples include the number of grid points or the choice of transport model. A p
 
 In the future we aim to provide more transparency at the config level for which
 configuration options recompilation is required.
+
+Using IMAS input data
+---------------------
+
+Loading Geometry
+^^^^^^^^^^^^^^^^
+
+The geometry in TORAX can be constructed from IMAS equilibium IDSs. The specific arguments to load an equilibrium IDS with TORAX
+are specified in :ref:`geometry_doc`.
+
+There are two main methods to load IMAS equilibrium:
+
+* Using IMAS netCDF file.
+  This is the main method as it does not require the optional dependency to imas-core. IMAS equilibrium IDSs
+  can be saved on disk using the ``save_netcdf()`` function from |util|. The path of the file can then be provided in the config
+  to run TORAX with this geometry.
+
+* Providing the equilibium IDS on the fly.
+  This method can be more convenient to run TORAX in a workflow for example. Using this method the IDS can be provided
+  externally or pre-loaded using one of the ``load_IMAS_data()`` and ``load_IMAS_from_data_entry()`` functions from |util|, and then
+  provided in the config dict as the value of the ``equilibrium_object`` dict. The latter function requires the optional dependency to imas-core.
+  An example yaml input file for this function can be found at |example_imas_scenario|.
 
 Config example
 ==============
