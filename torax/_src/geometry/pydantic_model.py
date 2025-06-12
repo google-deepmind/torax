@@ -276,7 +276,8 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   def _validate_model(self) -> typing_extensions.Self:
     if isinstance(self.equilibrium_object, str) and self.equilibrium_object[-3:] == '.h5':
       raise ValueError(
-          "If you are using hdf5 backend, the equilibrium_object must be either the repository containing the equilibrium.h5 and master.h5 files or '' (if your geometry_dir is already this specific repository).\n \
+          "If you are using hdf5 backend, the path to the data must point the directory containing the equilibrium.h5 and master.h5 files. As the function concatenates the str for geometry_dir and equilibrium_object to give the path, your \
+          equilibrium_object must be either the repository containing these files or an empty string '' (if your geometry_dir is already this specific repository).\n \
         In any case, make sure geometry_dir + equilibrium_object gives the path to this directory and not to the .h5 file."
       )
     return self
