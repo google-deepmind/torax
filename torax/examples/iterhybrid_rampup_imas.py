@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Config for ITER hybrid scenario based parameters with nonlinear solver.
+"""Config for ITER hybrid scenario based parameters with nonlinear solver, using geometry from IMAS equilibrium in 'data/third/party/geo/ITERhybrid_COCOS17_IDS_ddv4.nc'.
 
 ITER hybrid scenario based (roughly) on van Mulders Nucl. Fusion 2021.
 With Newton-Raphson solver and adaptive timestep (backtracking)

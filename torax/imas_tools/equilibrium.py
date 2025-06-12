@@ -106,11 +106,7 @@ def geometry_from_IMAS(
     if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
         dvoldpsi = 1 * IMAS_data.profiles_1d.dvolume_dpsi  # Sign changed ddv4
     else:
-        dvoldpsi = (
-            1
-            * np.gradient(IMAS_data.profiles_1d.volume)
-            / np.gradient(IMAS_data.profiles_1d.psi)
-        )
+        dvoldpsi = np.gradient(IMAS_data.profiles_1d.volume, IMAS_data.profiles_1d.psi)
     # dpsi_drho_tor
     if len(IMAS_data.profiles_1d.dpsi_drho_tor) > 0:
         dpsidrhotor = 1 * IMAS_data.profiles_1d.dpsi_drho_tor  # Sign  changed ddv4
@@ -120,11 +116,8 @@ def geometry_from_IMAS(
             if B_0 is None or len(IMAS_data.profiles_1d.phi) == 0:
                 raise ValueError("rho_tor not provided and cannot be calculated from given equilibrium IDS")
             rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
-        dpsidrhotor = (
-            1
-            * np.gradient(IMAS_data.profiles_1d.psi)
-            / np.gradient(rho_tor)
-        )  # Sign changed ddv4
+        dpsidrhotor = np.gradient(IMAS_data.profiles_1d.psi, rho_tor)
+
     flux_surf_avg_RBp = (
         IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi)
     )  # dpsi, C0/C1
@@ -149,7 +142,7 @@ def geometry_from_IMAS(
     # Because of the discrepancy between Ip_profile[-1] (computed by integration) and global_quantities.ip, here we will scale Ip_profile such that the total plasma current is equal
     Ip_total = -1 * IMAS_data.global_quantities.ip
     Ip_profile = Ip_profile_unscaled * (Ip_total / Ip_profile_unscaled[-1])       # scaled Ip profile such that the total plasma current is consistent
-    
+
     # To check
     z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
