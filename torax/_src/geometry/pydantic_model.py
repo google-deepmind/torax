@@ -248,10 +248,54 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
     )
 
 
+class IMASConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for the IMAS geometry.
+
+  Attributes:
+    geometry_type: Always set to 'imas'.
+    n_rho: Number of radial grid points.
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
+      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
+      hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    geometry_dir: Optionally overrides the default geometry directory.
+    equilibrium_object: Either directly the equilbrium IDS containing the relevant data,
+      or the path to the IMAS netCDF file containing the equilibrium.
+    Ip_from_parameters: Toggles whether total plasma current is read from the
+      configuration file, or from the geometry file. If True, then the `psi`
+      calculated from the geometry file is scaled to match the desired `I_p`.
+  """
+
+  geometry_type: Annotated[Literal['imas'], TIME_INVARIANT] = 'imas'
+  n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
+  equilibrium_object: str | Any = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+  Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = False
+
+  @pydantic.model_validator(mode='after')
+  def _validate_model(self) -> typing_extensions.Self:
+    if isinstance(self.equilibrium_object, str) and self.equilibrium_object[-3:] == '.h5':
+      raise ValueError(
+          "If you are using hdf5 backend, the path to the data must point the directory containing the equilibrium.h5 and master.h5 files. As the function concatenates the str for geometry_dir and equilibrium_object to give the path, your \
+          equilibrium_object must be either the repository containing these files or an empty string '' (if your geometry_dir is already this specific repository).\n \
+        In any case, make sure geometry_dir + equilibrium_object gives the path to this directory and not to the .h5 file."
+      )
+    return self
+
+  def build_geometry(self) -> standard_geometry.StandardGeometry:
+
+    return standard_geometry.build_standard_geometry(
+        _apply_relevant_kwargs(
+            standard_geometry.StandardGeometryIntermediates.from_IMAS,
+            self.__dict__,
+        )
+    )
+
+
 class GeometryConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for a single geometry config."""
 
-  config: CircularConfig | CheaseConfig | FBTConfig | EQDSKConfig = (
+  config: CircularConfig | CheaseConfig | FBTConfig | EQDSKConfig | IMASConfig = (
       pydantic.Field(discriminator='geometry_type')
   )
 
