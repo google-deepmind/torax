@@ -17,6 +17,7 @@
 import dataclasses
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -86,18 +87,18 @@ def initial_core_profiles(
   # after the first timestep we reset v_loop_lcfs[0] to v_loop_lcfs[1].
 
   v_loop_lcfs = (
-      jnp.array(dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs)
+      np.array(dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs)
       if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else jnp.array(0.0, dtype=jax_utils.get_dtype())
+      else np.array(0.0, dtype=jax_utils.get_dtype())
   )
 
   # Initialise psi and derived quantities to zero before they are calculated.
   psidot = cell_variable.CellVariable(
-      value=jnp.zeros_like(geo.rho),
+      value=np.zeros_like(geo.rho),
       dr=geo.drho_norm,
   )
   psi = cell_variable.CellVariable(
-      value=jnp.zeros_like(geo.rho), dr=geo.drho_norm
+      value=np.zeros_like(geo.rho), dr=geo.drho_norm
   )
 
   core_profiles = state.CoreProfiles(
@@ -116,14 +117,14 @@ def initial_core_profiles(
       Z_eff_face=ions.Z_eff_face,
       psi=psi,
       psidot=psidot,
-      q_face=jnp.zeros_like(geo.rho_face),
-      s_face=jnp.zeros_like(geo.rho_face),
+      q_face=np.zeros_like(geo.rho_face),
+      s_face=np.zeros_like(geo.rho_face),
       v_loop_lcfs=v_loop_lcfs,
-      sigma=jnp.zeros_like(geo.rho),
-      sigma_face=jnp.zeros_like(geo.rho_face),
-      j_total=jnp.zeros_like(geo.rho),
-      j_total_face=jnp.zeros_like(geo.rho_face),
-      Ip_profile_face=jnp.zeros_like(geo.rho_face),
+      sigma=np.zeros_like(geo.rho),
+      sigma_face=np.zeros_like(geo.rho_face),
+      j_total=np.zeros_like(geo.rho),
+      j_total_face=np.zeros_like(geo.rho_face),
+      Ip_profile_face=np.zeros_like(geo.rho_face),
   )
 
   return _init_psi_and_psi_derived(

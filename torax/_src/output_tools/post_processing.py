@@ -18,6 +18,7 @@ from typing import Callable
 import chex
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -321,7 +322,7 @@ class PostProcessedOutputs:
     )
 
   def check_for_errors(self):
-    if any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)]):
+    if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
       return state.SimError.NAN_DETECTED
     else:
       return state.SimError.NO_ERROR

@@ -628,7 +628,7 @@ class StateHistory:
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or field_name == "j_total"
-          or not isinstance(data, jax.Array)
+          or not isinstance(data, chex.Array)
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:

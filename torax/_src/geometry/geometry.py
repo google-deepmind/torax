@@ -352,7 +352,7 @@ def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
     # Stack stackable fields. Save first geo's value for non-stackable fields.
     if isinstance(field_value, chex.Array) or isinstance(field_value, float):
       field_values = [getattr(geo, field_name) for geo in geometries]
-      stacked_data[field_name] = jnp.stack(field_values)
+      stacked_data[field_name] = np.stack(field_values)
     else:
       stacked_data[field_name] = field_value
   # Create a new object with the stacked data with the same class (i.e.

@@ -18,6 +18,7 @@ import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -340,15 +341,15 @@ class SimulationStepFn:
         input_state.t + input_state.dt
         > dynamic_runtime_params_slice_t.numerics.t_final
     )
-    dt = jnp.where(
-        jnp.logical_and(
+    dt = np.where(
+        np.logical_and(
             dynamic_runtime_params_slice_t.numerics.exact_t_final,
             crosses_t_final,
         ),
         dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
         dt,
     )
-    if jnp.any(jnp.isnan(dt)):
+    if np.any(np.isnan(dt)):
       raise ValueError('dt is NaN.')
 
     return dt

@@ -16,7 +16,7 @@
 from absl import logging
 import chex
 import jax
-import jax.numpy as jnp
+import numpy as np
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
@@ -48,8 +48,8 @@ class ToraxSimState:
     solver_numeric_outputs: Numerical quantities related to the solver.
   """
 
-  t: jax.Array
-  dt: jax.Array
+  t: chex.Array
+  dt: chex.Array
   core_profiles: state.CoreProfiles
   core_transport: state.CoreTransport
   core_sources: source_profiles.SourceProfiles
@@ -72,7 +72,7 @@ class ToraxSimState:
       return state.SimError.NO_ERROR
 
   def has_nan(self) -> bool:
-    return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
+    return any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)])
 
 
 def _log_nans(
@@ -81,7 +81,7 @@ def _log_nans(
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   nan_count = 0
   for path, value in path_vals:
-    if jnp.any(jnp.isnan(value)):
+    if np.any(np.isnan(value)):
       logging.info("Found NaNs in %s", jax.tree_util.keystr(path))
       nan_count += 1
   if nan_count >= 10:
@@ -96,5 +96,5 @@ def _log_nans(
 def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
-    if jnp.any(jnp.less(value, 0.0)):
+    if np.any(np.less(value, 0.0)):
       logging.info("Found negative value in %s", jax.tree_util.keystr(path))

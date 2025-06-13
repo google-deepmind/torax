@@ -156,7 +156,7 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
     )
     np.testing.assert_equal(output_state.dt, np.array(_CRASH_STEP_DURATION))
-    np.testing.assert_equal(
+    np.testing.assert_array_equal(
         output_state.t, self.initial_state.t + np.array(_CRASH_STEP_DURATION)
     )
 
@@ -244,7 +244,7 @@ class SawtoothModelTest(parameterized.TestCase):
       np.testing.assert_equal(
           output_state_should_not_crash.dt, np.array(_FIXED_DT)
       )
-      np.testing.assert_equal(
+      np.testing.assert_array_equal(
           output_state_should_not_crash.t,
           self.initial_state.t + np.array(_CRASH_STEP_DURATION + _FIXED_DT),
       )
@@ -265,7 +265,7 @@ class SawtoothModelTest(parameterized.TestCase):
       np.testing.assert_equal(
           output_state_should_crash.dt, np.array(_CRASH_STEP_DURATION)
       )
-      np.testing.assert_equal(
+      np.testing.assert_array_equal(
           output_state_should_crash.t,
           self.initial_state.t + np.array(2 * _CRASH_STEP_DURATION),
       )
