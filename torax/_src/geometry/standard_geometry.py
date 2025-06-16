@@ -32,7 +32,7 @@ import typing_extensions
 from torax._src import constants, interpolated_param
 from torax._src.geometry import geometry, geometry_loader, geometry_provider
 from torax._src.torax_pydantic import torax_pydantic
-from torax.imas_tools.equilibrium as imas_equilibrium
+from torax.imas_tools import equilibrium as imas_equilibrium
 
 # pylint: disable=invalid-name
 

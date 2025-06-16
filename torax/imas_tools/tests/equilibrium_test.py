@@ -30,8 +30,8 @@ from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.imas_tools.equilibrium as imas_equilibrium
-from torax.imas_tools.util as imas_util
+from torax.imas_tools import equilibrium as imas_equilibrium
+from torax.imas_tools import util as imas_util
 
 
 class EquilibriumTest(sim_test_case.SimTestCase):
