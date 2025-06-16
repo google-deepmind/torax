@@ -238,7 +238,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.gm2 = geometry.g2_face / (dpsidrhotor ** 2 * dvoldpsi**2)
 
     # Quantities computed by the transport code useful for coupling with equilibrium code
-    eq.profiles_1d.pressure = post_processed_outputs.pressure_thermal_total
+    eq.profiles_1d.pressure = post_processed_outputs.pressure_thermal_total.face_value()
     eq.profiles_1d.dpressure_dpsi = post_processed_outputs.pprime
 
     # <j.B>/B_0, could be useful to calculate and use instead of FF'
