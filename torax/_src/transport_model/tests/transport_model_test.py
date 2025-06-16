@@ -27,7 +27,45 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
+
+
+class TestDynamicRuntimeParams(parameterized.TestCase):
+  """Tests transport model DynamicRuntimeParams."""
+
+  def setUp(self):
+    super().setUp()
+    # Register the fake transport config.
+    model_config.ToraxConfig.model_fields[
+        'transport'
+    ].annotation |= FakeTransportConfig
+    model_config.ToraxConfig.model_rebuild(force=True)
+
+  @parameterized.parameters(
+      (0.2, 0.8, 0.2, 0.8), (0.8, 0.2, 0.2, 0.8), (0.2, 0.8, 0.8, 0.2)
+  )
+  def test_post_init(self, rho_min, rho_max, rho_inner, rho_outer):
+    """Tests that the post_init method works as expected."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'fake',
+        'rho_min': rho_min,
+        'rho_max': rho_max,
+        'rho_inner': rho_inner,
+        'rho_outer': rho_outer,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    if rho_min > rho_max or rho_inner > rho_outer:
+      with self.assertRaises(RuntimeError):
+        torax_config.transport.build_dynamic_params(
+            t=torax_config.numerics.t_initial
+        )
+    else:
+      torax_config.transport.build_dynamic_params(
+          t=torax_config.numerics.t_initial
+      )
 
 
 class TransportSmoothingTest(parameterized.TestCase):
@@ -53,7 +91,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         'smoothing_width': 0.05,
     }
     config['profile_conditions'] = {
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -225,7 +263,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         'smooth_everywhere': True,
     }
     config['profile_conditions'] = {
-        'n_e_right_bc': 0.5,
+        'n_e_right_bc': 0.5e20,
     }
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
@@ -414,6 +452,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 
   def _call_implementation(
       self,
+      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,

@@ -356,6 +356,46 @@ class PydanticBaseTest(parameterized.TestCase):
       ):
         model._update_fields({'get_model_1.x': 2.3})
 
+  def test_update_multiple_fields(self):
+
+    class Test1(model_base.BaseModelFrozen):
+      a: float
+
+    class Test2(model_base.BaseModelFrozen):
+      a: Test1  # pytype: disable=invalid-annotation
+      b: float
+      c: float
+
+      @pydantic.model_validator(mode='after')
+      def validator(self):
+        if self.a.a > self.b:
+          raise ValueError('a is greater than b')
+        if self.b > self.c:
+          raise ValueError('b is greater than c')
+        return self
+
+    a = 1.0
+    b = 2.0
+    c = 3.0
+    m = Test2(a=Test1(a=a), b=b, c=c)
+
+    with self.subTest('invalid_update_raises_error'):
+      with self.assertRaises(pydantic.ValidationError):
+        m._update_fields({'a.a': 10.0})
+
+    # TODO(b/421888060): enable this test once the bug is fixed.
+    # with self.subTest('invalid_update_leaves_model_unchanged'):
+    #   self.assertEqual(m.a.a, a)
+
+    with self.subTest('valid_update_updates_model'):
+      a_new = 10.0
+      b_new = 11.0
+      c_new = 12.0
+      m._update_fields({'a.a': a_new, 'b': b_new, 'c': c_new})
+      self.assertEqual(m.a.a, a_new)
+      self.assertEqual(m.b, b_new)
+      self.assertEqual(m.c, c_new)
+
 
 if __name__ == '__main__':
   absltest.main()

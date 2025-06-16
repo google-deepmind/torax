@@ -15,7 +15,7 @@
 import dataclasses
 
 from absl import logging
-import jax.numpy as jnp
+import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
@@ -88,8 +88,8 @@ def _get_initial_state(
   )
 
   return sim_state.ToraxSimState(
-      t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
-      dt=jnp.zeros(()),
+      t=np.array(dynamic_runtime_params_slice.numerics.t_initial),
+      dt=np.zeros(()),
       core_profiles=initial_core_profiles,
       # This will be overridden within run_simulation().
       core_sources=initial_core_sources,
@@ -164,7 +164,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
-      vloop_lcfs=scalars_dataset.vloop_lcfs.values,
+      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
   )
   numerics_dataset = data_tree.children[output.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()

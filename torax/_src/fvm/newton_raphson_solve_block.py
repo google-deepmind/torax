@@ -27,6 +27,7 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -39,7 +40,6 @@ from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
-
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
@@ -196,6 +196,7 @@ def newton_raphson_solve_block(
       geo_t,
       core_profiles_t,
       x_old,
+      explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
   )
 
@@ -211,13 +212,14 @@ def newton_raphson_solve_block(
           geo_t,
           core_profiles_t,
           x_old,
+          explicit_source_profiles=explicit_source_profiles,
           allow_pereverzev=True,
           explicit_call=True,
       )
 
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_guess = tuple(
-          [core_profiles_t_plus_dt[name] for name in evolving_names]
+      x_new_guess = convertors.core_profiles_to_solver_x_tuple(
+          core_profiles_t_plus_dt, evolving_names
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
@@ -229,6 +231,7 @@ def newton_raphson_solve_block(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
+          explicit_source_profiles=explicit_source_profiles,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -287,13 +290,12 @@ def newton_raphson_solve_block(
   )
 
   # initialize state dict being passed around Newton-Raphson iterations
-  residual_vec_init_x_new, aux_output_init_x_new = residual_fun(init_x_new_vec)
+  residual_vec_init_x_new = residual_fun(init_x_new_vec)
   initial_state = {
       'x': init_x_new_vec,
       'iterations': jnp.array(0, dtype=jax_utils.get_int_dtype()),
       'residual': residual_vec_init_x_new,
       'last_tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
-      'aux_output': aux_output_init_x_new,
   }
 
   # log initial state if requested
@@ -340,6 +342,7 @@ def newton_raphson_solve_block(
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
       x_new,
+      explicit_source_profiles=explicit_source_profiles,
       allow_pereverzev=True,
   )
 
@@ -382,7 +385,7 @@ def body(
       delta_reduction_factor=delta_reduction_factor,
   )
 
-  a_mat, _ = jacobian_fun(input_state['x'])  # Ignore the aux output here.
+  a_mat = jacobian_fun(input_state['x'])
   rhs = -input_state['residual']
   # delta = x_new - x_old
   # tau = delta/delta0, where delta0 is the delta that sets the linearized
@@ -395,7 +398,6 @@ def body(
       'delta': jnp.linalg.solve(a_mat, rhs),
       'residual_old': input_state['residual'],
       'residual_new': input_state['residual'],
-      'aux_output_new': input_state['aux_output'],
       'tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
   }
   output_delta_state = jax_utils.py_while(
@@ -412,7 +414,6 @@ def body(
           + 1
       ),
       'last_tau': output_delta_state['tau'],
-      'aux_output': output_delta_state['aux_output_new'],
   }
   if log_iterations:
     _log_iterations(
@@ -446,10 +447,9 @@ def delta_cond(
   # afterwards check sanity on the output (NaN checking)
   # TODO(b/312453092) consider instead sanity-checking x_new
   with jax_utils.enable_errors(False):
-    residual_vec_x_new, aux_output_x_new = residual_fun(x_new)
+    residual_vec_x_new = residual_fun(x_new)
     residual_scalar_x_new = residual_scalar(residual_vec_x_new)
     delta_state['residual_new'] = residual_vec_x_new
-    delta_state['aux_output_new'] = aux_output_x_new
   return jnp.bool_(
       jnp.logical_and(
           jnp.max(delta_state['delta']) > MIN_DELTA,

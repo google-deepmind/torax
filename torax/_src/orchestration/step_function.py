@@ -18,10 +18,13 @@ import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
+from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -31,11 +34,14 @@ from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 from torax._src.transport_model import transport_model as transport_model_lib
+
+# pylint: disable=invalid-name
 
 
 def _check_for_errors(
@@ -191,13 +197,19 @@ class SimulationStepFn:
     ):
       assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
       dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
-      dynamic_runtime_params_slice_t_plus_crash_dt, geo_t_plus_crash_dt = (
-          build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-              t=input_state.t + dt_crash,
-              dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-              geometry_provider=geometry_provider,
-          )
+
+      (
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          geo_t,
+          geo_t_plus_crash_dt,
+      ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+          input_state.t,
+          dt_crash,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
       )
+
       # If no sawtooth crash is triggered, output_state and
       # post_processed_outputs will be the same as the input state and
       # previous_post_processed_outputs.
@@ -329,15 +341,15 @@ class SimulationStepFn:
         input_state.t + input_state.dt
         > dynamic_runtime_params_slice_t.numerics.t_final
     )
-    dt = jnp.where(
-        jnp.logical_and(
+    dt = np.where(
+        np.logical_and(
             dynamic_runtime_params_slice_t.numerics.exact_t_final,
             crosses_t_final,
         ),
         dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
         dt,
     )
-    if jnp.any(jnp.isnan(dt)):
+    if np.any(np.isnan(dt)):
       raise ValueError('dt is NaN.')
 
     return dt
@@ -658,8 +670,28 @@ def _sawtooth_step(
 
   def _make_post_crash_state_and_post_processed_outputs():
     """Returns the post-crash state and post-processed outputs."""
+
+    # We also update the temperature profiles over the sawtooth time to
+    # maintain constant dW/dt over the sawtooth period. While not strictly
+    # realistic this avoids non-physical dW/dt=perturbations in post-processing.
+    # Following the sawtooth redistribution, the PDE will take over the
+    # energy evolution and the physical dW/dt corresponding to the new profile
+    # distribution will be calculated.
+    # This must be done here and not in the sawtooth model since the Solver
+    # API does not include the post-processed outputs.
+    x_evolved = _evolve_x_after_sawtooth(
+        x_redistributed=x_candidate,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        core_profiles_redistributed=core_profiles_t_plus_crash_dt,
+        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
+        previous_post_processed_outputs=input_post_processed_outputs,
+        evolving_names=sawtooth_solver.evolving_names,
+        dt_crash=dt_crash,
+    )
+
     return _finalize_outputs(
-        x_new=x_candidate,
+        x_new=x_evolved,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
         core_profiles_t=input_state.core_profiles,
@@ -780,3 +812,73 @@ def _finalize_outputs(
       previous_post_processed_outputs=input_post_processed_outputs,
   )
   return output_state, post_processed_outputs
+
+
+def _evolve_x_after_sawtooth(
+    x_redistributed: tuple[cell_variable.CellVariable, ...],
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    core_profiles_redistributed: state.CoreProfiles,
+    geo_t_plus_crash_dt: geometry.Geometry,
+    previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+    evolving_names: tuple[str, ...],
+    dt_crash: jnp.ndarray,
+) -> tuple[cell_variable.CellVariable, ...]:
+  """Evolves the x_redistributed after the sawtooth redistribution."""
+
+  updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
+      x_new=x_redistributed,
+      evolving_names=evolving_names,
+      core_profiles=core_profiles_redistributed,
+  )
+
+  ions = getters.get_updated_ions(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_crash_dt,
+      geo_t_plus_crash_dt,
+      updated_core_profiles.n_e,
+      updated_core_profiles.T_e,
+  )
+
+  updated_core_profiles = dataclasses.replace(
+      updated_core_profiles,
+      n_i=ions.n_i,
+      n_impurity=ions.n_impurity,
+  )
+
+  (
+      pressure_thermal_el,
+      pressure_thermal_ion,
+      pressure_thermal_tot,
+  ) = formulas.calculate_pressure(updated_core_profiles)
+
+  _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
+      pressure_thermal_el,
+      pressure_thermal_ion,
+      pressure_thermal_tot,
+      geo_t_plus_crash_dt,
+  )
+
+  # Update temperatures to maintain constant dW/dt over the sawtooth period.
+  dW_target = previous_post_processed_outputs.dW_thermal_dt * dt_crash
+
+  factor = 1 + dW_target / W_thermal_tot
+
+  updated_core_profiles = dataclasses.replace(
+      updated_core_profiles,
+      T_e=dataclasses.replace(
+          updated_core_profiles.T_e,
+          value=updated_core_profiles.T_e.value * factor,
+      ),
+      T_i=dataclasses.replace(
+          updated_core_profiles.T_i,
+          value=updated_core_profiles.T_i.value * factor,
+      ),
+  )
+
+  x_evolved = convertors.core_profiles_to_solver_x_tuple(
+      updated_core_profiles,
+      evolving_names,
+  )
+
+  return x_evolved

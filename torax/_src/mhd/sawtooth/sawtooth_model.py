@@ -18,6 +18,7 @@ import dataclasses
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import redistribution_base
@@ -156,7 +157,6 @@ class SawtoothModel(solver.Solver):
 
       conductivity_post_step = (
           self.source_models.conductivity.calculate_conductivity(
-              dynamic_runtime_params_slice_t_plus_dt,
               geo_t_plus_dt,
               redistributed_core_profiles,
           )
@@ -170,8 +170,8 @@ class SawtoothModel(solver.Solver):
           conductivity=conductivity_post_step,
       )
 
-      x_post_step = tuple(
-          [getattr(evolved_core_profiles, name) for name in evolving_names]
+      x_post_step = convertors.core_profiles_to_solver_x_tuple(
+          evolved_core_profiles, evolving_names
       )
 
       pedestal_model_output = self.pedestal_model(
@@ -209,7 +209,8 @@ class SawtoothModel(solver.Solver):
             core_sources_t,
             base_conductivity.Conductivity(
                 sigma=core_profiles_t.sigma,
-                sigma_face=core_profiles_t.sigma_face),
+                sigma_face=core_profiles_t.sigma_face,
+            ),
             core_transport_t,
             state.SolverNumericOutputs(),
         ),

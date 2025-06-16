@@ -21,6 +21,7 @@ from typing import TypeAlias
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -33,7 +34,6 @@ from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
-
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
@@ -130,6 +130,7 @@ def optimizer_solve_block(
       geo_t,
       core_profiles_t,
       x_old,
+      explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
   )
 
@@ -146,12 +147,13 @@ def optimizer_solve_block(
           geo_t,
           core_profiles_t,
           x_old,
+          explicit_source_profiles=explicit_source_profiles,
           allow_pereverzev=True,
           explicit_call=True,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_guess = tuple(
-          [core_profiles_t_plus_dt[name] for name in evolving_names]
+      x_new_guess = convertors.core_profiles_to_solver_x_tuple(
+          core_profiles_t_plus_dt, evolving_names
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
@@ -163,6 +165,7 @@ def optimizer_solve_block(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
+          explicit_source_profiles=explicit_source_profiles,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -178,7 +181,6 @@ def optimizer_solve_block(
   (
       x_new_vec,
       final_loss,
-      _,
       solver_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
@@ -217,6 +219,7 @@ def optimizer_solve_block(
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
       x_new,
+      explicit_source_profiles=explicit_source_profiles,
       allow_pereverzev=True,
   )
 

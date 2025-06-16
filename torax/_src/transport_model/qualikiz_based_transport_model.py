@@ -77,8 +77,6 @@ class QualikizBasedTransportModel(
 
   def _prepare_qualikiz_inputs(
       self,
-      Z_eff_face: chex.Array,
-      density_reference: chex.Numeric,
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -136,8 +134,6 @@ class QualikizBasedTransportModel(
     nu_star = collisions.calc_nu_star(
         geo=geo,
         core_profiles=core_profiles,
-        density_reference=density_reference,
-        Z_eff_face=Z_eff_face,
         collisionality_multiplier=transport.collisionality_multiplier,
     )
     log_nu_star_face = jnp.log10(nu_star)
@@ -145,7 +141,6 @@ class QualikizBasedTransportModel(
     # calculate alpha for magnetic shear correction (see S. van Mulders NF 2021)
     alpha = quasilinear_transport_model.calculate_alpha(
         core_profiles=core_profiles,
-        density_reference=density_reference,
         q=q,
         reference_magnetic_field=geo.B_0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
@@ -188,7 +183,7 @@ class QualikizBasedTransportModel(
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
     return QualikizInputs(
-        Z_eff_face=Z_eff_face,
+        Z_eff_face=core_profiles.Z_eff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
         lref_over_lte=normalized_logarithmic_gradients.lref_over_lte,
         lref_over_lne=normalized_logarithmic_gradients.lref_over_lne,

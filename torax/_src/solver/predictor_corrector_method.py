@@ -27,6 +27,7 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.geometry import geometry
+from torax._src.sources import source_profiles
 
 
 def predictor_corrector_method(
@@ -38,6 +39,7 @@ def predictor_corrector_method(
     x_new_guess: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
+    explicit_source_profiles: source_profiles.SourceProfiles,
     coeffs_callback: calc_coeffs.CoeffsCallback,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
@@ -55,8 +57,14 @@ def predictor_corrector_method(
     x_new_guess: Tuple of CellVariables corresponding to the initial guess for
       the next time step.
     core_profiles_t_plus_dt: Core profiles at the next time step.
-    coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
-    coeffs_callback: coefficient callback function
+    coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep.
+    explicit_source_profiles: Precomputed explicit source profiles. These
+        profiles were configured to always depend on state and parameters at
+        time t during the solver step. They can thus be inputs, since they are
+        not recalculated at time t+plus_dt with updated state during the solver
+        iterations. For sources that are implicit, their explicit profiles are
+        set to all zeros.
+    coeffs_callback: coefficient callback function.
 
   Returns:
     x_new: Solution of evolving core profile state variables
@@ -70,6 +78,7 @@ def predictor_corrector_method(
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
         x_new_guess,
+        explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
     )
 

@@ -16,7 +16,7 @@
 from absl import logging
 import chex
 import jax
-import jax.numpy as jnp
+import numpy as np
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
@@ -48,8 +48,8 @@ class ToraxSimState:
     solver_numeric_outputs: Numerical quantities related to the solver.
   """
 
-  t: jax.Array
-  dt: jax.Array
+  t: chex.Array
+  dt: chex.Array
   core_profiles: state.CoreProfiles
   core_transport: state.CoreTransport
   core_sources: source_profiles.SourceProfiles
@@ -59,28 +59,42 @@ class ToraxSimState:
   def check_for_errors(self) -> state.SimError:
     """Checks for errors in the simulation state."""
     if self.core_profiles.negative_temperature_or_density():
-      logging.info("%s", self.core_profiles)
+      logging.info("Unphysical negative values detected in core profiles:\n")
       _log_negative_profile_names(self.core_profiles)
       return state.SimError.NEGATIVE_CORE_PROFILES
-    # If there are NaNs that occurred without negative core profiles, log this
-    # as a separate error.
-    if _has_nan(self):
-      logging.info("%s", self.core_profiles)
+    if self.has_nan():
+      logging.info("NaNs detected in ToraxSimState:\n")
+      _log_nans(self)
       return state.SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return state.SimError.QUASINEUTRALITY_BROKEN
     else:
       return state.SimError.NO_ERROR
 
+  def has_nan(self) -> bool:
+    return any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)])
 
-def _has_nan(
+
+def _log_nans(
     inputs: ToraxSimState,
-) -> bool:
-  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
+) -> None:
+  path_vals, _ = jax.tree.flatten_with_path(inputs)
+  nan_count = 0
+  for path, value in path_vals:
+    if np.any(np.isnan(value)):
+      logging.info("Found NaNs in %s", jax.tree_util.keystr(path))
+      nan_count += 1
+  if nan_count >= 10:
+    logging.info(
+        """\nA common cause of widespread NaNs is negative densities or
+        temperatures evolving during the solver step. This often arises through
+        physical reasons like radiation collapse. Check the output file for
+        near-zero temperatures or densities at the last valid step."""
+    )
 
 
-def _log_negative_profile_names(inputs: state.CoreProfiles):
+def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
-    if jnp.any(jnp.less(value, 0.0)):
+    if np.any(np.less(value, 0.0)):
       logging.info("Found negative value in %s", jax.tree_util.keystr(path))

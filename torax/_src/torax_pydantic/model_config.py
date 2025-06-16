@@ -88,17 +88,27 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    if 'model_name' not in configurable_data['pedestal']:
+    if (
+        isinstance(configurable_data['pedestal'], dict)
+        and 'model_name' not in configurable_data['pedestal']
+    ):
       configurable_data['pedestal']['model_name'] = 'no_pedestal'
-    if 'model_name' not in configurable_data['transport']:
+    if (
+        isinstance(configurable_data['transport'], dict)
+        and 'model_name' not in configurable_data['transport']
+    ):
       configurable_data['transport']['model_name'] = 'constant'
-    if 'solver_type' not in configurable_data['solver']:
+    if (
+        isinstance(configurable_data['solver'], dict)
+        and 'solver_type' not in configurable_data['solver']
+    ):
       configurable_data['solver']['solver_type'] = 'linear'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     using_nonlinear_transport_model = self.transport.model_name in [
+        'qualikiz',
         'qlknn',
         'CGM',
     ]
@@ -136,7 +146,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
     This method will invalidate all `functools.cached_property` caches of
     all ancestral models in the nested tree, as these could have a dependency
-    on the updated model. In addition, these nodes will be re-validated.
+    on the updated model. In addition, these ancestral models will be
+    re-validated.
 
     Args:
       x: A dictionary whose key is a path `'some.path.to.field_name'` and the

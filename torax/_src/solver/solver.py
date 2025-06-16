@@ -161,7 +161,6 @@ class Solver(abc.ABC):
       # is useful for inspecting prescribed sources in the output state.
       core_conductivity = (
           self.source_models.conductivity.calculate_conductivity(
-              dynamic_runtime_params_slice_t_plus_dt,
               geo_t_plus_dt,
               core_profiles_t_plus_dt,
           )

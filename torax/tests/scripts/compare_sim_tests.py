@@ -20,6 +20,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 import numpy as np
+from torax._src.config import config_loader
 from torax._src.output_tools import output
 from torax.tests import scripts
 import xarray as xr
@@ -31,11 +32,8 @@ _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'File path to the directory containing failed sim test output'
     ' subdirectories.',
 )
-
-_REFERENCE_TEST_DATA_DIR = flags.DEFINE_string(
-    'reference_dir',
-    'torax/tests/test_data',
-    'File path to the directory containing reference data files',
+_REFERENCE_TEST_DATA_DIR = os.path.join(
+    config_loader.torax_path(), 'tests/test_data'
 )
 
 
@@ -69,17 +67,25 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
   Args:
     failed_test_file: Name of the failed test file, this is corresponds to the
       test which failed.
+
+  Raises:
+    FileNotFoundError: if failed_test_file is not found in
+    _REFERENCE_TEST_DATA_DIR.
   """
   test_name = failed_test_file.split('.')[0]
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
-  reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
 
   old_file = os.path.join(
-      reference_test_data_dir, scripts.get_data_file(test_name)
+      _REFERENCE_TEST_DATA_DIR,
+      scripts.get_data_file(test_name),
   )
-  new_file = os.path.join(
-      failed_test_output_dir, failed_test_file
-  )
+  new_file = os.path.join(failed_test_output_dir, failed_test_file)
+
+  if not os.path.exists(old_file):
+    raise FileNotFoundError(
+        f'File not found: {old_file}. '
+        'Make sure reference data exists in tests/test_data directory.'
+    )
 
   # The variables in the nc files which to compare and print out the diffs
   profile_names = [
@@ -107,7 +113,7 @@ def _print_diff(profile_name: str, ds_old: xr.Dataset, ds_new: xr.Dataset):
     ds_new: Dataset containing the new simulation output.
   """
 
-  if (profile_name == 'psi'):
+  if profile_name == 'psi':
     # Avoid potential 0.0 on-axis
     old_value = ds_old[profile_name].isel(time=-1).to_numpy()[1:]
     new_value = ds_new[profile_name].isel(time=-1).to_numpy()[1:]

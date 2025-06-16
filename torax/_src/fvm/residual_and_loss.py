@@ -214,7 +214,7 @@ def theta_method_block_residual(
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_model: pedestal_model_lib.PedestalModel,
-) -> tuple[jax.Array, AuxiliaryOutput]:
+) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
   Args:
@@ -296,7 +296,7 @@ def theta_method_block_residual(
   rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec
 
   residual = lhs - rhs
-  return residual, coeffs_new.auxiliary_outputs
+  return residual
 
 
 @functools.partial(
@@ -310,7 +310,7 @@ def theta_method_block_residual(
     ],
 )
 def theta_method_block_jacobian(*args, **kwargs):
-  return jax.jacfwd(theta_method_block_residual, has_aux=True)(*args, **kwargs)
+  return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
 
 
 @functools.partial(
@@ -337,7 +337,7 @@ def theta_method_block_loss(
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_model: pedestal_model_lib.PedestalModel,
-) -> tuple[jax.Array, AuxiliaryOutput]:
+) -> jax.Array:
   """Loss for the optimizer method of nonlinear solution.
 
   Args:
@@ -373,7 +373,7 @@ def theta_method_block_loss(
     loss: mean squared loss of theta method residual.
   """
 
-  residual, aux_output = theta_method_block_residual(
+  residual = theta_method_block_residual(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
@@ -389,7 +389,7 @@ def theta_method_block_loss(
       pedestal_model=pedestal_model,
   )
   loss = jnp.mean(jnp.square(residual))
-  return loss, aux_output
+  return loss
 
 
 @functools.partial(
@@ -418,7 +418,7 @@ def jaxopt_solver(
     evolving_names: tuple[str, ...],
     maxiter: int,
     tol: float,
-) -> tuple[jax.Array, float, AuxiliaryOutput, int]:
+) -> tuple[jax.Array, float, int]:
   """Advances jaxopt solver by one timestep.
 
   Args:
@@ -474,11 +474,10 @@ def jaxopt_solver(
       evolving_names=evolving_names,
       pedestal_model=pedestal_model,
   )
-  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)
+  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
   solver_output = solver.run(init_x_new_vec)
   x_new_vec = solver_output.params
-  aux_output = solver_output.state.aux
   final_loss, _ = loss(x_new_vec)
   num_iterations = solver_output.state.iter_num
 
-  return x_new_vec, final_loss, aux_output, num_iterations
+  return x_new_vec, final_loss, num_iterations

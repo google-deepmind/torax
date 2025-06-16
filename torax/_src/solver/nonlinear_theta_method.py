@@ -19,6 +19,7 @@ import chex
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import enums
@@ -91,7 +92,6 @@ class NonlinearThetaMethod(solver.Solver):
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
-        explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
@@ -195,7 +195,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+        x_old=convertors.core_profiles_to_solver_x_tuple(
+            core_profiles_t, evolving_names
+        ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,
@@ -265,7 +267,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
-        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+        x_old=convertors.core_profiles_to_solver_x_tuple(
+            core_profiles_t, evolving_names
+        ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,

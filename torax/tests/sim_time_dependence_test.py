@@ -42,6 +42,7 @@ from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -76,7 +77,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     config = {
         'profile_conditions': {
             'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-            'n_e_right_bc': 0.5,
+            'n_e_right_bc': 0.5e20,
         },
         'numerics': {
             'adaptive_dt': adaptive_dt,
@@ -298,6 +299,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 
   def _call_implementation(
       self,
+      transport_runtime_params: transport_model_runtime_params.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,

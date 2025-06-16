@@ -156,7 +156,7 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state.solver_numeric_outputs.sawtooth_crash, np.array(True)
     )
     np.testing.assert_equal(output_state.dt, np.array(_CRASH_STEP_DURATION))
-    np.testing.assert_equal(
+    np.testing.assert_array_equal(
         output_state.t, self.initial_state.t + np.array(_CRASH_STEP_DURATION)
     )
 
@@ -244,7 +244,7 @@ class SawtoothModelTest(parameterized.TestCase):
       np.testing.assert_equal(
           output_state_should_not_crash.dt, np.array(_FIXED_DT)
       )
-      np.testing.assert_equal(
+      np.testing.assert_array_equal(
           output_state_should_not_crash.t,
           self.initial_state.t + np.array(_CRASH_STEP_DURATION + _FIXED_DT),
       )
@@ -265,7 +265,7 @@ class SawtoothModelTest(parameterized.TestCase):
       np.testing.assert_equal(
           output_state_should_crash.dt, np.array(_CRASH_STEP_DURATION)
       )
-      np.testing.assert_equal(
+      np.testing.assert_array_equal(
           output_state_should_crash.t,
           self.initial_state.t + np.array(2 * _CRASH_STEP_DURATION),
       )
@@ -285,16 +285,16 @@ _POST_CRASH_TEMPERATURE = np.array([
 ])
 
 _POST_CRASH_N = np.array([
-    0.92905438,
-    0.92652621,
-    0.92399804,
-    0.92146987,
-    0.91894169,
-    0.88178024,
-    0.8345057,
-    0.79219014,
-    0.75698169,
-    0.72177324,
+    0.92905438e20,
+    0.92652621e20,
+    0.92399804e20,
+    0.92146987e20,
+    0.91894169e20,
+    0.88178024e20,
+    0.8345057e20,
+    0.79219014e20,
+    0.75698169e20,
+    0.72177324e20,
 ])
 
 _POST_CRASH_PSI = np.array([

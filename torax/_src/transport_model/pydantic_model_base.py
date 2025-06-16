@@ -35,6 +35,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     D_e_max: maximum electron density diffusivity.
     V_e_min: minimum electron density convection.
     V_e_max: minimum electron density convection.
+    rho_min: normalized radius above which this model is applied.
+    rho_max: normalized radius below which this model is applied.
     apply_inner_patch: set inner core transport coefficients (ad-hoc MHD/EM
       transport).
     D_e_inner: inner core electron density diffusivity.
@@ -62,6 +64,12 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
   V_e_min: torax_pydantic.MeterPerSecond = -50.0
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
+  rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   apply_inner_patch: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -121,6 +129,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
         D_e_max=self.D_e_max,
         V_e_min=self.V_e_min,
         V_e_max=self.V_e_max,
+        rho_min=self.rho_min.get_value(t),
+        rho_max=self.rho_max.get_value(t),
         apply_inner_patch=self.apply_inner_patch.get_value(t),
         D_e_inner=self.D_e_inner.get_value(t),
         V_e_inner=self.V_e_inner.get_value(t),

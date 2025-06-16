@@ -43,18 +43,19 @@ class CoreProfiles:
       T_e: Electron temperature [keV].
       psi: Poloidal flux [Wb].
       psidot: Time derivative of poloidal flux (loop voltage) [V].
-      n_e: Electron density [density_reference m^-3].
-      n_i: Main ion density [density_reference m^-3].
-      n_impurity: Impurity density [density_reference m^-3].
+      n_e: Electron density [m^-3].
+      n_i: Main ion density [m^-3].
+      n_impurity: Impurity density [m^-3].
       q_face: Safety factor.
       s_face: Magnetic shear.
-      density_reference: Reference density [m^-3].
-      vloop_lcfs: Loop voltage at LCFS (V).
+      v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
       Z_impurity: Impurity charge on cell grid [dimensionless].
       Z_impurity_face: Impurity charge on face grid [dimensionless].
+      Z_eff: Effective charge on cell grid [dimensionless].
+      Z_eff_face: Effective charge on face grid [dimensionless].
       A_impurity: Impurity mass [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
@@ -72,14 +73,15 @@ class CoreProfiles:
   n_impurity: cell_variable.CellVariable
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
-  density_reference: array_typing.ScalarFloat
-  vloop_lcfs: array_typing.ScalarFloat
+  v_loop_lcfs: array_typing.ScalarFloat
   Z_i: array_typing.ArrayFloat
   Z_i_face: array_typing.ArrayFloat
   A_i: array_typing.ScalarFloat
   Z_impurity: array_typing.ArrayFloat
   Z_impurity_face: array_typing.ArrayFloat
   A_impurity: array_typing.ScalarFloat
+  Z_eff: array_typing.ArrayFloat
+  Z_eff_face: array_typing.ArrayFloat
   sigma: array_typing.ArrayFloat
   sigma_face: array_typing.ArrayFloat
   j_total: array_typing.ArrayFloat
@@ -201,8 +203,8 @@ class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 
   Attributes:
-    outer_solver_iterations: Number of iterations performed in the outer loop
-      of the solver.
+    outer_solver_iterations: Number of iterations performed in the outer loop of
+      the solver.
     solver_error_state: 0 if solver converged with fine tolerance for this step
       1 if solver did not converge for this step (was above coarse tol) 2 if
       solver converged within coarse tolerance. Allowed to pass with a warning.

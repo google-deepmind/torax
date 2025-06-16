@@ -16,7 +16,6 @@
 import chex
 import pydantic
 from torax._src import array_typing
-from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
@@ -36,7 +35,6 @@ class DynamicNumerics:
   fixed_dt: float
   dt_reduction_factor: float
   resistivity_multiplier: array_typing.ScalarFloat
-  density_reference: float
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
   calcphibdot: bool
@@ -76,7 +74,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
     resistivity_multiplier:  1/multiplication factor for sigma (conductivity) to
       reduce current diffusion timescale to be closer to heat diffusion
       timescale
-    density_reference: Reference density value for normalizations.
     adaptive_T_source_prefactor: Prefactor for adaptive source term for setting
       temperature internal boundary conditions.
     adaptive_n_source_prefactor: Prefactor for adaptive source term for setting
@@ -134,7 +131,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         dt_reduction_factor=self.dt_reduction_factor,
         calcphibdot=self.calcphibdot,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
-        density_reference=constants.DENSITY_SCALING_FACTOR,
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
     )

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.config import build_runtime_params
@@ -99,6 +100,85 @@ class CoreProfileSettersTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
     )
+
+  def test_calc_coeffs_hash(self):
+    def create_coeffs_callback(
+        torax_config: model_config.ToraxConfig,
+    ) -> calc_coeffs.CoeffsCallback:
+      pedestal_model = torax_config.pedestal.build_pedestal_model()
+      transport_model = torax_config.transport.build_transport_model()
+      evolving_names = tuple(['T_i'])
+      source_models = source_models_lib.SourceModels(
+          sources=torax_config.sources, neoclassical=torax_config.neoclassical
+      )
+      static_runtime_params_slice = (
+          build_runtime_params.build_static_params_from_config(torax_config)
+      )
+      return calc_coeffs.CoeffsCallback(
+          static_runtime_params_slice=static_runtime_params_slice,
+          transport_model=transport_model,
+          source_models=source_models,
+          evolving_names=evolving_names,
+          pedestal_model=pedestal_model,
+      )
+
+    torax_config = {
+        'pedestal': {},
+        'transport': {},
+        'solver': {},
+        'profile_conditions': {},
+        'numerics': {},
+        'sources': {},
+        'geometry': {'geometry_type': 'circular'},
+        'plasma_composition': {},
+    }
+    torax_config_with_pedestal = copy.deepcopy(torax_config)
+    torax_config_with_pedestal['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
+
+    with self.subTest('same_coeffs_callback_hash_equal'):
+      self.assertEqual(
+          hash(
+              create_coeffs_callback(
+                  model_config.ToraxConfig.from_dict(torax_config)
+              )
+          ),
+          hash(
+              create_coeffs_callback(
+                  model_config.ToraxConfig.from_dict(torax_config)
+              )
+          ),
+      )
+    with self.subTest('same_coeffs_callback_equal'):
+      self.assertEqual(
+          create_coeffs_callback(
+              model_config.ToraxConfig.from_dict(torax_config)
+          ),
+          create_coeffs_callback(
+              model_config.ToraxConfig.from_dict(torax_config)
+          ),
+      )
+    with self.subTest('different_coeffs_callback_hash_not_equal'):
+      self.assertNotEqual(
+          hash(
+              create_coeffs_callback(
+                  model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
+              )
+          ),
+          hash(
+              create_coeffs_callback(
+                  model_config.ToraxConfig.from_dict(torax_config)
+              )
+          ),
+      )
+    with self.subTest('different_coeffs_callback_not_equal'):
+      self.assertNotEqual(
+          create_coeffs_callback(
+              model_config.ToraxConfig.from_dict(torax_config)
+          ),
+          create_coeffs_callback(
+              model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
+          ),
+      )
 
 
 if __name__ == '__main__':

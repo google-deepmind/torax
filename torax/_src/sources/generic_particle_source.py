@@ -57,10 +57,7 @@ def calc_generic_particle_source(
       formulas.gaussian_profile(
           center=dynamic_source_runtime_params.deposition_location,
           width=dynamic_source_runtime_params.particle_width,
-          total=(
-              dynamic_source_runtime_params.S_total
-              / dynamic_runtime_params_slice.numerics.density_reference
-          ),
+          total=dynamic_source_runtime_params.S_total,
           geo=geo,
       ),
   )

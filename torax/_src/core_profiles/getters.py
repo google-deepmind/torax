@@ -15,11 +15,11 @@
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import functools
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src.config import numerics
 from torax._src.config import profile_conditions
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
@@ -30,6 +30,22 @@ from torax._src.physics import formulas
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
+
+
+@chex.dataclass(frozen=True)
+class Ions:
+  """Helper container for holding ion attributes."""
+
+  n_i: cell_variable.CellVariable
+  n_impurity: cell_variable.CellVariable
+  Z_i: array_typing.ArrayFloat
+  Z_i_face: array_typing.ArrayFloat
+  Z_impurity: array_typing.ArrayFloat
+  Z_impurity_face: array_typing.ArrayFloat
+  A_i: array_typing.ScalarFloat
+  A_impurity: array_typing.ScalarFloat
+  Z_eff: array_typing.ArrayFloat
+  Z_eff_face: array_typing.ArrayFloat
 
 
 def get_updated_ion_temperature(
@@ -64,7 +80,6 @@ def get_updated_electron_temperature(
 
 def get_updated_electron_density(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_numerics: numerics.DynamicNumerics,
     dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
@@ -136,10 +151,10 @@ def get_updated_electron_density(
   n_e_value = C * n_e_value
 
   n_e = cell_variable.CellVariable(
-      value=n_e_value / dynamic_numerics.density_reference,
+      value=n_e_value,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=n_e_right_bc / dynamic_numerics.density_reference,
+      right_face_constraint=n_e_right_bc,
   )
   return n_e
 
@@ -148,21 +163,14 @@ def get_updated_electron_density(
 @functools.partial(
     jax_utils.jit, static_argnames=['static_runtime_params_slice']
 )
-def get_ion_density_and_charge_states(
+def get_updated_ions(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-) -> tuple[
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated ion densities based on state.
+) -> Ions:
+  """Updated ion density, charge state, and mass based on state and config.
 
   Main ion and impurities are each treated as a single effective ion, but could
   be comparised of multiple species within an IonMixture. The main ion and
@@ -177,18 +185,23 @@ def get_ion_density_and_charge_states(
     static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Geometry of the tokamak.
-    n_e: Electron density profile [density_reference].
+    n_e: Electron density profile [m^-3].
     T_e: Electron temperature profile [keV].
 
   Returns:
-    n_i: Ion density profile [density_reference].
-    n_impurity: Impurity density profile [density_reference].
-    Z_i: Average charge state of main ion on cell grid [amu].
-      Typically just the average of the atomic numbers since these are normally
-      low Z ions and can be assumed to be fully ionized.
-    Z_i_face: Average charge state of main ion on face grid [amu].
-    Z_impurity: Average charge state of impurities on cell grid [amu].
-    Z_impurity_face: Average charge state of impurities on face grid [amu].
+    Ion container with the following attributes:
+      n_i: Ion density profile [m^-3].
+      n_impurity: Impurity density profile [m^-3].
+      Z_i: Average charge state of main ion on cell grid [dimensionless].
+        Typically just the average of the atomic numbers since these are
+        normally low Z ions and can be assumed to be fully ionized.
+      Z_i_face: Average charge state of main ion on face grid [dimensionless].
+      Z_impurity: Average charge state of impurities on cell grid
+      [dimensionless].
+      Z_impurity_face: Average charge state of impurities on face grid
+      [dimensionless].
+      A_i: Average atomic number of main ion [amu].
+      A_impurity: Average atomic number of impurities [amu].
   """
 
   Z_i, Z_i_face, Z_impurity, Z_impurity_face = _get_charge_states(
@@ -198,13 +211,20 @@ def get_ion_density_and_charge_states(
   )
 
   Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-  Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
+  Z_eff_edge = dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
 
-  dilution_factor = formulas.calculate_main_ion_dilution_factor(
-      Z_i, Z_impurity, Z_eff
+  dilution_factor = jnp.where(
+      Z_eff == 1.0,
+      1.0,
+      formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
   )
-  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Z_i_face[-1], Z_impurity_face[-1], Z_eff_face[-1]
+
+  dilution_factor_edge = jnp.where(
+      Z_eff_edge == 1.0,
+      1.0,
+      formulas.calculate_main_ion_dilution_factor(
+          Z_i_face[-1], Z_impurity_face[-1], Z_eff_edge
+      ),
   )
 
   n_i = cell_variable.CellVariable(
@@ -214,16 +234,50 @@ def get_ion_density_and_charge_states(
       right_face_constraint=n_e.right_face_constraint * dilution_factor_edge,
   )
 
-  n_impurity = cell_variable.CellVariable(
-      value=(n_e.value - n_i.value * Z_i) / Z_impurity,
-      dr=geo.drho_norm,
-      right_face_grad_constraint=None,
-      right_face_constraint=(
-          n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1]
-      )
+  n_impurity_value = jnp.where(
+      dilution_factor == 1.0,
+      0.0,
+      (n_e.value - n_i.value * Z_i) / Z_impurity,
+  )
+
+  n_impurity_right_face_constraint = jnp.where(
+      dilution_factor_edge == 1.0,
+      0.0,
+      (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])
       / Z_impurity_face[-1],
   )
-  return n_i, n_impurity, Z_i, Z_i_face, Z_impurity, Z_impurity_face
+
+  n_impurity = cell_variable.CellVariable(
+      value=n_impurity_value,
+      dr=geo.drho_norm,
+      right_face_grad_constraint=None,
+      right_face_constraint=n_impurity_right_face_constraint,
+  )
+
+  # Z_eff from plasma composition is imposed and can be passed to CoreProfiles.
+  # However, we must recalculate Z_eff_face from the updated densities and
+  # charge states since linearly interpolated Z_eff (which is what plasma
+  # composition Z_eff_face is) would not be physically consistent.
+  Z_eff_face = _calculate_Z_eff(
+      Z_i_face,
+      Z_impurity_face,
+      n_i.face_value(),
+      n_impurity.face_value(),
+      n_e.face_value(),
+  )
+
+  return Ions(
+      n_i=n_i,
+      n_impurity=n_impurity,
+      Z_i=Z_i,
+      Z_i_face=Z_i_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
+      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+      Z_eff=dynamic_runtime_params_slice.plasma_composition.Z_eff,
+      Z_eff_face=Z_eff_face,
+  )
 
 
 def _get_charge_states(
@@ -260,3 +314,14 @@ def _get_charge_states(
   )
 
   return Z_i, Z_i_face, Z_impurity, Z_impurity_face
+
+
+def _calculate_Z_eff(
+    Z_i: array_typing.ArrayFloat,
+    Z_impurity: array_typing.ArrayFloat,
+    n_i: array_typing.ArrayFloat,
+    n_impurity: array_typing.ArrayFloat,
+    n_e: array_typing.ArrayFloat,
+) -> array_typing.ArrayFloat:
+  """Calculates Z_eff based on impurity and main_ion."""
+  return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

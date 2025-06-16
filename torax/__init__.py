@@ -14,6 +14,7 @@
 
 """Library functionality for TORAX."""
 
+import logging
 import os
 
 import jax
@@ -64,5 +65,8 @@ def set_jax_precision():
   if precision == 'f64':
     jax.config.update('jax_enable_x64', True)
 
+
+def log_jax_backend():
+  logging.info('JAX running on a default %s backend', jax.default_backend())
 
 set_jax_precision()

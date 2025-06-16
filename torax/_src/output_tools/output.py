@@ -22,7 +22,6 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -35,6 +34,7 @@ import xarray as xr
 
 import os
 
+# pylint: disable=invalid-name
 
 # Dataset names.
 PROFILES = "profiles"
@@ -52,18 +52,18 @@ Q = "q"
 MAGNETIC_SHEAR = "magnetic_shear"
 N_IMPURITY = "n_impurity"
 Z_IMPURITY = "Z_impurity"
-
-# Currents.
+Z_EFF = "Z_eff"
+SIGMA_PARALLEL = "sigma_parallel"
+V_LOOP_LCFS = "v_loop_lcfs"
 J_TOTAL = "j_total"
+IP_PROFILE = "Ip_profile"
+IP = "Ip"
+
+# Calculated or derived currents.
 J_OHMIC = "j_ohmic"
 J_EXTERNAL = "j_external"
 J_BOOTSTRAP = "j_bootstrap"
 I_BOOTSTRAP = "I_bootstrap"
-IP_PROFILE = "Ip_profile"
-SIGMA_PARALLEL = "sigma_parallel"
-
-IP = "Ip"
-VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
 CHI_TURB_I = "chi_turb_i"
@@ -222,12 +222,6 @@ class StateHistory:
     self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *self._core_profiles
     )
-    # Rescale output CoreProfiles to have density units in m^-3.
-    # This is done to maintain the same external API following an upcoming
-    # change to the internal CoreProfiles density units.
-    self._stacked_core_profiles = _rescale_core_profiles(
-        self._stacked_core_profiles
-    )
     self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
         jax.tree_util.tree_map(stack, *self._core_sources)
     )
@@ -236,9 +230,7 @@ class StateHistory:
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree_util.tree_map(
-        stack, *post_processed_outputs_history
-    )
+    ) = jax.tree_util.tree_map(stack, *post_processed_outputs_history)
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
@@ -472,41 +464,57 @@ class StateHistory:
   def _save_core_profiles(
       self,
   ) -> dict[str, xr.DataArray | None]:
-    """Saves the core profiles to a dict."""
+    """Saves the stacked core profiles to a dictionary of xr.DataArrays."""
     xr_dict = {}
-    core_profiles = self._stacked_core_profiles
+    stacked_core_profiles = self._stacked_core_profiles
 
-    xr_dict[T_E] = core_profiles.T_e.cell_plus_boundaries()
-    xr_dict[T_I] = core_profiles.T_i.cell_plus_boundaries()
-    xr_dict[PSI] = core_profiles.psi.cell_plus_boundaries()
-    xr_dict[V_LOOP] = core_profiles.psidot.cell_plus_boundaries()
-    xr_dict[N_E] = core_profiles.n_e.cell_plus_boundaries()
-    xr_dict[N_I] = core_profiles.n_i.cell_plus_boundaries()
-    xr_dict[N_IMPURITY] = core_profiles.n_impurity.cell_plus_boundaries()
-    xr_dict[Z_IMPURITY] = _extend_cell_grid_to_boundaries(
-        core_profiles.Z_impurity, core_profiles.Z_impurity_face
-    )
-    xr_dict[SIGMA_PARALLEL] = core_profiles.sigma
-
-    # Currents.
-    xr_dict[J_TOTAL] = _extend_cell_grid_to_boundaries(
-        core_profiles.j_total, core_profiles.j_total_face
-    )
-    xr_dict[IP_PROFILE] = core_profiles.Ip_profile_face
-    xr_dict[IP] = core_profiles.Ip_profile_face[:, -1]
-
-    xr_dict[Q] = core_profiles.q_face
-    xr_dict[MAGNETIC_SHEAR] = core_profiles.s_face
-
-    xr_dict[VLOOP_LCFS] = core_profiles.vloop_lcfs
-
-    xr_dict = {
-        name: self._pack_into_data_array(
-            name,
-            data,
-        )
-        for name, data in xr_dict.items()
+    # Map from CoreProfiles attribute name to the desired output name.
+    # Needed for attributes that are not 1:1 with the output name.
+    # Other attributes will use the same name as in CoreProfiles
+    output_name_map = {
+        "psidot": V_LOOP,
+        "sigma": SIGMA_PARALLEL,
+        "Ip_profile_face": IP_PROFILE,
+        "q_face": Q,
+        "s_face": MAGNETIC_SHEAR,
     }
+
+    core_profile_field_names = {
+        f.name for f in dataclasses.fields(stacked_core_profiles)
+    }
+
+    for field in dataclasses.fields(stacked_core_profiles):
+      attr_name = field.name
+      attr_value = getattr(stacked_core_profiles, attr_name)
+
+      output_key = output_name_map.get(attr_name, attr_name)
+
+      # Skip _face attributes if their cell counterpart exists;
+      # they are handled when the cell attribute is processed.
+      if attr_name.endswith("_face") and (
+          attr_name.removesuffix("_face") in core_profile_field_names
+      ):
+        continue
+
+      if hasattr(attr_value, "cell_plus_boundaries"):
+        # Handles stacked CellVariable-like objects.
+        data_to_save = attr_value.cell_plus_boundaries()
+      else:
+        face_attr_name = f"{attr_name}_face"
+        if face_attr_name in core_profile_field_names:
+          # Combine cell and edge face values.
+          face_value = getattr(stacked_core_profiles, face_attr_name)
+          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+        else:  # cell array with no face counterpart, or a scalar value
+          data_to_save = attr_value
+
+      xr_dict[output_key] = self._pack_into_data_array(
+          output_key, data_to_save
+      )
+
+    # Handle derived quantities
+    Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
+    xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)
 
     return xr_dict
 
@@ -591,10 +599,15 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
-    for field_name, data in dataclasses.asdict(
-        self._stacked_post_processed_outputs
-    ).items():
-      xr_dict[field_name] = self._pack_into_data_array(field_name, data)
+    for field in dataclasses.fields(self._stacked_post_processed_outputs):
+      attr_name = field.name
+      attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
+      if hasattr(attr_value, "cell_plus_boundaries"):
+        # Handles stacked CellVariable-like objects.
+        data_to_save = attr_value.cell_plus_boundaries()
+      else:
+        data_to_save = attr_value
+      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
     return xr_dict
 
   def _save_geometry(
@@ -608,20 +621,32 @@ class StateHistory:
     for field_name, data in geometry_attributes.items():
       if (
           "hires" in field_name
-          or "face" in field_name
+          or (
+              field_name.endswith("_face")
+              and field_name.removesuffix("_face") in geometry_attributes
+          )
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or field_name == "j_total"
-          or not isinstance(data, jax.Array)
+          or not isinstance(data, chex.Array)
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:
         data = _extend_cell_grid_to_boundaries(
             data, geometry_attributes[f"{field_name}_face"]
         )
+      # Remap to avoid outputting _face suffix in output.
+      if field_name.endswith("_face"):
+        field_name = field_name.removesuffix("_face")
+      if field_name == "Ip_profile":
+        # Ip_profile exists in core profiles so rename to avoid duplicate.
+        field_name = "Ip_profile_from_geo"
       if field_name == "psi":
         # Psi also exists in core profiles so rename to avoid duplicate.
         field_name = "psi_from_geo"
+      if field_name == "_z_magnetic_axis":
+        # This logic only reached if not None. Avoid leading underscore in name.
+        field_name = "z_magnetic_axis"
       data_array = self._pack_into_data_array(
           field_name,
           data,
@@ -635,7 +660,10 @@ class StateHistory:
 
     for name, value in geometry_properties:
       # Skip over saving any variables that are named *_face.
-      if "face" in name:
+      if (
+          name.endswith("_face")
+          and name.removesuffix("_face") in property_names
+      ):
         continue
       if name in EXCLUDED_GEOMETRY_NAMES:
         continue
@@ -650,41 +678,10 @@ class StateHistory:
           )
         data_array = self._pack_into_data_array(name, property_data)
         if data_array is not None:
+          # Remap to avoid outputting _face suffix in output. Done only for
+          # _face variables with no corresponding non-face variable.
+          if name.endswith("_face"):
+            name = name.removesuffix("_face")
           xr_dict[name] = data_array
 
-    # Remap to avoid outputting _face suffix in output.
-    g0_over_vpr_data_array = self._pack_into_data_array(
-        "g0_over_vpr", self._stacked_geometry.g0_over_vpr_face
-    )
-    if g0_over_vpr_data_array is not None:
-      xr_dict["g0_over_vpr"] = g0_over_vpr_data_array
-
     return xr_dict
-
-
-def _rescale_core_profiles(
-    core_profiles: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Rescale core profiles densities to be in m^-3."""
-  return dataclasses.replace(
-      core_profiles,
-      n_e=dataclasses.replace(
-          core_profiles.n_e,
-          value=core_profiles.n_e.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_e.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_i=dataclasses.replace(
-          core_profiles.n_i,
-          value=core_profiles.n_i.value * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_i.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-      n_impurity=dataclasses.replace(
-          core_profiles.n_impurity,
-          value=core_profiles.n_impurity.value
-          * constants.DENSITY_SCALING_FACTOR,
-          right_face_constraint=core_profiles.n_impurity.right_face_constraint
-          * constants.DENSITY_SCALING_FACTOR,
-      ),
-  )

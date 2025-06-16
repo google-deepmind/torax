@@ -28,7 +28,7 @@ We can then run the simulation:
   # Check that the simulation completed successfully.
   if state_history.sim_error != torax.SimError.NO_ERROR:
     raise ValueError(
-        f'TORAX failed to run the simulation with error: {results.sim_error}.'
+        f'TORAX failed to run the simulation with error: {state_history.sim_error}.'
     )
 
   # Example below shows how to access the fusion gain at time=2 seconds.

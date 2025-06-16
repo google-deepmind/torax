@@ -119,6 +119,10 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_injected',
         'I_ecrh',
         'I_aux_generic',
+        'S_gas_puff',
+        'S_pellet',
+        'S_generic_particle',
+        'S_total',
     }
 
     self.assertSameElements(expected_keys, integrated_sources.keys())

@@ -16,20 +16,21 @@
 
 import copy
 import dataclasses
-from typing import Any, Literal, Union
-
+from typing import Any, Literal, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
+import numpy as np
 import pydantic
-from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import combined
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
+import typing_extensions
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -37,9 +38,7 @@ def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
   if model_name:
     if model_name == qlknn_10d.QLKNN10D_NAME:
       if not model_path:
-        raise ValueError(
-            'QLKNN10D requires a model path to be provided.'
-        )
+        raise ValueError('QLKNN10D requires a model path to be provided.')
       if model_path.endswith('.qlknn'):
         raise ValueError(
             f'Model path "{model_path}" is not a valid path for a'
@@ -103,6 +102,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
+
   model_name: Literal['qlknn'] = 'qlknn'
   model_path: str = ''
   qlknn_model_name: str = ''
@@ -180,19 +180,18 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
     D_e: diffusion coefficient in electron density equation in m^2/s.
     V_e: convection coefficient in electron density equation in m^2/s.
   """
+
   model_name: Literal['constant'] = 'constant'
-  chi_i: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_i: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  chi_e: torax_pydantic.PositiveTimeVaryingScalar = (
+  chi_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  D_e: torax_pydantic.PositiveTimeVaryingScalar = (
+  D_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  V_e: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(-0.33)
-  )
+  V_e: torax_pydantic.TimeVaryingArray = torax_pydantic.ValidatedDefault(-0.33)
 
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
@@ -202,10 +201,10 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   ) -> constant.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return constant.DynamicRuntimeParams(
-        chi_i=self.chi_i.get_value(t),
-        chi_e=self.chi_e.get_value(t),
-        D_e=self.D_e.get_value(t),
-        V_e=self.V_e.get_value(t),
+        chi_i=self.chi_i.get_value(t, 'face'),
+        chi_e=self.chi_e.get_value(t, 'face'),
+        D_e=self.D_e.get_value(t, 'face'),
+        V_e=self.V_e.get_value(t, 'face'),
         **base_kwargs,
     )
 
@@ -228,13 +227,13 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   model_name: Literal['CGM'] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
-  chi_e_i_ratio: interpolated_param_1d.TimeVaryingScalar = (
+  chi_e_i_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
   )
-  VR_D_ratio: interpolated_param_1d.TimeVaryingScalar = (
+  VR_D_ratio: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
 
@@ -279,6 +278,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
     D_face_c2: Constant for the electron diffusivity weighting factor.
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
+
   model_name: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)
@@ -310,7 +310,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   D_face_c2: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.3)
   )
-  V_face_coeff: interpolated_param_1d.TimeVaryingScalar = (
+  V_face_coeff: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(-0.1)
   )
 
@@ -343,17 +343,83 @@ try:
   # pylint: disable=g-import-not-at-top
   from torax._src.transport_model import qualikiz_transport_model
   # pylint: enable=g-import-not-at-top
-  TransportConfig = Union[
-      QLKNNTransportModel,
-      ConstantTransportModel,
-      CriticalGradientTransportModel,
-      BohmGyroBohmTransportModel,
-      qualikiz_transport_model.QualikizTransportModelConfig,
-  ]
+  # Since CombinedCompatibleTransportModel is not constant, because of the
+  # try/except block, unions using this type will cause invalid-annotation
+  # errors in pytype.
+  CombinedCompatibleTransportModel = (
+      QLKNNTransportModel
+      | ConstantTransportModel
+      | CriticalGradientTransportModel
+      | BohmGyroBohmTransportModel
+      | qualikiz_transport_model.QualikizTransportModelConfig
+  )
+
 except ImportError:
-  TransportConfig = Union[
-      QLKNNTransportModel,
-      ConstantTransportModel,
-      CriticalGradientTransportModel,
-      BohmGyroBohmTransportModel,
-  ]
+  CombinedCompatibleTransportModel = (
+      QLKNNTransportModel
+      | ConstantTransportModel
+      | CriticalGradientTransportModel
+      | BohmGyroBohmTransportModel
+  )
+
+
+class CombinedTransportModel(pydantic_model_base.TransportBase):
+  """Model for the Combined transport model.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'combined'.
+    transport_models: A sequence of transport models, whose outputs will be
+      summed to give the combined transport coefficients.
+  """
+
+  transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
+      default_factory=list
+  )  # pytype: disable=invalid-annotation
+  model_name: Literal['combined'] = 'combined'
+
+  def build_transport_model(self) -> combined.CombinedTransportModel:
+    model_list = [
+        model.build_transport_model() for model in self.transport_models
+    ]
+    return combined.CombinedTransportModel(transport_models=model_list)
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> combined.DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    model_params_list = [
+        model.build_dynamic_params(t) for model in self.transport_models
+    ]
+    return combined.DynamicRuntimeParams(
+        transport_model_params=model_params_list,
+        **base_kwargs,
+    )
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    super()._check_fields()
+    if not self.transport_models:
+      raise ValueError(
+          'transport_models cannot be empty for CombinedTransportModel. '
+          'Please provide at least one transport model configuration.'
+      )
+    if any([
+        np.any(model.apply_inner_patch.value)
+        or np.any(model.apply_outer_patch.value)
+        for model in self.transport_models
+    ]):
+      raise ValueError(
+          'apply_inner_patch and apply_outer_patch and should be set in the'
+          ' config for CombinedTransportModel only, rather than its component'
+          ' models.'
+      )
+    if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
+      raise ValueError(
+          'rho_min and rho_max should not be set for CombinedTransportModel, as'
+          ' it should be applied across the whole rho domain.'
+      )
+    return self
+
+
+TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
+

@@ -41,14 +41,12 @@ from torax._src.geometry import geometry
 
 def coll_exchange(
     core_profiles: state.CoreProfiles,
-    density_reference: float,
     Qei_multiplier: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
 
   Args:
     core_profiles: Core plasma profiles.
-    density_reference: Reference value for normalization
     Qei_multiplier: multiplier for ion-electron heat exchange term
 
   Returns:
@@ -56,13 +54,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   lambda_ei = _calculate_lambda_ei(
-      core_profiles.T_e.value, core_profiles.n_e.value * density_reference
+      core_profiles.T_e.value, core_profiles.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.T_e.value,
-      core_profiles.n_e.value * density_reference,
+      core_profiles.n_e.value,
       lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -70,9 +68,7 @@ def coll_exchange(
   weighted_Z_eff = _calculate_weighted_Z_eff(core_profiles)
 
   log_Qei_coef = (
-      jnp.log(
-          Qei_multiplier * 1.5 * core_profiles.n_e.value * density_reference
-      )
+      jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
       + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Z_eff)
@@ -85,8 +81,6 @@ def coll_exchange(
 def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    density_reference: float,
-    Z_eff_face: jax.Array,
     collisionality_multiplier: float,
 ) -> jax.Array:
   """Calculates nustar.
@@ -96,8 +90,6 @@ def calc_nu_star(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    density_reference: Reference value for normalization
-    Z_eff_face: Effective ion charge on face grid.
     collisionality_multiplier: Collisionality multiplier in QLKNN for
       sensitivity testing.
 
@@ -108,17 +100,22 @@ def calc_nu_star(
   # Calculate Coulomb logarithm
   lambda_ei_face = _calculate_lambda_ei(
       core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value() * density_reference
+      core_profiles.n_e.face_value(),
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value() * density_reference,
+      core_profiles.n_e.face_value(),
       lambda_ei_face,
   )
 
-  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Z_eff_face * collisionality_multiplier
+  nu_e = (
+      1
+      / jnp.exp(log_tau_e_Z1)
+      * core_profiles.Z_eff_face
+      * collisionality_multiplier
+  )
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.R_major

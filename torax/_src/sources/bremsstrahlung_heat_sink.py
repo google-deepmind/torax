@@ -46,8 +46,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-    Z_eff_face: chex.Array,
-    density_reference: float,
     use_relativistic_correction: bool = False,
 ) -> tuple[chex.Array, chex.Array]:
   """Calculate the Bremsstrahlung radiation power profile.
@@ -59,8 +57,6 @@ def calc_bremsstrahlung(
   Args:
       core_profiles (state.CoreProfiles): core plasma profiles.
       geo (geometry.Geometry): geometry object.
-      Z_eff_face (float): effective charge number on face grid.
-      density_reference (float): reference density.
       use_relativistic_correction (bool, optional): Set to true to include the
         relativistic correction from Stott. Defaults to False.
 
@@ -68,19 +64,20 @@ def calc_bremsstrahlung(
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  n_e20 = (density_reference / 1e20) * core_profiles.n_e.face_value()
+  n_e20 = core_profiles.n_e.face_value() / 1e20
 
   T_e_kev = core_profiles.T_e.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
+      5.35e-3 * core_profiles.Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
-        1.0 + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
+        1.0
+        + (2.0 / core_profiles.Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction
 
@@ -116,8 +113,6 @@ def bremsstrahlung_model_func(
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       geo,
-      dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
-      dynamic_runtime_params_slice.numerics.density_reference,
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.
@@ -146,9 +141,8 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
   """
-  model_name: Literal['wesson'] = (
-      'wesson'
-  )
+
+  model_name: Literal['wesson'] = 'wesson'
   use_relativistic_correction: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

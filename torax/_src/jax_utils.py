@@ -17,7 +17,7 @@
 import contextlib
 import functools
 import os
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, TypeVar
 
 import chex
 import equinox as eqx
@@ -130,29 +130,6 @@ def error_if(
   if not _ERRORS_ENABLED:
     return var
   return eqx.error_if(var, cond, msg)
-
-
-def error_if_negative(
-    var: jax.Array, name: str, to_wrap: Optional[jax.Array] = None
-) -> jax.Array:
-  """Check that a variable is non-negative.
-
-  Similar to error_if_not_positive, but 0 is allowed in this function.
-
-  Args:
-    var: The variable to check.
-    name: Name of the variable.
-    to_wrap: If `var` won't be used in your jax function, specify another
-      variable that will be.
-
-  Returns:
-    var: Identity wrapper that must be used for the check to be included.
-  """
-  msg = f'{name} must be >= 0.'
-  min_var = jnp.min(var)
-  if to_wrap is None:
-    to_wrap = var
-  return error_if(to_wrap, min_var < 0, msg)
 
 
 def assert_rank(

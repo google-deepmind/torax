@@ -171,13 +171,14 @@ def run_loop(
         if first_step:
           first_step = False
           if (
-              not static_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+              not static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
           ):
-            # For the Ip BC case, set vloop_lcfs[0] to the same value as
-            # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
+            # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+            # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
+            # underconstrained
             state_history[0].core_profiles = dataclasses.replace(
                 state_history[0].core_profiles,
-                vloop_lcfs=current_state.core_profiles.vloop_lcfs,
+                v_loop_lcfs=current_state.core_profiles.v_loop_lcfs,
             )
         state_history.append(current_state)
         post_processing_history.append(post_processed_outputs)

@@ -15,11 +15,14 @@
 
 from typing import Literal
 
+import chex
+import jax.numpy as jnp
+from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
-from torax._src.sources import bootstrap_current_source
 
 
 class SauterModel(base.ConductivityModel):
@@ -27,23 +30,14 @@ class SauterModel(base.ConductivityModel):
 
   def calculate_conductivity(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.Conductivity:
     """Calculates conductivity."""
-    # Bootstrap multiplier is not used in calculating conductivity.
-    # TODO(b/314287587): Refactor calc_sauter_model into two functions
-    result = bootstrap_current_source.calc_sauter_model(
-        bootstrap_multiplier=1.0,
-        density_reference=dynamic_runtime_params_slice.numerics.density_reference,
-        Z_eff_face=dynamic_runtime_params_slice.plasma_composition.Z_eff_face,
-        Z_i_face=core_profiles.Z_i_face,
+    result = _calculate_conductivity(
+        Z_eff_face=core_profiles.Z_eff_face,
         n_e=core_profiles.n_e,
-        n_i=core_profiles.n_i,
         T_e=core_profiles.T_e,
-        T_i=core_profiles.T_i,
-        psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geometry,
     )
@@ -65,3 +59,70 @@ class SauterModelConfig(base.ConductivityModelConfig):
 
   def build_model(self) -> SauterModel:
     return SauterModel()
+
+
+@jax_utils.jit
+def _calculate_conductivity(
+    *,
+    Z_eff_face: chex.Array,
+    n_e: cell_variable.CellVariable,
+    T_e: cell_variable.CellVariable,
+    q_face: chex.Array,
+    geo: geometry_lib.Geometry,
+) -> base.Conductivity:
+  """Calculates sigma and sigma_face using the Sauter model."""
+  # pylint: disable=invalid-name
+
+  # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
+  # corrections.
+
+  # # local r/R0 on face grid
+  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
+  epseff = (
+      0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
+  )
+  aa = (1.0 - epsilon) / (1.0 + epsilon)
+  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+
+  # Spitzer conductivity
+  NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
+  lnLame = (
+      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
+  )
+
+  sigsptz = (
+      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
+  )
+
+  nu_e_star = (
+      6.921e-18
+      * q_face
+      * geo.R_major
+      * n_e.face_value()
+      * Z_eff_face
+      * lnLame
+      / (
+          ((T_e.face_value() * 1e3) ** 2)
+          * (epsilon + constants.CONSTANTS.eps) ** 1.5
+      )
+  )
+
+  # Neoclassical correction to spitzer conductivity
+  ft33 = ftrap / (
+      1.0
+      + (0.55 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
+      + 0.45 * (1.0 - ftrap) * nu_e_star / (Z_eff_face**1.5)
+  )
+  signeo_face = 1.0 - ft33 * (
+      1.0
+      + 0.36 / Z_eff_face
+      - ft33 * (0.59 / Z_eff_face - 0.23 / Z_eff_face * ft33)
+  )
+  sigma_face = sigsptz * signeo_face
+
+  sigmaneo_cell = geometry_lib.face_to_cell(sigma_face)
+
+  return base.Conductivity(
+      sigma=sigmaneo_cell,
+      sigma_face=sigma_face,
+  )

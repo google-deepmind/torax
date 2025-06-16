@@ -16,6 +16,7 @@
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -54,15 +55,16 @@ class LinearThetaMethod(solver_lib.Solver):
     # Not used in this implementation.
     del core_sources_t, core_transport_t
 
-    x_old = tuple([core_profiles_t[name] for name in evolving_names])
-    x_new_guess = tuple(
-        [core_profiles_t_plus_dt[name] for name in evolving_names]
+    x_old = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles_t, evolving_names
+    )
+    x_new_guess = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles_t_plus_dt, evolving_names
     )
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
-        explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
@@ -75,6 +77,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t,
         core_profiles_t,
         x_old,
+        explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
         explicit_call=True,
     )
@@ -95,6 +98,7 @@ class LinearThetaMethod(solver_lib.Solver):
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         coeffs_exp=coeffs_exp,
         coeffs_callback=coeffs_callback,
+        explicit_source_profiles=explicit_source_profiles,
     )
 
     coeffs_final = coeffs_callback(
@@ -102,6 +106,7 @@ class LinearThetaMethod(solver_lib.Solver):
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
         x_new,
+        explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
     )
     core_sources, core_conductivity, core_transport = (

@@ -14,15 +14,18 @@
 
 """Functions for adding post-processed outputs to the simulation state."""
 
+from typing import Callable
 import chex
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import safety_factor_fit
@@ -31,6 +34,8 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
+
+# pylint: disable=invalid-name
 
 
 @chex.dataclass(frozen=True, eq=False)
@@ -41,9 +46,9 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
-    pressure_thermal_i: Ion thermal pressure on the face grid [Pa]
-    pressure_thermal_e: Electron thermal pressure on the face grid [Pa]
-    pressure_thermal_total: Total thermal pressure on the face grid [Pa]
+    pressure_thermal_i: Ion thermal pressure [Pa]
+    pressure_thermal_e: Electron thermal pressure [Pa]
+    pressure_thermal_total: Total thermal pressure [Pa]
     pprime: Derivative of total pressure with respect to poloidal flux on the
       face grid [Pa/Wb]
     W_thermal_i: Ion thermal stored energy [J]
@@ -94,16 +99,16 @@ class PostProcessedOutputs:
     P_LH_min: Minimum H-mode transition power for at n_e_min_P_LH [W]
     P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
       [W]
-    n_e_min_P_LH: Density corresponding to the P_LH_min [density_reference]
+    n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
     E_aux: Total external injected energy (Ohmic + auxiliary heating) [J]
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
-    n_e_volume_avg: Volume average electron density [density_reference m^-3]
-    n_e_volume_avg: Volume average electron density [density_reference m^-3]
-    n_i_volume_avg: Volume average main ion density [density_reference m^-3]
-    n_e_line_avg: Line averaged electron density [density_reference m^-3]
-    n_i_line_avg: Line averaged main ion density [density_reference m^-3]
+    n_e_volume_avg: Volume average electron density [m^-3]
+    n_e_volume_avg: Volume average electron density [m^-3]
+    n_i_volume_avg: Volume average main ion density [m^-3]
+    n_e_line_avg: Line averaged electron density [m^-3]
+    n_i_line_avg: Line averaged main ion density [m^-3]
     fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
       [dimensionless]
     fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density
@@ -127,14 +132,21 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
-    j_external: Total current from psi sources which are external to the
-      plasma (aka not bootstrap) [A]
-    j_ohmic: Ohmic current density [A]
+    j_external: Total current density from psi sources which are external to the
+      plasma (aka not bootstrap) [A m^-2]
+    j_ohmic: Ohmic current density [A/m^2]
+    S_gas_puff: Integrated gas puff source [s^-1]
+    S_pellet: Integrated pellet source [s^-1]
+    S_generic_particle: Integrated generic particle source [s^-1]
+    S_total: Total integrated particle sources [s^-1]
+    beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
+    beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
+    beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
   """
 
-  pressure_thermal_i: array_typing.ArrayFloat
-  pressure_thermal_e: array_typing.ArrayFloat
-  pressure_thermal_total: array_typing.ArrayFloat
+  pressure_thermal_i: cell_variable.CellVariable
+  pressure_thermal_e: cell_variable.CellVariable
+  pressure_thermal_total: cell_variable.CellVariable
   pprime: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   W_thermal_i: array_typing.ScalarFloat
@@ -203,15 +215,37 @@ class PostProcessedOutputs:
   I_bootstrap: array_typing.ScalarFloat
   j_external: array_typing.ArrayFloat
   j_ohmic: array_typing.ArrayFloat
+  S_gas_puff: array_typing.ScalarFloat
+  S_pellet: array_typing.ScalarFloat
+  S_generic_particle: array_typing.ScalarFloat
+  beta_tor: array_typing.ScalarFloat
+  beta_pol: array_typing.ScalarFloat
+  beta_N: array_typing.ScalarFloat
+  S_total: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
-        pressure_thermal_i=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_e=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_total=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_i=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            dr=jnp.array(geo.drho_norm),
+            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            right_face_grad_constraint=None,
+        ),
+        pressure_thermal_e=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            dr=jnp.array(geo.drho_norm),
+            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            right_face_grad_constraint=None,
+        ),
+        pressure_thermal_total=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            dr=jnp.array(geo.drho_norm),
+            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            right_face_grad_constraint=None,
+        ),
         pprime=jnp.zeros(geo.rho_face.shape),
         W_thermal_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -278,16 +312,21 @@ class PostProcessedOutputs:
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         j_external=jnp.zeros(geo.rho_face.shape),
         j_ohmic=jnp.zeros(geo.rho_face.shape),
+        S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
   def check_for_errors(self):
-    if any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)]):
+    if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
       return state.SimError.NAN_DETECTED
     else:
       return state.SimError.NO_ERROR
 
-
-_trapz = jax.scipy.integrate.trapezoid
 
 # TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
@@ -311,6 +350,26 @@ CURRENT_SOURCE_TRANSFORMATIONS = {
     'generic_current': 'I_aux_generic',
     'ecrh': 'I_ecrh',
 }
+PARTICLE_SOURCE_TRANSFORMATIONS = {
+    'gas_puff': 'S_gas_puff',
+    'pellet': 'S_pellet',
+    'generic_particle': 'S_generic_particle',
+}
+
+
+def _get_integrated_source_value(
+    source_profiles_dict: dict[str, array_typing.ArrayFloat],
+    internal_source_name: str,
+    geo: geometry.Geometry,
+    integration_fn: Callable[
+        [array_typing.ArrayFloat, geometry.Geometry], jax.Array
+    ],
+) -> jax.Array:
+  """Integrates a source profile if it exists, otherwise returns 0.0."""
+  if internal_source_name in source_profiles_dict:
+    return integration_fn(source_profiles_dict[internal_source_name], geo)
+  else:
+    return jnp.array(0.0, dtype=jax_utils.get_dtype())
 
 
 def _calculate_integrated_sources(
@@ -341,6 +400,9 @@ def _calculate_integrated_sources(
   # Initialize total alpha power to zero. Needed for Q calculation.
   integrated['P_alpha_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
+  # Initialize total particle sources to zero.
+  integrated['S_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+
   # electron-ion heat exchange always exists, and is not in
   # core_sources.profiles, so we calculate it here.
   qei = core_sources.qei.qei_coef * (
@@ -364,62 +426,70 @@ def _calculate_integrated_sources(
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
   for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    ion_profiles = core_sources.T_i
-    el_profiles = core_sources.T_e
-    if key in ion_profiles and key in el_profiles:
-      profile_ion, profile_el = ion_profiles[key], el_profiles[key]
-      integrated[f'{value}_i'] = math_utils.volume_integration(
-          profile_ion, geo
+    is_in_T_i = key in core_sources.T_i
+    is_in_T_e = key in core_sources.T_e
+    if is_in_T_i != is_in_T_e:
+      raise ValueError(
+          f"Source '{key}' is expected to be defined for both ion and electron"
+          ' channels (in core_sources.T_i and core_sources.T_e respectively).'
+          f' Found in T_i: {is_in_T_i}, Found in T_e: {is_in_T_e}.'
       )
-      integrated[f'{value}_e'] = math_utils.volume_integration(profile_el, geo)
-      integrated[f'{value}_total'] = (
-          integrated[f'{value}_i'] + integrated[f'{value}_e']
-      )
-      integrated['P_SOL_i'] += integrated[f'{value}_i']
-      integrated['P_SOL_e'] += integrated[f'{value}_e']
-      if key in EXTERNAL_HEATING_SOURCES:
-        integrated['P_aux_i'] += integrated[f'{value}_i']
-        integrated['P_aux_e'] += integrated[f'{value}_e']
+    integrated[f'{value}_i'] = _get_integrated_source_value(
+        core_sources.T_i, key, geo, math_utils.volume_integration
+    )
+    integrated[f'{value}_e'] = _get_integrated_source_value(
+        core_sources.T_e, key, geo, math_utils.volume_integration
+    )
+    integrated[f'{value}_total'] = (
+        integrated[f'{value}_i'] + integrated[f'{value}_e']
+    )
+    integrated['P_SOL_i'] += integrated[f'{value}_i']
+    integrated['P_SOL_e'] += integrated[f'{value}_e']
+    if key in EXTERNAL_HEATING_SOURCES:
+      integrated['P_aux_i'] += integrated[f'{value}_i']
+      integrated['P_aux_e'] += integrated[f'{value}_e']
 
-        # Track injected power for heating sources that have absorption_fraction
-        # These are only for sources like ICRH or NBI that are
-        # ion_el_heat_sources.
-        source_params = dynamic_runtime_params_slice.sources[key]
-        if hasattr(source_params, 'absorption_fraction'):
-          total_absorbed = integrated[f'{value}_total']
-          injected_power = total_absorbed / source_params.absorption_fraction
-          integrated['P_external_injected'] += injected_power
-        else:
-          integrated['P_external_injected'] += integrated[f'{value}_total']
-    else:
-      integrated[f'{value}_i'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
-      integrated[f'{value}_e'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
-      integrated[f'{value}_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      # Track injected power for heating sources that have absorption_fraction
+      # These are only for sources like ICRH or NBI that are
+      # ion_el_heat_sources.
+      source_params = dynamic_runtime_params_slice.sources.get(key)
+      if source_params is not None and hasattr(
+          source_params, 'absorption_fraction'
+      ):
+        total_absorbed = integrated[f'{value}_total']
+        injected_power = total_absorbed / source_params.absorption_fraction
+        integrated['P_external_injected'] += injected_power
+      else:
+        integrated['P_external_injected'] += integrated[f'{value}_total']
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    profiles = core_sources.T_e
-    if key in profiles:
-      integrated[f'{value}'] = math_utils.volume_integration(
-          profiles[key], geo
+    if key in core_sources.T_e and key in core_sources.T_i:
+      raise ValueError(
+          f"Source '{key}' was expected to only be an electron heat source (in"
+          ' core_sources.T_e), but it was also found in ion heat sources'
+          ' (core_sources.T_i).'
       )
-      integrated['P_SOL_e'] += integrated[f'{value}']
-      if key in EXTERNAL_HEATING_SOURCES:
-        integrated['P_aux_e'] += integrated[f'{value}']
-        integrated['P_external_injected'] += integrated[f'{value}']
-    else:
-      integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+    integrated[f'{value}'] = _get_integrated_source_value(
+        core_sources.T_e, key, geo, math_utils.volume_integration
+    )
+    integrated['P_SOL_e'] += integrated[f'{value}']
+    if key in EXTERNAL_HEATING_SOURCES:
+      integrated['P_aux_e'] += integrated[f'{value}']
+      integrated['P_external_injected'] += integrated[f'{value}']
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
-    profiles = core_sources.psi
-    if key in profiles:
-      integrated[f'{value}'] = math_utils.area_integration(profiles[key], geo)
-    else:
-      integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+    integrated[f'{value}'] = _get_integrated_source_value(
+        core_sources.psi, key, geo, math_utils.area_integration
+    )
+
+  for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
+    integrated[f'{value}'] = _get_integrated_source_value(
+        core_sources.n_e, key, geo, math_utils.volume_integration
+    )
+    integrated['S_total'] += integrated[f'{value}']
 
   integrated['P_SOL_total'] = integrated['P_SOL_i'] + integrated['P_SOL_e']
-  integrated['P_aux_total'] = (
-      integrated['P_aux_i'] + integrated['P_aux_e']
-  )
+  integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
 
   return integrated
 
@@ -449,17 +519,17 @@ def make_post_processed_outputs(
   """
 
   (
-      pressure_thermal_el_face,
-      pressure_thermal_ion_face,
-      pressure_thermal_tot_face,
+      pressure_thermal_el,
+      pressure_thermal_ion,
+      pressure_thermal_tot,
   ) = formulas.calculate_pressure(sim_state.core_profiles)
   pprime_face = formulas.calc_pprime(sim_state.core_profiles)
   # pylint: disable=invalid-name
   W_thermal_el, W_thermal_ion, W_thermal_tot = (
       formulas.calculate_stored_thermal_energy(
-          pressure_thermal_el_face,
-          pressure_thermal_ion_face,
-          pressure_thermal_tot_face,
+          pressure_thermal_el,
+          pressure_thermal_ion,
+          pressure_thermal_tot,
           sim_state.geometry,
       )
   )
@@ -576,8 +646,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
-  # Calculate n_e and n_i (main ion) volume and line averages
-  # [density_reference m^-3]
+  # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.n_e.value, sim_state.geometry
   )
@@ -622,11 +691,14 @@ def make_post_processed_outputs(
   )
   j_ohmic = sim_state.core_profiles.j_total - psi_current
 
-  # pylint: enable=invalid-name
+  beta_tor, beta_pol, beta_N = formulas.calculate_betas(
+      sim_state.core_profiles, sim_state.geometry
+  )
+
   return PostProcessedOutputs(
-      pressure_thermal_i=pressure_thermal_ion_face,
-      pressure_thermal_e=pressure_thermal_el_face,
-      pressure_thermal_total=pressure_thermal_tot_face,
+      pressure_thermal_i=pressure_thermal_ion,
+      pressure_thermal_e=pressure_thermal_el,
+      pressure_thermal_total=pressure_thermal_tot,
       pprime=pprime_face,
       W_thermal_i=W_thermal_ion,
       W_thermal_e=W_thermal_el,
@@ -669,4 +741,7 @@ def make_post_processed_outputs(
       I_bootstrap=I_bootstrap,
       j_external=j_external,
       j_ohmic=j_ohmic,
+      beta_tor=beta_tor,
+      beta_pol=beta_pol,
+      beta_N=beta_N,
   )
