@@ -203,22 +203,22 @@ def geometry_to_IMAS(
     eq.boundary.geometric_axis.r = geometry.R_major
     eq.boundary.minor_radius = geometry.a_minor
     # determine sign how?
-    eq.profiles_1d.psi = core_profiles.psi.value.copy()
+    eq.profiles_1d.psi = core_profiles.psi.face_value()
     # determine sign how?
-    eq.profiles_1d.phi = -1 * geometry.Phi
-    eq.profiles_1d.r_inboard = geometry.R_in
-    eq.profiles_1d.r_outboard = geometry.R_out
+    eq.profiles_1d.phi = -1 * geometry.Phi_face
+    eq.profiles_1d.r_inboard = geometry.R_in_face
+    eq.profiles_1d.r_outboard = geometry.R_out_face
 
-    eq.profiles_1d.triangularity_upper = face_to_cell(geometry.delta_upper_face)
-    eq.profiles_1d.triangularity_lower = face_to_cell(geometry.delta_lower_face)
-    eq.profiles_1d.elongation = geometry.elongation
+    eq.profiles_1d.triangularity_upper = geometry.delta_upper_face
+    eq.profiles_1d.triangularity_lower = geometry.delta_lower_face
+    eq.profiles_1d.elongation = geometry.elongation_face
     eq.global_quantities.magnetic_axis.z = geometry._z_magnetic_axis
     eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
-    eq.profiles_1d.j_phi = -1 * geometry.j_total
-    eq.profiles_1d.volume = geometry.volume
-    eq.profiles_1d.area = geometry.area
-    eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi / (np.pi * geometry.B_0))
-    eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.cell_centers
+    eq.profiles_1d.j_phi = -1 * geometry.j_total_face
+    eq.profiles_1d.volume = geometry.volume_face
+    eq.profiles_1d.area = geometry.area_face
+    eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi_face / (np.pi * geometry.B_0))
+    eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.face_centers
 
     dvoldpsi = (
         1
@@ -232,20 +232,20 @@ def geometry_to_IMAS(
     )
     eq.profiles_1d.dvolume_dpsi = dvoldpsi
     eq.profiles_1d.dpsi_drho_tor = dpsidrhotor
-    eq.profiles_1d.gm1 = geometry.g3
-    eq.profiles_1d.gm7 = geometry.g0 / (dvoldpsi * dpsidrhotor)
-    eq.profiles_1d.gm3 = geometry.g1 / (dpsidrhotor ** 2 * dvoldpsi**2)
-    eq.profiles_1d.gm2 = geometry.g2 / (dpsidrhotor ** 2 * dvoldpsi**2)
+    eq.profiles_1d.gm1 = geometry.g3_face
+    eq.profiles_1d.gm7 = geometry.g0_face / (dvoldpsi * dpsidrhotor)
+    eq.profiles_1d.gm3 = geometry.g1_face / (dpsidrhotor ** 2 * dvoldpsi**2)
+    eq.profiles_1d.gm2 = geometry.g2_face / (dpsidrhotor ** 2 * dvoldpsi**2)
 
     # Quantities computed by the transport code useful for coupling with equilibrium code
-    eq.profiles_1d.pressure = face_to_cell(post_processed_outputs.pressure_thermal_total)
-    eq.profiles_1d.dpressure_dpsi = face_to_cell(post_processed_outputs.pprime)
+    eq.profiles_1d.pressure = post_processed_outputs.pressure_thermal_total
+    eq.profiles_1d.dpressure_dpsi = post_processed_outputs.pprime
 
     # <j.B>/B_0, could be useful to calculate and use instead of FF'
     # determine sign how?
-    eq.profiles_1d.f = -1 * geometry.F  # Is probably not self-consistent due to the evolution of the state by the solver.
-    eq.profiles_1d.f_df_dpsi = face_to_cell(post_processed_outputs.FFprime)
-    eq.profiles_1d.q = face_to_cell(core_profiles.q_face)
+    eq.profiles_1d.f = -1 * geometry.F_face  # Is probably not self-consistent due to the evolution of the state by the solver.
+    eq.profiles_1d.f_df_dpsi = post_processed_outputs.FFprime
+    eq.profiles_1d.q = core_profiles.q_face
 
     # Optionally maps fixed quantities not evolved by TORAX and read directly from input equilibrium. Needed to couple with NICE inverse
     if equilibrium_in is not None:
