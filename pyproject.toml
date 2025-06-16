@@ -77,10 +77,6 @@ tutorial = [
     "notebook",
 ]
 
-imas = [
-    'imas_core @ git+ssh://git@git.iter.org/imas/al-core.git@develop',
-]
-
 [tool.pyink]
 # Formatting configuration to follow Google style-guide
 line-length = 80

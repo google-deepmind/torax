@@ -18,12 +18,9 @@ from typing import Any, TYPE_CHECKING
 
 import numpy as np
 import scipy
+import imas
+from imas.ids_toplevel import IDSToplevel
 
-try:
-    import imas
-    from imas.ids_toplevel import IDSToplevel
-except ImportError:
-    IDSToplevel = Any
 from torax._src.geometry import geometry_loader
 from torax.imas_tools.util import face_to_cell
 

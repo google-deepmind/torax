@@ -20,36 +20,10 @@ import os
 from typing import Any
 
 import yaml
-
-try:
-    import imas
-    from imas.ids_toplevel import IDSToplevel
-except ImportError:
-    IDSToplevel = Any
+import imas
+from imas.ids_toplevel import IDSToplevel
 
 
-def requires_module(module_name: str):
-    """
-    Decorator that checks if a module can be imported.
-    Returns the function if the module is available,
-    otherwise raises an ImportError.
-    """
-
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            if importlib.util.find_spec(module_name) is None:
-                raise ImportError(
-                    f"Required module '{module_name}' is not installed. "
-                    "Make sure you install the needed optional dependencies."
-                )
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-@requires_module("imas_core")
 def save_netCDF(
     directory_path: str | None,
     file_name: str | None,
@@ -78,7 +52,6 @@ def save_netCDF(
         netcdf_entry.put(IDS)
 
 
-@requires_module("imas_core")
 def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     """Loads the IDS for a single time slice from a specific data
     entry / scenario using the IMAS Access Layer
@@ -112,35 +85,15 @@ def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
     return IMAS_data
 
 
-def load_IDS_from_netCDF(file_path: str, ids_name: str) -> IDSToplevel:
-    """Loads an IDS for a single time slice from an IMAS netCDF
-    file path"""
-    input = imas.DBEntry(file_path, "r")
-    ids = input.get(ids_name)
+def load_IMAS_data(uri: str, ids_name: str) -> IDSToplevel:
+    """
+    Loads a full IDS for a given uri or path_name and a given ids_name.
+    """
+    db = imas.DBEntry(uri, "r")
+    ids = db.get(ids_name)
     return ids
 
-
-@requires_module("imas_core")
-def load_IDS_from_hdf5(directory_path: str, ids_name: str) -> IDSToplevel:
-    """Loads an IDS for a single time slice from the path of a
-    local directory containing it stored with hdf5 backend. The repository must
-    contain the master.h5 file."""
-    imasuri = "imas:hdf5?path=" + directory_path
-    input = imas.DBEntry(imasuri, "r")
-    ids = input.get(ids_name)
-    return ids
-
-
-def load_IMAS_data(path: str, ids_name: str) -> IDSToplevel:
-    """Loads an IDS for a single time slice either from a netCDF
-    file path or from an hdf5 file in the given directory path."""
-    if path[-3:] == ".nc":
-        return load_IDS_from_netCDF(file_path=path, ids_name=ids_name)
-    else:
-        return load_IDS_from_hdf5(directory_path=path, ids_name=ids_name)
-
-
-# todo check if we can copy form geometry without weird dependency loops
+# todo check if we can copy from geometry without weird dependency loops
 def face_to_cell(face):
     """Infers cell values corresponding to a vector of face values.
     Args:
