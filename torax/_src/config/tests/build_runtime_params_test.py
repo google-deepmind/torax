@@ -20,8 +20,6 @@ from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
-from torax._src.sources import generic_current_source
-from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -110,30 +108,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0e20)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 5.0)
-
-  def test_gaussian_width_in_dynamic_runtime_params_cannot_be_negative(self):
-    sources = sources_pydantic_model.Sources.from_dict({
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: {
-            'gaussian_width': {0.0: 1.0, 1.0: -1.0},
-        },
-    })
-    torax_pydantic.set_grid(sources, self._torax_mesh)
-    # While gaussian_width is positive, this should be fine.
-    generic_current = sources.generic_current.build_dynamic_params(
-        t=0.0,
-    )
-    np.testing.assert_allclose(generic_current.gaussian_width, 1.0)
-
-    # Even 0 should be fine.
-    generic_current = sources.generic_current.build_dynamic_params(
-        t=0.5,
-    )
-    np.testing.assert_allclose(generic_current.gaussian_width, 0.0)
-    # But negative values will cause an error.
-    with self.assertRaises(RuntimeError):
-      sources.generic_current.build_dynamic_params(
-          t=1.0,
-      )
 
   @parameterized.parameters(
       (

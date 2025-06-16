@@ -19,7 +19,6 @@ from typing import ClassVar, Literal
 import chex
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -48,13 +47,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   gaussian_width: array_typing.ScalarFloat
   gaussian_location: array_typing.ScalarFloat
   use_absolute_current: bool
-
-  def sanity_check(self):
-    """Checks that all parameters are valid."""
-    jax_utils.error_if_negative(self.gaussian_width, 'gaussian_width')
-
-  def __post_init__(self):
-    self.sanity_check()
 
 
 def calculate_generic_current(
@@ -136,13 +128,13 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       3.0e6
   )
-  fraction_of_total_current: torax_pydantic.TimeVaryingScalar = (
+  fraction_of_total_current: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.2)
   )
-  gaussian_width: torax_pydantic.TimeVaryingScalar = (
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
-  gaussian_location: torax_pydantic.TimeVaryingScalar = (
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
