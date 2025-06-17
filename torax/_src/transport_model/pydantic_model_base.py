@@ -16,6 +16,7 @@
 import abc
 
 import chex
+import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
@@ -117,6 +118,34 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       raise ValueError('D_e_min must be less than D_e_max.')
     if not self.V_e_min < self.V_e_max:
       raise ValueError('V_e_min must be less than V_e_max.')
+    # For the time-varying parameter pairs (rho_min, rho_max),
+    # (rho_inner, rho_outer), we have relative magnitude constraints. These need
+    # to be held at all times. We validate this by checking the inequality at
+    # the combined time points (knots) of each pair. This is sufficient
+    # both for STEP and PIECEWISE_LINEAR interpolation modes. However, if the
+    # interpolation modes are mixed, the constraint check becomes more
+    # complicated. For now, we only support the same interpolation mode for
+    # these pairs.
+    if self.rho_outer.interpolation_mode != self.rho_inner.interpolation_mode:
+      raise ValueError(
+          'rho_outer and rho_inner must have the same interpolation mode.'
+      )
+    if self.rho_max.interpolation_mode != self.rho_min.interpolation_mode:
+      raise ValueError(
+          'rho_max and rho_min must have the same interpolation mode.'
+      )
+    all_times_inner_outer = np.union1d(self.rho_inner.time, self.rho_outer.time)
+    if not np.all(
+        self.rho_outer.get_value(all_times_inner_outer)
+        > self.rho_inner.get_value(all_times_inner_outer)
+    ):
+      raise ValueError('rho_outer must be greater than rho_inner for all time.')
+    all_times_min_max = np.union1d(self.rho_min.time, self.rho_max.time)
+    if not np.all(
+        self.rho_max.get_value(all_times_min_max)
+        > self.rho_min.get_value(all_times_min_max)
+    ):
+      raise ValueError('rho_max must be greater than rho_min for all time.')
     return self
 
   def build_dynamic_params(
