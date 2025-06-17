@@ -21,6 +21,7 @@ import abc
 import functools
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -28,6 +29,7 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
+import typing_extensions
 
 
 class Solver(abc.ABC):
@@ -57,6 +59,24 @@ class Solver(abc.ABC):
     self.pedestal_model = pedestal_model
     self.static_runtime_params_slice = static_runtime_params_slice
 
+  def __hash__(self) -> int:
+    return hash((
+        self.static_runtime_params_slice,
+        self.transport_model,
+        self.source_models,
+        self.pedestal_model,
+    ))
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    return (
+        self.static_runtime_params_slice == other.static_runtime_params_slice
+        and self.static_runtime_params_slice
+        == other.static_runtime_params_slice
+        and self.transport_model == other.transport_model
+        and self.source_models == other.source_models
+        and self.pedestal_model == other.pedestal_model
+    )
+
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
     """The names of core_profiles variables that are evolved by the solver."""
@@ -71,6 +91,13 @@ class Solver(abc.ABC):
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
+  @functools.partial(
+      xnp.jit,
+      static_argnames=[
+          'self',
+          'static_runtime_params_slice',
+      ],
+  )
   def __call__(
       self,
       t: jax.Array,
