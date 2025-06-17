@@ -31,6 +31,18 @@ _interp_fn = jax_utils.jit(jnp.interp)
 _interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
+@jax_utils.jit
+def _step_interpolation(xs: chex.Array, x: chex.Numeric) -> chex.Array:
+  """Find the indices for step interpolation."""
+  # For a given x, we want to find k such that self.xs[k] <= x < self.xs[k+1]
+  # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'
+  # means that the step occurs whenever x > self.xs. Clipping is strictly
+  # necessary for the case where searchsorted returns index 0.
+  return jnp.clip(
+      jnp.searchsorted(xs, x, side='left') - 1, 0, xs.shape[0] - 1
+  )
+
+
 @enum.unique
 class InterpolationMode(enum.Enum):
   """Defines how to do the interpolation.
@@ -184,41 +196,23 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
 
-@jax_utils.jit
-def step_interpolate(
-    padded_xs: jax.Array, padded_ys: jax.Array, x: jax.Array
-) -> jax.Array:
-  idx = jnp.max(jnp.argwhere(padded_xs < x, size=len(padded_xs)).flatten())
-  return padded_ys[idx]
-
-
 class StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
   def __init__(self, xs: chex.Array, ys: chex.Array):
     """Creates a step interpolated param, xs must be sorted."""
-    self._xs = xs
-    self._ys = ys
+    self._xs = jnp.asarray(xs)
+    self._ys = jnp.asarray(ys)
     jax_utils.assert_rank(self.xs, 1)
-    if len(self.ys.shape) != 1 and len(self.ys.shape) != 2:
+    if self.ys.ndim not in (1, 2):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
     if self.xs.shape[0] != self.ys.shape[0]:
       raise ValueError(
           'xs and ys must have the same number of elements in the first '
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
-    diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
-    jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
-    self._padded_xs = jnp.concatenate([
-        jnp.array([-jnp.inf], dtype=jax_utils.get_dtype()),
-        self.xs,
-        jnp.array([jnp.inf], dtype=jax_utils.get_dtype()),
-    ])
-    self._padded_ys = jnp.concatenate([
-        jnp.array([self.ys[0]], dtype=jax_utils.get_dtype()),
-        self.ys,
-        jnp.array([self.ys[-1]], dtype=jax_utils.get_dtype()),
-    ])
+    if not jnp.allclose(jnp.sort(self.xs), self.xs):
+      raise RuntimeError('xs must be sorted.')
 
   @property
   def xs(self) -> chex.Array:
@@ -228,11 +222,10 @@ class StepInterpolatedParam(InterpolatedParamBase):
   def ys(self) -> chex.Array:
     return self._ys
 
-  def get_value(
-      self,
-      x: chex.Numeric,
-  ) -> chex.Array:
-    return step_interpolate(self._padded_xs, self._padded_ys, x)
+  def get_value(self, x: chex.Numeric) -> chex.Array:
+    """Returns a single value for this range at the given coordinate."""
+    indices = _step_interpolation(self.xs, x)
+    return self.ys[indices]
 
 
 def _is_bool(
@@ -375,9 +368,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     xs, ys = value
 
     if not np.issubdtype(xs.dtype, np.floating):
-      raise ValueError(
-          f'xs must be a float array, but got {xs.dtype}.'
-      )
+      raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
     if not np.issubdtype(ys.dtype, np.floating):
       raise ValueError(f'ys must be a float array, but got {ys.dtype}.')
 
