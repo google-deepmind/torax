@@ -16,12 +16,14 @@
 import contextlib
 import functools
 import threading
-from typing import TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, TypeVar
 
+from absl import logging as native_logging
 import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
+
 
 # Export all symbols from jax.numpy API for type checkers (including editors).
 if TYPE_CHECKING:
@@ -33,6 +35,9 @@ if TYPE_CHECKING:
   # pylint: enable=g-bad-import-order
   # pylint: enable=g-import-not-at-top
 
+
+T = TypeVar('T')
+BooleanNumeric = Any  # A bool, or a Boolean array.
 
 # Create thread-local storage.
 thread_context = threading.local()
@@ -66,6 +71,93 @@ def jit(*args, **kwargs):
     return jax.jit(wrapped_func, *args[1:], **kwargs)
   else:
     return func
+
+
+def py_while(
+    cond_fun: Callable[list[T], BooleanNumeric],
+    body_fun: Callable[list[T], T],
+    init_val: T,
+) -> T:
+  """Pure Python implementation of jax.lax.while_loop.
+
+  This gives us a way to write code that could easily be changed to be
+  Jax-compatible in the future (if we want to compute its gradient or
+  compile it, etc.) without having to pay the high compile time cost
+  of jax.lax.while_loop.
+
+  Args:
+    cond_fun: function of type ``a -> Bool``.
+    body_fun: function of type ``a -> a``.
+    init_val: value of type ``a``, a type that can be a scalar, array, or any
+      pytree (nested Python tuple/list/dict) thereof, representing the initial
+      loop carry value.
+
+  Returns:
+    The output from the final iteration of body_fun, of type ``a``.
+
+  .. _Haskell-like type signature: https://wiki.haskell.org/Type_signature
+  """
+
+  val = init_val
+  while cond_fun(val):
+    val = body_fun(val)
+  return val
+
+
+def while_loop(
+    cond_fun: Callable[list[T], BooleanNumeric],
+    body_fun: Callable[list[T], T],
+    init_val: T,
+):
+  is_jax = getattr(thread_context, 'is_jax', False)
+  if is_jax:
+    return jax.lax.while_loop(cond_fun, body_fun, init_val)
+  else:
+    return py_while(cond_fun, body_fun, init_val)
+
+
+# pylint: disable=g-bare-generic
+def py_cond(
+    cond_val: bool,
+    true_fun: Callable,
+    false_fun: Callable,
+) -> Any:
+  """Pure Python implementation of jax.lax.cond.
+
+  This gives us a way to write code that could easily be changed to be
+  Jax-compatible in the future, if we want to expand the scope of the jit
+  compilation.
+
+  Args:
+    cond_val: The condition.
+    true_fun: Function to be called if cond==True.
+    false_fun: Function to be called if cond==False.
+
+  Returns:
+    The output from either true_fun or false_fun.
+  """
+  if cond_val:
+    return true_fun()
+  else:
+    return false_fun()
+
+
+def cond(
+    cond_val: bool, true_fun: Callable[..., Any], false_fun: Callable[..., Any]  # pytype: disable=invalid-annotation
+) -> Any:
+  is_jax = getattr(thread_context, 'is_jax', False)
+  if is_jax:
+    return jax.lax.cond(cond_val, true_fun, false_fun)
+  else:
+    return py_cond(cond_val, true_fun, false_fun)
+
+
+def logging(msg: Any, *args: Any, **kwargs: Any):
+  is_jax = getattr(thread_context, 'is_jax', False)
+  if is_jax:
+    jax.debug.print(msg, *args, **kwargs)
+  else:
+    return native_logging.info(msg, *args, **kwargs)
 
 
 def _get_current_lib():
