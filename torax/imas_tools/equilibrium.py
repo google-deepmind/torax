@@ -214,7 +214,7 @@ def geometry_to_IMAS(
     eq.profiles_1d.elongation = geometry.elongation_face
     eq.global_quantities.magnetic_axis.z = geometry._z_magnetic_axis
     eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
-    eq.profiles_1d.j_phi = -1 * geometry.j_total_face
+    eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
     eq.profiles_1d.volume = geometry.volume_face
     eq.profiles_1d.area = geometry.area_face
     eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi_face / (np.pi * geometry.B_0))
