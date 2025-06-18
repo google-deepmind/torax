@@ -52,39 +52,6 @@ def save_netCDF(
         netcdf_entry.put(IDS)
 
 
-def load_ids_from_Data_entry(file_path: str, ids_name: str) -> IDSToplevel:
-    """Loads the IDS for a single time slice from a specific data
-    entry / scenario using the IMAS Access Layer
-
-    Args:
-      file_path: Absolute path to the yaml file containing the DB
-      specifications of the desired IDS : input_database, shot, run,
-        input_user_or_path and time_begin for the desired time_slice
-      ids_name: name of IDS to load
-
-    Returns:
-      IDS"""
-    file = open(file_path, "r")
-    scenario = yaml.load(file, Loader=yaml.CLoader)
-    file.close()
-    if scenario["scenario_backend"] == "hdf5":
-        sc_backend = imas.ids_defs.HDF5_BACKEND
-    else:
-        sc_backend = imas.ids_defs.MDSPLUS_BACKEND
-    input = imas.DBEntry(
-        sc_backend,
-        scenario["input_database"],
-        scenario["shot"],
-        scenario["run_in"],
-        scenario["input_user_or_path"],
-    )
-    input.open()
-    timenow = scenario["time_begin"]
-    IMAS_data = input.get_slice(ids_name, timenow, 1)
-
-    return IMAS_data
-
-
 def load_IMAS_data(uri: str, ids_name: str) -> IDSToplevel:
     """
     Loads a full IDS for a given uri or path_name and a given ids_name.
