@@ -25,32 +25,44 @@ new_sim_outputs = torax.run_simulation(torax_config)
 """
 
 from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params_slice
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import run_loop
+from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
+from torax._src.output_tools import post_processing
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 
-def run_simulation(
+def prepare_simulation(
     torax_config: model_config.ToraxConfig,
-    log_timestep_info: bool = False,
-    progress_bar: bool = True,
-) -> tuple[xr.DataTree, output.StateHistory]:
-  """Runs a TORAX simulation using the config and returns the outputs.
+) -> tuple[
+    runtime_params_slice.StaticRuntimeParamsSlice,
+    build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    geometry_provider_lib.GeometryProvider,
+    sim_state.ToraxSimState,
+    post_processing.PostProcessedOutputs,
+    bool,
+    step_function.SimulationStepFn,
+]:
+  """Prepare a TORAX simulation returning the necessary inputs for the run loop.
 
   Args:
     torax_config: The TORAX config to use for the simulation.
-    log_timestep_info: Whether to log the timestep information.
-    progress_bar: Whether to show a progress bar.
 
   Returns:
-    A tuple of the simulation outputs in the form of a DataTree and the state
-    history which is intended for helpful use with debugging as it contains
-    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
-    `PostProcessedOutputs` dataclasses for each step of the simulation.
+    A tuple containing:
+      - The static runtime parameters slice.
+      - The dynamic runtime parameters slice provider.
+      - The geometry provider.
+      - The initial state.
+      - The initial post processed outputs.
+      - A boolean indicating if the simulation is a restart case.
+      - The simulation step function.
   """
   # TODO(b/384767453): Remove the need for the step_fn and solver to take the
   # transport model and pedestal model.
@@ -118,6 +130,45 @@ def run_simulation(
     )
     restart_case = False
 
+  return (
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_provider,
+      geometry_provider,
+      initial_state,
+      post_processed_outputs,
+      restart_case,
+      step_fn,
+  )
+
+
+def run_simulation(
+    torax_config: model_config.ToraxConfig,
+    log_timestep_info: bool = False,
+    progress_bar: bool = True,
+) -> tuple[xr.DataTree, output.StateHistory]:
+  """Runs a TORAX simulation using the config and returns the outputs.
+
+  Args:
+    torax_config: The TORAX config to use for the simulation.
+    log_timestep_info: Whether to log the timestep information.
+    progress_bar: Whether to show a progress bar.
+
+  Returns:
+    A tuple of the simulation outputs in the form of a DataTree and the state
+    history which is intended for helpful use with debugging as it contains
+    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
+    `PostProcessedOutputs` dataclasses for each step of the simulation.
+  """
+  (
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_provider,
+      geometry_provider,
+      initial_state,
+      post_processed_outputs,
+      restart_case,
+      step_fn,
+  ) = prepare_simulation(torax_config)
+
   state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
@@ -129,6 +180,7 @@ def run_simulation(
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,
   )
+
   state_history = output.StateHistory(
       state_history=state_history,
       post_processed_outputs_history=post_processed_outputs_history,
