@@ -477,7 +477,7 @@ def jaxopt_solver(
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
   solver_output = solver.run(init_x_new_vec)
   x_new_vec = solver_output.params
-  final_loss, _ = loss(x_new_vec)
+  final_loss = loss(x_new_vec)
   num_iterations = solver_output.state.iter_num
 
   return x_new_vec, final_loss, num_iterations

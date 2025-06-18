@@ -276,6 +276,10 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
       ),
+      (
+          'test_implicit_short_optimizer',
+          'test_implicit_short_optimizer.py',
+      ),
   )
   def test_run_simulation(
       self,
