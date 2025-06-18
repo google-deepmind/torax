@@ -49,7 +49,7 @@ def write_ids_equilibrium_into_config(
 
 def geometry_from_IMAS(
     equilibrium_object: str | IDSToplevel,
-    geometry_dir: str | None = None,
+    geometry_directory: str | None = None,
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
     hires_factor: int = 4,
@@ -59,7 +59,7 @@ def geometry_from_IMAS(
       equilibrium_object: Either directly the equilbrium IDS containing the
         relevant data, or the name of the IMAS netCDF file containing the
         equilibrium.
-      geometry_dir: Directory where to find the equilibrium object.
+      geometry_directory: Directory where to find the equilibrium object.
         If None, it defaults to another dir. See `load_geo_data`
         implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
@@ -74,7 +74,7 @@ def geometry_from_IMAS(
     # If the equilibrium_object is the file name, load the ids from the netCDF.
     if isinstance(equilibrium_object, str):
         equilibrium = geometry_loader.load_geo_data(
-            geometry_dir,
+            geometry_directory,
             equilibrium_object,
             geometry_loader.GeometrySource.IMAS,
         )
@@ -132,6 +132,11 @@ def geometry_from_IMAS(
     # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
     jtor = -1 * IMAS_data.profiles_1d.j_phi
     rhon = IMAS_data.profiles_1d.rho_tor_norm
+    if len(rhon) == 0:
+        if B_0 is None or len(IMAS_data.profiles_1d.phi) == 0:
+            raise ValueError("rho_tor_norm not provided and cannot be calculated from given equilibrium IDS")
+        rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
+        rhon = rho_tor / rho_tor[-1]
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
     spr = vpr / (2 * np.pi * R_major)
     Ip_profile_unscaled = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)    # this Ip_profile by integration results in a discrepancy between this term and the total ip from IDS

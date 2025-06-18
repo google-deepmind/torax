@@ -56,9 +56,9 @@ class EquilibriumTest(sim_test_case.SimTestCase):
             atol = self.atol
         # Input equilibrium reading
         config_module = self._get_config_module(config_name)
-        geometry_dir = "torax/data/third_party/geo"
+        geometry_directory = "torax/data/third_party/geo"
         path = os.path.join(
-            geometry_dir, config_module.CONFIG["geometry"]["equilibrium_object"]
+            geometry_directory, config_module.CONFIG["geometry"]["equilibrium_object"]
         )
         equilibrium_in = imas_util.load_IMAS_data(path, "equilibrium")
         # Build TORAXSimState object and write output to equilibrium IDS.

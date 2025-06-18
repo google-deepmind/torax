@@ -48,26 +48,14 @@ def save_netCDF(
         date_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         file_name = "IDS_file_" + date_str
     filepath = os.path.join(directory_path, file_name) + ".nc"
-    with imas.DBEntry(filepath, "w") as netcdf_entry:
-        netcdf_entry.put(IDS)
+    with imas.DBEntry(uri=filepath, mode="w") as netcdf_entry:
+        netcdf_entry.put(ids=IDS)
 
 
 def load_IMAS_data(uri: str, ids_name: str) -> IDSToplevel:
     """
     Loads a full IDS for a given uri or path_name and a given ids_name.
     """
-    db = imas.DBEntry(uri, "r")
-    ids = db.get(ids_name)
+    db = imas.DBEntry(uri=uri, mode="r")
+    ids = db.get(ids_name=ids_name)
     return ids
-
-# todo check if we can copy from geometry without weird dependency loops
-def face_to_cell(face):
-    """Infers cell values corresponding to a vector of face values.
-    Args:
-      face: An array containing face values.
-
-    Returns:
-      cell: An array containing cell values.
-    """
-
-    return 0.5 * (face[:-1] + face[1:])

@@ -933,7 +933,7 @@ class StandardGeometryIntermediates:
   def from_IMAS(
       cls,
       equilibrium_object: str | Any,
-      geometry_dir: str | None,
+      geometry_directory: str | None,
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
@@ -942,11 +942,11 @@ class StandardGeometryIntermediates:
 
     Args:
       equilibrium_object: Either directly the equilbrium IDS containing the relevant data, or the name of the IMAS netCDF file containing the equilibrium.
-      geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
+      geometry_directory: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
         If None, then it defaults to another dir. See implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
-        values in the Geometry are resacled to match the new Ip.
-      n_rho: Radial grid points (num cells)
+        values in the Geometry are rescaled to match the new Ip.
+      n_rho: Radial grid points (num cells).
       hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
 
@@ -956,7 +956,7 @@ class StandardGeometryIntermediates:
     """
     inputs = imas_equilibrium.geometry_from_IMAS(
         equilibrium_object=equilibrium_object,
-        geometry_dir=geometry_dir,
+        geometry_directory=geometry_directory,
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,
         hires_factor=hires_factor,
