@@ -194,7 +194,7 @@ class SawtoothModelTest(parameterized.TestCase):
     )
     np.testing.assert_equal(output_state.dt, np.array(_FIXED_DT))
     np.testing.assert_equal(
-        output_state.t, self.initial_state.t + np.array(_FIXED_DT)
+        output_state.t, np.array(self.initial_state.t + _FIXED_DT)
     )
 
   def test_no_subsequent_sawtooth_crashes(self):

@@ -18,7 +18,6 @@ Abstract base class defining updates to State.
 """
 
 import abc
-import dataclasses
 import functools
 import jax
 from torax._src import state
@@ -26,10 +25,8 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.orchestration import sim_state
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
-from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -91,7 +88,7 @@ class Solver(abc.ABC):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      sim_state.ToraxSimState,
+      state.SolverNumericOutputs,
   ]:
     """Applies a time step update.
 
@@ -137,9 +134,9 @@ class Solver(abc.ABC):
     if self.evolving_names:
       (
           x_new,
-          core_sources,
-          core_conductivity,
-          core_transport,
+          _,
+          _,
+          _,
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
@@ -157,46 +154,11 @@ class Solver(abc.ABC):
       )
     else:
       x_new = tuple()
-      # Calculate implicit source profiles and return the merged version. This
-      # is useful for inspecting prescribed sources in the output state.
-      core_conductivity = (
-          self.source_models.conductivity.calculate_conductivity(
-              geo_t_plus_dt,
-              core_profiles_t_plus_dt,
-          )
-      )
-      core_sources = source_profile_builders.build_source_profiles(
-          source_models=self.source_models,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          geo=geo_t_plus_dt,
-          core_profiles=core_profiles_t_plus_dt,
-          explicit=False,
-          explicit_source_profiles=explicit_source_profiles,
-          conductivity=core_conductivity,
-      )
-      core_transport = state.CoreTransport.zeros(geo_t)
       solver_numeric_output = state.SolverNumericOutputs()
-
-    core_profiles_t_plus_dt = dataclasses.replace(
-        core_profiles_t_plus_dt,
-        sigma=core_conductivity.sigma,
-        sigma_face=core_conductivity.sigma_face,
-    )
-
-    intermediate_state = sim_state.ToraxSimState(
-        t=t+dt,
-        dt=dt,
-        core_profiles=core_profiles_t_plus_dt,
-        core_transport=core_transport,
-        core_sources=core_sources,
-        geometry=geo_t_plus_dt,
-        solver_numeric_outputs=solver_numeric_output,
-    )
 
     return (
         x_new,
-        intermediate_state,
+        solver_numeric_output,
     )
 
   def _x_new(

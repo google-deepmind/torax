@@ -113,8 +113,16 @@ class LinearThetaMethod(solver_lib.Solver):
         coeffs_final.auxiliary_outputs
     )
 
+    if static_runtime_params_slice.solver.use_predictor_corrector:
+      inner_solver_iterations = (
+          1 + dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps
+      )
+    else:
+      inner_solver_iterations = 1
+
     solver_numeric_outputs = state.SolverNumericOutputs(
-        inner_solver_iterations=1,
+        inner_solver_iterations=inner_solver_iterations,
+        outer_solver_iterations=1,
         solver_error_state=0,  # linear method always works
     )
 

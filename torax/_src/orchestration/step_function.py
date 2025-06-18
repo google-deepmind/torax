@@ -36,6 +36,7 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
+from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
@@ -250,7 +251,7 @@ class SimulationStepFn:
         )
     )
 
-    x_new, intermediate_state = self.step(
+    x_new, solver_numeric_outputs = self.step(
         dt,
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
@@ -264,27 +265,51 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.solver_numeric_outputs.solver_error_state == 0.
-      x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt = (
-          self.adaptive_step(
-              x_new,
-              intermediate_state,
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice_t,
-              dynamic_runtime_params_slice_t_plus_dt,
-              dynamic_runtime_params_slice_provider,
-              geo_t,
-              geometry_provider,
-              input_state,
-              explicit_source_profiles,
-          )
+      (
+          x_new,
+          dt,
+          solver_numeric_outputs,
+          dynamic_runtime_params_slice_t_plus_dt,
+      ) = self._adaptive_step(
+          x_new,
+          dt,
+          solver_numeric_outputs,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
+          input_state,
+          explicit_source_profiles,
       )
 
+    # Needed to provide the prescribed state variables and boundary conditions
+    # for time t+dt. This is calculated also within the step function, but since
+    # the dt may be adaptive, we need to recompute it here.
+    core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
+        dt=dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt=geo_t_plus_dt,
+        core_profiles_t=input_state.core_profiles,
+    )
+
     output_state, post_processed_outputs = _finalize_outputs(
+        t=input_state.t,
+        dt=dt,
         x_new=x_new,
+        solver_numeric_outputs=solver_numeric_outputs,
         static_runtime_params_slice=self.solver.static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geometry_t_plus_dt=geo_t_plus_dt,
+        explicit_source_profiles=explicit_source_profiles,
+        source_models=self.solver.source_models,
+        pedestal_model=self.pedestal_model,
+        transport_model=self.transport_model,
         core_profiles_t=input_state.core_profiles,
-        intermediate_state=intermediate_state,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         evolving_names=self.solver.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
@@ -300,7 +325,7 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       input_state: sim_state.ToraxSimState,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """First phase: Initialize the solver state.
 
     Args:
@@ -356,7 +381,7 @@ class SimulationStepFn:
 
   def step(
       self,
-      dt: jnp.ndarray,
+      dt: jax.Array,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -366,11 +391,11 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      sim_state.ToraxSimState,
+      state.SolverNumericOutputs,
   ]:
     """Performs a simulation step with given dt.
 
-    Solver may fail to converge in which case adaptive_step() can be used to
+    Solver may fail to converge in which case _adaptive_step() can be used to
     try smaller time step durations.
 
     Args:
@@ -390,8 +415,8 @@ class SimulationStepFn:
     Returns:
       tuple:
         tuple of CellVariables corresponding to the evolved state variables
-        An intermediate ToraxSimState with all attributes updated apart from
-          core_profiles.
+        SolverNumericOutputs containing error state and other solver-specific
+        outputs.
     """
 
     core_profiles_t = input_state.core_profiles
@@ -410,7 +435,7 @@ class SimulationStepFn:
 
     # Initial trial for solver. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    x_new, intermediate_state = self._solver(
+    return self._solver(
         t=input_state.t,
         dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
@@ -424,20 +449,12 @@ class SimulationStepFn:
         core_transport_t=input_state.core_transport,
         explicit_source_profiles=explicit_source_profiles,
     )
-    intermediate_state = dataclasses.replace(
-        intermediate_state,
-        solver_numeric_outputs=dataclasses.replace(
-            intermediate_state.solver_numeric_outputs,
-            outer_solver_iterations=1,
-        ),
-    )
 
-    return x_new, intermediate_state
-
-  def adaptive_step(
+  def _adaptive_step(
       self,
       x_old: tuple[cell_variable.CellVariable, ...],
-      intermediate_state: sim_state.ToraxSimState,
+      dt: jax.Array,
+      solver_numeric_outputs: state.SolverNumericOutputs,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -448,7 +465,8 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      sim_state.ToraxSimState,
+      jax.Array,
+      state.SolverNumericOutputs,
       runtime_params_slice.DynamicRuntimeParamsSlice,
   ]:
     """Performs adaptive time stepping until solver converges.
@@ -460,7 +478,9 @@ class SimulationStepFn:
     Args:
       x_old: Tuple containing previous guess of the cell-grid values of the
         evolving variables
-      intermediate_state: Partially-solved state after a full step.
+      dt: Time step duration for the initial step.
+      solver_numeric_outputs: Solver-specific numeric outputs from the initial
+        step.
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
@@ -479,8 +499,9 @@ class SimulationStepFn:
     Returns:
       A tuple containing:
         - tuple of CellVariables corresponding to the evolved state variables
-        - An intermediate ToraxSimState after adaptive time stepping, complete
-          apart from the final core_profiles
+        - dt following adaptation
+        - SolverNumericOutputs containing error state and other solver-specific
+          outputs.
         - Dynamic runtime params at time t + dt, where dt is the actual time
           step used.
     """
@@ -490,11 +511,12 @@ class SimulationStepFn:
     def cond_fun(
         updated_output: tuple[
             tuple[cell_variable.CellVariable, ...],
-            sim_state.ToraxSimState,
+            jax.Array,  # dt
+            state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> bool:
-      if updated_output[1].solver_numeric_outputs.solver_error_state == 1:
+      if updated_output[2].solver_error_state == 1:
         do_dt_backtrack = True
       else:
         do_dt_backtrack = False
@@ -506,18 +528,20 @@ class SimulationStepFn:
     def body_fun(
         updated_output: tuple[
             tuple[cell_variable.CellVariable, ...],
-            sim_state.ToraxSimState,
+            jax.Array,  # dt
+            state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
         ],
     ) -> tuple[
         tuple[cell_variable.CellVariable, ...],
-        sim_state.ToraxSimState,
+        jax.Array,  # dt
+        state.SolverNumericOutputs,
         runtime_params_slice.DynamicRuntimeParamsSlice,
     ]:
-      _, old_state, old_slice = updated_output
+      _, old_dt, old_solver_outputs, old_slice = updated_output
       numerics = old_slice.numerics
 
-      dt = old_state.dt / numerics.dt_reduction_factor
+      dt = old_dt / numerics.dt_reduction_factor
       if jnp.any(jnp.isnan(dt)):
         raise ValueError('dt is NaN.')
       if dt < numerics.min_dt:
@@ -548,7 +572,7 @@ class SimulationStepFn:
       )
       # The solver returned state is still "intermediate" since the CoreProfiles
       # need to be updated by the evolved CellVariables in x_new
-      x_new, intermediate_state = self._solver(
+      x_new, solver_numeric_outputs = self._solver(
           t=input_state.t,
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
@@ -562,31 +586,116 @@ class SimulationStepFn:
           core_transport_t=input_state.core_transport,
           explicit_source_profiles=explicit_source_profiles,
       )
-      intermediate_state = dataclasses.replace(
-          intermediate_state,
-          solver_numeric_outputs=dataclasses.replace(
-              intermediate_state.solver_numeric_outputs,
-              outer_solver_iterations=old_state.solver_numeric_outputs.outer_solver_iterations
-              + 1,
-              inner_solver_iterations=old_state.solver_numeric_outputs.inner_solver_iterations
-              + intermediate_state.solver_numeric_outputs.inner_solver_iterations,
-          ),
+      solver_numeric_outputs = state.SolverNumericOutputs(
+          solver_error_state=solver_numeric_outputs.solver_error_state,
+          outer_solver_iterations=old_solver_outputs.outer_solver_iterations
+          + 1,
+          inner_solver_iterations=old_solver_outputs.inner_solver_iterations
+          + solver_numeric_outputs.inner_solver_iterations,
+          sawtooth_crash=solver_numeric_outputs.sawtooth_crash,
       )
-
-      return x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt
+      return (
+          x_new,
+          dt,
+          solver_numeric_outputs,
+          dynamic_runtime_params_slice_t_plus_dt,
+      )
 
     # Iteratively apply the adaptive time step until the solver converges.
     # If the solver has already converged, then the body_fun will not be
     # called and the output will be returned unchanged.
-    x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt = (
-        jax_utils.py_while(
-            cond_fun,
-            body_fun,
-            (x_old, intermediate_state, dynamic_runtime_params_slice_t_plus_dt),
-        )
+    (
+        x_new,
+        dt,
+        solver_numeric_outputs,
+        dynamic_runtime_params_slice_t_plus_dt,
+    ) = jax_utils.py_while(
+        cond_fun,
+        body_fun,
+        (
+            x_old,
+            dt,
+            solver_numeric_outputs,
+            dynamic_runtime_params_slice_t_plus_dt,
+        ),
     )
 
-    return x_new, intermediate_state, dynamic_runtime_params_slice_t_plus_dt
+    return (
+        x_new,
+        dt,
+        solver_numeric_outputs,
+        dynamic_runtime_params_slice_t_plus_dt,
+    )
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_runtime_params_slice',
+        'evolving_names',
+        'source_models',
+        'pedestal_model',
+        'transport_model',
+    ],
+)
+def _finalize_outputs(
+    t: jax.Array,
+    dt: jax.Array,
+    x_new: tuple[cell_variable.CellVariable, ...],
+    solver_numeric_outputs: state.SolverNumericOutputs,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    geometry_t_plus_dt: geometry.Geometry,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    core_profiles_t: state.CoreProfiles,
+    core_profiles_t_plus_dt: state.CoreProfiles,
+    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
+    transport_model: transport_model_lib.TransportModel,
+    evolving_names: tuple[str, ...],
+    input_post_processed_outputs: post_processing.PostProcessedOutputs,
+) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
+  """Returns the final state and post-processed outputs."""
+  final_core_profiles, final_source_profiles = (
+      updaters.update_core_and_source_profiles_after_step(
+          dt=dt,
+          x_new=x_new,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          geo=geometry_t_plus_dt,
+          core_profiles_t=core_profiles_t,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          evolving_names=evolving_names,
+      )
+  )
+  final_pedestal_output = pedestal_model(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geometry_t_plus_dt,
+      final_core_profiles,
+  )
+  final_transport = transport_model(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geometry_t_plus_dt,
+      final_core_profiles,
+      final_pedestal_output,
+  )
+  output_state = sim_state.ToraxSimState(
+      t=t + dt,
+      dt=dt,
+      core_profiles=final_core_profiles,
+      core_sources=final_source_profiles,
+      core_transport=final_transport,
+      geometry=geometry_t_plus_dt,
+      solver_numeric_outputs=solver_numeric_outputs,
+  )
+  post_processed_outputs = post_processing.make_post_processed_outputs(
+      sim_state=output_state,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      previous_post_processed_outputs=input_post_processed_outputs,
+  )
+  return output_state, post_processed_outputs
 
 
 @functools.partial(
@@ -652,7 +761,7 @@ def _sawtooth_step(
 
   (
       x_candidate,
-      intermediate_state_candidate,
+      solver_numeric_outputs,
   ) = sawtooth_solver(
       t=input_state.t,
       dt=dt_crash,
@@ -673,7 +782,8 @@ def _sawtooth_step(
 
     # We also update the temperature profiles over the sawtooth time to
     # maintain constant dW/dt over the sawtooth period. While not strictly
-    # realistic this avoids non-physical dW/dt=perturbations in post-processing.
+    # realistic this avoids non-physical dW/dt=perturbations in
+    # post-processing.
     # Following the sawtooth redistribution, the PDE will take over the
     # energy evolution and the physical dW/dt corresponding to the new profile
     # distribution will be calculated.
@@ -691,17 +801,25 @@ def _sawtooth_step(
     )
 
     return _finalize_outputs(
+        t=input_state.t,
+        dt=dt_crash,
         x_new=x_evolved,
+        solver_numeric_outputs=solver_numeric_outputs,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        geometry_t_plus_dt=geo_t_plus_crash_dt,
         core_profiles_t=input_state.core_profiles,
-        intermediate_state=intermediate_state_candidate,
+        core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
+        explicit_source_profiles=explicit_source_profiles,
+        source_models=sawtooth_solver.source_models,
+        pedestal_model=sawtooth_solver.pedestal_model,
+        transport_model=sawtooth_solver.transport_model,
         evolving_names=sawtooth_solver.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
     )
 
   return jax.lax.cond(
-      intermediate_state_candidate.solver_numeric_outputs.sawtooth_crash,
+      solver_numeric_outputs.sawtooth_crash,
       _make_post_crash_state_and_post_processed_outputs,
       lambda: (
           input_state,
@@ -731,8 +849,8 @@ def _calculate_transport_coeffs(
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-    t: jnp.ndarray,
-    dt: jnp.ndarray,
+    t: jax.Array,
+    dt: jax.Array,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -781,39 +899,6 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
   )
 
 
-def _finalize_outputs(
-    x_new: tuple[cell_variable.CellVariable, ...],
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    core_profiles_t: state.CoreProfiles,
-    intermediate_state: sim_state.ToraxSimState,
-    evolving_names: tuple[str, ...],
-    input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
-  """Returns the final state and post-processed outputs."""
-  final_core_profiles = updaters.update_all_core_profiles_after_step(
-      x_new,
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt,
-      intermediate_state.geometry,
-      intermediate_state.core_sources,
-      core_profiles_t,
-      intermediate_state.core_profiles,
-      evolving_names,
-      dt=intermediate_state.dt,
-  )
-  output_state = dataclasses.replace(
-      intermediate_state,
-      core_profiles=final_core_profiles,
-  )
-  post_processed_outputs = post_processing.make_post_processed_outputs(
-      sim_state=output_state,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-      previous_post_processed_outputs=input_post_processed_outputs,
-  )
-  return output_state, post_processed_outputs
-
-
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -822,7 +907,7 @@ def _evolve_x_after_sawtooth(
     geo_t_plus_crash_dt: geometry.Geometry,
     previous_post_processed_outputs: post_processing.PostProcessedOutputs,
     evolving_names: tuple[str, ...],
-    dt_crash: jnp.ndarray,
+    dt_crash: jax.Array,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Evolves the x_redistributed after the sawtooth redistribution."""
 
