@@ -27,7 +27,6 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
 from torax._src.sources import runtime_params as source_runtime_params
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
@@ -226,10 +225,8 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
-        neoclassical=torax_config.neoclassical,
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -246,10 +243,12 @@ class FVMTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
@@ -266,6 +265,7 @@ class FVMTest(parameterized.TestCase):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
@@ -301,6 +301,7 @@ class FVMTest(parameterized.TestCase):
           transport_model=transport_model,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
           pedestal_model=pedestal_model,
@@ -317,6 +318,7 @@ class FVMTest(parameterized.TestCase):
           transport_model=transport_model,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
           pedestal_model=pedestal_model,
@@ -359,15 +361,14 @@ class FVMTest(parameterized.TestCase):
         build_runtime_params.build_static_params_from_config(torax_config)
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
-        neoclassical=torax_config.neoclassical,
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     initial_core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -375,6 +376,7 @@ class FVMTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         explicit=True,
     )
 
@@ -391,6 +393,7 @@ class FVMTest(parameterized.TestCase):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
@@ -488,10 +491,8 @@ class FVMTest(parameterized.TestCase):
         ),
     )
 
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
-        neoclassical=torax_config.neoclassical,
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transport_model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
@@ -500,6 +501,7 @@ class FVMTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -507,6 +509,7 @@ class FVMTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         explicit=True,
     )
 
@@ -521,6 +524,7 @@ class FVMTest(parameterized.TestCase):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
@@ -538,6 +542,7 @@ class FVMTest(parameterized.TestCase):
         static_runtime_params_slice=static_runtime_params_slice_theta05,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     core_profiles_t_plus_dt = dataclasses.replace(
         core_profiles_t_plus_dt,
@@ -559,6 +564,7 @@ class FVMTest(parameterized.TestCase):
           transport_model=transport_model,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
           pedestal_model=pedestal_model,
@@ -586,6 +592,7 @@ class FVMTest(parameterized.TestCase):
           transport_model=transport_model,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           coeffs_old=coeffs_old,
           pedestal_model=pedestal_model,
       )
@@ -607,6 +614,7 @@ class FVMTest(parameterized.TestCase):
           transport_model=transport_model,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
           pedestal_model=pedestal_model,
