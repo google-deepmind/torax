@@ -21,7 +21,6 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -56,8 +55,8 @@ class QualikizTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {'model_name': 'qualikiz'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

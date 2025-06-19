@@ -33,7 +33,6 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
@@ -70,8 +69,8 @@ def prepare_simulation(
   pedestal_model = torax_config.pedestal.build_pedestal_model()
 
   geometry_provider = torax_config.geometry.build_provider
-  source_models = source_models_lib.SourceModels(
-      torax_config.sources, neoclassical=torax_config.neoclassical
+  source_models = torax_config.sources.build_models(
+      neoclassical=torax_config.neoclassical
   )
 
   static_runtime_params_slice = (

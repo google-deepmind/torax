@@ -27,7 +27,6 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
 from torax._src.sources import runtime_params as source_runtime_params
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
@@ -226,8 +225,7 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
+    source_models = torax_config.sources.build_models(
         neoclassical=torax_config.neoclassical,
     )
     dynamic_runtime_params_slice = (
@@ -359,8 +357,7 @@ class FVMTest(parameterized.TestCase):
         build_runtime_params.build_static_params_from_config(torax_config)
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
+    source_models = torax_config.sources.build_models(
         neoclassical=torax_config.neoclassical,
     )
     initial_core_profiles = initialization.initial_core_profiles(
@@ -488,8 +485,7 @@ class FVMTest(parameterized.TestCase):
         ),
     )
 
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources,
+    source_models = torax_config.sources.build_models(
         neoclassical=torax_config.neoclassical,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()

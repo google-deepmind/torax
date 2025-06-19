@@ -24,7 +24,6 @@ from torax._src.sources import generic_current_source
 from torax._src.sources import pydantic_model
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.torax_pydantic import torax_pydantic
@@ -54,17 +53,13 @@ class PydanticModelTest(parameterized.TestCase):
       ),
       dict(
           config={
-              'impurity_radiation': {
-                  'model_name': 'mavrin_fit'
-              },
+              'impurity_radiation': {'model_name': 'mavrin_fit'},
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
       ),
       dict(
           config={
-              'impurity_radiation': {
-                  'model_name': 'P_in_scaled_flat_profile'
-              },
+              'impurity_radiation': {'model_name': 'P_in_scaled_flat_profile'},
           },
           expected_sources_model=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
       ),
@@ -97,7 +92,7 @@ class PydanticModelTest(parameterized.TestCase):
             'mode': 'ZERO',  # turn it off.
         },
     })
-    source_models = source_models_lib.SourceModels(sources, self.neoclassical)
+    source_models = sources.build_models(neoclassical=self.neoclassical)
     # The non-standard ones are still off.
     self.assertEqual(
         sources.generic_current.mode,
@@ -139,7 +134,7 @@ class PydanticModelTest(parameterized.TestCase):
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-    source_models = source_models_lib.SourceModels(sources, self.neoclassical)
+    source_models = sources.build_models(neoclassical=self.neoclassical)
     self.assertLen(source_models.standard_sources, 1)
 
   def test_adding_a_source_with_prescribed_values(self):
@@ -147,38 +142,43 @@ class PydanticModelTest(parameterized.TestCase):
     sources = pydantic_model.Sources.from_dict({
         'generic_current': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': ((
-                np.array([0.0, 1.0, 2.0, 3.0]),
-                np.array([0., 0.5, 1.0]),
-                np.full([4, 3], 42)
-            ),),
+            'prescribed_values': (
+                (
+                    np.array([0.0, 1.0, 2.0, 3.0]),
+                    np.array([0.0, 0.5, 1.0]),
+                    np.full([4, 3], 42),
+                ),
+            ),
         },
         'ecrh': {
             'mode': 'PRESCRIBED',
             'prescribed_values': (
-                3.,
-                4.,
+                3.0,
+                4.0,
             ),
-        }
+        },
     })
     mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertLen(source.prescribed_values, 1)
     self.assertIsInstance(
-        source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
+        source.prescribed_values[0], torax_pydantic.TimeVaryingArray
+    )
 
     source = sources.ecrh
     self.assertIsNotNone(source)
     self.assertLen(source.prescribed_values, 2)
     self.assertIsInstance(
-        source.prescribed_values[0], torax_pydantic.TimeVaryingArray)
+        source.prescribed_values[0], torax_pydantic.TimeVaryingArray
+    )
     self.assertIsInstance(
-        source.prescribed_values[1], torax_pydantic.TimeVaryingArray)
+        source.prescribed_values[1], torax_pydantic.TimeVaryingArray
+    )
     value = source.prescribed_values[0].get_value(0.0)
-    np.testing.assert_equal(value, 3.)
+    np.testing.assert_equal(value, 3.0)
     value = source.prescribed_values[1].get_value(0.0)
-    np.testing.assert_equal(value, 4.)
+    np.testing.assert_equal(value, 4.0)
 
   def test_bremsstrahlung_and_mavrin_validator_with_bremsstrahlung_zero(self):
     valid_config = {

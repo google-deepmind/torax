@@ -20,7 +20,6 @@ from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import fusion_heat_source
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
 
@@ -49,16 +48,14 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = references_getter()
     references.config.update_fields({
         'sources.fusion': {
-            'model_name': (
-                fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-            )
+            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
         }
     })
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
-        references.config)
-    source_models = source_models_lib.SourceModels(
-        sources=references.config.sources,
+        references.config
+    )
+    source_models = references.config.sources.build_models(
         neoclassical=references.config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
@@ -93,19 +90,18 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
     references = torax_refs.chease_references_Ip_from_chease()
-    references.config.update_fields(
-        {'plasma_composition.main_ion': main_ion_input,
-         'sources.fusion': {
-             'model_name': (
-                 fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-             )
-         }})
+    references.config.update_fields({
+        'plasma_composition.main_ion': main_ion_input,
+        'sources.fusion': {
+            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
+        },
+    })
 
     dynamic_runtime_params_slice_t, geo = references.get_dynamic_slice_and_geo()
     static_slice = build_runtime_params.build_static_params_from_config(
-        references.config)
-    source_models = source_models_lib.SourceModels(
-        sources=references.config.sources,
+        references.config
+    )
+    source_models = references.config.sources.build_models(
         neoclassical=references.config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
@@ -160,12 +156,7 @@ def reference_calc_fusion(geo, core_profiles):
       C1 * theta * np.sqrt(xi / (mrc2 * T**3)) * np.exp(-3 * xi) / 1e6
   )  # units of m^3/s
 
-  Pfus = (
-      Efus
-      * 0.25
-      * core_profiles.n_i.face_value() ** 2
-      * sigmav
-  )  # [W/m^3]
+  Pfus = Efus * 0.25 * core_profiles.n_i.face_value() ** 2 * sigmav  # [W/m^3]
   P_total = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
 
   return P_total

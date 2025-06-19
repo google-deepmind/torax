@@ -18,7 +18,6 @@ from absl.testing import parameterized
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
@@ -57,8 +56,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -108,8 +107,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
       pedestal_model = torax_config.pedestal.build_pedestal_model()
       transport_model = torax_config.transport.build_transport_model()
       evolving_names = tuple(['T_i'])
-      source_models = source_models_lib.SourceModels(
-          sources=torax_config.sources, neoclassical=torax_config.neoclassical
+      source_models = torax_config.sources.build_models(
+          neoclassical=torax_config.neoclassical
       )
       static_runtime_params_slice = (
           build_runtime_params.build_static_params_from_config(torax_config)

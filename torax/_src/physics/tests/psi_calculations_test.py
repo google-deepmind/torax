@@ -24,7 +24,6 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import torax_refs
@@ -102,12 +101,11 @@ class PsiCalculationsTest(parameterized.TestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-    references.config.update_fields({
-        'sources.generic_current.mode': 'MODEL_BASED'
-    })
-    source_models = source_models_lib.SourceModels(
-        sources=references.config.sources,
-        neoclassical=references.config.neoclassical,
+    references.config.update_fields(
+        {'sources.generic_current.mode': 'MODEL_BASED'}
+    )
+    source_models = references.config.sources.build_models(
+        neoclassical=references.config.neoclassical
     )
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
@@ -115,7 +113,8 @@ class PsiCalculationsTest(parameterized.TestCase):
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
     static_slice = build_runtime_params.build_static_params_from_config(
-        references.config)
+        references.config
+    )
     initial_core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,

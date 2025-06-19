@@ -26,7 +26,6 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import formulas
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -292,8 +291,8 @@ class GettersTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
