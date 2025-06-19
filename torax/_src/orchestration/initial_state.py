@@ -72,6 +72,7 @@ def _get_initial_state(
       dynamic_runtime_params_slice,
       geo,
       step_fn.solver.source_models,
+      step_fn.solver.neoclassical_models,
   )
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -82,6 +83,7 @@ def _get_initial_state(
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=step_fn.solver.source_models,
+      neoclassical_models=step_fn.solver.neoclassical_models,
       conductivity=conductivity_base.Conductivity(
           sigma=initial_core_profiles.sigma,
           sigma_face=initial_core_profiles.sigma_face),

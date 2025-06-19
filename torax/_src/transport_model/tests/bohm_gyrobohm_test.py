@@ -21,7 +21,6 @@ from torax._src.config import build_runtime_params
 from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import bohm_gyrobohm
@@ -49,13 +48,14 @@ class BohmGyroBohmTest(absltest.TestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
     )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         self.geo,
-        source_models_lib.SourceModels(
-            sources=torax_config.sources, neoclassical=torax_config.neoclassical
-        ),
+        source_models,
+        neoclassical_models,
     )
     # pedestal_model_outputs is not used in the transport model; we can mock it.
     self.pedestal_outputs = mock.create_autospec(object)

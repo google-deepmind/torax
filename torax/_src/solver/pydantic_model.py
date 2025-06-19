@@ -20,6 +20,7 @@ from typing import Literal
 import pydantic
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -85,6 +86,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
 
@@ -117,12 +119,14 @@ class LinearThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
   @property
@@ -182,12 +186,14 @@ class NewtonRaphsonThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
 
@@ -229,12 +235,14 @@ class OptimizerThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
 
