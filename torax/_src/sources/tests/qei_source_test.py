@@ -15,7 +15,6 @@ from absl.testing import absltest
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import qei_source
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -39,9 +38,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config = default_configs.get_default_config_dict()
     config["sources"] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.qei_source
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config
@@ -59,6 +57,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     qei = source.get_qei(
         static_slice,

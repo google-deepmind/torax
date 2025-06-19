@@ -21,6 +21,7 @@ from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import sawtooth_model
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
@@ -36,6 +37,9 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.transport_model = mock.Mock(spec=transport_model_lib.TransportModel)
     self.source_models = mock.Mock(spec=source_models_lib.SourceModels)
     self.pedestal_model = mock.Mock(spec=pedestal_model_lib.PedestalModel)
+    self.neoclassical_models = mock.Mock(
+        spec=neoclassical_models_lib.NeoclassicalModels
+    )
 
   def test_no_mhd_config(self):
     """Tests the case where the 'mhd' key is entirely absent."""
@@ -71,6 +75,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
     )
     self.assertIs(mhd_models.sawtooth, None)
     provider = (
@@ -112,6 +117,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
     )
     self.assertIn('sawtooth', mhd_models)
     self.assertIsInstance(mhd_models['sawtooth'], sawtooth_model.SawtoothModel)

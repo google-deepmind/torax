@@ -20,7 +20,7 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
@@ -121,11 +121,7 @@ def calculate_alpha(
   constants = constants_module.CONSTANTS
 
   factor_0 = (
-      2
-      * constants.keV2J
-      / reference_magnetic_field**2
-      * constants.mu0
-      * q**2
+      2 * constants.keV2J / reference_magnetic_field**2 * constants.mu0 * q**2
   )
   alpha = factor_0 * (
       core_profiles.T_e.face_value()
@@ -198,7 +194,7 @@ class QuasilinearInputs:
   lref_over_lni1: chex.Array
 
 
-class QuasilinearTransportModel(transport_model.TransportModel):
+class QuasilinearTransportModel(transport_model_lib.TransportModel):
   """Base class for quasilinear models."""
 
   def _make_core_transport(
@@ -212,8 +208,8 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
       gradient_reference_length: chex.Numeric,
       gyrobohm_flux_reference_length: chex.Numeric,
-  ) -> state.CoreTransport:
-    """Converts model output to CoreTransport."""
+  ) -> transport_model_lib.TurbulentTransport:
+    """Converts model output to TurbulentTransport."""
     constants = constants_module.CONSTANTS
 
     # conversion to SI units (note that n is normalized here)
@@ -288,7 +284,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
         DV_effective_approach,
         Dscaled_approach,
     )
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

@@ -20,8 +20,9 @@ import pydantic
 from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
-from torax._src.neoclassical.bootstrap_current import zeros
+from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
+from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -29,10 +30,14 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   """Config for neoclassical models."""
 
   bootstrap_current: (
-      zeros.ZerosModelConfig | sauter_current.SauterModelConfig
+      bootstrap_current_zeros.ZerosModelConfig
+      | sauter_current.SauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
   conductivity: sauter_conductivity.SauterModelConfig = (
       torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())
+  )
+  transport: transport_zeros.ZerosModelConfig = pydantic.Field(
+      discriminator="model_name"
   )
 
   @pydantic.model_validator(mode="before")
@@ -43,6 +48,10 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
     if "model_name" not in configurable_data["bootstrap_current"]:
       configurable_data["bootstrap_current"]["model_name"] = "sauter"
+    if "transport" not in configurable_data:
+      configurable_data["transport"] = {"model_name": "zeros"}
+    if "model_name" not in configurable_data["transport"]:
+      configurable_data["transport"]["model_name"] = "zeros"
 
     return configurable_data
 
@@ -50,6 +59,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     return runtime_params.DynamicRuntimeParams(
         bootstrap_current=self.bootstrap_current.build_dynamic_params(),
         conductivity=self.conductivity.build_dynamic_params(),
+        transport=self.transport.build_dynamic_params(),
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:
@@ -57,4 +67,5 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     return neoclassical_models.NeoclassicalModels(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
+        transport=self.transport.build_model(),
     )

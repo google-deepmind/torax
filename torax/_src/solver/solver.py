@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
@@ -42,7 +43,11 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
-    static_runtime_params_slice: Static runtime parameters.
+    neoclassical_models: A NeoclassicalModels container, calculating
+      Neoclassical models like conductivity, bootstrap_current, etc.
+    static_runtime_params_slice: Static runtime parameters. Input params that
+      trigger recompilation when they change. These don't have to be
+      JAX-friendly types and can be used in control-flow logic.
   """
 
   def __init__(
@@ -51,10 +56,12 @@ class Solver(abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ):
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.neoclassical_models = neoclassical_models
     self.static_runtime_params_slice = static_runtime_params_slice
 
   @functools.cached_property
@@ -75,15 +82,12 @@ class Solver(abc.ABC):
       self,
       t: jax.Array,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -94,9 +98,6 @@ class Solver(abc.ABC):
     Args:
       t: Time.
       dt: Time step duration.
-      static_runtime_params_slice: Input params that trigger recompilation when
-        they change. These don't have to be JAX-friendly types and can be used
-        in control-flow logic.
       dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
         time of the step). These runtime params can change from step to step
         without triggering a recompilation.
@@ -109,8 +110,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input params). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
@@ -134,15 +133,13 @@ class Solver(abc.ABC):
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
+          static_runtime_params_slice=self.static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_sources_t=core_sources_t,
-          core_transport_t=core_transport_t,
           explicit_source_profiles=explicit_source_profiles,
           evolving_names=self.evolving_names,
       )
@@ -165,8 +162,6 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -195,8 +190,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
 
