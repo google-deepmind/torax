@@ -20,7 +20,6 @@ from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.solver import predictor_corrector_method
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles
@@ -45,9 +44,6 @@ class LinearThetaMethod(solver_lib.Solver):
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      source_profiles.SourceProfiles,
-      conductivity_base.Conductivity,
-      state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
@@ -101,18 +97,6 @@ class LinearThetaMethod(solver_lib.Solver):
         explicit_source_profiles=explicit_source_profiles,
     )
 
-    coeffs_final = coeffs_callback(
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
-        core_profiles_t_plus_dt,
-        x_new,
-        explicit_source_profiles=explicit_source_profiles,
-        allow_pereverzev=True,
-    )
-    core_sources, core_conductivity, core_transport = (
-        coeffs_final.auxiliary_outputs
-    )
-
     if static_runtime_params_slice.solver.use_predictor_corrector:
       inner_solver_iterations = (
           1 + dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps
@@ -128,8 +112,5 @@ class LinearThetaMethod(solver_lib.Solver):
 
     return (
         x_new,
-        core_sources,
-        core_conductivity,
-        core_transport,
         solver_numeric_outputs,
     )
