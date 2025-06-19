@@ -23,7 +23,6 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
@@ -71,14 +70,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
@@ -245,14 +244,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
@@ -420,13 +419,13 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     del dynamic_runtime_params_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
     v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

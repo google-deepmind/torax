@@ -31,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import base as mhd_base
 from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -73,8 +74,6 @@ class SimulationStepFn:
       self,
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
-      transport_model: transport_model_lib.TransportModel,
-      pedestal_model: pedestal_model_lib.PedestalModel,
       mhd_models: mhd_base.MHDModels,
   ):
     """Initializes the SimulationStepFn.
@@ -82,27 +81,15 @@ class SimulationStepFn:
     Args:
       solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
-      transport_model: Calculates diffusion and convection coefficients.
-      pedestal_model: Calculates pedestal coefficients.
       mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
     self._solver = solver
     self._time_step_calculator = time_step_calculator
-    self._transport_model = transport_model
-    self._pedestal_model = pedestal_model
     self._mhd_models = mhd_models
-
-  @property
-  def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
-    return self._pedestal_model
 
   @property
   def solver(self) -> solver_lib.Solver:
     return self._solver
-
-  @property
-  def transport_model(self) -> transport_model_lib.TransportModel:
-    return self._transport_model
 
   @property
   def mhd_models(self) -> mhd_base.MHDModels:
@@ -184,6 +171,7 @@ class SimulationStepFn:
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self.solver.source_models,
+        neoclassical_models=self.solver.neoclassical_models,
         explicit=True,
     )
 
@@ -306,8 +294,9 @@ class SimulationStepFn:
         geometry_t_plus_dt=geo_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.solver.source_models,
-        pedestal_model=self.pedestal_model,
-        transport_model=self.transport_model,
+        neoclassical_models=self.solver.neoclassical_models,
+        pedestal_model=self.solver.pedestal_model,
+        transport_model=self.solver.transport_model,
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         evolving_names=self.solver.evolving_names,
@@ -344,9 +333,10 @@ class SimulationStepFn:
     # Solver / CoeffsCallback. We should still refactor the design to more
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.
-    transport_coeffs = _calculate_transport_coeffs(
-        self.pedestal_model,
-        self.transport_model,
+    total_transport_coeffs = _calculate_total_transport_coeffs(
+        self.solver.pedestal_model,
+        self.solver.transport_model,
+        self.solver.neoclassical_models,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
@@ -357,7 +347,7 @@ class SimulationStepFn:
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        transport_coeffs,
+        total_transport_coeffs,
     )
 
     crosses_t_final = (
@@ -438,15 +428,12 @@ class SimulationStepFn:
     return self._solver(
         t=input_state.t,
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        core_sources_t=input_state.core_sources,
-        core_transport_t=input_state.core_transport,
         explicit_source_profiles=explicit_source_profiles,
     )
 
@@ -575,15 +562,12 @@ class SimulationStepFn:
       x_new, solver_numeric_outputs = self._solver(
           t=input_state.t,
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t_with_phibdot,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_sources_t=input_state.core_sources,
-          core_transport_t=input_state.core_transport,
           explicit_source_profiles=explicit_source_profiles,
       )
       solver_numeric_outputs = state.SolverNumericOutputs(
@@ -636,6 +620,7 @@ class SimulationStepFn:
         'source_models',
         'pedestal_model',
         'transport_model',
+        'neoclassical_models',
     ],
 )
 def _finalize_outputs(
@@ -650,6 +635,7 @@ def _finalize_outputs(
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     evolving_names: tuple[str, ...],
@@ -667,26 +653,25 @@ def _finalize_outputs(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           evolving_names=evolving_names,
       )
   )
-  final_pedestal_output = pedestal_model(
+  final_total_transport = _calculate_total_transport_coeffs(
+      pedestal_model,
+      transport_model,
+      neoclassical_models,
       dynamic_runtime_params_slice_t_plus_dt,
       geometry_t_plus_dt,
       final_core_profiles,
   )
-  final_transport = transport_model(
-      dynamic_runtime_params_slice_t_plus_dt,
-      geometry_t_plus_dt,
-      final_core_profiles,
-      final_pedestal_output,
-  )
+
   output_state = sim_state.ToraxSimState(
       t=t + dt,
       dt=dt,
       core_profiles=final_core_profiles,
       core_sources=final_source_profiles,
-      core_transport=final_transport,
+      core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
   )
@@ -765,15 +750,12 @@ def _sawtooth_step(
   ) = sawtooth_solver(
       t=input_state.t,
       dt=dt_crash,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
       geo_t=geo_t,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-      core_sources_t=input_state.core_sources,
-      core_transport_t=input_state.core_transport,
       explicit_source_profiles=explicit_source_profiles,
   )
 
@@ -812,6 +794,7 @@ def _sawtooth_step(
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
         source_models=sawtooth_solver.source_models,
+        neoclassical_models=sawtooth_solver.neoclassical_models,
         pedestal_model=sawtooth_solver.pedestal_model,
         transport_model=sawtooth_solver.transport_model,
         evolving_names=sawtooth_solver.evolving_names,
@@ -828,10 +811,11 @@ def _sawtooth_step(
   )
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0, 1))
-def _calculate_transport_coeffs(
+@functools.partial(jax_utils.jit, static_argnums=(0, 1, 2))
+def _calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
@@ -840,11 +824,23 @@ def _calculate_transport_coeffs(
   pedestal_model_output = pedestal_model(
       dynamic_runtime_params_slice_t, geo_t, core_profiles_t
   )
-  return transport_model(
+  turbulent_transport = transport_model(
       dynamic_runtime_params_slice_t,
       geo_t,
       core_profiles_t,
       pedestal_model_output,
+  )
+  neoclassical_transport_coeffs = (
+      neoclassical_models.transport.calculate_neoclassical_transport(
+          dynamic_runtime_params_slice_t,
+          geo_t,
+          core_profiles_t,
+      )
+  )
+
+  return state.CoreTransport(
+      **turbulent_transport,
+      **neoclassical_transport_coeffs,
   )
 
 

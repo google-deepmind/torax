@@ -22,6 +22,7 @@ from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import sawtooth_model
 from torax._src.mhd.sawtooth import simple_redistribution
 from torax._src.mhd.sawtooth import simple_trigger
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -53,6 +54,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> sawtooth_model.SawtoothModel:
     return sawtooth_model.SawtoothModel(
         static_runtime_params_slice=static_runtime_params_slice,
@@ -61,6 +63,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
   def build_dynamic_params(

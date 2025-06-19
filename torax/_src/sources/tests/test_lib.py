@@ -26,7 +26,6 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -115,14 +114,14 @@ class SingleProfileSourceTestCase(SourceTestCase):
     static_slice = build_runtime_params.build_static_params_from_config(
         torax_config
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     if self._needs_source_models:
       calculated_source_profiles = source_profiles.SourceProfiles(
@@ -133,7 +132,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           n_e={},
           qei=source_profiles.QeiInfo.zeros(geo),
       )
-      conductivity = source_models.conductivity.calculate_conductivity(
+      conductivity = neoclassical_models.conductivity.calculate_conductivity(
           geo, core_profiles
       )
     else:
@@ -167,9 +166,8 @@ class MultipleProfileSourceTestCase(SourceTestCase):
     else:
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
@@ -188,6 +186,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -26,7 +26,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=protected-access
 
@@ -36,11 +36,11 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   transport_model_params: Sequence[runtime_params_lib.DynamicRuntimeParams]
 
 
-class CombinedTransportModel(transport_model.TransportModel):
+class CombinedTransportModel(transport_model_lib.TransportModel):
   """Combines coefficients from a list of transport models."""
 
   def __init__(
-      self, transport_models: Sequence[transport_model.TransportModel]
+      self, transport_models: Sequence[transport_model_lib.TransportModel]
   ):
     super().__init__()
     self.transport_models = transport_models
@@ -53,7 +53,7 @@ class CombinedTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the Combined model.
 
     Args:

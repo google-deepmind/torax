@@ -43,9 +43,8 @@ class SourceModelsTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -62,6 +61,7 @@ class SourceModelsTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_slice,
@@ -69,6 +69,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
+        neoclassical_models,
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
@@ -77,6 +78,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
+        neoclassical_models,
         explicit=False,
         explicit_source_profiles=explicit_source_profiles,
     )
@@ -101,7 +103,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True
@@ -162,7 +166,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True
@@ -253,7 +259,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True  # Set the source to be explicit.
