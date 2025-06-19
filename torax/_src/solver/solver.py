@@ -42,7 +42,9 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
-    static_runtime_params_slice: Static runtime parameters.
+    static_runtime_params_slice: Static runtime parameters. Input params that
+      trigger recompilation when they change. These don't have to be
+      JAX-friendly types and can be used in control-flow logic.
   """
 
   def __init__(
@@ -75,7 +77,6 @@ class Solver(abc.ABC):
       self,
       t: jax.Array,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -94,9 +95,6 @@ class Solver(abc.ABC):
     Args:
       t: Time.
       dt: Time step duration.
-      static_runtime_params_slice: Input params that trigger recompilation when
-        they change. These don't have to be JAX-friendly types and can be used
-        in control-flow logic.
       dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
         time of the step). These runtime params can change from step to step
         without triggering a recompilation.
@@ -134,7 +132,7 @@ class Solver(abc.ABC):
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
+          static_runtime_params_slice=self.static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t,

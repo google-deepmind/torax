@@ -94,8 +94,6 @@ def prepare_simulation(
   step_fn = step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-      transport_model=transport_model,
-      pedestal_model=pedestal_model,
       mhd_models=mhd_models,
   )
 

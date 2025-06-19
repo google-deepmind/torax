@@ -73,8 +73,6 @@ class SimulationStepFn:
       self,
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
-      transport_model: transport_model_lib.TransportModel,
-      pedestal_model: pedestal_model_lib.PedestalModel,
       mhd_models: mhd_base.MHDModels,
   ):
     """Initializes the SimulationStepFn.
@@ -82,27 +80,15 @@ class SimulationStepFn:
     Args:
       solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
-      transport_model: Calculates diffusion and convection coefficients.
-      pedestal_model: Calculates pedestal coefficients.
       mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
     self._solver = solver
     self._time_step_calculator = time_step_calculator
-    self._transport_model = transport_model
-    self._pedestal_model = pedestal_model
     self._mhd_models = mhd_models
-
-  @property
-  def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
-    return self._pedestal_model
 
   @property
   def solver(self) -> solver_lib.Solver:
     return self._solver
-
-  @property
-  def transport_model(self) -> transport_model_lib.TransportModel:
-    return self._transport_model
 
   @property
   def mhd_models(self) -> mhd_base.MHDModels:
@@ -306,8 +292,8 @@ class SimulationStepFn:
         geometry_t_plus_dt=geo_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.solver.source_models,
-        pedestal_model=self.pedestal_model,
-        transport_model=self.transport_model,
+        pedestal_model=self.solver.pedestal_model,
+        transport_model=self.solver.transport_model,
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         evolving_names=self.solver.evolving_names,
@@ -345,8 +331,8 @@ class SimulationStepFn:
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.
     transport_coeffs = _calculate_transport_coeffs(
-        self.pedestal_model,
-        self.transport_model,
+        self.solver.pedestal_model,
+        self.solver.transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
@@ -438,7 +424,6 @@ class SimulationStepFn:
     return self._solver(
         t=input_state.t,
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
@@ -575,7 +560,6 @@ class SimulationStepFn:
       x_new, solver_numeric_outputs = self._solver(
           t=input_state.t,
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t_with_phibdot,
@@ -765,7 +749,6 @@ def _sawtooth_step(
   ) = sawtooth_solver(
       t=input_state.t,
       dt=dt_crash,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
       geo_t=geo_t,
