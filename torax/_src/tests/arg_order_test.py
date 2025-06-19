@@ -83,6 +83,7 @@ _CANONICAL_ORDER = [
     'explicit_source_profiles',
     'model_func',
     'source_models',
+    'neoclassical_models',
     'pedestal_model',
     'time_step_calculator',
     'coeffs_callback',

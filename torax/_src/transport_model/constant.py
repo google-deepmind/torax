@@ -26,7 +26,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
@@ -43,7 +43,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   V_e: array_typing.ArrayFloat
 
 
-class ConstantTransportModel(transport_model.TransportModel):
+class ConstantTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def __init__(self):
@@ -57,7 +57,7 @@ class ConstantTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the Constant model.
 
     Args:
@@ -78,11 +78,9 @@ class ConstantTransportModel(transport_model.TransportModel):
         pedestal_model_output,
     )  # Not needed for this transport model
 
-    assert isinstance(
-        transport_dynamic_runtime_params, DynamicRuntimeParams
-    )
+    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=transport_dynamic_runtime_params.chi_i,
         chi_face_el=transport_dynamic_runtime_params.chi_e,
         d_face_el=transport_dynamic_runtime_params.D_e,
