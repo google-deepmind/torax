@@ -159,6 +159,20 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams:
+    """Builds static runtime params from the config."""
+    return nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
+        initial_guess_mode=self.initial_guess_mode.value,
+        log_iterations=self.log_iterations,
+    )
+
   @functools.cached_property
   def build_dynamic_params(
       self,
@@ -166,8 +180,6 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        log_iterations=self.log_iterations,
-        initial_guess_mode=self.initial_guess_mode.value,
         maxiter=self.n_max_iterations,
         residual_tol=self.residual_tol,
         residual_coarse_tol=self.residual_coarse_tol,
@@ -209,6 +221,19 @@ class OptimizerThetaMethod(BaseSolver):
   @property
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
+
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticOptimizerRuntimeParams:
+    """Builds static runtime params from the config."""
+    return nonlinear_theta_method.StaticOptimizerRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
+        initial_guess_mode=self.initial_guess_mode.value,
+    )
 
   @functools.cached_property
   def build_dynamic_params(
