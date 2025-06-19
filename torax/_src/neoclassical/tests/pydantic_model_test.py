@@ -19,7 +19,8 @@ from torax._src.neoclassical import pydantic_model
 class PydanticModelTest(parameterized.TestCase):
 
   def test_default_model(self):
-    model = pydantic_model.Neoclassical()
+    # Disable pylint check since Pydantic before validator handles default.
+    model = pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
 

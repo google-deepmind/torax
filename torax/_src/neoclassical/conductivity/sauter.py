@@ -23,6 +23,13 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
+from torax._src.neoclassical.conductivity import runtime_params
+
+
+# TODO(b/425750357): Add neoclassical correciton flag (default to True)
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
+  """Dynamic runtime params for the Sauter model."""
 
 
 class SauterModel(base.ConductivityModel):
@@ -56,6 +63,9 @@ class SauterModel(base.ConductivityModel):
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
   model_name: Literal['sauter'] = 'sauter'
+
+  def build_dynamic_params(self) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams()
 
   def build_model(self) -> SauterModel:
     return SauterModel()
