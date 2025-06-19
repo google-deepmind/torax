@@ -22,7 +22,6 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
-from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
 
 _NRHO = 10
@@ -93,15 +92,15 @@ class SawtoothModelTest(parameterized.TestCase):
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
-    source_models = source_models_lib.SourceModels(
-        torax_config.sources, torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
 
     solver = torax_config.solver.build_solver(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
     mhd_models = torax_config.mhd.build_mhd_models(
@@ -109,6 +108,7 @@ class SawtoothModelTest(parameterized.TestCase):
         transport_model=transport_model,
         pedestal_model=pedestal_model,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
 
     self.geometry_provider = torax_config.geometry.build_provider
@@ -126,8 +126,6 @@ class SawtoothModelTest(parameterized.TestCase):
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-        transport_model=transport_model,
-        pedestal_model=pedestal_model,
         mhd_models=mhd_models,
     )
 

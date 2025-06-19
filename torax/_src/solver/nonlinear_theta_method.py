@@ -62,8 +62,6 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -72,14 +70,12 @@ class NonlinearThetaMethod(solver.Solver):
   ]:
     """See Solver._x_new docstring."""
 
-    # Not used in this implementation.
-    del core_sources_t, core_transport_t
-
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
         evolving_names=evolving_names,
     )
     (
@@ -201,6 +197,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         pedestal_model=self.pedestal_model,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
@@ -259,6 +256,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         pedestal_model=self.pedestal_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         log_iterations=solver_params.log_iterations,

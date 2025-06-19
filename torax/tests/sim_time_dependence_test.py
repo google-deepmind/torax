@@ -27,6 +27,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
@@ -166,6 +167,7 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
       transport_model,
       source_models,
       pedestal_model,
+      neoclassical_models,
   ) -> 'FakeSolver':
     return FakeSolver(
         param=self.param,
@@ -174,6 +176,7 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
         inner_solver_iterations=self.inner_solver_iterations,
     )
 
@@ -202,12 +205,14 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
       inner_solver_iterations: list[int] | None = None,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.neoclassical_models = neoclassical_models
     self._param = param
     self._max_value = max_value
     self._inner_solver_iterations = (
@@ -221,15 +226,12 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       self,
       t: jax.Array,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -284,8 +286,8 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
-    return state.CoreTransport.zeros(geo)
+  ) -> transport_model_lib.TurbulentTransport:
+    return transport_model_lib.TurbulentTransport.zeros(geo)
 
   def __hash__(self) -> int:
     return hash(self.__class__.__name__)
