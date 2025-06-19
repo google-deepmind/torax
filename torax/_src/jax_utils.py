@@ -17,8 +17,7 @@
 import contextlib
 import functools
 import os
-from typing import Any, Callable, TypeVar
-
+from typing import Any, Callable, Literal, TypeVar
 import chex
 import equinox as eqx
 import jax
@@ -245,6 +244,7 @@ def get_number_of_compiles(
 
   Args:
     jitted_function: A function that has been wrapped with `jax.jit`.
+
   Returns:
     The number of times the function has been compiled.
   Raises:
@@ -261,3 +261,85 @@ def get_number_of_compiles(
 
 
 # pylint: enable=g-bare-generic
+
+
+# TODO(b/424382924)
+def non_inlined_function(
+    f: Callable[..., Any],
+    implementation: Literal['while_loop', 'pure_callback'],
+) -> Callable[..., Any]:
+  """A decorator that prevents XLA from inlining a function.
+
+  XLA inlines all functions in a computational graph. As XLA does global
+  optimization, the compile times increase super-linearly. This decorator
+  allows preventing inlining of functions using `jax.lax.while_loop` or
+  `jax.pure_callback`. In the case of `jax.pure_callback`, what is called from
+  the Python callback is a black box to XLA, and cannot be inlined. In the case
+  of `jax.lax.while_loop`, the body function is not inlined with the rest of the
+  computation.
+
+  Args:
+    f: The function to be called.
+    implementation: If 'while_loop', use `jax.lax.while_loop` with a single
+      iteration. If 'pure_callback', use `jax.pure_callback`. This comes at the
+      cost of a roughly 0.7ms constant overhead per call. It is recommended that
+      `f` is a JITted function in this case, as it will be called directly from
+      Python.
+
+  Returns:
+    The function.
+  """
+
+  match implementation:
+    case 'while_loop':
+      return _non_inlined_function_while_loop(f)
+    case 'pure_callback':
+      return _non_inlined_function_pure_callback(f)
+    case _:
+      raise ValueError(f'Unknown implementation: {implementation}')
+
+
+def _non_inlined_function_pure_callback(f):
+  """A decorator that prevents XLA from inlining a function."""
+
+  @functools.wraps(f)
+  def wrapper(*args, **kwargs):
+    result_shape_dtypes = jax.eval_shape(f, *args, **kwargs)
+    return jax.pure_callback(f, result_shape_dtypes, *args, **kwargs)
+
+  return wrapper
+
+
+def _non_inlined_function_while_loop(f):
+  """A decorator that prevents XLA from inlining a function."""
+
+  @functools.wraps(f)
+  def wrapper(*args, **kwargs):
+    continue_loop = True
+    empty_out = _init_pytree(jax.eval_shape(f, *args, **kwargs))
+
+    def body(val):
+      return False, val[1], val[2], f(*val[1], **val[2])
+
+    def cond(val):
+      return val[0]
+
+    out = jax.lax.while_loop(
+        cond_fun=cond,
+        body_fun=body,
+        init_val=(continue_loop, args, kwargs, empty_out),
+    )
+    return out[-1]
+
+  return wrapper
+
+
+def _init_pytree(t):
+
+  def init_array(x):
+    if isinstance(x, jax.ShapeDtypeStruct):
+      return jnp.empty(shape=x.shape, dtype=x.dtype)
+    else:
+      return x
+
+  return jax.tree_util.tree_map(init_array, t)
