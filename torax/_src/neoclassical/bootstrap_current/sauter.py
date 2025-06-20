@@ -25,6 +25,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params
+from torax._src.physics import collisions
 
 
 @chex.dataclass(frozen=True)
@@ -118,14 +119,11 @@ def _calculate_bootstrap_current(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  lnLame = (
-      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
+  lambda_ei = collisions.calculate_lambda_ei(
+      T_e.face_value(), n_e.face_value()
   )
-  lnLami = (
-      30
-      - 3 * jnp.log(Z_i_face)
-      - 0.5 * jnp.log(n_i.face_value())
-      + 1.5 * jnp.log(T_i.face_value() * 1e3)
+  lambda_ii = collisions.calculate_lambda_ii(
+      T_i.face_value(), n_i.face_value(), Z_i_face
   )
 
   nu_e_star = (
@@ -134,7 +132,7 @@ def _calculate_bootstrap_current(
       * geo.R_major
       * n_e.face_value()
       * Z_eff_face
-      * lnLame
+      * lambda_ei
       / (
           ((T_e.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
@@ -146,7 +144,7 @@ def _calculate_bootstrap_current(
       * geo.R_major
       * n_i.face_value()
       * Z_eff_face**4
-      * lnLami
+      * lambda_ii
       / (
           ((T_i.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
