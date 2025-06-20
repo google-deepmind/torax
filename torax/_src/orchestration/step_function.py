@@ -21,6 +21,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -592,7 +593,7 @@ class SimulationStepFn:
         dt,
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
-    ) = jax_utils.py_while(
+    ) = xnp.py_while(
         cond_fun,
         body_fun,
         (
