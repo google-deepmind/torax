@@ -18,7 +18,6 @@ from absl.testing import parameterized
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import bremsstrahlung_heat_sink
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
 
@@ -51,9 +50,8 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(references.config)
     )
-    source_models = source_models_lib.SourceModels(
-        sources=references.config.sources,
-        neoclassical=references.config.neoclassical,
+    source_models = references.config.sources.build_models(
+        neoclassical=references.config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -11,15 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Runtime params for neoclassical models."""
+"""Runtime params for conductivity models."""
 
 import chex
-from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
-from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
-
-  bootstrap_current: bootstrap_current_runtime_params.DynamicRuntimeParams
-  conductivity: conductivity_runtime_params.DynamicRuntimeParams
+  """Base class for dynamic runtime params."""

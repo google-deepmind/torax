@@ -23,7 +23,6 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
@@ -71,8 +70,8 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,
@@ -245,8 +244,8 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     core_profiles = initialization.initial_core_profiles(
         static_slice,

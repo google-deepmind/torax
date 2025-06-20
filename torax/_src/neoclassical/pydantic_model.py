@@ -17,6 +17,7 @@ import copy
 from typing import Any
 
 import pydantic
+from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros
@@ -47,5 +48,13 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
 
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
-        bootstrap_current=self.bootstrap_current.build_dynamic_params()
+        bootstrap_current=self.bootstrap_current.build_dynamic_params(),
+        conductivity=self.conductivity.build_dynamic_params(),
+    )
+
+  def build_models(self) -> neoclassical_models.NeoclassicalModels:
+    """Builds and returns a container with instantiated neoclassical model objects."""
+    return neoclassical_models.NeoclassicalModels(
+        conductivity=self.conductivity.build_model(),
+        bootstrap_current=self.bootstrap_current.build_model(),
     )

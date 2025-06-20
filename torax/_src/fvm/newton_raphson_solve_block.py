@@ -28,7 +28,6 @@ from torax._src import jax_utils
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
-from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import enums
@@ -106,7 +105,6 @@ def newton_raphson_solve_block(
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.SolverNumericOutputs,
-    block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
@@ -187,7 +185,6 @@ def newton_raphson_solve_block(
     solver_numeric_outputs: state_module.SolverNumericOutputs. Iteration and
       error info. For the error, 0 signifies residual < tol at exit, 1 signifies
       residual > tol, steps became small.
-    aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable
 
@@ -337,16 +334,7 @@ def newton_raphson_solve_block(
       outer_solver_iterations=1,
   )
 
-  coeffs_final = coeffs_callback(
-      dynamic_runtime_params_slice_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-      x_new,
-      explicit_source_profiles=explicit_source_profiles,
-      allow_pereverzev=True,
-  )
-
-  return x_new, solver_numeric_outputs, coeffs_final.auxiliary_outputs
+  return x_new, solver_numeric_outputs
 
 
 def residual_scalar(x):

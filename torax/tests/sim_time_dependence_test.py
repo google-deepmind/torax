@@ -14,14 +14,12 @@
 
 """Tests torax.sim for handling time dependent input runtime params."""
 import copy
-import dataclasses
 from typing import Literal
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-import jax.numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -38,7 +36,6 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_models as source_models_lib
-from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
@@ -85,6 +82,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             'fixed_dt': 1.0,
             'dt_reduction_factor': 1.5,
             't_final': 1.0,
+            'evolve_ion_heat': True,
+            'evolve_electron_heat': False,
+            'evolve_current': False,
+            'evolve_density': False,
         },
         'plasma_composition': {},
         'geometry': {
@@ -137,7 +138,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           expected_error_state,
       )
       np.testing.assert_allclose(
-          output_state.core_sources.qei.qei_coef, expected_combined_value
+          output_state.core_profiles.T_i.value[0], expected_combined_value
       )
       return (output_state,), (post_processed_outputs,), error
 
@@ -214,13 +215,12 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
         if inner_solver_iterations is not None
         else []
     )
-    self.evolving_names = ()
+    self.evolving_names = ('T_i',)
 
   def __call__(
       self,
       t: jax.Array,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -232,33 +232,20 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      sim_state.ToraxSimState,
+      state.SolverNumericOutputs,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
     ) + getattr(
         dynamic_runtime_params_slice_t_plus_dt.profile_conditions, self._param
     )
-    pedestal_model_output = self.pedestal_model(
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        core_profiles_t,
-    )
-    transport = self.transport_model(
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        core_profiles_t,
-        pedestal_model_output,
-    )
-    # Use Qei as a hacky way to extract what the combined value was.
-    core_sources = source_profile_builders.build_all_zero_profiles(
-        geo=geo_t,
-    )
-    core_sources = dataclasses.replace(
-        core_sources,
-        qei=dataclasses.replace(
-            core_sources.qei, qei_coef=jnp.ones_like(geo_t.rho) * combined
-        ),
+    # Use x_new as a hacky way to extract what the combined value was.
+    # Ti values will be the `combined` value in the output state.
+    x_new = cell_variable.CellVariable(
+        dr=0.1,
+        value=np.ones_like(geo_t.rho_norm) * combined,
+        right_face_constraint=combined,
+        right_face_grad_constraint=None,
     )
 
     current_inner_solver_iterations = (
@@ -267,26 +254,18 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
         else 1
     )
 
-    def get_return_value(error_code: int):
-      intermediate_state = sim_state.ToraxSimState(
-          t=t + dt,
-          dt=dt,
-          core_profiles=core_profiles_t_plus_dt,
-          core_transport=transport,
-          core_sources=core_sources,
-          geometry=geo_t_plus_dt,
-          solver_numeric_outputs=state.SolverNumericOutputs(
-              outer_solver_iterations=1,
-              solver_error_state=error_code,
-              inner_solver_iterations=current_inner_solver_iterations,
-          ),
+    def _get_return_value(error_code: int):
+      solver_numeric_outputs = state.SolverNumericOutputs(
+          outer_solver_iterations=1,
+          solver_error_state=error_code,
+          inner_solver_iterations=current_inner_solver_iterations,
       )
-      return (), intermediate_state
+      return (x_new,), solver_numeric_outputs
 
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: get_return_value(error_code=0),
-        lambda: get_return_value(error_code=1),
+        lambda: _get_return_value(error_code=0),
+        lambda: _get_return_value(error_code=1),
     )
 
 

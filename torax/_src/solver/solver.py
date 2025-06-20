@@ -18,18 +18,14 @@ Abstract base class defining updates to State.
 """
 
 import abc
-import dataclasses
 import functools
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.orchestration import sim_state
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
-from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -46,7 +42,9 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
-    static_runtime_params_slice: Static runtime parameters.
+    static_runtime_params_slice: Static runtime parameters. Input params that
+      trigger recompilation when they change. These don't have to be
+      JAX-friendly types and can be used in control-flow logic.
   """
 
   def __init__(
@@ -79,7 +77,6 @@ class Solver(abc.ABC):
       self,
       t: jax.Array,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -91,16 +88,13 @@ class Solver(abc.ABC):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      sim_state.ToraxSimState,
+      state.SolverNumericOutputs,
   ]:
     """Applies a time step update.
 
     Args:
       t: Time.
       dt: Time step duration.
-      static_runtime_params_slice: Input params that trigger recompilation when
-        they change. These don't have to be JAX-friendly types and can be used
-        in control-flow logic.
       dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
         time of the step). These runtime params can change from step to step
         without triggering a recompilation.
@@ -125,9 +119,7 @@ class Solver(abc.ABC):
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
-      intermediate_state: The state at time t + dt apart from core_profiles
-        which is incomplete and must be finalized outside this function with
-        x_new and additional post_processing.
+      solver_numeric_output: Error and solver iteration info.
     """
 
     # This base class method can be completely overridden by a subclass, but
@@ -137,13 +129,10 @@ class Solver(abc.ABC):
     if self.evolving_names:
       (
           x_new,
-          core_sources,
-          core_conductivity,
-          core_transport,
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
+          static_runtime_params_slice=self.static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t,
@@ -157,46 +146,11 @@ class Solver(abc.ABC):
       )
     else:
       x_new = tuple()
-      # Calculate implicit source profiles and return the merged version. This
-      # is useful for inspecting prescribed sources in the output state.
-      core_conductivity = (
-          self.source_models.conductivity.calculate_conductivity(
-              geo_t_plus_dt,
-              core_profiles_t_plus_dt,
-          )
-      )
-      core_sources = source_profile_builders.build_source_profiles(
-          source_models=self.source_models,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          geo=geo_t_plus_dt,
-          core_profiles=core_profiles_t_plus_dt,
-          explicit=False,
-          explicit_source_profiles=explicit_source_profiles,
-          conductivity=core_conductivity,
-      )
-      core_transport = state.CoreTransport.zeros(geo_t)
       solver_numeric_output = state.SolverNumericOutputs()
-
-    core_profiles_t_plus_dt = dataclasses.replace(
-        core_profiles_t_plus_dt,
-        sigma=core_conductivity.sigma,
-        sigma_face=core_conductivity.sigma_face,
-    )
-
-    intermediate_state = sim_state.ToraxSimState(
-        t=t+dt,
-        dt=dt,
-        core_profiles=core_profiles_t_plus_dt,
-        core_transport=core_transport,
-        core_sources=core_sources,
-        geometry=geo_t_plus_dt,
-        solver_numeric_outputs=solver_numeric_output,
-    )
 
     return (
         x_new,
-        intermediate_state,
+        solver_numeric_output,
     )
 
   def _x_new(
@@ -215,9 +169,6 @@ class Solver(abc.ABC):
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
-      source_profiles.SourceProfiles,
-      conductivity_base.Conductivity,
-      state.CoreTransport,
       state.SolverNumericOutputs,
   ]:
     """Calculates new values of the changing variables.
@@ -249,10 +200,7 @@ class Solver(abc.ABC):
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.
-      core_sources: see the docstring of __call__
-      core_conductivity: Conductivity for time t+dt.
-      core_transport: Transport coefficients for time t+dt.
-      solver_numeric_output: Error and iteration info.
+      solver_numeric_output: Error and solver iteration info.
     """
 
     raise NotImplementedError(

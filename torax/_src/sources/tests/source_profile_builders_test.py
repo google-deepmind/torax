@@ -43,8 +43,8 @@ class SourceModelsTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -101,7 +101,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True
@@ -162,7 +164,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True
@@ -253,7 +257,9 @@ class SourceModelsTest(parameterized.TestCase):
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
     )
     source_models = mock.create_autospec(
-        source_models_lib.SourceModels, standard_sources={'foo': test_source}
+        source_models_lib.SourceModels,
+        standard_sources={'foo': test_source},
+        psi_sources={},
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
         mode='MODEL_BASED', is_explicit=True  # Set the source to be explicit.

@@ -43,7 +43,6 @@ from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
@@ -455,7 +454,6 @@ def jaxopt_solver(
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
     final_loss: loss after jaxopt evolution
-    aux_output: auxiliary outputs from calc_coeffs.
     num_iterations: number of iterations ran in jaxopt
   """
 
@@ -477,7 +475,7 @@ def jaxopt_solver(
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
   solver_output = solver.run(init_x_new_vec)
   x_new_vec = solver_output.params
-  final_loss, _ = loss(x_new_vec)
+  final_loss = loss(x_new_vec)
   num_iterations = solver_output.state.iter_num
 
   return x_new_vec, final_loss, num_iterations

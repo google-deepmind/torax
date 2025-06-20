@@ -19,7 +19,6 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -47,10 +46,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
   ):
     if n_e_ped_is_fGW:
       if isinstance(n_e_ped, dict):
-        n_e_ped = {
-            key: value / 1e20
-            for key, value in n_e_ped.items()
-        }
+        n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
       else:
         n_e_ped /= 1e20
     config = default_configs.get_default_config_dict()
@@ -71,8 +67,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     jitted_pedestal_model = jax_utils.jit(pedestal_model)

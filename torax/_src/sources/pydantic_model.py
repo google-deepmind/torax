@@ -16,7 +16,9 @@
 import copy
 from typing import Any
 
+import immutabledict
 import pydantic
+from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
 from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
@@ -31,6 +33,7 @@ from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import runtime_params
+from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.torax_pydantic import torax_pydantic
@@ -43,6 +46,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
+
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
       {'mode': 'ZERO'}
   )
@@ -59,27 +63,23 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  ecrh: (
-      electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None
-  ) = pydantic.Field(
+  ecrh: electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_name',
+          default=None,
+      )
+  )
+  fusion: fusion_heat_source_lib.FusionHeatSourceConfig | None = pydantic.Field(
       discriminator='model_name',
       default=None,
   )
-  fusion: fusion_heat_source_lib.FusionHeatSourceConfig | None = (
-      pydantic.Field(
-          discriminator='model_name',
-          default=None,
-      )
+  gas_puff: gas_puff_source_lib.GasPuffSourceConfig | None = pydantic.Field(
+      discriminator='model_name',
+      default=None,
   )
-  gas_puff: gas_puff_source_lib.GasPuffSourceConfig | None = (
-      pydantic.Field(
-          discriminator='model_name',
-          default=None,
-      )
+  generic_current: generic_current_source_lib.GenericCurrentSourceConfig = (
+      torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
   )
-  generic_current: (
-      generic_current_source_lib.GenericCurrentSourceConfig
-  ) = torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
   generic_heat: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
   ) = pydantic.Field(
@@ -92,11 +92,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  icrh: (
-      ion_cyclotron_source_lib.IonCyclotronSourceConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  icrh: ion_cyclotron_source_lib.IonCyclotronSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_name',
+          default=None,
+      )
   )
   impurity_radiation: (
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
@@ -106,11 +106,9 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = (
-      pydantic.Field(
-          discriminator='model_name',
-          default=None,
-      )
+  ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = pydantic.Field(
+      discriminator='model_name',
+      default=None,
   )
   pellet: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
       discriminator='model_name',
@@ -209,9 +207,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
           self.bremsstrahlung.mode != runtime_params.Mode.ZERO
       )
 
-      impurity_active = (
-          self.impurity_radiation.mode != runtime_params.Mode.ZERO
-      )
+      impurity_active = self.impurity_radiation.mode != runtime_params.Mode.ZERO
 
       # Only raise error if both are active (not in ZERO mode)
       if bremsstrahlung_active and impurity_active:
@@ -223,6 +219,36 @@ class Sources(torax_pydantic.BaseModelFrozen):
             """)
 
     return self
+
+  def build_models(
+      self,
+      neoclassical: neoclassical_pydantic_model.Neoclassical,
+  ) -> source_models.SourceModels:
+    """Builds and returns a container with instantiated source model objects."""
+    bootstrap_current = neoclassical.bootstrap_current.build_model()
+    conductivity = neoclassical.conductivity.build_model()
+    standard_sources = {}
+    for k, v in dict(self).items():
+      # ei_exchange is handled separately above.
+      if k == 'ei_exchange':
+        continue
+      else:
+        if v is not None:
+          source = v.build_source()
+          if k in standard_sources:
+            raise ValueError(
+                f'Trying to add another source with the same name: {k}.'
+            )
+          standard_sources[k] = source
+    qei_source_model = self.ei_exchange.build_source()
+    # Qei is a special source that is not in standard_sources.
+    # It has its own attribute in SourceModels.
+    return source_models.SourceModels(
+        bootstrap_current=bootstrap_current,
+        conductivity=conductivity,
+        qei_source=qei_source_model,
+        standard_sources=immutabledict.immutabledict(standard_sources),
+    )
 
   @property
   def source_model_config(self) -> dict[str, base.SourceModelBase]:

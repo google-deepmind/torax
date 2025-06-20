@@ -16,6 +16,7 @@ import os
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
@@ -127,6 +128,18 @@ class JaxUtilsTest(parameterized.TestCase):
     # Should be 2 after another call with different shape.
     jit_f(jnp.array([1]))
     self.assertEqual(jax_utils.get_number_of_compiles(jit_f), 2)
+
+  @parameterized.parameters('while_loop', 'pure_callback')
+  def test_non_inlined_function(self, implementation):
+
+    def f(x, y=2.0):
+      return x['temp1'] * y + jnp.sin(x['temp2'])
+
+    # Verify that this is JITable.
+    f_non_inlined = jax.jit(jax_utils.non_inlined_function(f, implementation))
+
+    x = {'temp1': jnp.array(1.3), 'temp2': jnp.array(2.6)}
+    chex.assert_trees_all_close(f_non_inlined(x), f(x))
 
 
 if __name__ == '__main__':

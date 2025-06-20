@@ -275,6 +275,10 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
       ),
+      (
+          'test_implicit_short_optimizer',
+          'test_implicit_short_optimizer.py',
+      ),
       # Tests IMAS geometry.
       (
           'test_imas',

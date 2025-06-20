@@ -22,7 +22,6 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
-from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import model_config
 
 _NRHO = 10
@@ -93,8 +92,8 @@ class SawtoothModelTest(parameterized.TestCase):
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
-    source_models = source_models_lib.SourceModels(
-        torax_config.sources, torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
 
     solver = torax_config.solver.build_solver(
@@ -126,8 +125,6 @@ class SawtoothModelTest(parameterized.TestCase):
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-        transport_model=transport_model,
-        pedestal_model=pedestal_model,
         mhd_models=mhd_models,
     )
 
@@ -194,7 +191,7 @@ class SawtoothModelTest(parameterized.TestCase):
     )
     np.testing.assert_equal(output_state.dt, np.array(_FIXED_DT))
     np.testing.assert_equal(
-        output_state.t, self.initial_state.t + np.array(_FIXED_DT)
+        output_state.t, np.array(self.initial_state.t + _FIXED_DT)
     )
 
   def test_no_subsequent_sawtooth_crashes(self):

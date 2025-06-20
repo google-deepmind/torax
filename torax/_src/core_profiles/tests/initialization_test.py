@@ -85,8 +85,8 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -141,8 +141,8 @@ class InitializationTest(parameterized.TestCase):
         initial_psi_from_j=True,
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
 
     torax_config.update_fields({'profile_conditions': profile_conditions1})
@@ -264,8 +264,8 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources1,
         'neoclassical': neoclassical_1,
     })
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     j_total1, _, _, j_ohmic1, _, _ = _calculate_currents(
         torax_config, source_models
@@ -293,10 +293,9 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources2,
         'neoclassical': neoclassical_2,
     })
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
-
     _, _, _, j_ohmic2, j_bootstrap2, _ = _calculate_currents(
         torax_config, source_models
     )
@@ -334,8 +333,8 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = source_models_lib.SourceModels(
-        sources=torax_config.sources, neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models(
+        neoclassical=torax_config.neoclassical
     )
     jtotal1, _, _, _, _, _ = _calculate_currents(torax_config, source_models)
 

@@ -60,7 +60,6 @@ def optimizer_solve_block(
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.SolverNumericOutputs,
-    block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.
@@ -121,7 +120,6 @@ def optimizer_solve_block(
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
     solver_numeric_outputs: SolverNumericOutputs. Info about iterations and
       errors
-    aux_output: Extra auxiliary output from the calc_coeffs.
   """
   # pyformat: enable
 
@@ -214,13 +212,4 @@ def optimizer_solve_block(
       lambda: 0,  # Called when False
   )
 
-  coeffs_final = coeffs_callback(
-      dynamic_runtime_params_slice_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-      x_new,
-      explicit_source_profiles=explicit_source_profiles,
-      allow_pereverzev=True,
-  )
-
-  return x_new, solver_numeric_outputs, coeffs_final.auxiliary_outputs
+  return x_new, solver_numeric_outputs

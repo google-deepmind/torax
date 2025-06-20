@@ -29,12 +29,16 @@ class SauterTest(absltest.TestCase):
     n_rho = 10
     geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
     dynamic_bootstap_params = sauter.DynamicRuntimeParams(
-        bootstrap_multiplier=1.0)
+        bootstrap_multiplier=1.0
+    )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         instance=True,
-        neoclassical=neoclassical_runtime_params.DynamicRuntimeParams(
-            bootstrap_current=dynamic_bootstap_params),
+        neoclassical=mock.create_autospec(
+            neoclassical_runtime_params.DynamicRuntimeParams,
+            instance=True,
+            bootstrap_current=dynamic_bootstap_params,
+        ),
     )
     core_profiles = mock.create_autospec(
         state.CoreProfiles,

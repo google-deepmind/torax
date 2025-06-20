@@ -42,6 +42,8 @@ from torax._src.geometry import geometry
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
+from torax._src.sources import source_models as source_models_lib
+from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -198,40 +200,38 @@ def update_core_profiles_during_step(
   )
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'static_runtime_params_slice',
-        'evolving_names',
-    ],
-)
-def update_all_core_profiles_after_step(
+def update_core_and_source_profiles_after_step(
+    dt: array_typing.ScalarFloat,
     x_new: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_profiles: source_profiles_lib.SourceProfiles,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
+    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
     evolving_names: tuple[str, ...],
-    dt: array_typing.ScalarFloat,
-) -> state.CoreProfiles:
-  """Returns a new core profiles after the solver has finished.
+) -> tuple[state.CoreProfiles, source_profiles_lib.SourceProfiles]:
+  """Returns a core profiles and source profiles after the solver has finished.
 
   Updates the evolved variables and derived variables like q_face, psidot, etc.
 
   Args:
+    dt: The size of the last timestep.
     x_new: The new values of the evolving variables.
     static_runtime_params_slice: The static runtime params slice.
     dynamic_runtime_params_slice_t_plus_dt: The dynamic runtime params slice.
     geo: Magnetic geometry.
-    source_profiles: The source profiles from the step function output.
     core_profiles_t: The old set of core plasma profiles.
     core_profiles_t_plus_dt: The partially new set of core plasma profiles. On
       input into this function, all prescribed profiles and used boundary
       conditions are already set. But evolving values are not.
+    explicit_source_profiles: The explicit source profiles.
+    source_models: The source models.
     evolving_names: The names of the evolving variables.
-    dt: The size of the last timestep.
+
+  Returns:
+    A tuple of the new core profiles and the source profiles.
   """
 
   updated_core_profiles_t_plus_dt = convertors.solver_x_tuple_to_core_profiles(
@@ -246,8 +246,6 @@ def update_all_core_profiles_after_step(
       updated_core_profiles_t_plus_dt.T_e,
   )
 
-  psi_sources = source_profiles.total_psi_sources(geo)
-
   v_loop_lcfs = (
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
       if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
@@ -258,26 +256,14 @@ def update_all_core_profiles_after_step(
       )
   )
 
-  psidot = dataclasses.replace(
-      core_profiles_t_plus_dt.psidot,
-      value=psi_calculations.calculate_psidot_from_psi_sources(
-          psi_sources=psi_sources,
-          sigma=core_profiles_t_plus_dt.sigma,
-          resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_multiplier,
-          psi=updated_core_profiles_t_plus_dt.psi,
-          geo=geo,
-      ),
-      right_face_constraint=v_loop_lcfs,
-      right_face_grad_constraint=None,
-  )
-
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo, updated_core_profiles_t_plus_dt['psi']
+      geo,
+      updated_core_profiles_t_plus_dt.psi,
   )
 
   # A wholly new core profiles object is defined as a guard against neglecting
   # to update one of the attributes if doing dataclasses.replace
-  return state.CoreProfiles(
+  intermediate_core_profiles = state.CoreProfiles(
       T_i=updated_core_profiles_t_plus_dt.T_i,
       T_e=updated_core_profiles_t_plus_dt.T_e,
       psi=updated_core_profiles_t_plus_dt.psi,
@@ -288,7 +274,7 @@ def update_all_core_profiles_after_step(
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
-      psidot=psidot,
+      psidot=core_profiles_t_plus_dt.psidot,
       q_face=psi_calculations.calc_q_face(
           geo, updated_core_profiles_t_plus_dt.psi
       ),
@@ -300,13 +286,53 @@ def update_all_core_profiles_after_step(
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
       v_loop_lcfs=v_loop_lcfs,
-      # These have already been updated in the solver.
-      sigma=core_profiles_t_plus_dt.sigma,
-      sigma_face=core_profiles_t_plus_dt.sigma_face,
+      sigma=core_profiles_t_plus_dt.sigma,  # Not yet updated
+      sigma_face=core_profiles_t_plus_dt.sigma_face,  # Not yet updated
       j_total=j_total,
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
   )
+
+  conductivity = source_models.conductivity.calculate_conductivity(
+      geo, intermediate_core_profiles
+  )
+
+  intermediate_core_profiles = dataclasses.replace(
+      intermediate_core_profiles,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
+  )
+
+  # build_source_profiles calculates the union with explicit + implicit
+  total_source_profiles = source_profile_builders.build_source_profiles(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      geo=geo,
+      source_models=source_models,
+      core_profiles=intermediate_core_profiles,
+      explicit=False,
+      explicit_source_profiles=explicit_source_profiles,
+      conductivity=conductivity,
+  )
+  psi_sources = total_source_profiles.total_psi_sources(geo)
+
+  psidot = dataclasses.replace(
+      core_profiles_t_plus_dt.psidot,
+      value=psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=intermediate_core_profiles.sigma,
+          resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_multiplier,
+          psi=intermediate_core_profiles.psi,
+          geo=geo,
+      ),
+      right_face_constraint=v_loop_lcfs,
+      right_face_grad_constraint=None,
+  )
+  core_profiles_t_plus_dt = dataclasses.replace(
+      intermediate_core_profiles,
+      psidot=psidot,
+  )
+  return core_profiles_t_plus_dt, total_source_profiles
 
 
 def compute_boundary_conditions_for_t_plus_dt(

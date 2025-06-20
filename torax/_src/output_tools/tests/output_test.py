@@ -30,7 +30,6 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
@@ -91,11 +90,9 @@ class StateHistoryTest(parameterized.TestCase):
     static_slice = build_runtime_params.build_static_params_from_config(
         self.torax_config
     )
-    source_models = source_models_lib.SourceModels(
-        sources=self.torax_config.sources,
+    source_models = self.torax_config.sources.build_models(
         neoclassical=self.torax_config.neoclassical,
     )
-
     self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
