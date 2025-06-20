@@ -106,6 +106,48 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
       TestModel.model_validate({'a': values})
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='float_in_range',
+          values=0.5,
+          should_fail=False,
+      ),
+      dict(
+          testcase_name='array_in_range',
+          values={0.0: 0.1, 1.0: 0.9},
+          should_fail=False,
+      ),
+      dict(
+          testcase_name='float_above_range',
+          values=1.1,
+          should_fail=True,
+      ),
+      dict(
+          testcase_name='float_below_range',
+          values=-0.1,
+          should_fail=True,
+      ),
+      dict(
+          testcase_name='array_with_value_above_range',
+          values={0.0: 0.1, 1.0: 1.1},
+          should_fail=True,
+      ),
+      dict(
+          testcase_name='array_with_value_below_range',
+          values={0.0: -0.1, 1.0: 0.9},
+          should_fail=True,
+      ),
+  )
+  def test_unit_interval_validation(self, values, should_fail):
+    class TestModel(torax_pydantic.BaseModelFrozen):
+      a: torax_pydantic.UnitIntervalTimeVaryingScalar
+
+    if should_fail:
+      with self.assertRaisesRegex(pydantic.ValidationError, 'All values must'):
+        TestModel.model_validate({'a': values})
+    else:
+      TestModel.model_validate({'a': values})
+
   @parameterized.parameters(
       (
           (7.0, 'step'),

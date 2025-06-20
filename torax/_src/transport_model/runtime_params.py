@@ -19,7 +19,6 @@ a time-interpolated version of this config via the DynamicRuntimeParams.
 """
 import chex
 from torax._src import array_typing
-from torax._src import jax_utils
 
 
 # pylint: disable=invalid-name
@@ -49,15 +48,3 @@ class DynamicRuntimeParams:
   rho_outer: array_typing.ScalarFloat
   smoothing_width: float
   smooth_everywhere: bool
-
-  def __post_init__(self):
-    jax_utils.error_if(
-        self.rho_outer,
-        self.rho_outer <= self.rho_inner,
-        'rho_outer must be greater than rho_inner.',
-    )
-    jax_utils.error_if(
-        self.rho_max,
-        self.rho_max <= self.rho_min,
-        'rho_max must be greater than rho_min.',
-    )

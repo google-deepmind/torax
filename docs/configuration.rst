@@ -570,7 +570,7 @@ set_P_ped_n_ped
 Set the pedestal width, electron density and ion temperature by providing the
 total pressure at the pedestal and the ratio of ion to electron temperature.
 
-``P_ped`` (**time-varying-scalar** [default = 10.0])
+``P_ped`` (**time-varying-scalar** [default = 1e5])
   The plasma pressure at the pedestal in units of :math:`Pa`.
 
 ``n_e_ped`` (**time-varying-scalar** [default = 0.7])
@@ -779,15 +779,19 @@ transport model.
   An additive transport model, where contributions from a list of component
   models are summed to produce a combined total.
 
-``rho_min`` (float [default = 0.0])
+``rho_min`` (**time-varying-scalar**  [default = 0.0])
   :math:`\hat{\rho}` above which the transport model is applied. For
   ``rho_min > 0``, the model will be active in the range
   ``rho_min < rho <= rho_max``. For ``rho_min == 0``, it will be active in the
   range ``rho_min <= rho <= rho_max``.
+  Note that ``rho_min`` and ``rho_max`` must have the same interpolation mode
+  to simplify the validation test ``rho_min < rho_max`` at all times.
 
-``rho_max`` (float [default = 1.0])
+``rho_max`` (**time-varying-scalar**  [default = 1.0])
   :math:`\hat{\rho}` below which the transport model is applied. See comment
   about ``rho_min`` for more detail.
+  Note that ``rho_min`` and ``rho_max`` must have the same interpolation mode
+  to simplify the validation test ``rho_min < rho_max`` at all times.
 
 ``chi_min`` (float [default = 0.05])
   Lower allowed bound for heat conductivities :math:`\chi`, in units of
@@ -839,8 +843,10 @@ transport model.
 ``chi_e_inner`` (**time-varying-scalar** [default = 1.0])
   Electron heat conduction value for inner transport patch.
 
-``rho_inner`` (float [default = 0.3])
+``rho_inner`` (**time-varying-scalar** [default = 0.3])
   :math:`\hat{\rho}` below which inner patch is applied.
+  Note that ``rho_inner`` and ``rho_outer`` must have the same interpolation
+  mode to simplify the validation test ``rho_inner < rho_outer`` at all times.
 
 ``apply_outer_patch`` (**time-varying-scalar** [default = False])
   If ``True``, set a patch for outer core transport coefficients above
@@ -862,8 +868,10 @@ transport model.
 ``chi_e_outer`` (**time-varying-scalar** [default = 1.0])
   Electron heat conduction value for outer transport patch.
 
-``rho_outer`` (float [default = 0.9])
+``rho_outer`` (**time-varying-scalar** [default = 0.9])
   :math:`\hat{\rho}` above which outer patch is applied.
+  Note that ``rho_inner`` and ``rho_outer`` must have the same interpolation
+  mode to simplify the validation test ``rho_inner < rho_outer`` at all times.
 
 
 constant

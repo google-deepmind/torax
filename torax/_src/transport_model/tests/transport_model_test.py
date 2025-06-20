@@ -31,43 +31,6 @@ from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-class TestDynamicRuntimeParams(parameterized.TestCase):
-  """Tests transport model DynamicRuntimeParams."""
-
-  def setUp(self):
-    super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
-        'transport'
-    ].annotation |= FakeTransportConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
-
-  @parameterized.parameters(
-      (0.2, 0.8, 0.2, 0.8), (0.8, 0.2, 0.2, 0.8), (0.2, 0.8, 0.8, 0.2)
-  )
-  def test_post_init(self, rho_min, rho_max, rho_inner, rho_outer):
-    """Tests that the post_init method works as expected."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'fake',
-        'rho_min': rho_min,
-        'rho_max': rho_max,
-        'rho_inner': rho_inner,
-        'rho_outer': rho_outer,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-
-    if rho_min > rho_max or rho_inner > rho_outer:
-      with self.assertRaises(RuntimeError):
-        torax_config.transport.build_dynamic_params(
-            t=torax_config.numerics.t_initial
-        )
-    else:
-      torax_config.transport.build_dynamic_params(
-          t=torax_config.numerics.t_initial
-      )
-
-
 class TransportSmoothingTest(parameterized.TestCase):
   """Tests Gaussian smoothing in the `torax.transport_model` package."""
 

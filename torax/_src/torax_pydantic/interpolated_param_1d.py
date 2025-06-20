@@ -138,7 +138,11 @@ def _interval(
     lower_bound: float,
     upper_bound: float,
 ) -> TimeVaryingScalar:
-  if not np.all(lower_bound <= time_varying_scalar.value <= upper_bound):
+  """Validates that values are in the interval [lower_bound, upper_bound]."""
+  if not np.all(
+      (time_varying_scalar.value >= lower_bound)
+      & (time_varying_scalar.value <= upper_bound)
+  ):
     raise ValueError(
         'All values must be less than %f and greater than %f.'
         % (upper_bound, lower_bound)
