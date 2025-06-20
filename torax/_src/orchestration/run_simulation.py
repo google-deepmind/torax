@@ -113,6 +113,19 @@ def prepare_simulation(
             step_fn=step_fn,
         )
     )
+    restart_case = True
+  else:
+    initial_state, post_processed_outputs = (
+        initial_state_lib.get_initial_state_and_post_processed_outputs(
+            t=torax_config.numerics.t_initial,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=geometry_provider,
+            step_fn=step_fn,
+        )
+    )
+    restart_case = False
+
 
   return (
       static_runtime_params_slice,
