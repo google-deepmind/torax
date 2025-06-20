@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
-import os
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.output_tools import output
@@ -34,20 +31,25 @@ _ALL_PROFILES = (
 class SimExperimentalCompileTest(sim_test_case.SimTestCase):
 
   @parameterized.named_parameters(
+      # Using newton raphson non linear solver.
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
+      ),
+      # Using linear solver.
+      (
+          'test_iterhybrid_predictor_corrector',
+          'test_iterhybrid_predictor_corrector.py',
       ),
   )
   def test_run_simulation_experimental_compile(
       self,
       config_name: str,
   ):
-    with mock.patch.dict(os.environ, {'EXPERIMENTAL_COMPILE': 'True'}):
-      self._test_run_simulation(
-          config_name,
-          profiles=_ALL_PROFILES,
-      )
+    self._test_run_simulation(
+        config_name,
+        profiles=_ALL_PROFILES,
+    )
 
 
 if __name__ == '__main__':

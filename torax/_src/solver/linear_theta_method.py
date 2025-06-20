@@ -13,8 +13,11 @@
 # limitations under the License.
 
 """The LinearThetaMethod solver class."""
+import functools
+
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
@@ -28,6 +31,14 @@ from torax._src.sources import source_profiles
 class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
+  @functools.partial(
+      xnp.jit,
+      static_argnames=[
+          'self',
+          'static_runtime_params_slice',
+          'evolving_names',
+      ],
+  )
   def _x_new(
       self,
       dt: jax.Array,
