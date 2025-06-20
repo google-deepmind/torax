@@ -49,10 +49,10 @@ class CollisionsTest(parameterized.TestCase):
       dict(T_e_ev=1.0, n_e=1.0, expected=31.3),
       dict(T_e_ev=np.exp(8), n_e=np.exp(42), expected=18.3),
   ])
-  def test_calculate_lambda_ei(self, T_e_ev, n_e, expected):
+  def test_calculate_log_lambda_ei(self, T_e_ev, n_e, expected):
     T_e_kev = jnp.array(T_e_ev / 1e3)
     n_e = jnp.array(n_e)
-    result = collisions.calculate_lambda_ei(T_e_kev, n_e)
+    result = collisions.calculate_log_lambda_ei(T_e_kev, n_e)
     np.testing.assert_allclose(result, expected)
 
   @parameterized.parameters([
@@ -61,11 +61,11 @@ class CollisionsTest(parameterized.TestCase):
           T_i_ev=np.exp(8), n_i=np.exp(42), Z_i=np.exp(1), expected=18.0
       ),
   ])
-  def test_calculate_lambda_ii(self, T_i_ev, n_i, Z_i, expected):
+  def test_calculate_log_lambda_ii(self, T_i_ev, n_i, Z_i, expected):
     T_i_kev = jnp.array(T_i_ev / 1e3)
     n_i = jnp.array(n_i)
     Z_i = jnp.array(Z_i)
-    result = collisions.calculate_lambda_ii(T_i_kev, n_i, Z_i)
+    result = collisions.calculate_log_lambda_ii(T_i_kev, n_i, Z_i)
     np.testing.assert_allclose(result, expected, atol=1e-6)
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
