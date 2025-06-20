@@ -90,14 +90,14 @@ class StateHistoryTest(parameterized.TestCase):
     static_slice = build_runtime_params.build_static_params_from_config(
         self.torax_config
     )
-    source_models = self.torax_config.sources.build_models(
-        neoclassical=self.torax_config.neoclassical,
-    )
+    source_models = self.torax_config.sources.build_models()
+    neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=self.geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     self.core_transport = state.CoreTransport.zeros(self.geo)
     self.source_models = source_models

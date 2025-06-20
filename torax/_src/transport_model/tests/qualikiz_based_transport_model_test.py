@@ -39,9 +39,8 @@ def _get_config_and_model_inputs(
   config = default_configs.get_default_config_dict()
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
@@ -58,6 +57,7 @@ def _get_config_and_model_inputs(
       static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
   )
   return torax_config, (dynamic_runtime_params_slice, geo, core_profiles)
 

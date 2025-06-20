@@ -80,6 +80,7 @@ class NonlinearThetaMethod(solver.Solver):
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
         evolving_names=evolving_names,
     )
     (
@@ -201,6 +202,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         pedestal_model=self.pedestal_model,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
@@ -259,6 +261,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         pedestal_model=self.pedestal_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         log_iterations=solver_params.log_iterations,

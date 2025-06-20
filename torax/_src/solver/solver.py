@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
@@ -42,6 +43,8 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
+    neoclassical_models: A NeoclassicalModels container, calculating
+      neoclassical models like conductivity, bootstrap_current, etc.
     static_runtime_params_slice: Static runtime parameters. Input params that
       trigger recompilation when they change. These don't have to be
       JAX-friendly types and can be used in control-flow logic.
@@ -53,10 +56,12 @@ class Solver(abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ):
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.neoclassical_models = neoclassical_models
     self.static_runtime_params_slice = static_runtime_params_slice
 
   @functools.cached_property

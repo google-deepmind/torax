@@ -23,6 +23,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import solver
 from torax._src.sources import source_models as source_models_lib
@@ -44,14 +45,16 @@ class SawtoothModel(solver.Solver):
       trigger_model: trigger_base.TriggerModel,
       redistribution_model: redistribution_base.RedistributionModel,
       transport_model: transport_model_lib.TransportModel,
-      pedestal_model: pedestal_model_lib.PedestalModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ):
     super().__init__(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
     self._trigger_model = trigger_model
     self._redistribution_model = redistribution_model

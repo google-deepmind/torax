@@ -57,13 +57,14 @@ class CombinedTransportModelTest(absltest.TestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
     )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
-        torax_config.sources.build_models(
-            neoclassical=torax_config.neoclassical
-        ),
+        source_models,
+        neoclassical_models,
     )
     mock_pedestal_outputs = mock.create_autospec(
         pedestal_model.PedestalModelOutput,

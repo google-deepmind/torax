@@ -29,15 +29,11 @@ class SourceModelsTest(parameterized.TestCase):
     self.default_neoclassical_config = (
         neoclassical_pydantic_model.Neoclassical.from_dict({})
     )
-    self.default_source_model = self.default_sources_config.build_models(
-        self.default_neoclassical_config
-    )
+    self.default_source_model = self.default_sources_config.build_models()
 
   def test_equal_hash_and_eq_same_config(self):
 
-    test_source_model = self.default_sources_config.build_models(
-        self.default_neoclassical_config
-    )
+    test_source_model = self.default_sources_config.build_models()
 
     self.assertEqual(self.default_source_model, test_source_model)
     self.assertEqual(hash(self.default_source_model), hash(test_source_model))
@@ -49,29 +45,10 @@ class SourceModelsTest(parameterized.TestCase):
     modified_sources_config = sources_pydantic_model.Sources.from_dict(
         modified_sources_dict
     )
-    test_source_model = modified_sources_config.build_models(
-        self.default_neoclassical_config
-    )
+    test_source_model = modified_sources_config.build_models()
 
     self.assertEqual(self.default_source_model, test_source_model)
     self.assertEqual(hash(self.default_source_model), hash(test_source_model))
-
-  def test_hash_and_eq_different_with_different_bootstrap_current(self):
-
-    # Modify the neoclassical config
-    modified_neoclassical_config = (
-        neoclassical_pydantic_model.Neoclassical.from_dict(
-            {'bootstrap_current': {}}
-        )
-    )
-    test_source_model = self.default_sources_config.build_models(
-        modified_neoclassical_config
-    )
-
-    self.assertNotEqual(self.default_source_model, test_source_model)
-    self.assertNotEqual(
-        hash(self.default_source_model), hash(test_source_model)
-    )
 
   def test_hash_and_eq_different_with_different_standard_source(self):
 
@@ -81,9 +58,7 @@ class SourceModelsTest(parameterized.TestCase):
     modified_sources_config = sources_pydantic_model.Sources.from_dict(
         modified_sources_dict
     )
-    test_source_model = modified_sources_config.build_models(
-        self.default_neoclassical_config
-    )
+    test_source_model = modified_sources_config.build_models()
 
     self.assertNotEqual(self.default_source_model, test_source_model)
     self.assertNotEqual(

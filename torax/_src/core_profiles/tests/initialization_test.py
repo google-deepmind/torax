@@ -23,6 +23,7 @@ from torax._src import math_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
@@ -85,9 +86,8 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -102,6 +102,7 @@ class InitializationTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
 
     np.testing.assert_allclose(
@@ -141,9 +142,8 @@ class InitializationTest(parameterized.TestCase):
         initial_psi_from_j=True,
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
 
     torax_config.update_fields({'profile_conditions': profile_conditions1})
     (
@@ -153,11 +153,11 @@ class InitializationTest(parameterized.TestCase):
         j_ohmic1,
         _,
         _,
-    ) = _calculate_currents(torax_config, source_models)
+    ) = _calculate_currents(torax_config, source_models, neoclassical_models)
 
     torax_config.update_fields({'profile_conditions': profile_conditions2})
     j_total2, j_total_face2, _, j_ohmic2, _, geo = _calculate_currents(
-        torax_config, source_models
+        torax_config, source_models, neoclassical_models
     )
 
     # calculate total and Ohmic current profile references
@@ -264,11 +264,10 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources1,
         'neoclassical': neoclassical_1,
     })
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     j_total1, _, _, j_ohmic1, _, _ = _calculate_currents(
-        torax_config, source_models
+        torax_config, source_models, neoclassical_models
     )
 
     profile_conditions2 = dict(
@@ -293,11 +292,10 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources2,
         'neoclassical': neoclassical_2,
     })
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     _, _, _, j_ohmic2, j_bootstrap2, _ = _calculate_currents(
-        torax_config, source_models
+        torax_config, source_models, neoclassical_models
     )
 
     # In Case 1, all the current should be Ohmic current.
@@ -333,13 +331,16 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    jtotal1, _, _, _, _, _ = _calculate_currents(
+        torax_config, source_models, neoclassical_models
     )
-    jtotal1, _, _, _, _, _ = _calculate_currents(torax_config, source_models)
 
     torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
-    jtotal2, _, _, _, _, _ = _calculate_currents(torax_config, source_models)
+    jtotal2, _, _, _, _, _ = _calculate_currents(
+        torax_config, source_models, neoclassical_models
+    )
 
     np.testing.assert_allclose(jtotal1, jtotal2)
 
@@ -347,6 +348,7 @@ class InitializationTest(parameterized.TestCase):
 def _calculate_currents(
     torax_config: model_config.ToraxConfig,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
 ) -> tuple[
     jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, geometry.Geometry
 ]:
@@ -371,8 +373,9 @@ def _calculate_currents(
       static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
   )
-  conductivity = source_models.conductivity.calculate_conductivity(
+  conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
@@ -381,6 +384,7 @@ def _calculate_currents(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       conductivity=conductivity,
   )
   j_total = core_profiles.j_total

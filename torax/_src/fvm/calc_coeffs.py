@@ -26,6 +26,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
@@ -43,12 +44,14 @@ class CoeffsCallback:
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
       evolving_names: tuple[str, ...],
       pedestal_model: pedestal_model_lib.PedestalModel,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.source_models = source_models
+    self.neoclassical_models = neoclassical_models
     self.evolving_names = evolving_names
     self.pedestal_model = pedestal_model
 
@@ -57,6 +60,7 @@ class CoeffsCallback:
         self.static_runtime_params_slice,
         self.transport_model,
         self.source_models,
+        self.neoclassical_models,
         self.evolving_names,
         self.pedestal_model,
     ))
@@ -66,6 +70,7 @@ class CoeffsCallback:
         self.static_runtime_params_slice == other.static_runtime_params_slice
         and self.transport_model == other.transport_model
         and self.source_models == other.source_models
+        and self.neoclassical_models == other.neoclassical_models
         and self.evolving_names == other.evolving_names
         and self.pedestal_model == other.pedestal_model
     )
@@ -137,6 +142,7 @@ class CoeffsCallback:
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
@@ -238,6 +244,7 @@ def calc_coeffs(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
@@ -265,6 +272,8 @@ def calc_coeffs(
     source_models: All TORAX source/sink functions that generate the explicit
       and implicit source profiles used as terms for the core profiles
       equations.
+    neoclassical_models: Neoclassical models for the time step. These include
+      the conductivity model, bootstrap current, etc.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
@@ -295,6 +304,7 @@ def calc_coeffs(
         transport_model,
         explicit_source_profiles,
         source_models,
+        neoclassical_models,
         pedestal_model,
         evolving_names,
         use_pereverzev,
@@ -308,6 +318,7 @@ def calc_coeffs(
         'transport_model',
         'pedestal_model',
         'source_models',
+        'neoclassical_models',
         'evolving_names',
     ],
 )
@@ -319,6 +330,7 @@ def _calc_coeffs_full(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
@@ -345,6 +357,8 @@ def _calc_coeffs_full(
     source_models: All TORAX source/sink functions that generate the explicit
       and implicit source profiles used as terms for the core profiles
       equations.
+    neoclassical_models: Neoclassical models for the time step. These include
+      the conductivity model, bootstrap current, etc.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
@@ -371,13 +385,14 @@ def _calc_coeffs_full(
       .set(True)
   )
 
-  conductivity = source_models.conductivity.calculate_conductivity(
+  conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo, core_profiles
   )
 
   # Calculate the implicit source profiles and combines with the explicit
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,

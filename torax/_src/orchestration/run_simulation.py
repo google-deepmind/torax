@@ -69,9 +69,9 @@ def prepare_simulation(
   pedestal_model = torax_config.pedestal.build_pedestal_model()
 
   geometry_provider = torax_config.geometry.build_provider
-  source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  source_models = torax_config.sources.build_models()
+
+  neoclassical_models = torax_config.neoclassical.build_models()
 
   static_runtime_params_slice = (
       build_runtime_params.build_static_params_from_config(torax_config)
@@ -82,6 +82,7 @@ def prepare_simulation(
       transport_model=transport_model,
       source_models=source_models,
       pedestal_model=pedestal_model,
+      neoclassical_models=neoclassical_models,
   )
 
   mhd_models = torax_config.mhd.build_mhd_models(
@@ -89,6 +90,7 @@ def prepare_simulation(
       transport_model=transport_model,
       source_models=source_models,
       pedestal_model=pedestal_model,
+      neoclassical_models=neoclassical_models,
   )
 
   step_fn = step_function.SimulationStepFn(

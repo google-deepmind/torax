@@ -70,14 +70,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
@@ -244,14 +244,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(

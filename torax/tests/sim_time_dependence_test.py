@@ -27,6 +27,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
@@ -166,6 +167,7 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
       transport_model,
       source_models,
       pedestal_model,
+      neoclassical_models,
   ) -> 'FakeSolver':
     return FakeSolver(
         param=self.param,
@@ -174,6 +176,7 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
         inner_solver_iterations=self.inner_solver_iterations,
     )
 
@@ -202,12 +205,14 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
       inner_solver_iterations: list[int] | None = None,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.neoclassical_models = neoclassical_models
     self._param = param
     self._max_value = max_value
     self._inner_solver_iterations = (

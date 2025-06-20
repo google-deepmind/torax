@@ -52,9 +52,8 @@ def _get_model_and_model_inputs(
       'set_pedestal': True,
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
@@ -71,6 +70,7 @@ def _get_model_and_model_inputs(
       static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
   pedestal_model_outputs = pedestal_model(

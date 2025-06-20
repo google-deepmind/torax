@@ -55,9 +55,8 @@ class QualikizTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {'model_name': 'qualikiz'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -74,6 +73,7 @@ class QualikizTransportModelTest(absltest.TestCase):
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
 
     # Mocking the actual call to QuaLiKiz and its results.

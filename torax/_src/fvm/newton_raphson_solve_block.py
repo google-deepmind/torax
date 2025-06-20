@@ -34,6 +34,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_models as source_models_lib
@@ -92,6 +93,7 @@ def newton_raphson_solve_block(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
@@ -158,6 +160,8 @@ def newton_raphson_solve_block(
       sources in the PDE.
     source_models: Collection of source callables to generate source PDE
       coefficients.
+    neoclassical_models: Collection of neoclassical models for calculating
+      conductivity, bootstrap current, etc.
     pedestal_model: Model of the pedestal's behavior.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
@@ -253,6 +257,7 @@ def newton_raphson_solve_block(
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_model=pedestal_model,
@@ -270,6 +275,7 @@ def newton_raphson_solve_block(
       pedestal_model=pedestal_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       coeffs_old=coeffs_old,
   )
 

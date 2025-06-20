@@ -31,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import base as mhd_base
 from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -170,6 +171,7 @@ class SimulationStepFn:
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self.solver.source_models,
+        neoclassical_models=self.solver.neoclassical_models,
         explicit=True,
     )
 
@@ -292,6 +294,7 @@ class SimulationStepFn:
         geometry_t_plus_dt=geo_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.solver.source_models,
+        neoclassical_models=self.solver.neoclassical_models,
         pedestal_model=self.solver.pedestal_model,
         transport_model=self.solver.transport_model,
         core_profiles_t=input_state.core_profiles,
@@ -620,6 +623,7 @@ class SimulationStepFn:
         'source_models',
         'pedestal_model',
         'transport_model',
+        'neoclassical_models',
     ],
 )
 def _finalize_outputs(
@@ -634,6 +638,7 @@ def _finalize_outputs(
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     evolving_names: tuple[str, ...],
@@ -651,6 +656,7 @@ def _finalize_outputs(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           evolving_names=evolving_names,
       )
   )
@@ -795,6 +801,7 @@ def _sawtooth_step(
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
         source_models=sawtooth_solver.source_models,
+        neoclassical_models=sawtooth_solver.neoclassical_models,
         pedestal_model=sawtooth_solver.pedestal_model,
         transport_model=sawtooth_solver.transport_model,
         evolving_names=sawtooth_solver.evolving_names,

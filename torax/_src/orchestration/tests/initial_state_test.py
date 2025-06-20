@@ -141,9 +141,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
 def _get_step_fn(torax_config):
   solver = mock.MagicMock()
-  solver.source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  solver.source_models = torax_config.sources.build_models()
+  solver.neoclassical_models = torax_config.neoclassical.build_models()
   return mock.create_autospec(step_function.SimulationStepFn, solver=solver)
 
 

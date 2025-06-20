@@ -20,6 +20,7 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source as source_lib
@@ -36,6 +37,7 @@ _FINAL_SOURCES = frozenset(
     jax_utils.jit,
     static_argnames=[
         'source_models',
+        'neoclassical_models',
         'static_runtime_params_slice',
         'explicit',
     ],
@@ -46,6 +48,7 @@ def build_source_profiles(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     explicit: bool,
     explicit_source_profiles: source_profiles.SourceProfiles | None = None,
     conductivity: conductivity_base.Conductivity | None = None,
@@ -62,6 +65,7 @@ def build_source_profiles(
       (if explicit) or the live profiles being evolved during the time step (if
       implicit).
     source_models: Functions computing profiles for all TORAX sources/sinks.
+    neoclassical_models: Functions computing neoclassical physics.
     explicit: If True, this function will only return profiles for explicit
       sources. If False, then the explicit_source_profiles argument must be
       provided and the returned profiles will be the union of the explicit
@@ -72,8 +76,8 @@ def build_source_profiles(
     explicit_source_profiles: If explicit is False, this argument must be
       provided. It will be used to compute the union of the explicit profiles
       and the implicit profiles computed here.
-    conductivity: Conductivity calculated for this time step. Not provided
-      when calculating the explicit profiles.
+    conductivity: Conductivity calculated for this time step. Not provided when
+      calculating the explicit profiles.
 
   Returns:
     SourceProfiles caclulated from the source models. If explicit is True, then
@@ -97,7 +101,7 @@ def build_source_profiles(
         core_profiles=core_profiles,
     )
     bootstrap_current = (
-        source_models.bootstrap_current.calculate_bootstrap_current(
+        neoclassical_models.bootstrap_current.calculate_bootstrap_current(
             dynamic_runtime_params_slice, geo, core_profiles
         )
     )
@@ -136,6 +140,7 @@ def build_standard_source_profiles(
     psi_only: bool = False,
 ):
   """Updates calculated_source_profiles with standard source profiles."""
+
   def calculate_source(source_name, source):
     static_source_runtime_params = static_runtime_params_slice.sources[
         source_name
@@ -204,7 +209,8 @@ def _update_standard_source_profiles(
     profile: The profile of the source.
   """
   for profile, affected_core_profile in zip(
-      profile, affected_core_profiles, strict=True):
+      profile, affected_core_profiles, strict=True
+  ):
     match affected_core_profile:
       case source_lib.AffectedCoreProfile.PSI:
         calculated_source_profiles.psi[source_name] = profile
@@ -232,6 +238,7 @@ def get_all_source_profiles(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     conductivity: conductivity_base.Conductivity,
 ) -> source_profiles.SourceProfiles:
   """Returns all source profiles for a given time.
@@ -248,6 +255,7 @@ def get_all_source_profiles(
     core_profiles: Core profiles that may evolve throughout the course of a
       simulation. These values here are, of course, only the original states.
     source_models: Source models used to compute core source profiles.
+    neoclassical_models: Neoclassical models.
     conductivity: Conductivity calculated for this time step.
 
   Returns:
@@ -261,6 +269,7 @@ def get_all_source_profiles(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   return build_source_profiles(
@@ -269,6 +278,7 @@ def get_all_source_profiles(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
       conductivity=conductivity,

@@ -20,6 +20,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.mhd import base
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -43,6 +44,7 @@ class MHD(torax_pydantic.BaseModelFrozen):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> base.MHDModels:
     """Builds and returns a container with instantiated MHD model objects."""
     if self.sawtooth is None:
@@ -53,6 +55,7 @@ class MHD(torax_pydantic.BaseModelFrozen):
           transport_model=transport_model,
           source_models=source_models,
           pedestal_model=pedestal_model,
+          neoclassical_models=neoclassical_models,
       )
     return base.MHDModels(sawtooth=sawtooth_model)
 
