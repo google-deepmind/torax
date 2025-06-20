@@ -35,6 +35,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 constants = constants_module.CONSTANTS
@@ -261,7 +262,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),
