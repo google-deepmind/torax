@@ -17,13 +17,14 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params
+from torax._src.physics import collisions
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
@@ -62,6 +63,7 @@ class SauterModel(base.ConductivityModel):
 
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
+
   model_name: Literal['sauter'] = 'sauter'
 
   def build_dynamic_params(self) -> DynamicRuntimeParams:
@@ -83,38 +85,26 @@ def _calculate_conductivity(
   """Calculates sigma and sigma_face using the Sauter model."""
   # pylint: disable=invalid-name
 
-  # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
-  # corrections.
+  # Formulas from Sauter PoP 1999.
 
-  # # local r/R0 on face grid
-  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
-  epseff = (
-      0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
-  )
-  aa = (1.0 - epsilon) / (1.0 + epsilon)
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  # Effective trapped particle fraction
+  ftrap = formulas.calculate_ftrap(geo)
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
-  lnLame = (
-      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
-  )
+  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
 
   sigsptz = (
-      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
+      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lambda_ei
   )
 
-  nu_e_star = (
-      6.921e-18
-      * q_face
-      * geo.R_major
-      * n_e.face_value()
-      * Z_eff_face
-      * lnLame
-      / (
-          ((T_e.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
+  nu_e_star = formulas.calculate_nu_e_star(
+      q=q_face,
+      geo=geo,
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
+      Z_eff=Z_eff_face,
+      lambda_ei=lambda_ei,
   )
 
   # Neoclassical correction to spitzer conductivity

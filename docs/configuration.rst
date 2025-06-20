@@ -1691,6 +1691,14 @@ conductivity
   The name of the Sauter model to use. If not provided, the default is to use
   the Sauter model with default values.
 
+transport
+^^^^^^^^^
+``model_name`` (str [default = 'zeros'])
+  The name of the neoclassical transport model. Currently, only the `zeros`
+  model is supported, which sets all neoclassical transport coefficients to
+  zero. This is a placeholder for future implementations of neoclassical
+  transport models.
+
 
 Additional Notes
 ================

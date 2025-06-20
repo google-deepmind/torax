@@ -53,7 +53,7 @@ def coll_exchange(
     Qei_coeff: ion-electron collisional heat exchange coefficient.
   """
   # Calculate Coulomb logarithm
-  lambda_ei = _calculate_lambda_ei(
+  lambda_ei = calculate_lambda_ei(
       core_profiles.T_e.value, core_profiles.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
@@ -98,7 +98,7 @@ def calc_nu_star(
   """
 
   # Calculate Coulomb logarithm
-  lambda_ei_face = _calculate_lambda_ei(
+  lambda_ei_face = calculate_lambda_ei(
       core_profiles.T_e.face_value(),
       core_profiles.n_e.face_value(),
   )
@@ -179,7 +179,7 @@ def fast_ion_fractional_heating_formula(
   return frac_i
 
 
-def _calculate_lambda_ei(
+def calculate_lambda_ei(
     T_e: jax.Array,
     n_e: jax.Array,
 ) -> jax.Array:
@@ -194,7 +194,31 @@ def _calculate_lambda_ei(
   Returns:
     Coulomb logarithm.
   """
-  return 15.2 - 0.5 * jnp.log(n_e / 1e20) + jnp.log(T_e)
+  # Rescale T_e to eV for specific form of formula.
+  T_e_ev = T_e * 1e3
+  return 31.3 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
+
+
+def calculate_lambda_ii(
+    T_i: jax.Array,
+    n_i: jax.Array,
+    Z_i: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for ion-ion collisions.
+
+  Formula 18e in Sauter PoP 1999. See also NRL formulary 2013, page 34.
+
+  Args:
+    T_i: Electron temperature in keV.
+    n_i: Electron density in m^-3.
+    Z_i: Ion charge [dimensionless].
+
+  Returns:
+    Coulomb logarithm.
+  """
+  # Rescale T_i to eV for specific form of formula.
+  T_i_ev = T_i * 1e3
+  return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
