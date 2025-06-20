@@ -17,14 +17,15 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import formulas
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params
+from torax._src.physics import collisions
 
 
 @chex.dataclass(frozen=True)
@@ -109,48 +110,29 @@ def _calculate_bootstrap_current(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  # local r/R0 on face grid
-  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
-  epseff = (
-      0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
-  )
-  aa = (1.0 - epsilon) / (1.0 + epsilon)
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  # Effective trapped particle fraction
+  ftrap = formulas.calculate_ftrap(geo)
 
   # Spitzer conductivity
-  lnLame = (
-      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
+  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
+  lambda_ii = collisions.calculate_lambda_ii(
+      T_i.face_value(), n_i.face_value(), Z_i_face
   )
-  lnLami = (
-      30
-      - 3 * jnp.log(Z_i_face)
-      - 0.5 * jnp.log(n_i.face_value())
-      + 1.5 * jnp.log(T_i.face_value() * 1e3)
+  nu_e_star = formulas.calculate_nu_e_star(
+      q=q_face,
+      geo=geo,
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
+      Z_eff=Z_eff_face,
+      lambda_ei=lambda_ei,
   )
-
-  nu_e_star = (
-      6.921e-18
-      * q_face
-      * geo.R_major
-      * n_e.face_value()
-      * Z_eff_face
-      * lnLame
-      / (
-          ((T_e.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
-  )
-  nu_i_star = (
-      4.9e-18
-      * q_face
-      * geo.R_major
-      * n_i.face_value()
-      * Z_eff_face**4
-      * lnLami
-      / (
-          ((T_i.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=q_face,
+      geo=geo,
+      n_i=n_i.face_value(),
+      T_i=T_i.face_value(),
+      Z_eff=Z_eff_face,
+      lambda_ii=lambda_ii,
   )
 
   # Calculate terms needed for bootstrap current
