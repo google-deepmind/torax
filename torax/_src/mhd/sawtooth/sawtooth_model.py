@@ -69,8 +69,6 @@ class SawtoothModel(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles_lib.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -97,8 +95,6 @@ class SawtoothModel(solver.Solver):
       core_profiles_t: Core profiles at time t.
       core_profiles_t_plus_dt: Core profiles containing boundary conditions and
         prescribed profiles at time t + crash_dt.
-      core_sources_t: Source profiles at time t.
-      core_transport_t: Transport coefficients at time t.
       explicit_source_profiles: Explicit source profiles at time t.
       evolving_names: Names of evolving variables.
 

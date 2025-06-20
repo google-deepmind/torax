@@ -232,8 +232,6 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],

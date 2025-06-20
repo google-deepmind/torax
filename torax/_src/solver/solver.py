@@ -88,8 +88,6 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -112,8 +110,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input params). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
@@ -144,8 +140,6 @@ class Solver(abc.ABC):
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_sources_t=core_sources_t,
-          core_transport_t=core_transport_t,
           explicit_source_profiles=explicit_source_profiles,
           evolving_names=self.evolving_names,
       )
@@ -168,8 +162,6 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -198,8 +190,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
 

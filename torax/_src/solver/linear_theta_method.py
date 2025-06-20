@@ -38,8 +38,6 @@ class LinearThetaMethod(solver_lib.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -47,9 +45,6 @@ class LinearThetaMethod(solver_lib.Solver):
       state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
-
-    # Not used in this implementation.
-    del core_sources_t, core_transport_t
 
     x_old = convertors.core_profiles_to_solver_x_tuple(
         core_profiles_t, evolving_names

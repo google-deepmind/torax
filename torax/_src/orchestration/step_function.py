@@ -433,8 +433,6 @@ class SimulationStepFn:
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        core_sources_t=input_state.core_sources,
-        core_transport_t=input_state.core_transport,
         explicit_source_profiles=explicit_source_profiles,
     )
 
@@ -569,8 +567,6 @@ class SimulationStepFn:
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_sources_t=input_state.core_sources,
-          core_transport_t=input_state.core_transport,
           explicit_source_profiles=explicit_source_profiles,
       )
       solver_numeric_outputs = state.SolverNumericOutputs(
@@ -761,8 +757,6 @@ def _sawtooth_step(
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-      core_sources_t=input_state.core_sources,
-      core_transport_t=input_state.core_transport,
       explicit_source_profiles=explicit_source_profiles,
   )
 
