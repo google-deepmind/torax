@@ -259,6 +259,7 @@ class SimulationStepFn:
           dt,
           solver_numeric_outputs,
           dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
       ) = self._adaptive_step(
           x_new,
           dt,
@@ -268,6 +269,7 @@ class SimulationStepFn:
           dynamic_runtime_params_slice_t_plus_dt,
           dynamic_runtime_params_slice_provider,
           geo_t,
+          geo_t_plus_dt,
           geometry_provider,
           input_state,
           explicit_source_profiles,
@@ -447,6 +449,7 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: sim_state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -455,6 +458,7 @@ class SimulationStepFn:
       jax.Array,
       state.SolverNumericOutputs,
       runtime_params_slice.DynamicRuntimeParamsSlice,
+      geometry.Geometry,
   ]:
     """Performs adaptive time stepping until solver converges.
 
@@ -471,11 +475,12 @@ class SimulationStepFn:
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
-        Used if a no-op and the original dynamic runtime params slice is
-        returned.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t +
+        dt.
       dynamic_runtime_params_slice_provider: Runtime parameters slice provider.
       geo_t: The geometry of the torus during this time step of the simulation.
+      geo_t_plus_dt: The geometry of the torus during the next time step of the
+        simulation.
       geometry_provider: Provides geometry during the next time step of the
         simulation.
       input_state: State at the start of the time step, including the core
@@ -491,6 +496,7 @@ class SimulationStepFn:
           outputs.
         - Dynamic runtime params at time t + dt, where dt is the actual time
           step used.
+        - Geometry at time t + dt, where dt is the actual time step used.
     """
     core_profiles_t = input_state.core_profiles
 
@@ -501,6 +507,7 @@ class SimulationStepFn:
             jax.Array,  # dt
             state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
+            geometry.Geometry,
         ],
     ) -> bool:
       if updated_output[2].solver_error_state == 1:
@@ -518,14 +525,16 @@ class SimulationStepFn:
             jax.Array,  # dt
             state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
+            geometry.Geometry,
         ],
     ) -> tuple[
         tuple[cell_variable.CellVariable, ...],
         jax.Array,  # dt
         state.SolverNumericOutputs,
         runtime_params_slice.DynamicRuntimeParamsSlice,
+        geometry.Geometry,
     ]:
-      _, old_dt, old_solver_outputs, old_slice = updated_output
+      _, old_dt, old_solver_outputs, old_slice, _ = updated_output
       numerics = old_slice.numerics
 
       dt = old_dt / numerics.dt_reduction_factor
@@ -583,6 +592,7 @@ class SimulationStepFn:
           dt,
           solver_numeric_outputs,
           dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
       )
 
     # Iteratively apply the adaptive time step until the solver converges.
@@ -593,6 +603,7 @@ class SimulationStepFn:
         dt,
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
     ) = xnp.py_while(
         cond_fun,
         body_fun,
@@ -600,7 +611,9 @@ class SimulationStepFn:
             x_old,
             dt,
             solver_numeric_outputs,
+            # t_plus_dt is used as template for pytree structure.
             dynamic_runtime_params_slice_t_plus_dt,
+            geo_t_plus_dt,
         ),
     )
 
@@ -609,6 +622,7 @@ class SimulationStepFn:
         dt,
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
     )
 
 
