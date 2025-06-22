@@ -286,8 +286,8 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
-    return state.CoreTransport.zeros(geo)
+  ) -> transport_model_lib.TurbulentTransport:
+    return transport_model_lib.TurbulentTransport.zeros(geo)
 
   def __hash__(self) -> int:
     return hash(self.__class__.__name__)

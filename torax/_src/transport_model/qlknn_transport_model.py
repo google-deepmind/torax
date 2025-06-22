@@ -31,6 +31,7 @@ from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
@@ -191,7 +192,7 @@ class QLKNNTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -222,7 +223,7 @@ class QLKNNTransportModel(
       runtime_config_inputs: QLKNNRuntimeConfigInputs,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     """Actual implementation of `__call__`.
 
     `__call__` itself is just a cache dispatch wrapper.

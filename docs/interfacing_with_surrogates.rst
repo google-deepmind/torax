@@ -21,14 +21,14 @@ tensors for the neural network.
           dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
           geo: geometry.Geometry,
           core_profiles: state.CoreProfiles,
-      ) -> state.CoreTransport:
+      ) -> TurbulentTransport:
         input_tensor = self._prepare_input(dynamic_runtime_params_slice, geo, core_profiles)
 
         output_tensor = self._call_surrogate_model(input_tensor)
 
         chi_i, chi_e, d_e, v_e = self._parse_output(output_tensor)
 
-        return state.CoreTransport(
+        return TurbulentTransport(
             chi_face_ion=chi_i,
             chi_face_electron=chi_e,
             d_e=d_e,

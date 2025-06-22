@@ -336,7 +336,7 @@ class SimulationStepFn:
     # Solver / CoeffsCallback. We should still refactor the design to more
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.
-    transport_coeffs = _calculate_transport_coeffs(
+    turbulent_transport_coeffs = _calculate_transport_coeffs(
         self.solver.pedestal_model,
         self.solver.transport_model,
         dynamic_runtime_params_slice_t,
@@ -344,12 +344,14 @@ class SimulationStepFn:
         input_state.core_profiles,
     )
 
+    total_transport_coeffs = state.CoreTransport(**turbulent_transport_coeffs)
+
     # initialize new dt and reset solver iterations.
     dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        transport_coeffs,
+        total_transport_coeffs,
     )
 
     crosses_t_final = (
@@ -676,18 +678,20 @@ def _finalize_outputs(
       geometry_t_plus_dt,
       final_core_profiles,
   )
-  final_transport = transport_model(
+  final_turbulent_transport = transport_model(
       dynamic_runtime_params_slice_t_plus_dt,
       geometry_t_plus_dt,
       final_core_profiles,
       final_pedestal_output,
   )
+  final_total_transport = state.CoreTransport(**final_turbulent_transport)
+
   output_state = sim_state.ToraxSimState(
       t=t + dt,
       dt=dt,
       core_profiles=final_core_profiles,
       core_sources=final_source_profiles,
-      core_transport=final_transport,
+      core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
   )
@@ -834,7 +838,7 @@ def _calculate_transport_coeffs(
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-) -> state.CoreTransport:
+) -> transport_model_lib.TurbulentTransport:
   """Calculates the transport coefficients."""
   pedestal_model_output = pedestal_model(
       dynamic_runtime_params_slice_t, geo_t, core_profiles_t

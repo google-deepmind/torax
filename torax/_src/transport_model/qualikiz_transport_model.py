@@ -37,6 +37,7 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import transport_model
 
 
 @chex.dataclass(frozen=True)
@@ -74,7 +75,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -190,7 +191,7 @@ class QualikizTransportModel(
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     """Extracts QuaLiKiz run data from runpath."""
 
     # Extract QuaLiKiz outputs

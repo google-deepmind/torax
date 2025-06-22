@@ -53,7 +53,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -141,7 +141,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         d_face_el * transport_dynamic_runtime_params.VR_D_ratio / geo.R_major
     )
 
-    return state.CoreTransport(
+    return transport_model.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,
