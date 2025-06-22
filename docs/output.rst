@@ -137,22 +137,32 @@ These are called out in the list of profiles below, and generate relate to:
   Poloidal cross-sectional area of each flux surface [:math:`m^2`].
 
 ``chi_bohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm component of electron heat conductivity. Only output if active.
+  Bohm component of electron heat turbulent conductivity. Only output if active.
 
 ``chi_bohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm component of ion heat conductivity. Only output if active.
+  Bohm component of ion heat turbulent conductivity. Only output if active.
 
 ``chi_gyrobohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm component of electron heat conductivity. Only output if active.
+  Gyro-Bohm component of electron heat turbulent conductivity. Only output if
+  active.
 
 ``chi_gyrobohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm component of ion heat conductivity. Only output if active.
+  Gyro-Bohm component of ion heat turbulent conductivity. Only output if active.
+
+``chi_neo_e`` (time, rho_face_norm)
+  Neoclassical electron heat conductivity [:math:`m^2/s`].
+
+``chi_neo_i`` (time, rho_face_norm)
+  Neoclassical ion heat conductivity [:math:`m^2/s`].
 
 ``chi_turb_e`` (time, rho_face_norm)
   Total turbulent electron heat conductivity [:math:`m^2/s`].
 
 ``chi_turb_i`` (time, rho_face_norm)
   Total turbulent ion heat conductivity [:math:`m^2/s`].
+
+``D_neo_e`` (time, rho_face_norm)
+  Neoclassical electron particle diffusivity [:math:`m^2/s`].
 
 ``D_turb_e`` (time, rho_face_norm)
   Total turbulent electron particle diffusivity [:math:`m^2/s`].
@@ -348,15 +358,23 @@ These are called out in the list of profiles below, and generate relate to:
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}`
   [:math:`V`].
 
-``V_turb_e`` (time, rho_face_norm)
-  Turbulent electron particle convection [:math:`m/s`].
-
 ``volume`` (time, rho_norm)
   Plasma volume enclosed by each flux surface [:math:`m^3`].
 
 ``vpr`` (time, rho_norm)
   Derivative of plasma volume enclosed by each flux surface with respect to the
   normalized toroidal flux coordinate rho_norm [:math:`m^3`].
+
+``V_neo_e`` (time, rho_face_norm)
+  Neoclassical electron particle convection velocity [:math:`m/s`]. Contains
+  all components apart from the Ware pinch, which is output separately.
+
+``V_turb_e`` (time, rho_face_norm)
+  Turbulent electron particle convection [:math:`m/s`].
+
+``V_neo_ware_e`` (time, rho_face_norm)
+  Ware pinch electron particle convection velocity [:math:`m/s`], i.e. the
+  component of neoclassical convection arising from the parallel electric field.
 
 ``Z_eff`` (time, rho_norm)
   Effective charge profile defined as

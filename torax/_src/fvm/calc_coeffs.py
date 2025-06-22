@@ -450,7 +450,7 @@ def _calc_coeffs_full(
   v_face_el_total = (
       turbulent_transport.v_face_el
       + neoclassical_transport.V_neo_e
-      + neoclassical_transport.V_ware_e
+      + neoclassical_transport.V_neo_ware_e
   )
   d_face_psi = geo.g2g3_over_rhon_face
   # No poloidal flux convection term

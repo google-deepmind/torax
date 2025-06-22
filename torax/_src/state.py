@@ -143,7 +143,7 @@ class CoreTransport:
   chi_neo_e: Optional[jax.Array] = None
   D_neo_e: Optional[jax.Array] = None
   V_neo_e: Optional[jax.Array] = None
-  V_ware_e: Optional[jax.Array] = None
+  V_neo_ware_e: Optional[jax.Array] = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
@@ -164,8 +164,8 @@ class CoreTransport:
       self.D_neo_e = jnp.zeros_like(template)
     if self.V_neo_e is None:
       self.V_neo_e = jnp.zeros_like(template)
-    if self.V_ware_e is None:
-      self.V_ware_e = jnp.zeros_like(template)
+    if self.V_neo_ware_e is None:
+      self.V_neo_ware_e = jnp.zeros_like(template)
 
   def chi_max(
       self,
@@ -201,7 +201,7 @@ class CoreTransport:
         chi_neo_e=jnp.zeros(shape),
         D_neo_e=jnp.zeros(shape),
         V_neo_e=jnp.zeros(shape),
-        V_ware_e=jnp.zeros(shape),
+        V_neo_ware_e=jnp.zeros(shape),
     )
 
 

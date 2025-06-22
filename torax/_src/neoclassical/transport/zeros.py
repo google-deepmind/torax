@@ -37,7 +37,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
         chi_neo_e=jnp.zeros_like(geometry.rho_face),
         D_neo_e=jnp.zeros_like(geometry.rho_face),
         V_neo_e=jnp.zeros_like(geometry.rho_face),
-        V_ware_e=jnp.zeros_like(geometry.rho_face),
+        V_neo_ware_e=jnp.zeros_like(geometry.rho_face),
     )
 
   def __eq__(self, other) -> bool:

@@ -37,15 +37,15 @@ class NeoclassicalTransport:
     D_neo_e: Electron neoclassical particle transport coefficient [m^2/s].
     V_neo_e: Electron neoclassical convection velocity [m/s]. Includes all terms
       apart from the Ware Pinch.
-    V_ware_e: Electron Ware Pinch velocity [m/s]. This is the component of the
-      neoclassical convection that is dependent on the parallel electric field.
-      It is separated from V_neo_e for interpretation convenience.
+    V_neo_ware_e: Electron Ware Pinch velocity [m/s]. This is the component of
+      the neoclassical convection that is dependent on the parallel electric
+      field. It is separated from V_neo_e for interpretation convenience.
   """
   chi_neo_i: jax.Array
   chi_neo_e: jax.Array
   D_neo_e: jax.Array
   V_neo_e: jax.Array
-  V_ware_e: jax.Array
+  V_neo_ware_e: jax.Array
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'NeoclassicalTransport':
@@ -55,7 +55,7 @@ class NeoclassicalTransport:
         chi_neo_e=jnp.zeros_like(geometry.rho_face_norm),
         D_neo_e=jnp.zeros_like(geometry.rho_face_norm),
         V_neo_e=jnp.zeros_like(geometry.rho_face_norm),
-        V_ware_e=jnp.zeros_like(geometry.rho_face_norm),
+        V_neo_ware_e=jnp.zeros_like(geometry.rho_face_norm),
     )
 
 
