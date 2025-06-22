@@ -273,7 +273,7 @@ def calc_coeffs(
       and implicit source profiles used as terms for the core profiles
       equations.
     neoclassical_models: Neoclassical models for the time step. These include
-      the conductivity model, bootstrap current, etc.
+      the conductivity model, bootstrap current and neoclassical transport.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
@@ -358,7 +358,7 @@ def _calc_coeffs_full(
       and implicit source profiles used as terms for the core profiles
       equations.
     neoclassical_models: Neoclassical models for the time step. These include
-      the conductivity model, bootstrap current, etc.
+      the conductivity model, bootstrap current and neoclassical transport.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
@@ -429,40 +429,50 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # Diffusion term coefficients
-  transport_coeffs = transport_model(
+  turbulent_transport = transport_model(
       dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_output
   )
-  chi_face_ion = transport_coeffs.chi_face_ion
-  chi_face_el = transport_coeffs.chi_face_el
-  d_face_el = transport_coeffs.d_face_el
-  v_face_el = transport_coeffs.v_face_el
+  neoclassical_transport = (
+      neoclassical_models.transport.calculate_neoclassical_transport(
+          dynamic_runtime_params_slice, geo, core_profiles
+      )
+  )
+
+  chi_face_ion_total = (
+      turbulent_transport.chi_face_ion + neoclassical_transport.chi_neo_i
+  )
+  chi_face_el_total = (
+      turbulent_transport.chi_face_el + neoclassical_transport.chi_neo_e
+  )
+  d_face_el_total = (
+      turbulent_transport.d_face_el + neoclassical_transport.D_neo_e
+  )
+  v_face_el_total = (
+      turbulent_transport.v_face_el
+      + neoclassical_transport.V_neo_e
+      + neoclassical_transport.V_ware_e
+  )
   d_face_psi = geo.g2g3_over_rhon_face
   # No poloidal flux convection term
   v_face_psi = jnp.zeros_like(d_face_psi)
-
-  if static_runtime_params_slice.evolve_density:
-    if d_face_el is None or v_face_el is None:
-      raise NotImplementedError(
-          f'{type(transport_model)} does not support the density equation.'
-      )
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV2J
-      * chi_face_ion
+      * chi_face_ion_total
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV2J
-      * chi_face_el
+      * chi_face_el_total
   )
 
   # entire coefficient preceding dne/dr in particle equation
-  full_d_face_el = geo.g1_over_vpr_face * d_face_el
-  full_v_face_el = geo.g0_face * v_face_el
+  full_d_face_el = geo.g1_over_vpr_face * d_face_el_total
+  full_v_face_el = geo.g0_face * v_face_el_total
 
   # density source terms. Initialize source matrix to zero
   source_mat_nn = jnp.zeros_like(geo.rho)
@@ -695,7 +705,7 @@ def _calc_coeffs_full(
       auxiliary_outputs=(
           merged_source_profiles,
           conductivity,
-          transport_coeffs,
+          state.CoreTransport(**turbulent_transport, **neoclassical_transport),
       ),
   )
 

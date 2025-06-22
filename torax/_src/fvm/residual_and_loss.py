@@ -243,7 +243,7 @@ def theta_method_block_residual(
     source_models: Collection of source callables to generate source PDE
       coefficients.
     neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current, etc.
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -374,7 +374,7 @@ def theta_method_block_loss(
     source_models: Collection of source callables to generate source PDE
       coefficients.
     neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current, etc.
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -461,7 +461,7 @@ def jaxopt_solver(
     source_models: Collection of source callables to generate source PDE
       coefficients.
     neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current, etc.
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.

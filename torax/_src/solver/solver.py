@@ -44,7 +44,8 @@ class Solver(abc.ABC):
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
     neoclassical_models: A NeoclassicalModels container, calculating
-      neoclassical models like conductivity, bootstrap_current, etc.
+      neoclassical models like conductivity, bootstrap current and neoclassical
+      transport.
     static_runtime_params_slice: Static runtime parameters. Input params that
       trigger recompilation when they change. These don't have to be
       JAX-friendly types and can be used in control-flow logic.

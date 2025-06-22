@@ -336,15 +336,14 @@ class SimulationStepFn:
     # Solver / CoeffsCallback. We should still refactor the design to more
     # explicitly calculate transport coeffs at delta_t = 0 in only one place,
     # so that we have some flexibility in where to place the jit boundaries.
-    turbulent_transport_coeffs = _calculate_transport_coeffs(
+    total_transport_coeffs = _calculate_total_transport_coeffs(
         self.solver.pedestal_model,
         self.solver.transport_model,
+        self.solver.neoclassical_models,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
     )
-
-    total_transport_coeffs = state.CoreTransport(**turbulent_transport_coeffs)
 
     # initialize new dt and reset solver iterations.
     dt = self._time_step_calculator.next_dt(
@@ -673,18 +672,14 @@ def _finalize_outputs(
           evolving_names=evolving_names,
       )
   )
-  final_pedestal_output = pedestal_model(
+  final_total_transport = _calculate_total_transport_coeffs(
+      pedestal_model,
+      transport_model,
+      neoclassical_models,
       dynamic_runtime_params_slice_t_plus_dt,
       geometry_t_plus_dt,
       final_core_profiles,
   )
-  final_turbulent_transport = transport_model(
-      dynamic_runtime_params_slice_t_plus_dt,
-      geometry_t_plus_dt,
-      final_core_profiles,
-      final_pedestal_output,
-  )
-  final_total_transport = state.CoreTransport(**final_turbulent_transport)
 
   output_state = sim_state.ToraxSimState(
       t=t + dt,
@@ -831,23 +826,36 @@ def _sawtooth_step(
   )
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0, 1))
-def _calculate_transport_coeffs(
+@functools.partial(jax_utils.jit, static_argnums=(0, 1, 2))
+def _calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-) -> transport_model_lib.TurbulentTransport:
+) -> state.CoreTransport:
   """Calculates the transport coefficients."""
   pedestal_model_output = pedestal_model(
       dynamic_runtime_params_slice_t, geo_t, core_profiles_t
   )
-  return transport_model(
+  turbulent_transport = transport_model(
       dynamic_runtime_params_slice_t,
       geo_t,
       core_profiles_t,
       pedestal_model_output,
+  )
+  neoclassical_transport_coeffs = (
+      neoclassical_models.transport.calculate_neoclassical_transport(
+          dynamic_runtime_params_slice_t,
+          geo_t,
+          core_profiles_t,
+      )
+  )
+
+  return state.CoreTransport(
+      **turbulent_transport,
+      **neoclassical_transport_coeffs,
   )
 
 

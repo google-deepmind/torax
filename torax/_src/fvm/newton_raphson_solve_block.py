@@ -172,7 +172,7 @@ def newton_raphson_solve_block(
     source_models: Collection of source callables to generate source PDE
       coefficients.
     neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current, etc.
+      conductivity, bootstrap current and neoclassical transport.
     pedestal_model: Model of the pedestal's behavior.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
