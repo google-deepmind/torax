@@ -24,6 +24,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params
+from torax._src.physics import collisions
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
@@ -62,6 +63,7 @@ class SauterModel(base.ConductivityModel):
 
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
+
   model_name: Literal['sauter'] = 'sauter'
 
   def build_dynamic_params(self) -> DynamicRuntimeParams:
@@ -96,12 +98,10 @@ def _calculate_conductivity(
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
-  lnLame = (
-      31.3 - 0.5 * jnp.log(n_e.face_value()) + jnp.log(T_e.face_value() * 1e3)
-  )
+  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
 
   sigsptz = (
-      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lnLame
+      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lambda_ei
   )
 
   nu_e_star = (
@@ -110,7 +110,7 @@ def _calculate_conductivity(
       * geo.R_major
       * n_e.face_value()
       * Z_eff_face
-      * lnLame
+      * lambda_ei
       / (
           ((T_e.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
