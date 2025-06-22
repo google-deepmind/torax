@@ -60,9 +60,9 @@ def main(args):
     )
     raise
   if len(args.outfile) == 1:
-    plotruns_lib.plot_run(plot_config, args.outfile[0])
+    plotruns_lib.plot_run_auto(plot_config, args.outfile[0])
   else:
-    plotruns_lib.plot_run(plot_config, args.outfile[0], args.outfile[1])
+    plotruns_lib.plot_run_auto(plot_config, args.outfile[0], args.outfile[1])
 
 
 # Method used by the `plot_torax` binary.
