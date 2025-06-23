@@ -41,6 +41,11 @@ class SimExperimentalCompileTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector',
           'test_iterhybrid_predictor_corrector.py',
       ),
+      # Using optimizer solver.
+      (
+          'test_implicit_short_optimizer',
+          'test_implicit_short_optimizer.py',
+      ),
   )
   def test_run_simulation_experimental_compile(
       self,

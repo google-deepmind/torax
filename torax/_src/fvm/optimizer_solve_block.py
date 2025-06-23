@@ -15,11 +15,12 @@
 
 See function docstring for details.
 """
-
+import functools
 from typing import TypeAlias
 
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import block_1d_coeffs
@@ -39,6 +40,19 @@ from torax._src.transport_model import transport_model as transport_model_lib
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
 
+@functools.partial(
+    xnp.jit,
+    static_argnames=[
+        'static_runtime_params_slice',
+        'transport_model',
+        'source_models',
+        'neoclassical_models',
+        'pedestal_model',
+        'coeffs_callback',
+        'evolving_names',
+        'initial_guess_mode',
+    ],
+)
 def optimizer_solve_block(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
