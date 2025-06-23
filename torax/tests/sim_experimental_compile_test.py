@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
-import os
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.output_tools import output
@@ -43,11 +40,10 @@ class SimExperimentalCompileTest(sim_test_case.SimTestCase):
       self,
       config_name: str,
   ):
-    with mock.patch.dict(os.environ, {'EXPERIMENTAL_COMPILE': 'True'}):
-      self._test_run_simulation(
-          config_name,
-          profiles=_ALL_PROFILES,
-      )
+    self._test_run_simulation(
+        config_name,
+        profiles=_ALL_PROFILES,
+    )
 
 
 if __name__ == '__main__':

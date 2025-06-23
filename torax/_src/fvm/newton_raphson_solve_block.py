@@ -89,6 +89,7 @@ def _log_iterations(
         'transport_model',
         'pedestal_model',
         'source_models',
+        'neoclassical_models',
     ],
 )
 def newton_raphson_solve_block(

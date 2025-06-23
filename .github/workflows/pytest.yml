@@ -74,3 +74,12 @@ jobs:
         pytest \
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
+    # Two test require an extra environment variable, so we run them separately.
+    - name: Run sim_experimental_compile
+      if: ${{ matrix.shard-id == 1 }}
+      run: |
+        EXPERIMENTAL_COMPILE=True pytest -vv -n auto torax/tests/sim_experimental_compile_test.py
+    - name: Run sim_no_compile
+      if: ${{ matrix.shard-id == 2 }}
+      run: |
+        TORAX_COMPILATION_ENABLED=False pytest -vv -n auto torax/tests/sim_no_compile_test.py
