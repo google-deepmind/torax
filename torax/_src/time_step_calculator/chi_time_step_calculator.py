@@ -69,3 +69,9 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     )
 
     return dt
+
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, ChiTimeStepCalculator)

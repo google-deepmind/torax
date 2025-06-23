@@ -56,3 +56,9 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     dt = jnp.array(dynamic_runtime_params_slice.numerics.fixed_dt)
 
     return dt
+
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, FixedTimeStepCalculator)

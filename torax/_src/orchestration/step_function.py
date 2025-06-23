@@ -43,6 +43,7 @@ from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 from torax._src.transport_model import transport_model as transport_model_lib
+import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -621,6 +622,25 @@ class SimulationStepFn:
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
+    )
+
+  def __hash__(self) -> int:
+    return hash((
+        self.solver,
+        self.mhd_models,
+        self.time_step_calculator,
+        self._dynamic_runtime_params_slice_provider,
+        self._geometry_provider,
+    ))
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    return (
+        self.solver == other.solver
+        and self.mhd_models == other.mhd_models
+        and self.time_step_calculator == other.time_step_calculator
+        and self._dynamic_runtime_params_slice_provider
+        == other._dynamic_runtime_params_slice_provider
+        and self._geometry_provider == other._geometry_provider
     )
 
 

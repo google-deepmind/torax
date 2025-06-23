@@ -11,16 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.config import build_runtime_params
+from torax._src.config import config_loader
 from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -250,6 +252,44 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           n_e_right_bc_is_fGW,
       )
       self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+
+  def test_same_shape_dynamic_params_has_same_hash_and_equals(self):
+    test_data_dir = paths.test_data_dir()
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(test_data_dir, 'test_iterhybrid_rampup.py')
+    )
+    provider1 = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    torax_config.update_fields({'sources.generic_heat.P_total': 1.0})
+    provider2 = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    self.assertEqual(provider1, provider2)
+    self.assertEqual(hash(provider1), hash(provider2))
+
+  def test_different_dynamic_params_has_different_hash_and_not_equals(self):
+    test_data_dir = paths.test_data_dir()
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(test_data_dir, 'test_iterhybrid_rampup.py')
+    )
+    provider1 = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    torax_config.update_fields({'transport': {'model_name': 'constant'}})
+    provider2 = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    self.assertNotEqual(provider1, provider2)
+    self.assertNotEqual(hash(provider1), hash(provider2))
 
 
 if __name__ == '__main__':

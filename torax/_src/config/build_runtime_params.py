@@ -22,7 +22,11 @@ This module also provides a method
 `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
+
+import functools
+
 import chex
+import jax
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -88,6 +92,22 @@ class DynamicRuntimeParamsSliceProvider:
     self._pedestal = torax_config.pedestal
     self._mhd = torax_config.mhd
     self._neoclassical = torax_config.neoclassical
+
+  @functools.cached_property
+  def initial_slice(self) -> runtime_params_slice.DynamicRuntimeParamsSlice:
+    return self(0.0)
+
+  @property
+  def structure(self) -> jax.tree_util.PyTreeDef:
+    return jax.tree_util.tree_structure(self.initial_slice)
+
+  def __hash__(self) -> int:
+    """Used for jax.jit caching where we only care about the structure."""
+    return hash(self.structure)
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    """Used for jax.jit caching where we only care about the structure."""
+    return self.structure == other.structure
 
   @classmethod
   def from_config(

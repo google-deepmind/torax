@@ -86,6 +86,14 @@ class GeometryProvider(Protocol):
   def torax_mesh(self) -> torax_pydantic.Grid1D:
     """Returns the mesh used by Torax, this is consistent across time."""
 
+  def __hash__(self) -> int:
+    """For the purposes of jax.jit caching, we only care about the mesh."""
+    return hash(self.torax_mesh)
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    """For the purposes of jax.jit caching, we only care about the mesh."""
+    return self.torax_mesh == other.torax_mesh
+
 
 class ConstantGeometryProvider(GeometryProvider):
   """Returns the same Geometry for all calls."""

@@ -74,6 +74,22 @@ class GeometryProviderTest(absltest.TestCase):
     self.assertIsNone(provider(0.0)._z_magnetic_axis)
     self.assertIsNone(provider(10.0)._z_magnetic_axis)
 
+  def test_same_mesh_has_same_hash_and_equality(self):
+    geo1 = geometry_pydantic_model.CircularConfig(n_rho=25).build_geometry()
+    geo2 = geometry_pydantic_model.CircularConfig(n_rho=25).build_geometry()
+    provider1 = geometry_provider.ConstantGeometryProvider(geo1)
+    provider2 = geometry_provider.ConstantGeometryProvider(geo2)
+    self.assertEqual(provider1, provider2)
+    self.assertEqual(hash(provider1), hash(provider2))
+
+  def test_different_mesh_has_different_hash_and_not_equals(self):
+    geo1 = geometry_pydantic_model.CircularConfig(n_rho=25).build_geometry()
+    geo2 = geometry_pydantic_model.CircularConfig(n_rho=50).build_geometry()
+    provider1 = geometry_provider.ConstantGeometryProvider(geo1)
+    provider2 = geometry_provider.ConstantGeometryProvider(geo2)
+    self.assertNotEqual(provider1, provider2)
+    self.assertNotEqual(hash(provider1), hash(provider2))
+
 
 if __name__ == "__main__":
   absltest.main()

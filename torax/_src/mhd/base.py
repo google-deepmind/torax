@@ -16,6 +16,7 @@
 
 import chex
 from torax._src.mhd.sawtooth import sawtooth_model
+import typing_extensions
 
 
 @chex.dataclass
@@ -23,3 +24,9 @@ class MHDModels:
   """Container for instantiated MHD model objects."""
 
   sawtooth: sawtooth_model.SawtoothModel | None = None
+
+  def __hash__(self) -> int:
+    return hash(self.sawtooth)
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    return self.sawtooth == other.sawtooth

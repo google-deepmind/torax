@@ -68,3 +68,20 @@ class TimeStepCalculator(abc.ABC):
       core_profiles: Core plasma profiles in the tokamak.
       core_transport: Transport coefficients.
     """
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the time step calculator.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Returns whether the time step calculator is equal to the other.
+
+    Should be implemented to support jax.jit caching.
+
+    Args:
+      other: The object to compare to.
+    """
