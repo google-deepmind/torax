@@ -92,17 +92,18 @@ def prepare_simulation(
       pedestal_model=pedestal_model,
       neoclassical_models=neoclassical_models,
   )
+  dynamic_runtime_params_slice_provider = (
+      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          torax_config
+      )
+  )
 
   step_fn = step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       mhd_models=mhd_models,
-  )
-
-  dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-          torax_config
-      )
+      geometry_provider=geometry_provider,
+      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
   )
 
   if torax_config.restart and torax_config.restart.do_restart:

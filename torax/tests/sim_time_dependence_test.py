@@ -118,11 +118,15 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
-      del log_timestep_info, progress_bar, restart_case
+      del (
+          log_timestep_info,
+          progress_bar,
+          restart_case,
+          geometry_provider,
+          dynamic_runtime_params_slice_provider,
+      )
       output_state, post_processed_outputs, error = step_fn(
           static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider,
-          geometry_provider,
           initial_state,
           initial_post_processed_outputs,
       )

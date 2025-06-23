@@ -76,6 +76,8 @@ class SimulationStepFn:
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
       mhd_models: mhd_base.MHDModels,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ):
     """Initializes the SimulationStepFn.
 
@@ -83,10 +85,26 @@ class SimulationStepFn:
       solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
       mhd_models: Collection of MHD models applied, e.g. sawtooth
+      dynamic_runtime_params_slice_provider: Object that returns a set of
+        runtime parameters which may change from time step to time step or
+        simulation run to run. If these runtime parameters change, it does NOT
+        trigger a JAX recompilation.
+      geometry_provider: Provides the magnetic geometry for each time step based
+        on the ToraxSimState at the start of the time step. The geometry may
+        change from time step to time step, so the sim needs a function to
+        provide which geometry to use for a given time step. A GeometryProvider
+        is any callable (class or function) which takes the ToraxSimState at the
+        start of a time step and returns the Geometry for that time step. For
+        most use cases, only the time will be relevant from the ToraxSimState
+        (in order to support time-dependent geometries).
     """
     self._solver = solver
     self._time_step_calculator = time_step_calculator
     self._mhd_models = mhd_models
+    self._geometry_provider = geometry_provider
+    self._dynamic_runtime_params_slice_provider = (
+        dynamic_runtime_params_slice_provider
+    )
 
   @property
   def solver(self) -> solver_lib.Solver:
@@ -103,8 +121,6 @@ class SimulationStepFn:
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
@@ -122,18 +138,6 @@ class SimulationStepFn:
     Args:
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
-      dynamic_runtime_params_slice_provider: Object that returns a set of
-        runtime parameters which may change from time step to time step or
-        simulation run to run. If these runtime parameters change, it does NOT
-        trigger a JAX recompilation.
-      geometry_provider: Provides the magnetic geometry for each time step based
-        on the ToraxSimState at the start of the time step. The geometry may
-        change from time step to time step, so the sim needs a function to
-        provide which geometry to use for a given time step. A GeometryProvider
-        is any callable (class or function) which takes the ToraxSimState at the
-        start of a time step and returns the Geometry for that time step. For
-        most use cases, only the time will be relevant from the ToraxSimState
-        (in order to support time-dependent geometries).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
       previous_post_processed_outputs: Post-processed outputs from the previous
@@ -158,8 +162,8 @@ class SimulationStepFn:
     dynamic_runtime_params_slice_t, geo_t = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=input_state.t,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=geometry_provider,
+            dynamic_runtime_params_slice_provider=self._dynamic_runtime_params_slice_provider,
+            geometry_provider=self._geometry_provider,
         )
     )
 
@@ -195,9 +199,9 @@ class SimulationStepFn:
       ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           input_state.t,
           dt_crash,
-          dynamic_runtime_params_slice_provider,
+          self._dynamic_runtime_params_slice_provider,
           geo_t,
-          geometry_provider,
+          self._geometry_provider,
       )
 
       # If no sawtooth crash is triggered, output_state and
@@ -234,9 +238,9 @@ class SimulationStepFn:
         _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
             input_state.t,
             dt,
-            dynamic_runtime_params_slice_provider,
+            self._dynamic_runtime_params_slice_provider,
             geo_t,
-            geometry_provider,
+            self._geometry_provider,
         )
     )
 
@@ -267,10 +271,8 @@ class SimulationStepFn:
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt,
-          dynamic_runtime_params_slice_provider,
           geo_t,
           geo_t_plus_dt,
-          geometry_provider,
           input_state,
           explicit_source_profiles,
       )
@@ -448,10 +450,8 @@ class SimulationStepFn:
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: sim_state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
@@ -478,11 +478,8 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t +
         dt.
-      dynamic_runtime_params_slice_provider: Runtime parameters slice provider.
       geo_t: The geometry of the torus during this time step of the simulation.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-      geometry_provider: Provides geometry during the next time step of the
         simulation.
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
@@ -554,9 +551,9 @@ class SimulationStepFn:
       ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           input_state.t,
           dt,
-          dynamic_runtime_params_slice_provider,
+          self._dynamic_runtime_params_slice_provider,
           geo_t,
-          geometry_provider,
+          self._geometry_provider,
       )
 
       core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(

@@ -153,8 +153,6 @@ def run_loop(
 
       current_state, post_processed_outputs, sim_error = step_fn(
           static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider,
-          geometry_provider,
           current_state,
           post_processing_history[-1],
       )
