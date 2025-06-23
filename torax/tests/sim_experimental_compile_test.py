@@ -31,9 +31,15 @@ _ALL_PROFILES = (
 class SimExperimentalCompileTest(sim_test_case.SimTestCase):
 
   @parameterized.named_parameters(
+      # Using newton raphson non linear solver.
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
+      ),
+      # Using linear solver.
+      (
+          'test_iterhybrid_predictor_corrector',
+          'test_iterhybrid_predictor_corrector.py',
       ),
   )
   def test_run_simulation_experimental_compile(
