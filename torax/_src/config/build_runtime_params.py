@@ -42,13 +42,9 @@ def build_static_params_from_config(
       },
       torax_mesh=config.geometry.build_provider.torax_mesh,
       solver=config.solver.build_static_params(),
-      evolve_ion_heat=config.numerics.evolve_ion_heat,
-      evolve_electron_heat=config.numerics.evolve_electron_heat,
-      evolve_current=config.numerics.evolve_current,
-      evolve_density=config.numerics.evolve_density,
       main_ion_names=config.plasma_composition.get_main_ion_names(),
       impurity_names=config.plasma_composition.get_impurity_names(),
-      adaptive_dt=config.numerics.adaptive_dt,
+      numerics=config.numerics.build_static_params(),
       profile_conditions=config.profile_conditions.build_static_params(),
   )
 

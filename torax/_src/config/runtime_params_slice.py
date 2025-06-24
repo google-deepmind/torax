@@ -113,15 +113,6 @@ class StaticRuntimeParamsSlice:
   sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Torax mesh used to construct the geometry.
   torax_mesh: torax_pydantic.Grid1D
-  # Solve the ion heat equation (ion temperature evolves over time)
-  evolve_ion_heat: bool
-  # Solve the electron heat equation (electron temperature evolves over time)
-  evolve_electron_heat: bool
-  # Solve the current equation (psi evolves over time driven by the solver;
-  # q and s evolve over time as a function of psi)
-  evolve_current: bool
-  # Solve the density equation (n evolves over time)
-  evolve_density: bool
   # Ion symbols for main ion and impurity (which each could be mixtures of ions)
   # These are static to simplify source functions for fusion power and radiation
   # which are species-dependent.
@@ -130,24 +121,17 @@ class StaticRuntimeParamsSlice:
   main_ion_names: tuple[str, ...]
   impurity_names: tuple[str, ...]
   profile_conditions: profile_conditions.StaticRuntimeParams
-  # Iterative reduction of dt if nonlinear step does not converge,
-  # If nonlinear step does not converge, then the step is redone
-  # iteratively at successively lower dt until convergence is reached
-  adaptive_dt: bool
+  numerics: numerics.StaticNumerics
 
   def __hash__(self):
     return hash((
         self.solver,
         tuple(sorted(self.sources.items())),  # Hashable version of sources
         hash(self.torax_mesh),  # Grid1D has a hash method defined.
-        self.evolve_ion_heat,
-        self.evolve_electron_heat,
-        self.evolve_current,
-        self.evolve_density,
         self.main_ion_names,
         self.impurity_names,
-        self.adaptive_dt,
         self.profile_conditions,
+        self.numerics,
     ))
 
   def validate_new(self, new_params: typing_extensions.Self):

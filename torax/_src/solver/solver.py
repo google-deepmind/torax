@@ -88,13 +88,13 @@ class Solver(abc.ABC):
   def evolving_names(self) -> tuple[str, ...]:
     """The names of core_profiles variables that are evolved by the solver."""
     evolving_names = []
-    if self.static_runtime_params_slice.evolve_ion_heat:
+    if self.static_runtime_params_slice.numerics.evolve_ion_heat:
       evolving_names.append('T_i')
-    if self.static_runtime_params_slice.evolve_electron_heat:
+    if self.static_runtime_params_slice.numerics.evolve_electron_heat:
       evolving_names.append('T_e')
-    if self.static_runtime_params_slice.evolve_current:
+    if self.static_runtime_params_slice.numerics.evolve_current:
       evolving_names.append('psi')
-    if self.static_runtime_params_slice.evolve_density:
+    if self.static_runtime_params_slice.numerics.evolve_density:
       evolving_names.append('n_e')
     return tuple(evolving_names)
 

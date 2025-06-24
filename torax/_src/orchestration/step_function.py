@@ -255,7 +255,7 @@ class SimulationStepFn:
         explicit_source_profiles,
     )
 
-    if self._static_runtime_params_slice.adaptive_dt:
+    if self._static_runtime_params_slice.numerics.adaptive_dt:
       # This is a no-op if
       # output_state.solver_numeric_outputs.solver_error_state == 0.
       (

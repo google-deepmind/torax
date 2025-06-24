@@ -119,12 +119,12 @@ def _model_based_qei(
   if (
       # if only a single heat equation is being evolved
       (
-          static_runtime_params_slice.evolve_ion_heat
-          and not static_runtime_params_slice.evolve_electron_heat
+          static_runtime_params_slice.numerics.evolve_ion_heat
+          and not static_runtime_params_slice.numerics.evolve_electron_heat
       )
       or (
-          static_runtime_params_slice.evolve_electron_heat
-          and not static_runtime_params_slice.evolve_ion_heat
+          static_runtime_params_slice.numerics.evolve_electron_heat
+          and not static_runtime_params_slice.numerics.evolve_ion_heat
       )
   ):
     explicit_i = qei_coef * core_profiles.T_e.value
