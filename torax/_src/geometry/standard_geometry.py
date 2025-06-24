@@ -21,13 +21,14 @@ CHEASE, FBT, etc.
 import dataclasses
 import logging
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional
 
 import chex
 import contourpy
 import numpy as np
 import scipy
 import typing_extensions
+from imas.ids_toplevel import IDSToplevel
 
 from torax._src import constants, interpolated_param
 from torax._src.geometry import geometry, geometry_loader, geometry_provider
@@ -932,16 +933,17 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_IMAS(
       cls,
-      equilibrium_object: str | Any,
       geometry_directory: str | None,
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
+      equilibrium_object: Optional[IDSToplevel] = None
+      imas_uri: Optional[str] = None
+      imas_filepath: Optional[str] = None
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
     Args:
-      equilibrium_object: Either directly the equilbrium IDS containing the relevant data, or the name of the IMAS netCDF file containing the equilibrium.
       geometry_directory: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
         If None, then it defaults to another dir. See implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
@@ -949,6 +951,9 @@ class StandardGeometryIntermediates:
       n_rho: Radial grid points (num cells).
       hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
+      equilibrium_object: The equilibrium IDS containing the relevant data.
+      imas_uri: The IMAS uri containing the equilibrium data.
+      imas_filepath: The path to the IMAS netCDF file containing the equilibrium data.
 
     Returns:
       A StandardGeometry instance based on the input file. This can then be
@@ -956,6 +961,8 @@ class StandardGeometryIntermediates:
     """
     inputs = imas_equilibrium.geometry_from_IMAS(
         equilibrium_object=equilibrium_object,
+        imas_uri=imas_uri,
+        imas_filepath=imas_filepath,
         geometry_directory=geometry_directory,
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,

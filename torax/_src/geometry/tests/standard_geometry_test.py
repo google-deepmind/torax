@@ -80,11 +80,11 @@ class GeometryTest(parameterized.TestCase):
     config.build_geometry()
 
   @parameterized.parameters([
-      dict(equilibrium_object='ITERhybrid_COCOS17_IDS_ddv4.nc'),
+      dict(imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'),
   ])
-  def test_build_standard_geometry_from_IMAS(self, equilibrium_object):
+  def test_build_standard_geometry_from_IMAS(self, imas_filepath):
     """Test that the default IMAS geometry can be built."""
-    config = geometry_pydantic_model.IMASConfig(equilibrium_object=equilibrium_object)
+    config = geometry_pydantic_model.IMASConfig(imas_filepath=imas_filepath)
     config.build_geometry()
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):

@@ -58,7 +58,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
         config_module = self._get_config_module(config_name)
         geometry_directory = "torax/data/third_party/geo"
         path = os.path.join(
-            geometry_directory, config_module.CONFIG["geometry"]["equilibrium_object"]
+            geometry_directory, config_module.CONFIG["geometry"]["imas_filepath"]
         )
         equilibrium_in = imas_util.load_IMAS_data(path, "equilibrium")
         # Build TORAXSimState object and write output to equilibrium IDS.
@@ -146,7 +146,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
         # Loading the equilibrium and constructing geometry object
         config = geometry_pydantic_model.IMASConfig(
-            equilibrium_object="ITERhybrid_COCOS17_IDS_ddv4.nc",
+            imas_filepath="ITERhybrid_COCOS17_IDS_ddv4.nc",
             Ip_from_parameters=True
         )
         geo_IMAS = config.build_geometry()

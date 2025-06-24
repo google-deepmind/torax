@@ -704,11 +704,16 @@ It is only recommended to change the default values if issues arise.
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
 
-Geometry dicts for IMAS geometry require the following additional key.
+Geometry dicts for IMAS geometry require one of the following additional keys.
 
-``equilibrium_object`` (str | imas.ids_toplevel.IDSToplevel)
-  Sets the path of the IMAS netCDF file containing the geometry data in an equilibrium IDS to be loaded, or
-  alternatively an equilibrium IDS object directly.
+``imas_filepath`` (str)
+  Sets the path of the IMAS netCDF file containing the geometry data in an equilibrium IDS to be loaded.
+
+``imas_uri`` (str)
+  Sets the path of the IMAS data entry containing the geometry data in an equilibrium IDS to be loaded.
+
+``equilibrium_object`` (imas.ids_toplevel.IDSToplevel)
+  An equilibrium IDS object that can be inserted directly.
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
 and input files can be defined in a ``geometry_configs`` dict, which is a
@@ -1741,18 +1746,21 @@ Loading Geometry
 The geometry in TORAX can be constructed from IMAS equilibium IDSs. The specific arguments to load an equilibrium IDS with TORAX
 are specified in :ref:`geometry_doc`.
 
-There are two main methods to load IMAS equilibrium:
+There are three main methods to load IMAS equilibrium:
 
-* Using IMAS netCDF file.
+* Using IMAS netCDF file (imas_filepath).
   This is the main method as it does not require the optional dependency to imas-core. IMAS equilibrium IDSs
   can be saved on disk using the ``save_netcdf()`` function from |util|. The path of the file can then be provided in the config
   to run TORAX with this geometry.
-
-* Providing the equilibium IDS on the fly.
-  This method can be more convenient to run TORAX in a workflow for example. Using this method the IDS can be provided
-  externally or pre-loaded using one of the ``load_IMAS_data()`` and ``load_IMAS_from_data_entry()`` functions from |util|, and then
-  provided in the config dict as the value of the ``equilibrium_object`` dict. The latter function requires the optional dependency to imas-core.
   An example yaml input file for this function can be found at |example_imas_scenario|.
+
+* Using IMAS uri (imas_uri).
+  This method does require the optional dependency to imas-core. It loads the equilibrium data from the given IDS with a backend of choice.
+
+* Providing the equilibium IDS on the fly (equilibrium_object).
+  This method can be more convenient when running TORAX in a workflow for example. Using this method the IDS can be provided
+  externally or pre-loaded using one of the ``load_IMAS_data()`` and ``load_IMAS_from_data_entry()`` functions from |util|, and then
+  provided in the config dict as the value of the ``equilibrium_object``. The latter function requires the optional dependency to imas-core.
 
 Config example
 ==============

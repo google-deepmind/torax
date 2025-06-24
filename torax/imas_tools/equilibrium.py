@@ -14,7 +14,7 @@
 
 """Useful functions for handling of IMAS IDSs and converts them into TORAX
 objects"""
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Optional
 
 import numpy as np
 import scipy
@@ -47,17 +47,16 @@ def write_ids_equilibrium_into_config(
 
 
 def geometry_from_IMAS(
-    equilibrium_object: str | IDSToplevel,
     geometry_directory: str | None = None,
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
     hires_factor: int = 4,
+    equilibrium_object: Optional[IDSToplevel] = None
+    imas_uri: Optional[str] = None
+    imas_filepath: Optional[str] = None
 ) -> dict[str, Any]:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
     Args:
-      equilibrium_object: Either directly the equilbrium IDS containing the
-        relevant data, or the name of the IMAS netCDF file containing the
-        equilibrium.
       geometry_directory: Directory where to find the equilibrium object.
         If None, it defaults to another dir. See `load_geo_data`
         implementation.
@@ -66,19 +65,28 @@ def geometry_from_IMAS(
       n_rho: Radial grid points (num cells)
       hires_factor: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
+      equilibrium_object: The equilibrium IDS containing the relevant data.
+      imas_uri: The IMAS uri containing the equilibrium data.
+      imas_filepath: The path to the IMAS netCDF file containing the equilibrium data.
     Returns:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
     # If the equilibrium_object is the file name, load the ids from the netCDF.
-    if isinstance(equilibrium_object, str):
+    if equilibrium_object is not None:
+        equilibrium = equilibrium_object
+    elif imas_uri is not None:
         equilibrium = geometry_loader.load_geo_data(
             geometry_directory,
-            equilibrium_object,
+            imas_uri,
             geometry_loader.GeometrySource.IMAS,
         )
-    elif isinstance(equilibrium_object, IDSToplevel):
-        equilibrium = equilibrium_object
+    elif imas_filepath is not None:
+        equilibrium = geometry_loader.load_geo_data(
+            geometry_directory,
+            imas_filepath,
+            geometry_loader.GeometrySource.IMAS,
+        )
     else:
         raise ValueError("equilibrium_object must be a string (file path) or an IDS")
     IMAS_data = equilibrium.time_slice[0]
