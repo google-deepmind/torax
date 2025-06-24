@@ -63,7 +63,7 @@ class StepFunctionTest(absltest.TestCase):
     with self.subTest('no NaN'):
       error = torax_state.check_for_errors()
       self.assertEqual(error, state.SimError.NO_ERROR)
-      error = step_function._check_for_errors(
+      error = step_function.check_for_errors(
           torax_state, post_processed_outputs)
       self.assertEqual(error, state.SimError.NO_ERROR)
 
@@ -80,7 +80,7 @@ class StepFunctionTest(absltest.TestCase):
       )
       error = new_sim_state_core_profiles.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function._check_for_errors(
+      error = step_function.check_for_errors(
           new_sim_state_core_profiles, post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
@@ -92,7 +92,7 @@ class StepFunctionTest(absltest.TestCase):
       )
       error = new_post_processed_outputs.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function._check_for_errors(
+      error = step_function.check_for_errors(
           torax_state, new_post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
@@ -112,7 +112,7 @@ class StepFunctionTest(absltest.TestCase):
       )
       error = new_sim_state_sources.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
-      error = step_function._check_for_errors(
+      error = step_function.check_for_errors(
           new_sim_state_sources, post_processed_outputs
       )
       self.assertEqual(error, state.SimError.NAN_DETECTED)

@@ -47,7 +47,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 # pylint: disable=invalid-name
 
 
-def _check_for_errors(
+def check_for_errors(
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
@@ -126,11 +126,7 @@ class SimulationStepFn:
       self,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
-  ) -> tuple[
-      sim_state.ToraxSimState,
-      post_processing.PostProcessedOutputs,
-      state.SimError,
-  ]:
+  ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
     """Advances the simulation state one time step.
 
       If a sawtooth model is provided, it will be checked to see if a sawtooth
@@ -222,8 +218,7 @@ class SimulationStepFn:
       # If a sawtooth crash was carried out, we exit early with the post-crash
       # state, post-processed outputs, and the error state.
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = _check_for_errors(output_state, post_processed_outputs)
-        return output_state, post_processed_outputs, error_state
+        return output_state, post_processed_outputs
 
     dt = self.init_time_step_calculator(
         dynamic_runtime_params_slice_t,
@@ -307,11 +302,7 @@ class SimulationStepFn:
         input_post_processed_outputs=previous_post_processed_outputs,
     )
 
-    return (
-        output_state,
-        post_processed_outputs,
-        _check_for_errors(output_state, post_processed_outputs),
-    )
+    return output_state, post_processed_outputs
 
   def init_time_step_calculator(
       self,

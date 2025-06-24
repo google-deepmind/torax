@@ -151,9 +151,12 @@ def run_loop(
       if log_timestep_info:
         _log_timestep(current_state)
 
-      current_state, post_processed_outputs, sim_error = step_fn(
+      current_state, post_processed_outputs = step_fn(
           current_state,
           post_processing_history[-1],
+      )
+      sim_error = step_function.check_for_errors(
+          current_state, post_processed_outputs
       )
 
       wall_clock_step_times.append(time.time() - step_start_time)

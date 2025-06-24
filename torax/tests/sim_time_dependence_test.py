@@ -126,9 +126,12 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           dynamic_runtime_params_slice_provider,
           static_runtime_params_slice,
       )
-      output_state, post_processed_outputs, error = step_fn(
+      output_state, post_processed_outputs = step_fn(
           initial_state,
           initial_post_processed_outputs,
+      )
+      error = step_function.check_for_errors(
+          output_state, post_processed_outputs,
       )
       self.assertEqual(
           output_state.solver_numeric_outputs.outer_solver_iterations,
