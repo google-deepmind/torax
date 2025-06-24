@@ -102,6 +102,7 @@ def prepare_simulation(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       mhd_models=mhd_models,
+      static_runtime_params_slice=static_runtime_params_slice,
       geometry_provider=geometry_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
   )

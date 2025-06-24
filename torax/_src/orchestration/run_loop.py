@@ -152,7 +152,6 @@ def run_loop(
         _log_timestep(current_state)
 
       current_state, post_processed_outputs, sim_error = step_fn(
-          static_runtime_params_slice,
           current_state,
           post_processing_history[-1],
       )

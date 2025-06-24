@@ -124,9 +124,9 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           restart_case,
           geometry_provider,
           dynamic_runtime_params_slice_provider,
+          static_runtime_params_slice,
       )
       output_state, post_processed_outputs, error = step_fn(
-          static_runtime_params_slice,
           initial_state,
           initial_post_processed_outputs,
       )

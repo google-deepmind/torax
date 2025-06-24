@@ -76,6 +76,7 @@ class SimulationStepFn:
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
       mhd_models: mhd_base.MHDModels,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ):
@@ -84,7 +85,9 @@ class SimulationStepFn:
     Args:
       solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
-      mhd_models: Collection of MHD models applied, e.g. sawtooth
+      mhd_models: Collection of MHD models applied, e.g. sawtooth.
+      static_runtime_params_slice: Static parameters that, if they change,
+        should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_provider: Object that returns a set of
         runtime parameters which may change from time step to time step or
         simulation run to run. If these runtime parameters change, it does NOT
@@ -105,6 +108,7 @@ class SimulationStepFn:
     self._dynamic_runtime_params_slice_provider = (
         dynamic_runtime_params_slice_provider
     )
+    self._static_runtime_params_slice = static_runtime_params_slice
 
   @property
   def solver(self) -> solver_lib.Solver:
@@ -120,7 +124,6 @@ class SimulationStepFn:
 
   def __call__(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
@@ -136,8 +139,6 @@ class SimulationStepFn:
     sawtooth redistribution, at a t+dt set by the sawtooth model.
 
     Args:
-      static_runtime_params_slice: Static parameters that, if they change,
-        should trigger a recompilation of the SimulationStepFn.
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
       previous_post_processed_outputs: Post-processed outputs from the previous
@@ -172,7 +173,7 @@ class SimulationStepFn:
     # set to 0.
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
-        static_runtime_params_slice=static_runtime_params_slice,
+        static_runtime_params_slice=self._static_runtime_params_slice,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self.solver.source_models,
@@ -209,7 +210,7 @@ class SimulationStepFn:
       # previous_post_processed_outputs.
       output_state, post_processed_outputs = _sawtooth_step(
           sawtooth_solver=self.mhd_models.sawtooth,
-          static_runtime_params_slice=static_runtime_params_slice,
+          static_runtime_params_slice=self._static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
           geo_t=geo_t,
@@ -246,7 +247,6 @@ class SimulationStepFn:
 
     x_new, solver_numeric_outputs = self.step(
         dt,
-        static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t,
@@ -255,7 +255,7 @@ class SimulationStepFn:
         explicit_source_profiles,
     )
 
-    if static_runtime_params_slice.adaptive_dt:
+    if self._static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.solver_numeric_outputs.solver_error_state == 0.
       (
@@ -268,7 +268,6 @@ class SimulationStepFn:
           x_new,
           dt,
           solver_numeric_outputs,
-          static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t,
@@ -282,7 +281,7 @@ class SimulationStepFn:
     # the dt may be adaptive, we need to recompute it here.
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
+        static_runtime_params_slice=self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
@@ -294,7 +293,7 @@ class SimulationStepFn:
         dt=dt,
         x_new=x_new,
         solver_numeric_outputs=solver_numeric_outputs,
-        static_runtime_params_slice=self.solver.static_runtime_params_slice,
+        static_runtime_params_slice=self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geometry_t_plus_dt=geo_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
@@ -377,7 +376,6 @@ class SimulationStepFn:
   def step(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -395,8 +393,6 @@ class SimulationStepFn:
 
     Args:
       dt: Time step duration.
-      static_runtime_params_slice: Static parameters that, if they change,
-        should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
       geo_t: The geometry of the torus during this time step of the simulation.
@@ -421,7 +417,7 @@ class SimulationStepFn:
     # PDE system.
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
+        static_runtime_params_slice=self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
@@ -447,7 +443,6 @@ class SimulationStepFn:
       x_old: tuple[cell_variable.CellVariable, ...],
       dt: jax.Array,
       solver_numeric_outputs: state.SolverNumericOutputs,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -473,8 +468,6 @@ class SimulationStepFn:
       dt: Time step duration for the initial step.
       solver_numeric_outputs: Solver-specific numeric outputs from the initial
         step.
-      static_runtime_params_slice: Static parameters that, if they change,
-        should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t +
         dt.
@@ -558,7 +551,7 @@ class SimulationStepFn:
 
       core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
+          static_runtime_params_slice=self._static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
