@@ -39,7 +39,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
     @parameterized.parameters(
         [
-            dict(config_name="test_imas.py", rtol=0.02, atol=1e-8),
+            dict(config_name="test_iterhybrid_predictor_corrector_imas.py", rtol=0.02, atol=1e-8),
         ]
     )
     def test_save_geometry_to_IMAS(
@@ -93,39 +93,29 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
         equilibrium_out = imas_equilibrium.geometry_to_IMAS(sim_state)
 
-        # Compare the output IDS with the input one.
         rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
         rhon_in = equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
-        np.testing.assert_allclose(
-            np.interp(rhon_in, rhon_out, equilibrium_out.time_slice[0].profiles_1d.psi),
-            equilibrium_in.time_slice[0].profiles_1d.psi,
-            rtol=rtol,
-            atol=atol,
-            err_msg="psi profile failed",
-        )
-        np.testing.assert_allclose(
-            np.interp(rhon_in, rhon_out, equilibrium_out.time_slice[0].profiles_1d.q),
-            equilibrium_in.time_slice[0].profiles_1d.q,
-            rtol=rtol,
-            atol=atol,
-            err_msg="q profile failed",
-        )
-        np.testing.assert_allclose(
-            np.interp(
-                rhon_in, rhon_out, equilibrium_out.time_slice[0].profiles_1d.j_phi
-            ),
-            equilibrium_in.time_slice[0].profiles_1d.j_phi,
-            rtol=rtol,
-            atol=atol,
-            err_msg="jtot profile failed",
-        )
-        np.testing.assert_allclose(
-            np.interp(rhon_in, rhon_out, equilibrium_out.time_slice[0].profiles_1d.f),
-            equilibrium_in.time_slice[0].profiles_1d.f,
-            rtol=rtol,
-            atol=atol,
-            err_msg="f profile failed",
-        )
+        for attr1, attr2 in [
+            ('profiles_1d', 'pressure')
+            ('profiles_1d', 'dpressure_dpsi')
+            ('profiles_1d', 'f')
+            ('profiles_1d', 'f_df_dpsi')
+            ('profiles_1d', 'phi')
+            ('profiles_1d', 'psi')
+            ('profiles_1d', 'q')
+            ('profiles_1d', 'gm2')
+            ('profiles_1d', 'j_phi')
+        ]:
+            # Compare the output IDS with the input one.
+            var_in = getattr(getattr(equilibrium_in.time_slice[0], attr1), attr2)
+            var_out = getattr(getattr(equilibrium_out.time_slice[0], attr1), attr2)
+            np.testing.assert_allclose(
+                np.interp(rhon_in, rhon_out, var_out),
+                var_in,
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"{attr1} {attr2} failed",
+            )
 
     @parameterized.parameters(
         [

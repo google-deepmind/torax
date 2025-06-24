@@ -282,13 +282,19 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   def _validate_model(self) -> typing_extensions.Self:
     if [self.equilibrium_object, self.imas_uri, self.imas_filepath].count(None) != 2:
       raise ValueError(
-          "IMAS geometry builder needs either `equilibrium_object`, `imas_uri` or `imas_filepath` to be a valid input."
+          "IMAS geometry builder needs either `equilibrium_object`, `imas_uri` or "
+          "`imas_filepath` to be a valid input."
       )
     if self.imas_filepath is not None and self.imas_filepath[-3:] == '.h5':
       raise ValueError(
-          "If you are using hdf5 backend, the path to the data must point the directory containing the equilibrium.h5 and master.h5 files. As the function concatenates the str for geometry_directory and equilibrium_object to give the path, your \
-          equilibrium_object must be either the repository containing these files or an empty string '' (if your geometry_directory is already this specific repository).\n \
-        In any case, make sure geometry_directory + equilibrium_object gives the path to this directory and not to the .h5 file."
+          "If you are using hdf5 backend, the path to the data must point the "
+          "directory containing the equilibrium.h5 and master.h5 files. As the "
+          "function concatenates the str for geometry_directory and "
+          "imas_filepath to give the path, your imas_filepath must be either "
+          "the directory containing these files or an empty string (if your "
+          "geometry_directory is already this specific repository).\n In any "
+          "case, make sure geometry_directory + imas_filepath gives the path "
+          "to this directory and not to the .h5 file."
       )
     return self
 
