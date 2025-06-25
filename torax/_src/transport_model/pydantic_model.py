@@ -368,50 +368,69 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
-    transport_models: A sequence of transport models, whose outputs will be
-      summed to give the combined transport coefficients.
+    core_transport_models: A sequence of transport models, whose outputs will be
+      summed to give the combined core transport coefficients.
+    pedestal_transport_model: A model for pedestal transport coefficients.
   """
 
-  transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
+  core_transport_models: Sequence[
+      CombinedCompatibleTransportModel
+  ] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
+  pedestal_transport_model: CombinedCompatibleTransportModel
   model_name: Literal['combined'] = 'combined'
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
-    model_list = [
-        model.build_transport_model() for model in self.transport_models
+    core_transport_model_list = [
+        model.build_transport_model() for model in self.core_transport_models
     ]
-    return combined.CombinedTransportModel(transport_models=model_list)
+    pedestal_transport_model = (
+        self.pedestal_transport_model.build_transport_model()
+    )
+
+    return combined.CombinedTransportModel(
+        core_transport_models=core_transport_model_list,
+        pedestal_transport_model=pedestal_transport_model,
+    )
 
   def build_dynamic_params(
       self, t: chex.Numeric
   ) -> combined.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    model_params_list = [
-        model.build_dynamic_params(t) for model in self.transport_models
+    core_transport_model_params = [
+        model.build_dynamic_params(t) for model in self.core_transport_models
     ]
+    pedestal_transport_model_params = (
+        self.pedestal_transport_model.build_dynamic_params(t)
+    )
+
     return combined.DynamicRuntimeParams(
-        transport_model_params=model_params_list,
+        core_transport_model_params=core_transport_model_params,
+        pedestal_transport_model_params=pedestal_transport_model_params,
         **base_kwargs,
     )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     super()._check_fields()
-    if not self.transport_models:
+    if not self.core_transport_models:
       raise ValueError(
-          'transport_models cannot be empty for CombinedTransportModel. '
+          'core_transport_models cannot be empty for CombinedTransportModel. '
           'Please provide at least one transport model configuration.'
       )
-    if any([
-        np.any(model.apply_inner_patch.value)
-        or np.any(model.apply_outer_patch.value)
-        for model in self.transport_models
-    ]):
+    if (
+        any([
+            np.any(model.apply_inner_patch.value)
+            or np.any(model.apply_outer_patch.value)
+            for model in self.core_transport_models
+        ])
+        or np.any(self.apply_inner_patch.value)
+        or np.any(self.apply_outer_patch.value)
+    ):
       raise ValueError(
-          'apply_inner_patch and apply_outer_patch and should be set in the'
-          ' config for CombinedTransportModel only, rather than its component'
-          ' models.'
+          'apply_inner_patch and apply_outer_patch not supported for'
+          ' CombinedTransportModel or its component models.'
       )
     if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
       raise ValueError(

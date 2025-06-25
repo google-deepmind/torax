@@ -16,7 +16,7 @@
 
 - Constant for ρ < 0.3
 - BgB + critical gradient for 0.1 < ρ < 0.9
-- constant for ρ > 0.8
+- constant for ρ in pedestal
 """
 
 import copy
@@ -26,7 +26,7 @@ from torax.tests.test_data import test_bohmgyrobohm_all
 CONFIG = copy.deepcopy(test_bohmgyrobohm_all.CONFIG)
 CONFIG['transport'] = {
     'model_name': 'combined',
-    'transport_models': [
+    'core_transport_models': [
         {
             'model_name': 'constant',
             # These values match the defaults from apply_inner_patch, but this
@@ -41,16 +41,15 @@ CONFIG['transport'] = {
         },
         {'model_name': 'bohm-gyrobohm', 'rho_min': 0.1, 'rho_max': 0.9},
         {'model_name': 'CGM', 'rho_min': 0.1, 'rho_max': 0.9},
-        {
-            'model_name': 'constant',
-            # These values are set to something we made up for this test
-            'chi_i': 0.5,
-            'chi_e': 0.5,
-            'D_e': 0.2,
-            'V_e': 0.0,
-            'rho_min': 0.8,
-        },
     ],
+    'pedestal_transport_model': {
+        'model_name': 'constant',
+        # These values are set to something we made up for this test
+        'chi_i': 0.5,
+        'chi_e': 0.5,
+        'D_e': 0.2,
+        'V_e': 0.0,
+    },
     # Smoothing, clipping etc are all set on the Combined model, not the
     # components
     'smoothing_width': 0.05,

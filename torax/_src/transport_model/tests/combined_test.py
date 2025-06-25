@@ -31,7 +31,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
+        'core_transport_models': [
             {'model_name': 'constant', 'rho_max': 0.2, 'chi_i': 1.0},
             {
                 'model_name': 'constant',
@@ -41,6 +41,7 @@ class CombinedTransportModelTest(absltest.TestCase):
             },
             {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 3.0},
         ],
+        'pedestal_transport_model': {'model_name': 'constant', 'chi_i': 0.1},
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
@@ -80,12 +81,12 @@ class CombinedTransportModelTest(absltest.TestCase):
         mock_pedestal_outputs,
     )
     # Target:
-    # - 0 for rho = [rho_ped_top, rho_max]
+    # - 0.1 for rho = [rho_ped_top, rho_max]
     # - 3 for rho = (0.8, rho_ped_top), to check pedestal overrides it
     # - 5 for rho = (0.5, 0.8], to check case where models overlap
     # - 2 for rho = (0.2, 0.5], to check case rho_min_1 == rho_max_2
     # - 1 for rho = [0, 0.2], to check case where rho_min = 0
-    target = jnp.where(geo.rho_face_norm <= 0.91, 3.0, 0.0)
+    target = jnp.where(geo.rho_face_norm <= 0.91, 3.0, 0.1)
     target = jnp.where(geo.rho_face_norm <= 0.8, 5.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.5, 2.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
@@ -95,10 +96,27 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
+        'core_transport_models': [
             {'model_name': 'constant', 'apply_inner_patch': True},
             {'model_name': 'constant'},
         ],
+        'pedestal_transport_model': {'model_name': 'constant'},
+    }
+    with self.assertRaisesRegex(
+        ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
+    ):
+      model_config.ToraxConfig.from_dict(config)
+
+  def test_error_if_patches_set_on_self(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'core_transport_models': [
+            {'model_name': 'constant'},
+            {'model_name': 'constant'},
+        ],
+        'pedestal_transport_model': {'model_name': 'constant'},
+        'apply_inner_patch': True,
     }
     with self.assertRaisesRegex(
         ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
@@ -109,10 +127,11 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
+        'core_transport_models': [
             {'model_name': 'constant'},
             {'model_name': 'constant'},
         ],
+        'pedestal_transport_model': {'model_name': 'constant'},
         'rho_min': 0.1,
     }
     with self.assertRaisesRegex(
@@ -122,10 +141,11 @@ class CombinedTransportModelTest(absltest.TestCase):
 
       config['transport'] = {
           'model_name': 'combined',
-          'transport_models': [
+          'core_transport_models': [
               {'model_name': 'constant'},
               {'model_name': 'constant'},
           ],
+          'pedestal_transport_model': {'model_name': 'constant'},
           'rho_max': 0.9,
       }
     with self.assertRaises(ValueError):
