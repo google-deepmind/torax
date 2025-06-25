@@ -1090,17 +1090,25 @@ combined
 
 A combined (additive) model, where the total transport coefficients are
 calculated by summing contributions from a list of component models. Each
-component model is active only within its defined radial domain, set using
-``rho_min``` and ``rho_max``. These zones can be overlapping or
-non-overlapping; in regions of overlap, the total transport coefficients are
-computed by adding the contributions from component models active at those
-coordinates. Post-processing (clipping and smoothing) is performed on the
-summed value.
+component model is active only within its defined radial domain, which can
+be overlapping or non-overlapping; in regions of overlap, the total
+transport coefficients are computed by adding the contributions from
+component models active at those coordinates.
+For models defined in ``transport_models``, the active domain is set by
+``rho_min``` and ``rho_max``. For models in ``pedestal_transport_models``,
+the active domain is set by the ``rho_norm_ped_top`` parameter from the
+``pedestal`` section of the config.
+Post-processing (clipping and smoothing) is performed on the summed
+values from all component models, including in the pedestal.
 
 The runtime parameters are as follows.
 
 ``transport_models`` (list[dict])
-  A list containing config dicts for the component transport models.
+  A list containing config dicts for the component models for turbulent transport in the core.
+
+``pedestal_transport_models`` (list[dict])
+  A list containing config dicts for the component models for turbulent transport in the pedestal.
+
 
    .. warning::
     TORAX will throw a ``ValueError`` if any of the component transport
@@ -1115,29 +1123,36 @@ The runtime parameters are as follows.
 Example:
 
 .. code-block:: python
-
+    ...
     'transport': {
-      'model_name': 'combined',
-      'transport_models': [
-        {
-          'model_name': 'constant',
-            'chi_i': 1.0,
-            'rho_max': 0.3,
-        },
-        {
-          'model_name': 'constant',
-            'chi_i': 2.0,
-            'rho_min': 0.2
-            'rho_max': 0.5,
-        },
-        {
-          'model_name': 'constant',
-            'chi_i': 0.5,
-            'rho_min': 0.5
-            'rho_max': 1.0,
-        },
-      ],
-    }
+        'model_name': 'combined',
+        'transport_models': [
+            {
+               'model_name': 'constant',
+               'chi_i': 1.0,
+               'rho_max': 0.3,
+            },
+            {
+                'model_name': 'constant',
+                'chi_i': 2.0,
+                'rho_min': 0.2,
+            },
+        ],
+        'pedestal_transport_models': [
+            {
+                'model_name': 'constant',
+                'chi_i': 0.5,
+            },
+        ],
+      },
+      'pedestal': {
+          'model_name': 'set_T_ped_n_ped',
+          'set_pedestal': True,
+          'rho_norm_ped_top': 0.9,
+          'n_e_ped': 0.8,
+          'n_e_ped_is_fGW': True,
+      },
+      ...
 
 This would produce a ``chi_i`` profile that looks like the following.
 
@@ -1147,9 +1162,9 @@ This would produce a ``chi_i`` profile that looks like the following.
 
 Note that in the region :math:`[0, 0.2]`, only the first component is active,
 so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
-active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.5]`,
-only the second model is active (``chi_i = 2.0``), and in :math:`(0.5, 1.0]`
-only the fourth model is active (``chi_i = 0.5``).
+active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
+only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
+only the pedestal transport model is active (``chi_i = 0.5``).
 
 
 sources

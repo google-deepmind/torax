@@ -17,9 +17,10 @@
 A class for combining transport models.
 """
 import dataclasses
-from typing import Sequence
+from typing import Callable, Sequence
 
 import jax
+import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -34,17 +35,71 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   transport_model_params: Sequence[runtime_params_lib.DynamicRuntimeParams]
+  pedestal_transport_model_params: Sequence[
+      runtime_params_lib.DynamicRuntimeParams
+  ]
 
 
 class CombinedTransportModel(transport_model_lib.TransportModel):
   """Combines coefficients from a list of transport models."""
 
   def __init__(
-      self, transport_models: Sequence[transport_model_lib.TransportModel]
+      self,
+      transport_models: Sequence[transport_model_lib.TransportModel],
+      pedestal_transport_models: Sequence[transport_model_lib.TransportModel],
   ):
     super().__init__()
     self.transport_models = transport_models
+    self.pedestal_transport_models = pedestal_transport_models
     self._frozen = True
+
+  def __call__(
+      self,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+  ) -> transport_model_lib.TurbulentTransport:
+    if not getattr(self, "_frozen", False):
+      raise RuntimeError(
+          f"Subclass implementation {type(self)} forgot to "
+          "freeze at the end of __init__."
+      )
+
+    transport_runtime_params = dynamic_runtime_params_slice.transport
+
+    # Calculate the transport coefficients - includes contribution from pedestal
+    # and core transport models.
+    transport_coeffs = self._call_implementation(
+        transport_runtime_params,
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        pedestal_model_output,
+    )
+
+    # In contrast to the base TransportModel, we do not apply domain restriction
+    # as this is handled at the component model level
+
+    # Apply min/max clipping
+    transport_coeffs = self._apply_clipping(
+        transport_runtime_params,
+        transport_coeffs,
+    )
+
+    # In contrast to the base TransportModel, we do not apply patches, as these
+    # should be handled by instantiating constant component models instead.
+    # However, the rho_inner and rho_outer arguments are currently required
+    # in the case where the inner/outer region are to be excluded from smoothing.
+    # Smoothing is applied to rho_inner < rho_norm < min(rho_ped_top, rho_outer)
+    # unless smooth_everywhere is True.
+    return self._smooth_coeffs(
+        transport_runtime_params,
+        dynamic_runtime_params_slice,
+        geo,
+        transport_coeffs,
+        pedestal_model_output,
+    )
 
   def _call_implementation(
       self,
@@ -72,16 +127,15 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # Required for pytype
     assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
-    component_transport_coeffs_list = []
-
-    for component_model, component_params in zip(
-        self.transport_models,
-        transport_dynamic_runtime_params.transport_model_params,
-    ):
-      # Use the component model's _call_implementation, rather than __call__
-      # directly. This ensures postprocessing (clipping, smoothing, patches) are
-      # performed on the output of CombinedTransportModel rather than its
-      # component models.
+    def apply_and_restrict(
+        component_model: transport_model_lib.TransportModel,
+        component_params: runtime_params_lib.DynamicRuntimeParams,
+        restriction_fn: Callable,
+    ) -> transport_model_lib.TurbulentTransport:
+      # TODO: Consider only computing transport coefficients for the active
+      # domain, rather than masking them out later. This could be significantly
+      # more efficient especially for pedestal models, as these are only active
+      # in a small region of the domain.
       component_transport_coeffs = component_model._call_implementation(
           component_params,
           dynamic_runtime_params_slice,
@@ -89,31 +143,69 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
           core_profiles,
           pedestal_model_output,
       )
-
-      # Apply domain restriction
-      # This is a property of each component_model, so needs to be applied
-      # at the component model level rather than the global level
-      component_transport_coeffs = component_model._apply_domain_restriction(
+      component_transport_coeffs = restriction_fn(
           component_params,
           geo,
           component_transport_coeffs,
           pedestal_model_output,
       )
+      return component_transport_coeffs
 
-      component_transport_coeffs_list.append(component_transport_coeffs)
+    pedestal_coeffs = [
+        apply_and_restrict(
+            model, params, self._apply_pedestal_domain_restriction
+        )
+        for model, params in zip(
+            self.pedestal_transport_models,
+            transport_dynamic_runtime_params.pedestal_transport_model_params,
+        )
+    ]
 
+    core_coeffs = [
+        apply_and_restrict(model, params, model._apply_domain_restriction)
+        for model, params in zip(
+            self.transport_models,
+            transport_dynamic_runtime_params.transport_model_params,
+        )
+    ]
+
+    # Combine the transport coefficients from core and pedestal models.
     combined_transport_coeffs = jax.tree.map(
         lambda *leaves: sum(leaves),
-        *component_transport_coeffs_list,
+        *pedestal_coeffs,
+        *core_coeffs,
     )
 
     return combined_transport_coeffs
 
+  def _apply_pedestal_domain_restriction(
+      self,
+      transport_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+      geo: geometry.Geometry,
+      transport_coeffs: transport_model_lib.TurbulentTransport,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+  ) -> transport_model_lib.TurbulentTransport:
+    active_mask = geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+
+    chi_face_ion = jnp.where(active_mask, transport_coeffs.chi_face_ion, 0.0)
+    chi_face_el = jnp.where(active_mask, transport_coeffs.chi_face_el, 0.0)
+    d_face_el = jnp.where(active_mask, transport_coeffs.d_face_el, 0.0)
+    v_face_el = jnp.where(active_mask, transport_coeffs.v_face_el, 0.0)
+
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
+
   def __hash__(self):
-    return hash(tuple(self.transport_models))
+    return hash(tuple(self.transport_models + self.pedestal_transport_models))
 
   def __eq__(self, other):
     return (
         isinstance(other, CombinedTransportModel)
         and self.transport_models == other.transport_models
+        and self.pedestal_transport_models == other.pedestal_transport_models
     )

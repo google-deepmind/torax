@@ -14,6 +14,7 @@
 
 """Script for plotting the combined transport model in the docs."""
 from typing import Sequence
+
 from absl import app
 import matplotlib.pyplot as plt
 import torax
@@ -33,7 +34,13 @@ def main(argv: Sequence[str]) -> None:
           'geometry_type': 'circular',
           'n_rho': 30,  # for higher resolution plotting
       },
-      'pedestal': {},
+      'pedestal': {
+          'model_name': 'set_T_ped_n_ped',
+          'set_pedestal': True,
+          'rho_norm_ped_top': 0.9,
+          'n_e_ped': 0.8,
+          'n_e_ped_is_fGW': True,
+      },
       'neoclassical': {},
       'sources': {},
       'solver': {},
@@ -49,13 +56,12 @@ def main(argv: Sequence[str]) -> None:
                   'model_name': 'constant',
                   'chi_i': 2.0,
                   'rho_min': 0.2,
-                  'rho_max': 0.5,
               },
+          ],
+          'pedestal_transport_models': [
               {
                   'model_name': 'constant',
                   'chi_i': 0.5,
-                  'rho_min': 0.5,
-                  'rho_max': 1.0,
               },
           ],
       },
