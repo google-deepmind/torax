@@ -50,8 +50,6 @@ from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
-import typing_extensions
-
 # Many of the variables follow scientific or mathematical notation, so disable
 # pylint complaints.
 # pylint: disable=invalid-name
@@ -133,11 +131,6 @@ class StaticRuntimeParamsSlice:
         self.profile_conditions,
         self.numerics,
     ))
-
-  def validate_new(self, new_params: typing_extensions.Self):
-    """Validates that the new static runtime params slice is compatible."""
-    if set(new_params.sources) != set(self.sources):
-      raise ValueError('New static runtime params slice has different sources.')
 
 
 def make_ip_consistent(
