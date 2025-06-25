@@ -39,7 +39,7 @@ def main(argv: Sequence[str]) -> None:
       'solver': {},
       'transport': {
           'model_name': 'combined',
-          'transport_models': [
+          'core_transport_models': [
               {
                   'model_name': 'constant',
                   'chi_i': 1.0,
@@ -51,13 +51,13 @@ def main(argv: Sequence[str]) -> None:
                   'rho_min': 0.2,
                   'rho_max': 0.5,
               },
-              {
-                  'model_name': 'constant',
-                  'chi_i': 0.5,
-                  'rho_min': 0.5,
-                  'rho_max': 1.0,
-              },
           ],
+          'pedestal_transport_model': {
+              'model_name': 'constant',
+              'chi_i': 0.5,
+              'rho_min': 0.5,
+              'rho_max': 1.0,
+          },
       },
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
