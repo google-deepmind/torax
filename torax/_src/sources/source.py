@@ -24,10 +24,12 @@ import abc
 import dataclasses
 import enum
 import typing
-from typing import ClassVar, Protocol
+from typing import ClassVar
+from typing import Protocol
 
 import chex
 from jax import numpy as jnp
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry

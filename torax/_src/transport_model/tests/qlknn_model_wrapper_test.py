@@ -15,11 +15,12 @@
 import tempfile
 from unittest import mock
 
+import jax.numpy as jnp
 from absl.testing import absltest
 from absl.testing import parameterized
 from fusion_surrogates.qlknn import qlknn_model
 from fusion_surrogates.qlknn import qlknn_model_test_utils
-import jax.numpy as jnp
+
 from torax._src.transport_model import qlknn_model_wrapper
 
 

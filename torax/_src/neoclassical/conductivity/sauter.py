@@ -17,6 +17,7 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
+
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -62,6 +63,7 @@ class SauterModel(base.ConductivityModel):
 
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
+
   model_name: Literal['sauter'] = 'sauter'
 
   def build_dynamic_params(self) -> DynamicRuntimeParams:

@@ -59,6 +59,7 @@ documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
 [project.optional-dependencies]
 # Installed through `pip install -e .[dev]`
 dev = [
+    "isort",
     "pytest",
     "pytest-xdist",
     "pytest-shard",
@@ -76,6 +77,9 @@ tutorial = [
     "seaborn",
     "notebook",
 ]
+
+[tool.isort]
+force_single_line = true
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide

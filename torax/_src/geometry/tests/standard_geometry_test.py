@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import importlib
+import os
+
+import jax
+import numpy as np
 import pytest
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
-import numpy as np
+
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -140,7 +142,7 @@ class GeometryTest(parameterized.TestCase):
       'deltau',
       'deltal',
       'kappa',
-      'FtPQ',       # TODO(b/412965439)  remove support for LY files w/o FtPVQ.
+      'FtPQ',  # TODO(b/412965439)  remove support for LY files w/o FtPVQ.
       'zA',
       't',
   )

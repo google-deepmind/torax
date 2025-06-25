@@ -50,23 +50,23 @@ module, due to the tuple return type.
     logging.set_verbosity(logging.INFO)
     app.run(run)
 """
-from collections.abc import Sequence
 import datetime
 import enum
 import os
+import shutil
 import sys
-from typing import Callable, Final
+from collections.abc import Sequence
+from typing import Callable
+from typing import Final
 
-from absl import logging
 import jax
 import numpy as np
+import xarray as xr
+from absl import logging
+
 from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.torax_pydantic import model_config
-import xarray as xr
-
-import shutil
-
 
 # String printed before printing the output file path
 WRITE_PREFIX: Final[str] = 'Wrote simulation output to '
@@ -186,7 +186,9 @@ def main(
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
   data_tree, state_history = run_simulation.run_simulation(
-      torax_config, log_sim_progress, progress_bar=log_sim_progress_bar,
+      torax_config,
+      log_sim_progress,
+      progress_bar=log_sim_progress_bar,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 

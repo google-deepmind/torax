@@ -15,15 +15,19 @@
 """Classes and functions for defining interpolated parameters."""
 
 import abc
-from collections.abc import Mapping
 import enum
-from typing import Final, Literal, TypeAlias
+from collections.abc import Mapping
+from typing import Final
+from typing import Literal
+from typing import TypeAlias
+
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src import jax_utils
 import xarray as xr
+
+from torax._src import jax_utils
 
 RHO_NORM: Final[str] = 'rho_norm'
 
@@ -38,9 +42,7 @@ def _step_interpolation(xs: chex.Array, x: chex.Numeric) -> chex.Array:
   # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'
   # means that the step occurs whenever x > self.xs. Clipping is strictly
   # necessary for the case where searchsorted returns index 0.
-  return jnp.clip(
-      jnp.searchsorted(xs, x, side='left') - 1, 0, xs.shape[0] - 1
-  )
+  return jnp.clip(jnp.searchsorted(xs, x, side='left') - 1, 0, xs.shape[0] - 1)
 
 
 @enum.unique

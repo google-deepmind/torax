@@ -15,7 +15,9 @@
 """Routines for flattening profiles in redistribution models."""
 
 import dataclasses
+
 from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.core_profiles import initialization

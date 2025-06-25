@@ -20,6 +20,7 @@ TODO(b/323504363): For the next major release (v2), the name of this model shoul
 to PrescribedTransportModel.
 """
 import chex
+
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -78,9 +79,7 @@ class ConstantTransportModel(transport_model.TransportModel):
         pedestal_model_output,
     )  # Not needed for this transport model
 
-    assert isinstance(
-        transport_dynamic_runtime_params, DynamicRuntimeParams
-    )
+    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
     return state.CoreTransport(
         chi_face_ion=transport_dynamic_runtime_params.chi_i,

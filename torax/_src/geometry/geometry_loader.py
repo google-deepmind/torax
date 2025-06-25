@@ -22,8 +22,8 @@ from typing import IO
 import eqdsk
 import numpy as np
 import scipy
-import torax
 
+import torax
 from torax.imas_tools import util as imas_util
 
 

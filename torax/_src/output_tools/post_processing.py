@@ -15,10 +15,13 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 from typing import Callable
+
 import chex
 import jax
-from jax import numpy as jnp
 import numpy as np
+import typing_extensions
+from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -33,7 +36,6 @@ from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
-import typing_extensions
 
 # pylint: disable=invalid-name
 

@@ -23,8 +23,9 @@ import functools
 
 import chex
 import jax
-from jax import numpy as jnp
 import jaxtyping as jt
+from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src.geometry import geometry
@@ -33,6 +34,7 @@ from torax._src.geometry import geometry
 @enum.unique
 class IntegralPreservationQuantity(enum.Enum):
   """The quantity to preserve the integral of when converting to face values."""
+
   # Indicate that the volume integral should be preserved.
   VOLUME = 'volume'
   # Indicate that the surface integral should be preserved.
@@ -43,7 +45,9 @@ class IntegralPreservationQuantity(enum.Enum):
 
 @functools.partial(
     jax_utils.jit,
-    static_argnames=['preserved_quantity',],
+    static_argnames=[
+        'preserved_quantity',
+    ],
 )
 def cell_to_face(
     cell_values: jt.Float[chex.Array, 'rhon'],
@@ -110,9 +114,7 @@ def cell_to_face(
   return face_values
 
 
-def tridiag(
-    diag: jax.Array, above: jax.Array, below: jax.Array
-) -> jax.Array:
+def tridiag(diag: jax.Array, above: jax.Array, below: jax.Array) -> jax.Array:
   """Builds a tridiagonal matrix.
 
   Args:
@@ -212,8 +214,8 @@ def cell_integration(
   """
   if x.shape != geo.rho_norm.shape:
     raise ValueError(
-        f"For cell_integration, input 'x' must have same shape as the cell grid"
-        f"Got x.shape={x.shape}, expected {geo.rho_norm.shape}."
+        "For cell_integration, input 'x' must have same shape as the cell grid"
+        f'Got x.shape={x.shape}, expected {geo.rho_norm.shape}.'
     )
   return jnp.sum(x * geo.drho_norm)
 
@@ -247,4 +249,4 @@ def volume_average(
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Calculates volume-averaged value from input profile."""
-  return cell_integration(value * geo.vpr, geo)/geo.volume_face[-1]
+  return cell_integration(value * geo.vpr, geo) / geo.volume_face[-1]

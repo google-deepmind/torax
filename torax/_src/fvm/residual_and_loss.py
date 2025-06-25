@@ -25,8 +25,9 @@ from typing import TypeAlias
 
 import chex
 import jax
-from jax import numpy as jnp
 import jaxopt
+from jax import numpy as jnp
+
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -41,7 +42,6 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
-
 
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 

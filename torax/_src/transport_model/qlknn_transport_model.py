@@ -21,7 +21,9 @@ from typing import Final
 
 import chex
 import jax
+import typing_extensions
 from jax import numpy as jnp
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -31,7 +33,6 @@ from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name

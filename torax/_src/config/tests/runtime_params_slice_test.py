@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
+
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice as runtime_params_slice_lib
 from torax._src.test_utils import default_configs

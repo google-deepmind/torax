@@ -13,10 +13,12 @@
 # limitations under the License.
 
 from unittest import mock
+
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
-import numpy as np
+
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.physics import collisions
@@ -48,23 +50,49 @@ class CollisionsTest(parameterized.TestCase):
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
       dict(
-          A_impurity=20.0, Z_impurity=10.0, Z_i=1.0, A_i=1.0, n_i=1.0,
-          expected=1.0),
+          A_impurity=20.0,
+          Z_impurity=10.0,
+          Z_i=1.0,
+          A_i=1.0,
+          n_i=1.0,
+          expected=1.0,
+      ),
       dict(
-          A_impurity=20.0, Z_impurity=10.0, Z_i=1.0, A_i=2.0, n_i=1.0,
-          expected=0.5),
+          A_impurity=20.0,
+          Z_impurity=10.0,
+          Z_i=1.0,
+          A_i=2.0,
+          n_i=1.0,
+          expected=0.5,
+      ),
       dict(
-          A_impurity=20.0, Z_impurity=10.0, Z_i=2.0, A_i=4.0, n_i=0.5,
-          expected=0.5),
+          A_impurity=20.0,
+          Z_impurity=10.0,
+          Z_i=2.0,
+          A_i=4.0,
+          n_i=0.5,
+          expected=0.5,
+      ),
       dict(
-          A_impurity=20.0, Z_impurity=10.0, Z_i=1.0, A_i=2.0, n_i=0.9,
-          expected=0.5),
+          A_impurity=20.0,
+          Z_impurity=10.0,
+          Z_i=1.0,
+          A_i=2.0,
+          n_i=0.9,
+          expected=0.5,
+      ),
       dict(
-          A_impurity=40.0, Z_impurity=20.0, Z_i=1.0, A_i=2.0, n_i=0.92,
-          expected=0.5),
+          A_impurity=40.0,
+          Z_impurity=20.0,
+          Z_i=1.0,
+          A_i=2.0,
+          n_i=0.92,
+          expected=0.5,
+      ),
   ])
   def test_calculate_weighted_Z_eff(
-      self, A_impurity, Z_impurity, Z_i, A_i, n_i, expected):
+      self, A_impurity, Z_impurity, Z_i, A_i, n_i, expected
+  ):
     """Compare `_calculate_weighted_Z_eff` to a reference value."""
     n_e = 1.0
     n_impurity = (n_e - n_i * Z_i) / Z_impurity
@@ -91,6 +119,7 @@ class CollisionsTest(parameterized.TestCase):
     np.testing.assert_allclose(
         collisions._calculate_weighted_Z_eff(core_profiles), expected
     )
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -15,8 +15,9 @@ import copy
 import importlib
 from typing import Literal
 
-from absl.testing import parameterized
 import chex
+from absl.testing import parameterized
+
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -62,6 +63,7 @@ def double_gas_puff_source(
 
 class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
   """New source model config."""
+
   model_name: Literal['test_model_function'] = 'test_model_function'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False

@@ -16,9 +16,11 @@
 
 import dataclasses
 import functools
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params

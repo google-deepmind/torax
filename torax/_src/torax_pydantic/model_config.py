@@ -16,8 +16,13 @@
 
 import copy
 import logging
-from typing import Any, Mapping
+from typing import Any
+from typing import Mapping
+
 import pydantic
+import typing_extensions
+from typing_extensions import Self
+
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
@@ -25,16 +30,18 @@ from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.fvm import enums
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import \
+    pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
-from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax._src.time_step_calculator import \
+    pydantic_model as time_step_calculator_pydantic_model
+from torax._src.torax_pydantic import \
+    file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
-import typing_extensions
-from typing_extensions import Self
+from torax._src.transport_model import \
+    pydantic_model as transport_model_pydantic_model
 
 
 class ToraxConfig(torax_pydantic.BaseModelFrozen):

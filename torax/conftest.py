@@ -16,10 +16,10 @@
 
 import sys
 
+import pytest
 from absl import flags
 # Need to import absltest to get --test_srcdir defined.
 from absl.testing import absltest  # pylint: disable=unused-import
-import pytest
 
 
 @pytest.fixture(scope='session', autouse=True)

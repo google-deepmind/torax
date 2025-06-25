@@ -14,9 +14,11 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar
+from typing import Literal
 
 import chex
+
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -28,7 +30,6 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-
 
 # Default value for the model function to be used for the electron cyclotron
 # source. This is also used as an identifier for the model function in

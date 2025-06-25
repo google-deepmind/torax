@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from unittest import mock
+
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
-import numpy as np
+
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib

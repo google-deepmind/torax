@@ -14,16 +14,19 @@
 
 """Utilities for validating the config inputs."""
 
-from collections.abc import Mapping
 import functools
 import logging
-from typing import Annotated, Any, Final, TypeAlias
+from collections.abc import Mapping
+from typing import Annotated
+from typing import Any
+from typing import Final
+from typing import TypeAlias
 
 import numpy as np
 import pydantic
+
 from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
-
 
 _TOLERANCE: Final[float] = 1e-6
 

@@ -16,13 +16,15 @@
 
 from typing import Type
 
-from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
+from absl.testing import parameterized
+
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
@@ -30,7 +32,6 @@ from torax._src.sources import source_profiles
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-
 
 # Most of the checks and computations in TORAX require float64.
 jax.config.update('jax_enable_x64', True)

@@ -21,7 +21,8 @@ CHEASE, FBT, etc.
 import dataclasses
 import logging
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 import chex
 import contourpy
@@ -30,8 +31,11 @@ import scipy
 import typing_extensions
 from imas.ids_toplevel import IDSToplevel
 
-from torax._src import constants, interpolated_param
-from torax._src.geometry import geometry, geometry_loader, geometry_provider
+from torax._src import constants
+from torax._src import interpolated_param
+from torax._src.geometry import geometry
+from torax._src.geometry import geometry_loader
+from torax._src.geometry import geometry_provider
 from torax._src.torax_pydantic import torax_pydantic
 from torax.imas_tools import equilibrium as imas_equilibrium
 
@@ -937,9 +941,9 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
-      equilibrium_object: Optional[IDSToplevel] = None
-      imas_uri: Optional[str] = None
-      imas_filepath: Optional[str] = None
+      equilibrium_object: Optional[IDSToplevel] = None,
+      imas_uri: Optional[str] = None,
+      imas_filepath: Optional[str] = None,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 

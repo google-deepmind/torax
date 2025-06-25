@@ -14,10 +14,11 @@
 
 from unittest import mock
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy.testing as npt
+from absl.testing import absltest
+from absl.testing import parameterized
+
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qlknn_transport_model

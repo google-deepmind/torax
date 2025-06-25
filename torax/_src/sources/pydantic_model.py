@@ -18,26 +18,36 @@ from typing import Any
 
 import immutabledict
 import pydantic
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from typing_extensions import Self
+
+from torax._src.neoclassical import \
+    pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
-from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
-from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
-from torax._src.sources import electron_cyclotron_source as electron_cyclotron_source_lib
+from torax._src.sources import \
+    bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
+from torax._src.sources import \
+    cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
+from torax._src.sources import \
+    electron_cyclotron_source as electron_cyclotron_source_lib
 from torax._src.sources import fusion_heat_source as fusion_heat_source_lib
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
-from torax._src.sources import generic_current_source as generic_current_source_lib
-from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
-from torax._src.sources import generic_particle_source as generic_particle_source_lib
+from torax._src.sources import \
+    generic_current_source as generic_current_source_lib
+from torax._src.sources import \
+    generic_ion_el_heat_source as generic_ion_el_heat_source_lib
+from torax._src.sources import \
+    generic_particle_source as generic_particle_source_lib
 from torax._src.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import runtime_params
 from torax._src.sources import source_models
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_constant_fraction
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_mavrin_fit
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Self
 
 
 class Sources(torax_pydantic.BaseModelFrozen):

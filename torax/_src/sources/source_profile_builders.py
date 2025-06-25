@@ -16,16 +16,19 @@
 import functools
 
 import chex
+
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_heat_sink
 
 _FINAL_SOURCES = frozenset(
     [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME]
@@ -136,6 +139,7 @@ def build_standard_source_profiles(
     psi_only: bool = False,
 ):
   """Updates calculated_source_profiles with standard source profiles."""
+
   def calculate_source(source_name, source):
     static_source_runtime_params = static_runtime_params_slice.sources[
         source_name
@@ -204,7 +208,8 @@ def _update_standard_source_profiles(
     profile: The profile of the source.
   """
   for profile, affected_core_profile in zip(
-      profile, affected_core_profiles, strict=True):
+      profile, affected_core_profiles, strict=True
+  ):
     match affected_core_profile:
       case source_lib.AffectedCoreProfile.PSI:
         calculated_source_profiles.psi[source_name] = profile

@@ -13,9 +13,10 @@
 # limitations under the License.
 from unittest import mock
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
+
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.sources import electron_cyclotron_source
@@ -29,8 +30,9 @@ class SourceTest(parameterized.TestCase):
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""
     source = generic_current_source.GenericCurrentSource()
-    geo = mock.create_autospec(geometry.Geometry,
-                               rho_norm=np.array([1, 1, 1, 1]))
+    geo = mock.create_autospec(
+        geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
+    )
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
@@ -78,12 +80,12 @@ class SourceTest(parameterized.TestCase):
       expected_profile,
   ):
     model_func = mock.MagicMock()
-    model_func.return_value = np.full([4], 42.)
+    model_func.return_value = np.full([4], 42.0)
     source = generic_current_source.GenericCurrentSource(model_func=model_func)
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
-                prescribed_values=(np.full([4], 3.),),
+                prescribed_values=(np.full([4], 3.0),),
             )
         )
     }
@@ -104,8 +106,9 @@ class SourceTest(parameterized.TestCase):
         sources=dynamic_source_params,
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
-    geo = mock.create_autospec(geometry.Geometry,
-                               rho_norm=np.array([1, 1, 1, 1]))
+    geo = mock.create_autospec(
+        geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
+    )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
         static_runtime_params_slice=static_slice,
@@ -126,7 +129,7 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
-                prescribed_values=(np.full([4], 3.), np.full([4], 4.)),
+                prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
             )
         )
     }
@@ -157,13 +160,13 @@ class SourceTest(parameterized.TestCase):
     self.assertLen(profile, 2)
     np.testing.assert_allclose(
         profile[0],
-        np.full([4], 3.),
+        np.full([4], 3.0),
         atol=1e-6,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
         profile[1],
-        np.full([4], 4.),
+        np.full([4], 4.0),
         atol=1e-6,
         rtol=1e-6,
     )
@@ -173,16 +176,17 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
-                prescribed_values=(np.full([4], 3.),),
+                prescribed_values=(np.full([4], 3.0),),
             )
         )
     }
     static_source_params = {
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME:
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
             runtime_params_lib.StaticRuntimeParams(
                 mode=runtime_params_lib.Mode.PRESCRIBED.value,
                 is_explicit=False,
             )
+        )
     }
     static_slice = mock.create_autospec(
         runtime_params_slice.StaticRuntimeParamsSlice,
@@ -204,6 +208,7 @@ class SourceTest(parameterized.TestCase):
           calculated_source_profiles=None,
           conductivity=None,
       )
+
 
 if __name__ == '__main__':
   absltest.main()

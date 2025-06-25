@@ -14,12 +14,19 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
 import functools
 import inspect
-from typing import Annotated, Any, Literal, TypeAlias, TypeVar, Optional
-import pydantic
+from collections.abc import Callable
+from collections.abc import Mapping
+from typing import Annotated
+from typing import Any
+from typing import Literal
+from typing import Optional
+from typing import TypeAlias
+from typing import TypeVar
 
+import pydantic
+import typing_extensions
 from imas.ids_toplevel import IDSToplevel
 
 from torax._src.geometry import circular_geometry
@@ -27,7 +34,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
+
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
 # pylint: disable=invalid-name
@@ -280,21 +287,23 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
-    if [self.equilibrium_object, self.imas_uri, self.imas_filepath].count(None) != 2:
+    if [self.equilibrium_object, self.imas_uri, self.imas_filepath].count(
+        None
+    ) != 2:
       raise ValueError(
-          "IMAS geometry builder needs either `equilibrium_object`, `imas_uri` or "
-          "`imas_filepath` to be a valid input."
+          'IMAS geometry builder needs either `equilibrium_object`, `imas_uri`'
+          ' or `imas_filepath` to be a valid input.'
       )
     if self.imas_filepath is not None and self.imas_filepath[-3:] == '.h5':
       raise ValueError(
-          "If you are using hdf5 backend, the path to the data must point the "
-          "directory containing the equilibrium.h5 and master.h5 files. As the "
-          "function concatenates the str for geometry_directory and "
-          "imas_filepath to give the path, your imas_filepath must be either "
-          "the directory containing these files or an empty string (if your "
-          "geometry_directory is already this specific repository).\n In any "
-          "case, make sure geometry_directory + imas_filepath gives the path "
-          "to this directory and not to the .h5 file."
+          'If you are using hdf5 backend, the path to the data must point the '
+          'directory containing the equilibrium.h5 and master.h5 files. As the '
+          'function concatenates the str for geometry_directory and '
+          'imas_filepath to give the path, your imas_filepath must be either '
+          'the directory containing these files or an empty string (if your '
+          'geometry_directory is already this specific repository).\n In any '
+          'case, make sure geometry_directory + imas_filepath gives the path '
+          'to this directory and not to the .h5 file.'
       )
     return self
 
@@ -311,9 +320,9 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
 class GeometryConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for a single geometry config."""
 
-  config: CircularConfig | CheaseConfig | FBTConfig | EQDSKConfig | IMASConfig = (
-      pydantic.Field(discriminator='geometry_type')
-  )
+  config: (
+      CircularConfig | CheaseConfig | FBTConfig | EQDSKConfig | IMASConfig
+  ) = pydantic.Field(discriminator='geometry_type')
 
 
 class Geometry(torax_pydantic.BaseModelFrozen):

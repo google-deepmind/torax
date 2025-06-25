@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from absl.testing import absltest
-from absl.testing import parameterized
 import chex
 import jax
-from jax import numpy as jnp
 import numpy as np
+from absl.testing import absltest
+from absl.testing import parameterized
+from jax import numpy as jnp
+
 from torax._src.output_tools import safety_factor_fit
 
 
@@ -46,7 +47,7 @@ class SafetyFactorFitTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="20*(x-0.5)^2",
-          transform=lambda x: 20 * (x - 0.5)**2,
+          transform=lambda x: 20 * (x - 0.5) ** 2,
           expected_q_min=0.0,
           expected_rho_q_min=0.5,
       ),
@@ -64,7 +65,7 @@ class SafetyFactorFitTest(parameterized.TestCase):
       ),
       dict(
           testcase_name="-20*(x-0.5)^2",
-          transform=lambda x: -20 * (x - 0.5)**2,
+          transform=lambda x: -20 * (x - 0.5) ** 2,
           expected_q_min=-5.0,
           expected_rho_q_min=0.0,
       ),

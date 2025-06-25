@@ -14,10 +14,14 @@
 
 """Routines for calculating impurity charge states."""
 
-from typing import Final, Mapping, Sequence
+from typing import Final
+from typing import Mapping
+from typing import Sequence
+
 import immutabledict
-from jax import numpy as jnp
 import numpy as np
+from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import plasma_composition

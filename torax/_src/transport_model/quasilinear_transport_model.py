@@ -14,14 +14,15 @@
 """Base class for quasilinear models."""
 import chex
 import jax
+import typing_extensions
 from jax import numpy as jnp
+
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model
-import typing_extensions
 
 
 @chex.dataclass(frozen=True)
@@ -121,11 +122,7 @@ def calculate_alpha(
   constants = constants_module.CONSTANTS
 
   factor_0 = (
-      2
-      * constants.keV2J
-      / reference_magnetic_field**2
-      * constants.mu0
-      * q**2
+      2 * constants.keV2J / reference_magnetic_field**2 * constants.mu0 * q**2
   )
   alpha = factor_0 * (
       core_profiles.T_e.face_value()

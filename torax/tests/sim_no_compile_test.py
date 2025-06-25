@@ -19,9 +19,9 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
-
 
 _ALL_PROFILES = (
     output.T_I,

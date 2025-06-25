@@ -16,6 +16,7 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
+
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
@@ -26,7 +27,8 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
 

@@ -17,14 +17,14 @@
 import os
 from typing import Sequence
 
+import numpy as np
+import xarray as xr
 from absl import app
 from absl import flags
-import numpy as np
+
 from torax._src.config import config_loader
 from torax._src.output_tools import output
 from torax.tests import scripts
-import xarray as xr
-
 
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',

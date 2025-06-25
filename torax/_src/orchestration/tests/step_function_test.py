@@ -14,13 +14,15 @@
 
 import dataclasses
 
-from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
+from absl.testing import absltest
+
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -64,7 +66,8 @@ class StepFunctionTest(absltest.TestCase):
       error = torax_state.check_for_errors()
       self.assertEqual(error, state.SimError.NO_ERROR)
       error = step_function._check_for_errors(
-          torax_state, post_processed_outputs)
+          torax_state, post_processed_outputs
+      )
       self.assertEqual(error, state.SimError.NO_ERROR)
 
     with self.subTest('NaN in BC'):

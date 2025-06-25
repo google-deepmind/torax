@@ -15,9 +15,11 @@
 """Functions used for initializing core profiles."""
 
 import dataclasses
+
 import jax
-from jax import numpy as jnp
 import numpy as np
+from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -28,7 +30,8 @@ from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders

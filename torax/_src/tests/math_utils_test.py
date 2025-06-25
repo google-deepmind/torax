@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
+from absl.testing import absltest
+from absl.testing import parameterized
+
 from torax._src import math_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

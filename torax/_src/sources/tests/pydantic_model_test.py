@@ -13,10 +13,12 @@
 # limitations under the License.
 from typing import Any
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+
+from torax._src.neoclassical import \
+    pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
@@ -24,8 +26,10 @@ from torax._src.sources import generic_current_source
 from torax._src.sources import pydantic_model
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_constant_fraction
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_mavrin_fit
 from torax._src.torax_pydantic import torax_pydantic
 
 
