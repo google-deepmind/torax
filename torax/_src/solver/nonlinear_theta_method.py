@@ -33,20 +33,30 @@ from torax._src.sources import source_profiles
 
 @chex.dataclass(frozen=True)
 class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
-  initial_guess_mode: int
   n_max_iterations: int
   loss_tol: float
 
 
 @chex.dataclass(frozen=True)
-class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
-  log_iterations: bool
+class StaticOptimizerRuntimeParams(runtime_params.StaticRuntimeParams):
   initial_guess_mode: int
+
+
+@chex.dataclass(frozen=True)
+class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   maxiter: int
   residual_tol: float
   residual_coarse_tol: float
   delta_reduction_factor: float
   tau_min: float
+
+
+@chex.dataclass(frozen=True)
+class StaticNewtonRaphsonRuntimeParams(
+    runtime_params.StaticRuntimeParams
+):
+  initial_guess_mode: int
+  log_iterations: bool
 
 
 class NonlinearThetaMethod(solver.Solver):
@@ -179,6 +189,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = dynamic_runtime_params_slice_t.solver
     assert isinstance(solver_params, DynamicOptimizerRuntimeParams)
+    static_solver_params = static_runtime_params_slice.solver
+    assert isinstance(static_solver_params, StaticOptimizerRuntimeParams)
     (
         x_new,
         solver_numeric_outputs,
@@ -202,7 +214,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
-            solver_params.initial_guess_mode,
+            static_solver_params.initial_guess_mode,
         ),
         maxiter=solver_params.n_max_iterations,
         tol=solver_params.loss_tol,
@@ -236,6 +248,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = dynamic_runtime_params_slice_t.solver
     assert isinstance(solver_params, DynamicNewtonRaphsonRuntimeParams)
+    static_solver_params = static_runtime_params_slice.solver
+    assert isinstance(static_solver_params, StaticNewtonRaphsonRuntimeParams)
 
     (
         x_new,
@@ -259,9 +273,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         neoclassical_models=self.neoclassical_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
-        log_iterations=solver_params.log_iterations,
+        log_iterations=static_solver_params.log_iterations,
         initial_guess_mode=enums.InitialGuessMode(
-            solver_params.initial_guess_mode
+            static_solver_params.initial_guess_mode
         ),
         maxiter=solver_params.maxiter,
         tol=solver_params.residual_tol,

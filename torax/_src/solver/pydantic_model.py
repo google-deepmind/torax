@@ -14,6 +14,7 @@
 
 """Pydantic config for Solver."""
 import abc
+import dataclasses
 import functools
 from typing import Literal
 
@@ -163,6 +164,17 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams:
+    """Builds static runtime params from the config."""
+    base_params = super().build_static_params()
+    return nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams(
+        **dataclasses.asdict(base_params),
+        initial_guess_mode=self.initial_guess_mode.value,
+        log_iterations=self.log_iterations,
+    )
+
   @functools.cached_property
   def build_dynamic_params(
       self,
@@ -170,8 +182,6 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        log_iterations=self.log_iterations,
-        initial_guess_mode=self.initial_guess_mode.value,
         maxiter=self.n_max_iterations,
         residual_tol=self.residual_tol,
         residual_coarse_tol=self.residual_coarse_tol,
@@ -216,6 +226,16 @@ class OptimizerThetaMethod(BaseSolver):
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticOptimizerRuntimeParams:
+    """Builds static runtime params from the config."""
+    base_params = super().build_static_params()
+    return nonlinear_theta_method.StaticOptimizerRuntimeParams(
+        **dataclasses.asdict(base_params),
+        initial_guess_mode=self.initial_guess_mode.value,
+    )
+
   @functools.cached_property
   def build_dynamic_params(
       self,
@@ -223,7 +243,6 @@ class OptimizerThetaMethod(BaseSolver):
     return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        initial_guess_mode=self.initial_guess_mode.value,
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,

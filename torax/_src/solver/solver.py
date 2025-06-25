@@ -21,6 +21,7 @@ import abc
 import functools
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -98,6 +99,12 @@ class Solver(abc.ABC):
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
+  @functools.partial(
+      xnp.jit,
+      static_argnames=[
+          'self',
+      ],
+  )
   def __call__(
       self,
       t: jax.Array,

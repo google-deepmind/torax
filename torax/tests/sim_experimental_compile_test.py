@@ -46,6 +46,11 @@ class SimExperimentalCompileTest(sim_test_case.SimTestCase):
           'test_implicit_short_optimizer',
           'test_implicit_short_optimizer.py',
       ),
+      # Using sawtooth solver.
+      (
+          'test_iterhybrid_rampup_sawtooth',
+          'test_iterhybrid_rampup_sawtooth.py',
+      ),
   )
   def test_run_simulation_experimental_compile(
       self,
