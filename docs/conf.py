@@ -349,4 +349,11 @@ rst_epilog = f"""
 
 .. |neoclassical| replace:: `neoclassical <torax_src_neoclassical_target_>`_
 .. _torax_src_neoclassical_target: {github_base_url}/torax/_src/neoclassical
+
+.. |util| replace:: `util <torax_imas_tools_util_target_>`_
+.. _torax_imas_tools_util_target: {github_base_url}/torax/imas_tools/util.py
+
+.. |example_imas_scenario| replace:: `example_imas_scenario.yaml <torax_imas_example_yaml_target_>`_
+.. _torax_imas_example_yaml_target: {github_base_url}/torax/data/third_party/geo/example_imas_scenario.yaml
+
 """
