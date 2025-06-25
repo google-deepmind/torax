@@ -13,13 +13,15 @@
 # limitations under the License.
 from unittest import mock
 
-from absl.testing import absltest
 import jax.numpy as jnp
+from absl.testing import absltest
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
+from torax._src.neoclassical import \
+    runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter
 
 

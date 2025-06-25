@@ -17,10 +17,12 @@ import copy
 from typing import Any
 
 import pydantic
+
 from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
-from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
+from torax._src.neoclassical.bootstrap_current import \
+    zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
 from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic

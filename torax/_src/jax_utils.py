@@ -17,13 +17,16 @@
 import contextlib
 import functools
 import os
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any
+from typing import Callable
+from typing import Literal
+from typing import TypeVar
+
 import chex
 import equinox as eqx
 import jax
-from jax import numpy as jnp
 import numpy as np
-
+from jax import numpy as jnp
 
 T = TypeVar('T')
 BooleanNumeric = Any  # A bool, or a Boolean array.

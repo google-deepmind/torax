@@ -20,11 +20,12 @@ includes
 calculations specific to plasma physics to provide these coefficients.
 """
 
-from typing import Any, Optional, TypeAlias
+from typing import Any
+from typing import Optional
+from typing import TypeAlias
 
 import chex
 import jax
-
 
 # An optional argument, consisting of a 2D matrix of nested tuples, with each
 # leaf being either None or a JAX Array. Used to define block matrices.

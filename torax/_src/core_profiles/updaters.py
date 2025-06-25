@@ -29,8 +29,10 @@ Includes:
 """
 import dataclasses
 import functools
+
 import jax
 from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
@@ -39,7 +41,8 @@ from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import \
+    neoclassical_models as neoclassical_models_lib
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations

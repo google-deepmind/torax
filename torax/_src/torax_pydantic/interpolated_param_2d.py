@@ -14,19 +14,23 @@
 
 """Classes and functions for defining interpolated parameters."""
 
-from collections.abc import Mapping
 import functools
-from typing import Any, Literal, TypeAlias
+from collections.abc import Mapping
+from typing import Any
+from typing import Literal
+from typing import TypeAlias
+
 import chex
 import numpy as np
 import pydantic
+import xarray as xr
+from typing_extensions import Annotated
+from typing_extensions import Self
+
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
-from typing_extensions import Annotated
-from typing_extensions import Self
-import xarray as xr
 
 ValueType: TypeAlias = dict[
     float,

@@ -13,20 +13,23 @@
 # limitations under the License.
 """Class for handling QLKNN10D models."""
 
-from collections.abc import Mapping
 import json
 import os
-from typing import Any, Callable, Final
+from collections.abc import Mapping
+from typing import Any
+from typing import Callable
+from typing import Final
 
 import flax.linen as nn
 import immutabledict
 import jax
 import jax.numpy as jnp
 import numpy as np
+import typing_extensions
+
 from torax._src import jax_utils
 from torax._src.transport_model import base_qlknn_model
 from torax._src.transport_model import qualikiz_based_transport_model
-import typing_extensions
 
 # Internal import.
 # Internal import.

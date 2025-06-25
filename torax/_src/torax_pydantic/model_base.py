@@ -14,15 +14,19 @@
 
 """Pydantic utilities and base classes."""
 
-from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence, TypeAlias
+from collections.abc import Set
+from typing import Any
+from typing import Final
+from typing import Mapping
+from typing import Sequence
+from typing import TypeAlias
+
 import jax
 import pydantic
 import treelib
 from typing_extensions import Self
-
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 JAX_STATIC: Final[str] = '_pydantic_jax_static_field'

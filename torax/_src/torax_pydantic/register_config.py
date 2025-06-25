@@ -13,20 +13,28 @@
 # limitations under the License.
 """Utilities for registering new pydantic configs."""
 from torax._src.sources import base
-from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
-from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
-from torax._src.sources import electron_cyclotron_source as electron_cyclotron_source_lib
+from torax._src.sources import \
+    bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
+from torax._src.sources import \
+    cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
+from torax._src.sources import \
+    electron_cyclotron_source as electron_cyclotron_source_lib
 from torax._src.sources import fusion_heat_source as fusion_heat_source_lib
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
-from torax._src.sources import generic_current_source as generic_current_source_lib
-from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
-from torax._src.sources import generic_particle_source as generic_particle_source_lib
+from torax._src.sources import \
+    generic_current_source as generic_current_source_lib
+from torax._src.sources import \
+    generic_ion_el_heat_source as generic_ion_el_heat_source_lib
+from torax._src.sources import \
+    generic_particle_source as generic_particle_source_lib
 from torax._src.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import pydantic_model as sources_pydantic_model
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit as impurity_radiation_mavrin_fit_lib
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
+from torax._src.sources.impurity_radiation_heat_sink import \
+    impurity_radiation_mavrin_fit as impurity_radiation_mavrin_fit_lib
 from torax._src.torax_pydantic import model_config
 
 
@@ -64,21 +72,15 @@ def _validate_source_model_config(
           electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case gas_puff_source_lib.GasPuffSource.SOURCE_NAME:
-      default_model_name = (
-          gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case generic_particle_source_lib.GenericParticleSource.SOURCE_NAME:
       default_model_name = (
           generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case pellet_source_lib.PelletSource.SOURCE_NAME:
-      default_model_name = (
-          pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
-      default_model_name = (
-          fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case (
         generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_NAME
     ):
@@ -90,13 +92,9 @@ def _validate_source_model_config(
           impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case ion_cyclotron_source_lib.IonCyclotronSource.SOURCE_NAME:
-      default_model_name = (
-          ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
-      default_model_name = (
-          ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
       default_model_name = (
           generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME

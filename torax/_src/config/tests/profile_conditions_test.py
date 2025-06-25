@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import numpy as np
 import pydantic
+import xarray as xr
+from absl.testing import absltest
+from absl.testing import parameterized
+
 from torax._src import interpolated_param
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions
@@ -23,7 +25,6 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-import xarray as xr
 
 
 # pylint: disable=invalid-name

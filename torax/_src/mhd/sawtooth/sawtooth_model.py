@@ -15,7 +15,9 @@
 """Sawtooth model."""
 
 import dataclasses
+
 import jax
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -23,7 +25,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import \
+    neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import solver
 from torax._src.sources import source_models as source_models_lib

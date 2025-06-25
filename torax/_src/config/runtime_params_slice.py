@@ -34,10 +34,11 @@ trigger a recompilation of the solver. These arguments don't have the same
 restrictions as the dynamic arguments both in terms of types and how they are
 used.
 """
-from collections.abc import Mapping
 import dataclasses
+from collections.abc import Mapping
 
 import chex
+
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
 from torax._src.config import profile_conditions
@@ -50,6 +51,7 @@ from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
+
 # Many of the variables follow scientific or mathematical notation, so disable
 # pylint complaints.
 # pylint: disable=invalid-name
@@ -105,6 +107,7 @@ class StaticRuntimeParamsSlice:
   TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
+
   # Solver-specific static runtime params.
   solver: solver_params.StaticRuntimeParams
   # Mapping of source name to source-specific static runtime params.

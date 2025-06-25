@@ -14,11 +14,11 @@
 
 """Pydantic custom types."""
 
-from typing import Annotated, TypeAlias
+from typing import Annotated
+from typing import TypeAlias
 
 import numpy as np
 import pydantic
-
 
 DataTypes: TypeAlias = float | int | bool
 DtypeName: TypeAlias = str

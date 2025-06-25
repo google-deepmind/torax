@@ -14,10 +14,12 @@
 # limitations under the License.
 
 import dataclasses
-from absl.testing import absltest
-from absl.testing import parameterized
+
 import jax
 import numpy as np
+from absl.testing import absltest
+from absl.testing import parameterized
+
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib

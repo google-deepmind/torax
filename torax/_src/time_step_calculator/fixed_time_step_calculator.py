@@ -19,6 +19,7 @@ Steps through time using a constant time step.
 
 import jax
 from jax import numpy as jnp
+
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry

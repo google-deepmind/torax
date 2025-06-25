@@ -15,8 +15,9 @@
 """Shared setup code for unit tests using reference values."""
 
 import chex
-from jax import numpy as jnp
 import numpy as np
+from jax import numpy as jnp
+
 from torax._src import fvm
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice

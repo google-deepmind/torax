@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import jax
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 from jax import numpy as jnp
-import numpy as np
+
 from torax._src.fvm import cell_variable
 
 
@@ -573,11 +574,7 @@ class CellVariableTest(parameterized.TestCase):
       ),
   )
   def test_almost_equal(
-      self,
-      var1_kwargs,
-      var2_kwargs,
-      expected_almost_equal,
-      atol=1e-6
+      self, var1_kwargs, var2_kwargs, expected_almost_equal, atol=1e-6
   ):
     var1 = cell_variable.CellVariable(**var1_kwargs)
     var2 = cell_variable.CellVariable(**var2_kwargs)

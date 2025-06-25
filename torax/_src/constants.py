@@ -17,7 +17,9 @@
 This module saves immutable constants used in various calculations.
 """
 
-from typing import Final, Mapping
+from typing import Final
+from typing import Mapping
+
 import chex
 import immutabledict
 from jax import numpy as jnp

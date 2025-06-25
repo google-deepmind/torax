@@ -14,8 +14,10 @@
 """Code for getting the initial state for a simulation."""
 import dataclasses
 
-from absl import logging
 import numpy as np
+import xarray as xr
+from absl import logging
+
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
@@ -28,8 +30,8 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profile_builders
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
-import xarray as xr
+from torax._src.torax_pydantic import \
+    file_restart as file_restart_pydantic_model
 
 
 def get_initial_state_and_post_processed_outputs(
@@ -86,7 +88,8 @@ def _get_initial_state(
       neoclassical_models=step_fn.solver.neoclassical_models,
       conductivity=conductivity_base.Conductivity(
           sigma=initial_core_profiles.sigma,
-          sigma_face=initial_core_profiles.sigma_face),
+          sigma_face=initial_core_profiles.sigma_face,
+      ),
   )
 
   return sim_state.ToraxSimState(
@@ -205,9 +208,9 @@ def _override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip = (
-      profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1]
-  )
+  dynamic_runtime_params_slice.profile_conditions.Ip = profiles_ds.data_vars[
+      output.IP_PROFILE
+  ].to_numpy()[-1]
   dynamic_runtime_params_slice.profile_conditions.T_e = (
       profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])

@@ -13,8 +13,9 @@
 # limitations under the License.
 from unittest import mock
 
-from absl.testing import absltest
 import jax.numpy as jnp
+from absl.testing import absltest
+
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

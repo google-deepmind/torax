@@ -14,9 +14,10 @@
 
 """Identical to test_iterhybrid_predictor_corrector but with Z_eff profile."""
 import copy
-import numpy as np
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
+import numpy as np
+
+from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 

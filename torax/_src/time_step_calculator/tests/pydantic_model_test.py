@@ -11,12 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pydantic
 from absl.testing import absltest
 from absl.testing import parameterized
-import pydantic
+
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
-from torax._src.time_step_calculator import pydantic_model as time_step_pydantic_model
+from torax._src.time_step_calculator import \
+    pydantic_model as time_step_pydantic_model
 
 
 class PydanticModelTest(parameterized.TestCase):

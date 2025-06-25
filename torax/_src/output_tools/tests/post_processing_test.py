@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+import scipy
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
-import numpy as np
-import scipy
+
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing

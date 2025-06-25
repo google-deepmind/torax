@@ -18,6 +18,7 @@ import abc
 import chex
 import jax
 import jax.numpy as jnp
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
@@ -30,6 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @chex.dataclass(kw_only=True, frozen=True)
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
+
   j_bootstrap: jax.Array
   j_bootstrap_face: jax.Array
 

@@ -13,10 +13,11 @@
 # limitations under the License.
 
 """Full simulator state to be used for orchestration."""
-from absl import logging
 import chex
 import jax
 import numpy as np
+from absl import logging
+
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
@@ -85,12 +86,10 @@ def _log_nans(
       logging.info("Found NaNs in %s", jax.tree_util.keystr(path))
       nan_count += 1
   if nan_count >= 10:
-    logging.info(
-        """\nA common cause of widespread NaNs is negative densities or
+    logging.info("""\nA common cause of widespread NaNs is negative densities or
         temperatures evolving during the solver step. This often arises through
         physical reasons like radiation collapse. Check the output file for
-        near-zero temperatures or densities at the last valid step."""
-    )
+        near-zero temperatures or densities at the last valid step.""")
 
 
 def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:

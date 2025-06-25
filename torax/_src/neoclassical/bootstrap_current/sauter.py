@@ -17,6 +17,7 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
+
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -119,9 +120,7 @@ def _calculate_bootstrap_current(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  lambda_ei = collisions.calculate_lambda_ei(
-      T_e.face_value(), n_e.face_value()
-  )
+  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
   lambda_ii = collisions.calculate_lambda_ii(
       T_i.face_value(), n_i.face_value(), Z_i_face
   )

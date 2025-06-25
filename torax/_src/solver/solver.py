@@ -19,18 +19,21 @@ Abstract base class defining updates to State.
 
 import abc
 import functools
+
 import jax
+import typing_extensions
+
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import \
+    neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
-import typing_extensions
 
 
 class Solver(abc.ABC):

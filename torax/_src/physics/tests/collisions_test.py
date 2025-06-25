@@ -13,10 +13,12 @@
 # limitations under the License.
 
 from unittest import mock
+
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
-import numpy as np
+
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.physics import collisions
@@ -57,9 +59,7 @@ class CollisionsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(T_i_ev=1.0, n_i=1.0, Z_i=1.0, expected=30.0),
-      dict(
-          T_i_ev=np.exp(8), n_i=np.exp(42), Z_i=np.exp(1), expected=18.0
-      ),
+      dict(T_i_ev=np.exp(8), n_i=np.exp(42), Z_i=np.exp(1), expected=18.0),
   ])
   def test_calculate_lambda_ii(self, T_i_ev, n_i, Z_i, expected):
     T_i_kev = jnp.array(T_i_ev / 1e3)

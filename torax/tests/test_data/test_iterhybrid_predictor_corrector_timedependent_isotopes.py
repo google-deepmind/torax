@@ -14,8 +14,8 @@
 
 """Identical to test_iterhybrid_predictor_corrector but with a time varying DT isotope mix."""
 import copy
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
+from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 

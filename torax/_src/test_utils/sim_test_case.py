@@ -16,10 +16,15 @@
 
 import copy
 import os
-from typing import Any, Final, Optional, Sequence
-from absl.testing import parameterized
+from typing import Any
+from typing import Final
+from typing import Optional
+from typing import Sequence
+
 import chex
 import numpy as np
+from absl.testing import parameterized
+
 from torax._src import constants
 from torax._src import simulation_app
 from torax._src.config import config_loader
@@ -27,7 +32,6 @@ from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
-
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
 

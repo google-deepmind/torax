@@ -15,6 +15,7 @@
 
 import chex
 from jax import numpy as jnp
+
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.geometry import geometry
@@ -126,9 +127,7 @@ class QualikizBasedTransportModel(
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
     # Ion to electron temperature ratio
-    Ti_Te = (
-        core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
-    )
+    Ti_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
 
     # logarithm of normalized collisionality
     nu_star = collisions.calc_nu_star(

@@ -19,10 +19,12 @@ from typing import Literal
 import chex
 import jax
 import jax.numpy as jnp
+import typing_extensions
+
 from torax._src import constants
 from torax._src.geometry import geometry
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
-import typing_extensions
+from torax._src.neoclassical.bootstrap_current import \
+    base as bootstrap_current_base
 
 # pylint: disable=invalid-name
 
@@ -116,7 +118,8 @@ class SourceProfiles:
     """
     sum_profiles = lambda a, b: a + b
     return jax.tree_util.tree_map(
-        sum_profiles, explicit_source_profiles, implicit_source_profiles)
+        sum_profiles, explicit_source_profiles, implicit_source_profiles
+    )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
     total = self.bootstrap_current.j_bootstrap

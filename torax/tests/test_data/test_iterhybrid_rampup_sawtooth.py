@@ -14,11 +14,11 @@
 
 """Similar to test_iterhybrid_rampup but with sawteeth."""
 import copy
+
 from torax.tests.test_data import test_iterhybrid_rampup
 
-
 CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
-assert(isinstance(CONFIG['profile_conditions'], dict))
+assert isinstance(CONFIG['profile_conditions'], dict)
 CONFIG['profile_conditions']['initial_psi_from_j'] = True
 CONFIG['profile_conditions']['current_profile_nu'] = 2.0
 CONFIG['sources']['generic_current']['fraction_of_total_current'] = 0.0

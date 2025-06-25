@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
+
 from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization

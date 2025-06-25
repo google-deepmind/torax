@@ -22,8 +22,8 @@ from typing import IO
 import eqdsk
 import numpy as np
 import scipy
-import torax
 
+import torax
 
 # Internal import.
 # Internal import.

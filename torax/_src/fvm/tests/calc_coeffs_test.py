@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import copy
+
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
@@ -110,9 +112,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       transport_model = torax_config.transport.build_transport_model()
       evolving_names = tuple(['T_i'])
       source_models = torax_config.sources.build_models()
-      neoclassical_models = (
-          torax_config.neoclassical.build_models()
-      )
+      neoclassical_models = torax_config.neoclassical.build_models()
       static_runtime_params_slice = (
           build_runtime_params.build_static_params_from_config(torax_config)
       )

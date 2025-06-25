@@ -14,17 +14,25 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
 import functools
 import inspect
-from typing import Annotated, Any, Literal, TypeAlias, TypeVar
+from collections.abc import Callable
+from collections.abc import Mapping
+from typing import Annotated
+from typing import Any
+from typing import Literal
+from typing import TypeAlias
+from typing import TypeVar
+
 import pydantic
+import typing_extensions
+
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
+
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
 # pylint: disable=invalid-name

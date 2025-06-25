@@ -16,11 +16,14 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Final, Literal
+from typing import ClassVar
+from typing import Final
+from typing import Literal
 
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -30,7 +33,6 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
-
 
 # Default value for the model function to be used for the Bremsstrahlung heat
 # sink. This is also used as an identifier for the model function in the default

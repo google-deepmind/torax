@@ -17,6 +17,8 @@ import functools
 
 import jax
 import jax.numpy as jnp
+import typing_extensions
+
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -26,13 +28,13 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import \
+    neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_model as transport_model_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name

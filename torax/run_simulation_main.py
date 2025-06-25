@@ -20,15 +20,17 @@ python3 run_simulation_main.py \
  --log_progress
 """
 
-from collections.abc import Sequence
 import enum
 import functools
 import pathlib
 import time
+from collections.abc import Sequence
+
+import jax
 from absl import app
 from absl import flags
 from absl import logging
-import jax
+
 import torax
 from torax._src import simulation_app
 from torax._src.config import config_loader
