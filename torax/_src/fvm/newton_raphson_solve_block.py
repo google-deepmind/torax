@@ -18,13 +18,12 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable
-from typing import Final
+from typing import Callable, Final
 
-import jax
-import numpy as np
 from absl import logging
+import jax
 from jax import numpy as jnp
+import numpy as np
 
 from torax._src import jax_utils
 from torax._src import state as state_module

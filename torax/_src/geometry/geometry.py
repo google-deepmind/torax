@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """Classes for representing the problem geometry."""
+from collections.abc import Sequence
 import dataclasses
 import enum
-from collections.abc import Sequence
 
 import chex
 import jax

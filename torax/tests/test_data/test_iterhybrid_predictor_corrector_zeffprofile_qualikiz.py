@@ -15,8 +15,7 @@
 """Identical to test_iterhybrid_predictor_corrector_zeffprofile but with QuaLiKiz."""
 import copy
 
-from torax.tests.test_data import \
-    test_iterhybrid_predictor_corrector_zeffprofile
+from torax.tests.test_data import test_iterhybrid_predictor_corrector_zeffprofile
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector_zeffprofile.CONFIG)
 

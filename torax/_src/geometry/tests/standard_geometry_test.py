@@ -15,11 +15,11 @@
 import importlib
 import os
 
+from absl.testing import absltest
+from absl.testing import parameterized
 import jax
 import numpy as np
 import pytest
-from absl.testing import absltest
-from absl.testing import parameterized
 
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader

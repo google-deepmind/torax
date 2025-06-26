@@ -14,14 +14,10 @@
 
 """Pydantic utilities and base classes."""
 
+from collections.abc import Set
 import functools
 import inspect
-from collections.abc import Set
-from typing import Any
-from typing import Final
-from typing import Mapping
-from typing import Sequence
-from typing import TypeAlias
+from typing import Any, Final, Mapping, Sequence, TypeAlias
 
 import jax
 import pydantic

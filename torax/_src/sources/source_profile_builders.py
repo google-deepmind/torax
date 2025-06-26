@@ -21,14 +21,12 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
-from torax._src.neoclassical.bootstrap_current import \
-    base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
-from torax._src.sources.impurity_radiation_heat_sink import \
-    impurity_radiation_heat_sink
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 
 _FINAL_SOURCES = frozenset(
     [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME]

@@ -16,15 +16,14 @@
 
 from typing import Type
 
+from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
-from absl.testing import parameterized
 
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.neoclassical.bootstrap_current import \
-    base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib

@@ -14,9 +14,7 @@
 """Conversion utilities between CoreProfiles state variables and fvm objects."""
 
 import dataclasses
-from typing import Final
-from typing import Mapping
-from typing import Tuple
+from typing import Final, Mapping, Tuple
 
 import immutabledict
 

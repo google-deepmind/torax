@@ -11,17 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
 from torax._src.config import plasma_composition
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
-from torax._src.sources.impurity_radiation_heat_sink import \
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
-from torax._src.sources.impurity_radiation_heat_sink import \
-    impurity_radiation_mavrin_fit
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
 from torax._src.torax_pydantic import torax_pydantic
 

@@ -21,14 +21,13 @@ previously executed TORAX reference:
 import copy
 import dataclasses
 import importlib
-from typing import Final
-from typing import Sequence
+from typing import Final, Sequence
 from unittest import mock
 
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import tree
+import numpy as np
 
 from torax._src import state
 from torax._src.orchestration import initial_state

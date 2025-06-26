@@ -50,19 +50,18 @@ module, due to the tuple return type.
     logging.set_verbosity(logging.INFO)
     app.run(run)
 """
+from collections.abc import Sequence
 import datetime
 import enum
 import os
 import shutil
 import sys
-from collections.abc import Sequence
-from typing import Callable
-from typing import Final
+from typing import Callable, Final
 
+from absl import logging
 import jax
 import numpy as np
 import xarray as xr
-from absl import logging
 
 from torax._src import state
 from torax._src.orchestration import run_simulation

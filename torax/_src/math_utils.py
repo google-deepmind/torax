@@ -23,8 +23,8 @@ import functools
 
 import chex
 import jax
-import jaxtyping as jt
 from jax import numpy as jnp
+import jaxtyping as jt
 
 from torax._src import array_typing
 from torax._src import jax_utils

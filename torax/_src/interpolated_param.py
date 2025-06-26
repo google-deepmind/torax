@@ -15,11 +15,9 @@
 """Classes and functions for defining interpolated parameters."""
 
 import abc
-import enum
 from collections.abc import Mapping
-from typing import Final
-from typing import Literal
-from typing import TypeAlias
+import enum
+from typing import Final, Literal, TypeAlias
 
 import chex
 import jax

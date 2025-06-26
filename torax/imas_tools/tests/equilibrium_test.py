@@ -16,15 +16,14 @@
 
 import importlib
 import os
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
-import imas
-import numpy as np
-import pytest
 from absl.testing import absltest
 from absl.testing import parameterized
+import imas
 from imas.ids_toplevel import IDSToplevel
+import numpy as np
+import pytest
 
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import run_simulation

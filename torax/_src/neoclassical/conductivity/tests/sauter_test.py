@@ -13,8 +13,8 @@
 # limitations under the License.
 from unittest import mock
 
-import jax.numpy as jnp
 from absl.testing import absltest
+import jax.numpy as jnp
 
 from torax._src import state
 from torax._src.fvm import cell_variable

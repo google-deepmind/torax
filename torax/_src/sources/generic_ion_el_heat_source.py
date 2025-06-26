@@ -14,8 +14,7 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 

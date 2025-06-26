@@ -15,10 +15,10 @@
 from collections.abc import Mapping
 from typing import Final
 
+from fusion_surrogates.qlknn import qlknn_model
 import immutabledict
 import jax
 import jax.numpy as jnp
-from fusion_surrogates.qlknn import qlknn_model
 
 from torax._src import jax_utils
 from torax._src.transport_model import base_qlknn_model

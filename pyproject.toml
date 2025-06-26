@@ -79,7 +79,7 @@ tutorial = [
 ]
 
 [tool.isort]
-force_single_line = true
+profile = "google"
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide

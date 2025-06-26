@@ -14,8 +14,7 @@
 
 """External current source profile."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 from jax import numpy as jnp

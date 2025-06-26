@@ -14,18 +14,15 @@
 
 """Classes and functions for defining interpolated parameters."""
 
-import functools
 from collections.abc import Mapping
-from typing import Any
-from typing import Literal
-from typing import TypeAlias
+import functools
+from typing import Any, Literal, TypeAlias
 
 import chex
 import numpy as np
 import pydantic
+from typing_extensions import Annotated, Self
 import xarray as xr
-from typing_extensions import Annotated
-from typing_extensions import Self
 
 from torax._src import interpolated_param
 from torax._src import jax_utils

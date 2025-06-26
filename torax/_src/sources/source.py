@@ -24,8 +24,7 @@ import abc
 import dataclasses
 import enum
 import typing
-from typing import ClassVar
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 import chex
 from jax import numpy as jnp

@@ -14,10 +14,10 @@
 import logging
 import os
 
-import numpy as np
-import xarray as xr
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
+import xarray as xr
 
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output

@@ -15,8 +15,8 @@ import copy
 import importlib
 from typing import Literal
 
-import chex
 from absl.testing import parameterized
+import chex
 
 from torax._src import array_typing
 from torax._src import state

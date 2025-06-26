@@ -20,9 +20,7 @@ includes
 calculations specific to plasma physics to provide these coefficients.
 """
 
-from typing import Any
-from typing import Optional
-from typing import TypeAlias
+from typing import Any, Optional, TypeAlias
 
 import chex
 import jax

@@ -18,18 +18,17 @@ This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
 
+from collections.abc import Mapping
 import dataclasses
 import logging
-from collections.abc import Mapping
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
 import chex
 import contourpy
+from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import scipy
 import typing_extensions
-from imas.ids_toplevel import IDSToplevel
 
 from torax._src import constants
 from torax._src import interpolated_param

@@ -14,8 +14,7 @@
 
 """Gas puff source for the n_e equation."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 

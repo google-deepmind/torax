@@ -14,9 +14,9 @@
 
 from typing import Literal
 
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -26,8 +26,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import \
-    pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 

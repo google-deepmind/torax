@@ -15,10 +15,10 @@
 import os
 from unittest import mock
 
-import chex
-import jax
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 from jax import numpy as jnp
 
 from torax._src import jax_utils

@@ -17,10 +17,9 @@
 NOTE: Time dependent providers currently live in `geometry.py` and match the
 protocol defined here.
 """
-import dataclasses
 from collections.abc import Mapping
-from typing import Protocol
-from typing import Type
+import dataclasses
+from typing import Protocol, Type
 
 import chex
 import numpy as np

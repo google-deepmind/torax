@@ -14,8 +14,8 @@
 """Base class for quasilinear models."""
 import chex
 import jax
-import typing_extensions
 from jax import numpy as jnp
+import typing_extensions
 
 from torax._src import constants as constants_module
 from torax._src import state

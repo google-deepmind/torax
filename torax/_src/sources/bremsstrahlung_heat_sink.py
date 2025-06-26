@@ -16,9 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar
-from typing import Final
-from typing import Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 import jax

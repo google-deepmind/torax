@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 import pydantic
 import xarray as xr
-from absl.testing import absltest
-from absl.testing import parameterized
 
 from torax._src import interpolated_param
 from torax._src.torax_pydantic import torax_pydantic

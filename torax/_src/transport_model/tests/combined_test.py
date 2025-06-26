@@ -14,9 +14,9 @@
 
 from unittest import mock
 
+from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from absl.testing import absltest
 
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization

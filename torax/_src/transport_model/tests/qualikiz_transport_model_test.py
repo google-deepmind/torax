@@ -16,8 +16,8 @@ import os
 import subprocess
 from unittest import mock
 
-import numpy as np
 from absl.testing import absltest
+import numpy as np
 
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization

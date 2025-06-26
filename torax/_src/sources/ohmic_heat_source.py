@@ -13,8 +13,7 @@
 # limitations under the License.
 """Ohmic heat source."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 import jax.numpy as jnp

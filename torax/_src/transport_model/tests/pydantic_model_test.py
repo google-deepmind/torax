@@ -11,18 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pydantic
 from absl.testing import absltest
 from absl.testing import parameterized
 from fusion_surrogates.qlknn.models import registry
+import pydantic
 
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
-from torax._src.transport_model import \
-    pydantic_model as transport_pydantic_model
+from torax._src.transport_model import pydantic_model as transport_pydantic_model
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import runtime_params

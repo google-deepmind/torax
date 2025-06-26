@@ -14,20 +14,14 @@
 
 """Pydantic model for geometry."""
 
+from collections.abc import Callable, Mapping
 import functools
 import inspect
-from collections.abc import Callable
-from collections.abc import Mapping
-from typing import Annotated
-from typing import Any
-from typing import Literal
-from typing import Optional
-from typing import TypeAlias
-from typing import TypeVar
+from typing import Annotated, Any, Literal, Optional, TypeAlias, TypeVar
 
+from imas.ids_toplevel import IDSToplevel
 import pydantic
 import typing_extensions
-from imas.ids_toplevel import IDSToplevel
 
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry

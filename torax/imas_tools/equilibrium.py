@@ -14,14 +14,12 @@
 
 """Useful functions for handling of IMAS IDSs and converts them into TORAX
 objects"""
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 import imas
+from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import scipy
-from imas.ids_toplevel import IDSToplevel
 
 from torax._src.geometry import geometry_loader
 

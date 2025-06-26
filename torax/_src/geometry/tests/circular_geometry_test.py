@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from absl.testing import absltest
 import jax
 import numpy as np
-from absl.testing import absltest
 
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry

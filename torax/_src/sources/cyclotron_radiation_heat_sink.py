@@ -16,14 +16,13 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 import jax
+from jax import numpy as jnp
 import pydantic
 import typing_extensions
-from jax import numpy as jnp
 
 from torax._src import array_typing
 from torax._src import jax_utils

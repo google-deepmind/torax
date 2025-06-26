@@ -13,9 +13,9 @@
 # limitations under the License.
 from unittest import mock
 
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params

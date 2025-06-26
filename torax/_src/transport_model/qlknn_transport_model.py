@@ -21,8 +21,8 @@ from typing import Final
 
 import chex
 import jax
-import typing_extensions
 from jax import numpy as jnp
+import typing_extensions
 
 from torax._src import state
 from torax._src.config import runtime_params_slice

@@ -14,8 +14,7 @@
 
 """Profile condition parameters used throughout TORAX simulations."""
 import dataclasses
-from typing import Callable
-from typing import Final
+from typing import Callable, Final
 
 import chex
 import numpy as np

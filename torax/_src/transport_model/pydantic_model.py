@@ -16,16 +16,14 @@
 
 import copy
 import dataclasses
-from typing import Any
-from typing import Literal
-from typing import Sequence
+from typing import Any, Literal, Sequence
 
+from absl import logging
 import chex
+from fusion_surrogates.qlknn.models import registry
 import numpy as np
 import pydantic
 import typing_extensions
-from absl import logging
-from fusion_surrogates.qlknn.models import registry
 
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm

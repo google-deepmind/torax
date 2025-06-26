@@ -13,12 +13,10 @@
 # limitations under the License.
 """Class for handling QLKNN10D models."""
 
+from collections.abc import Mapping
 import json
 import os
-from collections.abc import Mapping
-from typing import Any
-from typing import Callable
-from typing import Final
+from typing import Any, Callable, Final
 
 import flax.linen as nn
 import immutabledict

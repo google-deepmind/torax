@@ -18,10 +18,10 @@ Includes a time slider. Reads output files with xarray data or legacy h5 data.
 
 Plots are configured by a plot_config module.
 """
-import matplotlib
 from absl import app
 from absl import logging
 from absl.flags import argparse_flags
+import matplotlib
 
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
