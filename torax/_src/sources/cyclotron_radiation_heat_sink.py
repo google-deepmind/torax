@@ -42,14 +42,14 @@ import typing_extensions
 DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StaticRuntimeParams(runtime_params_lib.StaticRuntimeParams):
   beta_min: float
   beta_max: float
   beta_grid_size: int
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   wall_reflection_coeff: array_typing.ScalarFloat
 

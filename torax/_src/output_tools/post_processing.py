@@ -15,7 +15,6 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 from typing import Callable
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -38,7 +37,7 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True, eq=False)
+@jax_utils.jax_dataclass(frozen=True, eq=False)
 class PostProcessedOutputs:
   """Collection of outputs calculated after each simulation step.
 

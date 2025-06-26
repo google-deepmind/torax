@@ -16,13 +16,14 @@
 import chex
 import pydantic
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
 
 # pylint: disable=invalid-name
 # TODO(b/326578331): remove density reference from DynamicNumerics entirely.
-@chex.dataclass
+@jax_utils.jax_dataclass
 class DynamicNumerics:
   """Generic numeric parameters for the simulation.
 
@@ -42,7 +43,7 @@ class DynamicNumerics:
   adaptive_n_source_prefactor: float
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StaticNumerics:
   """Static numerics parameters for the simulation.
 

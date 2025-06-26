@@ -257,6 +257,6 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     )
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   radiation_multiplier: array_typing.ScalarFloat

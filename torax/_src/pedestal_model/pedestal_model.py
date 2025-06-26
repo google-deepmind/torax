@@ -17,10 +17,10 @@
 The pedestal model calculates quantities relevant to the pedestal.
 """
 import abc
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -29,7 +29,7 @@ from torax._src.geometry import geometry
 # Using physics notation naming convention
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class PedestalModelOutput:
   """Output of the PedestalModel."""
 

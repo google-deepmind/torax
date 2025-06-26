@@ -16,6 +16,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import constants as constants_module
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -24,7 +25,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class NormalizedLogarithmicGradients:
   """Normalized logarithmic gradients of plasma profiles.
 
@@ -146,7 +147,7 @@ def calculate_alpha(
   return alpha
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
@@ -178,7 +179,7 @@ def calculate_normalized_logarithmic_gradient(
   return result
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class QuasilinearInputs:
   """Variables required to convert outputs to TORAX CoreTransport outputs."""
 

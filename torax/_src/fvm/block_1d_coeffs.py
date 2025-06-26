@@ -22,8 +22,8 @@ calculations specific to plasma physics to provide these coefficients.
 
 from typing import Any, Optional, TypeAlias
 
-import chex
 import jax
+from torax._src import jax_utils
 
 
 # An optional argument, consisting of a 2D matrix of nested tuples, with each
@@ -42,7 +42,7 @@ OptionalTupleMatrix: TypeAlias = Optional[
 AuxiliaryOutput: TypeAlias = Any
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class Block1DCoeffs:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """The coefficients of coupled 1D fluid dynamics PDEs.

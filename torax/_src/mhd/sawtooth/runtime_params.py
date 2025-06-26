@@ -14,11 +14,11 @@
 
 """Dynamic runtime params for sawtooth model."""
 
-import chex
 from torax._src import array_typing
+from torax._src import jax_utils
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class TriggerDynamicRuntimeParams:
   """Dynamic runtime params for trigger models.
 
@@ -29,7 +29,7 @@ class TriggerDynamicRuntimeParams:
   minimum_radius: array_typing.ScalarFloat
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class RedistributionDynamicRuntimeParams:
   """Dynamic runtime params for redistribution models.
 
@@ -41,7 +41,7 @@ class RedistributionDynamicRuntimeParams:
   flattening_factor: array_typing.ScalarFloat
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Dynamic runtime params for sawtooth model.
 

@@ -28,7 +28,7 @@ from torax._src.neoclassical.bootstrap_current import runtime_params
 from torax._src.physics import collisions
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   """Dynamic runtime params for the Sauter model."""
 

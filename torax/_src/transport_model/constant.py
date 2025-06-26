@@ -19,8 +19,8 @@ A simple model assuming prescribed transport.
 TODO(b/323504363): For the next major release (v2), the name of this model should be updated
 to PrescribedTransportModel.
 """
-import chex
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -30,7 +30,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Extends the base runtime params with additional params for this model.
 

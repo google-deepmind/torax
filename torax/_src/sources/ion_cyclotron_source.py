@@ -69,7 +69,7 @@ def _from_json(json_file) -> dict[str, Any]:
 # pylint: disable=invalid-name
 # Many of the variables below are named to match the physics quantities
 # as defined by the TORIC ICRF solver, so we keep their naming for consistency.
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class ToricNNInputs:
   """Inputs to the ToricNN model."""
 
@@ -98,7 +98,7 @@ class ToricNNInputs:
   B_0: array_typing.ScalarFloat
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class ToricNNOutputs:
   """Outputs from the ToricNN model."""
 
@@ -301,7 +301,7 @@ def _toric_nn_predict(
   )
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat

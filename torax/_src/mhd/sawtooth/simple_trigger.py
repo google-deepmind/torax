@@ -20,6 +20,7 @@ import chex
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -109,7 +110,7 @@ class SimpleTrigger(trigger_base.TriggerModel):
     return isinstance(other, SimpleTrigger)
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):
   """Dynamic runtime params for simple trigger model.
 

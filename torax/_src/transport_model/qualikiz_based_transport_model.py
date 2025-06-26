@@ -16,6 +16,7 @@
 import chex
 from jax import numpy as jnp
 from torax._src import constants as constants_module
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
@@ -23,7 +24,7 @@ from torax._src.physics import psi_calculations
 from torax._src.transport_model import quasilinear_transport_model
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
   """Shared parameters for Qualikiz-based models."""
 
@@ -34,7 +35,7 @@ class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   """Inputs to Qualikiz-based models."""
 

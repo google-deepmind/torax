@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pedestal model that specifies pressure, temperature ratio, and density."""
-import chex
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -26,7 +26,7 @@ from typing_extensions import override
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 

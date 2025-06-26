@@ -18,6 +18,7 @@ from typing import Literal
 from absl.testing import parameterized
 import chex
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -32,7 +33,7 @@ from torax._src.torax_pydantic import register_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   a: array_typing.ScalarFloat
   b: bool

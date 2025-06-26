@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Runtime params for the solver."""
-import chex
+from torax._src import jax_utils
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StaticRuntimeParams:
   """Static params for the solver."""
 
@@ -26,7 +26,7 @@ class StaticRuntimeParams:
   use_predictor_corrector: bool
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the solver which can be used as compiled args."""
 

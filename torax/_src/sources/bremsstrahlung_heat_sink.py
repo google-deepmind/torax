@@ -21,6 +21,7 @@ from typing import ClassVar, Final, Literal
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -38,7 +39,7 @@ from torax._src.sources import source_profiles
 DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   use_relativistic_correction: bool
 

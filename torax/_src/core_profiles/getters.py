@@ -15,7 +15,6 @@
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import functools
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -32,7 +31,7 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class Ions:
   """Helper container for holding ion attributes."""
 

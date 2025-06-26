@@ -104,7 +104,7 @@ class ConstantGeometryProvider(GeometryProvider):
     return self._geo.torax_mesh
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True, kw_only=True)
 class TimeDependentGeometryProvider:
   """A geometry provider which holds values to interpolate based on time."""
 

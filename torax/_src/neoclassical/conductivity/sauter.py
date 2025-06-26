@@ -28,7 +28,7 @@ from torax._src.physics import collisions
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   """Dynamic runtime params for the Sauter model."""
 
