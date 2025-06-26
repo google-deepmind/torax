@@ -14,10 +14,10 @@
 
 """Shared setup code for unit tests using reference values."""
 
-import chex
 from jax import numpy as jnp
 import numpy as np
 from torax._src import fvm
+from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -25,7 +25,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.torax_pydantic import model_config
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class References:
   """Collection of reference values useful for unit tests."""
 

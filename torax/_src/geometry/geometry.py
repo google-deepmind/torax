@@ -21,6 +21,7 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import jax_utils
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -56,7 +57,7 @@ class GeometryType(enum.IntEnum):
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class Geometry:
   r"""Describes the magnetic geometry.
 

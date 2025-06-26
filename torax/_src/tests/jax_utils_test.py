@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import dataclasses
 import os
 from unittest import mock
 from absl.testing import absltest
@@ -140,6 +140,52 @@ class JaxUtilsTest(parameterized.TestCase):
 
     x = {'temp1': jnp.array(1.3), 'temp2': jnp.array(2.6)}
     chex.assert_trees_all_close(f_non_inlined(x), f(x))
+
+  def test_jax_dataclass(self):
+
+    @jax_utils.jax_dataclass(frozen=True, kw_only=True)
+    class TestClass:
+      a: bool = dataclasses.field(metadata=dict(static=True))
+      b: chex.Array
+
+    test_class = TestClass(a=False, b=jnp.array(1.0))
+
+    with self.subTest('sanity_check'):
+      self.assertFalse(test_class.a)
+      self.assertEqual(test_class.b, jnp.array(1.0))
+
+    with self.subTest('check_frozen_arg_passed_correctly'):
+      with self.assertRaises(dataclasses.FrozenInstanceError):
+        test_class.a = False
+
+    with self.subTest('check_kw_only_arg_passed_correctly'):
+      with self.assertRaises(TypeError):
+        TestClass(False, a=jnp.array(1.0))  # type: ignore
+
+    with self.subTest('check_fields_can_be_accessed'):
+      fields = dataclasses.fields(TestClass)
+      self.assertLen(fields, 2)
+      self.assertEqual(fields[0].name, 'a')
+      self.assertEqual(fields[1].name, 'b')
+
+    with self.subTest('check_can_convert_to_dict'):
+      test_class_dict = dataclasses.asdict(test_class)
+      self.assertLen(test_class_dict, 2)
+      self.assertEqual(test_class_dict['a'], False)
+      self.assertEqual(test_class_dict['b'], jnp.array(1.0))
+
+    with self.subTest('check_dataclass_is_registered_with_jax'):
+      @jax.jit
+      def f(x):
+        if x.a:
+          return x.b
+        else:
+          return x.b + 1.0
+
+      self.assertEqual(f(test_class), jnp.array(2.0))
+      self.assertEqual(
+          f(dataclasses.replace(test_class, a=True)), jnp.array(1.0)
+      )
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@ from typing import Literal
 import chex
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
@@ -183,7 +184,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     return isinstance(other, SimpleRedistribution)
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
   """Dynamic runtime params for simple redistribution model.
 

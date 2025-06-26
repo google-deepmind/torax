@@ -19,9 +19,9 @@ import logging
 import os
 from typing import Final
 
-import chex
 import jax
 from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -36,7 +36,7 @@ import typing_extensions
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   include_ITG: bool
   include_TEM: bool
@@ -75,7 +75,7 @@ def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
     ) from fnfe
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class QLKNNRuntimeConfigInputs:
   """Runtime config inputs for QLKNN.
 

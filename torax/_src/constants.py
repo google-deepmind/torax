@@ -21,11 +21,12 @@ from typing import Final, Mapping
 import chex
 import immutabledict
 from jax import numpy as jnp
+from torax._src import jax_utils
 
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class IonProperties:
   """Properties of an ion.
 
@@ -42,7 +43,7 @@ class IonProperties:
   Z: float
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class Constants:
   keV2J: chex.Numeric  # pylint: disable=invalid-name
   mp: chex.Numeric

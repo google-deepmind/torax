@@ -19,6 +19,7 @@ import chex
 import numpy as np
 import pydantic
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 # pylint: disable=invalid-name
@@ -31,7 +32,7 @@ _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 
-@chex.dataclass
+@jax_utils.jax_dataclass(kw_only=True)
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
@@ -56,7 +57,7 @@ class DynamicProfileConditions:
   initial_psi_from_j: bool
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StaticRuntimeParams:
   """Static params for profile conditions."""
 

@@ -13,10 +13,10 @@
 # limitations under the License.
 
 """The BohmGyroBohmModel class."""
-import chex
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -26,7 +26,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 

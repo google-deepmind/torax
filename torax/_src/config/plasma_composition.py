@@ -19,13 +19,14 @@ import chex
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src.config import runtime_validation_utils
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicIonMixture:
   """Represents a fixed mixture of ion species at a specific time.
 
@@ -99,7 +100,7 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
     )
 
 
-@chex.dataclass
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: DynamicIonMixture

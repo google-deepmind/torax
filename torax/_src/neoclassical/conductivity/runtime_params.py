@@ -13,9 +13,9 @@
 # limitations under the License.
 """Runtime params for conductivity models."""
 
-import chex
+from torax._src import jax_utils
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Base class for dynamic runtime params."""

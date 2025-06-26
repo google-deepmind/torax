@@ -17,6 +17,7 @@ from typing import ClassVar, Literal
 
 import chex
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -76,7 +77,7 @@ class PelletSource(source.Source):
     return (source.AffectedCoreProfile.NE,)
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   pellet_width: array_typing.ScalarFloat
   pellet_deposition_location: array_typing.ScalarFloat

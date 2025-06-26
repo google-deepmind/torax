@@ -15,13 +15,13 @@
 """Container for source models which build source profiles in TORAX."""
 
 import functools
-import chex
 import immutabledict
+from torax._src import jax_utils
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class SourceModels:
   """Source models for the different equations being evolved in Torax."""
 

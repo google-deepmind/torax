@@ -27,6 +27,7 @@ import numpy as np
 import scipy
 from torax._src import constants
 from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
@@ -38,7 +39,7 @@ import typing_extensions
 _RHO_SMOOTHING_LIMIT = 0.1
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StandardGeometry(geometry.Geometry):
   r"""Standard geometry object including additional useful attributes, like psi.
 
@@ -78,7 +79,7 @@ class StandardGeometry(geometry.Geometry):
   delta_lower_face: chex.Array
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 

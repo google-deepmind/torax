@@ -15,13 +15,13 @@
 
 """Base classes for Neoclassical models."""
 
-import chex
+from torax._src import jax_utils
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.transport import base as transport_base
 
 
-@chex.dataclass
+@jax_utils.jax_dataclass
 class NeoclassicalModels:
   """Container for instantiated Neoclassical model objects."""
 

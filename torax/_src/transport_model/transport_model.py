@@ -21,10 +21,10 @@ coefficients.
 import abc
 import dataclasses
 from typing import Optional
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -33,7 +33,7 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 import typing_extensions
 
 
-@chex.dataclass
+@jax_utils.jax_dataclass
 class TurbulentTransport:
   """Turbulent transport coefficients calculated by a transport model.
 

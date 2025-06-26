@@ -21,7 +21,7 @@ from torax._src import array_typing
 from torax._src import jax_utils
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class SafetyFactorFit:
   """Collection of outputs calculated after each simulation step.
 

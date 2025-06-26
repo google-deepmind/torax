@@ -19,8 +19,8 @@ A class for combining transport models.
 
 from typing import Sequence
 
-import chex
 import jax
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -31,7 +31,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 # pylint: disable=protected-access
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   transport_model_params: Sequence[runtime_params_lib.DynamicRuntimeParams]
 

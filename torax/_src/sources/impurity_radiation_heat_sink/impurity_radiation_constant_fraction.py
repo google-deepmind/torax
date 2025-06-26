@@ -17,6 +17,7 @@ from typing import Literal
 import chex
 import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -116,6 +117,6 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     return radially_constant_fraction_of_Pin
 
 
-@chex.dataclass(frozen=True)
+@jax_utils.jax_dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fraction_P_heating: array_typing.ScalarFloat

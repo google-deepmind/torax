@@ -15,9 +15,9 @@
 """Base class for bootstrap current models."""
 import abc
 
-import chex
 import jax
 import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
@@ -27,7 +27,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(kw_only=True, frozen=True)
+@jax_utils.jax_dataclass(kw_only=True, frozen=True)
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
   j_bootstrap: jax.Array
