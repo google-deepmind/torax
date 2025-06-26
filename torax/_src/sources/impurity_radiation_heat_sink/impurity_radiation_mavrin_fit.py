@@ -21,6 +21,7 @@ import chex
 import immutabledict
 import jax.numpy as jnp
 import numpy as np
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -34,7 +35,6 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
-
 
 # Default value for the model function to be used for the impurity radiation
 # source. This is also used as an identifier for the model function in

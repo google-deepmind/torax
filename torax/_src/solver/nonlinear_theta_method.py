@@ -17,6 +17,7 @@ import abc
 
 import chex
 import jax
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -52,9 +53,7 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
 
 
 @chex.dataclass(frozen=True)
-class StaticNewtonRaphsonRuntimeParams(
-    runtime_params.StaticRuntimeParams
-):
+class StaticNewtonRaphsonRuntimeParams(runtime_params.StaticRuntimeParams):
   initial_guess_mode: int
   log_iterations: bool
 

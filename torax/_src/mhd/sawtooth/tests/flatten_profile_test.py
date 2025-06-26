@@ -18,13 +18,13 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+
 from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.physics import psi_calculations
-
 
 _NRHO = 20  # Define grid size for tests
 

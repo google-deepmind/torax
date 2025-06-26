@@ -25,8 +25,9 @@ from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
-from torax._src.output_tools import output
 import xarray as xr
+
+from torax._src.output_tools import output
 
 # Internal import.
 

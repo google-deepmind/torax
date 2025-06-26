@@ -15,6 +15,7 @@
 """Pydantic config for time step calculators."""
 
 import enum
+
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
 from torax._src.time_step_calculator import time_step_calculator

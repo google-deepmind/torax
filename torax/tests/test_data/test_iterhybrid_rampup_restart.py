@@ -15,9 +15,9 @@
 """Identical to test_iterhybrid_rampup but restarting from file."""
 import copy
 import os
+
 from torax._src.test_utils import paths
 from torax.tests.test_data import test_iterhybrid_rampup
-
 
 CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
 CONFIG['restart'] = {

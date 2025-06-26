@@ -24,6 +24,8 @@ new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
 
+import xarray as xr
+
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -34,7 +36,6 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.torax_pydantic import model_config
-import xarray as xr
 
 
 def prepare_simulation(

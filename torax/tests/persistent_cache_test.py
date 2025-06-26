@@ -19,10 +19,12 @@ import io
 import os
 import re
 import subprocess
+
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import run_simulation_main
+
 import torax
+from torax import run_simulation_main
 
 
 class PersistentCacheTest(parameterized.TestCase):
@@ -46,8 +48,9 @@ class PersistentCacheTest(parameterized.TestCase):
         '--alsologtostderr',
         '--jax_debug_log_modules=jax._src.compilation_cache,jax._src.compiler',
     ]
-    run_simulation_main_path = os.path.join(torax.__path__[0],
-    'run_simulation_main.py')
+    run_simulation_main_path = os.path.join(
+        torax.__path__[0], 'run_simulation_main.py'
+    )
     assert os.path.exists(run_simulation_main_path)
     command = ['python3', run_simulation_main_path]
 

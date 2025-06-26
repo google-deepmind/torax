@@ -16,6 +16,7 @@
 import abc
 
 import chex
+
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -24,6 +25,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @chex.dataclass(kw_only=True, frozen=True)
 class Conductivity:
   """Values returned by a conductivity model."""
+
   sigma: chex.Array
   sigma_face: chex.Array
 

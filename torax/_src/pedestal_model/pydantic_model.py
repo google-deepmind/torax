@@ -15,13 +15,16 @@
 """Pydantic config for Pedestal."""
 import abc
 from typing import Literal
+
 import chex
+
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.torax_pydantic import torax_pydantic
+
 # pylint: disable=invalid-name
 
 
@@ -91,9 +94,7 @@ class SetPpedTpedRatioNped(BasePedestal):
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
-        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(
-            t
-        ),
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
     )
 
@@ -111,15 +112,15 @@ class SetTpedNped(BasePedestal):
   """
 
   model_name: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
-  n_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7e20)
+  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.7e20
   )
   n_e_ped_is_fGW: bool = False
-  T_i_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(5.0)
+  T_i_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      5.0
   )
-  T_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(5.0)
+  T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      5.0
   )
   rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
@@ -154,6 +155,7 @@ class NoPedestal(BasePedestal):
   Note that setting `set_pedestal` to True with a NoPedestal model is the
   equivalent of setting it to False.
   """
+
   model_name: Literal['no_pedestal'] = 'no_pedestal'
 
   def build_pedestal_model(
@@ -167,5 +169,6 @@ class NoPedestal(BasePedestal):
     return runtime_params.DynamicRuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
     )
+
 
 PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal

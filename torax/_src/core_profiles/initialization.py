@@ -15,9 +15,11 @@
 """Functions used for initializing core profiles."""
 
 import dataclasses
+
 import jax
 from jax import numpy as jnp
 import numpy as np
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils

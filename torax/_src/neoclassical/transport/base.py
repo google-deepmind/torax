@@ -18,6 +18,7 @@ import abc
 import chex
 import jax
 import jax.numpy as jnp
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
@@ -41,6 +42,7 @@ class NeoclassicalTransport:
       the neoclassical convection that is dependent on the parallel electric
       field. It is separated from V_neo_e for interpretation convenience.
   """
+
   chi_neo_i: jax.Array
   chi_neo_e: jax.Array
   D_neo_e: jax.Array

@@ -19,6 +19,7 @@ from typing import ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -30,7 +31,6 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
-
 
 # Default value for the model function to be used for the fusion heat
 # source. This is also used as an identifier for the model function in

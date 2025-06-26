@@ -14,8 +14,8 @@
 
 """Same as test_iterhybrid_predictor_corrector but with Lin Liu ECRH model."""
 import copy
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
+from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 

@@ -19,8 +19,10 @@ is easiest to remember how to pass them if they are always used in the same
 order.
 """
 import inspect
+
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from torax._src import physics
 from torax._src import state
 from torax._src.core_profiles import updaters
@@ -42,7 +44,6 @@ from torax._src.sources import qei_source
 from torax._src.sources import source
 from torax._src.sources import source_models
 from torax._src.transport_model import qlknn_transport_model
-
 
 # Throughout TORAX, we maintain the following canonical argument order for
 # common argument names passed to many functions. This is a stylistic

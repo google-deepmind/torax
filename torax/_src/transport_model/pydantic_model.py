@@ -17,11 +17,14 @@
 import copy
 import dataclasses
 from typing import Any, Literal, Sequence
+
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
 import numpy as np
 import pydantic
+import typing_extensions
+
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import combined
@@ -30,7 +33,6 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
-import typing_extensions
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -342,6 +344,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 try:
   # pylint: disable=g-import-not-at-top
   from torax._src.transport_model import qualikiz_transport_model
+
   # pylint: enable=g-import-not-at-top
   # Since CombinedCompatibleTransportModel is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
@@ -422,4 +425,3 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
 
 TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
-

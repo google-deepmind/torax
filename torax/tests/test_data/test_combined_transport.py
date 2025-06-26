@@ -20,8 +20,8 @@
 """
 
 import copy
-from torax.tests.test_data import test_bohmgyrobohm_all
 
+from torax.tests.test_data import test_bohmgyrobohm_all
 
 CONFIG = copy.deepcopy(test_bohmgyrobohm_all.CONFIG)
 CONFIG['transport'] = {

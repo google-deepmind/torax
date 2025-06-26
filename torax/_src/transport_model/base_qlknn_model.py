@@ -17,8 +17,8 @@ import abc
 from typing import TypeAlias
 
 import jax
-from torax._src.transport_model import qualikiz_based_transport_model
 
+from torax._src.transport_model import qualikiz_based_transport_model
 
 ModelOutput: TypeAlias = dict[str, jax.Array]
 InputsAndRanges: TypeAlias = dict[str, dict[str, float]]

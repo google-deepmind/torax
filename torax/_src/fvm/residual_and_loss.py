@@ -27,6 +27,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import jaxopt
+
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -317,6 +318,8 @@ def theta_method_block_residual(
 )
 def theta_method_block_jacobian(*args, **kwargs):
   return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
+
+
 # pylint: enable=missing-function-docstring
 
 

@@ -16,8 +16,10 @@
 
 import dataclasses
 from typing import Literal
+
 import chex
 from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice

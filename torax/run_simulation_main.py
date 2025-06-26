@@ -25,10 +25,12 @@ import enum
 import functools
 import pathlib
 import time
+
 from absl import app
 from absl import flags
 from absl import logging
 import jax
+
 import torax
 from torax._src import simulation_app
 from torax._src.config import config_loader

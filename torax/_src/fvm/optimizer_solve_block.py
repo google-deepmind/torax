@@ -19,6 +19,7 @@ import functools
 from typing import TypeAlias
 
 import jax
+
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import runtime_params_slice

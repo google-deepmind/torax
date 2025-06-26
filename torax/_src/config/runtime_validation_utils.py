@@ -21,9 +21,9 @@ from typing import Annotated, Any, Final, TypeAlias
 
 import numpy as np
 import pydantic
+
 from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
-
 
 _TOLERANCE: Final[float] = 1e-6
 

@@ -25,6 +25,8 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 import pydantic
+import typing_extensions
+
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
@@ -38,7 +40,6 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Internal import.
 

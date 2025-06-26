@@ -18,12 +18,12 @@ from unittest import mock
 
 from absl.testing import absltest
 import numpy as np
+
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-
 
 # pylint: disable=g-import-not-at-top
 try:

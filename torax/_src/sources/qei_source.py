@@ -19,6 +19,7 @@ from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -154,6 +155,7 @@ class QeiSourceConfig(base.SourceModelBase):
     Qei_multiplier: multiplier for ion-electron heat exchange term for
       sensitivity testing
   """
+
   Qei_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

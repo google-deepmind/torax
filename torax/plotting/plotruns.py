@@ -22,9 +22,9 @@ from absl import app
 from absl import logging
 from absl.flags import argparse_flags
 import matplotlib
+
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
-
 
 matplotlib.use('TkAgg')
 

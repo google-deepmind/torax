@@ -19,8 +19,9 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src import interpolated_param
 import xarray as xr
+
+from torax._src import interpolated_param
 
 
 class InterpolatedParamTest(parameterized.TestCase):

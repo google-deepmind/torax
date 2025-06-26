@@ -17,6 +17,7 @@ from typing import Literal
 
 import chex
 import jax.numpy as jnp
+
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state

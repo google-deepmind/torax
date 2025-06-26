@@ -14,10 +14,12 @@
 
 """Dataclass representing runtime parameter inputs to the pedestal models."""
 import chex
+
 from torax._src import array_typing
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the pedestal model."""
+
   set_pedestal: array_typing.ScalarBool
