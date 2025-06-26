@@ -379,7 +379,7 @@ class TransportModel(abc.ABC):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(
+    smoothing_matrix = _build_smoothing_matrix(
         transport_dynamic_runtime_params,
         dynamic_runtime_params_slice,
         geo,
@@ -402,7 +402,7 @@ class TransportModel(abc.ABC):
     return TurbulentTransport(**smoothed_coeffs)
 
 
-def build_smoothing_matrix(
+def _build_smoothing_matrix(
     transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,

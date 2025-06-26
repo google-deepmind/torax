@@ -42,6 +42,7 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
+from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
@@ -335,25 +336,12 @@ class SimulationStepFn:
     Returns:
       Time step duration (dt)
     """
-    # TODO(b/335598388): We call the transport model both here and in the
-    # Solver / CoeffsCallback. We should still refactor the design to more
-    # explicitly calculate transport coeffs at delta_t = 0 in only one place,
-    # so that we have some flexibility in where to place the jit boundaries.
-    total_transport_coeffs = _calculate_total_transport_coeffs(
-        self.solver.pedestal_model,
-        self.solver.transport_model,
-        self.solver.neoclassical_models,
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        input_state.core_profiles,
-    )
-
     # initialize new dt and reset solver iterations.
     dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        total_transport_coeffs,
+        input_state.core_transport,
     )
 
     crosses_t_final = (
@@ -665,13 +653,15 @@ def _finalize_outputs(
           evolving_names=evolving_names,
       )
   )
-  final_total_transport = _calculate_total_transport_coeffs(
-      pedestal_model,
-      transport_model,
-      neoclassical_models,
-      dynamic_runtime_params_slice_t_plus_dt,
-      geometry_t_plus_dt,
-      final_core_profiles,
+  final_total_transport = (
+      transport_coefficients_builder.calculate_total_transport_coeffs(
+          pedestal_model,
+          transport_model,
+          neoclassical_models,
+          dynamic_runtime_params_slice_t_plus_dt,
+          geometry_t_plus_dt,
+          final_core_profiles,
+      )
   )
 
   output_state = sim_state.ToraxSimState(
@@ -816,39 +806,6 @@ def _sawtooth_step(
           input_state,
           input_post_processed_outputs,
       ),
-  )
-
-
-@functools.partial(jax_utils.jit, static_argnums=(0, 1, 2))
-def _calculate_total_transport_coeffs(
-    pedestal_model: pedestal_model_lib.PedestalModel,
-    transport_model: transport_model_lib.TransportModel,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
-) -> state.CoreTransport:
-  """Calculates the transport coefficients."""
-  pedestal_model_output = pedestal_model(
-      dynamic_runtime_params_slice_t, geo_t, core_profiles_t
-  )
-  turbulent_transport = transport_model(
-      dynamic_runtime_params_slice_t,
-      geo_t,
-      core_profiles_t,
-      pedestal_model_output,
-  )
-  neoclassical_transport_coeffs = (
-      neoclassical_models.transport.calculate_neoclassical_transport(
-          dynamic_runtime_params_slice_t,
-          geo_t,
-          core_profiles_t,
-      )
-  )
-
-  return state.CoreTransport(
-      **turbulent_transport,
-      **neoclassical_transport_coeffs,
   )
 
 
