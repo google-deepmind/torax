@@ -15,14 +15,19 @@
 """Commonly repeated jax expressions."""
 
 import contextlib
+import dataclasses
 import functools
 import os
+import sys
+import typing
 from typing import Any, Callable, Literal, TypeVar
+
 import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
 import numpy as np
+import typing_extensions
 
 
 T = TypeVar('T')
@@ -258,3 +263,68 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+def _dataclass_transform():
+  if sys.version_info >= (3, 11):
+    return typing.dataclass_transform()
+  else:
+    # Remove once support for 3.10 can be dropped.
+    return typing_extensions.dataclass_transform()
+
+
+@_dataclass_transform()
+def jax_dataclass(
+    cls=None,
+    *,
+    init=True,
+    repr=True,  # pylint: disable=redefined-builtin
+    eq=True,
+    order=False,
+    unsafe_hash=False,
+    frozen=False,
+    kw_only=False,
+):
+  """Decorator for dataclasses that are registered with JAX.
+
+  This can be used just like a normal dataclass with the additional feature of
+  being able to mark certain fields of the dataclass as static, as shown below.
+
+  @jax_dataclass
+  class JaxDataclass:
+    a: bool = dataclasses.field(metadata=dict(static=True))
+    b: chex.Array
+
+  Args:
+    cls: The dataclass to decorate.
+    init: See :py:func:`dataclasses.dataclass`.
+    repr: See :py:func:`dataclasses.dataclass`.
+    eq: See :py:func:`dataclasses.dataclass`.
+    order: See :py:func:`dataclasses.dataclass`.
+    unsafe_hash: See :py:func:`dataclasses.dataclass`.
+    frozen: See :py:func:`dataclasses.dataclass`.
+    kw_only: See :py:func:`dataclasses.dataclass`.
+  """
+  if cls is None:
+    return functools.partial(
+        jax_dataclass,
+        repr=repr,
+        eq=eq,
+        order=order,
+        unsafe_hash=unsafe_hash,
+        frozen=frozen,
+        kw_only=kw_only,
+        init=init,
+    )
+  dataclass_cls = dataclasses.dataclass(
+      repr=repr,
+      eq=eq,
+      order=order,
+      unsafe_hash=unsafe_hash,
+      frozen=frozen,
+      kw_only=kw_only,  # pytype: disable=not-supported-yet
+      init=init,  # pytype: disable=not-supported-yet
+  )(cls)
+  jax.tree_util.register_dataclass(dataclass_cls)
+
+  return dataclass_cls
