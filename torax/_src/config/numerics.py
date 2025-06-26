@@ -40,7 +40,6 @@ class DynamicNumerics:
   resistivity_multiplier: array_typing.ScalarFloat
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
-  calcphibdot: bool
 
 
 @chex.dataclass(frozen=True)
@@ -54,6 +53,7 @@ class StaticNumerics:
   evolve_current: bool
   evolve_density: bool
   adaptive_dt: bool
+  calcphibdot: bool
 
 
 class Numerics(torax_pydantic.BaseModelFrozen):
@@ -145,7 +145,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         chi_timestep_prefactor=self.chi_timestep_prefactor,
         fixed_dt=self.fixed_dt,
         dt_reduction_factor=self.dt_reduction_factor,
-        calcphibdot=self.calcphibdot,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
@@ -159,4 +158,5 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         evolve_current=self.evolve_current,
         evolve_density=self.evolve_density,
         adaptive_dt=self.adaptive_dt,
+        calcphibdot=self.calcphibdot,
     )

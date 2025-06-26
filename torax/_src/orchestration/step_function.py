@@ -200,6 +200,7 @@ class SimulationStepFn:
       ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           input_state.t,
           dt_crash,
+          self._static_runtime_params_slice,
           self._dynamic_runtime_params_slice_provider,
           geo_t,
           self._geometry_provider,
@@ -239,6 +240,7 @@ class SimulationStepFn:
         _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
             input_state.t,
             dt,
+            self._static_runtime_params_slice,
             self._dynamic_runtime_params_slice_provider,
             geo_t,
             self._geometry_provider,
@@ -544,6 +546,7 @@ class SimulationStepFn:
       ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           input_state.t,
           dt,
+          self._static_runtime_params_slice,
           self._dynamic_runtime_params_slice_provider,
           geo_t,
           self._geometry_provider,
@@ -852,6 +855,7 @@ def _calculate_total_transport_coeffs(
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     t: jax.Array,
     dt: jax.Array,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -865,6 +869,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
   Args:
     t: Time at which the simulation is currently at.
     dt: Time step duration.
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice_provider: Object that returns a set of runtime
       parameters which may change from time step to time step or simulation run
       to run. If these runtime parameters change, it does NOT trigger a JAX
@@ -886,7 +891,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           geometry_provider=geometry_provider,
       )
   )
-  if dynamic_runtime_params_slice_t_plus_dt.numerics.calcphibdot:
+  if static_runtime_params_slice.numerics.calcphibdot:
     geo_t, geo_t_plus_dt = geometry.update_geometries_with_Phibdot(
         dt=dt,
         geo_t=geo_t,
