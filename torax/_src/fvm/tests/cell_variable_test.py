@@ -13,6 +13,7 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -582,11 +583,10 @@ class CellVariableTest(parameterized.TestCase):
     var1 = cell_variable.CellVariable(**var1_kwargs)
     var2 = cell_variable.CellVariable(**var2_kwargs)
     if expected_almost_equal:
-      self.assertTrue(var1.almost_equal(var2, atol=atol))
-      self.assertTrue(var2.almost_equal(var1, atol=atol))
+      chex.assert_trees_all_close(var1, var2, atol=atol)
     else:
-      self.assertFalse(var1.almost_equal(var2, atol=atol))
-      self.assertFalse(var2.almost_equal(var1, atol=atol))
+      with self.assertRaises(AssertionError):
+        chex.assert_trees_all_close(var1, var2, atol=atol)
 
 
 if __name__ == '__main__':

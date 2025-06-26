@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
@@ -178,13 +178,9 @@ class ConvertersTest(parameterized.TestCase):
         self.base_core_profiles,
     )
     for name in checked_names:
-      self.assertTrue(
-          updated_cp[name].almost_equal(self.base_core_profiles[name]),
-          msg=(
-              f"CoreProfile attribute '{name}' did not round-trip correctly.\n"
-              f'Original: {self.base_core_profiles[name]}\n'
-              f'Updated:  {updated_cp[name]}'
-          ),
+      chex.assert_trees_all_close(
+          getattr(updated_cp, name),
+          getattr(self.base_core_profiles, name),
       )
 
 

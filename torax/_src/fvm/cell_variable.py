@@ -14,7 +14,8 @@
 
 """The CellVariable class.
 
-A chex dataclass used to represent variables on meshes for the 1D fvm solver.
+A jax_utils.jax_dataclass used to represent variables on meshes for the 1D fvm
+solver.
 Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
@@ -25,6 +26,7 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
+import typing_extensions
 
 
 def _zero() -> array_typing.ScalarFloat:
@@ -78,8 +80,8 @@ class CellVariable:
     """
     # Automatically check dtypes of all numeric fields
 
-    assert hasattr(self, 'items')  # Needed to avoid linter warning.
-    for name, value in self.items():
+    cell_variable_items = dataclasses.asdict(self).items()
+    for name, value in cell_variable_items:
       if isinstance(value, jax.Array):
         if value.dtype != jnp.float64 and jax.config.read('jax_enable_x64'):
           raise TypeError(
@@ -257,67 +259,9 @@ class CellVariable:
         axis=-1,
     )
 
-  def almost_equal(
-      self, other: object, atol: float = 1e-7, rtol: float = 0.0
-  ) -> bool:
-    """Tests near equality of two CellVariables with tolerances."""
-
-    if not isinstance(other, CellVariable):
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    try:
+      chex.assert_trees_all_equal(self, other)
+      return True
+    except AssertionError:
       return False
-
-    def _compare_optional_arrays(
-        arr1: chex.Array | None, arr2: chex.Array | None
-    ) -> bool:
-      if arr1 is None and arr2 is None:
-        return True
-      if arr1 is None or arr2 is None:
-        return False
-      return jnp.allclose(arr1, arr2, atol=atol, rtol=rtol)
-
-    return (
-        jnp.allclose(self.value, other.value, atol=atol, rtol=rtol)
-        and jnp.allclose(self.dr, other.dr, atol=atol, rtol=rtol)
-        and _compare_optional_arrays(
-            self.left_face_constraint, other.left_face_constraint
-        )
-        and _compare_optional_arrays(
-            self.right_face_constraint, other.right_face_constraint
-        )
-        and _compare_optional_arrays(
-            self.left_face_grad_constraint, other.left_face_grad_constraint
-        )
-        and _compare_optional_arrays(
-            self.right_face_grad_constraint, other.right_face_grad_constraint
-        )
-    )
-
-  def __eq__(self, other: object) -> bool:
-
-    if not isinstance(other, CellVariable):
-      return False
-
-    def _compare_optional_arrays(
-        arr1: chex.Array | None, arr2: chex.Array | None
-    ) -> bool:
-      if arr1 is None and arr2 is None:
-        return True
-      if arr1 is None or arr2 is None:
-        return False
-      return jnp.array_equal(arr1, arr2)
-
-    return (
-        jnp.array_equal(self.value, other.value)
-        and jnp.array_equal(self.dr, other.dr)
-        and _compare_optional_arrays(
-            self.left_face_constraint, other.left_face_constraint
-        )
-        and _compare_optional_arrays(
-            self.right_face_constraint, other.right_face_constraint
-        )
-        and _compare_optional_arrays(
-            self.left_face_grad_constraint, other.left_face_grad_constraint
-        )
-        and _compare_optional_arrays(
-            self.right_face_grad_constraint, other.right_face_grad_constraint
-        )
-    )
