@@ -23,6 +23,7 @@ This module also provides a method
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
 import chex
+from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -84,6 +85,10 @@ class DynamicRuntimeParamsSliceProvider:
     self._pedestal = torax_config.pedestal
     self._mhd = torax_config.mhd
     self._neoclassical = torax_config.neoclassical
+
+  @property
+  def numerics(self) -> numerics_lib.Numerics:
+    return self._numerics
 
   @classmethod
   def from_config(

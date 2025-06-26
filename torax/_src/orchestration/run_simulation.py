@@ -26,7 +26,6 @@ new_sim_outputs = torax.run_simulation(torax_config)
 
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import sim_state
@@ -42,7 +41,6 @@ def prepare_simulation(
 ) -> tuple[
     runtime_params_slice.StaticRuntimeParamsSlice,
     build_runtime_params.DynamicRuntimeParamsSliceProvider,
-    geometry_provider_lib.GeometryProvider,
     sim_state.ToraxSimState,
     post_processing.PostProcessedOutputs,
     bool,
@@ -57,14 +55,11 @@ def prepare_simulation(
     A tuple containing:
       - The static runtime parameters slice.
       - The dynamic runtime parameters slice provider.
-      - The geometry provider.
       - The initial state.
       - The initial post processed outputs.
       - A boolean indicating if the simulation is a restart case.
       - The simulation step function.
   """
-  # TODO(b/384767453): Remove the need for the step_fn and solver to take the
-  # transport model and pedestal model.
   transport_model = torax_config.transport.build_transport_model()
   pedestal_model = torax_config.pedestal.build_pedestal_model()
 
@@ -134,7 +129,6 @@ def prepare_simulation(
   return (
       static_runtime_params_slice,
       dynamic_runtime_params_slice_provider,
-      geometry_provider,
       initial_state,
       post_processed_outputs,
       restart_case,
@@ -163,7 +157,6 @@ def run_simulation(
   (
       static_runtime_params_slice,
       dynamic_runtime_params_slice_provider,
-      geometry_provider,
       initial_state,
       post_processed_outputs,
       restart_case,
@@ -173,7 +166,6 @@ def run_simulation(
   state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-      geometry_provider=geometry_provider,
       initial_state=initial_state,
       initial_post_processed_outputs=post_processed_outputs,
       restart_case=restart_case,
