@@ -18,8 +18,7 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable
-from typing import Final
+from typing import Callable, Final
 
 import chex
 
@@ -34,8 +33,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
-from torax._src.neoclassical import \
-    neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_models as source_models_lib

@@ -1,7 +1,7 @@
 import dataclasses
 
-import numpy as np
 from absl.testing import absltest
+import numpy as np
 
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
@@ -20,7 +20,6 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 
 
 class GeometryProviderTest(absltest.TestCase):

@@ -13,10 +13,10 @@
 # limitations under the License.
 
 """Full simulator state to be used for orchestration."""
+from absl import logging
 import chex
 import jax
 import numpy as np
-from absl import logging
 
 from torax._src import state
 from torax._src.geometry import geometry

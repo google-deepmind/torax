@@ -17,10 +17,10 @@
 import dataclasses
 import time
 
+from absl import logging
 import jax
 import numpy as np
 import tqdm
-from absl import logging
 
 from torax._src import state
 from torax._src.config import build_runtime_params

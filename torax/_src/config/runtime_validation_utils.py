@@ -14,13 +14,10 @@
 
 """Utilities for validating the config inputs."""
 
+from collections.abc import Mapping
 import functools
 import logging
-from collections.abc import Mapping
-from typing import Annotated
-from typing import Any
-from typing import Final
-from typing import TypeAlias
+from typing import Annotated, Any, Final, TypeAlias
 
 import numpy as np
 import pydantic

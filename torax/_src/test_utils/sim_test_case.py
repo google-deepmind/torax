@@ -16,14 +16,11 @@
 
 import copy
 import os
-from typing import Any
-from typing import Final
-from typing import Optional
-from typing import Sequence
+from typing import Any, Final, Optional, Sequence
 
+from absl.testing import parameterized
 import chex
 import numpy as np
-from absl.testing import parameterized
 
 from torax._src import constants
 from torax._src import simulation_app

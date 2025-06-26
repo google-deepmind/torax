@@ -19,13 +19,13 @@ import shutil
 from typing import Final
 from unittest import mock
 
-import numpy as np
-import xarray as xr
 from absl import app
 from absl import logging
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
+import numpy as np
+import xarray as xr
 
 from torax import run_simulation_main
 from torax._src import simulation_app

@@ -22,8 +22,7 @@ import pydantic
 
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
-from torax._src.neoclassical import \
-    neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method

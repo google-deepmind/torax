@@ -25,8 +25,8 @@ from typing import TypeAlias
 
 import chex
 import jax
-import jaxopt
 from jax import numpy as jnp
+import jaxopt
 
 from torax._src import jax_utils
 from torax._src import state
@@ -38,8 +38,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
-from torax._src.neoclassical import \
-    neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles

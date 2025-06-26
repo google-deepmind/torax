@@ -14,8 +14,8 @@
 """Helpers for tests using core profiles."""
 import chex
 import jax
-import numpy as np
 from jax import numpy as jnp
+import numpy as np
 
 from torax._src import state
 from torax._src.fvm import cell_variable

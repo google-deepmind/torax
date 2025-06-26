@@ -13,8 +13,8 @@
 # limitations under the License.
 from unittest import mock
 
-import jax.numpy as jnp
 from absl.testing import absltest
+import jax.numpy as jnp
 
 from torax._src.pedestal_model import no_pedestal
 

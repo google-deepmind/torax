@@ -14,10 +14,10 @@
 
 """Unit tests for the `torax.torax_pydantic.pydantic_types` module."""
 
-import numpy as np
-import pydantic
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
+import pydantic
 
 from torax._src.torax_pydantic import pydantic_types
 

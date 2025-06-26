@@ -13,12 +13,12 @@
 # limitations under the License.
 """Helper script to run and regenerate all benchmarks under test_data."""
 
+from collections.abc import Sequence
 import functools
 import multiprocessing
 import os
 import shutil
 import time
-from collections.abc import Sequence
 
 from absl import app
 from absl import flags

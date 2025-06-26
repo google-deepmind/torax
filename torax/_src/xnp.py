@@ -16,15 +16,12 @@
 import contextlib
 import functools
 import threading
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Callable
-from typing import TypeVar
+from typing import Any, Callable, TYPE_CHECKING, TypeVar
 
+from absl import logging as native_logging
 import jax
 import jax.numpy as jnp
 import numpy as np
-from absl import logging as native_logging
 
 from torax._src import jax_utils
 

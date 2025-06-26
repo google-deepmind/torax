@@ -16,9 +16,9 @@ import json
 import logging
 from typing import Any
 
-import chex
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 
 from torax._src import version
 from torax._src.config import config_loader

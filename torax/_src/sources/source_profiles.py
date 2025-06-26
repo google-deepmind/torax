@@ -23,8 +23,7 @@ import typing_extensions
 
 from torax._src import constants
 from torax._src.geometry import geometry
-from torax._src.neoclassical.bootstrap_current import \
-    base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 
 # pylint: disable=invalid-name
 

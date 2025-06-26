@@ -34,8 +34,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import base as mhd_base
 from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
-from torax._src.neoclassical import \
-    neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib

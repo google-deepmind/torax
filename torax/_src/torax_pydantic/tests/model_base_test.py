@@ -15,13 +15,12 @@
 """Unit tests for the `torax.torax_pydantic.model_base` module."""
 
 import functools
-from typing import Annotated
-from typing import Any
+from typing import Annotated, Any
 
-import jax
-import pydantic
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+import pydantic
 
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import torax_pydantic

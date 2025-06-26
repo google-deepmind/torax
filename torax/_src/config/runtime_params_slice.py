@@ -34,8 +34,8 @@ trigger a recompilation of the solver. These arguments don't have the same
 restrictions as the dynamic arguments both in terms of types and how they are
 used.
 """
-import dataclasses
 from collections.abc import Mapping
+import dataclasses
 
 import chex
 

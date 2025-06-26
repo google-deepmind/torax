@@ -13,17 +13,17 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
 import os
-from collections.abc import Sequence
 
+from absl import logging
 import chex
 import jax
 import numpy as np
 import xarray as xr
-from absl import logging
 
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
@@ -31,8 +31,7 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.torax_pydantic import \
-    file_restart as file_restart_pydantic_model
+from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name

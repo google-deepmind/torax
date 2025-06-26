@@ -17,19 +17,15 @@ import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Any
-from typing import ClassVar
-from typing import Final
-from typing import Literal
-from typing import Sequence
+from typing import Any, ClassVar, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
 import jax
+from jax import numpy as jnp
 import jaxtyping as jt
 import pydantic
 import typing_extensions
-from jax import numpy as jnp
 
 from torax._src import array_typing
 from torax._src import jax_utils

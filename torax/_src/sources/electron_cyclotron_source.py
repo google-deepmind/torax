@@ -14,8 +14,7 @@
 
 """Electron cyclotron heating (prescribed Gaussian) and current drive (Lin-Liu model)."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 import jax.numpy as jnp

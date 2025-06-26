@@ -16,11 +16,11 @@
 import enum
 from typing import Optional
 
+from absl import logging
 import chex
 import jax
-import typing_extensions
-from absl import logging
 from jax import numpy as jnp
+import typing_extensions
 
 from torax._src import array_typing
 from torax._src.fvm import cell_variable

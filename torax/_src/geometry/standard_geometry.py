@@ -17,9 +17,9 @@
 This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
+from collections.abc import Mapping
 import dataclasses
 import logging
-from collections.abc import Mapping
 
 import chex
 import contourpy

@@ -14,19 +14,18 @@
 
 """Utilities for plotting outputs of Torax runs."""
 
+from collections.abc import Sequence
 import dataclasses
 import enum
-from collections.abc import Sequence
 from os import path
-from typing import Any
-from typing import List
+from typing import Any, List
 
 import matplotlib
+from matplotlib import gridspec
+from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from matplotlib import gridspec
-from matplotlib import widgets
 
 from torax._src.output_tools import output
 

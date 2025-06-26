@@ -15,14 +15,12 @@
 """Classes and functions for defining interpolated parameters."""
 
 import functools
-from typing import Any
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import chex
 import numpy as np
 import pydantic
-from typing_extensions import Annotated
-from typing_extensions import Self
+from typing_extensions import Annotated, Self
 
 from torax._src import interpolated_param
 from torax._src.torax_pydantic import model_base

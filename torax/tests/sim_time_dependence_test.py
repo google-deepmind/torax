@@ -17,10 +17,10 @@ import copy
 from typing import Literal
 from unittest import mock
 
-import jax
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+import numpy as np
 
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -28,8 +28,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.neoclassical import \
-    neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
@@ -41,10 +40,8 @@ from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import \
-    pydantic_model_base as transport_pydantic_model_base
-from torax._src.transport_model import \
-    runtime_params as transport_model_runtime_params
+from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
 

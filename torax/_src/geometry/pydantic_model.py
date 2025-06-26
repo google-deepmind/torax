@@ -14,15 +14,10 @@
 
 """Pydantic model for geometry."""
 
+from collections.abc import Callable, Mapping
 import functools
 import inspect
-from collections.abc import Callable
-from collections.abc import Mapping
-from typing import Annotated
-from typing import Any
-from typing import Literal
-from typing import TypeAlias
-from typing import TypeVar
+from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 
 import pydantic
 import typing_extensions

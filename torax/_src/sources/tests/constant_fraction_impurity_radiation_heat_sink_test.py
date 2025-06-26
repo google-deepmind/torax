@@ -13,8 +13,8 @@
 # limitations under the License.
 from unittest import mock
 
-import chex
 from absl.testing import absltest
+import chex
 
 from torax._src import math_utils
 from torax._src.config import runtime_params_slice
@@ -22,10 +22,8 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profiles
-from torax._src.sources.impurity_radiation_heat_sink import \
-    impurity_radiation_constant_fraction
-from torax._src.sources.impurity_radiation_heat_sink import \
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.tests import test_lib
 
 
