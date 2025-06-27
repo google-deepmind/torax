@@ -18,7 +18,6 @@ import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
-import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src import xnp
@@ -231,10 +230,13 @@ class SimulationStepFn:
         error_state = _check_for_errors(output_state, post_processed_outputs)
         return output_state, post_processed_outputs, error_state
 
-    dt = self.init_time_step_calculator(
+    dt = self._time_step_calculator.next_dt(
+        input_state.t,
+        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
-        input_state,
+        input_state.core_profiles,
+        input_state.core_transport,
     )
 
     # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
@@ -271,6 +273,7 @@ class SimulationStepFn:
           solver_numeric_outputs,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt,
+          sim_error,
       ) = self._adaptive_step(
           x_new,
           dt,
@@ -282,6 +285,8 @@ class SimulationStepFn:
           input_state,
           explicit_source_profiles,
       )
+      if sim_error != state.SimError.NO_ERROR:
+        return input_state, previous_post_processed_outputs, sim_error
 
     # Needed to provide the prescribed state variables and boundary conditions
     # for time t+dt. This is calculated also within the step function, but since
@@ -319,53 +324,6 @@ class SimulationStepFn:
         post_processed_outputs,
         _check_for_errors(output_state, post_processed_outputs),
     )
-
-  def init_time_step_calculator(
-      self,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo_t: geometry.Geometry,
-      input_state: sim_state.ToraxSimState,
-  ) -> jax.Array:
-    """First phase: Initialize the solver state.
-
-    Args:
-      dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      geo_t: The geometry of the torus during this time step of the simulation.
-        While the geometry may change, any changes to the grid size can trigger
-        recompilation of the solver (if it is jitted) or an error (assuming it
-        is JAX-compiled and lowered).
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-
-    Returns:
-      Time step duration (dt)
-    """
-    # initialize new dt and reset solver iterations.
-    dt = self._time_step_calculator.next_dt(
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
-    )
-
-    crosses_t_final = (
-        input_state.t < dynamic_runtime_params_slice_t.numerics.t_final
-    ) * (
-        input_state.t + input_state.dt
-        > dynamic_runtime_params_slice_t.numerics.t_final
-    )
-    dt = np.where(
-        np.logical_and(
-            dynamic_runtime_params_slice_t.numerics.exact_t_final,
-            crosses_t_final,
-        ),
-        dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
-        dt,
-    )
-    if np.any(np.isnan(dt)):
-      raise ValueError('dt is NaN.')
-
-    return dt
 
   def step(
       self,
@@ -449,6 +407,7 @@ class SimulationStepFn:
       state.SolverNumericOutputs,
       runtime_params_slice.DynamicRuntimeParamsSlice,
       geometry.Geometry,
+      state.SimError,
   ]:
     """Performs adaptive time stepping until solver converges.
 
@@ -493,13 +452,12 @@ class SimulationStepFn:
             state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
             geometry.Geometry,
+            state.SimError,
         ],
     ) -> bool:
-      if updated_output[2].solver_error_state == 1:
-        do_dt_backtrack = True
-      else:
-        do_dt_backtrack = False
-      return do_dt_backtrack
+      if updated_output[5] != state.SimError.NO_ERROR:
+        return False
+      return updated_output[2].solver_error_state == 1
 
     # Make a new step with a smaller dt, starting with the original core
     # profiles.
@@ -511,6 +469,7 @@ class SimulationStepFn:
             state.SolverNumericOutputs,
             runtime_params_slice.DynamicRuntimeParamsSlice,
             geometry.Geometry,
+            state.SimError,
         ],
     ) -> tuple[
         tuple[cell_variable.CellVariable, ...],
@@ -518,15 +477,16 @@ class SimulationStepFn:
         state.SolverNumericOutputs,
         runtime_params_slice.DynamicRuntimeParamsSlice,
         geometry.Geometry,
+        state.SimError,
     ]:
-      _, old_dt, old_solver_outputs, old_slice, _ = updated_output
+      _, old_dt, old_solver_outputs, old_slice, _, _ = updated_output
       numerics = old_slice.numerics
 
       dt = old_dt / numerics.dt_reduction_factor
       if jnp.any(jnp.isnan(dt)):
-        raise ValueError('dt is NaN.')
+        return tuple(*updated_output[:-1], state.SimError.REACHED_MIN_DT)
       if dt < numerics.min_dt:
-        raise ValueError('dt below minimum timestep following adaptation')
+        return tuple(*updated_output[:-1], state.SimError.REACHED_MIN_DT)
 
       # Calculate dynamic_runtime_params and geo at t + dt.
       # Update geos with phibdot.
@@ -579,6 +539,7 @@ class SimulationStepFn:
           solver_numeric_outputs,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt,
+          state.SimError.NO_ERROR,
       )
 
     # Iteratively apply the adaptive time step until the solver converges.
@@ -590,6 +551,7 @@ class SimulationStepFn:
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
+        sim_error,
     ) = xnp.py_while(
         cond_fun,
         body_fun,
@@ -600,6 +562,7 @@ class SimulationStepFn:
             # t_plus_dt is used as template for pytree structure.
             dynamic_runtime_params_slice_t_plus_dt,
             geo_t_plus_dt,
+            state.SimError.NO_ERROR,
         ),
     )
 
@@ -609,6 +572,7 @@ class SimulationStepFn:
         solver_numeric_outputs,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
+        sim_error,
     )
 
 

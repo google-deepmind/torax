@@ -21,15 +21,9 @@ from torax._src.time_step_calculator import pydantic_model as time_step_pydantic
 
 class PydanticModelTest(parameterized.TestCase):
 
-  def test_unknown_solver_type_raises_error(self):
-    with self.assertRaises(pydantic.ValidationError):
-      time_step_pydantic_model.TimeStepCalculator.from_dict(
-          {'calculator_type': 'foo'}
-      )
-
   def test_missing_time_step_calculator_type_raises_error(self):
-    with self.assertRaises(TypeError):
-      time_step_pydantic_model.TimeStepCalculator({})
+    with self.assertRaises(pydantic.ValidationError):
+      time_step_pydantic_model.TimeStepCalculator.from_dict({})
 
   def test_unknown_time_step_calculator_type_raises_error(self):
     with self.assertRaises(pydantic.ValidationError):
