@@ -20,7 +20,6 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import pydantic
-
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice

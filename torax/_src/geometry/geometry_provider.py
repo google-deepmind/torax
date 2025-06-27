@@ -23,12 +23,11 @@ from typing import Protocol, Type
 
 import chex
 import numpy as np
-import typing_extensions
-
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations

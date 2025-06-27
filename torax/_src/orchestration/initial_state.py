@@ -16,8 +16,6 @@ import dataclasses
 
 from absl import logging
 import numpy as np
-import xarray as xr
-
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
@@ -31,6 +29,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+import xarray as xr
 
 
 def get_initial_state_and_post_processed_outputs(

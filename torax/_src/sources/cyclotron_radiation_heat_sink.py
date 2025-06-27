@@ -22,8 +22,6 @@ import chex
 import jax
 from jax import numpy as jnp
 import pydantic
-import typing_extensions
-
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
@@ -35,6 +33,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+import typing_extensions
 
 # Default value for the model function to be used for the Cyclotron radiation
 # heat sink source. This is also used as an identifier for the model function in

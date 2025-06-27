@@ -17,7 +17,6 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-
 from torax._src.config import build_runtime_params
 from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice

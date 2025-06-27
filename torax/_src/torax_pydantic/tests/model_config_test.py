@@ -19,7 +19,6 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-
 from torax._src import version
 from torax._src.config import config_loader
 from torax._src.test_utils import default_configs

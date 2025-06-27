@@ -29,7 +29,6 @@ import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
-
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice

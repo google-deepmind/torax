@@ -14,14 +14,13 @@
 """A basic version of the pedestal model that uses direct specification."""
 import chex
 from jax import numpy as jnp
-from typing_extensions import override
-
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
+from typing_extensions import override
 
 
 # pylint: disable=invalid-name

@@ -16,7 +16,6 @@ import copy
 
 from absl.testing import absltest
 from absl.testing import parameterized
-
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs

@@ -18,7 +18,6 @@ from typing import ClassVar, Literal
 
 import chex
 import jax.numpy as jnp
-
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state

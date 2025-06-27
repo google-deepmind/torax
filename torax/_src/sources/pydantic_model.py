@@ -18,8 +18,6 @@ from typing import Any
 
 import immutabledict
 import pydantic
-from typing_extensions import Self
-
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
@@ -39,6 +37,7 @@ from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.torax_pydantic import torax_pydantic
+from typing_extensions import Self
 
 
 class Sources(torax_pydantic.BaseModelFrozen):

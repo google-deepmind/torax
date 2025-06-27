@@ -19,7 +19,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-
 from torax._src import state
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable

@@ -20,8 +20,6 @@ import time
 from absl import logging
 import jax
 import numpy as np
-import tqdm
-
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
@@ -29,6 +27,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+import tqdm
 
 
 def run_loop(

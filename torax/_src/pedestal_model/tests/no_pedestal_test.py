@@ -15,7 +15,6 @@ from unittest import mock
 
 from absl.testing import absltest
 import jax.numpy as jnp
-
 from torax._src.pedestal_model import no_pedestal
 
 

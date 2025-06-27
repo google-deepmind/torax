@@ -21,13 +21,12 @@ from typing import Annotated, Any, Literal, Optional, TypeAlias, TypeVar
 
 from imas.ids_toplevel import IDSToplevel
 import pydantic
-import typing_extensions
-
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations

@@ -21,7 +21,6 @@ import abc
 import functools
 
 import jax
-
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable

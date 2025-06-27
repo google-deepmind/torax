@@ -27,7 +27,6 @@ import chex
 import jax
 from jax import numpy as jnp
 import jaxopt
-
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice

@@ -17,7 +17,6 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 import scipy
-
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization

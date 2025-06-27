@@ -21,7 +21,6 @@ from typing import ClassVar, Final, Literal
 import chex
 import jax
 from jax import numpy as jnp
-
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice

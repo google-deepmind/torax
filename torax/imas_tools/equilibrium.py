@@ -20,7 +20,6 @@ import imas
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import scipy
-
 from torax._src.geometry import geometry_loader
 
 # Imports added for type hinting,
@@ -185,7 +184,7 @@ def geometry_from_IMAS(
       "B_0": B_0,
       "psi": psi,
       "Ip_profile": Ip_profile,
-      "phi": phi,
+      "Phi": phi,
       "R_in": R_in,
       "R_out": R_out,
       "F": F,
@@ -246,19 +245,19 @@ def geometry_to_IMAS(
   # determine sign how?
   eq.profiles_1d.psi = core_profiles.psi.face_value()
   # determine sign how?
-  eq.profiles_1d.phi = -1 * geometry.phi_face
+  eq.profiles_1d.phi = -1 * geometry.Phi_face
   eq.profiles_1d.r_inboard = geometry.R_in_face
   eq.profiles_1d.r_outboard = geometry.R_out_face
 
   eq.profiles_1d.triangularity_upper = geometry.delta_upper_face
   eq.profiles_1d.triangularity_lower = geometry.delta_lower_face
   eq.profiles_1d.elongation = geometry.elongation_face
-  eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis
+  eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
   eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
   eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
   eq.profiles_1d.volume = geometry.volume_face
   eq.profiles_1d.area = geometry.area_face
-  eq.profiles_1d.rho_tor = np.sqrt(geometry.phi_face / (np.pi * geometry.B_0))
+  eq.profiles_1d.rho_tor = np.sqrt(geometry.Phi_face / (np.pi * geometry.B_0))
   eq.profiles_1d.rho_tor_norm = geometry.torax_mesh.face_centers
 
   dvoldpsi = (

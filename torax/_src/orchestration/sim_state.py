@@ -17,7 +17,6 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles

@@ -18,11 +18,10 @@ from absl.testing import parameterized
 import chex
 import numpy as np
 import pydantic
-import xarray as xr
-
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
+import xarray as xr
 
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'

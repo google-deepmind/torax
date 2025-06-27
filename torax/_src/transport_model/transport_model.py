@@ -23,7 +23,6 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params_slice

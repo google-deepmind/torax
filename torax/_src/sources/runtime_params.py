@@ -16,7 +16,6 @@
 import enum
 
 import chex
-
 from torax._src import array_typing
 from torax._src import interpolated_param
 

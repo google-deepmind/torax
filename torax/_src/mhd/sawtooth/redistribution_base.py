@@ -17,7 +17,6 @@
 import abc
 
 import chex
-
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice

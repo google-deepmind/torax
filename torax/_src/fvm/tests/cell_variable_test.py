@@ -16,7 +16,6 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-
 from torax._src.fvm import cell_variable
 
 

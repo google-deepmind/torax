@@ -14,7 +14,6 @@
 
 """Classes for representing a circular geometry."""
 import numpy as np
-
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 

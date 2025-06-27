@@ -23,7 +23,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
-
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import build_runtime_params

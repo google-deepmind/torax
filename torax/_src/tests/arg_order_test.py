@@ -22,7 +22,6 @@ import inspect
 
 from absl.testing import absltest
 from absl.testing import parameterized
-
 from torax._src import physics
 from torax._src import state
 from torax._src.core_profiles import updaters

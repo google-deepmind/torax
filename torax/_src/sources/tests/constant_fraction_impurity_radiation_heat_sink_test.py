@@ -15,7 +15,6 @@ from unittest import mock
 
 from absl.testing import absltest
 import chex
-
 from torax._src import math_utils
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

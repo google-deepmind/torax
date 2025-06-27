@@ -15,7 +15,6 @@
 """Base classes for MHD models."""
 
 import chex
-
 from torax._src.mhd.sawtooth import sawtooth_model
 
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 """A pedestal model for when there is no pedestal."""
 from jax import numpy as jnp
-
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry

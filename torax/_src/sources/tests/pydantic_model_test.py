@@ -16,7 +16,6 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source

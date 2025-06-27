@@ -17,7 +17,6 @@ import functools
 
 import chex
 import numpy as np
-
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils

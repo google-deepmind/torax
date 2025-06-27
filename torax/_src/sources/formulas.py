@@ -15,7 +15,6 @@
 """Prescribed formulas for computing source profiles."""
 import jax
 from jax import numpy as jnp
-
 from torax._src import math_utils
 from torax._src.geometry import geometry
 

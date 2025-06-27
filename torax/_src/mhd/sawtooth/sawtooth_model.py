@@ -17,7 +17,6 @@
 import dataclasses
 
 import jax
-
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors

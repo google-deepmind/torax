@@ -17,7 +17,6 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-
 from torax._src import state
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable

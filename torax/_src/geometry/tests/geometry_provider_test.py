@@ -2,7 +2,6 @@ import dataclasses
 
 from absl.testing import absltest
 import numpy as np
-
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

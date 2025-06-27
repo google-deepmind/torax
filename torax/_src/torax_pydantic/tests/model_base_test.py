@@ -21,7 +21,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import pydantic
-
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import torax_pydantic
 

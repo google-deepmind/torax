@@ -18,7 +18,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import pydantic
-
 from torax._src.torax_pydantic import pydantic_types
 
 

@@ -20,7 +20,6 @@ Abstract base class defining time stepping interface.
 import abc
 
 import jax
-
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry

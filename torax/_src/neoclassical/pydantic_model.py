@@ -17,7 +17,6 @@ import copy
 from typing import Any
 
 import pydantic
-
 from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current

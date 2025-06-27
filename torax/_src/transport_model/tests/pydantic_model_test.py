@@ -15,7 +15,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from fusion_surrogates.qlknn.models import registry
 import pydantic
-
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm

@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 import numpy as np
-
 from torax._src import jax_utils
 
 # Export all symbols from jax.numpy API for type checkers (including editors).

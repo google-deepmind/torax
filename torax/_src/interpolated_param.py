@@ -23,9 +23,8 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import xarray as xr
-
 from torax._src import jax_utils
+import xarray as xr
 
 RHO_NORM: Final[str] = 'rho_norm'
 

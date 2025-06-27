@@ -32,7 +32,6 @@ import functools
 
 import jax
 from jax import numpy as jnp
-
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state

@@ -24,7 +24,6 @@ import imas
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import pytest
-
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import post_processing

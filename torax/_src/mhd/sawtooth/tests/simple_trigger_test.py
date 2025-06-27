@@ -18,7 +18,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
