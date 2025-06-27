@@ -15,7 +15,6 @@
 from absl.testing import absltest
 import jax
 import numpy as np
-
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider

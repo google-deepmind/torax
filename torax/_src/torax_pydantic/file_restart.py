@@ -14,7 +14,6 @@
 
 """Pydantic config for restarting a simulation from a file."""
 import pydantic
-
 from torax._src.torax_pydantic import torax_pydantic
 
 

@@ -15,7 +15,6 @@
 """The CriticalGradientModel class."""
 import chex
 from jax import numpy as jnp
-
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state

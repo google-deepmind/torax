@@ -21,7 +21,6 @@ import functools
 from typing import Callable, Final
 
 import chex
-
 from torax._src import jax_utils
 from torax._src import state as state_module
 from torax._src import xnp

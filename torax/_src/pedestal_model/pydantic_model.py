@@ -17,7 +17,6 @@ import abc
 from typing import Literal
 
 import chex
-
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params

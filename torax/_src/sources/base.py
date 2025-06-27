@@ -15,7 +15,6 @@
 import abc
 
 import chex
-
 from torax._src.sources import runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic

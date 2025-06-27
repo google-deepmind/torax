@@ -20,7 +20,6 @@ from typing import Sequence
 
 from absl import app
 from absl import flags
-
 from torax.tests import scripts
 
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(

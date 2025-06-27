@@ -17,11 +17,10 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-import xarray as xr
-
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
+import xarray as xr
 
 _ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
 

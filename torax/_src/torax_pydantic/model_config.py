@@ -19,9 +19,6 @@ import logging
 from typing import Any, Mapping
 
 import pydantic
-import typing_extensions
-from typing_extensions import Self
-
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
@@ -37,6 +34,8 @@ from torax._src.time_step_calculator import pydantic_model as time_step_calculat
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
+import typing_extensions
+from typing_extensions import Self
 
 
 class ToraxConfig(torax_pydantic.BaseModelFrozen):

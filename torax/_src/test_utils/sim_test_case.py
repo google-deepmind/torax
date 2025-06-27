@@ -21,7 +21,6 @@ from typing import Any, Final, Optional, Sequence
 from absl.testing import parameterized
 import chex
 import numpy as np
-
 from torax._src import constants
 from torax._src import simulation_app
 from torax._src.config import config_loader

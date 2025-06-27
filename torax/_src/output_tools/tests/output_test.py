@@ -22,8 +22,6 @@ import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
-import xarray as xr
-
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -36,6 +34,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
+import xarray as xr
 
 SequenceKey = tree_util.SequenceKey
 GetAttrKey = tree_util.GetAttrKey

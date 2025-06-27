@@ -25,14 +25,13 @@ import chex
 import contourpy
 import numpy as np
 import scipy
-import typing_extensions
-
 from torax._src import constants
 from torax._src import interpolated_param
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
 from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # pylint: disable=invalid-name
 

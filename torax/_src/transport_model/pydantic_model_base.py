@@ -18,12 +18,11 @@ import abc
 import chex
 import numpy as np
 import pydantic
-import typing_extensions
-
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params
 from torax._src.transport_model import transport_model
+import typing_extensions
 
 
 # pylint: disable=invalid-name

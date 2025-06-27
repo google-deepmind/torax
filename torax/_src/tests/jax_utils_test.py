@@ -20,7 +20,6 @@ from absl.testing import parameterized
 import chex
 import jax
 from jax import numpy as jnp
-
 from torax._src import jax_utils
 
 

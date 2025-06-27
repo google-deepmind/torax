@@ -14,7 +14,6 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.test_utils import default_sources

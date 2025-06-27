@@ -19,7 +19,6 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 

@@ -16,7 +16,6 @@
 import functools
 
 import chex
-
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice

@@ -17,7 +17,6 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
-
 from torax._src.output_tools import safety_factor_fit
 
 

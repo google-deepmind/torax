@@ -38,7 +38,6 @@ from collections.abc import Mapping
 import dataclasses
 
 import chex
-
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
 from torax._src.config import profile_conditions

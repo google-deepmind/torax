@@ -26,7 +26,6 @@ De, Ve:
 import copy
 
 import numpy as np
-
 from torax.tests.test_data import default_config
 
 x = np.linspace(0, 1, 10)

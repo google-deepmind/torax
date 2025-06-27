@@ -16,7 +16,6 @@
 
 import chex
 import pydantic
-
 from torax._src.config import runtime_params_slice
 from torax._src.mhd import base
 from torax._src.mhd import runtime_params as mhd_runtime_params

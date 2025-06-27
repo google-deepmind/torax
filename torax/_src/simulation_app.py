@@ -61,11 +61,10 @@ from typing import Callable, Final
 from absl import logging
 import jax
 import numpy as np
-import xarray as xr
-
 from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.torax_pydantic import model_config
+import xarray as xr
 
 # String printed before printing the output file path
 WRITE_PREFIX: Final[str] = 'Wrote simulation output to '

@@ -16,7 +16,6 @@
 """Base classes for Neoclassical models."""
 
 import chex
-
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.transport import base as transport_base

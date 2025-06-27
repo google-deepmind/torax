@@ -17,7 +17,6 @@ import dataclasses
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model

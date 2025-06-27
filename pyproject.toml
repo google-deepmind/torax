@@ -79,6 +79,7 @@ tutorial = [
 
 [tool.isort]
 profile = "google"
+known_third_party = 'torax'
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide

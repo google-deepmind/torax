@@ -16,7 +16,6 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-
 from torax._src.sources import cyclotron_radiation_heat_sink
 
 

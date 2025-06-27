@@ -18,7 +18,6 @@ import logging
 import os
 
 import jax
-
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module

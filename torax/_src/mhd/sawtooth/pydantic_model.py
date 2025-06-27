@@ -18,7 +18,6 @@ from typing import Union
 
 import chex
 import pydantic
-
 from torax._src.config import runtime_params_slice
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import sawtooth_model

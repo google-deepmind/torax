@@ -15,7 +15,6 @@
 
 import chex
 from jax import numpy as jnp
-
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.geometry import geometry

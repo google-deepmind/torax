@@ -20,11 +20,10 @@ from typing import Any, TypeAlias
 import chex
 import numpy as np
 import pydantic
-from typing_extensions import Annotated, Self
-
 from torax._src import interpolated_param
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
+from typing_extensions import Annotated, Self
 
 
 class TimeVaryingScalar(model_base.BaseModelFrozen):

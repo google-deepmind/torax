@@ -14,7 +14,6 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-
 from torax._src.config import plasma_composition
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib

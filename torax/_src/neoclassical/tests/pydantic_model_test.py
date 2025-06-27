@@ -13,7 +13,6 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
-
 from torax._src.neoclassical import pydantic_model
 
 

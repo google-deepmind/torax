@@ -18,7 +18,6 @@ import functools
 
 import chex
 import immutabledict
-
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
