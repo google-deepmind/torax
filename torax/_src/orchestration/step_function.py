@@ -112,6 +112,10 @@ class SimulationStepFn:
     self._static_runtime_params_slice = static_runtime_params_slice
 
   @property
+  def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
+    return self._geometry_provider
+
+  @property
   def solver(self) -> solver_lib.Solver:
     return self._solver
 
