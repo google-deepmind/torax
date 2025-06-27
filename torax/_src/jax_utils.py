@@ -16,6 +16,7 @@
 
 import contextlib
 import functools
+import inspect
 import os
 from typing import Any, Callable, Literal, TypeVar
 import chex
@@ -23,7 +24,6 @@ import equinox as eqx
 import jax
 from jax import numpy as jnp
 import numpy as np
-
 
 T = TypeVar('T')
 BooleanNumeric = Any  # A bool, or a Boolean array.
@@ -194,7 +194,7 @@ def non_inlined_function(
   computation.
 
   Args:
-    f: The function to be called.
+    f: A JITted function.
     implementation: If 'while_loop', use `jax.lax.while_loop` with a single
       iteration. If 'pure_callback', use `jax.pure_callback`. This comes at the
       cost of a roughly 0.7ms constant overhead per call. It is recommended that
@@ -205,36 +205,73 @@ def non_inlined_function(
     The function.
   """
 
+  if not hasattr(f, 'lower'):
+    raise ValueError('Must be a JITted function.')
+
+  if not hasattr(f, '_jit_info'):
+    raise ValueError('The function must have a _jit_info attribute.')
+
+  static_argnames = f._jit_info.static_argnames  # pylint: disable=protected-access
+
   match implementation:
     case 'while_loop':
-      return _non_inlined_function_while_loop(f)
+      return _non_inlined_function_while_loop(
+          f, static_argnames=static_argnames
+      )
     case 'pure_callback':
-      return _non_inlined_function_pure_callback(f)
+      return _non_inlined_function_pure_callback(
+          f, static_argnames=static_argnames
+      )
     case _:
       raise ValueError(f'Unknown implementation: {implementation}')
 
 
-def _non_inlined_function_pure_callback(f):
+def _non_inlined_function_pure_callback(f, static_argnames):
   """A decorator that prevents XLA from inlining a function."""
 
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
-    result_shape_dtypes = jax.eval_shape(f, *args, **kwargs)
-    return jax.pure_callback(f, result_shape_dtypes, *args, **kwargs)
+    nonlocal f, static_argnames
+    bound = inspect.signature(f).bind(*args, **kwargs)
+    bound.apply_defaults()
+    kwargs = bound.arguments
+    if 'self' in kwargs:
+      kwargs.pop('self')
+
+    if static_argnames:
+      static_args = {k: bound.arguments[k] for k in static_argnames}
+
+      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
+      f = functools.partial(f, **static_args)
+
+    result_shape_dtypes = jax.eval_shape(f, **kwargs)
+    return jax.pure_callback(f, result_shape_dtypes, **kwargs)
 
   return wrapper
 
 
-def _non_inlined_function_while_loop(f):
+def _non_inlined_function_while_loop(f, static_argnames):
   """A decorator that prevents XLA from inlining a function."""
 
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
+    nonlocal f, static_argnames
+    bound = inspect.signature(f).bind(*args, **kwargs)
+    bound.apply_defaults()
+    kwargs = bound.arguments
+    if 'self' in kwargs:
+      kwargs.pop('self')
+
+    if static_argnames:
+      static_args = {k: bound.arguments[k] for k in static_argnames}
+      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
+      f = functools.partial(f, **static_args)
+
     continue_loop = True
-    empty_out = _init_pytree(jax.eval_shape(f, *args, **kwargs))
+    empty_out = _init_pytree(jax.eval_shape(f, **kwargs))
 
     def body(val):
-      return False, val[1], val[2], f(*val[1], **val[2])
+      return False, val[1], f(**val[1])
 
     def cond(val):
       return val[0]
@@ -242,7 +279,7 @@ def _non_inlined_function_while_loop(f):
     out = jax.lax.while_loop(
         cond_fun=cond,
         body_fun=body,
-        init_val=(continue_loop, args, kwargs, empty_out),
+        init_val=(continue_loop, kwargs, empty_out),
     )
     return out[-1]
 
