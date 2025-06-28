@@ -17,12 +17,14 @@
 This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
+
 from collections.abc import Mapping
 import dataclasses
 import logging
 
 import chex
 import contourpy
+import jax
 import numpy as np
 import scipy
 from torax._src import constants
@@ -33,12 +35,14 @@ from torax._src.geometry import geometry_provider
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
+
 # pylint: disable=invalid-name
 
 _RHO_SMOOTHING_LIMIT = 0.1
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StandardGeometry(geometry.Geometry):
   r"""Standard geometry object including additional useful attributes, like psi.
 
@@ -66,8 +70,7 @@ class StandardGeometry(geometry.Geometry):
     delta_lower_face: Lower triangularity on the face grid [dimensionless]. See
       `Geometry` docstring for definition of `delta_lower_face`.
   """
-
-  Ip_from_parameters: bool
+  Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
   Ip_profile_face: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
