@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Sauter model for bootstrap current."""
-
+import dataclasses
 from typing import Literal
 
 import chex
+import jax
 import jax.numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
@@ -28,7 +29,8 @@ from torax._src.neoclassical.bootstrap_current import runtime_params
 from torax._src.physics import collisions
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   """Dynamic runtime params for the Sauter model."""
 

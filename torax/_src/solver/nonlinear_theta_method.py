@@ -14,8 +14,8 @@
 
 """The NonLinearThetaMethod class."""
 import abc
+import dataclasses
 
-import chex
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -31,18 +31,21 @@ from torax._src.solver import solver
 from torax._src.sources import source_profiles
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
   n_max_iterations: int
   loss_tol: float
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticOptimizerRuntimeParams(runtime_params.StaticRuntimeParams):
   initial_guess_mode: int
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   maxiter: int
   residual_tol: float
@@ -51,7 +54,8 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   tau_min: float
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticNewtonRaphsonRuntimeParams(
     runtime_params.StaticRuntimeParams
 ):

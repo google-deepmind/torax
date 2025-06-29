@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Full simulator state to be used for orchestration."""
+import dataclasses
+
 from absl import logging
 import chex
 import jax
@@ -22,7 +24,8 @@ from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class ToraxSimState:
   """Full simulator state.
 

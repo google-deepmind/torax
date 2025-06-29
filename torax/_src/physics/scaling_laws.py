@@ -74,7 +74,7 @@ def calculate_plh_scaling_factor(
   )
 
   # Scale to average isotope mass.
-  A_deuterium = constants.ION_PROPERTIES_DICT['D']['A']
+  A_deuterium = constants.ION_PROPERTIES_DICT['D'].A
   P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.A_i
 
   Ip_total = core_profiles.Ip_profile_face[..., -1]

@@ -17,12 +17,14 @@
 This is the dataclass runtime config exposed to the user. The actual model gets
 a time-interpolated version of this config via the DynamicRuntimeParams.
 """
-import chex
+import dataclasses
+import jax
 from torax._src import array_typing
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 

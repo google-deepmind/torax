@@ -130,35 +130,35 @@ class TransportSmoothingTest(parameterized.TestCase):
     # assert that the smoothing did not impact the zones inside/outside the
     # inner/outer transport patch locations
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][:inner_patch_idx],
+        transport_coeffs.chi_face_ion[:inner_patch_idx],
         chi_face_ion_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][:inner_patch_idx],
+        transport_coeffs.chi_face_el[:inner_patch_idx],
         chi_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][:inner_patch_idx],
+        transport_coeffs.d_face_el[:inner_patch_idx],
         d_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][:inner_patch_idx],
+        transport_coeffs.v_face_el[:inner_patch_idx],
         v_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][outer_patch_idx:],
+        transport_coeffs.chi_face_ion[outer_patch_idx:],
         chi_face_ion_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][outer_patch_idx:],
+        transport_coeffs.chi_face_el[outer_patch_idx:],
         chi_face_el_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][outer_patch_idx:],
+        transport_coeffs.d_face_el[outer_patch_idx:],
         d_face_el_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][outer_patch_idx:],
+        transport_coeffs.v_face_el[outer_patch_idx:],
         v_face_el_orig[outer_patch_idx:],
     )
     # carry out smoothing by hand for a representative middle location.
@@ -192,22 +192,22 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_ion[inner_patch_idx + test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_el[inner_patch_idx + test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.d_face_el[inner_patch_idx + test_idx],
         d_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.v_face_el[inner_patch_idx + test_idx],
         v_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
@@ -308,56 +308,56 @@ class TransportSmoothingTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_ion'][:inner_patch_idx],
+        transport_coeffs.chi_face_ion[:inner_patch_idx],
         chi_face_ion_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_el'][:inner_patch_idx],
+        transport_coeffs.chi_face_el[:inner_patch_idx],
         chi_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['d_face_el'][:inner_patch_idx],
+        transport_coeffs.d_face_el[:inner_patch_idx],
         d_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['v_face_el'][:inner_patch_idx],
+        transport_coeffs.v_face_el[:inner_patch_idx],
         v_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_ion'][outer_patch_idx:],
+        transport_coeffs.chi_face_ion[outer_patch_idx:],
         chi_face_ion_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_el'][outer_patch_idx:],
+        transport_coeffs.chi_face_el[outer_patch_idx:],
         chi_face_el_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['d_face_el'][outer_patch_idx:],
+        transport_coeffs.d_face_el[outer_patch_idx:],
         d_face_el_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['v_face_el'][outer_patch_idx:],
+        transport_coeffs.v_face_el[outer_patch_idx:],
         v_face_el_orig[outer_patch_idx:],
     )
 
@@ -384,22 +384,22 @@ class TransportSmoothingTest(parameterized.TestCase):
     v_face_el_orig_smoothed_test_r = v_face_el_orig * smoothing_array
 
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][test_idx],
+        transport_coeffs.chi_face_ion[test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][test_idx],
+        transport_coeffs.chi_face_el[test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][test_idx],
+        transport_coeffs.d_face_el[test_idx],
         d_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][test_idx],
+        transport_coeffs.v_face_el[test_idx],
         v_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )

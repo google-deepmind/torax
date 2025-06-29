@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helper for finding safety factor outputs."""
+import dataclasses
 import functools
 
 import chex
@@ -21,7 +22,8 @@ from torax._src import array_typing
 from torax._src import jax_utils
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class SafetyFactorFit:
   """Collection of outputs calculated after each simulation step.
 

@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
+import dataclasses
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax._src import constants as constants_module
 from torax._src import state
@@ -23,7 +25,8 @@ from torax._src.physics import psi_calculations
 from torax._src.transport_model import quasilinear_transport_model
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
   """Shared parameters for Qualikiz-based models."""
 
@@ -34,7 +37,8 @@ class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   """Inputs to Qualikiz-based models."""
 

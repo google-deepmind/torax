@@ -22,6 +22,7 @@ import dataclasses
 from typing import Protocol, Type
 
 import chex
+import jax
 import numpy as np
 from torax._src import interpolated_param
 from torax._src import jax_utils
@@ -104,7 +105,8 @@ class ConstantGeometryProvider(GeometryProvider):
     return self._geo.torax_mesh
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class TimeDependentGeometryProvider:
   """A geometry provider which holds values to interpolate based on time."""
 

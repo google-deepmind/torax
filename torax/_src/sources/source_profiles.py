@@ -16,7 +16,6 @@
 import dataclasses
 from typing import Literal
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import constants
@@ -27,7 +26,8 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 
@@ -52,7 +52,8 @@ class QeiInfo:
     )
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class SourceProfiles:
   """Collection of profiles for all sources in TORAX.
 

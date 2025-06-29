@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import dataclasses
 import importlib
 from typing import Literal
 
 from absl.testing import parameterized
 import chex
+import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -32,7 +34,8 @@ from torax._src.torax_pydantic import register_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   a: array_typing.ScalarFloat
   b: bool

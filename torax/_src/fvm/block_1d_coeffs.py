@@ -20,9 +20,9 @@ includes
 calculations specific to plasma physics to provide these coefficients.
 """
 
+import dataclasses
 from typing import Any, Optional, TypeAlias
 
-import chex
 import jax
 
 
@@ -42,7 +42,8 @@ OptionalTupleMatrix: TypeAlias = Optional[
 AuxiliaryOutput: TypeAlias = Any
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class Block1DCoeffs:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """The coefficients of coupled 1D fluid dynamics PDEs.

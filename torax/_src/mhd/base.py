@@ -14,11 +14,13 @@
 
 """Base classes for MHD models."""
 
-import chex
+import dataclasses
+import jax
 from torax._src.mhd.sawtooth import sawtooth_model
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class MHDModels:
   """Container for instantiated MHD model objects."""
 

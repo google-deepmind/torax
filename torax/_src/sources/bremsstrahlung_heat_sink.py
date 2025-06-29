@@ -38,7 +38,8 @@ from torax._src.sources import source_profiles
 DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   use_relativistic_correction: bool
 

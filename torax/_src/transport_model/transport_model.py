@@ -21,7 +21,6 @@ coefficients.
 import abc
 import dataclasses
 from typing import Optional
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import constants
@@ -33,7 +32,8 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 import typing_extensions
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class TurbulentTransport:
   """Turbulent transport coefficients calculated by a transport model.
 
@@ -395,11 +395,9 @@ class TransportModel(abc.ABC):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    smoothed_coeffs = jax.tree_util.tree_map(
+    return jax.tree_util.tree_map(
         smooth_single_coeff, transport_coeffs
     )
-
-    return TurbulentTransport(**smoothed_coeffs)
 
 
 def _build_smoothing_matrix(

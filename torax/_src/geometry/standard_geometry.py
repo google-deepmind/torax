@@ -23,6 +23,7 @@ import logging
 
 import chex
 import contourpy
+import jax
 import numpy as np
 import scipy
 from torax._src import constants
@@ -38,7 +39,8 @@ import typing_extensions
 _RHO_SMOOTHING_LIMIT = 0.1
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StandardGeometry(geometry.Geometry):
   r"""Standard geometry object including additional useful attributes, like psi.
 
@@ -78,7 +80,8 @@ class StandardGeometry(geometry.Geometry):
   delta_lower_face: chex.Array
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 

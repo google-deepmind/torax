@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
+import dataclasses
 from typing import Literal
 
 import chex
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
@@ -116,6 +118,7 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     return radially_constant_fraction_of_Pin
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fraction_P_heating: array_typing.ScalarFloat

@@ -17,6 +17,7 @@
 import dataclasses
 from typing import Literal
 import chex
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
@@ -183,7 +184,8 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     return isinstance(other, SimpleRedistribution)
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
   """Dynamic runtime params for simple redistribution model.
 

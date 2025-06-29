@@ -17,6 +17,7 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
+import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -37,7 +38,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   puff_decay_length: array_typing.ScalarFloat
   S_total: array_typing.ScalarFloat

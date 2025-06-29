@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Code to build the combined transport coefficients for a simulation."""
+import dataclasses
 import functools
 
 from torax._src import jax_utils
@@ -52,7 +53,7 @@ def calculate_total_transport_coeffs(
   )
 
   return state.CoreTransport(
-      **turbulent_transport,
-      **neoclassical_transport_coeffs,
+      **dataclasses.asdict(turbulent_transport),
+      **dataclasses.asdict(neoclassical_transport_coeffs),
   )
 

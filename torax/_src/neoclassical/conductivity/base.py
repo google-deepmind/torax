@@ -14,14 +14,17 @@
 
 """Base class for conductivity models."""
 import abc
+import dataclasses
 
 import chex
+import jax
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
-@chex.dataclass(kw_only=True, frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(kw_only=True, frozen=True)
 class Conductivity:
   """Values returned by a conductivity model."""
   sigma: chex.Array

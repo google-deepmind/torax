@@ -13,12 +13,13 @@
 # limitations under the License.
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
-
+import dataclasses
 import functools
 from typing import Final, Literal, Mapping, Sequence
 
 import chex
 import immutabledict
+import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
@@ -257,6 +258,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     )
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   radiation_multiplier: array_typing.ScalarFloat

@@ -16,6 +16,7 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
+import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -79,7 +80,8 @@ class GenericParticleSource(source.Source):
     return (source.AffectedCoreProfile.NE,)
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   particle_width: array_typing.ScalarFloat
   deposition_location: array_typing.ScalarFloat

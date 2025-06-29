@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
+import dataclasses
 import functools
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -32,7 +32,8 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class Ions:
   """Helper container for holding ion attributes."""
 

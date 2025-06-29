@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Sauter conductivity model."""
-
+import dataclasses
 from typing import Literal
 
 import chex
+import jax
 import jax.numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
@@ -28,7 +29,8 @@ from torax._src.physics import collisions
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
   """Dynamic runtime params for the Sauter model."""
 

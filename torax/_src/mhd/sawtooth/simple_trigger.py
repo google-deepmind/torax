@@ -17,6 +17,7 @@
 import dataclasses
 from typing import Literal
 import chex
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -109,7 +110,8 @@ class SimpleTrigger(trigger_base.TriggerModel):
     return isinstance(other, SimpleTrigger)
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):
   """Dynamic runtime params for simple trigger model.
 

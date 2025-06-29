@@ -119,8 +119,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
         pedestal_model=self.pedestal_model,
         neoclassical_models=self.neoclassical_models,
     )
-    self.assertIn('sawtooth', mhd_models)
-    self.assertIsInstance(mhd_models['sawtooth'], sawtooth_model.SawtoothModel)
+    self.assertIsInstance(mhd_models.sawtooth, sawtooth_model.SawtoothModel)
 
     provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
@@ -128,7 +127,6 @@ class MHDPydanticModelTest(parameterized.TestCase):
         )
     )
     dynamic_slice = provider(t=0.0)
-    self.assertIn('sawtooth', dynamic_slice.mhd)
     sawtooth_dynamic_params = dynamic_slice.mhd.sawtooth
     self.assertIsInstance(
         sawtooth_dynamic_params, sawtooth_runtime_params.DynamicRuntimeParams

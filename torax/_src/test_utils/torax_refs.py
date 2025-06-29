@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """Shared setup code for unit tests using reference values."""
-
-import chex
+import dataclasses
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import fvm
@@ -25,7 +25,8 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.torax_pydantic import model_config
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class References:
   """Collection of reference values useful for unit tests."""
 

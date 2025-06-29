@@ -13,9 +13,8 @@
 # limitations under the License.
 
 """Functions for adding post-processed outputs to the simulation state."""
-
+import dataclasses
 from typing import Callable
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -38,7 +37,8 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True, eq=False)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class PostProcessedOutputs:
   """Collection of outputs calculated after each simulation step.
 

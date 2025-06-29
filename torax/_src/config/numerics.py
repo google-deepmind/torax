@@ -13,7 +13,11 @@
 # limitations under the License.
 
 """Numerics parameters used throughout TORAX simulations."""
+
+import dataclasses
+
 import chex
+import jax
 import pydantic
 from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
@@ -22,7 +26,8 @@ from typing_extensions import Self
 
 # pylint: disable=invalid-name
 # TODO(b/326578331): remove density reference from DynamicNumerics entirely.
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class DynamicNumerics:
   """Generic numeric parameters for the simulation.
 
@@ -42,7 +47,8 @@ class DynamicNumerics:
   adaptive_n_source_prefactor: float
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticNumerics:
   """Static numerics parameters for the simulation.
 
