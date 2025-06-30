@@ -303,7 +303,6 @@ def theta_method_block_residual(
   return residual
 
 
-# pylint: disable=missing-function-docstring
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
@@ -315,11 +314,8 @@ def theta_method_block_residual(
         'neoclassical_models',
     ],
 )
-def theta_method_block_jacobian(*args, **kwargs):
+def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-function-docstring
   return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
-
-
-# pylint: enable=missing-function-docstring
 
 
 @functools.partial(

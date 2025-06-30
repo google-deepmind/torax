@@ -44,9 +44,7 @@ class IntegralPreservationQuantity(enum.Enum):
 
 @functools.partial(
     jax_utils.jit,
-    static_argnames=[
-        'preserved_quantity',
-    ],
+    static_argnames=['preserved_quantity'],
 )
 def cell_to_face(
     cell_values: jt.Float[chex.Array, 'rhon'],
@@ -213,7 +211,7 @@ def cell_integration(
   """
   if x.shape != geo.rho_norm.shape:
     raise ValueError(
-        "For cell_integration, input 'x' must have same shape as the cell grid"
+        'For cell_integration, input "x" must have same shape as the cell grid'
         f'Got x.shape={x.shape}, expected {geo.rho_norm.shape}.'
     )
   return jnp.sum(x * geo.drho_norm)
