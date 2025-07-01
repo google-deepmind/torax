@@ -164,10 +164,12 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         will be raised if this is not the case.
     """
 
+    old_n_rho = _get_n_rho(self.geometry)
+
     self._update_fields(x)
 
     mesh = self.geometry.build_provider.torax_mesh
-    if _is_nrho_updated(x):
+    if _is_n_rho_updated(self.geometry, old_n_rho):
       # Clear the cached properties of all submodels, as the n_rho may have
       # changed. Also force the grid to be set, as the grid is dependent on the
       # n_rho.
@@ -207,9 +209,16 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return data
 
 
-def _is_nrho_updated(x: Mapping[str, Any]) -> bool:
-  for path in x.keys():
-    chunks = path.split('.')
-    if chunks[-1] == 'n_rho' and chunks[0] == 'geometry':
-      return True
-  return False
+def _get_n_rho(geometry: geometry_pydantic_model.Geometry) -> int:
+  if isinstance(geometry.geometry_configs, dict):
+    # All geometry configs are guaranteed to have the same n_rho.
+    return next(iter(geometry.geometry_configs.values())).config.n_rho
+  else:
+    # There is only one geometry config.
+    return geometry.geometry_configs.config.n_rho
+
+
+def _is_n_rho_updated(
+    geometry: geometry_pydantic_model.Geometry, old_n_rho: int
+) -> bool:
+  return _get_n_rho(geometry) != old_n_rho
