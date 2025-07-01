@@ -18,9 +18,12 @@ Abstract base class defining time stepping interface.
 """
 
 import abc
+import functools
 
 import jax
-from torax._src import state as state_module
+from jax import numpy as jnp
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 
@@ -51,13 +54,51 @@ class TimeStepCalculator(abc.ABC):
   ) -> bool | jax.Array:
     return t < (t_final - self.tolerance)
 
-  @abc.abstractmethod
+  @functools.partial(
+      jax_utils.jit,
+      static_argnames=[
+          'self', 'static_runtime_params_slice',
+      ],
+  )
   def next_dt(
+      self,
+      t: jax.Array,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      core_transport: state.CoreTransport,
+  ) -> jax.Array:
+    """Returns the next time step duration."""
+    dt = self._next_dt(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        core_transport,
+    )
+    crosses_t_final = (
+        t < dynamic_runtime_params_slice.numerics.t_final
+    ) * (
+        t + dt
+        > dynamic_runtime_params_slice.numerics.t_final
+    )
+    dt = jax.lax.select(
+        jnp.logical_and(
+            static_runtime_params_slice.numerics.exact_t_final,
+            crosses_t_final,
+        ),
+        dynamic_runtime_params_slice.numerics.t_final - t,
+        dt,
+    )
+    return dt
+
+  @abc.abstractmethod
+  def _next_dt(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      core_profiles: state_module.CoreProfiles,
-      core_transport: state_module.CoreTransport,
+      core_profiles: state.CoreProfiles,
+      core_transport: state.CoreTransport,
   ) -> jax.Array:
     """Returns the next time step duration.
 
@@ -68,3 +109,11 @@ class TimeStepCalculator(abc.ABC):
       core_profiles: Core plasma profiles in the tokamak.
       core_transport: Transport coefficients.
     """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Equality for the TimeStepCalculator, needed for JAX."""
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Hash for the TimeStepCalculator, needed for JAX."""

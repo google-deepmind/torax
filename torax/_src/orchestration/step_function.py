@@ -18,7 +18,6 @@ import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
-import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src import xnp
@@ -49,10 +48,21 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 def _check_for_errors(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
+  if static_runtime_params_slice.numerics.adaptive_dt:
+    numerics = dynamic_runtime_params_slice.numerics
+    # The final time step may be smaller than the min_dt.
+    if (
+        output_state.t < numerics.t_final
+        or not static_runtime_params_slice.numerics.exact_t_final
+    ):
+      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
+        return state.SimError.REACHED_MIN_DT
   state_error = output_state.check_for_errors()
   if state_error != state.SimError.NO_ERROR:
     return state_error
@@ -195,46 +205,23 @@ class SimulationStepFn:
     if (self.mhd_models.sawtooth is not None) and (
         not input_state.solver_numeric_outputs.sawtooth_crash
     ):
-      assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
-      dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
-
-      (
-          dynamic_runtime_params_slice_t_plus_crash_dt,
+      result = self._sawtooth_step(
+          dynamic_runtime_params_slice_t,
           geo_t,
-          geo_t_plus_crash_dt,
-      ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-          input_state.t,
-          dt_crash,
-          self._static_runtime_params_slice,
-          self._dynamic_runtime_params_slice_provider,
-          geo_t,
-          self._geometry_provider,
+          explicit_source_profiles,
+          input_state,
+          previous_post_processed_outputs,
       )
+      if result[0].solver_numeric_outputs.sawtooth_crash:
+        return result
 
-      # If no sawtooth crash is triggered, output_state and
-      # post_processed_outputs will be the same as the input state and
-      # previous_post_processed_outputs.
-      output_state, post_processed_outputs = _sawtooth_step(
-          sawtooth_solver=self.mhd_models.sawtooth,
-          static_runtime_params_slice=self._static_runtime_params_slice,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t=geo_t,
-          geo_t_plus_crash_dt=geo_t_plus_crash_dt,
-          explicit_source_profiles=explicit_source_profiles,
-          input_state=input_state,
-          input_post_processed_outputs=previous_post_processed_outputs,
-      )
-      # If a sawtooth crash was carried out, we exit early with the post-crash
-      # state, post-processed outputs, and the error state.
-      if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = _check_for_errors(output_state, post_processed_outputs)
-        return output_state, post_processed_outputs, error_state
-
-    dt = self.init_time_step_calculator(
+    dt = self._time_step_calculator.next_dt(
+        input_state.t,
+        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
-        input_state,
+        input_state.core_profiles,
+        input_state.core_transport,
     )
 
     # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
@@ -317,55 +304,68 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        _check_for_errors(output_state, post_processed_outputs),
+        _check_for_errors(
+            self._static_runtime_params_slice,
+            dynamic_runtime_params_slice_t_plus_dt,
+            output_state,
+            post_processed_outputs,
+        ),
     )
 
-  def init_time_step_calculator(
+  def _sawtooth_step(
       self,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
-  ) -> jax.Array:
-    """First phase: Initialize the solver state.
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+      state.SimError,
+  ]:
+    """Performs a simulation step if a sawtooth crash is triggered."""
+    assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+    dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
 
-    Args:
-      dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      geo_t: The geometry of the torus during this time step of the simulation.
-        While the geometry may change, any changes to the grid size can trigger
-        recompilation of the solver (if it is jitted) or an error (assuming it
-        is JAX-compiled and lowered).
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-
-    Returns:
-      Time step duration (dt)
-    """
-    # initialize new dt and reset solver iterations.
-    dt = self._time_step_calculator.next_dt(
-        dynamic_runtime_params_slice_t,
+    (
+        dynamic_runtime_params_slice_t_plus_crash_dt,
         geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
+        geo_t_plus_crash_dt,
+    ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+        input_state.t,
+        dt_crash,
+        self._static_runtime_params_slice,
+        self._dynamic_runtime_params_slice_provider,
+        geo_t,
+        self._geometry_provider,
     )
 
-    crosses_t_final = (
-        input_state.t < dynamic_runtime_params_slice_t.numerics.t_final
-    ) * (
-        input_state.t + input_state.dt
-        > dynamic_runtime_params_slice_t.numerics.t_final
+    # If no sawtooth crash is triggered, output_state and
+    # post_processed_outputs will be the same as the input state and
+    # previous_post_processed_outputs.
+    output_state, post_processed_outputs = _sawtooth_step(
+        sawtooth_solver=self.mhd_models.sawtooth,
+        static_runtime_params_slice=self._static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        geo_t=geo_t,
+        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
+        explicit_source_profiles=explicit_source_profiles,
+        input_state=input_state,
+        input_post_processed_outputs=previous_post_processed_outputs,
     )
-    dt = np.where(
-        np.logical_and(
-            dynamic_runtime_params_slice_t.numerics.exact_t_final,
-            crosses_t_final,
-        ),
-        dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
-        dt,
-    )
-    if np.any(np.isnan(dt)):
-      raise ValueError('dt is NaN.')
-
-    return dt
+    # If a sawtooth crash was carried out, we exit early with the post-crash
+    # state, post-processed outputs, and the error state.
+    if output_state.solver_numeric_outputs.sawtooth_crash:
+      error_state = _check_for_errors(
+          self._static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          output_state,
+          post_processed_outputs,
+      )
+      return output_state, post_processed_outputs, error_state
+    return output_state, post_processed_outputs, state.SimError.NO_ERROR
 
   def step(
       self,
@@ -463,8 +463,7 @@ class SimulationStepFn:
       solver_numeric_outputs: Solver-specific numeric outputs from the initial
         step.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t +
-        dt.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
       geo_t: The geometry of the torus during this time step of the simulation.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
         simulation.
@@ -495,11 +494,15 @@ class SimulationStepFn:
             geometry.Geometry,
         ],
     ) -> bool:
-      if updated_output[2].solver_error_state == 1:
-        do_dt_backtrack = True
-      else:
-        do_dt_backtrack = False
-      return do_dt_backtrack
+      _, dt, solver_outputs, slice_t, _ = updated_output
+
+      if jnp.any(jnp.isnan(updated_output[1])):
+        return False
+      if solver_outputs.solver_error_state == 1:
+        if dt / slice_t.numerics.dt_reduction_factor < slice_t.numerics.min_dt:
+          return False
+        return True
+      return False
 
     # Make a new step with a smaller dt, starting with the original core
     # profiles.
@@ -520,13 +523,8 @@ class SimulationStepFn:
         geometry.Geometry,
     ]:
       _, old_dt, old_solver_outputs, old_slice, _ = updated_output
-      numerics = old_slice.numerics
 
-      dt = old_dt / numerics.dt_reduction_factor
-      if jnp.any(jnp.isnan(dt)):
-        raise ValueError('dt is NaN.')
-      if dt < numerics.min_dt:
-        raise ValueError('dt below minimum timestep following adaptation')
+      dt = old_dt / old_slice.numerics.dt_reduction_factor
 
       # Calculate dynamic_runtime_params and geo at t + dt.
       # Update geos with phibdot.
