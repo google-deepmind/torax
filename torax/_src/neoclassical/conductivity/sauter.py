@@ -18,11 +18,11 @@ from typing import Literal
 import chex
 import jax
 import jax.numpy as jnp
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params
 from torax._src.physics import collisions
@@ -87,43 +87,39 @@ def _calculate_conductivity(
   """Calculates sigma and sigma_face using the Sauter model."""
   # pylint: disable=invalid-name
 
-  # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
-  # corrections.
+  # Formulas from Sauter PoP 1999.
 
-  # # local r/R0 on face grid
-  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
-  epseff = (
-      0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
-  )
-  aa = (1.0 - epsilon) / (1.0 + epsilon)
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  # Effective trapped particle fraction
+  f_trap = formulas.calculate_f_trap(geo)
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
-  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
-
-  sigsptz = (
-      1.9012e04 * (T_e.face_value() * 1e3) ** 1.5 / Z_eff_face / NZ / lambda_ei
+  log_lambda_ei = collisions.calculate_log_lambda_ei(
+      T_e.face_value(), n_e.face_value()
   )
 
-  nu_e_star = (
-      6.921e-18
-      * q_face
-      * geo.R_major
-      * n_e.face_value()
-      * Z_eff_face
-      * lambda_ei
-      / (
-          ((T_e.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
+  sigsptz = (
+      1.9012e04
+      * (T_e.face_value() * 1e3) ** 1.5
+      / Z_eff_face
+      / NZ
+      / log_lambda_ei
+  )
+
+  nu_e_star = formulas.calculate_nu_e_star(
+      q=q_face,
+      geo=geo,
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
+      Z_eff=Z_eff_face,
+      log_lambda_ei=log_lambda_ei,
   )
 
   # Neoclassical correction to spitzer conductivity
-  ft33 = ftrap / (
+  ft33 = f_trap / (
       1.0
-      + (0.55 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
-      + 0.45 * (1.0 - ftrap) * nu_e_star / (Z_eff_face**1.5)
+      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star)
+      + 0.45 * (1.0 - f_trap) * nu_e_star / (Z_eff_face**1.5)
   )
   signeo_face = 1.0 - ft33 * (
       1.0
