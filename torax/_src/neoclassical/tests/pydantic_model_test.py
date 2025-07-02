@@ -36,7 +36,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
   @parameterized.parameters("zeros", "sauter")
-  def test_model_name(self, model_name):
+  def test_bootstrap_current_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
         {"bootstrap_current": {"model_name": model_name}}
     )
@@ -51,6 +51,13 @@ class PydanticModelTest(parameterized.TestCase):
   def test_set_transport_default_model_name(self):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})
     self.assertEqual(model.transport.model_name, "zeros")
+
+  @parameterized.parameters("zeros", "angioni_sauter")
+  def test_set_transport_model_name(self, model_name):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"transport": {"model_name": model_name}}
+    )
+    self.assertEqual(model.transport.model_name, model_name)
 
 
 if __name__ == "__main__":

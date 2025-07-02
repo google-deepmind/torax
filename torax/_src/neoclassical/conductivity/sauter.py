@@ -106,7 +106,7 @@ def _calculate_conductivity(
       / log_lambda_ei
   )
 
-  nu_e_star = formulas.calculate_nu_e_star(
+  nu_e_star_face = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
       n_e=n_e.face_value(),
@@ -118,8 +118,8 @@ def _calculate_conductivity(
   # Neoclassical correction to spitzer conductivity
   ft33 = f_trap / (
       1.0
-      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star)
-      + 0.45 * (1.0 - f_trap) * nu_e_star / (Z_eff_face**1.5)
+      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star_face)
+      + 0.45 * (1.0 - f_trap) * nu_e_star_face / (Z_eff_face**1.5)
   )
   signeo_face = 1.0 - ft33 * (
       1.0
