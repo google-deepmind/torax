@@ -13,9 +13,11 @@
 # limitations under the License.
 
 """Plasma composition parameters used throughout TORAX simulations."""
+import dataclasses
 import functools
 
 import chex
+import jax
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
@@ -25,7 +27,8 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicIonMixture:
   """Represents a fixed mixture of ion species at a specific time.
 
@@ -99,7 +102,8 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
     )
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: DynamicIonMixture

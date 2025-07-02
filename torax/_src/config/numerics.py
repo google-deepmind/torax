@@ -13,7 +13,11 @@
 # limitations under the License.
 
 """Numerics parameters used throughout TORAX simulations."""
+
+import dataclasses
+
 import chex
+import jax
 import pydantic
 from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
@@ -22,7 +26,8 @@ from typing_extensions import Self
 
 # pylint: disable=invalid-name
 # TODO(b/326578331): remove density reference from DynamicNumerics entirely.
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class DynamicNumerics:
   """Generic numeric parameters for the simulation.
 
@@ -40,10 +45,10 @@ class DynamicNumerics:
   resistivity_multiplier: array_typing.ScalarFloat
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
-  calcphibdot: bool
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticNumerics:
   """Static numerics parameters for the simulation.
 
@@ -55,6 +60,7 @@ class StaticNumerics:
   evolve_current: bool
   evolve_density: bool
   adaptive_dt: bool
+  calcphibdot: bool
 
 
 class Numerics(torax_pydantic.BaseModelFrozen):
@@ -146,7 +152,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         chi_timestep_prefactor=self.chi_timestep_prefactor,
         fixed_dt=self.fixed_dt,
         dt_reduction_factor=self.dt_reduction_factor,
-        calcphibdot=self.calcphibdot,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
@@ -160,4 +165,5 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         evolve_current=self.evolve_current,
         evolve_density=self.evolve_density,
         adaptive_dt=self.adaptive_dt,
+        calcphibdot=self.calcphibdot,
     )

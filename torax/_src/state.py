@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
+import dataclasses
 import enum
 from typing import Optional
 
 from absl import logging
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -25,10 +25,10 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 import typing_extensions
 
+
 # pylint: disable=invalid-name
-
-
-@chex.dataclass(frozen=True, eq=False)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class CoreProfiles:
   """Dataclass for holding the evolving core plasma profiles.
 
@@ -123,7 +123,8 @@ class CoreProfiles:
 
 # TODO(b/426132633): restructure and rename attributes for V2. Choices were made
 # when refactoring to avoid breaking public API.
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class CoreTransport:
   """Coefficients for the plasma transport.
 
@@ -205,7 +206,8 @@ class CoreTransport:
     )
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 

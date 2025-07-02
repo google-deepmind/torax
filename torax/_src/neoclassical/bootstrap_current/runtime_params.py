@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Runtime params for bootstrap current models."""
+import dataclasses
 
-import chex
+import jax
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Base class for dynamic runtime params."""

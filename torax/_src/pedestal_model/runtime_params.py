@@ -13,11 +13,14 @@
 # limitations under the License.
 
 """Dataclass representing runtime parameter inputs to the pedestal models."""
-import chex
+import dataclasses
+
+import jax
 from torax._src import array_typing
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the pedestal model."""
 

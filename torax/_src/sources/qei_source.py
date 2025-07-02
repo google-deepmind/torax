@@ -31,7 +31,8 @@ from torax._src.sources import source_profiles
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   Qei_multiplier: float
 

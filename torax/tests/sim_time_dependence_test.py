@@ -26,7 +26,6 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
@@ -106,7 +105,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     def _fake_run_loop(
         static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
-        geometry_provider: geometry_provider_lib.GeometryProvider,
         initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
@@ -122,7 +120,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           log_timestep_info,
           progress_bar,
           restart_case,
-          geometry_provider,
           dynamic_runtime_params_slice_provider,
           static_runtime_params_slice,
       )

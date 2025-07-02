@@ -17,6 +17,7 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
@@ -37,7 +38,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
 

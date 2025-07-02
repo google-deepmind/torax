@@ -189,15 +189,15 @@ class RunSimulationMainTest(parameterized.TestCase):
         output = output_lib.load_state_file(output_path)
         ground_truth = output_lib.load_state_file(ground_truth_path)
 
-        def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
-          for key in ds2:
-            self.assertIn(key, ds1)
+        def check_equality(result: xr.Dataset, ground_truth: xr.Dataset):
+          for key in ground_truth:
+            self.assertIn(key, result)
 
-          for key in ds1:
-            self.assertIn(key, ds2)
+          for key in result:
+            self.assertIn(key, ground_truth)
 
-            ov = ds2[key].to_numpy()
-            gv = ds1[key].to_numpy()
+            ov = result[key].to_numpy()
+            gv = ground_truth[key].to_numpy()
 
             if not np.allclose(
                 ov,

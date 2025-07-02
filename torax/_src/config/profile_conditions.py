@@ -17,6 +17,7 @@ import dataclasses
 from typing import Callable, Final
 
 import chex
+import jax
 import numpy as np
 import pydantic
 from torax._src import array_typing
@@ -33,7 +34,8 @@ _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
@@ -58,7 +60,8 @@ class DynamicProfileConditions:
   initial_psi_from_j: bool
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticRuntimeParams:
   """Static params for profile conditions."""
 

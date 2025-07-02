@@ -13,16 +13,17 @@
 # limitations under the License.
 
 """Container for source models which build source profiles in TORAX."""
-
+import dataclasses
 import functools
 
-import chex
 import immutabledict
+import jax
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class SourceModels:
   """Source models for the different equations being evolved in Torax."""
 

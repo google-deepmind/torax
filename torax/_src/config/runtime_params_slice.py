@@ -37,7 +37,7 @@ used.
 from collections.abc import Mapping
 import dataclasses
 
-import chex
+import jax
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
 from torax._src.config import profile_conditions
@@ -56,7 +56,8 @@ from torax._src.transport_model import runtime_params as transport_model_params
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParamsSlice:
   """Input params that are ok to use as inputs to a JAX-compiled function.
 
@@ -91,7 +92,8 @@ class DynamicRuntimeParamsSlice:
   transport: transport_model_params.DynamicRuntimeParams
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class StaticRuntimeParamsSlice:
   """Static arguments to SimulationStepFn which cannot be changed.
 

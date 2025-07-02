@@ -56,7 +56,8 @@ class GeometryType(enum.IntEnum):
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class Geometry:
   r"""Describes the magnetic geometry.
 

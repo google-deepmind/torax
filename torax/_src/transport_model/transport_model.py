@@ -22,7 +22,6 @@ import abc
 import dataclasses
 from typing import Optional
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import constants
@@ -34,7 +33,8 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 import typing_extensions
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class TurbulentTransport:
   """Turbulent transport coefficients calculated by a transport model.
 
@@ -380,7 +380,7 @@ class TransportModel(abc.ABC):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(
+    smoothing_matrix = _build_smoothing_matrix(
         transport_dynamic_runtime_params,
         dynamic_runtime_params_slice,
         geo,
@@ -396,14 +396,10 @@ class TransportModel(abc.ABC):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    smoothed_coeffs = jax.tree_util.tree_map(
-        smooth_single_coeff, transport_coeffs
-    )
-
-    return TurbulentTransport(**smoothed_coeffs)
+    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
 
 
-def build_smoothing_matrix(
+def _build_smoothing_matrix(
     transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,

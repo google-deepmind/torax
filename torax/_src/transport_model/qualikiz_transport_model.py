@@ -25,6 +25,7 @@ import tempfile
 from typing import Literal
 
 import chex
+import jax
 import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
@@ -40,7 +41,8 @@ from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   n_max_runs: int
   n_processes: int
