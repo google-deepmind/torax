@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 import numpy as np
 import pydantic
+from torax._src import jax_utils
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 import xarray as xr
+
 
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
@@ -417,6 +419,87 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     inter = interpolated_param_2d.TimeVaryingArray.model_validate(value)
     times = list(inter.value.keys())
     self.assertEqual(times, sorted(times))
+
+  def test_time_varying_array_under_jit(self):
+    time_rho_interpolated_input = (_RHO_NORM_ARRAY, _VALUES_ARRAY)
+    interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
+        time_rho_interpolated_input
+    )
+    grid = interpolated_param_2d.Grid1D(nx=4, dx=0.25)
+    interpolated_param_2d.set_grid(interpolated, grid=grid)
+
+    @jax.jit
+    def f(
+        time_varying_array: interpolated_param_2d.TimeVaryingArray,
+        t: chex.Numeric,
+    ):
+      return time_varying_array.get_value(t)
+
+    with self.subTest('jit_result_matches_non_jit'):
+      np.testing.assert_allclose(
+          f(interpolated, 0.0), interpolated.get_value(t=0.0)
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('jit_cache_hit_only_once'):
+      values_array_new = _VALUES_ARRAY + 1.0
+      time_rho_interpolated_input = (_RHO_NORM_ARRAY, values_array_new)
+      interpolated_new = interpolated_param_2d.TimeVaryingArray.model_validate(
+          time_rho_interpolated_input
+      )
+      interpolated_param_2d.set_grid(interpolated_new, grid=grid)
+      np.testing.assert_allclose(
+          f(interpolated_new, 0.0), interpolated_new.get_value(t=0.0)
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('changing_shape_causes_new_compile'):
+      values_array_new = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+      rho_norm_array_new = np.array([0.125, 0.375, 0.625, 0.875, 0.925])
+      time_rho_interpolated_input = (rho_norm_array_new, values_array_new)
+      interpolated_new_shape = (
+          interpolated_param_2d.TimeVaryingArray.model_validate(
+              time_rho_interpolated_input
+          )
+      )
+      interpolated_param_2d.set_grid(interpolated_new_shape, grid=grid)
+      np.testing.assert_allclose(
+          f(interpolated_new_shape, 0.0),
+          interpolated_new_shape.get_value(t=0.0),
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
+
+  def test_time_varying_array_has_all_cached_interpolated_params(self):
+    time_rho_interpolated_input = (_RHO_NORM_ARRAY, _VALUES_ARRAY)
+    interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
+        time_rho_interpolated_input
+    )
+    grid = interpolated_param_2d.Grid1D(nx=4, dx=0.25)
+    interpolated_param_2d.set_grid(interpolated, grid=grid)
+
+    @jax.jit
+    def f(
+        time_varying_array: interpolated_param_2d.TimeVaryingArray,
+        t: chex.Numeric,
+    ):
+      cell_values = time_varying_array.get_value(t, grid_type='cell')
+      face_values = time_varying_array.get_value(t, grid_type='face')
+      face_right_values = time_varying_array.get_value(
+          t, grid_type='face_right'
+      )
+      return cell_values, face_values, face_right_values
+
+    cell_values, face_values, face_right_values = f(interpolated, 0.0)
+    np.testing.assert_allclose(
+        cell_values, interpolated.get_value(t=0.0, grid_type='cell')
+    )
+    np.testing.assert_allclose(
+        face_values, interpolated.get_value(t=0.0, grid_type='face')
+    )
+    np.testing.assert_allclose(
+        face_right_values,
+        interpolated.get_value(t=0.0, grid_type='face_right'),
+    )
 
 
 if __name__ == '__main__':
