@@ -174,6 +174,9 @@ These are called out in the list of profiles below, and generate relate to:
 ``elongation`` (time, rho_norm)
   Elongation of each flux surface [dimensionless].
 
+``epsilon`` (time, rho_norm)
+  Local inverse aspect ratio at each flux surface [dimensionless].
+
 ``F`` (time, rho_norm)
   Flux function :math:`F=B_{tor}R` , constant on any given flux surface
   [:math:`T m`].

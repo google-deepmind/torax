@@ -259,6 +259,18 @@ class Geometry:
     return (self.R_out_face - self.R_in_face) / 2
 
   @property
+  def epsilon(self) -> chex.Array:
+    """Local midplane inverse aspect ratio [dimensionless]."""
+    return (self.R_out - self.R_in) / (self.R_out + self.R_in)
+
+  @property
+  def epsilon_face(self) -> chex.Array:
+    """Local midplane inverse aspect ratio on the face grid [dimensionless]."""
+    return (self.R_out_face - self.R_in_face) / (
+        self.R_out_face + self.R_in_face
+    )
+
+  @property
   def drho(self) -> chex.Array:
     """Grid size for rho [m]."""
     return self.drho_norm * self.rho_b

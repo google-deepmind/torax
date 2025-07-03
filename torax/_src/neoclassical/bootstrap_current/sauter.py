@@ -18,15 +18,17 @@ from typing import Literal
 import chex
 import jax
 import jax.numpy as jnp
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import formulas
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params
 from torax._src.physics import collisions
+
+# pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
@@ -112,109 +114,38 @@ def _calculate_bootstrap_current(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  # local r/R0 on face grid
-  epsilon = (geo.R_out_face - geo.R_in_face) / (geo.R_out_face + geo.R_in_face)
-  epseff = (
-      0.67 * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face) * epsilon
-  )
-  aa = (1.0 - epsilon) / (1.0 + epsilon)
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  # Effective trapped particle fraction
+  f_trap = formulas.calculate_f_trap(geo)
 
   # Spitzer conductivity
-  lambda_ei = collisions.calculate_lambda_ei(T_e.face_value(), n_e.face_value())
-  lambda_ii = collisions.calculate_lambda_ii(
+  log_lambda_ei = collisions.calculate_log_lambda_ei(
+      T_e.face_value(), n_e.face_value()
+  )
+  log_lambda_ii = collisions.calculate_log_lambda_ii(
       T_i.face_value(), n_i.face_value(), Z_i_face
   )
-
-  nu_e_star = (
-      6.921e-18
-      * q_face
-      * geo.R_major
-      * n_e.face_value()
-      * Z_eff_face
-      * lambda_ei
-      / (
-          ((T_e.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
+  nu_e_star = formulas.calculate_nu_e_star(
+      q=q_face,
+      geo=geo,
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
+      Z_eff=Z_eff_face,
+      log_lambda_ei=log_lambda_ei,
   )
-  nu_i_star = (
-      4.9e-18
-      * q_face
-      * geo.R_major
-      * n_i.face_value()
-      * Z_eff_face**4
-      * lambda_ii
-      / (
-          ((T_i.face_value() * 1e3) ** 2)
-          * (epsilon + constants.CONSTANTS.eps) ** 1.5
-      )
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=q_face,
+      geo=geo,
+      n_i=n_i.face_value(),
+      T_i=T_i.face_value(),
+      Z_eff=Z_eff_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Calculate terms needed for bootstrap current
-  denom = (
-      1.0
-      + (1 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
-      + 0.5 * (1.0 - ftrap) * nu_e_star / Z_eff_face
-  )
-  ft31 = ftrap / denom
-  ft32ee = ftrap / (
-      1
-      + 0.26 * (1 - ftrap) * jnp.sqrt(nu_e_star)
-      + 0.18 * (1 - 0.37 * ftrap) * nu_e_star / jnp.sqrt(Z_eff_face)
-  )
-  ft32ei = ftrap / (
-      1
-      + (1 + 0.6 * ftrap) * jnp.sqrt(nu_e_star)
-      + 0.85 * (1 - 0.37 * ftrap) * nu_e_star * (1 + Z_eff_face)
-  )
-  ft34 = ftrap / (
-      1.0
-      + (1 - 0.1 * ftrap) * jnp.sqrt(nu_e_star)
-      + 0.5 * (1.0 - 0.5 * ftrap) * nu_e_star / Z_eff_face
-  )
-
-  F32ee = (
-      (0.05 + 0.62 * Z_eff_face)
-      / (Z_eff_face * (1 + 0.44 * Z_eff_face))
-      * (ft32ee - ft32ee**4)
-      + 1
-      / (1 + 0.22 * Z_eff_face)
-      * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2 / (1 + 0.5 * Z_eff_face) * ft32ee**4
-  )
-
-  F32ei = (
-      -(0.56 + 1.93 * Z_eff_face)
-      / (Z_eff_face * (1 + 0.44 * Z_eff_face))
-      * (ft32ei - ft32ei**4)
-      + 4.95
-      / (1 + 2.48 * Z_eff_face)
-      * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2 / (1 + 0.5 * Z_eff_face) * ft32ei**4
-  )
-
-  term_0 = (1 + 1.4 / (Z_eff_face + 1)) * ft31
-  term_1 = -1.9 / (Z_eff_face + 1) * ft31**2
-  term_2 = 0.3 / (Z_eff_face + 1) * ft31**3
-  term_3 = 0.2 / (Z_eff_face + 1) * ft31**4
-  L31 = term_0 + term_1 + term_2 + term_3
-
-  L32 = F32ee + F32ei
-
-  L34 = (
-      (1 + 1.4 / (Z_eff_face + 1)) * ft34
-      - 1.9 / (Z_eff_face + 1) * ft34**2
-      + 0.3 / (Z_eff_face + 1) * ft34**3
-      + 0.2 / (Z_eff_face + 1) * ft34**4
-  )
-
-  alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)
-  alpha = (
-      (alpha0 + 0.25 * (1 - ftrap**2) * jnp.sqrt(nu_i_star))
-      / (1 + 0.5 * jnp.sqrt(nu_i_star))
-      + 0.315 * nu_i_star**2 * ftrap**6
-  ) / (1 + 0.15 * nu_i_star**2 * ftrap**6)
+  L31 = formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
+  L32 = formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
+  L34 = _calculate_L34(f_trap, nu_e_star, Z_eff_face)
+  alpha = _calculate_alpha(f_trap, nu_i_star)
 
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
@@ -248,3 +179,36 @@ def _calculate_bootstrap_current(
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
   )
+
+
+def _calculate_L34(
+    f_trap: chex.Array,
+    nu_e_star: chex.Array,
+    Z_eff: chex.Array,
+) -> chex.Array:
+  """Calculates the L34 coefficient: Sauter PoP 1999 Eqs. 16a+b."""
+  ft34 = f_trap / (
+      1.0
+      + (1 - 0.1 * f_trap) * jnp.sqrt(nu_e_star)
+      + 0.5 * (1.0 - 0.5 * f_trap) * nu_e_star / Z_eff
+  )
+  return (
+      (1 + 1.4 / (Z_eff + 1)) * ft34
+      - 1.9 / (Z_eff + 1) * ft34**2
+      + 0.3 / (Z_eff + 1) * ft34**3
+      + 0.2 / (Z_eff + 1) * ft34**4
+  )
+
+
+def _calculate_alpha(
+    f_trap: chex.Array,
+    nu_i_star: chex.Array,
+) -> chex.Array:
+  """Calculates the alpha coefficient: Sauter PoP 1999 Eqs. 17a+b."""
+  alpha0 = -1.17 * (1 - f_trap) / (1 - 0.22 * f_trap - 0.19 * f_trap**2)
+  alpha = (
+      (alpha0 + 0.25 * (1 - f_trap**2) * jnp.sqrt(nu_i_star))
+      / (1 + 0.5 * jnp.sqrt(nu_i_star))
+      + 0.315 * nu_i_star**2 * f_trap**6
+  ) / (1 + 0.15 * nu_i_star**2 * f_trap**6)
+  return alpha
