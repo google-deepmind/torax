@@ -28,7 +28,6 @@ from torax._src.orchestration import run_simulation
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 
-
 _OUTPUT_DIR = flags.DEFINE_string(
     'output_dir', '/tmp/torax_sim_outputs', 'Where to save sim outputs.'
 )

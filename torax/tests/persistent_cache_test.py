@@ -22,7 +22,6 @@ import subprocess
 
 from absl.testing import absltest
 from absl.testing import parameterized
-
 import torax
 from torax import run_simulation_main
 
