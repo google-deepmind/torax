@@ -98,17 +98,15 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
     rhon_in = equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
     for attr1, attr2 in [
-        ('profiles_1d', 'pressure')('profiles_1d', 'dpressure_dpsi')(
-            'profiles_1d', 'f'
-        )('profiles_1d', 'f_df_dpsi')('profiles_1d', 'phi')(
-            'profiles_1d', 'psi'
-        )(
-            'profiles_1d', 'q'
-        )(
-            'profiles_1d', 'gm2'
-        )(
-            'profiles_1d', 'j_phi'
-        )
+        ('profiles_1d', 'pressure'),
+        ('profiles_1d', 'dpressure_dpsi'),
+        ('profiles_1d', 'f'),
+        ('profiles_1d', 'f_df_dpsi'),
+        ('profiles_1d', 'phi'),
+        ('profiles_1d', 'psi'),
+        ('profiles_1d', 'q'),
+        ('profiles_1d', 'gm2'),
+        ('profiles_1d', 'j_phi'),
     ]:
       # Compare the output IDS with the input one.
       var_in = getattr(getattr(equilibrium_in.time_slice[0], attr1), attr2)

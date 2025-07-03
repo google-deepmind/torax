@@ -20,7 +20,6 @@ previously executed TORAX reference:
 
 import copy
 import dataclasses
-import importlib
 from typing import Final, Sequence
 from unittest import mock
 
