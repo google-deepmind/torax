@@ -57,7 +57,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     if atol is None:
       atol = self.atol
     # Input equilibrium reading
-    config_module = self._get_config_module(config_name)
+    config_module = self._get_config_dict(config_name)
     geometry_directory = 'torax/data/third_party/geo'
     path = os.path.join(
         geometry_directory, config_module.CONFIG['geometry']['imas_filepath']
@@ -144,7 +144,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
     # Comparison of the fields
     diverging_fields = []
-    for key in geo_IMAS:
+    for key in geo_IMAS.__dict__.keys():
       if (
           key != 'geometry_type'
           and key != 'Ip_from_parameters'

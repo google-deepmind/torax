@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_iterhybrid_predictor_corrector but EQDSK geometry input."""
+"""Identical to test_iterhybrid_predictor_corrector but IMAS geometry input."""
 import copy
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
