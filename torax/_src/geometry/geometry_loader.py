@@ -25,10 +25,6 @@ import scipy
 import torax
 
 
-# Internal import.
-# Internal import.
-
-
 @enum.unique
 class GeometrySource(enum.Enum):
   """Integer enum for geometry source."""

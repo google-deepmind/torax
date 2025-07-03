@@ -20,7 +20,6 @@ import jax
 from torax._src import array_typing
 from torax._src import interpolated_param
 
-
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
 
 
@@ -50,6 +49,7 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
+
   prescribed_values: tuple[array_typing.ArrayFloat, ...]
 
 

@@ -18,6 +18,7 @@ This is the dataclass runtime config exposed to the user. The actual model gets
 a time-interpolated version of this config via the DynamicRuntimeParams.
 """
 import dataclasses
+
 import jax
 from torax._src import array_typing
 

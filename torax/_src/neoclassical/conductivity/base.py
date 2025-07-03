@@ -27,6 +27,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @dataclasses.dataclass(kw_only=True, frozen=True)
 class Conductivity:
   """Values returned by a conductivity model."""
+
   sigma: chex.Array
   sigma_face: chex.Array
 

@@ -22,7 +22,6 @@ from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 import xarray as xr
 
-
 _ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
 
 
@@ -35,9 +34,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     original_value = torax_config.profile_conditions.nbar
     new_value = original_value.value * 1.1
 
-    torax_config.update_fields(
-        {'profile_conditions.nbar': new_value}
-    )
+    torax_config.update_fields({'profile_conditions.nbar': new_value})
     new_simulation_xr, _ = run_simulation.run_simulation(torax_config)
 
     self.assertFalse(

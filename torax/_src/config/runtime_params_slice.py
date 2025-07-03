@@ -50,6 +50,7 @@ from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
+
 # Many of the variables follow scientific or mathematical notation, so disable
 # pylint complaints.
 # pylint: disable=invalid-name
@@ -107,6 +108,7 @@ class StaticRuntimeParamsSlice:
   TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
+
   # Solver-specific static runtime params.
   solver: solver_params.StaticRuntimeParams
   # Mapping of source name to source-specific static runtime params.

@@ -31,6 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @dataclasses.dataclass(kw_only=True, frozen=True)
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
+
   j_bootstrap: jax.Array
   j_bootstrap_face: jax.Array
 

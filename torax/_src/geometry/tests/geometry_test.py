@@ -156,8 +156,8 @@ class GeometryTest(parameterized.TestCase):
     geo0_updated, geo1_updated = geometry.update_geometries_with_Phibdot(
         dt=0.1, geo_t=geo0, geo_t_plus_dt=geo1
     )
-    np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.)
-    np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.)
+    np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.0)
+    np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.0)
 
 
 def _pint_face_to_cell(n_rho, face):

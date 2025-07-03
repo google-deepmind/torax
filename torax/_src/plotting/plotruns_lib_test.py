@@ -15,6 +15,7 @@
 """Unit tests for torax.plotting.plotruns_lib."""
 
 import os
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.config import config_loader

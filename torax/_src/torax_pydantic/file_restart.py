@@ -26,6 +26,7 @@ class FileRestart(torax_pydantic.BaseModelFrozen):
     do_restart: Toggle loading initial state from file or not.
     stitch: Whether to stitch the state from the file.
   """
+
   filename: pydantic.FilePath
   time: torax_pydantic.Second
   do_restart: bool

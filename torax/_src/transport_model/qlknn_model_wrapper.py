@@ -23,7 +23,6 @@ from torax._src import jax_utils
 from torax._src.transport_model import base_qlknn_model
 from torax._src.transport_model import qualikiz_based_transport_model
 
-
 # Convert flux names from Qualikiz to TORAX.
 _FLUX_NAME_MAP: Final[Mapping[str, str]] = immutabledict.immutabledict({
     'efiITG': 'qi_itg',

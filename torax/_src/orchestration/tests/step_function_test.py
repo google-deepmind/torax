@@ -64,7 +64,8 @@ class StepFunctionTest(absltest.TestCase):
       error = torax_state.check_for_errors()
       self.assertEqual(error, state.SimError.NO_ERROR)
       error = step_function._check_for_errors(
-          torax_state, post_processed_outputs)
+          torax_state, post_processed_outputs
+      )
       self.assertEqual(error, state.SimError.NO_ERROR)
 
     with self.subTest('NaN in BC'):

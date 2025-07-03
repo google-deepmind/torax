@@ -45,6 +45,7 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       source.mode == Mode.PRESCRIBED). The default here is a vector of all zeros
       along for all rho and time, and the output vector is along the cell grid.
   """
+
   mode: runtime_params.Mode = runtime_params.Mode.ZERO
   is_explicit: bool = False
   prescribed_values: tuple[torax_pydantic.TimeVaryingArray, ...] = (

@@ -31,7 +31,6 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 
-
 # Default value for the model function to be used for the Bremsstrahlung heat
 # sink. This is also used as an identifier for the model function in the default
 # source config for Pydantic to "discriminate" against.

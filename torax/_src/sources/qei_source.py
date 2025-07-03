@@ -155,6 +155,7 @@ class QeiSourceConfig(base.SourceModelBase):
     Qei_multiplier: multiplier for ion-electron heat exchange term for
       sensitivity testing
   """
+
   Qei_multiplier: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

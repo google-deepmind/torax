@@ -15,6 +15,7 @@
 """Functions for adding post-processed outputs to the simulation state."""
 import dataclasses
 from typing import Callable
+
 import jax
 from jax import numpy as jnp
 import numpy as np

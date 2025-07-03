@@ -31,7 +31,6 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
-
 # Most of the checks and computations in TORAX require float64.
 jax.config.update('jax_enable_x64', True)
 

@@ -130,9 +130,7 @@ class QualikizBasedTransportModel(
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
     # Ion to electron temperature ratio
-    Ti_Te = (
-        core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
-    )
+    Ti_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
 
     # logarithm of normalized collisionality
     nu_star = collisions.calc_nu_star(

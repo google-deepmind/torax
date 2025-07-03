@@ -15,6 +15,7 @@
 """Routines for calculating impurity charge states."""
 
 from typing import Final, Mapping, Sequence
+
 import immutabledict
 from jax import numpy as jnp
 import numpy as np

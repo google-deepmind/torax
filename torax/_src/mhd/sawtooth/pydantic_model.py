@@ -15,6 +15,7 @@
 """Pydantic model for sawtooth configuration."""
 
 from typing import Union
+
 import chex
 import pydantic
 from torax._src.config import runtime_params_slice

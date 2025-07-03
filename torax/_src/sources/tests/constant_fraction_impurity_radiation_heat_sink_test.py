@@ -126,8 +126,7 @@ class ImpurityRadiationConstantFractionTest(
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,
-        heat_dynamic.P_total
-        * -impurity_radiation_dynamic.fraction_P_heating,
+        heat_dynamic.P_total * -impurity_radiation_dynamic.fraction_P_heating,
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
     )
 

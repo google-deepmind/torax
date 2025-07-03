@@ -43,6 +43,7 @@ class SafetyFactorFit:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane.
   """
+
   rho_q_min: array_typing.ScalarFloat
   q_min: array_typing.ScalarFloat
   rho_q_3_2_first: array_typing.ScalarFloat

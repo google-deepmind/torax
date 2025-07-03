@@ -17,10 +17,8 @@
 import logging
 import os
 
-import jax
-
 # pylint: disable=g-importing-member
-
+import jax
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
@@ -68,5 +66,6 @@ def set_jax_precision():
 
 def log_jax_backend():
   logging.info('JAX running on a default %s backend', jax.default_backend())
+
 
 set_jax_precision()

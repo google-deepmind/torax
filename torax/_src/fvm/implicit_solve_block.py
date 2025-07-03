@@ -18,6 +18,7 @@ See function docstring for details.
 """
 import dataclasses
 import functools
+
 import jax
 from jax import numpy as jnp
 from torax._src import jax_utils

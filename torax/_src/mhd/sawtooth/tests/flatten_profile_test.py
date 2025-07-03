@@ -25,7 +25,6 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.physics import psi_calculations
 
-
 _NRHO = 20  # Define grid size for tests
 
 

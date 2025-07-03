@@ -15,6 +15,7 @@
 """Functions used for initializing core profiles."""
 
 import dataclasses
+
 import jax
 from jax import numpy as jnp
 import numpy as np

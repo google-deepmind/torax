@@ -16,6 +16,7 @@
 
 import dataclasses
 from typing import Literal
+
 import chex
 import jax
 from jax import numpy as jnp

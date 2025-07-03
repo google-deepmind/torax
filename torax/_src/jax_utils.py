@@ -19,6 +19,7 @@ import functools
 import inspect
 import os
 from typing import Any, Callable, Literal, TypeVar
+
 import chex
 import equinox as eqx
 import jax

@@ -16,13 +16,13 @@
 
 import functools
 from typing import TypeAlias
+
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 from typing_extensions import Annotated
-
 
 TIME_INVARIANT = model_base.TIME_INVARIANT
 JAX_STATIC = model_base.JAX_STATIC

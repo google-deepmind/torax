@@ -56,9 +56,7 @@ class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class StaticNewtonRaphsonRuntimeParams(
-    runtime_params.StaticRuntimeParams
-):
+class StaticNewtonRaphsonRuntimeParams(runtime_params.StaticRuntimeParams):
   initial_guess_mode: int
   log_iterations: bool
 

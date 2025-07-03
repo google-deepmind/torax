@@ -21,7 +21,6 @@ from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
 
-
 # pylint: disable=invalid-name
 
 
@@ -51,9 +50,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         build_runtime_params.build_static_params_from_config(references.config)
     )
     source_models = references.config.sources.build_models()
-    neoclassical_models = (
-        references.config.neoclassical.build_models()
-    )
+    neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,

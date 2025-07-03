@@ -18,11 +18,11 @@ from collections.abc import Set
 import functools
 import inspect
 from typing import Any, Final, Mapping, Sequence, TypeAlias
+
 import jax
 import pydantic
 import treelib
 from typing_extensions import Self
-
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 JAX_STATIC: Final[str] = '_pydantic_jax_static_field'

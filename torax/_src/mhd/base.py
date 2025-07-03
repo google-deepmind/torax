@@ -15,6 +15,7 @@
 """Base classes for MHD models."""
 
 import dataclasses
+
 import jax
 from torax._src.mhd.sawtooth import sawtooth_model
 

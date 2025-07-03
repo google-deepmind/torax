@@ -25,7 +25,6 @@ from typing import Any, Optional, TypeAlias
 
 import jax
 
-
 # An optional argument, consisting of a 2D matrix of nested tuples, with each
 # leaf being either None or a JAX Array. Used to define block matrices.
 # examples:

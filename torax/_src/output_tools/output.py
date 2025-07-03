@@ -17,6 +17,7 @@ from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
+import os
 
 from absl import logging
 import chex
@@ -31,8 +32,6 @@ from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import model_config
 import xarray as xr
-
-import os
 
 # pylint: disable=invalid-name
 
@@ -513,9 +512,7 @@ class StateHistory:
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
-      xr_dict[output_key] = self._pack_into_data_array(
-          output_key, data_to_save
-      )
+      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)
 
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]

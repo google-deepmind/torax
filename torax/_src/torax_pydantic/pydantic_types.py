@@ -19,7 +19,6 @@ from typing import Annotated, TypeAlias
 import numpy as np
 import pydantic
 
-
 DataTypes: TypeAlias = float | int | bool
 DtypeName: TypeAlias = str
 

@@ -321,29 +321,27 @@ class SimTest(sim_test_case.SimTestCase):
   def test_no_op(self):
     """Tests that running the solver with all equations off is a no-op."""
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
-    torax_config.update_fields(
-        {
-            'numerics': {
-                't_final': 0.1,  # Modify final step.
-                'fixed_dt': 0.06,
-                'exact_t_final': False,
-                'evolve_ion_heat': False,
-                'evolve_electron_heat': False,
-                'evolve_current': False,
-                'evolve_density': False,
-            },
-            'profile_conditions': {
-                'Ip': 3.0e6,
-                'n_e': 1.0e20,
-                'n_e_right_bc': 1.0e20,
-                'n_e_nbar_is_fGW': False,
-                'T_i': 6.0,
-                'T_e': 6.0,
-                'T_i_right_bc': 0.1,
-                'T_e_right_bc': 0.1,
-            },
-        }
-    )
+    torax_config.update_fields({
+        'numerics': {
+            't_final': 0.1,  # Modify final step.
+            'fixed_dt': 0.06,
+            'exact_t_final': False,
+            'evolve_ion_heat': False,
+            'evolve_electron_heat': False,
+            'evolve_current': False,
+            'evolve_density': False,
+        },
+        'profile_conditions': {
+            'Ip': 3.0e6,
+            'n_e': 1.0e20,
+            'n_e_right_bc': 1.0e20,
+            'n_e_nbar_is_fGW': False,
+            'T_i': 6.0,
+            'T_e': 6.0,
+            'T_i_right_bc': 0.1,
+            'T_e_right_bc': 0.1,
+        },
+    })
 
     _, history = run_simulation.run_simulation(torax_config, progress_bar=False)
 

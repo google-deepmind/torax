@@ -14,6 +14,7 @@
 
 """Dataclass representing runtime parameter inputs to the pedestal models."""
 import dataclasses
+
 import jax
 from torax._src import array_typing
 
@@ -22,4 +23,5 @@ from torax._src import array_typing
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the pedestal model."""
+
   set_pedestal: array_typing.ScalarBool

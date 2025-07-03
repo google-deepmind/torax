@@ -188,8 +188,7 @@ def calculate_scaling_law_confinement_time(
   scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
-      math_utils.line_average(core_profiles.n_e.value, geo)
-      / 1e19
+      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19
   )
   R = geo.R_major
   inverse_aspect_ratio = geo.a_minor / geo.R_major

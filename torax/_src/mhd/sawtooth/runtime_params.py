@@ -14,6 +14,7 @@
 
 """Dynamic runtime params for sawtooth model."""
 import dataclasses
+
 import jax
 from torax._src import array_typing
 

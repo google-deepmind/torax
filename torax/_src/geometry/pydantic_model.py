@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 import functools
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
+
 import pydantic
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
@@ -25,6 +26,7 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
 # pylint: disable=invalid-name

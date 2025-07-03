@@ -24,7 +24,6 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
-
 # pylint: disable=g-import-not-at-top
 try:
   from torax._src.transport_model import qualikiz_transport_model

@@ -574,11 +574,7 @@ class CellVariableTest(parameterized.TestCase):
       ),
   )
   def test_almost_equal(
-      self,
-      var1_kwargs,
-      var2_kwargs,
-      expected_almost_equal,
-      atol=1e-6
+      self, var1_kwargs, var2_kwargs, expected_almost_equal, atol=1e-6
   ):
     var1 = cell_variable.CellVariable(**var1_kwargs)
     var2 = cell_variable.CellVariable(**var2_kwargs)

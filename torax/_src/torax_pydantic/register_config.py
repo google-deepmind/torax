@@ -64,21 +64,15 @@ def _validate_source_model_config(
           electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case gas_puff_source_lib.GasPuffSource.SOURCE_NAME:
-      default_model_name = (
-          gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case generic_particle_source_lib.GenericParticleSource.SOURCE_NAME:
       default_model_name = (
           generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case pellet_source_lib.PelletSource.SOURCE_NAME:
-      default_model_name = (
-          pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
-      default_model_name = (
-          fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case (
         generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_NAME
     ):
@@ -90,13 +84,9 @@ def _validate_source_model_config(
           impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case ion_cyclotron_source_lib.IonCyclotronSource.SOURCE_NAME:
-      default_model_name = (
-          ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
-      default_model_name = (
-          ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
       default_model_name = (
           generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME

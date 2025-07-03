@@ -217,9 +217,9 @@ def _override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip = (
-      profiles_ds.data_vars[output.IP_PROFILE].to_numpy()[-1]
-  )
+  dynamic_runtime_params_slice.profile_conditions.Ip = profiles_ds.data_vars[
+      output.IP_PROFILE
+  ].to_numpy()[-1]
   dynamic_runtime_params_slice.profile_conditions.T_e = (
       profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])

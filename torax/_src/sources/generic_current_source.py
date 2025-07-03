@@ -31,7 +31,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-
 # Default value for the model function to be used for the generic current
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.

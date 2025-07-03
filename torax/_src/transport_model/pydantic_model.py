@@ -17,6 +17,7 @@
 import copy
 import dataclasses
 from typing import Any, Literal, Sequence
+
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -340,9 +341,8 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 
 
 try:
-  # pylint: disable=g-import-not-at-top
-  from torax._src.transport_model import qualikiz_transport_model
-  # pylint: enable=g-import-not-at-top
+  from torax._src.transport_model import qualikiz_transport_model  # pylint: disable=g-import-not-at-top
+
   # Since CombinedCompatibleTransportModel is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.
@@ -422,4 +422,3 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
 
 TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
-

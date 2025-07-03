@@ -25,7 +25,6 @@ from torax._src.output_tools import output
 from torax.tests import scripts
 import xarray as xr
 
-
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',
     '/tmp/torax_failed_sim_test_outputs/',

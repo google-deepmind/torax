@@ -21,6 +21,7 @@ coefficients.
 import abc
 import dataclasses
 from typing import Optional
+
 import jax
 from jax import numpy as jnp
 from torax._src import constants
@@ -395,9 +396,7 @@ class TransportModel(abc.ABC):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    return jax.tree_util.tree_map(
-        smooth_single_coeff, transport_coeffs
-    )
+    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
 
 
 def _build_smoothing_matrix(

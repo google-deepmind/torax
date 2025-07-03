@@ -54,6 +54,7 @@ class StaticNumerics:
 
   For definitions see `Numerics`.
   """
+
   evolve_ion_heat: bool
   evolve_electron_heat: bool
   evolve_current: bool

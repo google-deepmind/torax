@@ -18,6 +18,7 @@ The pedestal model calculates quantities relevant to the pedestal.
 """
 import abc
 import dataclasses
+
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -88,8 +89,11 @@ class PedestalModel(abc.ABC):
         # Set the index to outside of bounds of the mesh to indicate that the
         # pedestal is not present.
         lambda: PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf, T_i_ped=0.0, T_e_ped=0.0, n_e_ped=0.0,
-            rho_norm_ped_top_idx=geo.torax_mesh.nx
+            rho_norm_ped_top=jnp.inf,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+            rho_norm_ped_top_idx=geo.torax_mesh.nx,
         ),
     )
 

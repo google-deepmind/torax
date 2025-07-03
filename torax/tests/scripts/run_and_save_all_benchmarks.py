@@ -15,7 +15,9 @@
 
 from collections.abc import Sequence
 import functools
+import multiprocessing
 import os
+import shutil
 import time
 
 from absl import app
@@ -25,10 +27,6 @@ from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
-
-import shutil
-
-import multiprocessing
 
 
 _OUTPUT_DIR = flags.DEFINE_string(

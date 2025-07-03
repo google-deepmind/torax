@@ -15,6 +15,7 @@
 """Container for source models which build source profiles in TORAX."""
 import dataclasses
 import functools
+
 import immutabledict
 import jax
 from torax._src.sources import qei_source as qei_source_lib

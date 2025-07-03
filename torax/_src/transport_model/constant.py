@@ -20,6 +20,7 @@ TODO(b/323504363): For the next major release (v2), the name of this model shoul
 to PrescribedTransportModel.
 """
 import dataclasses
+
 import jax
 from torax._src import array_typing
 from torax._src import state

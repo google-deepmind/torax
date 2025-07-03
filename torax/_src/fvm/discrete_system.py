@@ -32,7 +32,6 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import convection_terms
 from torax._src.fvm import diffusion_terms
 
-
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 

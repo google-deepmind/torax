@@ -37,10 +37,13 @@ class NoPedestal(pedestal_model.PedestalModel):
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles
+      core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
     return pedestal_model.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf, T_i_ped=0.0, T_e_ped=0.0, n_e_ped=0.0,
+        rho_norm_ped_top=jnp.inf,
+        T_i_ped=0.0,
+        T_e_ped=0.0,
+        n_e_ped=0.0,
         rho_norm_ped_top_idx=geo.torax_mesh.nx,
     )
 

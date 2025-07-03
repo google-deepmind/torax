@@ -36,7 +36,6 @@ from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
-
 SequenceKey = tree_util.SequenceKey
 GetAttrKey = tree_util.GetAttrKey
 DictKey = tree_util.DictKey

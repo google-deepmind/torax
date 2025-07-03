@@ -13,6 +13,7 @@
 # limitations under the License.
 """A basic version of the pedestal model that uses direct specification."""
 import dataclasses
+
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing

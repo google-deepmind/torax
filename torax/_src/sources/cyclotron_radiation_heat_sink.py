@@ -35,7 +35,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 import typing_extensions
 
-
 # Default value for the model function to be used for the Cyclotron radiation
 # heat sink source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
@@ -340,8 +339,7 @@ def cyclotron_radiation_albajar(
       * n_e20_face[0] ** 0.38
       * core_profiles.T_e.face_value()[0]
       * (16 + core_profiles.T_e.face_value()[0]) ** 2.61
-      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41)
-      ** -1.51
+      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51
       * K
       * G
   )

@@ -42,6 +42,7 @@ class NeoclassicalTransport:
       the neoclassical convection that is dependent on the parallel electric
       field. It is separated from V_neo_e for interpretation convenience.
   """
+
   chi_neo_i: jax.Array
   chi_neo_e: jax.Array
   D_neo_e: jax.Array

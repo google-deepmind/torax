@@ -24,6 +24,7 @@ De, Ve:
 """
 
 import copy
+
 import numpy as np
 from torax.tests.test_data import default_config
 

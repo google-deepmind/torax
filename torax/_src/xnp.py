@@ -24,16 +24,15 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
 
-
 # Export all symbols from jax.numpy API for type checkers (including editors).
+# pylint: disable=wildcard-import
+# pylint: disable=g-bad-import-order
+# pylint: disable=g-import-not-at-top
 if TYPE_CHECKING:
-  # pylint: disable=wildcard-import
-  # pylint: disable=g-bad-import-order
-  # pylint: disable=g-import-not-at-top
   from jax.numpy import *
-  # pylint: enable=wildcard-import
-  # pylint: enable=g-bad-import-order
-  # pylint: enable=g-import-not-at-top
+# pylint: enable=wildcard-import
+# pylint: enable=g-bad-import-order
+# pylint: enable=g-import-not-at-top
 
 
 T = TypeVar('T')

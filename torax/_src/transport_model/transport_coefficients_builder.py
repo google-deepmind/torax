@@ -56,4 +56,3 @@ def calculate_total_transport_coeffs(
       **dataclasses.asdict(turbulent_transport),
       **dataclasses.asdict(neoclassical_transport_coeffs),
   )
-

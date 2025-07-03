@@ -19,6 +19,7 @@ static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
 import functools
+
 import jax
 from torax._src import state
 from torax._src import xnp

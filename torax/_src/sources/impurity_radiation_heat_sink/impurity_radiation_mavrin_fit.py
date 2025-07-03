@@ -36,7 +36,6 @@ from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 
-
 # Default value for the model function to be used for the impurity radiation
 # source. This is also used as an identifier for the model function in
 # the source config for Pydantic to "discriminate" against.
