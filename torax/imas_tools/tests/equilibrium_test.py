@@ -25,11 +25,11 @@ from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import pytest
 from torax._src.config import build_runtime_params
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import post_processing
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.imas_tools import equilibrium as imas_equilibrium
 from torax.imas_tools import util as imas_util
 
