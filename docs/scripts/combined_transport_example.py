@@ -14,8 +14,10 @@
 
 """Script for plotting the combined transport model in the docs."""
 from typing import Sequence
-from absl import app
+
 import matplotlib.pyplot as plt
+from absl import app
+
 import torax
 from torax._src.torax_pydantic import model_config
 
@@ -33,13 +35,18 @@ def main(argv: Sequence[str]) -> None:
           'geometry_type': 'circular',
           'n_rho': 30,  # for higher resolution plotting
       },
-      'pedestal': {},
+      'pedestal': {
+          'model_name': 'set_T_ped_n_ped',
+          'set_pedestal': True,
+          'n_e_ped': 0.8,
+          'n_e_ped_is_fGW': True,
+      },
       'neoclassical': {},
       'sources': {},
       'solver': {},
       'transport': {
           'model_name': 'combined',
-          'core_transport_models': [
+          'transport_models': [
               {
                   'model_name': 'constant',
                   'chi_i': 1.0,
@@ -49,15 +56,14 @@ def main(argv: Sequence[str]) -> None:
                   'model_name': 'constant',
                   'chi_i': 2.0,
                   'rho_min': 0.2,
-                  'rho_max': 0.5,
               },
           ],
-          'pedestal_transport_model': {
-              'model_name': 'constant',
-              'chi_i': 0.5,
-              'rho_min': 0.5,
-              'rho_max': 1.0,
-          },
+          'pedestal_transport_models': [
+              {
+                  'model_name': 'constant',
+                  'chi_i': 0.5,
+              },
+          ],
       },
   }
   torax_config = model_config.ToraxConfig.from_dict(config)

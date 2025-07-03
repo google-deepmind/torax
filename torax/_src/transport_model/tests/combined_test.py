@@ -31,7 +31,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'core_transport_models': [
+        'transport_models': [
             {'model_name': 'constant', 'rho_max': 0.2, 'chi_i': 1.0},
             {
                 'model_name': 'constant',
@@ -41,7 +41,7 @@ class CombinedTransportModelTest(absltest.TestCase):
             },
             {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 3.0},
         ],
-        'pedestal_transport_model': {'model_name': 'constant', 'chi_i': 0.1},
+        'pedestal_transport_models': [{'model_name': 'constant', 'chi_i': 0.1}],
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
@@ -92,15 +92,68 @@ class CombinedTransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
     np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
 
+  def test_chi_min(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [
+            {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 2.0},
+        ],
+        'chi_min': 1.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    model = torax_config.transport.build_transport_model()
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    dynamic_runtime_params_slice = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )(
+            t=torax_config.numerics.t_initial,
+        )
+    )
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_params_from_config(torax_config)
+    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
+        neoclassical_models,
+    )
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.91,
+    )
+
+    transport_coeffs = model(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        mock_pedestal_outputs,
+    )
+    # Target:
+    # - 1.0 for rho = [rho_ped_top, rho_max], set by chi_min
+    # - 2.0 for rho = (0.5, rho_ped_top), set by the model
+    # - 1.0 for rho = [0.0, 0.5], set by chi_min
+    target = jnp.where(geo.rho_face_norm <= 0.91, 2.0, 1.0)
+    target = jnp.where(geo.rho_face_norm <= 0.5, 1.0, target)
+    np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
+
   def test_error_if_patches_set_on_children(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'core_transport_models': [
+        'transport_models': [
             {'model_name': 'constant', 'apply_inner_patch': True},
             {'model_name': 'constant'},
         ],
-        'pedestal_transport_model': {'model_name': 'constant'},
+        'pedestal_transport_models': [{'model_name': 'constant'}],
     }
     with self.assertRaisesRegex(
         ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
@@ -111,11 +164,11 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'core_transport_models': [
+        'transport_models': [
             {'model_name': 'constant'},
             {'model_name': 'constant'},
         ],
-        'pedestal_transport_model': {'model_name': 'constant'},
+        'pedestal_transport_models': [{'model_name': 'constant'}],
         'apply_inner_patch': True,
     }
     with self.assertRaisesRegex(
@@ -127,11 +180,11 @@ class CombinedTransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'core_transport_models': [
+        'transport_models': [
             {'model_name': 'constant'},
             {'model_name': 'constant'},
         ],
-        'pedestal_transport_model': {'model_name': 'constant'},
+        'pedestal_transport_models': [{'model_name': 'constant'}],
         'rho_min': 0.1,
     }
     with self.assertRaisesRegex(
@@ -139,16 +192,18 @@ class CombinedTransportModelTest(absltest.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config)
 
-      config['transport'] = {
-          'model_name': 'combined',
-          'core_transport_models': [
-              {'model_name': 'constant'},
-              {'model_name': 'constant'},
-          ],
-          'pedestal_transport_model': {'model_name': 'constant'},
-          'rho_max': 0.9,
-      }
-    with self.assertRaises(ValueError):
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [
+            {'model_name': 'constant'},
+            {'model_name': 'constant'},
+        ],
+        'pedestal_transport_models': [{'model_name': 'constant'}],
+        'rho_max': 0.9,
+    }
+    with self.assertRaisesRegex(
+        ValueError, '(?=.*rho)(?=.*CombinedTransportModel)'
+    ):
       model_config.ToraxConfig.from_dict(config)
 
 

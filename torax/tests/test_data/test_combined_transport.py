@@ -26,7 +26,7 @@ from torax.tests.test_data import test_bohmgyrobohm_all
 CONFIG = copy.deepcopy(test_bohmgyrobohm_all.CONFIG)
 CONFIG['transport'] = {
     'model_name': 'combined',
-    'core_transport_models': [
+    'transport_models': [
         {
             'model_name': 'constant',
             # These values match the defaults from apply_inner_patch, but this
@@ -42,14 +42,16 @@ CONFIG['transport'] = {
         {'model_name': 'bohm-gyrobohm', 'rho_min': 0.1, 'rho_max': 0.9},
         {'model_name': 'CGM', 'rho_min': 0.1, 'rho_max': 0.9},
     ],
-    'pedestal_transport_model': {
-        'model_name': 'constant',
-        # These values are set to something we made up for this test
-        'chi_i': 0.5,
-        'chi_e': 0.5,
-        'D_e': 0.2,
-        'V_e': 0.0,
-    },
+    'pedestal_transport_models': [
+        {
+            'model_name': 'constant',
+            # These values are set to something we made up for this test
+            'chi_i': 0.5,
+            'chi_e': 0.5,
+            'D_e': 0.2,
+            'V_e': 0.0,
+        },
+    ],
     # Smoothing, clipping etc are all set on the Combined model, not the
     # components
     'smoothing_width': 0.05,

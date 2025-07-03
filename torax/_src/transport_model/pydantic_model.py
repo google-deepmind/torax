@@ -368,45 +368,51 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
-    core_transport_models: A sequence of transport models, whose outputs will be
+    transport_models: A sequence of transport models, whose outputs will be
       summed to give the combined core transport coefficients.
-    pedestal_transport_model: A model for pedestal transport coefficients.
+    pedestal_transport_models: A sequence of models that will be combined for
+      pedestal transport coefficients.
   """
 
-  core_transport_models: Sequence[
+  # TODO (v2): rename `transport_models` to `core_transport_models`
+  transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
+      default_factory=list
+  )  # pytype: disable=invalid-annotation
+  pedestal_transport_models: Sequence[
       CombinedCompatibleTransportModel
   ] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
-  pedestal_transport_model: CombinedCompatibleTransportModel
   model_name: Literal['combined'] = 'combined'
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
-    core_transport_model_list = [
-        model.build_transport_model() for model in self.core_transport_models
+    transport_model_list = [
+        model.build_transport_model() for model in self.transport_models
     ]
-    pedestal_transport_model = (
-        self.pedestal_transport_model.build_transport_model()
-    )
+    pedestal_transport_model_list = [
+        model.build_transport_model()
+        for model in self.pedestal_transport_models
+    ]
 
     return combined.CombinedTransportModel(
-        core_transport_models=core_transport_model_list,
-        pedestal_transport_model=pedestal_transport_model,
+        transport_models=transport_model_list,
+        pedestal_transport_models=pedestal_transport_model_list,
     )
 
   def build_dynamic_params(
       self, t: chex.Numeric
   ) -> combined.DynamicRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    core_transport_model_params = [
-        model.build_dynamic_params(t) for model in self.core_transport_models
+    transport_model_params = [
+        model.build_dynamic_params(t) for model in self.transport_models
     ]
-    pedestal_transport_model_params = (
-        self.pedestal_transport_model.build_dynamic_params(t)
-    )
+    pedestal_transport_model_params = [
+        model.build_dynamic_params(t)
+        for model in self.pedestal_transport_models
+    ]
 
     return combined.DynamicRuntimeParams(
-        core_transport_model_params=core_transport_model_params,
+        transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         **base_kwargs,
     )
@@ -414,16 +420,11 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     super()._check_fields()
-    if not self.core_transport_models:
-      raise ValueError(
-          'core_transport_models cannot be empty for CombinedTransportModel. '
-          'Please provide at least one transport model configuration.'
-      )
     if (
         any([
             np.any(model.apply_inner_patch.value)
             or np.any(model.apply_outer_patch.value)
-            for model in self.core_transport_models
+            for model in self.transport_models + self.pedestal_transport_models
         ])
         or np.any(self.apply_inner_patch.value)
         or np.any(self.apply_outer_patch.value)
@@ -437,6 +438,15 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
           'rho_min and rho_max should not be set for CombinedTransportModel, as'
           ' it should be applied across the whole rho domain.'
       )
+    if any([
+        np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
+        for model in self.pedestal_transport_models
+    ]):
+      raise ValueError(
+          'rho_min and rho_max not supported for pedestal_transport_models, as '
+          'their region of validity is set by the pedestal model.'
+      )
+
     return self
 
 
