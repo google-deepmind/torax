@@ -49,6 +49,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     pedestal: Config for the pedestal model. If an empty dictionary is passed
       in, the pedestal model will be set to `no_pedestal`.
     sources: Config for the sources.
+    neoclassical: Config for the neoclassical models.
     solver: Config for the solver. If an empty dictionary is passed in, the
       solver model will be set to `linear`.
     transport: Config for the transport model. If an empty dictionary is passed
@@ -65,6 +66,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
+  neoclassical: neoclassical_pydantic_model.Neoclassical = (
+      neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa
+  )
   solver: solver_pydantic_model.SolverConfig = pydantic.Field(
       discriminator='solver_type'
   )
@@ -80,9 +84,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
-  )
-  neoclassical: neoclassical_pydantic_model.Neoclassical = (
-      neoclassical_pydantic_model.Neoclassical()
   )
 
   @pydantic.model_validator(mode='before')
@@ -116,8 +117,11 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     using_linear_solver = isinstance(
         self.solver, solver_pydantic_model.LinearThetaMethod
     )
+
+    # pylint: disable=g-long-ternary
+    # pylint: disable=attribute-error
     initial_guess_mode_is_linear = (
-        False  # pylint: disable=g-long-ternary
+        False
         if using_linear_solver
         else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR
     )

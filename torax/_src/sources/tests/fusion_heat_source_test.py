@@ -55,14 +55,14 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     static_slice = build_runtime_params.build_static_params_from_config(
         references.config
     )
-    source_models = references.config.sources.build_models(
-        neoclassical=references.config.neoclassical
-    )
+    source_models = references.config.sources.build_models()
+    neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
@@ -101,14 +101,14 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     static_slice = build_runtime_params.build_static_params_from_config(
         references.config
     )
-    source_models = references.config.sources.build_models(
-        neoclassical=references.config.neoclassical
-    )
+    source_models = references.config.sources.build_models()
+    neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(

@@ -22,13 +22,16 @@ import functools
 
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.transport_model import transport_model as transport_model_lib
+import typing_extensions
 
 
 class Solver(abc.ABC):
@@ -43,6 +46,9 @@ class Solver(abc.ABC):
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
     pedestal_model: A PedestalModel subclass, calculates pedestal values.
+    neoclassical_models: A NeoclassicalModels container, calculating
+      neoclassical models like conductivity, bootstrap current and neoclassical
+      transport.
     static_runtime_params_slice: Static runtime parameters. Input params that
       trigger recompilation when they change. These don't have to be
       JAX-friendly types and can be used in control-flow logic.
@@ -54,26 +60,52 @@ class Solver(abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ):
     self.transport_model = transport_model
     self.source_models = source_models
     self.pedestal_model = pedestal_model
+    self.neoclassical_models = neoclassical_models
     self.static_runtime_params_slice = static_runtime_params_slice
+
+  def __hash__(self) -> int:
+    return hash((
+        self.static_runtime_params_slice,
+        self.transport_model,
+        self.source_models,
+        self.pedestal_model,
+    ))
+
+  def __eq__(self, other: typing_extensions.Self) -> bool:
+    return (
+        self.static_runtime_params_slice == other.static_runtime_params_slice
+        and self.static_runtime_params_slice
+        == other.static_runtime_params_slice
+        and self.transport_model == other.transport_model
+        and self.source_models == other.source_models
+        and self.pedestal_model == other.pedestal_model
+    )
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
     """The names of core_profiles variables that are evolved by the solver."""
     evolving_names = []
-    if self.static_runtime_params_slice.evolve_ion_heat:
+    if self.static_runtime_params_slice.numerics.evolve_ion_heat:
       evolving_names.append('T_i')
-    if self.static_runtime_params_slice.evolve_electron_heat:
+    if self.static_runtime_params_slice.numerics.evolve_electron_heat:
       evolving_names.append('T_e')
-    if self.static_runtime_params_slice.evolve_current:
+    if self.static_runtime_params_slice.numerics.evolve_current:
       evolving_names.append('psi')
-    if self.static_runtime_params_slice.evolve_density:
+    if self.static_runtime_params_slice.numerics.evolve_density:
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
+  @functools.partial(
+      xnp.jit,
+      static_argnames=[
+          'self',
+      ],
+  )
   def __call__(
       self,
       t: jax.Array,
@@ -84,8 +116,6 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -108,8 +138,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input params). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
@@ -140,8 +168,6 @@ class Solver(abc.ABC):
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_sources_t=core_sources_t,
-          core_transport_t=core_transport_t,
           explicit_source_profiles=explicit_source_profiles,
           evolving_names=self.evolving_names,
       )
@@ -164,8 +190,6 @@ class Solver(abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -194,8 +218,6 @@ class Solver(abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      core_sources_t: source profiles at time t.
-      core_transport_t: transport coefficients at time t.
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
 

@@ -23,18 +23,20 @@ class PydanticModelTest(parameterized.TestCase):
     model = pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
+    self.assertEqual(model.transport.model_name, "zeros")
 
   def test_default_model_from_dict(self):
     model = pydantic_model.Neoclassical.from_dict({})
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
+    self.assertEqual(model.transport.model_name, "zeros")
 
   def test_bootstrap_current_exists_is_sauter(self):
     model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
   @parameterized.parameters("zeros", "sauter")
-  def test_model_name(self, model_name):
+  def test_bootstrap_current_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
         {"bootstrap_current": {"model_name": model_name}}
     )
@@ -45,6 +47,17 @@ class PydanticModelTest(parameterized.TestCase):
         {"conductivity": {"model_name": "sauter"}}
     )
     self.assertEqual(model.conductivity.model_name, "sauter")
+
+  def test_set_transport_default_model_name(self):
+    model = pydantic_model.Neoclassical.from_dict({"transport": {}})
+    self.assertEqual(model.transport.model_name, "zeros")
+
+  @parameterized.parameters("zeros", "angioni_sauter")
+  def test_set_transport_model_name(self, model_name):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"transport": {"model_name": model_name}}
+    )
+    self.assertEqual(model.transport.model_name, model_name)
 
 
 if __name__ == "__main__":

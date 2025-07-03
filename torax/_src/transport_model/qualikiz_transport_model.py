@@ -25,6 +25,7 @@ import tempfile
 from typing import Literal
 
 import chex
+import jax
 import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
@@ -37,9 +38,11 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import transport_model
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   n_max_runs: int
   n_processes: int
@@ -74,7 +77,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -190,7 +193,7 @@ class QualikizTransportModel(
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     """Extracts QuaLiKiz run data from runpath."""
 
     # Extract QuaLiKiz outputs

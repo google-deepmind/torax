@@ -14,12 +14,14 @@
 
 """Pydantic config for Solver."""
 import abc
+import dataclasses
 import functools
 from typing import Literal
 
 import pydantic
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -85,6 +87,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
 
@@ -117,12 +120,14 @@ class LinearThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
   @property
@@ -159,6 +164,17 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams:
+    """Builds static runtime params from the config."""
+    base_params = super().build_static_params()
+    return nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams(
+        **dataclasses.asdict(base_params),
+        initial_guess_mode=self.initial_guess_mode.value,
+        log_iterations=self.log_iterations,
+    )
+
   @functools.cached_property
   def build_dynamic_params(
       self,
@@ -166,8 +182,6 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        log_iterations=self.log_iterations,
-        initial_guess_mode=self.initial_guess_mode.value,
         maxiter=self.n_max_iterations,
         residual_tol=self.residual_tol,
         residual_coarse_tol=self.residual_coarse_tol,
@@ -182,12 +196,14 @@ class NewtonRaphsonThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
 
@@ -210,6 +226,16 @@ class OptimizerThetaMethod(BaseSolver):
   def linear_solver(self) -> bool:
     return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
+  def build_static_params(
+      self,
+  ) -> nonlinear_theta_method.StaticOptimizerRuntimeParams:
+    """Builds static runtime params from the config."""
+    base_params = super().build_static_params()
+    return nonlinear_theta_method.StaticOptimizerRuntimeParams(
+        **dataclasses.asdict(base_params),
+        initial_guess_mode=self.initial_guess_mode.value,
+    )
+
   @functools.cached_property
   def build_dynamic_params(
       self,
@@ -217,7 +243,6 @@ class OptimizerThetaMethod(BaseSolver):
     return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        initial_guess_mode=self.initial_guess_mode.value,
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
@@ -229,12 +254,14 @@ class OptimizerThetaMethod(BaseSolver):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
 

@@ -13,23 +13,20 @@
 # limitations under the License.
 
 """Container for source models which build source profiles in TORAX."""
-
+import dataclasses
 import functools
 
-import chex
 import immutabledict
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
-from torax._src.neoclassical.conductivity import base as conductivity_base
+import jax
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class SourceModels:
   """Source models for the different equations being evolved in Torax."""
 
-  bootstrap_current: bootstrap_current_base.BootstrapCurrentModel
-  conductivity: conductivity_base.ConductivityModel
   qei_source: qei_source_lib.QeiSource
   standard_sources: immutabledict.immutabledict[str, source_lib.Source]
 
@@ -44,8 +41,6 @@ class SourceModels:
 
   def __hash__(self) -> int:
     hashes = [hash(self.standard_sources)]
-    hashes.append(hash(self.bootstrap_current))
-    hashes.append(hash(self.conductivity))
     hashes.append(hash(self.qei_source))
     return hash(tuple(hashes))
 
@@ -56,8 +51,6 @@ class SourceModels:
               self.standard_sources[name] == other.standard_sources[name]
               for name in self.standard_sources.keys()
           )
-          and self.bootstrap_current == other.bootstrap_current
-          and self.conductivity == other.conductivity
           and self.qei_source == other.qei_source
       )
     return False

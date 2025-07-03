@@ -270,11 +270,11 @@ def geometry_to_IMAS(
   eq.profiles_1d.dpsi_drho_tor = dpsidrhotor
   eq.profiles_1d.gm1 = geometry.g3_face
   eq.profiles_1d.gm7 = geometry.g0_face / (dvoldpsi * dpsidrhotor)
-  eq.profiles_1d.gm7[0] = 1 # <grad_rho_tor>
+  eq.profiles_1d.gm7[0] = 1  # <grad_rho_tor>
   eq.profiles_1d.gm3 = geometry.g1_face / (dpsidrhotor**2 * dvoldpsi**2)
-  eq.profiles_1d.gm3[0] = 1 # <grad_rho_tor**2>
+  eq.profiles_1d.gm3[0] = 1  # <grad_rho_tor**2>
   eq.profiles_1d.gm2 = geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2)
-  eq.profiles_1d.gm2[0] = 1 / (geometry.R_major**2) # <grad_rho_tor**2 / R**2>
+  eq.profiles_1d.gm2[0] = 1 / (geometry.R_major**2)  # <grad_rho_tor**2 / R**2>
 
   # Quantities computed by the transport code useful for coupling with
   # equilibrium code

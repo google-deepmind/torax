@@ -30,6 +30,7 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 def _get_config_and_model_inputs(
@@ -39,9 +40,8 @@ def _get_config_and_model_inputs(
   config = default_configs.get_default_config_dict()
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
@@ -58,6 +58,7 @@ def _get_config_and_model_inputs(
       static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
   )
   return torax_config, (dynamic_runtime_params_slice, geo, core_profiles)
 
@@ -166,7 +167,7 @@ class FakeQualikizBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,

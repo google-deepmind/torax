@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
+import dataclasses
 import enum
 from typing import Optional
 
 from absl import logging
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -25,10 +25,10 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 import typing_extensions
 
+
 # pylint: disable=invalid-name
-
-
-@chex.dataclass(frozen=True, eq=False)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class CoreProfiles:
   """Dataclass for holding the evolving core plasma profiles.
 
@@ -121,28 +121,15 @@ class CoreProfiles:
     """
 
 
-@chex.dataclass
+# TODO(b/426132633): restructure and rename attributes for V2. Choices were made
+# when refactoring to avoid breaking public API.
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class CoreTransport:
   """Coefficients for the plasma transport.
 
-  These coefficients are computed by TORAX transport models. See the
-  transport_model/ folder for more info.
-
-  NOTE: The naming of this class is inspired by the IMAS `core_transport` IDS,
-  but its schema is not a 1:1 mapping to that IDS.
-
-  Attributes:
-    chi_face_ion: Ion heat conductivity, on the face grid.
-    chi_face_el: Electron heat conductivity, on the face grid.
-    d_face_el: Diffusivity of electron density, on the face grid.
-    v_face_el: Convection strength of electron density, on the face grid.
-    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
-      conductivity.
-    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
-      conductivity.
-    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
-    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
-      conductivity.
+  See docstrings of `neoclassical/transport/base.py` and
+  `transport_model/transport_model.py` for more details.
   """
 
   chi_face_ion: jax.Array
@@ -153,17 +140,33 @@ class CoreTransport:
   chi_face_el_gyrobohm: Optional[jax.Array] = None
   chi_face_ion_bohm: Optional[jax.Array] = None
   chi_face_ion_gyrobohm: Optional[jax.Array] = None
+  chi_neo_i: Optional[jax.Array] = None
+  chi_neo_e: Optional[jax.Array] = None
+  D_neo_e: Optional[jax.Array] = None
+  V_neo_e: Optional[jax.Array] = None
+  V_neo_ware_e: Optional[jax.Array] = None
 
   def __post_init__(self):
-    # Use the array size of chi_face_el as a reference.
+    # Use the array size of chi_face_el as a template.
+    template = self.chi_face_el
     if self.chi_face_el_bohm is None:
-      self.chi_face_el_bohm = jnp.zeros_like(self.chi_face_el)
+      self.chi_face_el_bohm = jnp.zeros_like(template)
     if self.chi_face_el_gyrobohm is None:
-      self.chi_face_el_gyrobohm = jnp.zeros_like(self.chi_face_el)
+      self.chi_face_el_gyrobohm = jnp.zeros_like(template)
     if self.chi_face_ion_bohm is None:
-      self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
+      self.chi_face_ion_bohm = jnp.zeros_like(template)
     if self.chi_face_ion_gyrobohm is None:
-      self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
+      self.chi_face_ion_gyrobohm = jnp.zeros_like(template)
+    if self.chi_neo_i is None:
+      self.chi_neo_i = jnp.zeros_like(template)
+    if self.chi_neo_e is None:
+      self.chi_neo_e = jnp.zeros_like(template)
+    if self.D_neo_e is None:
+      self.D_neo_e = jnp.zeros_like(template)
+    if self.V_neo_e is None:
+      self.V_neo_e = jnp.zeros_like(template)
+    if self.V_neo_ware_e is None:
+      self.V_neo_ware_e = jnp.zeros_like(template)
 
   def chi_max(
       self,
@@ -178,8 +181,8 @@ class CoreTransport:
       chi_max: Maximum value of chi.
     """
     return jnp.maximum(
-        jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
-        jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),
+        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),
+        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),
     )
 
   @classmethod
@@ -195,10 +198,16 @@ class CoreTransport:
         chi_face_el_gyrobohm=jnp.zeros(shape),
         chi_face_ion_bohm=jnp.zeros(shape),
         chi_face_ion_gyrobohm=jnp.zeros(shape),
+        chi_neo_i=jnp.zeros(shape),
+        chi_neo_e=jnp.zeros(shape),
+        D_neo_e=jnp.zeros(shape),
+        V_neo_e=jnp.zeros(shape),
+        V_neo_ware_e=jnp.zeros(shape),
     )
 
 
-@chex.dataclass
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
 class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 

@@ -70,14 +70,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
@@ -130,35 +130,35 @@ class TransportSmoothingTest(parameterized.TestCase):
     # assert that the smoothing did not impact the zones inside/outside the
     # inner/outer transport patch locations
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][:inner_patch_idx],
+        transport_coeffs.chi_face_ion[:inner_patch_idx],
         chi_face_ion_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][:inner_patch_idx],
+        transport_coeffs.chi_face_el[:inner_patch_idx],
         chi_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][:inner_patch_idx],
+        transport_coeffs.d_face_el[:inner_patch_idx],
         d_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][:inner_patch_idx],
+        transport_coeffs.v_face_el[:inner_patch_idx],
         v_face_el_orig[:inner_patch_idx],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][outer_patch_idx:],
+        transport_coeffs.chi_face_ion[outer_patch_idx:],
         chi_face_ion_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][outer_patch_idx:],
+        transport_coeffs.chi_face_el[outer_patch_idx:],
         chi_face_el_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][outer_patch_idx:],
+        transport_coeffs.d_face_el[outer_patch_idx:],
         d_face_el_orig[outer_patch_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][outer_patch_idx:],
+        transport_coeffs.v_face_el[outer_patch_idx:],
         v_face_el_orig[outer_patch_idx:],
     )
     # carry out smoothing by hand for a representative middle location.
@@ -192,22 +192,22 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_ion[inner_patch_idx + test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_el[inner_patch_idx + test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.d_face_el[inner_patch_idx + test_idx],
         d_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][inner_patch_idx + test_idx],
+        transport_coeffs.v_face_el[inner_patch_idx + test_idx],
         v_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
@@ -244,14 +244,14 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
@@ -308,56 +308,56 @@ class TransportSmoothingTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_ion'][:inner_patch_idx],
+        transport_coeffs.chi_face_ion[:inner_patch_idx],
         chi_face_ion_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_el'][:inner_patch_idx],
+        transport_coeffs.chi_face_el[:inner_patch_idx],
         chi_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['d_face_el'][:inner_patch_idx],
+        transport_coeffs.d_face_el[:inner_patch_idx],
         d_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['v_face_el'][:inner_patch_idx],
+        transport_coeffs.v_face_el[:inner_patch_idx],
         v_face_el_orig[:inner_patch_idx],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_ion'][outer_patch_idx:],
+        transport_coeffs.chi_face_ion[outer_patch_idx:],
         chi_face_ion_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['chi_face_el'][outer_patch_idx:],
+        transport_coeffs.chi_face_el[outer_patch_idx:],
         chi_face_el_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['d_face_el'][outer_patch_idx:],
+        transport_coeffs.d_face_el[outer_patch_idx:],
         d_face_el_orig[outer_patch_idx:],
     )
 
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs['v_face_el'][outer_patch_idx:],
+        transport_coeffs.v_face_el[outer_patch_idx:],
         v_face_el_orig[outer_patch_idx:],
     )
 
@@ -384,22 +384,22 @@ class TransportSmoothingTest(parameterized.TestCase):
     v_face_el_orig_smoothed_test_r = v_face_el_orig * smoothing_array
 
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_ion'][test_idx],
+        transport_coeffs.chi_face_ion[test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['chi_face_el'][test_idx],
+        transport_coeffs.chi_face_el[test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['d_face_el'][test_idx],
+        transport_coeffs.d_face_el[test_idx],
         d_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs['v_face_el'][test_idx],
+        transport_coeffs.v_face_el[test_idx],
         v_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
@@ -419,13 +419,13 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     del dynamic_runtime_params_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
     v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

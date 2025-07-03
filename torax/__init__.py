@@ -17,6 +17,7 @@
 import logging
 import os
 
+# pylint: disable=g-importing-member
 import jax
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
@@ -31,9 +32,6 @@ from torax._src.state import CoreTransport
 from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.model_config import ToraxConfig
-
-# pylint: disable=g-importing-member
-
 
 # pylint: enable=g-importing-member
 

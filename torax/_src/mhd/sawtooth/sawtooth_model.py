@@ -24,6 +24,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import solver
 from torax._src.sources import source_models as source_models_lib
@@ -45,14 +46,16 @@ class SawtoothModel(solver.Solver):
       trigger_model: trigger_base.TriggerModel,
       redistribution_model: redistribution_base.RedistributionModel,
       transport_model: transport_model_lib.TransportModel,
-      pedestal_model: pedestal_model_lib.PedestalModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
+      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
   ):
     super().__init__(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
     self._trigger_model = trigger_model
     self._redistribution_model = redistribution_model
@@ -67,8 +70,6 @@ class SawtoothModel(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles_lib.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -95,8 +96,6 @@ class SawtoothModel(solver.Solver):
       core_profiles_t: Core profiles at time t.
       core_profiles_t_plus_dt: Core profiles containing boundary conditions and
         prescribed profiles at time t + crash_dt.
-      core_sources_t: Source profiles at time t.
-      core_transport_t: Transport coefficients at time t.
       explicit_source_profiles: Explicit source profiles at time t.
       evolving_names: Names of evolving variables.
 

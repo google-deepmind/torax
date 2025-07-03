@@ -16,6 +16,7 @@
 
 import contextlib
 import functools
+import inspect
 import os
 from typing import Any, Callable, Literal, TypeVar
 
@@ -149,91 +150,6 @@ def jit(*args, **kwargs) -> Callable[..., Any]:
   return args[0]
 
 
-def py_while(
-    cond_fun: Callable[[T], BooleanNumeric],
-    body_fun: Callable[[T], T],
-    init_val: T,
-) -> T:
-  """Pure Python implementation of jax.lax.while_loop.
-
-  This gives us a way to write code that could easily be changed to be
-  Jax-compatible in the future (if we want to compute its gradient or
-  compile it, etc.) without having to pay the high compile time cost
-  of jax.lax.while_loop.
-
-  Args:
-    cond_fun: function of type ``a -> Bool``.
-    body_fun: function of type ``a -> a``.
-    init_val: value of type ``a``, a type that can be a scalar, array, or any
-      pytree (nested Python tuple/list/dict) thereof, representing the initial
-      loop carry value.
-
-  Returns:
-    The output from the final iteration of body_fun, of type ``a``.
-
-  .. _Haskell-like type signature: https://wiki.haskell.org/Type_signature
-  """
-
-  val = init_val
-  while cond_fun(val):
-    val = body_fun(val)
-  return val
-
-
-def py_fori_loop(
-    lower: int, upper: int, body_fun: Callable[[int, T], T], init_val: T
-) -> T:
-  """Pure Python implementation of jax.lax.fori_loop.
-
-  This gives us a way to write code that could easily be changed to be
-  Jax-compatible in the future, if we want to expand the scope of the jit
-  compilation.
-
-  Args:
-    lower: lower integer of loop
-    upper: upper integer of loop. upper<=lower will produce no iterations.
-    body_fun: function of type ``a -> a``.
-    init_val: value of type ``a``, a type that can be a scalar, array, or any
-      pytree (nested Python tuple/list/dict) thereof, representing the initial
-      loop carry value.
-
-  Returns:
-    The output from the final iteration of body_fun, of type ``a``.
-
-  .. _Haskell-like type signature: https://wiki.haskell.org/Type_signature
-  """
-  val = init_val
-  for i in range(lower, upper):
-    val = body_fun(i, val)
-  return val
-
-
-# pylint: disable=g-bare-generic
-def py_cond(
-    cond: bool,
-    true_fun: Callable,
-    false_fun: Callable,
-) -> Any:
-  """Pure Python implementation of jax.lax.cond.
-
-  This gives us a way to write code that could easily be changed to be
-  Jax-compatible in the future, if we want to expand the scope of the jit
-  compilation.
-
-  Args:
-    cond: The condition
-    true_fun: Function to be called if cond==True.
-    false_fun: Function to be called if cond==False.
-
-  Returns:
-    The output from either true_fun or false_fun.
-  """
-  if cond:
-    return true_fun()
-  else:
-    return false_fun()
-
-
 def get_number_of_compiles(
     jitted_function: Callable[..., Any],
 ) -> int:
@@ -279,7 +195,7 @@ def non_inlined_function(
   computation.
 
   Args:
-    f: The function to be called.
+    f: A JITted function.
     implementation: If 'while_loop', use `jax.lax.while_loop` with a single
       iteration. If 'pure_callback', use `jax.pure_callback`. This comes at the
       cost of a roughly 0.7ms constant overhead per call. It is recommended that
@@ -290,36 +206,73 @@ def non_inlined_function(
     The function.
   """
 
+  if not hasattr(f, 'lower'):
+    raise ValueError('Must be a JITted function.')
+
+  if not hasattr(f, '_jit_info'):
+    raise ValueError('The function must have a _jit_info attribute.')
+
+  static_argnames = f._jit_info.static_argnames  # pylint: disable=protected-access
+
   match implementation:
     case 'while_loop':
-      return _non_inlined_function_while_loop(f)
+      return _non_inlined_function_while_loop(
+          f, static_argnames=static_argnames
+      )
     case 'pure_callback':
-      return _non_inlined_function_pure_callback(f)
+      return _non_inlined_function_pure_callback(
+          f, static_argnames=static_argnames
+      )
     case _:
       raise ValueError(f'Unknown implementation: {implementation}')
 
 
-def _non_inlined_function_pure_callback(f):
+def _non_inlined_function_pure_callback(f, static_argnames):
   """A decorator that prevents XLA from inlining a function."""
 
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
-    result_shape_dtypes = jax.eval_shape(f, *args, **kwargs)
-    return jax.pure_callback(f, result_shape_dtypes, *args, **kwargs)
+    nonlocal f, static_argnames
+    bound = inspect.signature(f).bind(*args, **kwargs)
+    bound.apply_defaults()
+    kwargs = bound.arguments
+    if 'self' in kwargs:
+      kwargs.pop('self')
+
+    if static_argnames:
+      static_args = {k: bound.arguments[k] for k in static_argnames}
+
+      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
+      f = functools.partial(f, **static_args)
+
+    result_shape_dtypes = jax.eval_shape(f, **kwargs)
+    return jax.pure_callback(f, result_shape_dtypes, **kwargs)
 
   return wrapper
 
 
-def _non_inlined_function_while_loop(f):
+def _non_inlined_function_while_loop(f, static_argnames):
   """A decorator that prevents XLA from inlining a function."""
 
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
+    nonlocal f, static_argnames
+    bound = inspect.signature(f).bind(*args, **kwargs)
+    bound.apply_defaults()
+    kwargs = bound.arguments
+    if 'self' in kwargs:
+      kwargs.pop('self')
+
+    if static_argnames:
+      static_args = {k: bound.arguments[k] for k in static_argnames}
+      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
+      f = functools.partial(f, **static_args)
+
     continue_loop = True
-    empty_out = _init_pytree(jax.eval_shape(f, *args, **kwargs))
+    empty_out = _init_pytree(jax.eval_shape(f, **kwargs))
 
     def body(val):
-      return False, val[1], val[2], f(*val[1], **val[2])
+      return False, val[1], f(**val[1])
 
     def cond(val):
       return val[0]
@@ -327,7 +280,7 @@ def _non_inlined_function_while_loop(f):
     out = jax.lax.while_loop(
         cond_fun=cond,
         body_fun=body,
-        init_val=(continue_loop, args, kwargs, empty_out),
+        init_val=(continue_loop, kwargs, empty_out),
     )
     return out[-1]
 

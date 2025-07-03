@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """The CriticalGradientModel class."""
-import chex
+import dataclasses
+
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
@@ -26,7 +28,8 @@ from torax._src.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the CGM transport model."""
 
@@ -53,7 +56,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model.TurbulentTransport:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -141,7 +144,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         d_face_el * transport_dynamic_runtime_params.VR_D_ratio / geo.R_major
     )
 
-    return state.CoreTransport(
+    return transport_model.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

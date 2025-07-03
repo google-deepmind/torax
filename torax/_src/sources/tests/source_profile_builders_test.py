@@ -43,9 +43,8 @@ class SourceModelsTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -62,6 +61,7 @@ class SourceModelsTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_slice,
@@ -69,6 +69,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
+        neoclassical_models,
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
@@ -77,6 +78,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
+        neoclassical_models,
         explicit=False,
         explicit_source_profiles=explicit_source_profiles,
     )

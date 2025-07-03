@@ -14,8 +14,8 @@
 
 """The NonLinearThetaMethod class."""
 import abc
+import dataclasses
 
-import chex
 import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -31,22 +31,34 @@ from torax._src.solver import solver
 from torax._src.sources import source_profiles
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
-  initial_guess_mode: int
   n_max_iterations: int
   loss_tol: float
 
 
-@chex.dataclass(frozen=True)
-class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
-  log_iterations: bool
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class StaticOptimizerRuntimeParams(runtime_params.StaticRuntimeParams):
   initial_guess_mode: int
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
   maxiter: int
   residual_tol: float
   residual_coarse_tol: float
   delta_reduction_factor: float
   tau_min: float
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class StaticNewtonRaphsonRuntimeParams(runtime_params.StaticRuntimeParams):
+  initial_guess_mode: int
+  log_iterations: bool
 
 
 class NonlinearThetaMethod(solver.Solver):
@@ -62,8 +74,6 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -72,14 +82,12 @@ class NonlinearThetaMethod(solver.Solver):
   ]:
     """See Solver._x_new docstring."""
 
-    # Not used in this implementation.
-    del core_sources_t, core_transport_t
-
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
         evolving_names=evolving_names,
     )
     (
@@ -183,6 +191,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = dynamic_runtime_params_slice_t.solver
     assert isinstance(solver_params, DynamicOptimizerRuntimeParams)
+    static_solver_params = static_runtime_params_slice.solver
+    assert isinstance(static_solver_params, StaticOptimizerRuntimeParams)
     (
         x_new,
         solver_numeric_outputs,
@@ -201,11 +211,12 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         pedestal_model=self.pedestal_model,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
-            solver_params.initial_guess_mode,
+            static_solver_params.initial_guess_mode,
         ),
         maxiter=solver_params.n_max_iterations,
         tol=solver_params.loss_tol,
@@ -239,6 +250,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     """See abstract method docstring in NonlinearThetaMethod."""
     solver_params = dynamic_runtime_params_slice_t.solver
     assert isinstance(solver_params, DynamicNewtonRaphsonRuntimeParams)
+    static_solver_params = static_runtime_params_slice.solver
+    assert isinstance(static_solver_params, StaticNewtonRaphsonRuntimeParams)
 
     (
         x_new,
@@ -259,11 +272,12 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         pedestal_model=self.pedestal_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        neoclassical_models=self.neoclassical_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
-        log_iterations=solver_params.log_iterations,
+        log_iterations=static_solver_params.log_iterations,
         initial_guess_mode=enums.InitialGuessMode(
-            solver_params.initial_guess_mode
+            static_solver_params.initial_guess_mode
         ),
         maxiter=solver_params.maxiter,
         tol=solver_params.residual_tol,

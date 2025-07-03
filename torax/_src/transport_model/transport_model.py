@@ -20,6 +20,7 @@ coefficients.
 
 import abc
 import dataclasses
+from typing import Optional
 
 import jax
 from jax import numpy as jnp
@@ -29,6 +30,58 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+import typing_extensions
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass
+class TurbulentTransport:
+  """Turbulent transport coefficients calculated by a transport model.
+
+  Attributes:
+    chi_face_ion: Ion heat conductivity, on the face grid.
+    chi_face_el: Electron heat conductivity, on the face grid.
+    d_face_el: Diffusivity of electron density, on the face grid.
+    v_face_el: Convection strength of electron density, on the face grid.
+    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
+      conductivity.
+    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
+      conductivity.
+    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
+    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
+      conductivity.
+  """
+
+  chi_face_ion: jax.Array
+  chi_face_el: jax.Array
+  d_face_el: jax.Array
+  v_face_el: jax.Array
+  chi_face_el_bohm: Optional[jax.Array] = None
+  chi_face_el_gyrobohm: Optional[jax.Array] = None
+  chi_face_ion_bohm: Optional[jax.Array] = None
+  chi_face_ion_gyrobohm: Optional[jax.Array] = None
+
+  def __post_init__(self):
+    # Use the array size of chi_face_el as a reference.
+    if self.chi_face_el_bohm is None:
+      self.chi_face_el_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_el_gyrobohm is None:
+      self.chi_face_el_gyrobohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_bohm is None:
+      self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_gyrobohm is None:
+      self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    """Returns a CoreTransport with all zeros. Useful for initializing."""
+    shape = geo.rho_face.shape
+    return cls(
+        chi_face_ion=jnp.zeros(shape),
+        chi_face_el=jnp.zeros(shape),
+        d_face_el=jnp.zeros(shape),
+        v_face_el=jnp.zeros(shape),
+    )
 
 
 class TransportModel(abc.ABC):
@@ -60,7 +113,7 @@ class TransportModel(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> TurbulentTransport:
     if not getattr(self, "_frozen", False):
       raise RuntimeError(
           f"Subclass implementation {type(self)} forgot to "
@@ -117,7 +170,7 @@ class TransportModel(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> TurbulentTransport:
     pass
 
   @abc.abstractmethod
@@ -141,9 +194,9 @@ class TransportModel(abc.ABC):
       self,
       transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
-      transport_coeffs: state.CoreTransport,
+      transport_coeffs: TurbulentTransport,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> TurbulentTransport:
     """Sets transport coefficients to zero outside the model's domain."""
     # Standard case: active range is
     # rho_min < rho <= rho_norm_ped_top
@@ -176,8 +229,8 @@ class TransportModel(abc.ABC):
   def _apply_clipping(
       self,
       transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
-      transport_coeffs: state.CoreTransport,
-  ) -> state.CoreTransport:
+      transport_coeffs: TurbulentTransport,
+  ) -> TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
     chi_face_ion = jnp.clip(
         transport_coeffs.chi_face_ion,
@@ -213,8 +266,8 @@ class TransportModel(abc.ABC):
       transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      transport_coeffs: state.CoreTransport,
-  ) -> state.CoreTransport:
+      transport_coeffs: TurbulentTransport,
+  ) -> TurbulentTransport:
     """Applies inner and outer transport patches to transport coefficients."""
     consts = constants.CONSTANTS
 
@@ -323,11 +376,11 @@ class TransportModel(abc.ABC):
       transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      transport_coeffs: state.CoreTransport,
+      transport_coeffs: TurbulentTransport,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(
+    smoothing_matrix = _build_smoothing_matrix(
         transport_dynamic_runtime_params,
         dynamic_runtime_params_slice,
         geo,
@@ -343,14 +396,10 @@ class TransportModel(abc.ABC):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    smoothed_coeffs = jax.tree_util.tree_map(
-        smooth_single_coeff, transport_coeffs
-    )
-
-    return state.CoreTransport(**smoothed_coeffs)
+    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
 
 
-def build_smoothing_matrix(
+def _build_smoothing_matrix(
     transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,

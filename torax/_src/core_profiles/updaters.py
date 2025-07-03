@@ -40,6 +40,7 @@ from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -91,13 +92,13 @@ def get_prescribed_core_profile_values(
   """
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
-  if not static_runtime_params_slice.evolve_ion_heat:
+  if not static_runtime_params_slice.numerics.evolve_ion_heat:
     T_i = getters.get_updated_ion_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     ).value
   else:
     T_i = core_profiles.T_i.value
-  if not static_runtime_params_slice.evolve_electron_heat:
+  if not static_runtime_params_slice.numerics.evolve_electron_heat:
     T_e_cell_variable = getters.get_updated_electron_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     )
@@ -105,7 +106,7 @@ def get_prescribed_core_profile_values(
   else:
     T_e_cell_variable = core_profiles.T_e
     T_e = T_e_cell_variable.value
-  if not static_runtime_params_slice.evolve_density:
+  if not static_runtime_params_slice.numerics.evolve_density:
     n_e_cell_variable = getters.get_updated_electron_density(
         static_runtime_params_slice,
         dynamic_runtime_params_slice.profile_conditions,
@@ -211,6 +212,7 @@ def update_core_and_source_profiles_after_step(
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     evolving_names: tuple[str, ...],
 ) -> tuple[state.CoreProfiles, source_profiles_lib.SourceProfiles]:
   """Returns a core profiles and source profiles after the solver has finished.
@@ -229,6 +231,7 @@ def update_core_and_source_profiles_after_step(
       conditions are already set. But evolving values are not.
     explicit_source_profiles: The explicit source profiles.
     source_models: The source models.
+    neoclassical_models: The neoclassical models.
     evolving_names: The names of the evolving variables.
 
   Returns:
@@ -294,7 +297,7 @@ def update_core_and_source_profiles_after_step(
       Ip_profile_face=Ip_profile_face,
   )
 
-  conductivity = source_models.conductivity.calculate_conductivity(
+  conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo, intermediate_core_profiles
   )
 
@@ -310,6 +313,7 @@ def update_core_and_source_profiles_after_step(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       core_profiles=intermediate_core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,

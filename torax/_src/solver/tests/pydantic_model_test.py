@@ -52,9 +52,8 @@ class PydanticModelTest(parameterized.TestCase):
 
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     solver = torax_config.solver.build_solver(
         static_runtime_params_slice=mock.create_autospec(
             runtime_params_slice.StaticRuntimeParamsSlice,
@@ -67,6 +66,7 @@ class PydanticModelTest(parameterized.TestCase):
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
     self.assertIsInstance(solver, expected_type)
     self.assertEqual(torax_config.solver.theta_implicit, 0.5)

@@ -57,9 +57,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -76,6 +75,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         source_models,
+        neoclassical_models,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
@@ -84,6 +84,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
+        neoclassical_models=neoclassical_models,
         explicit=True,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
@@ -96,6 +97,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
         pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
@@ -108,9 +110,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
       pedestal_model = torax_config.pedestal.build_pedestal_model()
       transport_model = torax_config.transport.build_transport_model()
       evolving_names = tuple(['T_i'])
-      source_models = torax_config.sources.build_models(
-          neoclassical=torax_config.neoclassical
-      )
+      source_models = torax_config.sources.build_models()
+      neoclassical_models = torax_config.neoclassical.build_models()
       static_runtime_params_slice = (
           build_runtime_params.build_static_params_from_config(torax_config)
       )
@@ -118,6 +119,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
           static_runtime_params_slice=static_runtime_params_slice,
           transport_model=transport_model,
           source_models=source_models,
+          neoclassical_models=neoclassical_models,
           evolving_names=evolving_names,
           pedestal_model=pedestal_model,
       )

@@ -14,8 +14,8 @@
 
 """Base class for bootstrap current models."""
 import abc
+import dataclasses
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import state
@@ -27,7 +27,8 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-@chex.dataclass(kw_only=True, frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(kw_only=True, frozen=True)
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
 

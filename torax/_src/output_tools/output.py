@@ -69,6 +69,11 @@ CHI_TURB_I = "chi_turb_i"
 CHI_TURB_E = "chi_turb_e"
 D_TURB_E = "D_turb_e"
 V_TURB_E = "V_turb_e"
+CHI_NEO_I = "chi_neo_i"
+CHI_NEO_E = "chi_neo_e"
+D_NEO_E = "D_neo_e"
+V_NEO_E = "V_neo_e"
+V_NEO_WARE_E = "V_neo_ware_e"
 CHI_BOHM_E = "chi_bohm_e"
 CHI_GYROBOHM_E = "chi_gyrobohm_e"
 CHI_BOHM_I = "chi_bohm_i"
@@ -525,6 +530,12 @@ class StateHistory:
     xr_dict[CHI_TURB_E] = self._stacked_core_transport.chi_face_el
     xr_dict[D_TURB_E] = self._stacked_core_transport.d_face_el
     xr_dict[V_TURB_E] = self._stacked_core_transport.v_face_el
+
+    xr_dict[CHI_NEO_I] = self._stacked_core_transport.chi_neo_i
+    xr_dict[CHI_NEO_E] = self._stacked_core_transport.chi_neo_e
+    xr_dict[D_NEO_E] = self._stacked_core_transport.D_neo_e
+    xr_dict[V_NEO_E] = self._stacked_core_transport.V_neo_e
+    xr_dict[V_NEO_WARE_E] = self._stacked_core_transport.V_neo_ware_e
 
     # Save optional BohmGyroBohm attributes if nonzero.
     core_transport = self._stacked_core_transport

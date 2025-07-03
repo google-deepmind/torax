@@ -93,15 +93,15 @@ class SawtoothModelTest(parameterized.TestCase):
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
 
     solver = torax_config.solver.build_solver(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
+        neoclassical_models=neoclassical_models,
     )
 
     mhd_models = torax_config.mhd.build_mhd_models(
@@ -109,15 +109,14 @@ class SawtoothModelTest(parameterized.TestCase):
         transport_model=transport_model,
         pedestal_model=pedestal_model,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
 
-    self.geometry_provider = torax_config.geometry.build_provider
-
-    self.static_runtime_params_slice = (
+    geometry_provider = torax_config.geometry.build_provider
+    static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
     )
-
-    self.dynamic_runtime_params_slice_provider = (
+    dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
         )
@@ -127,14 +126,17 @@ class SawtoothModelTest(parameterized.TestCase):
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
         mhd_models=mhd_models,
+        static_runtime_params_slice=static_runtime_params_slice,
+        geometry_provider=geometry_provider,
+        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
     )
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            static_runtime_params_slice=self.static_runtime_params_slice,
-            dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-            geometry_provider=self.geometry_provider,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=geometry_provider,
             step_fn=self.step_fn,
         )
     )
@@ -142,9 +144,6 @@ class SawtoothModelTest(parameterized.TestCase):
   def test_sawtooth_crash(self):
     """Tests that default values lead to crash and compares post-crash to ref."""
     output_state, _, sim_error = self.step_fn(
-        static_runtime_params_slice=self.static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-        geometry_provider=self.geometry_provider,
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
@@ -180,9 +179,6 @@ class SawtoothModelTest(parameterized.TestCase):
         ),
     )
     output_state, _, sim_error = self.step_fn(
-        static_runtime_params_slice=self.static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-        geometry_provider=self.geometry_provider,
         input_state=initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
@@ -199,9 +195,6 @@ class SawtoothModelTest(parameterized.TestCase):
     """Tests for no subsequent sawtooth crashes even if q in trigger condition."""
     # This crashes
     output_state0, post_processed_outputs0, _ = self.step_fn(
-        static_runtime_params_slice=self.static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-        geometry_provider=self.geometry_provider,
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
@@ -228,9 +221,6 @@ class SawtoothModelTest(parameterized.TestCase):
 
     with self.subTest('no_subsequent_sawtooth_crashes'):
       output_state_should_not_crash, _, sim_error = self.step_fn(
-          static_runtime_params_slice=self.static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-          geometry_provider=self.geometry_provider,
           input_state=new_input_state_should_not_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )
@@ -249,9 +239,6 @@ class SawtoothModelTest(parameterized.TestCase):
 
     with self.subTest('crashes_if_sawtooth_crash_is_false'):
       output_state_should_crash, _, sim_error = self.step_fn(
-          static_runtime_params_slice=self.static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-          geometry_provider=self.geometry_provider,
           input_state=new_input_state_should_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )

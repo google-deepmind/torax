@@ -29,6 +29,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
 
@@ -72,6 +73,7 @@ def _get_initial_state(
       dynamic_runtime_params_slice,
       geo,
       step_fn.solver.source_models,
+      step_fn.solver.neoclassical_models,
   )
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -82,19 +84,30 @@ def _get_initial_state(
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=step_fn.solver.source_models,
+      neoclassical_models=step_fn.solver.neoclassical_models,
       conductivity=conductivity_base.Conductivity(
           sigma=initial_core_profiles.sigma,
           sigma_face=initial_core_profiles.sigma_face,
       ),
   )
 
+  transport_coeffs = (
+      transport_coefficients_builder.calculate_total_transport_coeffs(
+          step_fn.solver.pedestal_model,
+          step_fn.solver.transport_model,
+          step_fn.solver.neoclassical_models,
+          dynamic_runtime_params_slice,
+          geo,
+          initial_core_profiles,
+      )
+  )
+
   return sim_state.ToraxSimState(
       t=np.array(dynamic_runtime_params_slice.numerics.t_initial),
       dt=np.zeros(()),
       core_profiles=initial_core_profiles,
-      # This will be overridden within run_simulation().
       core_sources=initial_core_sources,
-      core_transport=state.CoreTransport.zeros(geo),
+      core_transport=transport_coeffs,
       solver_numeric_outputs=state.SolverNumericOutputs(
           solver_error_state=0,
           outer_solver_iterations=0,

@@ -19,18 +19,21 @@ A simple model assuming prescribed transport.
 TODO(b/323504363): For the next major release (v2), the name of this model should be updated
 to PrescribedTransportModel.
 """
-import chex
+import dataclasses
+
+import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
@@ -43,7 +46,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   V_e: array_typing.ArrayFloat
 
 
-class ConstantTransportModel(transport_model.TransportModel):
+class ConstantTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def __init__(self):
@@ -57,7 +60,7 @@ class ConstantTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the Constant model.
 
     Args:
@@ -80,7 +83,7 @@ class ConstantTransportModel(transport_model.TransportModel):
 
     assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
 
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=transport_dynamic_runtime_params.chi_i,
         chi_face_el=transport_dynamic_runtime_params.chi_e,
         d_face_el=transport_dynamic_runtime_params.D_e,

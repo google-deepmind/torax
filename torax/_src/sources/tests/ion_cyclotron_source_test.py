@@ -168,9 +168,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     config = default_configs.get_default_config_dict()
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models(
-        neoclassical=torax_config.neoclassical
-    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.standard_sources[
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ]
@@ -191,6 +190,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
+        neoclassical_models=neoclassical_models,
     )
     ion_and_el = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

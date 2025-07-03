@@ -13,8 +13,11 @@
 # limitations under the License.
 
 """The LinearThetaMethod solver class."""
+import functools
+
 import jax
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
@@ -28,6 +31,14 @@ from torax._src.sources import source_profiles
 class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
+  @functools.partial(
+      xnp.jit,
+      static_argnames=[
+          'self',
+          'static_runtime_params_slice',
+          'evolving_names',
+      ],
+  )
   def _x_new(
       self,
       dt: jax.Array,
@@ -38,8 +49,6 @@ class LinearThetaMethod(solver_lib.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      core_sources_t: source_profiles.SourceProfiles,
-      core_transport_t: state.CoreTransport,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -47,9 +56,6 @@ class LinearThetaMethod(solver_lib.Solver):
       state.SolverNumericOutputs,
   ]:
     """See Solver._x_new docstring."""
-
-    # Not used in this implementation.
-    del core_sources_t, core_transport_t
 
     x_old = convertors.core_profiles_to_solver_x_tuple(
         core_profiles_t, evolving_names
@@ -63,6 +69,7 @@ class LinearThetaMethod(solver_lib.Solver):
         transport_model=self.transport_model,
         source_models=self.source_models,
         pedestal_model=self.pedestal_model,
+        neoclassical_models=self.neoclassical_models,
         evolving_names=evolving_names,
     )
 

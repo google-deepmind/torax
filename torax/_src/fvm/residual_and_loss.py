@@ -37,6 +37,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
+from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
@@ -196,6 +197,7 @@ def theta_method_matrix_equation(
         'source_models',
         'evolving_names',
         'pedestal_model',
+        'neoclassical_models',
     ],
 )
 def theta_method_block_residual(
@@ -209,6 +211,7 @@ def theta_method_block_residual(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_model: pedestal_model_lib.PedestalModel,
@@ -239,6 +242,8 @@ def theta_method_block_residual(
       sources in the PDE.
     source_models: Collection of source callables to generate source PDE
       coefficients.
+    neoclassical_models: Collection of neoclassical models for calculating
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -274,6 +279,7 @@ def theta_method_block_residual(
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       evolving_names=evolving_names,
       use_pereverzev=False,
       pedestal_model=pedestal_model,
@@ -305,9 +311,10 @@ def theta_method_block_residual(
         'source_models',
         'evolving_names',
         'pedestal_model',
+        'neoclassical_models',
     ],
 )
-def theta_method_block_jacobian(*args, **kwargs):
+def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-function-docstring
   return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
 
 
@@ -319,6 +326,7 @@ def theta_method_block_jacobian(*args, **kwargs):
         'source_models',
         'evolving_names',
         'pedestal_model',
+        'neoclassical_models',
     ],
 )
 def theta_method_block_loss(
@@ -332,6 +340,7 @@ def theta_method_block_loss(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_model: pedestal_model_lib.PedestalModel,
@@ -362,6 +371,8 @@ def theta_method_block_loss(
       sources in the PDE
     source_models: Collection of source callables to generate source PDE
       coefficients.
+    neoclassical_models: Collection of neoclassical models for calculating
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -382,6 +393,7 @@ def theta_method_block_loss(
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_model=pedestal_model,
@@ -398,6 +410,7 @@ def theta_method_block_loss(
         'source_models',
         'evolving_names',
         'pedestal_model',
+        'neoclassical_models',
     ],
 )
 def jaxopt_solver(
@@ -412,6 +425,7 @@ def jaxopt_solver(
     pedestal_model: pedestal_model_lib.PedestalModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     maxiter: int,
@@ -444,6 +458,8 @@ def jaxopt_solver(
       sources in the PDE.
     source_models: Collection of source callables to generate source PDE
       coefficients.
+    neoclassical_models: Collection of neoclassical models for calculating
+      conductivity, bootstrap current and neoclassical_transport.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -467,6 +483,7 @@ def jaxopt_solver(
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_model=pedestal_model,

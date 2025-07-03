@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """The BohmGyroBohmModel class."""
-import chex
+import dataclasses
+
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
@@ -22,11 +24,12 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
@@ -43,7 +46,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   chi_i_gyrobohm_multiplier: array_typing.ScalarFloat
 
 
-class BohmGyroBohmTransportModel(transport_model.TransportModel):
+class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
 
   def __init__(
@@ -59,7 +62,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the BohmGyroBohm model.
 
     We use the implementation from Tholerus et al, Section 3.3.
@@ -175,7 +178,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
     # Electron convectivity set proportional to the electron diffusivity
     v_face_el = transport_dynamic_runtime_params.V_face_coeff * d_face_el
 
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_i,
         chi_face_el=chi_e,
         d_face_el=d_face_el,

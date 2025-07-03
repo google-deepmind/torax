@@ -17,7 +17,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
@@ -70,8 +69,7 @@ class SourceProfilesTest(parameterized.TestCase):
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )
-    neoclassical = neoclassical_pydantic_model.Neoclassical.from_dict({})
-    source_models = sources.build_models(neoclassical=neoclassical)
+    source_models = sources.build_models()
 
     # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or

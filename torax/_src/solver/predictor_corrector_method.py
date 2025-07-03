@@ -18,9 +18,11 @@ Picard iterations to approximate the nonlinear solution. If
 static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
+import functools
+
 import jax
-from torax._src import jax_utils
 from torax._src import state
+from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -30,6 +32,13 @@ from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
 
 
+@functools.partial(
+    xnp.jit,
+    static_argnames=[
+        'static_runtime_params_slice',
+        'coeffs_callback',
+    ],
+)
 def predictor_corrector_method(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -97,13 +106,8 @@ def predictor_corrector_method(
         ),
     )
 
-  # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
-  # compilation and revert to a standard for loop if
-  # TORAX_COMPILATION_ENABLED=False. This logic is in jax.utils_py_fori_loop.
-  # If the static use_predictor_corrector=False, then compilation is faster, so
-  # we maintain this option.
   if static_runtime_params_slice.solver.use_predictor_corrector:
-    x_new = jax_utils.py_fori_loop(
+    x_new = xnp.fori_loop(
         0,
         dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps + 1,
         loop_body,

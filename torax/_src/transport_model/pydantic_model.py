@@ -341,10 +341,8 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 
 
 try:
-  # pylint: disable=g-import-not-at-top
-  from torax._src.transport_model import qualikiz_transport_model
+  from torax._src.transport_model import qualikiz_transport_model  # pylint: disable=g-import-not-at-top
 
-  # pylint: enable=g-import-not-at-top
   # Since CombinedCompatibleTransportModel is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.

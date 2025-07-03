@@ -92,7 +92,7 @@ class PydanticModelTest(parameterized.TestCase):
             'mode': 'ZERO',  # turn it off.
         },
     })
-    source_models = sources.build_models(neoclassical=self.neoclassical)
+    source_models = sources.build_models()
     # The non-standard ones are still off.
     self.assertEqual(
         sources.generic_current.mode,
@@ -134,7 +134,7 @@ class PydanticModelTest(parameterized.TestCase):
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-    source_models = sources.build_models(neoclassical=self.neoclassical)
+    source_models = sources.build_models()
     self.assertLen(source_models.standard_sources, 1)
 
   def test_adding_a_source_with_prescribed_values(self):

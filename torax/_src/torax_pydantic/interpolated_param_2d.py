@@ -25,7 +25,7 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
-from typing_extensions import Annotated, Self
+import typing_extensions
 import xarray as xr
 
 ValueType: TypeAlias = dict[
@@ -42,8 +42,8 @@ class Grid1D(model_base.BaseModelFrozen):
     dx: Distance between cell centers.
   """
 
-  nx: Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
-  dx: Annotated[pydantic.PositiveFloat, model_base.JAX_STATIC]
+  nx: typing_extensions.Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
+  dx: typing_extensions.Annotated[pydantic.PositiveFloat, model_base.JAX_STATIC]
 
   @property
   def face_centers(self) -> np.ndarray:
@@ -55,7 +55,7 @@ class Grid1D(model_base.BaseModelFrozen):
     """Coordinates of cell centers."""
     return _get_cell_centers(nx=self.nx, dx=self.dx)
 
-  def __eq__(self, other: Self) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:
     return self.nx == other.nx and self.dx == other.dx
 
   def __hash__(self) -> int:
@@ -131,7 +131,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       case _:
         raise ValueError(f'Unknown grid type: {grid_type}')
 
-  def __eq__(self, other: Self):
+  def __eq__(self, other: typing_extensions.Self):
     try:
       chex.assert_trees_all_equal(self.value, other.value)
       return (
@@ -283,7 +283,7 @@ def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
   return array
 
 
-PositiveTimeVaryingArray = Annotated[
+PositiveTimeVaryingArray = typing_extensions.Annotated[
     TimeVaryingArray, pydantic.AfterValidator(_is_positive)
 ]
 

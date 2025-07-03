@@ -14,7 +14,7 @@
 from unittest import mock
 
 from absl.testing import absltest
-import jax.numpy as jnp
+import numpy as np
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
@@ -43,23 +43,23 @@ class SauterTest(absltest.TestCase):
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         T_i=cell_variable.CellVariable(
-            value=jnp.linspace(400, 700, n_rho), dr=geo.drho_norm
+            value=np.linspace(400, 700, n_rho), dr=geo.drho_norm
         ),
         T_e=cell_variable.CellVariable(
-            value=jnp.linspace(4000, 7000, n_rho), dr=geo.drho_norm
+            value=np.linspace(4000, 7000, n_rho), dr=geo.drho_norm
         ),
         psi=cell_variable.CellVariable(
-            value=jnp.linspace(9000, 4000, n_rho), dr=geo.drho_norm
+            value=np.linspace(9000, 4000, n_rho), dr=geo.drho_norm
         ),
         n_e=cell_variable.CellVariable(
-            value=jnp.linspace(100, 200, n_rho), dr=geo.drho_norm
+            value=np.linspace(100, 200, n_rho), dr=geo.drho_norm
         ),
         n_i=cell_variable.CellVariable(
-            value=jnp.linspace(100, 200, n_rho), dr=geo.drho_norm
+            value=np.linspace(100, 200, n_rho), dr=geo.drho_norm
         ),
-        Z_i_face=jnp.linspace(1000, 2000, n_rho + 1),
-        Z_eff_face=jnp.linspace(1.0, 1.0, n_rho + 1),
-        q_face=jnp.linspace(1, 5, n_rho + 1),
+        Z_i_face=np.linspace(1000, 2000, n_rho + 1),
+        Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
+        q_face=np.linspace(1, 5, n_rho + 1),
     )
 
     model = sauter.SauterModel()
@@ -72,5 +72,5 @@ class SauterTest(absltest.TestCase):
     self.assertEqual(result.j_bootstrap_face.shape, (n_rho + 1,))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()

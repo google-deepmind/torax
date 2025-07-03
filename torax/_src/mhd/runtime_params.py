@@ -14,11 +14,14 @@
 
 """Container for MHD model dynamic runtime params."""
 
-import chex
+import dataclasses
+
+import jax
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicMHDParams:
   """Container for dynamic parameters of all configured MHD models."""
 

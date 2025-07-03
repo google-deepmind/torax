@@ -13,12 +13,14 @@
 # limitations under the License.
 
 """Dynamic runtime params for sawtooth model."""
+import dataclasses
 
-import chex
+import jax
 from torax._src import array_typing
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class TriggerDynamicRuntimeParams:
   """Dynamic runtime params for trigger models.
 
@@ -29,7 +31,8 @@ class TriggerDynamicRuntimeParams:
   minimum_radius: array_typing.ScalarFloat
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class RedistributionDynamicRuntimeParams:
   """Dynamic runtime params for redistribution models.
 
@@ -41,7 +44,8 @@ class RedistributionDynamicRuntimeParams:
   flattening_factor: array_typing.ScalarFloat
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Dynamic runtime params for sawtooth model.
 

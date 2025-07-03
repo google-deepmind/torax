@@ -36,6 +36,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params
+from torax._src.transport_model import transport_model as transport_model_lib
 
 constants = constants_module.CONSTANTS
 jax.config.update('jax_enable_x64', True)
@@ -52,9 +53,8 @@ def _get_model_and_model_inputs(
       'set_pedestal': True,
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models(
-      neoclassical=torax_config.neoclassical
-  )
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
@@ -71,6 +71,7 @@ def _get_model_and_model_inputs(
       static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
+      neoclassical_models=neoclassical_models,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
   pedestal_model_outputs = pedestal_model(
@@ -261,7 +262,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
+  ) -> transport_model_lib.TurbulentTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),

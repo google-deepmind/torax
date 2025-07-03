@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for quasilinear models."""
+import dataclasses
+
 import chex
 import jax
 from jax import numpy as jnp
@@ -20,11 +22,12 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class NormalizedLogarithmicGradients:
   """Normalized logarithmic gradients of plasma profiles.
 
@@ -146,7 +149,8 @@ def calculate_alpha(
   return alpha
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
@@ -178,7 +182,8 @@ def calculate_normalized_logarithmic_gradient(
   return result
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class QuasilinearInputs:
   """Variables required to convert outputs to TORAX CoreTransport outputs."""
 
@@ -194,7 +199,7 @@ class QuasilinearInputs:
   lref_over_lni1: chex.Array
 
 
-class QuasilinearTransportModel(transport_model.TransportModel):
+class QuasilinearTransportModel(transport_model_lib.TransportModel):
   """Base class for quasilinear models."""
 
   def _make_core_transport(
@@ -208,8 +213,8 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
       gradient_reference_length: chex.Numeric,
       gyrobohm_flux_reference_length: chex.Numeric,
-  ) -> state.CoreTransport:
-    """Converts model output to CoreTransport."""
+  ) -> transport_model_lib.TurbulentTransport:
+    """Converts model output to TurbulentTransport."""
     constants = constants_module.CONSTANTS
 
     # conversion to SI units (note that n is normalized here)
@@ -284,7 +289,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
         DV_effective_approach,
         Dscaled_approach,
     )
-    return state.CoreTransport(
+    return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

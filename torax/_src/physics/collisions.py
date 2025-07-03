@@ -21,7 +21,10 @@ Functions:
       frequency normalized by bounce frequency.
     - fast_ion_fractional_heating_formula: Returns the fraction of heating that
       goes to the ions according to Stix 1975 analyticlal formulas.
-    - _calculate_lambda_ei: Calculates the Coulomb logarithm for electron-ion
+    - _calculate_log_lambda_ei: Calculates the Coulomb logarithm for
+    electron-ion
+      collisions.
+    - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
@@ -53,7 +56,7 @@ def coll_exchange(
     Qei_coeff: ion-electron collisional heat exchange coefficient.
   """
   # Calculate Coulomb logarithm
-  lambda_ei = _calculate_lambda_ei(
+  log_lambda_ei = calculate_log_lambda_ei(
       core_profiles.T_e.value, core_profiles.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
@@ -61,7 +64,7 @@ def coll_exchange(
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.T_e.value,
       core_profiles.n_e.value,
-      lambda_ei,
+      log_lambda_ei,
   )
   # pylint: disable=invalid-name
 
@@ -98,7 +101,7 @@ def calc_nu_star(
   """
 
   # Calculate Coulomb logarithm
-  lambda_ei_face = _calculate_lambda_ei(
+  log_lambda_ei_face = calculate_log_lambda_ei(
       core_profiles.T_e.face_value(),
       core_profiles.n_e.face_value(),
   )
@@ -107,7 +110,7 @@ def calc_nu_star(
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.T_e.face_value(),
       core_profiles.n_e.face_value(),
-      lambda_ei_face,
+      log_lambda_ei_face,
   )
 
   nu_e = (
@@ -179,7 +182,7 @@ def fast_ion_fractional_heating_formula(
   return frac_i
 
 
-def _calculate_lambda_ei(
+def calculate_log_lambda_ei(
     T_e: jax.Array,
     n_e: jax.Array,
 ) -> jax.Array:
@@ -194,7 +197,31 @@ def _calculate_lambda_ei(
   Returns:
     Coulomb logarithm.
   """
-  return 15.2 - 0.5 * jnp.log(n_e / 1e20) + jnp.log(T_e)
+  # Rescale T_e to eV for specific form of formula.
+  T_e_ev = T_e * 1e3
+  return 31.3 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
+
+
+def calculate_log_lambda_ii(
+    T_i: jax.Array,
+    n_i: jax.Array,
+    Z_i: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for ion-ion collisions.
+
+  Formula 18e in Sauter PoP 1999. See also NRL formulary 2013, page 34.
+
+  Args:
+    T_i: Electron temperature in keV.
+    n_i: Electron density in m^-3.
+    Z_i: Ion charge [dimensionless].
+
+  Returns:
+    Coulomb logarithm.
+  """
+  # Rescale T_i to eV for specific form of formula.
+  T_i_ev = T_i * 1e3
+  return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -213,7 +240,7 @@ def _calculate_weighted_Z_eff(
 def _calculate_log_tau_e_Z1(
     T_e: jax.Array,
     n_e: jax.Array,
-    lambda_ei: jax.Array,
+    log_lambda_ei: jax.Array,
 ) -> jax.Array:
   """Calculates log of electron-ion collision time for Z=1 plasma.
 
@@ -223,13 +250,13 @@ def _calculate_log_tau_e_Z1(
   Args:
     T_e: Electron temperature in keV.
     n_e: Electron density in m^-3.
-    lambda_ei: Coulomb logarithm.
+    log_lambda_ei: Coulomb logarithm.
 
   Returns:
     Log of electron-ion collision time.
   """
   return (
-      jnp.log(12 * jnp.pi**1.5 / (n_e * lambda_ei))
+      jnp.log(12 * jnp.pi**1.5 / (n_e * log_lambda_ei))
       - 4 * jnp.log(constants.CONSTANTS.qe)
       + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)

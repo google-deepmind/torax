@@ -18,7 +18,6 @@ from typing import Any
 
 import immutabledict
 import pydantic
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
 from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
@@ -220,13 +219,8 @@ class Sources(torax_pydantic.BaseModelFrozen):
 
     return self
 
-  def build_models(
-      self,
-      neoclassical: neoclassical_pydantic_model.Neoclassical,
-  ) -> source_models.SourceModels:
+  def build_models(self) -> source_models.SourceModels:
     """Builds and returns a container with instantiated source model objects."""
-    bootstrap_current = neoclassical.bootstrap_current.build_model()
-    conductivity = neoclassical.conductivity.build_model()
     standard_sources = {}
     for k, v in dict(self).items():
       # ei_exchange is handled separately above.
@@ -244,8 +238,6 @@ class Sources(torax_pydantic.BaseModelFrozen):
     # Qei is a special source that is not in standard_sources.
     # It has its own attribute in SourceModels.
     return source_models.SourceModels(
-        bootstrap_current=bootstrap_current,
-        conductivity=conductivity,
         qei_source=qei_source_model,
         standard_sources=immutabledict.immutabledict(standard_sources),
     )

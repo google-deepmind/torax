@@ -17,6 +17,7 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -38,7 +39,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 
 
 # pylint: disable=invalid-name
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 

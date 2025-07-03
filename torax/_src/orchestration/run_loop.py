@@ -23,7 +23,6 @@ import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
-from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -33,7 +32,6 @@ import tqdm
 def run_loop(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     restart_case: bool,
@@ -65,14 +63,6 @@ def run_loop(
       the runtime_params_slice module docstring for runtime_params_slice to
       understand why we need the dynamic and static config slices and what they
       control.
-    geometry_provider: Provides the magnetic geometry for each time step based
-      on the ToraxSimState at the start of the time step. The geometry may
-      change from time step to time step, so the sim needs a function to provide
-      which geometry to use for a given time step. A GeometryProvider is any
-      callable (class or function) which takes the ToraxSimState at the start of
-      a time step and returns the Geometry for that time step. For most use
-      cases, only the time will be relevant from the ToraxSimState (in order to
-      support time-dependent geometries).
     initial_state: The starting state of the simulation. This includes both the
       state variables which the solver.Solver will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
@@ -118,14 +108,6 @@ def run_loop(
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
 
-  dynamic_runtime_params_slice, _ = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=initial_state.t,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-          geometry_provider=geometry_provider,
-      )
-  )
-
   current_state = initial_state
   state_history = [current_state]
   post_processing_history = [initial_post_processed_outputs]
@@ -144,7 +126,7 @@ def run_loop(
     first_step = True if not restart_case else False
     while step_fn.time_step_calculator.not_done(
         current_state.t,
-        dynamic_runtime_params_slice.numerics.t_final,
+        dynamic_runtime_params_slice_provider.numerics.t_final,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
@@ -152,9 +134,6 @@ def run_loop(
         _log_timestep(current_state)
 
       current_state, post_processed_outputs, sim_error = step_fn(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider,
-          geometry_provider,
           current_state,
           post_processing_history[-1],
       )
@@ -185,10 +164,10 @@ def run_loop(
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
             float(current_state.t)
-            - dynamic_runtime_params_slice.numerics.t_initial
+            - dynamic_runtime_params_slice_provider.numerics.t_initial
         ) / (
-            dynamic_runtime_params_slice.numerics.t_final
-            - dynamic_runtime_params_slice.numerics.t_initial
+            dynamic_runtime_params_slice_provider.numerics.t_final
+            - dynamic_runtime_params_slice_provider.numerics.t_initial
         )
         pbar.n = int(progress_ratio * pbar.total)
         pbar.set_description(f'Simulating (t={current_state.t:.5f})')
