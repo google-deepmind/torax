@@ -16,10 +16,12 @@ import random
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import interpolated_param
+from torax._src import jax_utils
 import xarray as xr
 
 
@@ -173,8 +175,8 @@ class InterpolatedParamTest(parameterized.TestCase):
     )
 
   @parameterized.parameters(
-      (interpolated_param.PiecewiseLinearInterpolatedParam,),
-      (interpolated_param.StepInterpolatedParam,),
+      (interpolated_param._PiecewiseLinearInterpolatedParam,),
+      (interpolated_param._StepInterpolatedParam,),
   )
   def test_interpolated_param_1d_xs_and_1d_or_2d_ys(self, range_class):
     """Tests that the interpolated_param only take 1D inputs."""
@@ -198,8 +200,8 @@ class InterpolatedParamTest(parameterized.TestCase):
       )
 
   @parameterized.parameters(
-      (interpolated_param.PiecewiseLinearInterpolatedParam,),
-      (interpolated_param.StepInterpolatedParam,),
+      (interpolated_param._PiecewiseLinearInterpolatedParam,),
+      (interpolated_param._StepInterpolatedParam,),
   )
   def test_interpolated_param_need_xs_ys_same_shape(self, range_class):
     """Tests the xs and ys inputs have to have the same shape."""
@@ -214,19 +216,20 @@ class InterpolatedParamTest(parameterized.TestCase):
       )
 
   @parameterized.parameters(
-      (interpolated_param.PiecewiseLinearInterpolatedParam,),
-      (interpolated_param.StepInterpolatedParam,),
+      interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      interpolated_param.InterpolationMode.STEP,
   )
-  def test_interpolated_param_need_xs_to_be_sorted(self, range_class):
-    """Tests the xs inputs have to be sorted."""
-    range_class(
-        xs=jnp.array([1.0, 2.0, 3.0, 4.0]),
-        ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
-    )
+  def test_interpolated_param_is_invariant_to_xs_order(
+      self,
+      interpolation_mode: interpolated_param.InterpolationMode,
+  ):
     with self.assertRaises(RuntimeError):
-      range_class(
-          xs=jnp.array([4.0, 2.0, 1.0, 3.0]),
-          ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
+      interpolated_param.InterpolatedVarSingleAxis(
+          value=(
+              jnp.array([4.0, 2.0, 1.0, 3.0]),
+              jnp.array([4.0, 2.0, 1.0, 3.0]),
+          ),
+          interpolation_mode=interpolation_mode,
       )
 
   @parameterized.named_parameters(
@@ -493,19 +496,36 @@ class InterpolatedParamTest(parameterized.TestCase):
           interpolated_param.InterpolationMode.STEP,
       ],
   )
-  def test_interpolated_var_properties(
+  def test_interpolated_param_is_usable_under_jit(
       self,
       is_bool: bool,
       interpolation_mode: interpolated_param.InterpolationMode,
   ):
-    """Check the properties of the interpolated var are set correctly."""
     var = interpolated_param.InterpolatedVarSingleAxis(
         value=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
         is_bool_param=is_bool,
         interpolation_mode=interpolation_mode,
     )
-    self.assertEqual(var.is_bool_param, is_bool)
-    self.assertEqual(var.interpolation_mode, interpolation_mode)
+
+    @jax.jit
+    def f(x: interpolated_param.InterpolatedVarSingleAxis, t: chex.Numeric):
+      return x.get_value(x=t)
+
+    interpolated_output_jit = jax.jit(f)(var, 0.5)
+    with self.subTest('jit_and verified'):
+      interpolated_output = var.get_value(x=0.5)
+      np.testing.assert_allclose(interpolated_output_jit, interpolated_output)
+
+    with self.subTest('new_values_same_compile'):
+      var2 = interpolated_param.InterpolatedVarSingleAxis(
+          value=(np.array([0.0, 1.0]), np.array([1.0, 2.0])),
+          is_bool_param=is_bool,
+          interpolation_mode=interpolation_mode,
+      )
+      interpolated_output_jit = f(var2, 0.5)
+      interpolated_output = var2.get_value(x=0.5)
+      np.testing.assert_allclose(interpolated_output_jit, interpolated_output)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':
