@@ -125,7 +125,7 @@ class InterpolatedParamBase(abc.ABC):
     """Returns a value for this parameter interpolated at the given input."""
 
 
-class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
+class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
   def __init__(self, xs: chex.Array, ys: chex.Array):
@@ -147,10 +147,6 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
       )
     if ys.ndim not in (1, 2):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
-
-    xs_np = np.array(self.xs)
-    if not np.array_equal(np.sort(xs_np), xs_np):
-      raise RuntimeError('xs must be sorted.')
 
   @property
   def xs(self) -> chex.Array:
@@ -195,7 +191,7 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
 
-class StepInterpolatedParam(InterpolatedParamBase):
+class _StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
   def __init__(self, xs: chex.Array, ys: chex.Array):
@@ -210,8 +206,6 @@ class StepInterpolatedParam(InterpolatedParamBase):
           'xs and ys must have the same number of elements in the first '
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
-    if not jnp.allclose(jnp.sort(self.xs), self.xs):
-      raise RuntimeError('xs must be sorted.')
 
   @property
   def xs(self) -> chex.Array:
@@ -324,6 +318,7 @@ def convert_input_to_xs_ys(
     )
 
 
+@jax.tree_util.register_pytree_node_class
 class InterpolatedVarSingleAxis(InterpolatedParamBase):
   """Parameter that may vary based on an input coordinate.
 
@@ -363,8 +358,12 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       interpolation_mode: Defines how to interpolate between values in `value`.
       is_bool_param: If True, the input value is assumed to be a bool and is
         converted to a float.
+    Raises:
+      RuntimeError: If the input xs is not sorted.
     """
+    self._value = value
     xs, ys = value
+    jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
 
     if not np.issubdtype(xs.dtype, np.floating):
       raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
@@ -375,11 +374,22 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     self._interpolation_mode = interpolation_mode
     match interpolation_mode:
       case InterpolationMode.PIECEWISE_LINEAR:
-        self._param = PiecewiseLinearInterpolatedParam(xs=xs, ys=ys)
+        self._param = _PiecewiseLinearInterpolatedParam(xs=xs, ys=ys)
       case InterpolationMode.STEP:
-        self._param = StepInterpolatedParam(xs=xs, ys=ys)
+        self._param = _StepInterpolatedParam(xs=xs, ys=ys)
       case _:
         raise ValueError('Unknown interpolation mode.')
+
+  def tree_flatten(self):
+    static_params = {
+        'interpolation_mode': self.interpolation_mode,
+        'is_bool_param': self.is_bool_param,
+    }
+    return (self._value, static_params)
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    return cls(children, **aux_data)
 
   @property
   def is_bool_param(self) -> bool:
