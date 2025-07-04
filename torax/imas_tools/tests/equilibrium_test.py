@@ -60,40 +60,43 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     config_module = self._get_config_dict(config_name)
     geometry_directory = 'torax/data/third_party/geo'
     path = os.path.join(
-        geometry_directory, config_module.CONFIG['geometry']['imas_filepath']
+        geometry_directory, config_module['geometry']['imas_filepath']
     )
     equilibrium_in = imas_util.load_IMAS_data(path, 'equilibrium')
     # Build TORAXSimState object and write output to equilibrium IDS.
     # Improve resolution to compare the input without losing too much
     # information
-    config_module.CONFIG['geometry']['n_rho'] = len(
+    config_module['geometry']['n_rho'] = len(
         equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
     )
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = model_config.ToraxConfig.from_dict(config_module)
 
     (
         _,
         dynamic_runtime_params_slice_provider,
-        geometry_provider,
         initial_state,
+        initial_post_processed_outputs,
         _,
-        _,
-        _,
+        step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
 
-    dynamic_runtime_params_slice_for_init, _ = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=geometry_provider,
-        )
-    )
-    sim_state = post_processing.make_outputs(
-        sim_state=initial_state,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
-    )
+    # dynamic_runtime_params_slice_for_init, _ = (
+    #     build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    #         t=torax_config.numerics.t_initial,
+    #         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+    #         geometry_provider=step_fn.geometry_provider,
+    #     )
+    # )
+    # sim_state = post_processing.make_outputs(
+    #     sim_state=initial_state,
+    #     dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+    # )
+    sim_state = initial_state
 
-    equilibrium_out = imas_equilibrium.geometry_to_IMAS(sim_state)
+    equilibrium_out = imas_equilibrium.geometry_to_IMAS(
+      sim_state,
+      initial_post_processed_outputs
+    )
 
     rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
     rhon_in = equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
@@ -153,8 +156,8 @@ class EquilibriumTest(sim_test_case.SimTestCase):
       ):
         try:
           np.testing.assert_allclose(
-              geo_IMAS[key],
-              geo_CHEASE[key],
+              geo_IMAS.__dict__[key],
+              geo_CHEASE.__dict__[key],
               rtol=rtol,
               atol=atol,
               verbose=True,
