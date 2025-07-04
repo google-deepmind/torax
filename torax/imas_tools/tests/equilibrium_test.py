@@ -1,0 +1,173 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Unit tests for torax.imas_tools.equilibrium.py"""
+
+import importlib
+import os
+from typing import Any, Optional
+
+from absl.testing import absltest
+from absl.testing import parameterized
+import imas
+from imas.ids_toplevel import IDSToplevel
+import numpy as np
+import pytest
+from torax._src.config import build_runtime_params
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.orchestration import run_simulation
+from torax._src.output_tools import post_processing
+from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import model_config
+from torax.imas_tools import equilibrium as imas_equilibrium
+from torax.imas_tools import util as imas_util
+
+
+class EquilibriumTest(sim_test_case.SimTestCase):
+  """Unit tests for the `toraximastools.equilibrium` module."""
+
+  @parameterized.parameters([
+      dict(
+          config_name='test_iterhybrid_predictor_corrector_imas.py',
+          rtol=0.02,
+          atol=1e-8,
+      ),
+  ])
+  def test_save_geometry_to_IMAS(
+      self,
+      config_name,
+      rtol: Optional[float] = None,
+      atol: Optional[float] = None,
+  ):
+    """Test that the default IMAS geometry can be built and converted back
+    to IDS."""
+    if rtol is None:
+      rtol = self.rtol
+    if atol is None:
+      atol = self.atol
+    # Input equilibrium reading
+    config_module = self._get_config_dict(config_name)
+    geometry_directory = 'torax/data/third_party/geo'
+    path = os.path.join(
+        geometry_directory, config_module['geometry']['imas_filepath']
+    )
+    equilibrium_in = imas_util.load_IMAS_data(path, 'equilibrium')
+    # Build TORAXSimState object and write output to equilibrium IDS.
+    # Improve resolution to compare the input without losing too much
+    # information
+    config_module['geometry']['n_rho'] = len(
+        equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
+    )
+    torax_config = model_config.ToraxConfig.from_dict(config_module)
+
+    (
+        _,
+        dynamic_runtime_params_slice_provider,
+        initial_state,
+        initial_post_processed_outputs,
+        _,
+        step_fn,
+    ) = run_simulation.prepare_simulation(torax_config)
+
+    # dynamic_runtime_params_slice_for_init, _ = (
+    #     build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    #         t=torax_config.numerics.t_initial,
+    #         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+    #         geometry_provider=step_fn.geometry_provider,
+    #     )
+    # )
+    # sim_state = post_processing.make_outputs(
+    #     sim_state=initial_state,
+    #     dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+    # )
+    sim_state = initial_state
+
+    equilibrium_out = imas_equilibrium.geometry_to_IMAS(
+      sim_state,
+      initial_post_processed_outputs
+    )
+
+    rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
+    rhon_in = equilibrium_in.time_slice[0].profiles_1d.rho_tor_norm
+    for attr1, attr2 in [
+        ('profiles_1d', 'pressure'),
+        ('profiles_1d', 'dpressure_dpsi'),
+        ('profiles_1d', 'f'),
+        ('profiles_1d', 'f_df_dpsi'),
+        ('profiles_1d', 'phi'),
+        ('profiles_1d', 'psi'),
+        ('profiles_1d', 'q'),
+        ('profiles_1d', 'gm2'),
+        ('profiles_1d', 'j_phi'),
+    ]:
+      # Compare the output IDS with the input one.
+      var_in = getattr(getattr(equilibrium_in.time_slice[0], attr1), attr2)
+      var_out = getattr(getattr(equilibrium_out.time_slice[0], attr1), attr2)
+      np.testing.assert_allclose(
+          np.interp(rhon_in, rhon_out, var_out),
+          var_in,
+          rtol=rtol,
+          atol=atol,
+          err_msg=f'{attr1} {attr2} failed',
+      )
+
+  @parameterized.parameters([
+      dict(rtol=0.02, atol=1e-8),
+  ])
+  def test_geometry_from_IMAS(
+      self,
+      rtol: Optional[float] = None,
+      atol: Optional[float] = None,
+  ):
+    """Test to compare the outputs of CHEASE and IMAS methods for the same
+    equilibrium."""
+    if rtol is None:
+      rtol = self.rtol
+    if atol is None:
+      atol = self.atol
+
+    # Loading the equilibrium and constructing geometry object
+    config = geometry_pydantic_model.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc', Ip_from_parameters=True
+    )
+    geo_IMAS = config.build_geometry()
+
+    geo_CHEASE = geometry_pydantic_model.CheaseConfig().build_geometry()
+
+    # Comparison of the fields
+    diverging_fields = []
+    for key in geo_IMAS.__dict__.keys():
+      if (
+          key != 'geometry_type'
+          and key != 'Ip_from_parameters'
+          and key != 'torax_mesh'
+          and key != '_z_magnetic_axis'
+      ):
+        try:
+          np.testing.assert_allclose(
+              geo_IMAS.__dict__[key],
+              geo_CHEASE.__dict__[key],
+              rtol=rtol,
+              atol=atol,
+              verbose=True,
+              err_msg=f'Value {key} failed',
+          )
+        except AssertionError:
+          diverging_fields.append(key)
+    if diverging_fields:
+      raise AssertionError(f'Diverging profiles: {diverging_fields}')
+
+
+if __name__ == '__main__':
+  absltest.main()

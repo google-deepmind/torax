@@ -101,7 +101,6 @@ def prepare_simulation(
       geometry_provider=geometry_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
   )
-
   if torax_config.restart and torax_config.restart.do_restart:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
@@ -142,7 +141,6 @@ def run_simulation(
     progress_bar: bool = True,
 ) -> tuple[xr.DataTree, output.StateHistory]:
   """Runs a TORAX simulation using the config and returns the outputs.
-
   Args:
     torax_config: The TORAX config to use for the simulation.
     log_timestep_info: Whether to log the timestep information.

@@ -285,6 +285,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_implicit_short_optimizer',
           'test_implicit_short_optimizer.py',
       ),
+      # Tests full integration for ITER-hybrid-like config with IMAS geometry.
+      (
+          'test_iterhybrid_predictor_corrector_imas',
+          'test_iterhybrid_predictor_corrector_imas.py',
+      ),
   )
   def test_run_simulation(
       self,
