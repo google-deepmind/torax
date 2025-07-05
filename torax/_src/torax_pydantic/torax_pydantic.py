@@ -14,9 +14,9 @@
 
 """Pydantic utilities and base classes."""
 
+import copy
 import functools
-from typing import TypeAlias
-
+from typing import Any, Callable, TypeAlias
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
@@ -64,3 +64,32 @@ ValidatedDefault = functools.partial(pydantic.Field, validate_default=True)
 
 Grid1D = interpolated_param_2d.Grid1D
 set_grid = interpolated_param_2d.set_grid
+
+
+def create_default_model_injector(
+    discriminator_name: str, model_name: str
+) -> Callable[[Any], Any]:
+  """A factory that creates a Pydantic `BeforeValidator` function.
+
+  The returned validator is designed for discriminated unions. It checks if the
+  input is a dictionary lacking a discriminator_name key. If so, it injects the
+  provided `model_name` into a copy of the dictionary as a default
+  discriminator_name,
+
+  Args:
+    discriminator_name: The discriminator string.
+    model_name: The default string to inject into the discriminator_name key.
+
+  Returns:
+    A validator function suitable for use with `pydantic.BeforeValidator`.
+  """
+
+  def validator(v: Any) -> Any:
+    if isinstance(v, dict) and discriminator_name not in v:
+      # Work on a copy to avoid mutating the original input dict
+      v_copy = copy.deepcopy(v)
+      v_copy[discriminator_name] = model_name
+      return v_copy
+    return v
+
+  return validator
