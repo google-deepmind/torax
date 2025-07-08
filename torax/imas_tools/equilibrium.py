@@ -93,7 +93,7 @@ def geometry_from_IMAS(
     )
   IMAS_data = equilibrium.time_slice[0]
   B_0 = np.abs(
-      equilibrium.vacuum_toroidal_field.b0[0]
+      IMAS_data.global_quantities.magnetic_axis.b_field_phi
   )  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
   R_major = np.asarray(
       equilibrium.vacuum_toroidal_field.r0
@@ -273,16 +273,16 @@ def geometry_to_IMAS(
   eq.profiles_1d.dpsi_drho_tor = dpsidrhotor
   eq.profiles_1d.gm1 = geometry.g3_face
   # gm7 = <\nabla V> / (dV/drhotor)
-  gm7 = geometry.g0_face / (dvoldpsi * dpsidrhotor)
-  gm7.at[0].set(1)
+  gm7 = np.array(geometry.g0_face / (dvoldpsi * dpsidrhotor))
+  gm7[0] = 1
   eq.profiles_1d.gm7 = gm7
   # gm3 = <(\nabla V)**2>/(dV/drhotor)**2
-  gm3 = geometry.g1_face / (dpsidrhotor**2 * dvoldpsi**2)
-  gm3.at[0].set(1)
+  gm3 = np.array(geometry.g1_face / (dpsidrhotor**2 * dvoldpsi**2))
+  gm3[0] = 1
   eq.profiles_1d.gm3 = gm3
   # gm2 = <(\nabla V)**2/R**2>/(dV/drhotor)**2
-  gm2 = geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2)
-  gm2.at[0].set(1 / (geometry.R_major**2))
+  gm2 = np.array(geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2))
+  gm2[0] = 1 / (geometry.R_major**2)
   eq.profiles_1d.gm2 = geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2)
 
   # Quantities computed by the transport code useful for coupling with
