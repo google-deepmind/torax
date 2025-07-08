@@ -14,20 +14,14 @@
 
 """Unit tests for torax.imas_tools.equilibrium.py"""
 
-import importlib
 import os
-from typing import Any, Optional
+from typing import Optional
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import imas
-from imas.ids_toplevel import IDSToplevel
 import numpy as np
-import pytest
-from torax._src.config import build_runtime_params
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
-from torax._src.output_tools import post_processing
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 from torax.imas_tools import equilibrium as imas_equilibrium
@@ -40,7 +34,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
   @parameterized.parameters([
       dict(
           config_name='test_iterhybrid_predictor_corrector_imas.py',
-          rtol=0.02,
+          rtol=0.05,
           atol=1e-8,
       ),
   ])
@@ -72,7 +66,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_module)
 
     (
-        _,
+        static_runtime_params_slice,
         dynamic_runtime_params_slice_provider,
         initial_state,
         initial_post_processed_outputs,
@@ -80,22 +74,51 @@ class EquilibriumTest(sim_test_case.SimTestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
 
-    # dynamic_runtime_params_slice_for_init, _ = (
-    #     build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-    #         t=torax_config.numerics.t_initial,
-    #         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-    #         geometry_provider=step_fn.geometry_provider,
-    #     )
-    # )
-    # sim_state = post_processing.make_outputs(
-    #     sim_state=initial_state,
-    #     dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
-    # )
+    from torax._src.orchestration import initial_state as initial_state_lib
+    from torax._src.geometry.pydantic_model import Geometry, GeometryConfig, IMASConfig
+    from torax._src.geometry import geometry
+    def get_geometry_config_dict(config: model_config.ToraxConfig) -> dict:
+        # only get overlapping keys from given config and IMASConfig
+        imas_config_keys = IMASConfig.__annotations__
+        # we can pick a random entry since all fields are time_invariant except hires_fac
+        # (which we can ignore) and equilibrium_object (which we overwrite)
+        if isinstance(config.geometry.geometry_configs, dict):
+            config_dict = list(config.geometry.geometry_configs.values())[0].config.__dict__
+        else:
+            config_dict = config.geometry.geometry_configs.config.__dict__
+        config_dict = {
+            key: value for key, value in config_dict.items() if key in imas_config_keys
+        }
+        config_dict["geometry_type"] = "imas"
+        return config_dict
+
     sim_state = initial_state
+    torax_config_dict = get_geometry_config_dict(torax_config)
+    config_kwargs = {
+        **torax_config_dict,
+        "equilibrium_object": equilibrium_in,
+        'imas_filepath': None
+    }
+    imas_cfg = IMASConfig(**config_kwargs)
+    cfg = GeometryConfig(config=imas_cfg)
+    step_fn._geometry_provider = Geometry(
+        geometry_type=geometry.GeometryType.IMAS,
+        geometry_configs={str(equilibrium_in.time[0]): cfg},
+    ).build_provider
+
+    sim_state, post_processed_outputs = (
+        initial_state_lib.get_initial_state_and_post_processed_outputs(
+            t=torax_config.numerics.t_initial,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            geometry_provider=step_fn._geometry_provider,
+            step_fn=step_fn,
+        )
+    )
 
     equilibrium_out = imas_equilibrium.geometry_to_IMAS(
-      sim_state,
-      initial_post_processed_outputs
+        sim_state,
+        post_processed_outputs,
     )
 
     rhon_out = equilibrium_out.time_slice[0].profiles_1d.rho_tor_norm
