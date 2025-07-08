@@ -165,20 +165,20 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         will be raised if this is not the case.
     """
 
+    old_mesh = self.geometry.build_provider.torax_mesh
     self._update_fields(x)
+    new_mesh = self.geometry.build_provider.torax_mesh
 
-    mesh = self.geometry.build_provider.torax_mesh
-    if _is_nrho_updated(x):
-      # Clear the cached properties of all submodels, as the n_rho may have
-      # changed. Also force the grid to be set, as the grid is dependent on the
-      # n_rho.
+    if old_mesh != new_mesh:
+      # The grid has changed, e.g. due to a new n_rho.
+      # Clear the cached properties of all submodels and update the grid.
       for model in self.submodels:
         model.clear_cached_properties()
-      torax_pydantic.set_grid(self, mesh, mode='force')
+      torax_pydantic.set_grid(self, new_mesh, mode='force')
     else:
       # Update the grid on any new models which are added and have not had their
       # grid set yet.
-      torax_pydantic.set_grid(self, mesh, mode='relaxed')
+      torax_pydantic.set_grid(self, new_mesh, mode='relaxed')
 
   @pydantic.model_validator(mode='after')
   def _set_grid(self) -> Self:
@@ -206,11 +206,3 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       if 'torax_version' in data:
         data = {k: v for k, v in data.items() if k != 'torax_version'}
     return data
-
-
-def _is_nrho_updated(x: Mapping[str, Any]) -> bool:
-  for path in x.keys():
-    chunks = path.split('.')
-    if chunks[-1] == 'n_rho' and chunks[0] == 'geometry':
-      return True
-  return False
