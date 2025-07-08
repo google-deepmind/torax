@@ -177,9 +177,6 @@ def geometry_from_IMAS(
   # To check
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
-  print('IN')
-  print(IMAS_data.profiles_1d.dpressure_dpsi[:4])
-
   return {
       "Ip_from_parameters": Ip_from_parameters,
       "R_major": R_major,
@@ -283,7 +280,7 @@ def geometry_to_IMAS(
   # gm2 = <(\nabla V)**2/R**2>/(dV/drhotor)**2
   gm2 = np.array(geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2))
   gm2[0] = 1 / (geometry.R_major**2)
-  eq.profiles_1d.gm2 = geometry.g2_face / (dpsidrhotor**2 * dvoldpsi**2)
+  eq.profiles_1d.gm2 = gm2
 
   # Quantities computed by the transport code useful for coupling with
   # equilibrium code
@@ -305,6 +302,4 @@ def geometry_to_IMAS(
     eq.boundary.outline.r = equilibrium_in.time_slice[0].boundary.outline.r
     eq.boundary.outline.z = equilibrium_in.time_slice[0].boundary.outline.z
 
-  print('OUT')
-  print(eq.profiles_1d.dpressure_dpsi[:4])
   return equilibrium
