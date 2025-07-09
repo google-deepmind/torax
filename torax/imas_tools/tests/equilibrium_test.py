@@ -16,10 +16,12 @@
 
 import os
 from typing import Optional
+from unittest.mock import patch
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import torax
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry.pydantic_model import Geometry
@@ -180,6 +182,37 @@ class EquilibriumTest(sim_test_case.SimTestCase):
           diverging_fields.append(key)
     if diverging_fields:
       raise AssertionError(f'Diverging profiles: {diverging_fields}')
+
+  @parameterized.parameters([
+      dict(input_mode='imas_filepath'),
+      dict(input_mode='imas_uri'),
+      dict(input_mode='equilibrium_object'),
+  ])
+  def test_IMAS_input(self, input_mode: str):
+    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+    full_path = f'{torax.__path__[0]}/data/third_party/geo/{filename}'
+    kwargs = {}
+    if input_mode == 'imas_filepath':
+      kwargs['imas_filepath'] = full_path
+      config = geometry_pydantic_model.IMASConfig(**kwargs)
+      config.build_geometry()
+    elif input_mode == 'imas_uri':
+      # imas_core not available for CI so just check if loader is called
+      with patch('torax.imas_tools.util.load_IMAS_data') as mocked_method:
+        kwargs['imas_uri'] = f'imas:hdf5?path={full_path}'
+        try:
+          config = geometry_pydantic_model.IMASConfig(**kwargs)
+          config.build_geometry()
+        except:
+          pass
+        self.assertTrue(mocked_method.called, 'mocked method not called')
+    elif input_mode == 'equilibrium_object':
+      equilibrium_in = imas_util.load_IMAS_data(full_path, 'equilibrium')
+      kwargs['equilibrium_object'] = equilibrium_in
+      config = geometry_pydantic_model.IMASConfig(**kwargs)
+      config.build_geometry()
+    else:
+      raise ValueError('input_mode should be one of the viable modes.')
 
 
 def get_geometry_config_dict(config: model_config.ToraxConfig) -> dict:
