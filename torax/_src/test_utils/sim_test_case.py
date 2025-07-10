@@ -23,6 +23,7 @@ import chex
 import numpy as np
 from torax._src import constants
 from torax._src import simulation_app
+from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
@@ -206,10 +207,11 @@ class SimTestCase(parameterized.TestCase):
       atol = _ATOL
 
     torax_config = self._get_torax_config(config_name)
-    output_xr, _ = run_simulation.run_simulation(
+    output_xr, state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False
     )
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
+    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
     if ref_name is None:
       ref_name = f'{config_name[:-3]}.nc'

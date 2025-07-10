@@ -50,10 +50,17 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 def _check_for_errors(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
+  if static_runtime_params_slice.numerics.adaptive_dt:
+    numerics = dynamic_runtime_params_slice.numerics
+    if output_state.solver_numeric_outputs.solver_error_state == 1:
+      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
+        return state.SimError.REACHED_MIN_DT
   state_error = output_state.check_for_errors()
   if state_error != state.SimError.NO_ERROR:
     return state_error
@@ -229,10 +236,15 @@ class SimulationStepFn:
       # If a sawtooth crash was carried out, we exit early with the post-crash
       # state, post-processed outputs, and the error state.
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = _check_for_errors(output_state, post_processed_outputs)
+        error_state = _check_for_errors(
+            self._static_runtime_params_slice,
+            dynamic_runtime_params_slice_t_plus_crash_dt,
+            output_state,
+            post_processed_outputs,
+        )
         return output_state, post_processed_outputs, error_state
 
-    dt = self.init_time_step_calculator(
+    dt = self.get_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state,
@@ -318,16 +330,21 @@ class SimulationStepFn:
     return (
         output_state,
         post_processed_outputs,
-        _check_for_errors(output_state, post_processed_outputs),
+        _check_for_errors(
+            self._static_runtime_params_slice,
+            dynamic_runtime_params_slice_t_plus_dt,
+            output_state,
+            post_processed_outputs,
+        ),
     )
 
-  def init_time_step_calculator(
+  def get_dt(
       self,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       input_state: sim_state.ToraxSimState,
   ) -> jax.Array:
-    """First phase: Initialize the solver state.
+    """Use the time step calculator to get the next time step duration.
 
     Args:
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
@@ -341,7 +358,6 @@ class SimulationStepFn:
     Returns:
       Time step duration (dt)
     """
-    # initialize new dt and reset solver iterations.
     dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
@@ -363,9 +379,6 @@ class SimulationStepFn:
         dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
         dt,
     )
-    if np.any(np.isnan(dt)):
-      raise ValueError('dt is NaN.')
-
     return dt
 
   def step(
@@ -464,8 +477,7 @@ class SimulationStepFn:
       solver_numeric_outputs: Solver-specific numeric outputs from the initial
         step.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t +
-        dt.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
       geo_t: The geometry of the torus during this time step of the simulation.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
         simulation.
@@ -496,11 +508,18 @@ class SimulationStepFn:
             geometry.Geometry,
         ],
     ) -> bool:
-      if updated_output[2].solver_error_state == 1:
-        do_dt_backtrack = True
-      else:
-        do_dt_backtrack = False
-      return do_dt_backtrack
+      _, dt, solver_outputs, slice_t, _ = updated_output
+
+      if jnp.any(jnp.isnan(dt)):
+        # Check if the dt is NaN to avoid an infinite loop.
+        return False
+      if (
+          solver_outputs.solver_error_state == 1
+          and dt / slice_t.numerics.dt_reduction_factor
+          > slice_t.numerics.min_dt
+      ):
+        return True
+      return False
 
     # Make a new step with a smaller dt, starting with the original core
     # profiles.
@@ -521,13 +540,8 @@ class SimulationStepFn:
         geometry.Geometry,
     ]:
       _, old_dt, old_solver_outputs, old_slice, _ = updated_output
-      numerics = old_slice.numerics
 
-      dt = old_dt / numerics.dt_reduction_factor
-      if jnp.any(jnp.isnan(dt)):
-        raise ValueError('dt is NaN.')
-      if dt < numerics.min_dt:
-        raise ValueError('dt below minimum timestep following adaptation')
+      dt = old_dt / old_slice.numerics.dt_reduction_factor
 
       # Calculate dynamic_runtime_params and geo at t + dt.
       # Update geos with phibdot.

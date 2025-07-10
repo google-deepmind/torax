@@ -238,6 +238,7 @@ class SimError(enum.Enum):
   NAN_DETECTED = 1
   QUASINEUTRALITY_BROKEN = 2
   NEGATIVE_CORE_PROFILES = 3
+  REACHED_MIN_DT = 4
 
   def log_error(self):
     match self:
@@ -255,6 +256,10 @@ class SimError(enum.Enum):
             Simulation stopped due to quasineutrality being violated.
             Possible cause is bad handling of impurity species.
             Output file contains all profiles up to the last valid step.
+            """)
+      case SimError.REACHED_MIN_DT:
+        logging.error("""
+            Simulation stopped because the adaptive time step became too small.
             """)
       case SimError.NO_ERROR:
         pass
