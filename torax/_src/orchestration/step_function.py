@@ -202,45 +202,14 @@ class SimulationStepFn:
     if (self.mhd_models.sawtooth is not None) and (
         not input_state.solver_numeric_outputs.sawtooth_crash
     ):
-      assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
-      dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
-
-      (
-          dynamic_runtime_params_slice_t_plus_crash_dt,
+      output_state, post_processed_outputs, error_state = self._sawtooth_step(
+          dynamic_runtime_params_slice_t,
           geo_t,
-          geo_t_plus_crash_dt,
-      ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-          input_state.t,
-          dt_crash,
-          self._static_runtime_params_slice,
-          self._dynamic_runtime_params_slice_provider,
-          geo_t,
-          self._geometry_provider,
+          explicit_source_profiles,
+          input_state,
+          previous_post_processed_outputs,
       )
-
-      # If no sawtooth crash is triggered, output_state and
-      # post_processed_outputs will be the same as the input state and
-      # previous_post_processed_outputs.
-      output_state, post_processed_outputs = _sawtooth_step(
-          sawtooth_solver=self.mhd_models.sawtooth,
-          static_runtime_params_slice=self._static_runtime_params_slice,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
-          geo_t=geo_t,
-          geo_t_plus_crash_dt=geo_t_plus_crash_dt,
-          explicit_source_profiles=explicit_source_profiles,
-          input_state=input_state,
-          input_post_processed_outputs=previous_post_processed_outputs,
-      )
-      # If a sawtooth crash was carried out, we exit early with the post-crash
-      # state, post-processed outputs, and the error state.
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        error_state = _check_for_errors(
-            self._static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_crash_dt,
-            output_state,
-            post_processed_outputs,
-        )
         return output_state, post_processed_outputs, error_state
 
     dt = self._time_step_calculator.next_dt(
@@ -339,6 +308,61 @@ class SimulationStepFn:
             post_processed_outputs,
         ),
     )
+
+  def _sawtooth_step(
+      self,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo_t: geometry.Geometry,
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      input_state: sim_state.ToraxSimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+      state.SimError,
+  ]:
+    """Performs a simulation step if a sawtooth crash is triggered."""
+    assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
+    dt_crash = dynamic_runtime_params_slice_t.mhd.sawtooth.crash_step_duration
+
+    (
+        dynamic_runtime_params_slice_t_plus_crash_dt,
+        geo_t,
+        geo_t_plus_crash_dt,
+    ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+        input_state.t,
+        dt_crash,
+        self._static_runtime_params_slice,
+        self._dynamic_runtime_params_slice_provider,
+        geo_t,
+        self._geometry_provider,
+    )
+
+    # If no sawtooth crash is triggered, output_state and
+    # post_processed_outputs will be the same as the input state and
+    # previous_post_processed_outputs.
+    output_state, post_processed_outputs = _sawtooth_step(
+        sawtooth_solver=self.mhd_models.sawtooth,
+        static_runtime_params_slice=self._static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+        geo_t=geo_t,
+        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
+        explicit_source_profiles=explicit_source_profiles,
+        input_state=input_state,
+        input_post_processed_outputs=previous_post_processed_outputs,
+    )
+    # If a sawtooth crash was carried out, we exit early with the post-crash
+    # state, post-processed outputs, and the error state.
+    if output_state.solver_numeric_outputs.sawtooth_crash:
+      error_state = _check_for_errors(
+          self._static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_crash_dt,
+          output_state,
+          post_processed_outputs,
+      )
+      return output_state, post_processed_outputs, error_state
+    return output_state, post_processed_outputs, state.SimError.NO_ERROR
 
   def step(
       self,
