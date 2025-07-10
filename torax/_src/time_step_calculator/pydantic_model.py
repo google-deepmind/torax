@@ -18,6 +18,7 @@ import enum
 
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import runtime_params
 from torax._src.time_step_calculator import time_step_calculator
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -42,14 +43,13 @@ class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
   calculator_type: TimeStepCalculatorType = TimeStepCalculatorType.CHI
   tolerance: float = 1e-7
 
+  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
+    return runtime_params.DynamicRuntimeParams(tolerance=self.tolerance)
+
   @property
   def time_step_calculator(self) -> time_step_calculator.TimeStepCalculator:
     match self.calculator_type:
       case TimeStepCalculatorType.CHI:
-        return chi_time_step_calculator.ChiTimeStepCalculator(
-            tolerance=self.tolerance
-        )
+        return chi_time_step_calculator.ChiTimeStepCalculator()
       case TimeStepCalculatorType.FIXED:
-        return fixed_time_step_calculator.FixedTimeStepCalculator(
-            tolerance=self.tolerance
-        )
+        return fixed_time_step_calculator.FixedTimeStepCalculator()

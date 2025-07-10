@@ -19,7 +19,6 @@ import functools
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src import xnp
@@ -244,10 +243,13 @@ class SimulationStepFn:
         )
         return output_state, post_processed_outputs, error_state
 
-    dt = self.get_dt(
+    dt = self._time_step_calculator.next_dt(
+        input_state.t,
+        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
-        input_state,
+        input_state.core_profiles,
+        input_state.core_transport,
     )
 
     # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
@@ -337,49 +339,6 @@ class SimulationStepFn:
             post_processed_outputs,
         ),
     )
-
-  def get_dt(
-      self,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo_t: geometry.Geometry,
-      input_state: sim_state.ToraxSimState,
-  ) -> jax.Array:
-    """Use the time step calculator to get the next time step duration.
-
-    Args:
-      dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      geo_t: The geometry of the torus during this time step of the simulation.
-        While the geometry may change, any changes to the grid size can trigger
-        recompilation of the solver (if it is jitted) or an error (assuming it
-        is JAX-compiled and lowered).
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-
-    Returns:
-      Time step duration (dt)
-    """
-    dt = self._time_step_calculator.next_dt(
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
-    )
-
-    crosses_t_final = (
-        input_state.t < dynamic_runtime_params_slice_t.numerics.t_final
-    ) * (
-        input_state.t + input_state.dt
-        > dynamic_runtime_params_slice_t.numerics.t_final
-    )
-    dt = np.where(
-        np.logical_and(
-            dynamic_runtime_params_slice_t.numerics.exact_t_final,
-            crosses_t_final,
-        ),
-        dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
-        dt,
-    )
-    return dt
 
   def step(
       self,

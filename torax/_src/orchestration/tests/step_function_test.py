@@ -138,6 +138,12 @@ class StepFunctionTest(absltest.TestCase):
             min_dt=2.0,
             dt_reduction_factor=2.0,
             t_final=5.0,
+        ),
+    )
+    static_slice = dataclasses.replace(
+        self.static_params,
+        numerics=dataclasses.replace(
+            self.static_params.numerics,
             exact_t_final=True,
         ),
     )
@@ -152,7 +158,7 @@ class StepFunctionTest(absltest.TestCase):
         ),
     )
     error = step_function._check_for_errors(
-        self.static_params,
+        static_slice,
         dynamic_slice,
         new_sim_state,
         self.post_processed_outputs,

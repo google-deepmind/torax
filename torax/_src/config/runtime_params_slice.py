@@ -48,6 +48,7 @@ from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
 from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
+from torax._src.time_step_calculator import runtime_params as time_step_calculator_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
 
@@ -90,6 +91,7 @@ class DynamicRuntimeParamsSlice:
   solver: solver_params.DynamicRuntimeParams
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
   transport: transport_model_params.DynamicRuntimeParams
+  time_step_calculator: time_step_calculator_runtime_params.DynamicRuntimeParams
 
 
 @jax.tree_util.register_dataclass

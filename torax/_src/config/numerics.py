@@ -36,7 +36,6 @@ class DynamicNumerics:
 
   t_initial: float
   t_final: float
-  exact_t_final: bool
   max_dt: float
   min_dt: float
   chi_timestep_prefactor: float
@@ -59,6 +58,7 @@ class StaticNumerics:
   evolve_electron_heat: bool
   evolve_current: bool
   evolve_density: bool
+  exact_t_final: bool
   adaptive_dt: bool
   calcphibdot: bool
 
@@ -146,7 +146,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
     return DynamicNumerics(
         t_initial=self.t_initial,
         t_final=self.t_final,
-        exact_t_final=self.exact_t_final,
         max_dt=self.max_dt,
         min_dt=self.min_dt,
         chi_timestep_prefactor=self.chi_timestep_prefactor,
@@ -164,6 +163,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         evolve_electron_heat=self.evolve_electron_heat,
         evolve_current=self.evolve_current,
         evolve_density=self.evolve_density,
+        exact_t_final=self.exact_t_final,
         adaptive_dt=self.adaptive_dt,
         calcphibdot=self.calcphibdot,
     )

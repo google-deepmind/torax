@@ -16,12 +16,8 @@
 
 Steps through time using a heuristic based on chi_max.
 """
-
-import functools
-
 import jax
 from jax import numpy as jnp
-from torax._src import jax_utils
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -35,8 +31,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     config: General configuration parameters.
   """
 
-  @functools.partial(jax_utils.jit, static_argnames=['self'])
-  def next_dt(
+  def _next_dt(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
@@ -69,3 +64,9 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     )
 
     return dt
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
+
+  def __hash__(self) -> int:
+    return hash(type(self))

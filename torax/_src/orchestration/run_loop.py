@@ -116,6 +116,12 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
+  # The dynamic params for the time step calculator are not time-dependent, so
+  # we can get them once before the loop.
+  time_step_calculator_dynamic_params = dynamic_runtime_params_slice_provider(
+      initial_state.t
+  ).time_step_calculator
+
   with tqdm.tqdm(
       total=100,  # This makes it so that the progress bar measures a percentage
       desc='Simulating',
@@ -127,6 +133,7 @@ def run_loop(
     while step_fn.time_step_calculator.not_done(
         current_state.t,
         dynamic_runtime_params_slice_provider.numerics.t_final,
+        time_step_calculator_dynamic_params,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()

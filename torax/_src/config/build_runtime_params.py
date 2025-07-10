@@ -85,6 +85,7 @@ class DynamicRuntimeParamsSliceProvider:
     self._pedestal = torax_config.pedestal
     self._mhd = torax_config.mhd
     self._neoclassical = torax_config.neoclassical
+    self._time_step_calculator = torax_config.time_step_calculator
 
   @property
   def numerics(self) -> numerics_lib.Numerics:
@@ -117,6 +118,7 @@ class DynamicRuntimeParamsSliceProvider:
         neoclassical=self._neoclassical.build_dynamic_params(),
         pedestal=self._pedestal.build_dynamic_params(t),
         mhd=self._mhd.build_dynamic_params(t),
+        time_step_calculator=self._time_step_calculator.build_dynamic_params(),
     )
 
 

@@ -33,7 +33,7 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     config: General configuration parameters.
   """
 
-  def next_dt(
+  def _next_dt(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
@@ -53,6 +53,10 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       dt: Scalar time step duration.
     """
 
-    dt = jnp.array(dynamic_runtime_params_slice.numerics.fixed_dt)
+    return jnp.array(dynamic_runtime_params_slice.numerics.fixed_dt)
 
-    return dt
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
+
+  def __hash__(self) -> int:
+    return hash(type(self))
