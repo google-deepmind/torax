@@ -15,7 +15,7 @@
 
 This module implements the neoclassical transport model described in:
 C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000).
-https://doi.org/10.1063/1.873918
+https://doi.org/10.1063/1.873933
 
 The implementation was facilitated by and verified against the NEOS code:
 https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
