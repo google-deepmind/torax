@@ -46,10 +46,12 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
   time: pydantic_types.NumpyArray1DSorted
   value: pydantic_types.NumpyArray
-  is_bool_param: bool = False
-  interpolation_mode: interpolated_param.InterpolationMode = (
-      interpolated_param.InterpolationMode.PIECEWISE_LINEAR
+  is_bool_param: typing_extensions.Annotated[bool, model_base.JAX_STATIC] = (
+      False
   )
+  interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
   def get_value(self, t: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time.

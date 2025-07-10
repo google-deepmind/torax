@@ -14,9 +14,12 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 import numpy as np
 import pydantic
 from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -251,6 +254,30 @@ class InterpolatedParam1dTest(parameterized.TestCase):
         'The coords in the xr.DataArray must include a "time" coordinate',
     ):
       torax_pydantic.TimeVaryingScalar.model_validate(cfg)
+
+  def test_time_varying_scalar_works_under_jit(self):
+    scalar = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0, 2.0]), np.array([1.0, 2.0, 4.0])),
+    )
+    scalar2 = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0, 2.0]), np.array([1.0, 4.0, 6.0])),
+    )
+    scalar3 = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0]), np.array([1.0, 4.0])),
+    )
+
+    @jax.jit
+    def f(x: torax_pydantic.TimeVaryingScalar, t: chex.Numeric):
+      return x.get_value(t=t)
+
+    self.assertEqual(f(scalar, 1.0), scalar.get_value(t=1.0))
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+    # Check that the cache can be reused with different values.
+    self.assertEqual(f(scalar2, 1.0), scalar2.get_value(t=1.0))
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+    # Check that the cache is not reused with different shapes.
+    self.assertEqual(f(scalar3, 1.0), scalar3.get_value(t=1.0))
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
 
 
 if __name__ == '__main__':
