@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import imas
 import numpy as np
 import torax
 from torax._src.geometry import geometry
@@ -198,14 +199,11 @@ class EquilibriumTest(sim_test_case.SimTestCase):
       config.build_geometry()
     elif input_mode == 'imas_uri':
       # imas_core not available for CI so just check if loader is called
-      with patch('torax.imas_tools.util.load_IMAS_data') as mocked_method:
+      with patch('torax.imas_tools.util.DBEntry') as mocked_class:
+        mocked_class.return_value = imas.DBEntry(uri=full_path, mode='r')
         kwargs['imas_uri'] = f'imas:hdf5?path={full_path}'
-        try:
-          config = geometry_pydantic_model.IMASConfig(**kwargs)
-          config.build_geometry()
-        except:
-          pass
-        self.assertTrue(mocked_method.called, 'mocked method not called')
+        config = geometry_pydantic_model.IMASConfig(**kwargs)
+        config.build_geometry()
     elif input_mode == 'equilibrium_object':
       equilibrium_in = imas_util.load_IMAS_data(full_path, 'equilibrium')
       kwargs['equilibrium_object'] = equilibrium_in

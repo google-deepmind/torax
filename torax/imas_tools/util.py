@@ -18,7 +18,7 @@ import datetime
 import os
 import pathlib
 
-import imas
+from imas import DBEntry
 from imas.ids_toplevel import IDSToplevel
 
 
@@ -64,7 +64,7 @@ def save_netCDF(
     date_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     file_name = "IDS_file_" + date_str
   filepath = os.path.join(directory_path, file_name) + ".nc"
-  with imas.DBEntry(uri=filepath, mode="w") as netcdf_entry:
+  with DBEntry(uri=filepath, mode="w") as netcdf_entry:
     netcdf_entry.put(ids=ids)
     print(f"Successfully saved file {filepath}")
 
@@ -73,6 +73,6 @@ def load_IMAS_data(uri: str, ids_name: str) -> IDSToplevel:
   """
   Loads a full IDS for a given uri or path_name and a given ids_name.
   """
-  db = imas.DBEntry(uri=uri, mode="r")
-  ids = db.get(ids_name=ids_name)
+  with DBEntry(uri=uri, mode="r") as db:
+    ids = db.get(ids_name=ids_name)
   return ids
