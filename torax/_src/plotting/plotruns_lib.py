@@ -126,13 +126,18 @@ class PlotData:
       [:math:`\mathrm{MA/m^2}`] on the cell grid.
     q: Safety factor (q-profile) [dimensionless] on the face grid.
     magnetic_shear: Magnetic shear profile [dimensionless] on the face grid.
-    chi_turb_i: Ion heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
-    chi_turb_e: Electron heat conductivity [:math:`\mathrm{m^2/s}`] on the face
-      grid.
-    D_turb_e: Electron particle diffusivity [:math:`\mathrm{m^2/s}`] on the face
-      grid.
-    V_turb_e: Electron particle convection velocity [:math:`\mathrm{m/s}`] on
-      the face grid.
+    chi_tot_i: Total ion heat conductivity (chi_turb_i + chi_neo_i)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
+    chi_turb_i: Turbulent ion heat conductivity [:math:`\mathrm{m^2/s}`] on the
+      face grid.
+    chi_turb_e: Turbulent electron heat conductivity [:math:`\mathrm{m^2/s}`]
+      on the face grid.
+    D_tot_e: Total electron particle diffusivity (D_turb_e + D_neo_e)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
+    D_turb_e: Turbulent electron particle diffusivity [:math:`\mathrm{m^2/s}`]
+      on the face grid.
+    V_tot_e: Total electron particle convection (V_turb_e + V_neo_e +
+      V_neo_ware_e) [:math:`\mathrm{m^2/s}`] on the face grid.
     p_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
     p_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
     p_generic_heat_i: Generic ion heating power density
@@ -204,9 +209,13 @@ class PlotData:
   j_external: np.ndarray
   q: np.ndarray
   magnetic_shear: np.ndarray
+  chi_tot_i: np.ndarray
   chi_turb_i: np.ndarray
+  chi_tot_e: np.ndarray
   chi_turb_e: np.ndarray
+  D_tot_e: np.ndarray
   D_turb_e: np.ndarray
+  V_tot_e: np.ndarray
   V_turb_e: np.ndarray
   p_icrh_i: np.ndarray
   p_icrh_e: np.ndarray
@@ -339,8 +348,17 @@ def load_data(filename: str) -> PlotData:
       ),
       q=profiles_dataset[output.Q].to_numpy(),
       magnetic_shear=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
+      chi_tot_i=profiles_dataset[output.CHI_TURB_I].to_numpy()
+      + profiles_dataset[output.CHI_NEO_I].to_numpy(),
+      chi_tot_e=profiles_dataset[output.CHI_TURB_E].to_numpy()
+      + profiles_dataset[output.CHI_NEO_E].to_numpy(),
       chi_turb_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
       chi_turb_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
+      D_tot_e=profiles_dataset[output.D_TURB_E].to_numpy()
+      + profiles_dataset[output.D_NEO_E].to_numpy(),
+      V_tot_e=profiles_dataset[output.V_TURB_E].to_numpy()
+      + profiles_dataset[output.V_NEO_E].to_numpy()
+      + profiles_dataset[output.V_NEO_WARE_E].to_numpy(),
       D_turb_e=profiles_dataset[output.D_TURB_E].to_numpy(),
       V_turb_e=profiles_dataset[output.V_TURB_E].to_numpy(),
       rho_norm=dataset[output.RHO_NORM].to_numpy(),
