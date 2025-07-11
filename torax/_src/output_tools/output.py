@@ -211,6 +211,18 @@ class StateHistory:
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
+    if (
+        not torax_config.restart
+        and torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and len(state_history) >= 2
+    ):
+      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
+      # underconstrained
+      state_history[0].core_profiles = dataclasses.replace(
+          state_history[0].core_profiles,
+          v_loop_lcfs=state_history[1].core_profiles.v_loop_lcfs,
+      )
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._post_processed_outputs = post_processed_outputs_history
@@ -307,16 +319,8 @@ class StateHistory:
     """Returns the post processed outputs for the simulation."""
     return self._post_processed_outputs
 
-  def simulation_output_to_xr(
-      self,
-      file_restart: file_restart_pydantic_model.FileRestart | None = None,
-  ) -> xr.DataTree:
+  def simulation_output_to_xr(self) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
-
-    Args:
-      file_restart: If provided, contains information on a file this sim was
-        restarted from, this is useful in case we want to stitch that to the
-        beginning of this sim output.
 
     Returns:
       A xr.DataTree containing a single top level xr.Dataset and four child
@@ -415,8 +419,11 @@ class StateHistory:
         ),
     )
 
-    if file_restart is not None and file_restart.stitch:
-      data_tree = stitch_state_files(file_restart, data_tree)
+    if (
+        self.torax_config.restart is not None
+        and self.torax_config.restart.stitch
+    ):
+      data_tree = stitch_state_files(self.torax_config.restart, data_tree)
 
     return data_tree
 

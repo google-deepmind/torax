@@ -32,13 +32,12 @@ class StepFunctionTest(absltest.TestCase):
         default_configs.get_default_config_dict()
     )
     (
-        self.static_params,
         dynamic_provider,
         self.sim_state,
         self.post_processed_outputs,
-        _,
-        _,
+        step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
+    self.static_params = step_fn.solver.static_runtime_params_slice
     self.dynamic_slice = dynamic_provider(torax_config.numerics.t_initial)
 
   def test_no_error(self):
