@@ -86,13 +86,45 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   """
 
   value: ValueType
-  rho_interpolation_mode: interpolated_param.InterpolationMode = (
-      interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-  )
-  time_interpolation_mode: interpolated_param.InterpolationMode = (
-      interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-  )
+  rho_interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
+  time_interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   grid: Grid1D | None = None
+
+  def tree_flatten(self):
+    children = (
+        self.value,
+        # Save out the cached interpolated params.
+        self._get_cached_interpolated_param_cell,
+        self._get_cached_interpolated_param_face,
+        self._get_cached_interpolated_param_face_right,
+    )
+    aux_data = (
+        self.rho_interpolation_mode,
+        self.time_interpolation_mode,
+        self.grid,
+    )
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    # Avoid calling model_validate as validation should be done already.
+    obj = cls.model_construct(
+        value=children[0],
+        rho_interpolation_mode=aux_data[0],
+        time_interpolation_mode=aux_data[1],
+        grid=aux_data[2],
+    )
+    # Plug back in the cached interpolated params to avoid losing the cache.
+    # pylint: disable=protected-access
+    obj._get_cached_interpolated_param_cell = children[1]
+    obj._get_cached_interpolated_param_face = children[2]
+    obj._get_cached_interpolated_param_face_right = children[3]
+    # pylint: enable=protected-access
+    return obj
 
   @functools.cached_property
   def right_boundary_conditions_defined(self) -> bool:
