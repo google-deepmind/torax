@@ -51,7 +51,8 @@ class StandardGeometry(geometry.Geometry):
   Attributes:
     Ip_from_parameters: Boolean indicating whether the total plasma current
       (`Ip`) is determined by the config parameters (True) or read from the
-      geometry file (False).
+      geometry file (False). This field is marked as static and will retrigger
+      compilation if changed.
     Ip_profile_face: Plasma current profile on the face grid
       [:math:`\mathrm{A}`].
     psi: 1D poloidal flux profile on the cell grid [:math:`\mathrm{Wb}`].
@@ -69,7 +70,7 @@ class StandardGeometry(geometry.Geometry):
       `Geometry` docstring for definition of `delta_lower_face`.
   """
 
-  Ip_from_parameters: bool
+  Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
   Ip_profile_face: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
