@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import pytest
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -76,6 +77,14 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_from_eqdsk(self, geometry_file):
     """Test that EQDSK geometries can be built."""
     config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config.build_geometry()
+
+  @parameterized.parameters([
+      dict(imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'),
+  ])
+  def test_build_standard_geometry_from_IMAS(self, imas_filepath):
+    """Test that the default IMAS geometry can be built."""
+    config = geometry_pydantic_model.IMASConfig(imas_filepath=imas_filepath)
     config.build_geometry()
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
