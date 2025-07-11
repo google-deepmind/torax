@@ -91,6 +91,7 @@ def geometry_from_IMAS(
     raise ValueError(
         "equilibrium_object must be a string (file path) or an IDS"
     )
+  # TODO: enable using other time slices
   IMAS_data = equilibrium.time_slice[0]
   B_0 = np.abs(
       IMAS_data.global_quantities.magnetic_axis.b_field_phi
