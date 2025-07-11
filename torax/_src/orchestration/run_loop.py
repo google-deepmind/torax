@@ -14,7 +14,6 @@
 
 """run_loop for iterating over the simulation step function."""
 
-import dataclasses
 import time
 
 from absl import logging
@@ -22,7 +21,6 @@ import jax
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -30,11 +28,9 @@ import tqdm
 
 
 def run_loop(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
-    restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
@@ -51,13 +47,6 @@ def run_loop(
   Performs logging and updates the progress bar if requested.
 
   Args:
-    static_runtime_params_slice: A static set of arguments to provide to the
-      step_fn. If internal functions in step_fn are JAX-compiled, then these
-      params are "compile-time constant" meaning that they are considered static
-      to the compiled functions. If they change (i.e. the same step_fn is called
-      again with a different static_runtime_params_slice), then internal
-      functions will be recompiled. JAX determines if recompilation is necessary
-      via the hash of static_runtime_params_slice.
     dynamic_runtime_params_slice_provider: Provides a DynamicRuntimeParamsSlice
       to use as input for each time step. See static_runtime_params_slice and
       the runtime_params_slice module docstring for runtime_params_slice to
@@ -68,7 +57,6 @@ def run_loop(
       etc.) as well as other states that need to be be tracked, like time.
     initial_post_processed_outputs: The post-processed outputs at the start of
       the simulation. This is used to calculate cumulative quantities.
-    restart_case: If True, the simulation is being restarted from a saved state.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
@@ -129,7 +117,6 @@ def run_loop(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
-    first_step = True if not restart_case else False
     while step_fn.time_step_calculator.not_done(
         current_state.t,
         dynamic_runtime_params_slice_provider.numerics.t_final,
@@ -154,18 +141,6 @@ def run_loop(
         sim_error.log_error()
         break
       else:
-        if first_step:
-          first_step = False
-          if (
-              not static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
-          ):
-            # For the Ip BC case, set v_loop_lcfs[0] to the same value as
-            # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-            # underconstrained
-            state_history[0].core_profiles = dataclasses.replace(
-                state_history[0].core_profiles,
-                v_loop_lcfs=current_state.core_profiles.v_loop_lcfs,
-            )
         state_history.append(current_state)
         post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
