@@ -527,6 +527,81 @@ class InterpolatedParamTest(parameterized.TestCase):
       np.testing.assert_allclose(interpolated_output_jit, interpolated_output)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
+  @parameterized.product(
+      time_interpolation_mode=[
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          interpolated_param.InterpolationMode.STEP,
+      ],
+      rho_interpolation_mode=[
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          interpolated_param.InterpolationMode.STEP,
+      ],
+  )
+  def test_interpolated_var_time_rho_is_usable_under_jit(
+      self,
+      time_interpolation_mode: interpolated_param.InterpolationMode,
+      rho_interpolation_mode: interpolated_param.InterpolationMode,
+  ):
+    values1 = {
+        0.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        1.0: (np.array([0.0, 1.0]), np.array([1.0, 2.0])),
+    }
+    rho_norm = np.array([0.0, 0.5, 1.0])
+    var = interpolated_param.InterpolatedVarTimeRho(
+        values=values1,
+        rho_norm=rho_norm,
+        time_interpolation_mode=time_interpolation_mode,
+        rho_interpolation_mode=rho_interpolation_mode,
+    )
+
+    @jax.jit
+    def f(v: interpolated_param.InterpolatedVarTimeRho, t: chex.Numeric):
+      return v.get_value(x=t)
+
+    t = 0.5
+    with self.subTest('jit_and_verified'):
+      interpolated_output_jit = f(var, t)
+      interpolated_output = var.get_value(x=t)
+      np.testing.assert_allclose(interpolated_output_jit, interpolated_output)
+
+    with self.subTest('new_values_same_compile'):
+      values2 = {
+          0.0: (np.array([0.0, 1.0]), np.array([2.0, 3.0])),
+          1.0: (np.array([0.0, 1.0]), np.array([3.0, 4.0])),
+      }
+      var2 = interpolated_param.InterpolatedVarTimeRho(
+          values=values2,
+          rho_norm=rho_norm,
+          time_interpolation_mode=time_interpolation_mode,
+          rho_interpolation_mode=rho_interpolation_mode,
+      )
+      interpolated_output_jit2 = f(var2, t)
+      interpolated_output2 = var2.get_value(x=t)
+      np.testing.assert_allclose(
+          interpolated_output_jit2, interpolated_output2
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('different_shapes_recompiles'):
+      values3 = {
+          0.0: (np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+          1.0: (np.array([0.0, 1.0]), np.array([1.0, 2.0])),
+          2.0: (np.array([0.0, 1.0]), np.array([1.0, 2.0])),
+      }
+      var3 = interpolated_param.InterpolatedVarTimeRho(
+          values=values3,
+          rho_norm=rho_norm,
+          time_interpolation_mode=time_interpolation_mode,
+          rho_interpolation_mode=rho_interpolation_mode,
+      )
+      t = 1.5
+      interpolated_output_jit3 = f(var3, t)
+      interpolated_output3 = var3.get_value(x=t)
+      np.testing.assert_allclose(
+          interpolated_output_jit3, interpolated_output3
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
+
 
 if __name__ == '__main__':
   absltest.main()

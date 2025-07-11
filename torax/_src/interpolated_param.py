@@ -417,6 +417,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     return self._param
 
 
+@jax.tree_util.register_pytree_node_class
 class InterpolatedVarTimeRho(InterpolatedParamBase):
   """Interpolates on a grid (time, rho).
 
@@ -447,23 +448,38 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       time_interpolation_mode: The mode in which to do time interpolation.
       rho_interpolation_mode: The mode in which to do rho interpolation.
     """
-    self.rho_norm = rho_norm
-    self.sorted_indices = np.array(sorted(values.keys()))
     self._rho_interpolation_mode = rho_interpolation_mode
     self._time_interpolation_mode = time_interpolation_mode
+
+    sorted_indices = np.array(sorted(values.keys()))
     rho_norm_interpolated_values = np.stack(
         [
             InterpolatedVarSingleAxis(
                 values[t], rho_interpolation_mode
-            ).get_value(self.rho_norm)
-            for t in self.sorted_indices
+            ).get_value(rho_norm)
+            for t in sorted_indices
         ],
         axis=0,
     )
     self._time_interpolated_var = InterpolatedVarSingleAxis(
-        value=(self.sorted_indices, rho_norm_interpolated_values),
+        value=(sorted_indices, rho_norm_interpolated_values),
         interpolation_mode=time_interpolation_mode,
     )
+
+  def tree_flatten(self):
+    children = (self._time_interpolated_var,)
+    aux_data = (self._rho_interpolation_mode, self._time_interpolation_mode)
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    # Here we construct the object without calling the constructor.
+    # This is because the constructor is not jittable.
+    obj = object.__new__(InterpolatedVarTimeRho)
+    obj._time_interpolated_var = children[0]
+    obj._rho_interpolation_mode = aux_data[0]
+    obj._time_interpolation_mode = aux_data[1]
+    return obj
 
   @property
   def time_interpolation_mode(self) -> InterpolationMode:
