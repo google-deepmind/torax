@@ -88,21 +88,21 @@ class GeometryProvider(Protocol):
     """Returns the mesh used by Torax, this is consistent across time."""
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class ConstantGeometryProvider(GeometryProvider):
   """Returns the same Geometry for all calls."""
-
-  def __init__(self, geo: geometry.Geometry):
-    self._geo = geo
+  geo: geometry.Geometry
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     # The API includes time as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
     del t  # Ignored.
-    return self._geo
+    return self.geo
 
   @property
   def torax_mesh(self) -> torax_pydantic.Grid1D:
-    return self._geo.torax_mesh
+    return self.geo.torax_mesh
 
 
 @jax.tree_util.register_dataclass
