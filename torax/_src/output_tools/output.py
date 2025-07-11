@@ -307,16 +307,8 @@ class StateHistory:
     """Returns the post processed outputs for the simulation."""
     return self._post_processed_outputs
 
-  def simulation_output_to_xr(
-      self,
-      file_restart: file_restart_pydantic_model.FileRestart | None = None,
-  ) -> xr.DataTree:
+  def simulation_output_to_xr(self) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
-
-    Args:
-      file_restart: If provided, contains information on a file this sim was
-        restarted from, this is useful in case we want to stitch that to the
-        beginning of this sim output.
 
     Returns:
       A xr.DataTree containing a single top level xr.Dataset and four child
@@ -415,8 +407,11 @@ class StateHistory:
         ),
     )
 
-    if file_restart is not None and file_restart.stitch:
-      data_tree = stitch_state_files(file_restart, data_tree)
+    if (
+        self.torax_config.restart is not None
+        and self.torax_config.restart.stitch
+    ):
+      data_tree = stitch_state_files(self.torax_config.restart, data_tree)
 
     return data_tree
 

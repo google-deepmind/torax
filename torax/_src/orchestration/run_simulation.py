@@ -182,6 +182,6 @@ def run_simulation(
   )
 
   return (
-      state_history.simulation_output_to_xr(torax_config.restart),
+      state_history.simulation_output_to_xr(),
       state_history,
   )
