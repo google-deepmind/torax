@@ -58,6 +58,8 @@ def _check_for_errors(
   if static_runtime_params_slice.numerics.adaptive_dt:
     numerics = dynamic_runtime_params_slice.numerics
     if output_state.solver_numeric_outputs.solver_error_state == 1:
+      # Only check for min dt if the solver did not converge. Else we may have
+      # converged at a dt > min_dt just before we reach min_dt.
       if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
         return state.SimError.REACHED_MIN_DT
   state_error = output_state.check_for_errors()
@@ -212,6 +214,15 @@ class SimulationStepFn:
       if output_state.solver_numeric_outputs.sawtooth_crash:
         return output_state, post_processed_outputs, error_state
 
+    if self._static_runtime_params_slice.numerics.adaptive_dt:
+      return self._adaptive_step(
+          dynamic_runtime_params_slice_t,
+          geo_t,
+          explicit_source_profiles,
+          input_state,
+          previous_post_processed_outputs,
+      )
+
     dt = self._time_step_calculator.next_dt(
         input_state.t,
         self._static_runtime_params_slice,
@@ -245,27 +256,6 @@ class SimulationStepFn:
         input_state,
         explicit_source_profiles,
     )
-
-    if self._static_runtime_params_slice.numerics.adaptive_dt:
-      # This is a no-op if
-      # output_state.solver_numeric_outputs.solver_error_state == 0.
-      (
-          x_new,
-          dt,
-          solver_numeric_outputs,
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo_t_plus_dt,
-      ) = self._adaptive_step(
-          x_new,
-          dt,
-          solver_numeric_outputs,
-          dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo_t,
-          geo_t_plus_dt,
-          input_state,
-          explicit_source_profiles,
-      )
 
     # Needed to provide the prescribed state variables and boundary conditions
     # for time t+dt. This is calculated also within the step function, but since
@@ -362,7 +352,8 @@ class SimulationStepFn:
           post_processed_outputs,
       )
       return output_state, post_processed_outputs, error_state
-    return output_state, post_processed_outputs, state.SimError.NO_ERROR
+    else:
+      return output_state, post_processed_outputs, state.SimError.NO_ERROR
 
   def step(
       self,
@@ -431,100 +422,62 @@ class SimulationStepFn:
 
   def _adaptive_step(
       self,
-      x_old: tuple[cell_variable.CellVariable, ...],
-      dt: jax.Array,
-      solver_numeric_outputs: state.SolverNumericOutputs,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
-      input_state: sim_state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      input_state: sim_state.ToraxSimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      jax.Array,
-      state.SolverNumericOutputs,
-      runtime_params_slice.DynamicRuntimeParamsSlice,
-      geometry.Geometry,
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+      state.SimError,
   ]:
-    """Performs adaptive time stepping until solver converges.
+    """Performs a (possibly) adaptive simulation step."""
+    initial_dt = self.time_step_calculator.next_dt(
+        input_state.t,
+        self._static_runtime_params_slice,
+        dynamic_runtime_params_slice_t,
+        geo_t,
+        input_state.core_profiles,
+        input_state.core_transport,
+    )
 
-    If the initial step has converged (i.e.
-    output_state.solver_numeric_outputs.solver_error_state == 0), this
-    function is a no-op.
-
-    Args:
-      x_old: Tuple containing previous guess of the cell-grid values of the
-        evolving variables
-      dt: Time step duration for the initial step.
-      solver_numeric_outputs: Solver-specific numeric outputs from the initial
-        step.
-      dynamic_runtime_params_slice_t: Runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
-      geo_t: The geometry of the torus during this time step of the simulation.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-      explicit_source_profiles: Explicit source profiles computed based on the
-        core profiles at the start of the time step.
-
-    Returns:
-      A tuple containing:
-        - tuple of CellVariables corresponding to the evolved state variables
-        - dt following adaptation
-        - SolverNumericOutputs containing error state and other solver-specific
-          outputs.
-        - Dynamic runtime params at time t + dt, where dt is the actual time
-          step used.
-        - Geometry at time t + dt, where dt is the actual time step used.
-    """
-    core_profiles_t = input_state.core_profiles
-
-    # Check if solver converged. If not, proceed to body_fun
-    def cond_fun(
-        updated_output: tuple[
-            tuple[cell_variable.CellVariable, ...],
-            jax.Array,  # dt
-            state.SolverNumericOutputs,
-            runtime_params_slice.DynamicRuntimeParamsSlice,
-            geometry.Geometry,
-        ],
-    ) -> bool:
-      _, dt, solver_outputs, slice_t, _ = updated_output
-
-      if jnp.any(jnp.isnan(dt)):
-        # Check if the dt is NaN to avoid an infinite loop.
-        return False
-      if (
-          solver_outputs.solver_error_state == 1
-          and dt / slice_t.numerics.dt_reduction_factor
-          > slice_t.numerics.min_dt
-      ):
-        return True
-      return False
-
-    # Make a new step with a smaller dt, starting with the original core
-    # profiles.
-    # Exit if dt < min_dt
-    def body_fun(
-        updated_output: tuple[
-            tuple[cell_variable.CellVariable, ...],
-            jax.Array,  # dt
-            state.SolverNumericOutputs,
-            runtime_params_slice.DynamicRuntimeParamsSlice,
-            geometry.Geometry,
-        ],
-    ) -> tuple[
+    input_type = jax.Array
+    output_type = tuple[
         tuple[cell_variable.CellVariable, ...],
         jax.Array,  # dt
         state.SolverNumericOutputs,
         runtime_params_slice.DynamicRuntimeParamsSlice,
         geometry.Geometry,
-    ]:
-      _, old_dt, old_solver_outputs, old_slice, _ = updated_output
+        state.CoreProfiles,
+    ]
 
-      dt = old_dt / old_slice.numerics.dt_reduction_factor
+    def cond_fun(inputs: tuple[input_type, output_type]):
+      next_dt, output = inputs
+      solver_outputs = output[2]
+      # Check for NaN in the next dt to avoid a recursive loop.
+      if jnp.any(jnp.isnan(next_dt)):
+        return False
+      # If the solver did not converge, we need to make a new step.
+      if solver_outputs.solver_error_state == 1:
+        # If t + dt is exactly the final time we may need a smaller step than
+        # min_dt to exactly reach the final time.
+        if self._static_runtime_params_slice.numerics.exact_t_final:
+          if jnp.allclose(
+              input_state.t + next_dt,
+              dynamic_runtime_params_slice_t.numerics.t_final,
+          ):
+            return True
+        # Otherwise we need to have a step larger than min_dt.
+        if next_dt < dynamic_runtime_params_slice_t.numerics.min_dt:
+          return False
+        return True
+      # The solver converged, so we can exit.
+      return False
+
+    def body_fun(inputs: tuple[input_type, output_type]):
+      dt, output = inputs
+      old_solver_outputs = output[2]
 
       # Calculate dynamic_runtime_params and geo at t + dt.
       # Update geos with phibdot.
@@ -548,7 +501,7 @@ class SimulationStepFn:
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=core_profiles_t,
+          core_profiles_t=input_state.core_profiles,
       )
       # The solver returned state is still "intermediate" since the CoreProfiles
       # need to be updated by the evolved CellVariables in x_new
@@ -559,7 +512,7 @@ class SimulationStepFn:
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t_with_phibdot,
           geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=core_profiles_t,
+          core_profiles_t=input_state.core_profiles,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
       )
@@ -571,42 +524,65 @@ class SimulationStepFn:
           + solver_numeric_outputs.inner_solver_iterations,
           sawtooth_crash=solver_numeric_outputs.sawtooth_crash,
       )
-      return (
+      next_dt = (
+          dt
+          / dynamic_runtime_params_slice_t_plus_dt.numerics.dt_reduction_factor
+      )
+      return next_dt, (
           x_new,
           dt,
           solver_numeric_outputs,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt,
+          core_profiles_t_plus_dt,
       )
 
-    # Iteratively apply the adaptive time step until the solver converges.
-    # If the solver has already converged, then the body_fun will not be
-    # called and the output will be returned unchanged.
-    (
-        x_new,
-        dt,
-        solver_numeric_outputs,
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
-    ) = xnp.py_while(
+    _, result = xnp.py_while(
         cond_fun,
         body_fun,
         (
-            x_old,
-            dt,
-            solver_numeric_outputs,
-            # t_plus_dt is used as template for pytree structure.
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t_plus_dt,
+            initial_dt,
+            (
+                convertors.core_profiles_to_solver_x_tuple(
+                    input_state.core_profiles, self.solver.evolving_names),
+                initial_dt,
+                state.SolverNumericOutputs(
+                    # The solver has not converged yet as we have not performed
+                    # any steps yet.
+                    solver_error_state=1,
+                    outer_solver_iterations=0,
+                    inner_solver_iterations=0,
+                    sawtooth_crash=False,
+                ),
+                dynamic_runtime_params_slice_t,
+                geo_t,
+                input_state.core_profiles,
+            ),
         ),
     )
-
-    return (
-        x_new,
-        dt,
-        solver_numeric_outputs,
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
+    output_state, post_processed_outputs = _finalize_outputs(
+        t=input_state.t,
+        dt=result[1],
+        x_new=result[0],
+        solver_numeric_outputs=result[2],
+        static_runtime_params_slice=self._static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_dt=result[3],
+        geometry_t_plus_dt=result[4],
+        core_profiles_t=input_state.core_profiles,
+        core_profiles_t_plus_dt=result[5],
+        explicit_source_profiles=explicit_source_profiles,
+        source_models=self.solver.source_models,
+        neoclassical_models=self.solver.neoclassical_models,
+        pedestal_model=self.solver.pedestal_model,
+        transport_model=self.solver.transport_model,
+        evolving_names=self.solver.evolving_names,
+        input_post_processed_outputs=previous_post_processed_outputs,
+    )
+    return output_state, post_processed_outputs, _check_for_errors(
+        self._static_runtime_params_slice,
+        dynamic_runtime_params_slice_t,
+        output_state,
+        post_processed_outputs,
     )
 
 
