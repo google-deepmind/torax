@@ -13,14 +13,15 @@
 # limitations under the License.
 import copy
 import dataclasses
-import importlib
 from typing import Literal
 
+from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax
 from torax._src import array_typing
 from torax._src import state
+from torax._src.config import config_loader
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
@@ -121,10 +122,10 @@ class DuplicateGasPuffSourceModelConfig(
 class RegisterConfigTest(parameterized.TestCase):
 
   def test_register_source_model_config(self):
-    config_name = 'test_iterhybrid_rampup'
-    test_config_path = '.tests.test_data.' + config_name
-    config_module = importlib.import_module(test_config_path, 'torax')
-    config = copy.deepcopy(config_module.CONFIG)
+    config_name = 'test_iterhybrid_rampup.py'
+    test_config_path = 'tests/test_data/' + config_name
+    config_module = config_loader.import_module(test_config_path)
+    config = copy.deepcopy(config_module['CONFIG'])
     # Register the new source model config against the gas puff source.
     register_config.register_source_model_config(
         NewGasPuffSourceModelConfig, 'gas_puff'
@@ -184,3 +185,6 @@ class RegisterConfigTest(parameterized.TestCase):
       register_config.register_source_model_config(
           NewGasPuffSourceModelConfig, 'foo_source'
       )
+
+if __name__ == '__main__':
+  absltest.main()
