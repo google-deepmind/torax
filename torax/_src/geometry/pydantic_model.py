@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Pydantic model for geometry."""
-
+import abc
 from collections.abc import Callable, Mapping
 import functools
 import inspect
@@ -39,7 +39,15 @@ LY_OBJECT_TYPE: TypeAlias = (
 TIME_INVARIANT = torax_pydantic.TIME_INVARIANT
 
 
-class CircularConfig(torax_pydantic.BaseModelFrozen):
+class GeometryConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base class for geometry configs."""
+
+  @abc.abstractmethod
+  def build_geometry(self) -> geometry.Geometry:
+    """Builds a `Geometry` object from the config."""
+
+
+class CircularConfig(GeometryConfigBase):
   """Pydantic model for the circular geometry config.
 
   Attributes:
@@ -80,7 +88,7 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
     )
 
 
-class CheaseConfig(torax_pydantic.BaseModelFrozen):
+class CheaseConfig(GeometryConfigBase):
   """Pydantic model for the CHEASE geometry.
 
   Attributes:
@@ -124,7 +132,7 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
     )
 
 
-class FBTConfig(torax_pydantic.BaseModelFrozen):
+class FBTConfig(GeometryConfigBase):
   """Pydantic model for the FBT geometry.
 
   Attributes:
@@ -212,7 +220,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
     )
 
 
-class EQDSKConfig(torax_pydantic.BaseModelFrozen):
+class EQDSKConfig(GeometryConfigBase):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:
@@ -331,7 +339,13 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
   data_copy = data.copy()
   # Useful to avoid failing if users mistakenly give the wrong case.
   data_copy['geometry_type'] = data['geometry_type'].lower()
-  geometry_type = getattr(geometry.GeometryType, data['geometry_type'].upper())
+  try:
+    geometry_type = getattr(
+        geometry.GeometryType, data['geometry_type'].upper()
+    )
+  except AttributeError:
+    # In case the geometry type is registered at runtime note as OTHER.
+    geometry_type = geometry.GeometryType.OTHER
   constructor_args = {'geometry_type': geometry_type}
   configs_time_dependent = data_copy.pop('geometry_configs', None)
 
