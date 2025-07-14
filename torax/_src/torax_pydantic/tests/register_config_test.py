@@ -13,16 +13,20 @@
 # limitations under the License.
 import copy
 import dataclasses
-import importlib
 from typing import Literal
 
+from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src import state
+from torax._src.config import config_loader
 from torax._src.config import runtime_params_slice
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base_pydantic_model
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
@@ -118,13 +122,30 @@ class DuplicateGasPuffSourceModelConfig(
     )
 
 
+class _NewGeometryModelConfig(geometry_pydantic_model.GeometryConfigBase):
+  """New geometry model config."""
+
+  geometry_type: Literal['new_geometry'] = 'new_geometry'
+  n_rho: pydantic.PositiveInt = 5
+
+  def build_geometry(self) -> geometry.Geometry:
+    return circular_geometry.build_circular_geometry(
+        n_rho=self.n_rho,
+        elongation_LCFS=0.0,
+        R_major=1.0,
+        a_minor=0.9,
+        B_0=1.0,
+        hires_factor=1,
+    )
+
+
 class RegisterConfigTest(parameterized.TestCase):
 
   def test_register_source_model_config(self):
-    config_name = 'test_iterhybrid_rampup'
-    test_config_path = '.tests.test_data.' + config_name
-    config_module = importlib.import_module(test_config_path, 'torax')
-    config = copy.deepcopy(config_module.CONFIG)
+    config_name = 'test_iterhybrid_rampup.py'
+    test_config_path = 'tests/test_data/' + config_name
+    config_module = config_loader.import_module(test_config_path)
+    config = copy.deepcopy(config_module['CONFIG'])
     # Register the new source model config against the gas puff source.
     register_config.register_source_model_config(
         NewGasPuffSourceModelConfig, 'gas_puff'
@@ -184,3 +205,33 @@ class RegisterConfigTest(parameterized.TestCase):
       register_config.register_source_model_config(
           NewGasPuffSourceModelConfig, 'foo_source'
       )
+
+  def test_register_geometry_model_config(self):
+    config_name = 'test_iterhybrid_rampup.py'
+    test_config_path = 'tests/test_data/' + config_name
+    config_module = config_loader.import_module(test_config_path)
+    config = copy.deepcopy(config_module['CONFIG'])
+    # # Register the new geometry model config.
+    register_config.register_geometry_model_config(
+        _NewGeometryModelConfig,
+    )
+
+    # Modify the config to use the new geometry model config.
+    config['geometry'] = {
+        'geometry_type': 'new_geometry',
+        'n_rho': 10,
+    }
+    # Check building the config picks up the new geometry model config.
+    config_pydantic = model_config.ToraxConfig.from_dict(config)
+    geometry_config = config_pydantic.geometry.geometry_configs
+    self.assertIsInstance(
+        geometry_config, geometry_pydantic_model.GeometryConfig
+    )
+    self.assertIsInstance(geometry_config.config, _NewGeometryModelConfig)
+    # Check the geometry mesh has the n_rho we set.
+    geometry_provider = config_pydantic.geometry.build_provider
+    self.assertEqual(geometry_provider(0.0).torax_mesh.nx, 10)
+
+
+if __name__ == '__main__':
+  absltest.main()

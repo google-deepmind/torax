@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utilities for registering new pydantic configs."""
-from torax._src.sources import base
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.sources import base as sources_base
 from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
 from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
 from torax._src.sources import electron_cyclotron_source as electron_cyclotron_source_lib
@@ -31,7 +32,7 @@ from torax._src.torax_pydantic import model_config
 
 
 def _validate_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[sources_base.SourceModelBase],
     source_name: str,
 ):
   """Validates that the source model config is valid."""
@@ -103,7 +104,7 @@ def _validate_source_model_config(
 
 
 def register_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[sources_base.SourceModelBase],
     source_name: str,
 ):
   """Update Pydantic schema to include a source model config.
@@ -128,4 +129,20 @@ def register_source_model_config(
   # Rebuild the pydantic schema for both the Sources and ToraxConfig models so
   # that uses of either will have access to the new config.
   sources_pydantic_model.Sources.model_rebuild(force=True)
+  model_config.ToraxConfig.model_rebuild(force=True)
+
+
+def register_geometry_model_config(
+    geometry_model_config_class: type[
+        geometry_pydantic_model.GeometryConfigBase
+    ],
+):
+  """Update Pydantic schema to include a geometry model config."""
+  geometry_pydantic_model.GeometryConfig.model_fields[
+      'config'
+  ].annotation |= geometry_model_config_class
+  # Rebuild the pydantic schema for the `GeometryConfig` and containers so that
+  # they will have access to the new config.
+  geometry_pydantic_model.GeometryConfig.model_rebuild(force=True)
+  geometry_pydantic_model.Geometry.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)
