@@ -32,10 +32,10 @@ class TimeStepCalculatorTest(absltest.TestCase):
         'exact_t_final': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    print(torax_config.numerics.fixed_dt)
-    self.static_params, dynamic_provider, self.sim_state, _, _, _ = (
+    dynamic_provider, self.sim_state, _, step_fn = (
         run_simulation.prepare_simulation(torax_config)
     )
+    self.static_params = step_fn.solver.static_runtime_params_slice
     self.dynamic_slice = dynamic_provider(self.sim_state.t)
 
   def test_next_dt_basic_case(self):

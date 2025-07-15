@@ -25,7 +25,6 @@ new_sim_outputs = torax.run_simulation(torax_config)
 """
 
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import sim_state
@@ -39,11 +38,9 @@ import xarray as xr
 def prepare_simulation(
     torax_config: model_config.ToraxConfig,
 ) -> tuple[
-    runtime_params_slice.StaticRuntimeParamsSlice,
     build_runtime_params.DynamicRuntimeParamsSliceProvider,
     sim_state.ToraxSimState,
     post_processing.PostProcessedOutputs,
-    bool,
     step_function.SimulationStepFn,
 ]:
   """Prepare a TORAX simulation returning the necessary inputs for the run loop.
@@ -57,7 +54,6 @@ def prepare_simulation(
       - The dynamic runtime parameters slice provider.
       - The initial state.
       - The initial post processed outputs.
-      - A boolean indicating if the simulation is a restart case.
       - The simulation step function.
   """
   transport_model = torax_config.transport.build_transport_model()
@@ -113,7 +109,6 @@ def prepare_simulation(
             step_fn=step_fn,
         )
     )
-    restart_case = True
   else:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
@@ -124,14 +119,11 @@ def prepare_simulation(
             step_fn=step_fn,
         )
     )
-    restart_case = False
 
   return (
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_provider,
       initial_state,
       post_processed_outputs,
-      restart_case,
       step_fn,
   )
 
@@ -155,20 +147,16 @@ def run_simulation(
     `PostProcessedOutputs` dataclasses for each step of the simulation.
   """
   (
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_provider,
       initial_state,
       post_processed_outputs,
-      restart_case,
       step_fn,
   ) = prepare_simulation(torax_config)
 
   state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       initial_state=initial_state,
       initial_post_processed_outputs=post_processed_outputs,
-      restart_case=restart_case,
       step_fn=step_fn,
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,

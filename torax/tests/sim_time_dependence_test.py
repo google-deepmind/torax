@@ -103,12 +103,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     def _fake_run_loop(
-        static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
-        restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
     ) -> tuple[
@@ -119,9 +117,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       del (
           log_timestep_info,
           progress_bar,
-          restart_case,
           dynamic_runtime_params_slice_provider,
-          static_runtime_params_slice,
       )
       output_state, post_processed_outputs, error = step_fn(
           initial_state,
