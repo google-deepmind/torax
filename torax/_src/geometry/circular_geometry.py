@@ -45,9 +45,8 @@ def build_circular_geometry(
   """
   # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
-  drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  mesh = torax_pydantic.Grid1D(nx=n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D(nx=n_rho,)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
   rho_b = np.asarray(a_minor)
 
