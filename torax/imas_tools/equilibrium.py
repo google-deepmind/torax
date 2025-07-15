@@ -55,6 +55,7 @@ def geometry_from_IMAS(
     imas_filepath: Optional[str] = None,
 ) -> dict[str, Any]:
   """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
+  Written for IMAS DDv4 and COCOS v17.
   Args:
     geometry_directory: Directory where to find the equilibrium object.
       If None, it defaults to another dir. See `load_geo_data`
@@ -95,13 +96,13 @@ def geometry_from_IMAS(
   IMAS_data = equilibrium.time_slice[0]
   B_0 = np.abs(
       IMAS_data.global_quantities.magnetic_axis.b_field_phi
-  )  # Should it be replaced by .time_slice[0].global_quantities.b_field_phi ?
+  )
   R_major = np.asarray(
       equilibrium.vacuum_toroidal_field.r0
-  )  # Should it be replaced by IMAS_data.boundary.geometric_axis.r ?
+  )
 
   # Poloidal flux
-  psi = 1 * IMAS_data.profiles_1d.psi  # Sign changed ddv4
+  psi = 1 * IMAS_data.profiles_1d.psi
 
   # toroidal flux
   phi = -1 * IMAS_data.profiles_1d.phi
@@ -175,7 +176,6 @@ def geometry_from_IMAS(
       Ip_total / Ip_profile_unscaled[-1]
   )  # scaled Ip profile such that the total plasma current is consistent
 
-  # To check
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
   return {
@@ -211,6 +211,7 @@ def geometry_to_IMAS(
 ) -> IDSToplevel:
   """Constructs an IMAS equilibrium IDS from a StandardGeometry object.
   Takes the cell grid as a basis and converts values on face grid to cell.
+  Written for IMAS DDv4 and COCOS v17.
   Args:
     sim_state: A ToraxSimState object containing:
       - geometry: TORAX StandardGeometry object.
@@ -230,7 +231,7 @@ def geometry_to_IMAS(
   # (Which should remain unchanged by the transport code),
   # is it needed or do we only need coupling variables ?
   equilibrium = imas.IDSFactory().equilibrium()
-  equilibrium.ids_properties.homogeneous_time = 1  # Should be 0 or 1 ?
+  equilibrium.ids_properties.homogeneous_time = 1
   equilibrium.ids_properties.comment = (
       "equilibrium IDS built from ToraxSimState object."
   )
