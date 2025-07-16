@@ -602,6 +602,28 @@ class InterpolatedParamTest(parameterized.TestCase):
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
 
+  def test_interpolated_var_single_axis_eq(self):
+    var1 = interpolated_param.InterpolatedVarSingleAxis(
+        value=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+    )
+    var2 = interpolated_param.InterpolatedVarSingleAxis(
+        value=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+    )
+    self.assertEqual(var1, var2)
+
+  def test_interpolated_var_single_axis_eq_false(self):
+    var1 = interpolated_param.InterpolatedVarSingleAxis(
+        value=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+    )
+    var2 = interpolated_param.InterpolatedVarSingleAxis(
+        value=(np.array([0.0, 1.0]), np.array([0.0, 2.0])),
+        interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+    )
+    self.assertNotEqual(var1, var2)
+
 
 if __name__ == '__main__':
   absltest.main()

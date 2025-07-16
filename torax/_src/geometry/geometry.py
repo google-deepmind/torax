@@ -205,6 +205,13 @@ class Geometry:
   Phi_b_dot: chex.Array
   _z_magnetic_axis: chex.Array | None
 
+  def __eq__(self, other: 'Geometry') -> bool:
+    try:
+      chex.assert_trees_all_equal(self, other)
+    except AssertionError:
+      return False
+    return True
+
   @property
   def q_correction_factor(self) -> chex.Numeric:
     """Ad-hoc fix for non-physical circular geometry model.

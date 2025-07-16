@@ -416,6 +416,13 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     """Returns the JAX-friendly interpolated param used under the hood."""
     return self._param
 
+  def __eq__(self, other: 'InterpolatedVarSingleAxis') -> bool:
+    try:
+      chex.assert_trees_all_equal(self, other)
+    except AssertionError:
+      return False
+    return True
+
 
 @jax.tree_util.register_pytree_node_class
 class InterpolatedVarTimeRho(InterpolatedParamBase):

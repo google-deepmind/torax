@@ -159,6 +159,16 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.0)
     np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.0)
 
+  def test_geometry_eq(self):
+    geo1 = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo2 = geometry_pydantic_model.CircularConfig().build_geometry()
+    with self.subTest('same_geometries_are_equal'):
+      self.assertEqual(geo1, geo2)
+
+    with self.subTest('different_geometries_are_not_equal'):
+      geo3 = dataclasses.replace(geo1, Phi_face=np.array([2.0]))
+      self.assertNotEqual(geo1, geo3)
+
 
 def _pint_face_to_cell(n_rho, face):
   cell = np.zeros(n_rho)
