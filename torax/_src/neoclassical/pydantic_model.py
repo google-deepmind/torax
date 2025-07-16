@@ -13,8 +13,7 @@
 # limitations under the License.
 """Pydantic model for the neoclassical package."""
 
-import copy
-from typing import Any
+from typing import Annotated
 
 import pydantic
 from torax._src.neoclassical import neoclassical_models
@@ -26,35 +25,37 @@ from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
+BootstrapCurrentConfig = Annotated[
+    bootstrap_current_zeros.ZerosModelConfig | sauter_current.SauterModelConfig,
+    pydantic.BeforeValidator(
+        torax_pydantic.create_default_model_injector("model_name", "sauter")
+    ),
+]
+
+TransportConfig = Annotated[
+    transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig,
+    pydantic.BeforeValidator(
+        torax_pydantic.create_default_model_injector("model_name", "zeros")
+    ),
+]
+
 
 class Neoclassical(torax_pydantic.BaseModelFrozen):
   """Config for neoclassical models."""
 
-  bootstrap_current: (
-      bootstrap_current_zeros.ZerosModelConfig
-      | sauter_current.SauterModelConfig
-  ) = pydantic.Field(discriminator="model_name")
+  bootstrap_current: BootstrapCurrentConfig = pydantic.Field(
+      discriminator="model_name",
+      default_factory=bootstrap_current_zeros.ZerosModelConfig,
+      validate_default=True,
+  )
   conductivity: sauter_conductivity.SauterModelConfig = (
       torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())
   )
-  transport: (
-      transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
-  ) = pydantic.Field(discriminator="model_name")
-
-  @pydantic.model_validator(mode="before")
-  @classmethod
-  def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
-    configurable_data = copy.deepcopy(data)
-    if "bootstrap_current" not in configurable_data:
-      configurable_data["bootstrap_current"] = {"model_name": "zeros"}
-    if "model_name" not in configurable_data["bootstrap_current"]:
-      configurable_data["bootstrap_current"]["model_name"] = "sauter"
-    if "transport" not in configurable_data:
-      configurable_data["transport"] = {"model_name": "zeros"}
-    if "model_name" not in configurable_data["transport"]:
-      configurable_data["transport"]["model_name"] = "zeros"
-
-    return configurable_data
+  transport: TransportConfig = pydantic.Field(
+      discriminator="model_name",
+      default_factory=transport_zeros.ZerosModelConfig,
+      validate_default=True,
+  )
 
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
