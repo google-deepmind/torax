@@ -19,4 +19,5 @@ matplotlib
 scikit-learn
 numpy
 rich[jupyter]
+bokeh  # For interactive notebook plotting
 .[ci]  # Install jax from the current directory; jaxlib from pypi.

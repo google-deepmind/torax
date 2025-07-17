@@ -27,6 +27,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torax._src.output_tools import output
 import xarray as xr
+import sys
+
+# Try to import Bokeh for notebook plotting
+try:
+    from bokeh.plotting import figure, show, output_notebook
+    from bokeh.models import Slider, ColumnDataSource, Legend
+    from bokeh.layouts import column
+    BOKEH_AVAILABLE = True
+except ImportError:
+    BOKEH_AVAILABLE = False
 
 # Internal import.
 
@@ -397,6 +407,73 @@ def load_data(filename: str) -> PlotData:
       q95=scalars_dataset['q95'].to_numpy(),
       t=time,
   )
+
+
+def _in_notebook():
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (likely not notebook)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
+def plot_run_bokeh(plot_config: FigureProperties, outfile: str, outfile2: str | None = None):
+    """Plots a single run or comparison of two runs using Bokeh for notebook interactivity."""
+    if not BOKEH_AVAILABLE:
+        raise ImportError("Bokeh is not installed. Please install bokeh to use notebook plotting.")
+    output_notebook()
+    plotdata1 = load_data(outfile)
+    plotdata2 = load_data(outfile2) if outfile2 else None
+
+    # Prepare data for each axis
+    sources = []
+    figures = []
+    legends = []
+    for cfg in plot_config.axes:
+        p = figure(title=cfg.ylabel, width=int(400*plot_config.figure_size_factor/5), height=int(300*plot_config.figure_size_factor/5))
+        if cfg.plot_type == PlotType.SPATIAL:
+            # Only spatial plots are updated by slider
+            data1 = getattr(plotdata1, cfg.attrs[0])
+            rho = plotdata1.rho_cell_norm if data1.shape[1] == len(plotdata1.rho_cell_norm) else plotdata1.rho_face_norm
+            source = ColumnDataSource(data={
+                'x': rho,
+                'y': data1[0, :],
+            })
+            l = p.line('x', 'y', source=source, line_width=2, color=plot_config.colors[0], legend_label=cfg.labels[0])
+            sources.append((source, data1, rho, p, l, cfg))
+            figures.append(p)
+        elif cfg.plot_type == PlotType.TIME_SERIES:
+            data1 = getattr(plotdata1, cfg.attrs[0])
+            source = ColumnDataSource(data={
+                'x': plotdata1.t,
+                'y': data1,
+            })
+            l = p.line('x', 'y', source=source, line_width=2, color=plot_config.colors[0], legend_label=cfg.labels[0])
+            figures.append(p)
+    # Slider for time
+    tmin = min(plotdata1.t) if plotdata2 is None else min(min(plotdata1.t), min(plotdata2.t))
+    tmax = max(plotdata1.t) if plotdata2 is None else max(max(plotdata1.t), max(plotdata2.t))
+    dt = min(np.diff(plotdata1.t)) if plotdata2 is None else min(min(np.diff(plotdata1.t)), min(np.diff(plotdata2.t)))
+    slider = Slider(start=tmin, end=tmax, value=tmin, step=dt, title="Time [s]")
+    def slider_callback(attr, old, new):
+        for source, data, rho, p, l, cfg in sources:
+            idx = np.abs(plotdata1.t - slider.value).argmin()
+            source.data = {'x': rho, 'y': data[idx, :]}
+    slider.on_change('value', slider_callback)
+    show(column(*figures, slider))
+
+
+def plot_run_auto(plot_config: FigureProperties, outfile: str, outfile2: str | None = None):
+    """Automatically choose notebook (Bokeh) or desktop (matplotlib) plotting."""
+    if _in_notebook() and BOKEH_AVAILABLE:
+        plot_run_bokeh(plot_config, outfile, outfile2)
+    else:
+        plot_run(plot_config, outfile, outfile2)
 
 
 def plot_run(
