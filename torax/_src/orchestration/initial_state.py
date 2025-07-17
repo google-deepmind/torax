@@ -68,12 +68,13 @@ def _get_initial_state(
     step_fn: step_function.SimulationStepFn,
 ) -> sim_state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
+  physics_models = step_fn.solver.physics_models
   initial_core_profiles = initialization.initial_core_profiles(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
-      step_fn.solver.source_models,
-      step_fn.solver.neoclassical_models,
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
   )
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -83,8 +84,8 @@ def _get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=initial_core_profiles,
-      source_models=step_fn.solver.source_models,
-      neoclassical_models=step_fn.solver.neoclassical_models,
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
       conductivity=conductivity_base.Conductivity(
           sigma=initial_core_profiles.sigma,
           sigma_face=initial_core_profiles.sigma_face,
@@ -93,9 +94,9 @@ def _get_initial_state(
 
   transport_coeffs = (
       transport_coefficients_builder.calculate_total_transport_coeffs(
-          step_fn.solver.pedestal_model,
-          step_fn.solver.transport_model,
-          step_fn.solver.neoclassical_models,
+          physics_models.pedestal_model,
+          physics_models.transport_model,
+          physics_models.neoclassical_models,
           dynamic_runtime_params_slice,
           geo,
           initial_core_profiles,

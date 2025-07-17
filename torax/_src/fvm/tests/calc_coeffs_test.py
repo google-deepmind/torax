@@ -57,8 +57,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    physics_models = torax_config.build_physics_models()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -66,39 +65,34 @@ class CoreProfileSettersTest(parameterized.TestCase):
             t=torax_config.numerics.t_initial,
         )
     )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
-        source_models,
-        neoclassical_models,
+        source_models=physics_models.source_models,
+        neoclassical_models=physics_models.neoclassical_models,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_runtime_params_slice=static_runtime_params_slice,
-        source_models=source_models,
+        source_models=physics_models.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        neoclassical_models=neoclassical_models,
+        neoclassical_models=physics_models.neoclassical_models,
         explicit=True,
     )
-    pedestal_model = torax_config.pedestal.build_pedestal_model()
-    transport_model = torax_config.transport.build_transport_model()
     calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        transport_model=transport_model,
+        physics_models=physics_models,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=source_models,
-        neoclassical_models=neoclassical_models,
-        pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
     )
@@ -107,21 +101,15 @@ class CoreProfileSettersTest(parameterized.TestCase):
     def create_coeffs_callback(
         torax_config: model_config.ToraxConfig,
     ) -> calc_coeffs.CoeffsCallback:
-      pedestal_model = torax_config.pedestal.build_pedestal_model()
-      transport_model = torax_config.transport.build_transport_model()
+      physics_models = torax_config.build_physics_models()
       evolving_names = tuple(['T_i'])
-      source_models = torax_config.sources.build_models()
-      neoclassical_models = torax_config.neoclassical.build_models()
       static_runtime_params_slice = (
           build_runtime_params.build_static_params_from_config(torax_config)
       )
       return calc_coeffs.CoeffsCallback(
           static_runtime_params_slice=static_runtime_params_slice,
-          transport_model=transport_model,
-          source_models=source_models,
-          neoclassical_models=neoclassical_models,
+          physics_models=physics_models,
           evolving_names=evolving_names,
-          pedestal_model=pedestal_model,
       )
 
     torax_config = {

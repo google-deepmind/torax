@@ -20,6 +20,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -27,12 +28,9 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
@@ -43,37 +41,25 @@ class CoeffsCallback:
   def __init__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
       evolving_names: tuple[str, ...],
-      pedestal_model: pedestal_model_lib.PedestalModel,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
-    self.transport_model = transport_model
-    self.source_models = source_models
-    self.neoclassical_models = neoclassical_models
+    self.physics_models = physics_models
     self.evolving_names = evolving_names
-    self.pedestal_model = pedestal_model
 
   def __hash__(self) -> int:
     return hash((
         self.static_runtime_params_slice,
-        self.transport_model,
-        self.source_models,
-        self.neoclassical_models,
+        self.physics_models,
         self.evolving_names,
-        self.pedestal_model,
     ))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
     return (
         self.static_runtime_params_slice == other.static_runtime_params_slice
-        and self.transport_model == other.transport_model
-        and self.source_models == other.source_models
-        and self.neoclassical_models == other.neoclassical_models
+        and self.physics_models == other.physics_models
         and self.evolving_names == other.evolving_names
-        and self.pedestal_model == other.pedestal_model
     )
 
   def __call__(
@@ -140,14 +126,11 @@ class CoeffsCallback:
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=self.source_models,
-        neoclassical_models=self.neoclassical_models,
+        physics_models=self.physics_models,
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
-        pedestal_model=self.pedestal_model,
     )
 
 
@@ -242,11 +225,8 @@ def calc_coeffs(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
+    physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
     explicit_call: bool = False,
@@ -264,18 +244,12 @@ def calc_coeffs(
       of the solver. Depending on the type of solver being used, this may or may
       not be equal to the original plasma profiles at the beginning of the time
       step.
-    transport_model: A TransportModel subclass, calculates transport coeffs.
     explicit_source_profiles: Precomputed explicit source profiles. These
       profiles either do not depend on the core profiles or depend on the
       original core profiles at the start of the time step, not the "live"
       updating core profiles. For sources that are implicit, their explicit
       profiles are set to all zeros.
-    source_models: All TORAX source/sink functions that generate the explicit
-      and implicit source profiles used as terms for the core profiles
-      equations.
-    neoclassical_models: Neoclassical models for the time step. These include
-      the conductivity model, bootstrap current and neoclassical transport.
-    pedestal_model: A PedestalModel subclass, calculates pedestal values.
+    physics_models: The physics models to use for the simulation.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
@@ -298,17 +272,14 @@ def calc_coeffs(
     )
   else:
     return _calc_coeffs_full(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice,
-        geo,
-        core_profiles,
-        transport_model,
-        explicit_source_profiles,
-        source_models,
-        neoclassical_models,
-        pedestal_model,
-        evolving_names,
-        use_pereverzev,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+        explicit_source_profiles=explicit_source_profiles,
+        physics_models=physics_models,
+        evolving_names=evolving_names,
+        use_pereverzev=use_pereverzev,
     )
 
 
@@ -316,10 +287,6 @@ def calc_coeffs(
     jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'pedestal_model',
-        'source_models',
-        'neoclassical_models',
         'evolving_names',
     ],
 )
@@ -328,50 +295,16 @@ def _calc_coeffs_full(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
+    physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
-  """Calculates Block1DCoeffs for the time step described by `core_profiles`.
-
-  Args:
-    static_runtime_params_slice: General input parameters which are fixed
-      through a simulation run, and if changed, would trigger a recompile.
-    dynamic_runtime_params_slice: General input parameters that can change from
-      time step to time step or simulation run to run, and do so without
-      triggering a recompile.
-    geo: Geometry describing the torus.
-    core_profiles: Core plasma profiles for this time step during this iteration
-      of the solver. Depending on the type of solver being used, this may or may
-      not be equal to the original plasma profiles at the beginning of the time
-      step.
-    transport_model: A TransportModel subclass, calculates transport coeffs.
-    explicit_source_profiles: Precomputed explicit source profiles. These
-      profiles either do not depend on the core profiles or depend on the
-      original core profiles at the start of the time step, not the "live"
-      updating core profiles. For sources that are implicit, their explicit
-      profiles are set to all zeros.
-    source_models: All TORAX source/sink functions that generate the explicit
-      and implicit source profiles used as terms for the core profiles
-      equations.
-    neoclassical_models: Neoclassical models for the time step. These include
-      the conductivity model, bootstrap current and neoclassical transport.
-    pedestal_model: A PedestalModel subclass, calculates pedestal values.
-    evolving_names: The names of the evolving variables in the order that their
-      coefficients should be written to `coeffs`.
-    use_pereverzev: Toggle whether to calculate Pereverzev terms
-
-  Returns:
-    coeffs: Block1DCoeffs containing the coefficients at this time step.
-  """
+  """See `calc_coeffs` for details."""
 
   consts = constants.CONSTANTS
 
-  pedestal_model_output = pedestal_model(
+  pedestal_model_output = physics_models.pedestal_model(
       dynamic_runtime_params_slice, geo, core_profiles
   )
 
@@ -386,14 +319,16 @@ def _calc_coeffs_full(
       .set(True)
   )
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
+  conductivity = (
+      physics_models.neoclassical_models.conductivity.calculate_conductivity(
+          geo, core_profiles
+      )
   )
 
   # Calculate the implicit source profiles and combines with the explicit
   merged_source_profiles = source_profile_builders.build_source_profiles(
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -430,11 +365,11 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # Diffusion term coefficients
-  turbulent_transport = transport_model(
+  turbulent_transport = physics_models.transport_model(
       dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_output
   )
   neoclassical_transport = (
-      neoclassical_models.transport.calculate_neoclassical_transport(
+      physics_models.neoclassical_models.transport.calculate_neoclassical_transport(
           dynamic_runtime_params_slice, geo, core_profiles
       )
   )

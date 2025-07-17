@@ -23,7 +23,6 @@ torax_config.update(updated_fields)
 new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
-
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import run_loop
@@ -56,13 +55,8 @@ def prepare_simulation(
       - The initial post processed outputs.
       - The simulation step function.
   """
-  transport_model = torax_config.transport.build_transport_model()
-  pedestal_model = torax_config.pedestal.build_pedestal_model()
-
   geometry_provider = torax_config.geometry.build_provider
-  source_models = torax_config.sources.build_models()
-
-  neoclassical_models = torax_config.neoclassical.build_models()
+  physics_models = torax_config.build_physics_models()
 
   static_runtime_params_slice = (
       build_runtime_params.build_static_params_from_config(torax_config)
@@ -70,19 +64,9 @@ def prepare_simulation(
 
   solver = torax_config.solver.build_solver(
       static_runtime_params_slice=static_runtime_params_slice,
-      transport_model=transport_model,
-      source_models=source_models,
-      pedestal_model=pedestal_model,
-      neoclassical_models=neoclassical_models,
+      physics_models=physics_models,
   )
 
-  mhd_models = torax_config.mhd.build_mhd_models(
-      static_runtime_params_slice=static_runtime_params_slice,
-      transport_model=transport_model,
-      source_models=source_models,
-      pedestal_model=pedestal_model,
-      neoclassical_models=neoclassical_models,
-  )
   dynamic_runtime_params_slice_provider = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
@@ -92,7 +76,6 @@ def prepare_simulation(
   step_fn = step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-      mhd_models=mhd_models,
       static_runtime_params_slice=static_runtime_params_slice,
       geometry_provider=geometry_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,

@@ -21,12 +21,12 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
@@ -35,7 +35,6 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
@@ -161,19 +160,13 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
   def build_solver(
       self,
       static_runtime_params_slice,
-      transport_model,
-      source_models,
-      pedestal_model,
-      neoclassical_models,
+      physics_models: physics_models_lib.PhysicsModels,
   ) -> 'FakeSolver':
     return FakeSolver(
         param=self.param,
         max_value=self.max_value,
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
+        physics_models=physics_models,
         inner_solver_iterations=self.inner_solver_iterations,
     )
 
@@ -199,17 +192,13 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       param: str,
       max_value: float,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
       inner_solver_iterations: list[int] | None = None,
   ):
-    self.static_runtime_params_slice = static_runtime_params_slice
-    self.transport_model = transport_model
-    self.source_models = source_models
-    self.pedestal_model = pedestal_model
-    self.neoclassical_models = neoclassical_models
+    super().__init__(
+        static_runtime_params_slice=static_runtime_params_slice,
+        physics_models=physics_models,
+    )
     self._param = param
     self._max_value = max_value
     self._inner_solver_iterations = (

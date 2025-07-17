@@ -28,6 +28,7 @@ import jax
 from jax import numpy as jnp
 import jaxopt
 from torax._src import jax_utils
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
@@ -37,11 +38,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
-from torax._src.transport_model import transport_model as transport_model_lib
 
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
@@ -193,11 +190,7 @@ def theta_method_matrix_equation(
     jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'source_models',
         'evolving_names',
-        'pedestal_model',
-        'neoclassical_models',
     ],
 )
 def theta_method_block_residual(
@@ -208,13 +201,10 @@ def theta_method_block_residual(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_model: pedestal_model_lib.PedestalModel,
 ) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
@@ -237,17 +227,12 @@ def theta_method_block_residual(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    transport_model: Turbulent transport model callable.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
-    neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current and neoclassical_transport.
+    physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_model: Model of the pedestal's behavior.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -276,13 +261,10 @@ def theta_method_block_residual(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
-      transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      physics_models=physics_models,
       evolving_names=evolving_names,
       use_pereverzev=False,
-      pedestal_model=pedestal_model,
   )
 
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
@@ -307,11 +289,7 @@ def theta_method_block_residual(
     jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'source_models',
         'evolving_names',
-        'pedestal_model',
-        'neoclassical_models',
     ],
 )
 def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-function-docstring
@@ -322,11 +300,7 @@ def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-fun
     jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'source_models',
         'evolving_names',
-        'pedestal_model',
-        'neoclassical_models',
     ],
 )
 def theta_method_block_loss(
@@ -337,13 +311,10 @@ def theta_method_block_loss(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_model: pedestal_model_lib.PedestalModel,
 ) -> jax.Array:
   """Loss for the optimizer method of nonlinear solution.
 
@@ -366,17 +337,12 @@ def theta_method_block_loss(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    transport_model: turbulent transport model callable
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
-    neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current and neoclassical_transport.
+    physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_model: Model of the pedestal's behavior.
 
   Returns:
     loss: mean squared loss of theta method residual.
@@ -390,13 +356,10 @@ def theta_method_block_loss(
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
-      pedestal_model=pedestal_model,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss
@@ -406,11 +369,7 @@ def theta_method_block_loss(
     jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'source_models',
         'evolving_names',
-        'pedestal_model',
-        'neoclassical_models',
     ],
 )
 def jaxopt_solver(
@@ -421,11 +380,8 @@ def jaxopt_solver(
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
     core_profiles_t_plus_dt: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
-    pedestal_model: pedestal_model_lib.PedestalModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     maxiter: int,
@@ -452,14 +408,9 @@ def jaxopt_solver(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    transport_model: turbulent transport model callable.
-    pedestal_model: Model of the pedestal's behavior.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
-    neoclassical_models: Collection of neoclassical models for calculating
-      conductivity, bootstrap current and neoclassical_transport.
+    physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -480,13 +431,10 @@ def jaxopt_solver(
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
-      pedestal_model=pedestal_model,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
   solver_output = solver.run(init_x_new_vec)

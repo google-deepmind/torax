@@ -19,6 +19,7 @@ import logging
 from typing import Any, Mapping
 
 import pydantic
+from torax._src import physics_models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
@@ -85,6 +86,15 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )
+
+  def build_physics_models(self):
+    return physics_models.PhysicsModels(
+        pedestal_model=self.pedestal.build_pedestal_model(),
+        source_models=self.sources.build_models(),
+        transport_model=self.transport.build_transport_model(),
+        neoclassical_models=self.neoclassical.build_models(),
+        mhd_models=self.mhd.build_mhd_models(),
+    )
 
   @pydantic.model_validator(mode='before')
   @classmethod

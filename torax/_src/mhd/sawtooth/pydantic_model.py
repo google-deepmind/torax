@@ -18,16 +18,11 @@ from typing import Union
 
 import chex
 import pydantic
-from torax._src.config import runtime_params_slice
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
-from torax._src.mhd.sawtooth import sawtooth_model
+from torax._src.mhd.sawtooth import sawtooth_models
 from torax._src.mhd.sawtooth import simple_redistribution
 from torax._src.mhd.sawtooth import simple_trigger
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class SawtoothConfig(torax_pydantic.BaseModelFrozen):
@@ -49,22 +44,10 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
 
   crash_step_duration: torax_pydantic.Second = 1e-3
 
-  def build_model(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-  ) -> sawtooth_model.SawtoothModel:
-    return sawtooth_model.SawtoothModel(
-        static_runtime_params_slice=static_runtime_params_slice,
+  def build_models(self):
+    return sawtooth_models.SawtoothModels(
         trigger_model=self.trigger_model.build_trigger_model(),
         redistribution_model=self.redistribution_model.build_redistribution_model(),
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
     )
 
   def build_dynamic_params(

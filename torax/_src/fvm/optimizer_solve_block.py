@@ -19,6 +19,7 @@ import functools
 from typing import TypeAlias
 
 import jax
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import runtime_params_slice
@@ -30,12 +31,8 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import predictor_corrector_method
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
-from torax._src.transport_model import transport_model as transport_model_lib
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
@@ -44,10 +41,6 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
     xnp.jit,
     static_argnames=[
         'static_runtime_params_slice',
-        'transport_model',
-        'source_models',
-        'neoclassical_models',
-        'pedestal_model',
         'coeffs_callback',
         'evolving_names',
         'initial_guess_mode',
@@ -63,11 +56,8 @@ def optimizer_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
-    transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
+    physics_models: physics_models_lib.PhysicsModels,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
@@ -114,14 +104,9 @@ def optimizer_solve_block(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    transport_model: Turbulent transport model callable.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
-    neoclassical_models: Collection of neoclassical callables to generate
-      neoclassical PDE coefficients.
-    pedestal_model: Model of the pedestal's behavior.
+    physics_models: Physics models used for the calculations.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
     evolving_names: The names of variables within the core profiles that should
@@ -206,11 +191,8 @@ def optimizer_solve_block(
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
-      pedestal_model=pedestal_model,
+      physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       maxiter=maxiter,

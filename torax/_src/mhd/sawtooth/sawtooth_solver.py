@@ -12,24 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Sawtooth model."""
+"""A solver that implements the sawtooth trigger and redistribution."""
 
 import dataclasses
 
 import jax
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.mhd.sawtooth import redistribution_base
-from torax._src.mhd.sawtooth import trigger_base
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import solver
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # TODO(b/414537757). Sawtooth extensions.
@@ -37,28 +32,18 @@ from torax._src.transport_model import transport_model as transport_model_lib
 # b. Porcelli model with free parameters and fast ion sensitivities.
 # c. "Smooth" version that can work with forward-sensitivity-analysis and
 #    stationary-state applications without the need for averaging.
-class SawtoothModel(solver.Solver):
+class SawtoothSolver(solver.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
   def __init__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      trigger_model: trigger_base.TriggerModel,
-      redistribution_model: redistribution_base.RedistributionModel,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ):
     super().__init__(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
+        physics_models=physics_models,
     )
-    self._trigger_model = trigger_model
-    self._redistribution_model = redistribution_model
 
   def _x_new(
       self,
@@ -103,8 +88,11 @@ class SawtoothModel(solver.Solver):
       Updated tuple of evolving CellVariables from CoreProfiles
       SolverNumericOutputs indicating a sawtooth crash.
     """
+    sawtooth_models = self.physics_models.mhd_models.sawtooth_models
+    if sawtooth_models is None:
+      raise ValueError('Sawtooth model is None.')
 
-    trigger_sawtooth, rho_norm_q1 = self._trigger_model(
+    trigger_sawtooth, rho_norm_q1 = sawtooth_models.trigger_model(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
@@ -116,7 +104,7 @@ class SawtoothModel(solver.Solver):
         state.SolverNumericOutputs,
     ]:
 
-      redistributed_core_profiles = self._redistribution_model(
+      redistributed_core_profiles = sawtooth_models.redistribution_model(
           rho_norm_q1,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
@@ -166,26 +154,4 @@ class SawtoothModel(solver.Solver):
             tuple([getattr(core_profiles_t, name) for name in evolving_names]),
             state.SolverNumericOutputs(),
         ),
-    )
-
-  def __hash__(self) -> int:
-    return hash((
-        self._trigger_model,
-        self._redistribution_model,
-        self.static_runtime_params_slice,
-        self.transport_model,
-        self.pedestal_model,
-        self.source_models,
-    ))
-
-  def __eq__(self, other: object) -> bool:
-    return (
-        isinstance(other, SawtoothModel)
-        and self._trigger_model == other._trigger_model
-        and self._redistribution_model == other._redistribution_model
-        and self.static_runtime_params_slice
-        == other.static_runtime_params_slice
-        and self.transport_model == other.transport_model
-        and self.pedestal_model == other.pedestal_model
-        and self.source_models == other.source_models
     )

@@ -19,17 +19,14 @@ import functools
 from typing import Literal
 
 import pydantic
+from torax._src import physics_models as physics_models_lib
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
 from torax._src.solver import runtime_params
 from torax._src.solver import solver as solver_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
 
@@ -84,17 +81,9 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   def build_solver(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
-
-  @property
-  @abc.abstractmethod
-  def linear_solver(self) -> bool:
-    """Returns True if the solver is a linear solver."""
 
 
 class LinearThetaMethod(BaseSolver):
@@ -117,22 +106,12 @@ class LinearThetaMethod(BaseSolver):
   def build_solver(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
+        physics_models=physics_models,
     )
-
-  @property
-  def linear_solver(self) -> bool:
-    return True
 
 
 class NewtonRaphsonThetaMethod(BaseSolver):
@@ -159,10 +138,6 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   residual_coarse_tol: float = 1e-2
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
-
-  @property
-  def linear_solver(self) -> bool:
-    return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
   def build_static_params(
       self,
@@ -193,17 +168,11 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   def build_solver(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
+        physics_models=physics_models,
     )
 
 
@@ -221,10 +190,6 @@ class OptimizerThetaMethod(BaseSolver):
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 100
   loss_tol: float = 1e-10
-
-  @property
-  def linear_solver(self) -> bool:
-    return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
   def build_static_params(
       self,
@@ -251,17 +216,11 @@ class OptimizerThetaMethod(BaseSolver):
   def build_solver(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        neoclassical_models=neoclassical_models,
+        physics_models=physics_models,
     )
 
 

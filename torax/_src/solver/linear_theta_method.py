@@ -66,10 +66,7 @@ class LinearThetaMethod(solver_lib.Solver):
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=self.transport_model,
-        source_models=self.source_models,
-        pedestal_model=self.pedestal_model,
-        neoclassical_models=self.neoclassical_models,
+        physics_models=self.physics_models,
         evolving_names=evolving_names,
     )
 

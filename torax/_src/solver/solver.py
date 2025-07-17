@@ -21,16 +21,13 @@ import abc
 import functools
 
 import jax
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
-from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
@@ -38,42 +35,24 @@ class Solver(abc.ABC):
   """Solves for a single time steps update to State.
 
   Attributes:
-    transport_model: A TransportModel subclass, calculates transport coeffs.
-    source_models: All TORAX sources used to compute both the explicit and
-      implicit source profiles used for each time step as terms in the state
-      evolution equations. Though the explicit profiles are computed outside the
-      call to Solver, the same sources should be used to compute those. The
-      Sources are exposed here to provide a single source of truth for which
-      sources are used during a run.
-    pedestal_model: A PedestalModel subclass, calculates pedestal values.
-    neoclassical_models: A NeoclassicalModels container, calculating
-      neoclassical models like conductivity, bootstrap current and neoclassical
-      transport.
     static_runtime_params_slice: Static runtime parameters. Input params that
       trigger recompilation when they change. These don't have to be
       JAX-friendly types and can be used in control-flow logic.
+    physics_models: Physics models.
   """
 
   def __init__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+      physics_models: physics_models_lib.PhysicsModels,
   ):
-    self.transport_model = transport_model
-    self.source_models = source_models
-    self.pedestal_model = pedestal_model
-    self.neoclassical_models = neoclassical_models
     self.static_runtime_params_slice = static_runtime_params_slice
+    self.physics_models = physics_models
 
   def __hash__(self) -> int:
     return hash((
         self.static_runtime_params_slice,
-        self.transport_model,
-        self.source_models,
-        self.pedestal_model,
+        self.physics_models,
     ))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
@@ -81,9 +60,7 @@ class Solver(abc.ABC):
         self.static_runtime_params_slice == other.static_runtime_params_slice
         and self.static_runtime_params_slice
         == other.static_runtime_params_slice
-        and self.transport_model == other.transport_model
-        and self.source_models == other.source_models
-        and self.pedestal_model == other.pedestal_model
+        and self.physics_models == other.physics_models
     )
 
   @functools.cached_property

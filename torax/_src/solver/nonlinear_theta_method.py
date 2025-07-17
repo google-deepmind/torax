@@ -84,10 +84,7 @@ class NonlinearThetaMethod(solver.Solver):
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
-        transport_model=self.transport_model,
-        source_models=self.source_models,
-        pedestal_model=self.pedestal_model,
-        neoclassical_models=self.neoclassical_models,
+        physics_models=self.physics_models,
         evolving_names=evolving_names,
     )
     (
@@ -208,11 +205,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        transport_model=self.transport_model,
+        physics_models=self.physics_models,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=self.source_models,
-        neoclassical_models=self.neoclassical_models,
-        pedestal_model=self.pedestal_model,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
@@ -268,11 +262,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        transport_model=self.transport_model,
-        pedestal_model=self.pedestal_model,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=self.source_models,
-        neoclassical_models=self.neoclassical_models,
+        physics_models=self.physics_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         log_iterations=static_solver_params.log_iterations,

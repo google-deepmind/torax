@@ -20,6 +20,7 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import build_runtime_params
@@ -30,20 +31,15 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.mhd import base as mhd_base
-from torax._src.mhd.sawtooth import sawtooth_model as sawtooth_model_lib
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 from torax._src.transport_model import transport_coefficients_builder
-from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
 
@@ -85,7 +81,6 @@ class SimulationStepFn:
       self,
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
-      mhd_models: mhd_base.MHDModels,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -95,7 +90,6 @@ class SimulationStepFn:
     Args:
       solver: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
-      mhd_models: Collection of MHD models applied, e.g. sawtooth.
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_provider: Object that returns a set of
@@ -112,8 +106,14 @@ class SimulationStepFn:
         (in order to support time-dependent geometries).
     """
     self._solver = solver
+    if self._solver.physics_models.mhd_models.sawtooth_models is not None:
+      self._sawtooth_solver = sawtooth_solver_lib.SawtoothSolver(
+          static_runtime_params_slice=static_runtime_params_slice,
+          physics_models=self._solver.physics_models,
+      )
+    else:
+      self._sawtooth_solver = None
     self._time_step_calculator = time_step_calculator
-    self._mhd_models = mhd_models
     self._geometry_provider = geometry_provider
     self._dynamic_runtime_params_slice_provider = (
         dynamic_runtime_params_slice_provider
@@ -127,10 +127,6 @@ class SimulationStepFn:
   @property
   def solver(self) -> solver_lib.Solver:
     return self._solver
-
-  @property
-  def mhd_models(self) -> mhd_base.MHDModels:
-    return self._mhd_models
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
@@ -190,8 +186,8 @@ class SimulationStepFn:
         static_runtime_params_slice=self._static_runtime_params_slice,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
-        source_models=self.solver.source_models,
-        neoclassical_models=self.solver.neoclassical_models,
+        source_models=self.solver.physics_models.source_models,
+        neoclassical_models=self.solver.physics_models.neoclassical_models,
         explicit=True,
     )
 
@@ -201,7 +197,7 @@ class SimulationStepFn:
     # of a full PDE solve, the step_fn will return early with a state following
     # sawtooth redistribution, at a t+dt set by the sawtooth model
     # configuration.
-    if (self.mhd_models.sawtooth is not None) and (
+    if (self._sawtooth_solver is not None) and (
         not input_state.solver_numeric_outputs.sawtooth_crash
     ):
       output_state, post_processed_outputs, error_state = self._sawtooth_step(
@@ -265,7 +261,7 @@ class SimulationStepFn:
     # post_processed_outputs will be the same as the input state and
     # previous_post_processed_outputs.
     output_state, post_processed_outputs = _sawtooth_step(
-        sawtooth_solver=self.mhd_models.sawtooth,
+        sawtooth_solver=self._sawtooth_solver,
         static_runtime_params_slice=self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
@@ -504,10 +500,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=result[5],
         explicit_source_profiles=explicit_source_profiles,
-        source_models=self.solver.source_models,
-        neoclassical_models=self.solver.neoclassical_models,
-        pedestal_model=self.solver.pedestal_model,
-        transport_model=self.solver.transport_model,
+        physics_models=self.solver.physics_models,
         evolving_names=self.solver.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
@@ -585,10 +578,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=self.solver.source_models,
-        neoclassical_models=self.solver.neoclassical_models,
-        pedestal_model=self.solver.pedestal_model,
-        transport_model=self.solver.transport_model,
+        physics_models=self.solver.physics_models,
         evolving_names=self.solver.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
@@ -605,10 +595,6 @@ class SimulationStepFn:
     static_argnames=[
         'static_runtime_params_slice',
         'evolving_names',
-        'source_models',
-        'pedestal_model',
-        'transport_model',
-        'neoclassical_models',
     ],
 )
 def _finalize_outputs(
@@ -622,10 +608,7 @@ def _finalize_outputs(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
-    transport_model: transport_model_lib.TransportModel,
+    physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
@@ -640,16 +623,16 @@ def _finalize_outputs(
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          source_models=source_models,
-          neoclassical_models=neoclassical_models,
+          source_models=physics_models.source_models,
+          neoclassical_models=physics_models.neoclassical_models,
           evolving_names=evolving_names,
       )
   )
   final_total_transport = (
       transport_coefficients_builder.calculate_total_transport_coeffs(
-          pedestal_model,
-          transport_model,
-          neoclassical_models,
+          physics_models.pedestal_model,
+          physics_models.transport_model,
+          physics_models.neoclassical_models,
           dynamic_runtime_params_slice_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,
@@ -682,7 +665,7 @@ def _finalize_outputs(
 )
 def _sawtooth_step(
     *,
-    sawtooth_solver: sawtooth_model_lib.SawtoothModel | None,
+    sawtooth_solver: sawtooth_solver_lib.SawtoothSolver | None,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -783,10 +766,7 @@ def _sawtooth_step(
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
-        source_models=sawtooth_solver.source_models,
-        neoclassical_models=sawtooth_solver.neoclassical_models,
-        pedestal_model=sawtooth_solver.pedestal_model,
-        transport_model=sawtooth_solver.transport_model,
+        physics_models=sawtooth_solver.physics_models,
         evolving_names=sawtooth_solver.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
     )
