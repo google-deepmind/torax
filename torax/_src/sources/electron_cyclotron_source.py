@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import formulas
 from torax._src.sources import runtime_params as runtime_params_lib
@@ -42,7 +43,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
+  """Runtime parameters for the electron-cyclotron source for a given time and
+  geometry."""
 
   current_drive_efficiency: array_typing.FloatVector
   extra_prescribed_power_density: array_typing.FloatVector
@@ -63,6 +65,7 @@ def calc_heating_and_current(
 
   Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+  for more details.
 
   Args:
     runtime_params: Global runtime parameters
@@ -75,9 +78,10 @@ def calc_heating_and_current(
     2D array of electron cyclotron heating power density and current density.
   """
   source_params = runtime_params.sources[source_name]
-  # Helps linter understand the type of source_params.
+  # Helps linter understand the type of dynamic_source_runtime_params.
   assert isinstance(source_params, RuntimeParams)
-  # Construct the profile
+
+  # Build the EC power deposition profile
   ec_power_density = (
       source_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
@@ -88,32 +92,41 @@ def calc_heating_and_current(
       )
   )
 
-  # Compute j.B via the log for numerical stability
-  # This is equivalent to:
-  # <j_ec.B> = (
-  #     2 * pi * epsilon0**2
-  #     / (qe**3 * R_maj)
-  #     * F
-  #     * T_e [J] / n_e [m^-3]
-  #     * current_drive_efficiency
-  #     * ec_power_density
-  # )
   # pylint: disable=invalid-name
-  log_j_ec_dot_B = (
-      jnp.log(2 * jnp.pi / geo.R_major)
+
+  # j_tor_ec = dI_ec/dA
+  #          = (16π ε₀² Tₑ [eV] η_cd * P_EC /
+  #            (qₑ² Λₑₑ nₑ [m⁻³]))
+  # Computed via the log for numerical stability
+  j_tor_ec = jnp.exp(
+      jnp.log(16.0)
+      + jnp.log(jnp.pi)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      - 3 * jnp.log(constants.CONSTANTS.qe)
-      + jnp.log(geo.F)
       + jnp.log(core_profiles.T_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
-      - jnp.log(core_profiles.n_e.value)
+      + jnp.log(1e3)
       + jnp.log(source_params.current_drive_efficiency)
       + jnp.log(ec_power_density)
+      - (
+          2 * jnp.log(constants.CONSTANTS.qe)
+          + jnp.log(
+              collisions.calculate_log_lambda_ee(
+                  core_profiles.T_e.value, core_profiles.n_e.value
+              )
+          )
+          + jnp.log(core_profiles.n_e.value)
+      )
   )
-  j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
-  # pylint: enable=invalid-name
 
-  return ec_power_density, j_ec_dot_B
+  # < j.B >
+  q_cell = geometry.face_to_cell(core_profiles.q_face)
+  fsa_j_dot_B = (
+      geo.F
+      * geo.gm9
+      * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
+      * j_tor_ec
+  )
+
+  return ec_power_density, fsa_j_dot_B
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -133,23 +146,26 @@ class ElectronCyclotronSource(source.Source):
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):
-  """Config for the electron-cyclotron source.
+  r"""Config for the electron-cyclotron source.
 
   Attributes:
-    current_drive_efficiency: Local dimensionless current drive efficiency. Zeta
-      from Lin-Liu, Chan, and Prater, 2003, eq 44
+    current_drive_efficiency: Dimensionless current drive efficiency profile
+      defined on the cell grid, :math:`\zeta = \frac{e^2\ln\Lambda_{ee}}{8
+      \varepsilon_0^2} \frac{1}{\left\langle\frac{1}{R}\right\rangle} \frac{n_e
+      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec}
+      [\mathrm{A}]}{P_{ec} [\mathrm{W}]}`.
     extra_prescribed_power_density: Manual EC power density profile on the rho
-      grid
-    gaussian_width: Gaussian EC power density profile width
-    gaussian_location: Gaussian EC power density profile location
-    P_total: Gaussian EC total power
+      grid.
+    gaussian_width: Gaussian EC power density profile width.
+    gaussian_location: Gaussian EC power density profile location.
+    P_total: Gaussian EC total power.
   """
 
   model_name: Annotated[
       Literal["gaussian_lin_liu"], torax_pydantic.JAX_STATIC
   ] = "gaussian_lin_liu"
   current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
-      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
+      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.25, 1.0: 0.25}})
   )
   extra_prescribed_power_density: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
