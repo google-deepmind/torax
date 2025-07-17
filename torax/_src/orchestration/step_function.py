@@ -18,7 +18,6 @@ import dataclasses
 import functools
 
 import jax
-import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
@@ -382,25 +381,39 @@ class SimulationStepFn:
     def cond_fun(inputs: tuple[input_type, output_type]):
       next_dt, output = inputs
       solver_outputs = output[2]
+
       # Check for NaN in the next dt to avoid a recursive loop.
-      if jnp.any(jnp.isnan(next_dt)):
-        return False
-      # If the solver did not converge, we need to make a new step.
-      if solver_outputs.solver_error_state == 1:
-        # If t + dt is exactly the final time we may need a smaller step than
-        # min_dt to exactly reach the final time.
-        if dynamic_runtime_params_slice_t.numerics.exact_t_final:
-          if jnp.allclose(
-              input_state.t + next_dt,
-              dynamic_runtime_params_slice_t.numerics.t_final,
-          ):
-            return True
-        # Otherwise we need to have a step larger than min_dt.
-        if next_dt < dynamic_runtime_params_slice_t.numerics.min_dt:
-          return False
-        return True
-      # The solver converged, so we can exit.
-      return False
+      is_nan_next_dt = xnp.isnan(next_dt)
+
+      # If the solver did not converge we need to make a new step.
+      solver_did_not_converge = solver_outputs.solver_error_state == 1
+
+      # If t + dt  is exactly the final time we may need a smaller step than
+      # min_dt to exactly reach the final time.
+      if dynamic_runtime_params_slice_t.numerics.exact_t_final:
+        at_exact_t_final = xnp.allclose(
+            input_state.t + next_dt,
+            dynamic_runtime_params_slice_t.numerics.t_final,
+        )
+      else:
+        at_exact_t_final = xnp.array(False)
+
+      next_dt_too_small = (
+          next_dt < dynamic_runtime_params_slice_t.numerics.min_dt
+      )
+
+      take_another_step = xnp.py_cond(
+          solver_did_not_converge,
+          # If the solver did not converge then we check if we are at the exact
+          # final time and should take a smaller step. If not we also check if
+          # the next dt is too small, if so we should end the step.
+          lambda: xnp.py_cond(
+              at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
+          ),
+          lambda: False,
+      )
+
+      return take_another_step & ~is_nan_next_dt
 
     def body_fun(inputs: tuple[input_type, output_type]):
       dt, output = inputs
