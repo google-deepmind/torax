@@ -67,7 +67,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     """
 
     # No sawtooth redistribution if current is not being evolved.
-    if not static_runtime_params_slice.numerics.evolve_current:
+    if not dynamic_runtime_params_slice.numerics.evolve_current:
       return core_profiles_t
 
     assert dynamic_runtime_params_slice.mhd.sawtooth is not None
@@ -90,7 +90,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     indices = jnp.arange(geo.rho_norm.shape[0])
     redistribution_mask = indices < idx_mixing
 
-    if static_runtime_params_slice.numerics.evolve_density:
+    if dynamic_runtime_params_slice.numerics.evolve_density:
       n_e_redistributed = flatten_profile.flatten_density_profile(
           rho_norm_q1,
           mixing_radius,
@@ -101,7 +101,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       )
     else:
       n_e_redistributed = core_profiles_t.n_e
-    if static_runtime_params_slice.numerics.evolve_electron_heat:
+    if dynamic_runtime_params_slice.numerics.evolve_electron_heat:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
@@ -115,8 +115,8 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     else:
       te_redistributed = core_profiles_t.T_e
     if (
-        static_runtime_params_slice.numerics.evolve_density
-        or static_runtime_params_slice.numerics.evolve_electron_heat
+        dynamic_runtime_params_slice.numerics.evolve_density
+        or dynamic_runtime_params_slice.numerics.evolve_electron_heat
     ):
       ions_redistributed = getters.get_updated_ions(
           static_runtime_params_slice,
@@ -138,7 +138,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           Z_eff=core_profiles_t.Z_eff,
           Z_eff_face=core_profiles_t.Z_eff_face,
       )
-    if static_runtime_params_slice.numerics.evolve_ion_heat:
+    if dynamic_runtime_params_slice.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,

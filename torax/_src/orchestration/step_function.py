@@ -45,13 +45,12 @@ from torax._src.transport_model import transport_coefficients_builder
 
 
 def _check_for_errors(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
-  if static_runtime_params_slice.numerics.adaptive_dt:
+  if dynamic_runtime_params_slice.numerics.adaptive_dt:
     numerics = dynamic_runtime_params_slice.numerics
     if output_state.solver_numeric_outputs.solver_error_state == 1:
       # Only check for min dt if the solver did not converge. Else we may have
@@ -210,7 +209,7 @@ class SimulationStepFn:
       if output_state.solver_numeric_outputs.sawtooth_crash:
         return output_state, post_processed_outputs, error_state
 
-    if self._static_runtime_params_slice.numerics.adaptive_dt:
+    if dynamic_runtime_params_slice_t.numerics.adaptive_dt:
       return self._adaptive_step(
           dynamic_runtime_params_slice_t,
           geo_t,
@@ -251,7 +250,6 @@ class SimulationStepFn:
     ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
         input_state.t,
         dt_crash,
-        self._static_runtime_params_slice,
         self._dynamic_runtime_params_slice_provider,
         geo_t,
         self._geometry_provider,
@@ -275,7 +273,6 @@ class SimulationStepFn:
     # state, post-processed outputs, and the error state.
     if output_state.solver_numeric_outputs.sawtooth_crash:
       error_state = _check_for_errors(
-          self._static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_crash_dt,
           output_state,
           post_processed_outputs,
@@ -362,9 +359,10 @@ class SimulationStepFn:
       state.SimError,
   ]:
     """Performs a (possibly) adaptive simulation step."""
+    evolving_names = dynamic_runtime_params_slice_t.numerics.evolving_names
+
     initial_dt = self.time_step_calculator.next_dt(
         input_state.t,
-        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
@@ -391,7 +389,7 @@ class SimulationStepFn:
       if solver_outputs.solver_error_state == 1:
         # If t + dt is exactly the final time we may need a smaller step than
         # min_dt to exactly reach the final time.
-        if self._static_runtime_params_slice.numerics.exact_t_final:
+        if dynamic_runtime_params_slice_t.numerics.exact_t_final:
           if jnp.allclose(
               input_state.t + next_dt,
               dynamic_runtime_params_slice_t.numerics.t_final,
@@ -418,7 +416,6 @@ class SimulationStepFn:
       ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           input_state.t,
           dt,
-          self._static_runtime_params_slice,
           self._dynamic_runtime_params_slice_provider,
           geo_t,
           self._geometry_provider,
@@ -473,7 +470,7 @@ class SimulationStepFn:
             initial_dt,
             (
                 convertors.core_profiles_to_solver_x_tuple(
-                    input_state.core_profiles, self.solver.evolving_names),
+                    input_state.core_profiles, evolving_names),
                 initial_dt,
                 state.SolverNumericOutputs(
                     # The solver has not converged yet as we have not performed
@@ -501,11 +498,10 @@ class SimulationStepFn:
         core_profiles_t_plus_dt=result[5],
         explicit_source_profiles=explicit_source_profiles,
         physics_models=self.solver.physics_models,
-        evolving_names=self.solver.evolving_names,
+        evolving_names=evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
     return output_state, post_processed_outputs, _check_for_errors(
-        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         output_state,
         post_processed_outputs,
@@ -526,7 +522,6 @@ class SimulationStepFn:
     """Performs a single simulation step."""
     dt = self.time_step_calculator.next_dt(
         input_state.t,
-        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
@@ -540,7 +535,6 @@ class SimulationStepFn:
         _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
             input_state.t,
             dt,
-            self._static_runtime_params_slice,
             self._dynamic_runtime_params_slice_provider,
             geo_t,
             self._geometry_provider,
@@ -579,11 +573,10 @@ class SimulationStepFn:
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         physics_models=self.solver.physics_models,
-        evolving_names=self.solver.evolving_names,
+        evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
     return output_state, post_processed_outputs, _check_for_errors(
-        self._static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         output_state,
         post_processed_outputs,
@@ -751,7 +744,7 @@ def _sawtooth_step(
         core_profiles_redistributed=core_profiles_t_plus_crash_dt,
         geo_t_plus_crash_dt=geo_t_plus_crash_dt,
         previous_post_processed_outputs=input_post_processed_outputs,
-        evolving_names=sawtooth_solver.evolving_names,
+        evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
         dt_crash=dt_crash,
     )
 
@@ -767,7 +760,7 @@ def _sawtooth_step(
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
         physics_models=sawtooth_solver.physics_models,
-        evolving_names=sawtooth_solver.evolving_names,
+        evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
     )
 
@@ -784,7 +777,6 @@ def _sawtooth_step(
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     t: jax.Array,
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -798,7 +790,6 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
   Args:
     t: Time at which the simulation is currently at.
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice_provider: Object that returns a set of runtime
       parameters which may change from time step to time step or simulation run
       to run. If these runtime parameters change, it does NOT trigger a JAX
@@ -820,7 +811,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           geometry_provider=geometry_provider,
       )
   )
-  if static_runtime_params_slice.numerics.calcphibdot:
+  if dynamic_runtime_params_slice_t_plus_dt.numerics.calcphibdot:
     geo_t, geo_t_plus_dt = geometry.update_geometries_with_Phibdot(
         dt=dt,
         geo_t=geo_t,

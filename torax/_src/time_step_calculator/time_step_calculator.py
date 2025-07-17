@@ -52,15 +52,11 @@ class TimeStepCalculator(abc.ABC):
 
   @functools.partial(
       jax_utils.jit,
-      static_argnames=[
-          'self',
-          'static_runtime_params_slice',
-      ],
+      static_argnames=['self'],
   )
   def next_dt(
       self,
       t: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -78,7 +74,7 @@ class TimeStepCalculator(abc.ABC):
     )
     dt = jax.lax.select(
         jnp.logical_and(
-            static_runtime_params_slice.numerics.exact_t_final,
+            dynamic_runtime_params_slice.numerics.exact_t_final,
             crosses_t_final,
         ),
         dynamic_runtime_params_slice.numerics.t_final - t,

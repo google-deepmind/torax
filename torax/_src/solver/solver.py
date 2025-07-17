@@ -63,20 +63,6 @@ class Solver(abc.ABC):
         and self.physics_models == other.physics_models
     )
 
-  @functools.cached_property
-  def evolving_names(self) -> tuple[str, ...]:
-    """The names of core_profiles variables that are evolved by the solver."""
-    evolving_names = []
-    if self.static_runtime_params_slice.numerics.evolve_ion_heat:
-      evolving_names.append('T_i')
-    if self.static_runtime_params_slice.numerics.evolve_electron_heat:
-      evolving_names.append('T_e')
-    if self.static_runtime_params_slice.numerics.evolve_current:
-      evolving_names.append('psi')
-    if self.static_runtime_params_slice.numerics.evolve_density:
-      evolving_names.append('n_e')
-    return tuple(evolving_names)
-
   @functools.partial(
       xnp.jit,
       static_argnames=[
@@ -132,7 +118,7 @@ class Solver(abc.ABC):
     # most can make use of the boilerplate here and just implement `_x_new`.
 
     # Don't call solver functions on an empty list
-    if self.evolving_names:
+    if dynamic_runtime_params_slice_t.numerics.evolving_names:
       (
           x_new,
           solver_numeric_output,
@@ -146,7 +132,7 @@ class Solver(abc.ABC):
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          evolving_names=self.evolving_names,
+          evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
       )
     else:
       x_new = tuple()

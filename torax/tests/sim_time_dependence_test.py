@@ -206,7 +206,6 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
         if inner_solver_iterations is not None
         else []
     )
-    self.evolving_names = ('T_i',)
 
   def __call__(
       self,

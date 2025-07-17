@@ -32,10 +32,9 @@ class TimeStepCalculatorTest(absltest.TestCase):
         'exact_t_final': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    dynamic_provider, self.sim_state, _, step_fn = (
+    dynamic_provider, self.sim_state, _, _ = (
         run_simulation.prepare_simulation(torax_config)
     )
-    self.static_params = step_fn.solver.static_runtime_params_slice
     self.dynamic_slice = dynamic_provider(self.sim_state.t)
 
   def test_next_dt_basic_case(self):
@@ -44,7 +43,6 @@ class TimeStepCalculatorTest(absltest.TestCase):
     )
     dt = time_step_calculator_instance.next_dt(
         t=0.0,
-        static_runtime_params_slice=self.static_params,
         dynamic_runtime_params_slice=self.dynamic_slice,
         geo=self.sim_state.geometry,
         core_profiles=self.sim_state.core_profiles,
@@ -58,7 +56,6 @@ class TimeStepCalculatorTest(absltest.TestCase):
     )
     dt = time_step_calculator_instance.next_dt(
         t=4.0,
-        static_runtime_params_slice=self.static_params,
         dynamic_runtime_params_slice=self.dynamic_slice,
         geo=self.sim_state.geometry,
         core_profiles=self.sim_state.core_profiles,
@@ -67,10 +64,10 @@ class TimeStepCalculatorTest(absltest.TestCase):
     self.assertEqual(dt, 1.0)
 
   def test_next_dt_when_t_final_is_reached_not_exact(self):
-    static_slice = dataclasses.replace(
-        self.static_params,
+    dynamic_slice = dataclasses.replace(
+        self.dynamic_slice,
         numerics=dataclasses.replace(
-            self.static_params.numerics, exact_t_final=False
+            self.dynamic_slice.numerics, exact_t_final=False
         ),
     )
     time_step_calculator_instance = (
@@ -78,8 +75,7 @@ class TimeStepCalculatorTest(absltest.TestCase):
     )
     dt = time_step_calculator_instance.next_dt(
         t=4.0,
-        static_runtime_params_slice=static_slice,
-        dynamic_runtime_params_slice=self.dynamic_slice,
+        dynamic_runtime_params_slice=dynamic_slice,
         geo=self.sim_state.geometry,
         core_profiles=self.sim_state.core_profiles,
         core_transport=self.sim_state.core_transport,

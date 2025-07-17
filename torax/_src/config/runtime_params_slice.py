@@ -125,7 +125,6 @@ class StaticRuntimeParamsSlice:
   main_ion_names: tuple[str, ...]
   impurity_names: tuple[str, ...]
   profile_conditions: profile_conditions.StaticRuntimeParams
-  numerics: numerics.StaticNumerics
 
   def __hash__(self):
     return hash((
@@ -135,7 +134,6 @@ class StaticRuntimeParamsSlice:
         self.main_ion_names,
         self.impurity_names,
         self.profile_conditions,
-        self.numerics,
     ))
 
 
