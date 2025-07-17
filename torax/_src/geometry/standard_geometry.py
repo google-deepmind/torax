@@ -86,7 +86,7 @@ class StandardGeometry(geometry.Geometry):
 class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
-  Ip_from_parameters: bool
+  Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
   Ip_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
