@@ -14,12 +14,16 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.config import build_runtime_params
 from torax._src.config import plasma_composition
+from torax._src.core_profiles import initialization
+from torax._src.physics import charge_states
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
+from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -29,6 +33,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     super().setUp(
         source_config_class=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
+        model_name=impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME,
     )
 
   def test_correct_dynamic_params_built(self):
@@ -263,6 +268,141 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     )
 
     np.testing.assert_allclose(LZ_calculated, expected_LZ, rtol=1e-5)
+
+  @parameterized.named_parameters(
+      (
+          'Low_Te',
+          {'Ne': 0.02, 'Ar': 0.01},  # n_imp/n_e ratios
+          1.5,  # T_e in keV
+      ),
+      (
+          'High_Te',
+          {'Ne': 0.01, 'W': 0.0001},  # n_imp/n_e ratios
+          25.0,  # T_e in keV
+      ),
+      (
+          'Mid_Te_3_impurities',
+          {'C': 0.01, 'Ar': 0.005, 'Kr': 0.001},  # n_imp/n_e ratios
+          8.0,  # T_e in keV
+      ),
+  )
+  def test_mixture_radiation_matches_sum_of_individual_radiations(
+      self,
+      impurity_ratios: dict[str, float],
+      t_e_keV: float,
+  ):
+    """Verifies that radiation from a mixture equals the sum from individual species."""
+
+    # --- 1. Calculate ground truth from individual impurity contributions ---
+    n_e_true = 1e20  # m^-3
+    # Calculate Z and LZ for each individual impurity species
+    impurities_z = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            np.array(t_e_keV), symbol
+        )
+        for symbol in impurity_ratios
+    }
+    impurities_lz = {
+        symbol: impurity_radiation_mavrin_fit._calculate_impurity_radiation_single_species(
+            np.array(t_e_keV), symbol
+        )
+        for symbol in impurity_ratios
+    }
+    # Calculate true densities, Z_eff, and total radiation
+    n_impurities_true = {
+        symbol: ratio * n_e_true for symbol, ratio in impurity_ratios.items()
+    }
+    # Explictly assumes that Z_i = 1.0
+    ni_true = n_e_true - sum(
+        n_imp * z_imp
+        for n_imp, z_imp in zip(
+            n_impurities_true.values(), impurities_z.values()
+        )
+    )
+    zeff_true = (ni_true / n_e_true) + sum(
+        (n_imp / n_e_true) * (z_imp**2)
+        for n_imp, z_imp in zip(
+            n_impurities_true.values(), impurities_z.values()
+        )
+    )
+    # This is the reference radiation we expect TORAX to calculate.
+    radiation_ref = -n_e_true * sum(
+        n_imp * lz
+        for n_imp, lz in zip(n_impurities_true.values(), impurities_lz.values())
+    )
+
+    # --- 2. Set up TORAX with an effective impurity mixture ---
+    n_imp_total_true = sum(n_impurities_true.values())
+    impurity_mixture_fractions = {
+        symbol: n_imp / n_imp_total_true
+        for symbol, n_imp in n_impurities_true.items()
+    }
+    config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_true,
+            'T_e': t_e_keV,
+            'T_i': t_e_keV,
+            'n_e_right_bc': n_e_true,
+            'T_e_right_bc': t_e_keV,
+            'T_i_right_bc': t_e_keV,
+        },
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': impurity_mixture_fractions,
+            'Z_eff': zeff_true.item(),
+        },
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {self._source_name: {'model_name': self._model_name}},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    # --- 3. Call the function under test ---
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    )
+    dynamic_runtime_params_slice = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        static_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
+        neoclassical_models,
+    )
+    calculated_radiation = (
+        impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
+            static_runtime_params_slice=static_slice,
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            unused_geo=geo,
+            source_name=self._source_name,
+            core_profiles=core_profiles,
+            unused_calculated_source_profiles=None,
+            unused_conductivity=None,
+        )
+    )
+
+    # --- 4. Assertions ---
+    np.testing.assert_allclose(
+        calculated_radiation,
+        radiation_ref,
+        rtol=1e-6,
+        err_msg=(
+            'Radiation from mixture does not match sum of individual'
+            ' radiations.'
+        ),
+    )
 
 
 if __name__ == '__main__':

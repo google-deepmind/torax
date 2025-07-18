@@ -30,6 +30,7 @@ from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import charge_states
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
@@ -202,11 +203,37 @@ def impurity_radiation_mavrin_fit(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
+  ion_symbols = static_runtime_params_slice.impurity_names
+  ion_mixture = dynamic_runtime_params_slice.plasma_composition.impurity
   effective_LZ = calculate_total_impurity_radiation(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      ion_symbols=ion_symbols,
+      ion_mixture=ion_mixture,
       T_e=core_profiles.T_e.value,
   )
+
+  # The impurity density must be scaled to account for the true total impurity
+  # density. This is because in an IonMixture, the impurity density is an
+  # effective density as follows:
+  # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
+  # where core_profiles.Z_impurity is the effective impurity charge for the
+  # IonMixture and core_profiles.n_impurity is effective total impurity density.
+  # However, the input fractions correspond to fractions of the true total
+  # impurity density which must be scaled from the effective density as follows:
+  # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
+  # It is important that the calculated radiation corresponds to the true total
+  # impurity density, not the effective one.
+
+  # ion_symbols is a static argument so can use the for loop under jit
+  Z_per_species = jnp.stack([
+      charge_states.calculate_average_charge_state_single_species(
+          core_profiles.T_e.value, ion_symbol
+      )
+      for ion_symbol in ion_symbols
+  ])
+
+  avg_Z = jnp.sum(ion_mixture.fractions[:, jnp.newaxis] * Z_per_species, axis=0)
+  impurity_density_scaling = core_profiles.Z_impurity / avg_Z
+
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -215,6 +242,7 @@ def impurity_radiation_mavrin_fit(
       effective_LZ
       * core_profiles.n_e.value
       * core_profiles.n_impurity.value
+      * impurity_density_scaling
       * dynamic_source_runtime_params.radiation_multiplier
   )
 
