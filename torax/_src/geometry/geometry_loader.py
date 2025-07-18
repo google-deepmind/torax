@@ -92,14 +92,20 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 
+def get_geometry_dir(geometry_dir: str | None = None) -> str:
+  """Gets the default geometry directory if no geometry_dir is provided."""
+  if geometry_dir is None:
+    geometry_dir = os.path.join(torax.__path__[0], 'data/third_party/geo')
+  return geometry_dir
+
+
 def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
     geometry_source: GeometrySource,
 ) -> dict[str, np.ndarray]:
-  """Loads the data from a CHEASE file into a dictionary."""
-  if geometry_dir is None:
-    geometry_dir = os.path.join(torax.__path__[0], 'data/third_party/geo')
+  """Loads the data from a geometry file into a dictionary."""
+  geometry_dir = get_geometry_dir(geometry_dir)
   filepath = os.path.join(geometry_dir, geometry_file)
 
   # initialize geometry from file

@@ -17,12 +17,14 @@
 This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
+
 from collections.abc import Mapping
 import dataclasses
 import logging
 
 import chex
 import contourpy
+from imas import ids_toplevel
 import jax
 import numpy as np
 import scipy
@@ -31,6 +33,7 @@ from torax._src import interpolated_param
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
+from torax._src.geometry import imas as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -931,6 +934,47 @@ class StandardGeometryIntermediates:
         hires_factor=hires_factor,
         z_magnetic_axis=np.array(Zaxis),
     )
+
+  @classmethod
+  def from_IMAS(
+      cls,
+      geometry_directory: str | None,
+      Ip_from_parameters: bool,
+      n_rho: int,
+      hires_factor: int,
+      equilibrium_object: ids_toplevel.IDSToplevel | None = None,
+      imas_uri: str | None = None,
+      imas_filepath: str | None = None,
+  ) -> typing_extensions.Self:
+    """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
+
+    Args:
+      geometry_directory: Directory where to find the scenario file ontaining
+        the parameters of the Data entry to read. If None, then it defaults to
+        another dir. See implementation.
+      Ip_from_parameters: If True, the Ip is taken from the parameters and the
+        values in the Geometry are rescaled to match the new Ip.
+      n_rho: Radial grid points (num cells).
+      hires_factor: High resolution factor for calculations.
+      equilibrium_object: The equilibrium IDS containing the relevant data.
+      imas_uri: The IMAS uri containing the equilibrium data.
+      imas_filepath: The path to the IMAS netCDF file containing the equilibrium
+        data.
+
+    Returns:
+      A StandardGeometry instance based on the input file. This can then be
+      used to build a StandardGeometry by passing to `build_standard_geometry`.
+    """
+    inputs = imas_geometry.geometry_from_IMAS(
+        geometry_directory=geometry_directory,
+        equilibrium_object=equilibrium_object,
+        imas_uri=imas_uri,
+        imas_filepath=imas_filepath,
+        Ip_from_parameters=Ip_from_parameters,
+        n_rho=n_rho,
+        hires_factor=hires_factor,
+    )
+    return cls(geometry_type=geometry.GeometryType.IMAS, **inputs)
 
 
 def build_standard_geometry(

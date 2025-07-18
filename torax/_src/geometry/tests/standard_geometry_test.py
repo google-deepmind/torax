@@ -78,6 +78,13 @@ class GeometryTest(parameterized.TestCase):
     config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
     config.build_geometry()
 
+  def test_build_standard_geometry_from_IMAS(self):
+    """Test that the default IMAS geometry can be built."""
+    config = geometry_pydantic_model.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'
+    )
+    config.build_geometry()
+
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
     geo = geometry_pydantic_model.CheaseConfig().build_geometry()

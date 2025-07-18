@@ -39,6 +39,7 @@ dependencies = [
     "pydantic>=2.10.5",
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
+    "imas-python>=2.0.1",
 ]
 
 dynamic = ["version"]
