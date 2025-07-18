@@ -171,7 +171,7 @@ class IonMixtureTest(parameterized.TestCase):
           'NeC_time_dependent_mix_t075',
           {'C': {0: 0.0, 1: 1.0}, 'Ne': {0: 1.0, 1: 0.0}},
           0.75,
-          7.0,
+          7.428571428571429,
           14.05325,
       ),
   )

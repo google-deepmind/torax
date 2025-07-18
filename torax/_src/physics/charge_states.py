@@ -138,6 +138,30 @@ def get_average_charge_state(
 ) -> array_typing.ArrayFloat:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
+  Equations for quasineutrality and Zeff are the following:
+
+  sum(n_i * Z_i) + sum(n_impurity * Z_impurity) = n_e
+  sum(n_i/n_e * Z_i**2) + sum(n_impurity/n_e * Z_impurity**2) = Z_eff
+
+  We now define effective main ion and impurity charge states and densities,
+  and constrain that Zeff is the same when using a single effective main ion and
+  impurity instead of the full set of ions:
+
+  sum(n_i * Z_i) + sum(n_impurity * Z_impurity) =
+    n_i_eff * Z_i_eff + n_impurity_eff * Z_impurity_eff
+
+  sum(n_i * Z_i**2) + sum(n_impurity * Z_impurity**2) =
+    n_i_eff * Z_i_eff**2 + n_impurity_eff * Z_impurity_eff**2
+
+  We also are free to constrain that:
+  sum(n_i * Z_i) = n_i_eff * Z_i_eff and
+  sum(n_i * Z_i ** 2) = n_i_eff * Z_i_eff**2
+  individually, for i in {main, impurity}.
+
+  Taking the ratio of the two equations, we then get:
+  Z_i_eff = sum(n_i * Z_i **2) / (sum(n_i * Z_i))
+    = sum(fraction_i * Z_i ** 2) / sum(fraction_i * Z_i) = <Z^2> / <Z>
+
   Args:
     ion_symbols: Species to calculate average charge state for.
     ion_mixture: DynamicIonMixture object containing impurity information. The
@@ -155,9 +179,10 @@ def get_average_charge_state(
     return jnp.ones_like(T_e) * ion_mixture.Z_override
 
   avg_Z = jnp.zeros_like(T_e)
+  avg_Z2 = jnp.zeros_like(T_e)
   for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
-    avg_Z += fraction * calculate_average_charge_state_single_species(
-        T_e, ion_symbol
-    )
+    Z_species = calculate_average_charge_state_single_species(T_e, ion_symbol)
+    avg_Z += fraction * Z_species
+    avg_Z2 += fraction * Z_species**2
 
-  return avg_Z
+  return avg_Z2 / avg_Z
