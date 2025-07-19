@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 from typing import Optional
 from unittest import mock
 
@@ -18,7 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import imas
 import numpy as np
-from torax._src.config import config_loader
+from torax._src.geometry import geometry_loader
 from torax._src.geometry import imas as imas_geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 
@@ -77,8 +78,8 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    torax_path = config_loader.torax_path()
-    full_path = f'{torax_path}/data/geo/{filename}'
+    geometry_directory = geometry_loader.get_geometry_dir()
+    full_path = os.path.join(geometry_directory, filename)
     mock_value = imas.DBEntry(uri=full_path, mode='r')
     # imas_core not available for CI so just check if loader is called
     with mock.patch('imas.DBEntry') as mocked_class:
