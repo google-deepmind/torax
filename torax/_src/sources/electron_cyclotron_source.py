@@ -121,16 +121,18 @@ def calc_heating_and_current(
   fsa_1_R = geo.F * geo.g3 * darea_drho2 / (jnp.pi * geo.B_0)
 
   # < j.B >
+  q_cell = geometry.face_to_cell(core_profiles.q_face)
   fsa_j_dot_B = (
       geo.F
       * fsa_1_R
       * (
           1
-          + geo.g2
-          * geo.g3
-          / (
-              16 * jnp.pi**4 * geometry.face_to_cell(core_profiles.q_face) ** 2
-              + constants.CONSTANTS.eps
+          + jnp.where(
+              q_cell == 0,
+              jnp.zeros_like(geo.rho_norm),
+              geo.g2
+              * geo.g3
+              / (16 * jnp.pi**4 * q_cell**2 + constants.CONSTANTS.eps),
           )
       )
       * j_tor_ec
