@@ -45,14 +45,16 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
+    # Set zero models if model not in config dict.
     if "bootstrap_current" not in configurable_data:
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
-    if "model_name" not in configurable_data["bootstrap_current"]:
-      configurable_data["bootstrap_current"]["model_name"] = "sauter"
     if "transport" not in configurable_data:
       configurable_data["transport"] = {"model_name": "zeros"}
+    # Set default model names.
+    if "model_name" not in configurable_data["bootstrap_current"]:
+      configurable_data["bootstrap_current"]["model_name"] = "sauter"
     if "model_name" not in configurable_data["transport"]:
-      configurable_data["transport"]["model_name"] = "zeros"
+      configurable_data["transport"]["model_name"] = "angioni_sauter"
 
     return configurable_data
 

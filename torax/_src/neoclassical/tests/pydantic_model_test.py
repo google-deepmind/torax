@@ -50,7 +50,7 @@ class PydanticModelTest(parameterized.TestCase):
 
   def test_set_transport_default_model_name(self):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})
-    self.assertEqual(model.transport.model_name, "zeros")
+    self.assertEqual(model.transport.model_name, "angioni_sauter")
 
   @parameterized.parameters("zeros", "angioni_sauter")
   def test_set_transport_model_name(self, model_name):

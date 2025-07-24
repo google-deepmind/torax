@@ -1719,12 +1719,13 @@ transport
   supported:
 
   * ``'zeros'``
-    Sets all neoclassical transport coefficients to zero. This is the default.
+    Sets all neoclassical transport coefficients to zero.
 
   * ``'angioni_sauter'``
     The Angioni-Sauter neoclassical transport model from
     `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This model does not have any additional configurable parameters.
+     This is the default model. This model does not have any additional
+     configurable parameters.
 
 Additional Notes
 ================
