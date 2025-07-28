@@ -96,29 +96,32 @@ def calc_heating_and_current(
 
   # pylint: disable=invalid-name
 
-  # j_tor = dI/dA
-  j_tor_ec = (
-      16
-      * jnp.pi
-      * constants.CONSTANTS.epsilon0**2
-      * core_profiles.T_e.value
-      * 1e3  # T_e in eV
-      * dynamic_source_runtime_params.current_drive_efficiency
-      * ec_power_density
-      / (
-          constants.CONSTANTS.qe**2
-          * collisions.calculate_log_lambda_ee(
-              core_profiles.T_e.value, core_profiles.n_e.value
+  # j_tor_ec = dI_ec/dA
+  #          = (16π ε₀² Tₑ [eV] η_cd * P_EC /
+  #            (qₑ² Λₑₑ nₑ [m⁻³]))
+  # Computed via the log for numerical stability
+  j_tor_ec = jnp.exp(
+      jnp.log(16.0)
+      + jnp.log(jnp.pi)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
+      + jnp.log(core_profiles.T_e.value)
+      + jnp.log(1e3)
+      + jnp.log(dynamic_source_runtime_params.current_drive_efficiency)
+      + jnp.log(ec_power_density)
+      - (
+          2 * jnp.log(constants.CONSTANTS.qe)
+          + jnp.log(
+              collisions.calculate_log_lambda_ee(
+                  core_profiles.T_e.value, core_profiles.n_e.value
+              )
           )
-          * core_profiles.n_e.value  # n_e in m^-3
+          + jnp.log(core_profiles.n_e.value)
       )
   )
 
   # < 1/R > on cell grid, needed to convert j_tor to < j.B >
-  # TODO: add to geometry.Geometry?
-  # Numerical trick to avoid division by zero: dρ/dA = dρ²/dA * 1/(2ρ)
-  darea_drho2 = jnp.diff(geo.area_face) / jnp.diff(geo.rho_face**2)
-  fsa_1_R = geo.F * geo.g3 * darea_drho2 / (jnp.pi * geo.B_0)
+  # TODO: Add to geometry outputs?
+  fsa_1_R = 2 * jnp.pi * jnp.gradient(geo.area, geo.volume)
 
   # < j.B >
   q_cell = geometry.face_to_cell(core_profiles.q_face)
@@ -127,6 +130,7 @@ def calc_heating_and_current(
       * fsa_1_R
       * (
           1
+          # TODO: Identify why this is needed
           + jnp.where(
               q_cell == 0,
               jnp.zeros_like(geo.rho_norm),
