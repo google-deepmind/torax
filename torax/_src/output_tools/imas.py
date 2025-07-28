@@ -70,7 +70,10 @@ def torax_state_to_imas_equilibrium(
   eq.profiles_1d.triangularity_upper = geometry.delta_upper_face
   eq.profiles_1d.triangularity_lower = geometry.delta_lower_face
   eq.profiles_1d.elongation = geometry.elongation_face
-  eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
+  try:
+    eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
+  except ValueError as e:
+    pass
   eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
   eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
   eq.profiles_1d.volume = geometry.volume_face

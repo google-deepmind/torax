@@ -77,6 +77,11 @@ tutorial = [
     "seaborn",
     "notebook",
 ]
+# Installed through `pip install -e .[muscle3]`
+muscle3 = [
+    "muscle3",
+    "imas-core",
+]
 
 [tool.isort]
 profile = "google"
