@@ -16,6 +16,7 @@
 
 import dataclasses
 import functools
+from typing import Annotated
 
 import chex
 import jax
@@ -110,18 +111,18 @@ class Numerics(torax_pydantic.BaseModelFrozen):
 
   t_initial: torax_pydantic.Second = 0.0
   t_final: torax_pydantic.Second = 5.0
-  exact_t_final: bool = True
+  exact_t_final: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   max_dt: torax_pydantic.Second = 2.0
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
   fixed_dt: torax_pydantic.Second = 1e-1
-  adaptive_dt: bool = True
+  adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
-  evolve_ion_heat: bool = True
-  evolve_electron_heat: bool = True
-  evolve_current: bool = False
-  evolve_density: bool = False
-  calcphibdot: bool = True
+  evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  evolve_density: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  calcphibdot: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
