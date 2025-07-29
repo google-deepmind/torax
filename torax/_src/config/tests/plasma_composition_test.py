@@ -115,21 +115,30 @@ class PlasmaCompositionTest(parameterized.TestCase):
     self.assertEqual(main_ion_names, ('D', 'T'))
     self.assertEqual(impurity_names, ('Ar',))
 
-  def test_plasma_composition_under_jit(self):
+  @parameterized.named_parameters(
+      dict(testcase_name='empty_A_override', A_override=None),
+      dict(testcase_name='non_empty_A_override', A_override=1.0),
+  )
+  def test_plasma_composition_under_jit(self, A_override):
     initial_zeff = 1.5
     updated_zeff = 2.5
-    pc = plasma_composition.PlasmaComposition(Z_eff=initial_zeff)
+    t = 0.0
+    pc = plasma_composition.PlasmaComposition(
+        Z_eff=initial_zeff, A_i_override=A_override
+    )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
-    def f(pc_model: plasma_composition.PlasmaComposition):
-      return pc_model.build_dynamic_params(t=0.0)
+    def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
+      return pc_model.build_dynamic_params(t=t)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
-      output = f(pc)
+      output = f(pc, t)
       # Z_eff is an array, so we check it's all close to the initial value
       chex.assert_trees_all_close(output.Z_eff, initial_zeff)
+      if A_override is not None:
+        self.assertEqual(output.main_ion.avg_A, A_override)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
@@ -137,7 +146,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       # The Z_eff field is a TimeVaryingArray, which gets recreated on update.
       # We need to set the grid again.
       torax_pydantic.set_grid(pc, geo.torax_mesh, mode='relaxed')
-      output = f(pc)
+      output = f(pc, t)
       chex.assert_trees_all_close(output.Z_eff, updated_zeff)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 

@@ -15,11 +15,10 @@
 """Plasma composition parameters used throughout TORAX simulations."""
 import dataclasses
 import functools
-from typing import Annotated
 
 import chex
 import jax
-import numpy as np
+from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
@@ -68,9 +67,7 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
     A_override: An optional override for the average mass (A) of the mixture.
   """
 
-  species: Annotated[
-      runtime_validation_utils.IonMapping, torax_pydantic.JAX_STATIC
-  ]
+  species: runtime_validation_utils.IonMapping
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
@@ -89,12 +86,12 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
       A DynamicIonMixture object.
     """
     ions = self.species.keys()
-    fractions = np.array([self.species[ion].get_value(t) for ion in ions])
+    fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
 
     if not self.A_override:
-      As = np.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      avg_A = np.sum(As * fractions)
+      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
+      avg_A = jnp.sum(As * fractions)
     else:
       avg_A = self.A_override.get_value(t)
 
