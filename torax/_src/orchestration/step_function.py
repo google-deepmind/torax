@@ -63,6 +63,7 @@ def _check_for_errors(
     return post_processed_outputs.check_for_errors()
 
 
+@jax.tree_util.register_pytree_node_class
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
@@ -117,6 +118,28 @@ class SimulationStepFn:
         dynamic_runtime_params_slice_provider
     )
     self._static_runtime_params_slice = static_runtime_params_slice
+
+  def tree_flatten(self):
+    children = (
+        self._dynamic_runtime_params_slice_provider,
+        self._geometry_provider,
+    )
+    aux_data = (
+        self._solver,
+        self._time_step_calculator,
+        self._static_runtime_params_slice,
+    )
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    return cls(
+        solver=aux_data[0],
+        time_step_calculator=aux_data[1],
+        static_runtime_params_slice=aux_data[2],
+        dynamic_runtime_params_slice_provider=children[0],
+        geometry_provider=children[1],
+    )
 
   @property
   def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
