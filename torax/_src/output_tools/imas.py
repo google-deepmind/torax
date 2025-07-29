@@ -94,19 +94,19 @@ def torax_state_to_imas_equilibrium(
   # gm7 = <\nabla V> / (dV/drhotor)
   gm7 = np.array(geometry.g0_face[1:] / (dvoldpsi[1:] * dpsidrhotor[1:]))
   gm7_on_axis = np.array([1.0])
-  gm7 = np.concat([gm7_on_axis, gm7])
+  gm7 = np.concatenate([gm7_on_axis, gm7])
   eq.profiles_1d.gm7 = gm7
   # gm3 = <(\nabla V)**2>/(dV/drhotor)**2
   gm3 = np.array(
       geometry.g1_face[1:] / (dpsidrhotor[1:] ** 2 * dvoldpsi[1:] ** 2)
   )
   gm3_on_axis = np.array([1.0])
-  gm3 = np.concat([gm3_on_axis, gm3])
+  gm3 = np.concatenate([gm3_on_axis, gm3])
   eq.profiles_1d.gm3 = gm3
   # gm2 = <(\nabla V)**2/R**2>/(dV/drhotor)**2
   gm2 = np.array(geometry.g2_face[1:] / (dpsidrhotor[1:]**2 * dvoldpsi[1:]**2))
   gm2_on_axis = np.array([1 / (geometry.R_major**2)])
-  gm2 = np.concat([gm2_on_axis, gm2])
+  gm2 = np.concatenate([gm2_on_axis, gm2])
   eq.profiles_1d.gm2 = gm2
 
   # Quantities useful for coupling with equilibrium code
