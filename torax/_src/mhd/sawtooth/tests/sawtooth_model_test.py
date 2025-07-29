@@ -85,6 +85,7 @@ class SawtoothModelTest(parameterized.TestCase):
         },
     }
     torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    self._torax_config = torax_config
 
     static_runtime_params_slice = (
         build_runtime_params.build_static_params_from_config(torax_config)
@@ -103,6 +104,9 @@ class SawtoothModelTest(parameterized.TestCase):
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
         )
+    )
+    self.dynamic_runtime_params_slice_provider = (
+        dynamic_runtime_params_slice_provider
     )
 
     self.step_fn = step_function.SimulationStepFn(
@@ -125,9 +129,17 @@ class SawtoothModelTest(parameterized.TestCase):
 
   def test_sawtooth_crash(self):
     """Tests that default values lead to crash and compares post-crash to ref."""
-    output_state, _, sim_error = self.step_fn(
+    output_state, _ = self.step_fn(
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
+    )
+    dynamic_runtime_params_slice = (
+        self.dynamic_runtime_params_slice_provider(output_state.t)
+    )
+    sim_error = step_function.check_for_errors(
+        dynamic_runtime_params_slice.numerics,
+        output_state,
+        self.initial_post_processed_outputs,
     )
 
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
@@ -160,9 +172,17 @@ class SawtoothModelTest(parameterized.TestCase):
             self.initial_state.core_profiles, q_face=raised_q_face
         ),
     )
-    output_state, _, sim_error = self.step_fn(
+    output_state, _ = self.step_fn(
         input_state=initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
+    )
+    dynamic_runtime_params_slice = (
+        self.dynamic_runtime_params_slice_provider(output_state.t)
+    )
+    sim_error = step_function.check_for_errors(
+        dynamic_runtime_params_slice.numerics,
+        output_state,
+        self.initial_post_processed_outputs,
     )
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
     np.testing.assert_equal(
@@ -176,7 +196,7 @@ class SawtoothModelTest(parameterized.TestCase):
   def test_no_subsequent_sawtooth_crashes(self):
     """Tests for no subsequent sawtooth crashes even if q in trigger condition."""
     # This crashes
-    output_state0, post_processed_outputs0, _ = self.step_fn(
+    output_state0, post_processed_outputs0 = self.step_fn(
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
@@ -202,9 +222,19 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     with self.subTest('no_subsequent_sawtooth_crashes'):
-      output_state_should_not_crash, _, sim_error = self.step_fn(
+      output_state_should_not_crash, _ = self.step_fn(
           input_state=new_input_state_should_not_crash,
           previous_post_processed_outputs=post_processed_outputs0,
+      )
+      dynamic_runtime_params_slice = (
+          self.dynamic_runtime_params_slice_provider(
+              output_state_should_not_crash.t
+          )
+      )
+      sim_error = step_function.check_for_errors(
+          dynamic_runtime_params_slice.numerics,
+          output_state_should_not_crash,
+          post_processed_outputs0,
       )
       np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
       np.testing.assert_equal(
@@ -220,7 +250,7 @@ class SawtoothModelTest(parameterized.TestCase):
       )
 
     with self.subTest('crashes_if_sawtooth_crash_is_false'):
-      output_state_should_crash, _, sim_error = self.step_fn(
+      output_state_should_crash, _ = self.step_fn(
           input_state=new_input_state_should_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )

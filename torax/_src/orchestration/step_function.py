@@ -23,6 +23,7 @@ from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import build_runtime_params
+from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
@@ -43,14 +44,13 @@ from torax._src.transport_model import transport_coefficients_builder
 # pylint: disable=invalid-name
 
 
-def _check_for_errors(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+def check_for_errors(
+    numerics: numerics_lib.DynamicNumerics,
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
-  if dynamic_runtime_params_slice.numerics.adaptive_dt:
-    numerics = dynamic_runtime_params_slice.numerics
+  if numerics.adaptive_dt:
     if output_state.solver_numeric_outputs.solver_error_state == 1:
       # Only check for min dt if the solver did not converge. Else we may have
       # converged at a dt > min_dt just before we reach min_dt.
@@ -119,6 +119,12 @@ class SimulationStepFn:
     )
     self._static_runtime_params_slice = static_runtime_params_slice
 
+  @property
+  def static_runtime_params_slice(
+      self,
+  ) -> runtime_params_slice.StaticRuntimeParamsSlice:
+    return self._static_runtime_params_slice
+
   def tree_flatten(self):
     children = (
         self._dynamic_runtime_params_slice_provider,
@@ -160,7 +166,6 @@ class SimulationStepFn:
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
-      state.SimError,
   ]:
     """Advances the simulation state one time step.
 
@@ -221,7 +226,7 @@ class SimulationStepFn:
     if (self._sawtooth_solver is not None) and (
         not input_state.solver_numeric_outputs.sawtooth_crash
     ):
-      output_state, post_processed_outputs, error_state = self._sawtooth_step(
+      output_state, post_processed_outputs = self._sawtooth_step(
           dynamic_runtime_params_slice_t,
           geo_t,
           explicit_source_profiles,
@@ -229,7 +234,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
       )
       if output_state.solver_numeric_outputs.sawtooth_crash:
-        return output_state, post_processed_outputs, error_state
+        return output_state, post_processed_outputs
 
     if dynamic_runtime_params_slice_t.numerics.adaptive_dt:
       return self._adaptive_step(
@@ -259,7 +264,6 @@ class SimulationStepFn:
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
-      state.SimError,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
     assert dynamic_runtime_params_slice_t.mhd.sawtooth is not None
@@ -291,17 +295,7 @@ class SimulationStepFn:
         input_state=input_state,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
-    # If a sawtooth crash was carried out, we exit early with the post-crash
-    # state, post-processed outputs, and the error state.
-    if output_state.solver_numeric_outputs.sawtooth_crash:
-      error_state = _check_for_errors(
-          dynamic_runtime_params_slice_t_plus_crash_dt,
-          output_state,
-          post_processed_outputs,
-      )
-      return output_state, post_processed_outputs, error_state
-    else:
-      return output_state, post_processed_outputs, state.SimError.NO_ERROR
+    return output_state, post_processed_outputs
 
   def step(
       self,
@@ -378,7 +372,6 @@ class SimulationStepFn:
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
-      state.SimError,
   ]:
     """Performs a (possibly) adaptive simulation step."""
     evolving_names = dynamic_runtime_params_slice_t.numerics.evolving_names
@@ -537,11 +530,7 @@ class SimulationStepFn:
         evolving_names=evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
-    return output_state, post_processed_outputs, _check_for_errors(
-        dynamic_runtime_params_slice_t,
-        output_state,
-        post_processed_outputs,
-    )
+    return output_state, post_processed_outputs
 
   def _fixed_step(
       self,
@@ -553,7 +542,6 @@ class SimulationStepFn:
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
-      state.SimError,
   ]:
     """Performs a single simulation step."""
     dt = self.time_step_calculator.next_dt(
@@ -563,7 +551,7 @@ class SimulationStepFn:
         input_state.core_profiles,
         input_state.core_transport,
     )
-     # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
+    # The solver needs the geo and dynamic_runtime_params_slice at time t + dt
     # for implicit computations in the solver. Once geo_t_plus_dt is calculated
     # we can use it to calculate Phibdot for both geo_t and geo_t_plus_dt, which
     # then update the initialized Phibdot=0 in the geo instances.
@@ -612,11 +600,7 @@ class SimulationStepFn:
         evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
-    return output_state, post_processed_outputs, _check_for_errors(
-        dynamic_runtime_params_slice_t,
-        output_state,
-        post_processed_outputs,
-    )
+    return output_state, post_processed_outputs
 
 
 @functools.partial(

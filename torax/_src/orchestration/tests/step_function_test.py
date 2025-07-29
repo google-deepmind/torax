@@ -40,8 +40,8 @@ class StepFunctionTest(absltest.TestCase):
     self.dynamic_slice = dynamic_provider(torax_config.numerics.t_initial)
 
   def test_no_error(self):
-    error = step_function._check_for_errors(
-        self.dynamic_slice,
+    error = step_function.check_for_errors(
+        self.dynamic_slice.numerics,
         self.sim_state,
         self.post_processed_outputs,
     )
@@ -58,10 +58,10 @@ class StepFunctionTest(absltest.TestCase):
     new_sim_state_core_profiles = dataclasses.replace(
         self.sim_state, core_profiles=core_profiles
     )
-    error = step_function._check_for_errors(
-        self.dynamic_slice,
+    error = step_function.check_for_errors(
+        self.dynamic_slice.numerics,
         new_sim_state_core_profiles,
-        self.post_processed_outputs
+        self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
@@ -70,8 +70,8 @@ class StepFunctionTest(absltest.TestCase):
         self.post_processed_outputs,
         P_aux_total=jnp.array(jnp.nan),
     )
-    error = step_function._check_for_errors(
-        self.dynamic_slice,
+    error = step_function.check_for_errors(
+        self.dynamic_slice.numerics,
         self.sim_state,
         new_post_processed_outputs,
     )
@@ -90,8 +90,8 @@ class StepFunctionTest(absltest.TestCase):
     new_sim_state_sources = dataclasses.replace(
         self.sim_state, core_sources=new_core_sources
     )
-    error = step_function._check_for_errors(
-        self.dynamic_slice,
+    error = step_function.check_for_errors(
+        self.dynamic_slice.numerics,
         new_sim_state_sources,
         self.post_processed_outputs,
     )
@@ -116,8 +116,8 @@ class StepFunctionTest(absltest.TestCase):
             inner_solver_iterations=0,
         ),
     )
-    error = step_function._check_for_errors(
-        dynamic_slice,
+    error = step_function.check_for_errors(
+        dynamic_slice.numerics,
         new_sim_state,
         self.post_processed_outputs,
     )
@@ -144,8 +144,8 @@ class StepFunctionTest(absltest.TestCase):
             inner_solver_iterations=0,
         ),
     )
-    error = step_function._check_for_errors(
-        dynamic_slice,
+    error = step_function.check_for_errors(
+        dynamic_slice.numerics,
         new_sim_state,
         self.post_processed_outputs,
     )
