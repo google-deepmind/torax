@@ -15,7 +15,7 @@
 """Simple trigger model for sawteeth."""
 
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
@@ -133,7 +133,7 @@ class SimpleTriggerConfig(trigger_base.TriggerConfig):
   s_critical: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  model_name: Literal['simple'] = 'simple'
+  model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
 
   def build_dynamic_params(
       self,

@@ -16,6 +16,8 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.mhd import runtime_params as mhd_runtime_params
@@ -113,6 +115,33 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.assertEqual(
         sawtooth_dynamic_params.trigger_params.minimum_radius, 0.06
     )
+
+  def test_mhd_model_under_jit(self):
+    mhd_model = mhd_pydantic_model.MHD.from_dict({
+        'sawtooth': {
+            'trigger_model': {
+                'model_name': 'simple',
+                'minimum_radius': 0.06,
+            },
+            'redistribution_model': {'model_name': 'simple'},
+        }
+    })
+
+    @jax.jit
+    def f(x: mhd_pydantic_model.MHD):
+      return x.build_dynamic_params(t=0.0)
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(mhd_model)
+      self.assertIsInstance(output, mhd_runtime_params.DynamicMHDParams)
+      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.06)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      mhd_model._update_fields({'sawtooth.trigger_model.minimum_radius': 0.07})
+      output = f(mhd_model)
+      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.07)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@
 """Simple redistribution model for sawteeth."""
 
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
@@ -201,7 +201,7 @@ class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
-  model_name: Literal['simple'] = 'simple'
+  model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
   mixing_radius_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.1)
   )
