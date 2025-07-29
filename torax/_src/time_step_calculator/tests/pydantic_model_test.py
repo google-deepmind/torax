@@ -13,7 +13,9 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import pydantic
+from torax._src import jax_utils
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
 from torax._src.time_step_calculator import pydantic_model as time_step_pydantic_model
@@ -47,6 +49,37 @@ class PydanticModelTest(parameterized.TestCase):
         {'calculator_type': calculator_type}
     ).time_step_calculator
     self.assertIsInstance(time_stepper, expected_type)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='fixed',
+          calculator_type='fixed',
+      ),
+      dict(
+          testcase_name='chi',
+          calculator_type='chi',
+      ),
+  )
+  def test_time_step_calculator_under_jit(self, calculator_type):
+    """Builds a time step calculator from the config."""
+    x = time_step_pydantic_model.TimeStepCalculator.from_dict(
+        {'calculator_type': calculator_type, 'tolerance': 2e-5}
+    )
+
+    @jax.jit
+    def f(time_stepper: time_step_pydantic_model.TimeStepCalculator):
+      return time_stepper.build_dynamic_params()
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(x)
+      self.assertEqual(output.tolerance, 2e-5)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      x._update_fields({'tolerance': 1e-5})
+      output = f(x)
+      self.assertEqual(output.tolerance, 1e-5)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':
