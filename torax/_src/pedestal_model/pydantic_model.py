@@ -14,7 +14,7 @@
 
 """Pydantic config for Pedestal."""
 import abc
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 from torax._src.pedestal_model import no_pedestal
@@ -63,7 +63,9 @@ class SetPpedTpedRatioNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  model_name: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
+  model_name: Annotated[
+      Literal['set_P_ped_n_ped'], torax_pydantic.JAX_STATIC
+  ] = 'set_P_ped_n_ped'
   P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
@@ -110,7 +112,9 @@ class SetTpedNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  model_name: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
+  model_name: Annotated[
+      Literal['set_T_ped_n_ped'], torax_pydantic.JAX_STATIC
+  ] = 'set_T_ped_n_ped'
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
   )
@@ -155,7 +159,9 @@ class NoPedestal(BasePedestal):
   equivalent of setting it to False.
   """
 
-  model_name: Literal['no_pedestal'] = 'no_pedestal'
+  model_name: Annotated[Literal['no_pedestal'], torax_pydantic.JAX_STATIC] = (
+      'no_pedestal'
+  )
 
   def build_pedestal_model(
       self,
