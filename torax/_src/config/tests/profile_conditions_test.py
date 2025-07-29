@@ -14,9 +14,12 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 import numpy as np
 import pydantic
 from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import profile_conditions
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -34,6 +37,28 @@ class ProfileConditionsTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     pc.build_dynamic_params(t=0.0)
+
+  def test_profile_conditions_under_jit(self):
+    initial_ip = 1e6
+    updated_ip = 2e6
+    pc = profile_conditions.ProfileConditions(Ip=initial_ip)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+
+    @jax.jit
+    def f(pc_model: profile_conditions.ProfileConditions):
+      return pc_model.build_dynamic_params(t=0.0)
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(pc)
+      chex.assert_trees_all_close(output.Ip, initial_ip)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      pc._update_fields({'Ip': updated_ip})
+      output = f(pc)
+      chex.assert_trees_all_close(output.Ip, updated_ip)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   @parameterized.named_parameters(
       ('no boundary condition', None, 2.0, 200.0),

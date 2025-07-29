@@ -14,7 +14,7 @@
 
 """Profile condition parameters used throughout TORAX simulations."""
 import dataclasses
-from typing import Callable, Final
+from typing import Annotated, Callable, Final
 
 import chex
 import jax
@@ -128,7 +128,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
-  use_v_loop_lcfs_boundary_condition: bool = False
+  use_v_loop_lcfs_boundary_condition: Annotated[
+      bool, torax_pydantic.JAX_STATIC
+  ] = False
   v_loop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
@@ -144,7 +146,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
-  normalize_n_e_to_nbar: bool = False
+  normalize_n_e_to_nbar: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   nbar: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.85e20
   )
