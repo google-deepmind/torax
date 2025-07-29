@@ -134,6 +134,14 @@ def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
   return time_varying_scalar
 
 
+def _is_non_negative(
+    time_varying_scalar: TimeVaryingScalar,
+) -> TimeVaryingScalar:
+  if not np.all(time_varying_scalar.value >= 0):
+    raise ValueError('All values must be non-negative.')
+  return time_varying_scalar
+
+
 def _interval(
     time_varying_scalar: TimeVaryingScalar,
     lower_bound: float,
@@ -153,6 +161,9 @@ def _interval(
 
 PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+]
+NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
 ]
 UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar,

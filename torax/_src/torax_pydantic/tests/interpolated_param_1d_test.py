@@ -111,6 +111,30 @@ class InterpolatedParam1dTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
+          testcase_name='negative_value',
+          values={0.0: 1.0, 2.0: -1},
+          should_fail=True,
+      ),
+      dict(
+          testcase_name='zero_value',
+          values=0.0,
+          should_fail=False,
+      ),
+  )
+  def test_raises_error_when_value_is_not_non_negative(
+      self, values, should_fail
+  ):
+    class TestModel(torax_pydantic.BaseModelFrozen):
+      a: torax_pydantic.NonNegativeTimeVaryingScalar
+
+    if should_fail:
+      with self.assertRaisesRegex(pydantic.ValidationError, 'be non-negative.'):
+        TestModel.model_validate({'a': values})
+    else:
+      TestModel.model_validate({'a': values})
+
+  @parameterized.named_parameters(
+      dict(
           testcase_name='float_in_range',
           values=0.5,
           should_fail=False,
