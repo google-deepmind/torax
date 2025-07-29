@@ -13,7 +13,7 @@
 # limitations under the License.
 """Sauter model for bootstrap current."""
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
@@ -27,6 +27,7 @@ from torax._src.neoclassical import formulas
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
@@ -84,7 +85,7 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
     bootstrap_multiplier: Multiplication factor for bootstrap current.
   """
 
-  model_name: Literal['sauter'] = 'sauter'
+  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
   bootstrap_multiplier: float = 1.0
 
   def build_dynamic_params(self) -> DynamicRuntimeParams:

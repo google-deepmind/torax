@@ -13,7 +13,7 @@
 # limitations under the License.
 """Sauter conductivity model."""
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
@@ -26,6 +26,7 @@ from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
@@ -66,7 +67,7 @@ class SauterModel(base.ConductivityModel):
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
 
-  model_name: Literal['sauter'] = 'sauter'
+  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
 
   def build_dynamic_params(self) -> DynamicRuntimeParams:
     return DynamicRuntimeParams()

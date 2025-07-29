@@ -21,7 +21,7 @@ The implementation was facilitated by and verified against the NEOS code:
 https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 from jax import numpy as jnp
@@ -33,6 +33,7 @@ from torax._src.neoclassical import formulas
 from torax._src.neoclassical.transport import base
 from torax._src.neoclassical.transport import runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import override
 
 # pylint: disable=invalid-name
@@ -41,7 +42,9 @@ from typing_extensions import override
 class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
   """Pydantic model for the Angioni-Sauter neoclassical transport model."""
 
-  model_name: Literal['angioni_sauter'] = 'angioni_sauter'
+  model_name: Annotated[
+      Literal['angioni_sauter'], torax_pydantic.JAX_STATIC
+  ] = 'angioni_sauter'
 
   @override
   def build_model(self) -> 'AngioniSauterModel':

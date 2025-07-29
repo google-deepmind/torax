@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Zeros model for neoclassical transport."""
-from typing import Literal
+from typing import Annotated, Literal
 
 import jax.numpy as jnp
 from torax._src import state
@@ -20,6 +20,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.transport import base
 from torax._src.neoclassical.transport import runtime_params
+from torax._src.torax_pydantic import torax_pydantic
 
 
 class ZerosModel(base.NeoclassicalTransportModel):
@@ -50,7 +51,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
 class ZerosModelConfig(base.NeoclassicalTransportModelConfig):
   """Config for the Zeros model implementation of neoclassical transport."""
 
-  model_name: Literal['zeros'] = 'zeros'
+  model_name: Annotated[Literal['zeros'], torax_pydantic.JAX_STATIC] = 'zeros'
 
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams()
