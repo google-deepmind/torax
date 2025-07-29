@@ -17,14 +17,13 @@ import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Any, ClassVar, Final, Literal, Sequence
+from typing import Annotated, Any, ClassVar, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
-import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
@@ -472,9 +471,10 @@ class IonCyclotronSource(source.Source):
 # is provided. This is not expected to happen very often.
 @functools.lru_cache(maxsize=1)
 def _icrh_model_func_with_toric_nn(
-    toric_nn: ToricNNWrapper,
+    model_path: str,
 ) -> source.SourceProfileFunction:
   """Returns a function that computes the ICRH source terms given a ToricNN."""
+  toric_nn = ToricNNWrapper(model_path)
   return functools.partial(
       icrh_model_func,
       toric_nn=toric_nn,
@@ -497,8 +497,10 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     absorption_fraction: Fraction of absorbed power.
   """
 
-  model_name: Literal['toric_nn'] = 'toric_nn'
-  model_path: str | None = None
+  model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
+      'toric_nn'
+  )
+  model_path: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
@@ -513,16 +515,13 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @pydantic.model_validator(mode='after')
-  def _load_toric_nn(self) -> typing_extensions.Self:
-    self._toric_nn = ToricNNWrapper(self.model_path)
-    return self
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return _icrh_model_func_with_toric_nn(self._toric_nn)
+    return _icrh_model_func_with_toric_nn(self.model_path)
 
   def build_dynamic_params(
       self,

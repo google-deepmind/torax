@@ -13,7 +13,7 @@
 # limitations under the License.
 """Pellet source for the n_e equation."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -96,7 +96,9 @@ class PelletSourceConfig(base.SourceModelBase):
       etc.)
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   pellet_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
@@ -106,7 +108,9 @@ class PelletSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       2e22
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

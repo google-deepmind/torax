@@ -14,7 +14,7 @@
 
 """External current source profile."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -125,7 +125,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       as a fraction of Ip.
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       3.0e6
   )
@@ -139,7 +141,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

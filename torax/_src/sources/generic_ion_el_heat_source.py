@@ -14,7 +14,7 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -137,7 +137,9 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     electron_heat_fraction: Electron heating fraction
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   gaussian_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
@@ -153,7 +155,9 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

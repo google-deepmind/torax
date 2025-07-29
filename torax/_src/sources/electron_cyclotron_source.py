@@ -14,7 +14,7 @@
 
 """Electron cyclotron heating (prescribed Gaussian) and current drive (Lin-Liu model)."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -149,7 +149,9 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
     P_total: Gaussian EC total power
   """
 
-  model_name: Literal["gaussian_lin_liu"] = "gaussian_lin_liu"
+  model_name: Annotated[
+      Literal["gaussian_lin_liu"], torax_pydantic.JAX_STATIC
+  ] = "gaussian_lin_liu"
   current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
   )
@@ -165,7 +167,9 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

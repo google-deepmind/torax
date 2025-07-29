@@ -15,7 +15,7 @@
 """Routines for calculating impurity radiation based on a polynomial fit."""
 import dataclasses
 import functools
-from typing import Final, Literal, Mapping, Sequence
+from typing import Annotated, Final, Literal, Mapping, Sequence
 
 import chex
 import immutabledict
@@ -36,6 +36,7 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax._src.torax_pydantic import torax_pydantic
 
 # Default value for the model function to be used for the impurity radiation
 # source. This is also used as an identifier for the model function in
@@ -258,9 +259,13 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
 
-  model_name: Literal['mavrin_fit'] = 'mavrin_fit'
+  model_name: Annotated[Literal['mavrin_fit'], torax_pydantic.JAX_STATIC] = (
+      'mavrin_fit'
+  )
   radiation_multiplier: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:

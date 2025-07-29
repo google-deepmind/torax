@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base model for source pydantic configs."""
 import abc
+from typing import Annotated
 
 import chex
 from torax._src.sources import runtime_params
@@ -46,8 +47,10 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       along for all rho and time, and the output vector is along the cell grid.
   """
 
-  mode: runtime_params.Mode = runtime_params.Mode.ZERO
-  is_explicit: bool = False
+  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params.Mode.ZERO
+  )
+  is_explicit: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   prescribed_values: tuple[torax_pydantic.TimeVaryingArray, ...] = (
       torax_pydantic.ValidatedDefault(({0: {0: 0, 1: 0}},))
   )

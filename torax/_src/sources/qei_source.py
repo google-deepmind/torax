@@ -14,7 +14,7 @@
 
 """Collisional ion-electron heat source."""
 import dataclasses
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 import chex
 import jax
@@ -28,6 +28,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
@@ -155,7 +156,9 @@ class QeiSourceConfig(base.SourceModelBase):
   """
 
   Qei_multiplier: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> None:

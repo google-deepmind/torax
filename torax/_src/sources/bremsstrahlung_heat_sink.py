@@ -16,7 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Final, Literal
+from typing import Annotated, ClassVar, Final, Literal
 
 import chex
 import jax
@@ -30,6 +30,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 
 # Default value for the model function to be used for the Bremsstrahlung heat
 # sink. This is also used as an identifier for the model function in the default
@@ -142,9 +143,11 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
     use_relativistic_correction: Whether to use relativistic correction.
   """
 
-  model_name: Literal['wesson'] = 'wesson'
+  model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

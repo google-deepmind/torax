@@ -13,7 +13,7 @@
 # limitations under the License.
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
@@ -89,11 +89,15 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
       impurity.
   """
 
-  model_name: Literal['P_in_scaled_flat_profile'] = 'P_in_scaled_flat_profile'
+  model_name: Annotated[
+      Literal['P_in_scaled_flat_profile'], torax_pydantic.JAX_STATIC
+  ] = 'P_in_scaled_flat_profile'
   fraction_P_heating: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   def build_dynamic_params(
       self,

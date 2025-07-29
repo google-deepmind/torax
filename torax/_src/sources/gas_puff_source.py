@@ -14,7 +14,7 @@
 
 """Gas puff source for the n_e equation."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -94,14 +94,18 @@ class GasPuffSourceConfig(base.SourceModelBase):
     S_total: total gas puff particles/s
   """
 
-  model_name: Literal['exponential'] = 'exponential'
+  model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
+      'exponential'
+  )
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

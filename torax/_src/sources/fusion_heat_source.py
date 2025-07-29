@@ -14,7 +14,7 @@
 
 """Fusion heat source for both ion and electron heat equations."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -30,6 +30,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 
 # Default value for the model function to be used for the fusion heat
 # source. This is also used as an identifier for the model function in
@@ -185,8 +186,12 @@ class FusionHeatSource(source.Source):
 class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
 
-  model_name: Literal['bosch_hale'] = 'bosch_hale'
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  model_name: Annotated[Literal['bosch_hale'], torax_pydantic.JAX_STATIC] = (
+      'bosch_hale'
+  )
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

@@ -16,7 +16,7 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -33,6 +33,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 # Default value for the model function to be used for the Cyclotron radiation
@@ -394,12 +395,18 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
       fit of the temperature function.
   """
 
-  model_name: Literal['albajar_artaud'] = 'albajar_artaud'
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  model_name: Annotated[
+      Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
+  ] = 'albajar_artaud'
+  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params_lib.Mode.MODEL_BASED
+  )
   wall_reflection_coeff: float = 0.9
-  beta_min: float = 0.5
-  beta_max: float = 8.0
-  beta_grid_size: pydantic.PositiveInt = 32
+  beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
+  beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0
+  beta_grid_size: Annotated[pydantic.PositiveInt, torax_pydantic.JAX_STATIC] = (
+      32
+  )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
