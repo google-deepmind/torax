@@ -116,9 +116,8 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       del (
           log_timestep_info,
           progress_bar,
-          dynamic_runtime_params_slice_provider,
       )
-      output_state, post_processed_outputs, error = step_fn(
+      output_state, post_processed_outputs = step_fn(
           initial_state,
           initial_post_processed_outputs,
       )
@@ -137,7 +136,12 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       np.testing.assert_allclose(
           output_state.core_profiles.T_i.value[0], expected_combined_value
       )
-      return (output_state,), (post_processed_outputs,), error
+      sim_error = step_function.check_for_errors(
+          dynamic_runtime_params_slice_provider(initial_state.t).numerics,
+          output_state,
+          post_processed_outputs,
+      )
+      return (output_state,), (post_processed_outputs,), sim_error
 
     with mock.patch.object(
         run_loop, 'run_loop', wraps=_fake_run_loop

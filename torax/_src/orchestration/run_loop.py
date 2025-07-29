@@ -104,11 +104,14 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # The dynamic params for the time step calculator are not time-dependent, so
-  # we can get them once before the loop.
-  time_step_calculator_dynamic_params = dynamic_runtime_params_slice_provider(
+  # Some of the dynamic params are not time-dependent, so we can get them once
+  # before the loop.
+  initial_dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
       initial_state.t
-  ).time_step_calculator
+  )
+  time_step_calculator_dynamic_params = (
+      initial_dynamic_runtime_params_slice.time_step_calculator
+  )
 
   with tqdm.tqdm(
       total=100,  # This makes it so that the progress bar measures a percentage
@@ -127,9 +130,14 @@ def run_loop(
       if log_timestep_info:
         _log_timestep(current_state)
 
-      current_state, post_processed_outputs, sim_error = step_fn(
+      current_state, post_processed_outputs = step_fn(
           current_state,
           post_processing_history[-1],
+      )
+      sim_error = step_function.check_for_errors(
+          initial_dynamic_runtime_params_slice.numerics,
+          current_state,
+          post_processed_outputs,
       )
 
       wall_clock_step_times.append(time.time() - step_start_time)
