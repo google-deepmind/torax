@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Any, Literal, Sequence
+from typing import Annotated, Any, Literal, Sequence
 
 from absl import logging
 import chex
@@ -104,9 +104,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
       D.
   """
 
-  model_name: Literal['qlknn'] = 'qlknn'
-  model_path: str = ''
-  qlknn_model_name: str = ''
+  model_name: Annotated[Literal['qlknn'], torax_pydantic.JAX_STATIC] = 'qlknn'
+  model_path: Annotated[str, torax_pydantic.JAX_STATIC] = ''
+  qlknn_model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
   include_ITG: bool = True
   include_TEM: bool = True
   include_ETG: bool = True
@@ -182,7 +182,9 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
     V_e: convection coefficient in electron density equation in m^2/s.
   """
 
-  model_name: Literal['constant'] = 'constant'
+  model_name: Annotated[Literal['constant'], torax_pydantic.JAX_STATIC] = (
+      'constant'
+  )
   chi_i: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -225,7 +227,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
       model.
   """
 
-  model_name: Literal['CGM'] = 'CGM'
+  model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
   chi_e_i_ratio: torax_pydantic.TimeVaryingScalar = (
@@ -280,7 +282,9 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
 
-  model_name: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
+  model_name: Annotated[Literal['bohm-gyrobohm'], torax_pydantic.JAX_STATIC] = (
+      'bohm-gyrobohm'
+  )
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)
   )
@@ -383,7 +387,9 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   ] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
-  model_name: Literal['combined'] = 'combined'
+  model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
+      'combined'
+  )
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
     transport_models = [
