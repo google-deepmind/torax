@@ -15,6 +15,7 @@
 """Plasma composition parameters used throughout TORAX simulations."""
 import dataclasses
 import functools
+from typing import Annotated
 
 import chex
 import jax
@@ -67,7 +68,9 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
     A_override: An optional override for the average mass (A) of the mixture.
   """
 
-  species: runtime_validation_utils.IonMapping
+  species: Annotated[
+      runtime_validation_utils.IonMapping, torax_pydantic.JAX_STATIC
+  ]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
@@ -111,6 +114,7 @@ class DynamicPlasmaComposition:
   Z_eff_face: array_typing.ArrayFloat
 
 
+@jax.tree_util.register_pytree_node_class
 class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """Configuration for the plasma composition.
 
@@ -156,8 +160,40 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   # single key and fraction=1.0 is used also for the single ion case to reduce
   # code duplication.
 
+  def tree_flatten(self):
+    # Override the default tree_flatten to also save out the cached
+    # main_ion_mixture and impurity_mixture objects.
+    children = (
+        self.main_ion,
+        self.impurity,
+        self.Z_eff,
+        self.Z_i_override,
+        self.A_i_override,
+        self.Z_impurity_override,
+        self.A_impurity_override,
+        self._main_ion_mixture,
+        self._impurity_mixture,
+    )
+    aux_data = ()
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    obj = cls.model_construct(
+        main_ion=children[0],
+        impurity=children[1],
+        Z_eff=children[2],
+        Z_i_override=children[3],
+        A_i_override=children[4],
+        Z_impurity_override=children[5],
+        A_impurity_override=children[6],
+    )
+    obj._main_ion_mixture = children[7]  # pylint: disable=protected-access
+    obj._impurity_mixture = children[8]  # pylint: disable=protected-access
+    return obj
+
   @functools.cached_property
-  def main_ion_mixture(self) -> IonMixture:
+  def _main_ion_mixture(self) -> IonMixture:
     """Returns the IonMixture object for the main ions."""
     # Use `model_construct` as no validation required.
     return IonMixture.model_construct(
@@ -167,7 +203,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     )
 
   @functools.cached_property
-  def impurity_mixture(self) -> IonMixture:
+  def _impurity_mixture(self) -> IonMixture:
     """Returns the IonMixture object for the impurity ions."""
     # Use `model_construct` as no validation required.
     return IonMixture.model_construct(
@@ -178,16 +214,16 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
 
   def get_main_ion_names(self) -> tuple[str, ...]:
     """Returns the main ion symbol strings from the input."""
-    return tuple(self.main_ion_mixture.species.keys())
+    return tuple(self._main_ion_mixture.species.keys())
 
   def get_impurity_names(self) -> tuple[str, ...]:
     """Returns the impurity symbol strings from the input."""
-    return tuple(self.impurity_mixture.species.keys())
+    return tuple(self._impurity_mixture.species.keys())
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicPlasmaComposition:
     return DynamicPlasmaComposition(
-        main_ion=self.main_ion_mixture.build_dynamic_params(t),
-        impurity=self.impurity_mixture.build_dynamic_params(t),
+        main_ion=self._main_ion_mixture.build_dynamic_params(t),
+        impurity=self._impurity_mixture.build_dynamic_params(t),
         Z_eff=self.Z_eff.get_value(t),
         Z_eff_face=self.Z_eff.get_value(t, grid_type='face'),
     )

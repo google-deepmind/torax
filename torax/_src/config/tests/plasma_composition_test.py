@@ -13,8 +13,11 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 import numpy as np
 import pydantic
+from torax._src import jax_utils
 from torax._src.config import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
@@ -111,6 +114,32 @@ class PlasmaCompositionTest(parameterized.TestCase):
     impurity_names = pc.get_impurity_names()
     self.assertEqual(main_ion_names, ('D', 'T'))
     self.assertEqual(impurity_names, ('Ar',))
+
+  def test_plasma_composition_under_jit(self):
+    initial_zeff = 1.5
+    updated_zeff = 2.5
+    pc = plasma_composition.PlasmaComposition(Z_eff=initial_zeff)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+
+    @jax.jit
+    def f(pc_model: plasma_composition.PlasmaComposition):
+      return pc_model.build_dynamic_params(t=0.0)
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(pc)
+      # Z_eff is an array, so we check it's all close to the initial value
+      chex.assert_trees_all_close(output.Z_eff, initial_zeff)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      pc._update_fields({'Z_eff': updated_zeff})
+      # The Z_eff field is a TimeVaryingArray, which gets recreated on update.
+      # We need to set the grid again.
+      torax_pydantic.set_grid(pc, geo.torax_mesh, mode='relaxed')
+      output = f(pc)
+      chex.assert_trees_all_close(output.Z_eff, updated_zeff)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 class IonMixtureTest(parameterized.TestCase):
