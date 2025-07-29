@@ -15,9 +15,12 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+from torax._src import jax_utils
 from torax._src.config import runtime_params_slice
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
+from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -63,6 +66,35 @@ class PydanticModelTest(parameterized.TestCase):
     )
     self.assertIsInstance(solver, expected_type)
     self.assertEqual(torax_config.solver.theta_implicit, 0.5)
+
+  @parameterized.parameters('linear', 'newton_raphson', 'optimizer')
+  def test_solver_under_jit(self, solver_type):
+    config = default_configs.get_default_config_dict()
+    config['solver'] = {
+        'solver_type': solver_type,
+        'D_pereverzev': 0.5,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    solver = torax_config.solver
+
+    @jax.jit
+    def f(solver: solver_pydantic_model.SolverConfig):
+      return solver.build_dynamic_params
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(solver)
+      self.assertIsInstance(
+          output, solver_pydantic_model.runtime_params.DynamicRuntimeParams
+      )
+      self.assertEqual(output.D_pereverzev, 0.5)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      solver._update_fields({'D_pereverzev': 0.6})
+      output = f(solver)
+      self.assertEqual(output.D_pereverzev, 0.6)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':

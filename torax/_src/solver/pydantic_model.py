@@ -16,7 +16,7 @@
 import abc
 import dataclasses
 import functools
-from typing import Literal
+from typing import Annotated, Literal
 
 import pydantic
 from torax._src import physics_models as physics_models_lib
@@ -51,14 +51,18 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
   """
 
-  theta_implicit: torax_pydantic.UnitInterval = 1.0
-  use_predictor_corrector: bool = False
+  theta_implicit: Annotated[
+      torax_pydantic.UnitInterval, torax_pydantic.JAX_STATIC
+  ] = 1.0
+  use_predictor_corrector: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   n_corrector_steps: pydantic.PositiveInt = 10
-  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
-      'ghost'
-  )
-  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
-  use_pereverzev: bool = False
+  convection_dirichlet_mode: Annotated[
+      Literal['ghost', 'direct', 'semi-implicit'], torax_pydantic.JAX_STATIC
+  ] = 'ghost'
+  convection_neumann_mode: Annotated[
+      Literal['ghost', 'semi-implicit'], torax_pydantic.JAX_STATIC
+  ] = 'ghost'
+  use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
 
@@ -93,7 +97,9 @@ class LinearThetaMethod(BaseSolver):
     solver_type: The type of solver to use, hardcoded to 'linear'.
   """
 
-  solver_type: Literal['linear'] = 'linear'
+  solver_type: Annotated[Literal['linear'], torax_pydantic.JAX_STATIC] = (
+      'linear'
+  )
 
   @functools.cached_property
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
@@ -130,9 +136,13 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     tau_min: The minimum value of tau for the Newton-Raphson solver.
   """
 
-  solver_type: Literal['newton_raphson'] = 'newton_raphson'
-  log_iterations: bool = False
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
+  solver_type: Annotated[
+      Literal['newton_raphson'], torax_pydantic.JAX_STATIC
+  ] = 'newton_raphson'
+  log_iterations: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  initial_guess_mode: Annotated[
+      enums.InitialGuessMode, torax_pydantic.JAX_STATIC
+  ] = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 30
   residual_tol: float = 1e-5
   residual_coarse_tol: float = 1e-2
@@ -186,8 +196,12 @@ class OptimizerThetaMethod(BaseSolver):
     residual_tol: The tolerance for the optimizer.
   """
 
-  solver_type: Literal['optimizer'] = 'optimizer'
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
+  solver_type: Annotated[Literal['optimizer'], torax_pydantic.JAX_STATIC] = (
+      'optimizer'
+  )
+  initial_guess_mode: Annotated[
+      enums.InitialGuessMode, torax_pydantic.JAX_STATIC
+  ] = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 100
   loss_tol: float = 1e-10
 
