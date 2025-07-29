@@ -22,12 +22,24 @@ This module also provides a method
 `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
+import dataclasses
+
 import chex
+import jax
 from torax._src.config import numerics as numerics_lib
+from torax._src.config import plasma_composition as plasma_composition_lib
+from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.mhd import pydantic_model as mhd_pydantic_model
+from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import pydantic_model as transport_pydantic_model
 import typing_extensions
 
 
@@ -49,6 +61,8 @@ def build_static_params_from_config(
   )
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParamsSliceProvider:
   """Provides a DynamicRuntimeParamsSlice to use during time t of the sim.
 
@@ -69,26 +83,16 @@ class DynamicRuntimeParamsSliceProvider:
   object (if for example updating the simulation).
   ```
   """
-
-  def __init__(
-      self,
-      torax_config: model_config.ToraxConfig,
-  ):
-    """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider."""
-    self._sources = torax_config.sources
-    self._numerics = torax_config.numerics
-    self._profile_conditions = torax_config.profile_conditions
-    self._plasma_composition = torax_config.plasma_composition
-    self._transport_model = torax_config.transport
-    self._solver = torax_config.solver
-    self._pedestal = torax_config.pedestal
-    self._mhd = torax_config.mhd
-    self._neoclassical = torax_config.neoclassical
-    self._time_step_calculator = torax_config.time_step_calculator
-
-  @property
-  def numerics(self) -> numerics_lib.Numerics:
-    return self._numerics
+  sources: sources_pydantic_model.Sources
+  numerics: numerics_lib.Numerics
+  profile_conditions: profile_conditions_lib.ProfileConditions
+  plasma_composition: plasma_composition_lib.PlasmaComposition
+  transport_model: transport_pydantic_model.TransportConfig
+  solver: solver_pydantic_model.SolverConfig
+  pedestal: pedestal_pydantic_model.PedestalConfig
+  mhd: mhd_pydantic_model.MHD
+  neoclassical: neoclassical_pydantic_model.Neoclassical
+  time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
   @classmethod
   def from_config(
@@ -96,7 +100,18 @@ class DynamicRuntimeParamsSliceProvider:
       config: model_config.ToraxConfig,
   ) -> typing_extensions.Self:
     """Constructs a DynamicRuntimeParamsSliceProvider from a ToraxConfig."""
-    return cls(config)
+    return cls(
+        sources=config.sources,
+        numerics=config.numerics,
+        profile_conditions=config.profile_conditions,
+        plasma_composition=config.plasma_composition,
+        transport_model=config.transport,
+        solver=config.solver,
+        pedestal=config.pedestal,
+        mhd=config.mhd,
+        neoclassical=config.neoclassical,
+        time_step_calculator=config.time_step_calculator,
+    )
 
   def __call__(
       self,
@@ -104,20 +119,20 @@ class DynamicRuntimeParamsSliceProvider:
   ) -> runtime_params_slice.DynamicRuntimeParamsSlice:
     """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
     return runtime_params_slice.DynamicRuntimeParamsSlice(
-        transport=self._transport_model.build_dynamic_params(t),
-        solver=self._solver.build_dynamic_params,
+        transport=self.transport_model.build_dynamic_params(t),
+        solver=self.solver.build_dynamic_params,
         sources={
             source_name: source_config.build_dynamic_params(t)
-            for source_name, source_config in dict(self._sources).items()
+            for source_name, source_config in dict(self.sources).items()
             if source_config is not None
         },
-        plasma_composition=self._plasma_composition.build_dynamic_params(t),
-        profile_conditions=self._profile_conditions.build_dynamic_params(t),
-        numerics=self._numerics.build_dynamic_params(t),
-        neoclassical=self._neoclassical.build_dynamic_params(),
-        pedestal=self._pedestal.build_dynamic_params(t),
-        mhd=self._mhd.build_dynamic_params(t),
-        time_step_calculator=self._time_step_calculator.build_dynamic_params(),
+        plasma_composition=self.plasma_composition.build_dynamic_params(t),
+        profile_conditions=self.profile_conditions.build_dynamic_params(t),
+        numerics=self.numerics.build_dynamic_params(t),
+        neoclassical=self.neoclassical.build_dynamic_params(),
+        pedestal=self.pedestal.build_dynamic_params(t),
+        mhd=self.mhd.build_dynamic_params(t),
+        time_step_calculator=self.time_step_calculator.build_dynamic_params(),
     )
 
 

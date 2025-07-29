@@ -14,9 +14,13 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import numpy as np
+from torax._src import jax_utils
 from torax._src.config import build_runtime_params
+from torax._src.config import config_loader
 from torax._src.config import profile_conditions as profile_conditions_lib
+from torax._src.config import runtime_params_slice
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
@@ -250,6 +254,45 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           n_e_right_bc_is_fGW,
       )
       self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+
+  def test_dynamic_provider_works_under_jit(self):
+    torax_config = config_loader.build_torax_config_from_file(
+        'tests/test_data/test_iterhybrid_rampup.py'
+    )
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+
+    @jax.jit
+    def f(
+        provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+        t: float,
+    ):
+      return provider(t)
+
+    with self.subTest('jit_compiles_and_returns_expected_value'):
+      dynamic_runtime_params_slice = f(provider, t=0.1)
+      # Check to make sure it's a valid object.
+      self.assertIsInstance(
+          dynamic_runtime_params_slice,
+          runtime_params_slice.DynamicRuntimeParamsSlice,
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('jit_updates_value_without_recompile'):
+      torax_config.update_fields({'profile_conditions.T_i_right_bc': 0.77})
+      provider = (
+          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+              torax_config
+          )
+      )
+      dynamic_runtime_params_slice = f(provider, t=0.1)
+      self.assertEqual(
+          dynamic_runtime_params_slice.profile_conditions.T_i_right_bc, 0.77
+      )
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':
