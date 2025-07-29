@@ -202,15 +202,40 @@ def get_updated_ions(
       A_impurity: Average atomic number of impurities [amu].
   """
 
-  Z_i, Z_i_face, Z_impurity, Z_impurity_face = _get_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      T_e,
+  Z_i = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      T_e=T_e.value,
+  ).Z_mixture
+  Z_i_face = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      T_e=T_e.face_value(),
+  ).Z_mixture
+
+  impurity_dynamic_params = (
+      dynamic_runtime_params_slice.plasma_composition.impurity
   )
+  impurity_mode = impurity_dynamic_params.impurity_mode
 
-  Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-  Z_eff_edge = dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
+  match impurity_mode:
+    case 'fractions':
+      Z_impurity = charge_states.get_average_charge_state(
+          ion_symbols=static_runtime_params_slice.impurity_names,
+          ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+          T_e=T_e.value,
+      ).Z_mixture
+      Z_impurity_face = charge_states.get_average_charge_state(
+          ion_symbols=static_runtime_params_slice.impurity_names,
+          ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+          T_e=T_e.face_value(),
+      ).Z_mixture
+      Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+      Z_eff_edge = dynamic_runtime_params_slice.plasma_composition.Z_eff_face[
+          -1
+      ]
 
+  # pylint: disable=undefined-variable
   dilution_factor = jnp.where(
       Z_eff == 1.0,
       1.0,
@@ -278,40 +303,7 @@ def get_updated_ions(
   )
 
 
-def _get_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    T_e: cell_variable.CellVariable,
-) -> tuple[
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated charge states based on IonMixtures and electron temperature."""
-  Z_i = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.value,
-  )
-  Z_i_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.face_value(),
-  )
-
-  Z_impurity = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.value,
-  )
-  Z_impurity_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.face_value(),
-  )
-
-  return Z_i, Z_i_face, Z_impurity, Z_impurity_face
+# pylint: enable=undefined-variable
 
 
 def _calculate_Z_eff(
