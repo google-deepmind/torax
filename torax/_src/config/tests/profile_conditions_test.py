@@ -125,14 +125,18 @@ class ProfileConditionsTest(parameterized.TestCase):
     dcs = dcs_provider(t=0.0).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(
+          static_slice.n_e_right_bc_is_fGW, static_slice.n_e_nbar_is_fGW
+      )
       self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(static_slice.n_e_right_bc_is_absolute)
     dcs = dcs_provider(t=1.5).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_second_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(
+          static_slice.n_e_right_bc_is_fGW, static_slice.n_e_nbar_is_fGW
+      )
       self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(static_slice.n_e_right_bc_is_absolute)

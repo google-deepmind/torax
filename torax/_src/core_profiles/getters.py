@@ -95,13 +95,13 @@ def get_updated_electron_density(
       * 1e20
   )
   n_e_value = jnp.where(
-      dynamic_profile_conditions.n_e_nbar_is_fGW,
+      static_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW,
       dynamic_profile_conditions.n_e * nGW,
       dynamic_profile_conditions.n_e,
   )
   # Calculate n_e_right_bc.
   n_e_right_bc = jnp.where(
-      dynamic_profile_conditions.n_e_right_bc_is_fGW,
+      static_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW,
       dynamic_profile_conditions.n_e_right_bc * nGW,
       dynamic_profile_conditions.n_e_right_bc,
   )
@@ -124,7 +124,7 @@ def get_updated_electron_density(
     a_minor_out = geo.R_out_face[-1] - geo.R_out_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(
-        dynamic_profile_conditions.n_e_nbar_is_fGW,
+        static_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW,
         dynamic_profile_conditions.nbar * nGW,
         dynamic_profile_conditions.nbar,
     )

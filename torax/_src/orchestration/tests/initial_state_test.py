@@ -122,14 +122,14 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
     # Additionally we want to avoid normalizing to nbar.
-    dynamic.profile_conditions.n_e_right_bc_is_fGW = False
-    dynamic.profile_conditions.n_e_nbar_is_fGW = False
     static = dataclasses.replace(
         static,
         profile_conditions=dataclasses.replace(
             static.profile_conditions,
             n_e_right_bc_is_absolute=True,
             normalize_n_e_to_nbar=False,
+            n_e_nbar_is_fGW=False,
+            n_e_right_bc_is_fGW=False,
         ),
     )
 

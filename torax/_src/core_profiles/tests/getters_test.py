@@ -483,6 +483,8 @@ def _create_static_slice_mock(
           n_e_right_bc_is_absolute=False
           if profile_conditions.n_e_right_bc is None
           else True,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
       ),
   )
 

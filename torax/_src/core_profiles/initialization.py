@@ -291,7 +291,7 @@ def _init_psi_and_psi_derived(
   # Case 2: retrieving psi from the standard geometry input.
   elif (
       isinstance(geo, standard_geometry.StandardGeometry)
-      and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
+      and not static_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from a numerical equilibrium, so no need to
     # first calculate currents. However, non-inductive currents are still
@@ -322,6 +322,7 @@ def _init_psi_and_psi_derived(
     # First calculate currents without bootstrap.
     external_current = sum(source_profiles.psi.values())
     j_total_hires = _get_j_total_hires(
+        static_runtime_params_slice=static_runtime_params_slice,
         bootstrap_profile=source_profiles.bootstrap_current,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -346,6 +347,7 @@ def _init_psi_and_psi_derived(
         )
     )
     j_total_hires = _get_j_total_hires(
+        static_runtime_params_slice=static_runtime_params_slice,
         bootstrap_profile=bootstrap_profile,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -420,6 +422,7 @@ def _init_psi_and_psi_derived(
 
 
 def _get_j_total_hires(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     bootstrap_profile: bootstrap_current_base.BootstrapCurrent,
@@ -448,7 +451,7 @@ def _get_j_total_hires(
       1 - geo.rho_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
-  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
+  if static_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = Ip / denom
     j_total_hires = jformula_hires * Ctot_hires
   else:

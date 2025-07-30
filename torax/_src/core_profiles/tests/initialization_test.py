@@ -48,6 +48,9 @@ class InitializationTest(parameterized.TestCase):
 
     # Turn on the external current source.
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    static_slice = build_runtime_params.build_static_params_from_config(
+        references.config
+    )
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
         mock.ANY,
@@ -59,6 +62,7 @@ class InitializationTest(parameterized.TestCase):
         unused_conductivity=mock.ANY,
     )[0]
     j_total_hires = initialization._get_j_total_hires(
+        static_runtime_params_slice=static_slice,
         bootstrap_profile=bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -50,14 +50,9 @@ class DynamicProfileConditions:
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
   n_e: array_typing.ArrayFloat
-  normalize_n_e_to_nbar: bool
   nbar: array_typing.ScalarFloat
-  n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.ScalarFloat
-  n_e_right_bc_is_fGW: bool
   current_profile_nu: float
-  initial_j_is_total_current: bool
-  initial_psi_from_j: bool
 
 
 @jax.tree_util.register_dataclass
@@ -70,6 +65,10 @@ class StaticRuntimeParams:
   # Whether to use absolute ne_bound_right or ne[-1] for setting BC.
   # Set by ne_bound_right condition.
   n_e_right_bc_is_absolute: bool
+  initial_j_is_total_current: bool
+  initial_psi_from_j: bool
+  n_e_nbar_is_fGW: bool
+  n_e_right_bc_is_fGW: bool
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -362,7 +361,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       t: chex.Numeric,
   ) -> DynamicProfileConditions:
     """Builds a DynamicProfileConditions."""
-
     dynamic_params = {
         x.name: getattr(self, x.name)
         for x in dataclasses.fields(DynamicProfileConditions)
@@ -382,7 +380,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       dynamic_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )
-      dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
 
     def _get_value(x):
       if isinstance(
@@ -397,10 +394,18 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
   def build_static_params(self) -> StaticRuntimeParams:
     """Builds static runtime params from the config."""
+    if self.n_e_right_bc is None:
+      n_e_right_bc_is_fGW = self.n_e_nbar_is_fGW
+    else:
+      n_e_right_bc_is_fGW = self.n_e_right_bc_is_fGW
     return StaticRuntimeParams(
         use_v_loop_lcfs_boundary_condition=self.use_v_loop_lcfs_boundary_condition,
         normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
         n_e_right_bc_is_absolute=False if self.n_e_right_bc is None else True,
+        initial_j_is_total_current=self.initial_j_is_total_current,
+        initial_psi_from_j=self.initial_psi_from_j,
+        n_e_nbar_is_fGW=self.n_e_nbar_is_fGW,
+        n_e_right_bc_is_fGW=n_e_right_bc_is_fGW,
     )
 
 

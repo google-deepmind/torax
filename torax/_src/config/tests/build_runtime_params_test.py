@@ -234,23 +234,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_config
     ).profile_conditions
 
-    dynamic_profile_conditions = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(t=0.0).profile_conditions
-    )
-
     if n_e_right_bc is None:
       # If the boundary condition was not set, it should inherit the fGW flag.
       self.assertEqual(
-          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          static_slice.n_e_right_bc_is_fGW,
           n_e_nbar_is_fGW,
       )
       # If the boundary condition was set check it is not absolute.
       self.assertFalse(static_slice.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
-          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          static_slice.n_e_right_bc_is_fGW,
           n_e_right_bc_is_fGW,
       )
       self.assertTrue(static_slice.n_e_right_bc_is_absolute)
