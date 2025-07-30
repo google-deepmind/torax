@@ -179,7 +179,7 @@ class ChargeStatesTest(parameterized.TestCase):
     )
     Z_calculated = charge_states.get_average_charge_state(
         ion_symbols, ion_mixture, T_e
-    )
+    ).Z_mixture
 
     np.testing.assert_allclose(Z_calculated, expected_Z, rtol=1e-5)
 
@@ -196,7 +196,7 @@ class ChargeStatesTest(parameterized.TestCase):
     )
     Z_calculated = charge_states.get_average_charge_state(
         ion_symbols, ion_mixture, T_e
-    )
+    ).Z_mixture
     np.testing.assert_allclose(Z_calculated, Z_override)
 
 
