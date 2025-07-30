@@ -225,15 +225,13 @@ def impurity_radiation_mavrin_fit(
   # impurity density, not the effective one.
 
   # ion_symbols is a static argument so can use the for loop under jit
-  Z_per_species = jnp.stack([
-      charge_states.calculate_average_charge_state_single_species(
-          core_profiles.T_e.value, ion_symbol
-      )
-      for ion_symbol in ion_symbols
-  ])
-
-  avg_Z = jnp.sum(ion_mixture.fractions[:, jnp.newaxis] * Z_per_species, axis=0)
-  impurity_density_scaling = core_profiles.Z_impurity / avg_Z
+  charge_state_info = charge_states.get_average_charge_state(
+      ion_symbols=ion_symbols,
+      ion_mixture=ion_mixture,
+      T_e=core_profiles.T_e.value,
+  )
+  Z_avg = charge_state_info.Z_avg
+  impurity_density_scaling = core_profiles.Z_impurity / Z_avg
 
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
