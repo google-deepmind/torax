@@ -57,7 +57,6 @@ def build_static_params_from_config(
       solver=config.solver.build_static_params(),
       main_ion_names=config.plasma_composition.get_main_ion_names(),
       impurity_names=config.plasma_composition.get_impurity_names(),
-      profile_conditions=config.profile_conditions.build_static_params(),
   )
 
 

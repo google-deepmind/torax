@@ -108,7 +108,6 @@ def get_prescribed_core_profile_values(
     T_e = T_e_cell_variable.value
   if not dynamic_runtime_params_slice.numerics.evolve_density:
     n_e_cell_variable = getters.get_updated_electron_density(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
     )
@@ -252,7 +251,7 @@ def update_core_and_source_profiles_after_step(
 
   v_loop_lcfs = (
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
-      if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+      if dynamic_runtime_params_slice_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
       else _update_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
           updated_core_profiles_t_plus_dt.psi,
@@ -375,7 +374,6 @@ def compute_boundary_conditions_for_t_plus_dt(
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
-      static_runtime_params_slice,
       profile_conditions_t_plus_dt,
       geo_t_plus_dt,
   )
@@ -435,7 +433,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   Ip=profile_conditions_t_plus_dt.Ip,
                   geo=geo_t_plus_dt,
               )
-              if not static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+              if not dynamic_runtime_params_slice_t.profile_conditions.use_v_loop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
@@ -446,7 +444,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
                   theta=static_runtime_params_slice.solver.theta_implicit,
               )
-              if static_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+              if dynamic_runtime_params_slice_t.profile_conditions.use_v_loop_lcfs_boundary_condition
               else None
           ),
       ),

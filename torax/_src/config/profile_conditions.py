@@ -50,26 +50,21 @@ class DynamicProfileConditions:
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
   n_e: array_typing.ArrayFloat
-  normalize_n_e_to_nbar: bool
+  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
   nbar: array_typing.ScalarFloat
-  n_e_nbar_is_fGW: bool
+  n_e_nbar_is_fGW: bool = dataclasses.field(metadata={'static': True})
   n_e_right_bc: array_typing.ScalarFloat
-  n_e_right_bc_is_fGW: bool
+  n_e_right_bc_is_fGW: bool = dataclasses.field(metadata={'static': True})
   current_profile_nu: float
-  initial_j_is_total_current: bool
-  initial_psi_from_j: bool
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class StaticRuntimeParams:
-  """Static params for profile conditions."""
-
-  use_v_loop_lcfs_boundary_condition: bool
-  normalize_n_e_to_nbar: bool
-  # Whether to use absolute ne_bound_right or ne[-1] for setting BC.
-  # Set by ne_bound_right condition.
-  n_e_right_bc_is_absolute: bool
+  initial_j_is_total_current: bool = dataclasses.field(
+      metadata={'static': True}
+  )
+  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
+  use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
+      metadata={'static': True}
+  )
+  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
+  n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -366,6 +361,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     dynamic_params = {
         x.name: getattr(self, x.name)
         for x in dataclasses.fields(DynamicProfileConditions)
+        if x.name != 'n_e_right_bc_is_absolute'
     }
 
     if self.T_e_right_bc is None:
@@ -383,6 +379,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
       dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
+      dynamic_params['n_e_right_bc_is_absolute'] = False
+    else:
+      dynamic_params['n_e_right_bc_is_absolute'] = True
 
     def _get_value(x):
       if isinstance(
@@ -394,14 +393,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
     return DynamicProfileConditions(**dynamic_params)
-
-  def build_static_params(self) -> StaticRuntimeParams:
-    """Builds static runtime params from the config."""
-    return StaticRuntimeParams(
-        use_v_loop_lcfs_boundary_condition=self.use_v_loop_lcfs_boundary_condition,
-        normalize_n_e_to_nbar=self.normalize_n_e_to_nbar,
-        n_e_right_bc_is_absolute=False if self.n_e_right_bc is None else True,
-    )
 
 
 def _get_first_failing_value_and_time_or_rho(

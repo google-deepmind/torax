@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
@@ -124,14 +123,8 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # Additionally we want to avoid normalizing to nbar.
     dynamic.profile_conditions.n_e_right_bc_is_fGW = False
     dynamic.profile_conditions.n_e_nbar_is_fGW = False
-    static = dataclasses.replace(
-        static,
-        profile_conditions=dataclasses.replace(
-            static.profile_conditions,
-            n_e_right_bc_is_absolute=True,
-            normalize_n_e_to_nbar=False,
-        ),
-    )
+    dynamic.profile_conditions.normalize_n_e_to_nbar = False
+    dynamic.profile_conditions.n_e_right_bc_is_absolute = True
 
     result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
     core_profile_helpers.verify_core_profiles(

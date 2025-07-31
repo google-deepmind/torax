@@ -230,10 +230,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         'n_e': n_e,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    ).profile_conditions
-
     dynamic_profile_conditions = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -247,13 +243,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           n_e_nbar_is_fGW,
       )
       # If the boundary condition was set check it is not absolute.
-      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
+      self.assertFalse(dynamic_profile_conditions.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
           dynamic_profile_conditions.n_e_right_bc_is_fGW,
           n_e_right_bc_is_fGW,
       )
-      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+      self.assertTrue(dynamic_profile_conditions.n_e_right_bc_is_absolute)
 
   def test_dynamic_provider_works_under_jit(self):
     torax_config = config_loader.build_torax_config_from_file(

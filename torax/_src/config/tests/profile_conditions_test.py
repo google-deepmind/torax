@@ -113,10 +113,6 @@ class ProfileConditionsTest(parameterized.TestCase):
         'n_e_right_bc': n_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    ).profile_conditions
-
     dcs_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
             torax_config
@@ -126,16 +122,16 @@ class ProfileConditionsTest(parameterized.TestCase):
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
     if n_e_right_bc is None:
       self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
-      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
+      self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+      self.assertTrue(dcs.n_e_right_bc_is_absolute)
     dcs = dcs_provider(t=1.5).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_second_value)
     if n_e_right_bc is None:
       self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
-      self.assertFalse(static_slice.n_e_right_bc_is_absolute)
+      self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
-      self.assertTrue(static_slice.n_e_right_bc_is_absolute)
+      self.assertTrue(dcs.n_e_right_bc_is_absolute)
 
   @parameterized.named_parameters(
       ('no psi provided', None, None, None),

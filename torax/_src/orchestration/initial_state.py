@@ -149,19 +149,16 @@ def get_initial_state_and_post_processed_outputs_from_file(
           geometry_provider=geometry_provider,
       )
   )
-  (
-      static_runtime_params_slice_for_init,
-      dynamic_runtime_params_slice_for_init,
-      geo_for_init,
-  ) = _override_initial_runtime_params_from_file(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice_for_init,
-      geo_for_init,
-      t_restart,
-      profiles_dataset,
+  dynamic_runtime_params_slice_for_init, geo_for_init = (
+      _override_initial_runtime_params_from_file(
+          dynamic_runtime_params_slice_for_init,
+          geo_for_init,
+          t_restart,
+          profiles_dataset,
+      )
   )
   initial_state = _get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice_for_init,
+      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
@@ -205,16 +202,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
 
 
 def _override_initial_runtime_params_from_file(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     t_restart: float,
     profiles_ds: xr.Dataset,
-) -> tuple[
-    runtime_params_slice.StaticRuntimeParamsSlice,
-    runtime_params_slice.DynamicRuntimeParamsSlice,
-    geometry.Geometry,
-]:
+) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
@@ -262,18 +254,9 @@ def _override_initial_runtime_params_from_file(
   # Additionally we want to avoid normalizing to nbar.
   dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = False
   dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
-  static_runtime_params_slice = dataclasses.replace(
-      static_runtime_params_slice,
-      profile_conditions=dataclasses.replace(
-          static_runtime_params_slice.profile_conditions,
-          n_e_right_bc_is_absolute=True,
-          normalize_n_e_to_nbar=False,
-      ),
-  )
-  # pylint: enable=invalid-name
-
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
+  dynamic_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar = False
+  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute = (
+      True
   )
 
-  return static_runtime_params_slice, dynamic_runtime_params_slice, geo
+  return dynamic_runtime_params_slice, geo

@@ -124,7 +124,6 @@ class StaticRuntimeParamsSlice:
   # inconsistently between the static and dynamic runtime params slices.
   main_ion_names: tuple[str, ...]
   impurity_names: tuple[str, ...]
-  profile_conditions: profile_conditions.StaticRuntimeParams
 
   def __hash__(self):
     return hash((
@@ -133,7 +132,6 @@ class StaticRuntimeParamsSlice:
         hash(self.torax_mesh),  # Grid1D has a hash method defined.
         self.main_ion_names,
         self.impurity_names,
-        self.profile_conditions,
     ))
 
 
