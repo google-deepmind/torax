@@ -121,6 +121,10 @@ class Geometry:
       [:math:`\mathrm{m}^{-2}`].
     g3_face: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on the faces
       [:math:`\mathrm{m}^{-2}`].
+    gm9: Flux surface averaged :math:`\langle 1 / R \rangle` on cell grid
+      [:math:`\mathrm{m}^{-1}`].
+    gm9_face: Flux surface averaged :math:`\langle 1 / R \rangle` on face grid
+      [:math:`\mathrm{m}^{-1}`].
     g2g3_over_rhon: Ratio of g2g3 to the normalized toroidal flux coordinate
       rho_norm on cell grid [dimensionless].
     g2g3_over_rhon_face: Ratio of g2g3 to the normalized toroidal flux
@@ -190,6 +194,8 @@ class Geometry:
   g2_face: chex.Array
   g3: chex.Array
   g3_face: chex.Array
+  gm9: chex.Array
+  gm9_face: chex.Array
   g2g3_over_rhon: chex.Array
   g2g3_over_rhon_face: chex.Array
   g2g3_over_rhon_hires: chex.Array
@@ -332,6 +338,16 @@ class Geometry:
     return jnp.concatenate(
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
     )
+
+  @property
+  def gm9(self) -> jax.Array:
+    """<1/R> on cell grid [:math:`\mathrm{m}^{-1}`]."""
+    return 2 * jnp.pi * self.spr / self.vpr
+
+  @property
+  def gm9_face(self) -> jax.Array:
+    """<1/R> on face grid [:math:`\mathrm{m}^{-1}`]."""
+    return 2 * jnp.pi * self.spr_face / self.vpr_face
 
   def z_magnetic_axis(self) -> chex.Numeric:
     """z position of magnetic axis [m]."""
