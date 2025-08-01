@@ -50,20 +50,17 @@ class DynamicProfileConditions:
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
   n_e: array_typing.ArrayFloat
-  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
   nbar: array_typing.ScalarFloat
-  n_e_nbar_is_fGW: bool = dataclasses.field(metadata={'static': True})
+  n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.ScalarFloat
-  n_e_right_bc_is_fGW: bool = dataclasses.field(metadata={'static': True})
+  n_e_right_bc_is_fGW: bool
   current_profile_nu: float
-  initial_j_is_total_current: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
+  initial_j_is_total_current: bool
+  initial_psi_from_j: bool
+  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
   use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
       metadata={'static': True}
   )
-  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
   n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
 
 

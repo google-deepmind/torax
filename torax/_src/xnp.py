@@ -120,6 +120,7 @@ def py_cond(
     cond_val: bool,
     true_fun: Callable,
     false_fun: Callable,
+    *operands,
 ) -> Any:
   """Pure Python implementation of jax.lax.cond.
 
@@ -131,24 +132,28 @@ def py_cond(
     cond_val: The condition.
     true_fun: Function to be called if cond==True.
     false_fun: Function to be called if cond==False.
+    *operands: The operands to be passed to the functions.
 
   Returns:
     The output from either true_fun or false_fun.
   """
   if cond_val:
-    return true_fun()
+    return true_fun(*operands)
   else:
-    return false_fun()
+    return false_fun(*operands)
 
 
 def cond(
-    cond_val: bool, true_fun: Callable[..., Any], false_fun: Callable[..., Any]  # pytype: disable=invalid-annotation
+    cond_val: bool,
+    true_fun: Callable[..., Any],  # pytype: disable=invalid-annotation
+    false_fun: Callable[..., Any],  # pytype: disable=invalid-annotation
+    *operands,
 ) -> Any:
   is_jax = getattr(thread_context, 'is_jax', False)
   if is_jax:
-    return jax.lax.cond(cond_val, true_fun, false_fun)
+    return jax.lax.cond(cond_val, true_fun, false_fun, *operands)
   else:
-    return py_cond(cond_val, true_fun, false_fun)
+    return py_cond(cond_val, true_fun, false_fun, *operands)
 
 
 def py_fori_loop(

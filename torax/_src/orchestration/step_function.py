@@ -159,6 +159,7 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
+  @xnp.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
@@ -217,27 +218,36 @@ class SimulationStepFn:
         explicit=True,
     )
 
+    def _step():
+      """Take either the adaptive or fixed step, depending on the config."""
+      if dynamic_runtime_params_slice_t.numerics.adaptive_dt:
+        return self._adaptive_step(
+            dynamic_runtime_params_slice_t,
+            geo_t,
+            explicit_source_profiles,
+            input_state,
+            previous_post_processed_outputs,
+        )
+      else:
+        return self._fixed_step(
+            dynamic_runtime_params_slice_t,
+            geo_t,
+            explicit_source_profiles,
+            input_state,
+            previous_post_processed_outputs,
+        )
+
     # If a sawtooth model is provided, and there was no previous
     # sawtooth crash, it will be checked to see if a sawtooth
     # should trigger. If it does, the sawtooth model will be applied and instead
     # of a full PDE solve, the step_fn will return early with a state following
     # sawtooth redistribution, at a t+dt set by the sawtooth model
     # configuration.
-    if (self._sawtooth_solver is not None) and (
-        not input_state.solver_numeric_outputs.sawtooth_crash
-    ):
-      output_state, post_processed_outputs = self._sawtooth_step(
-          dynamic_runtime_params_slice_t,
-          geo_t,
-          explicit_source_profiles,
-          input_state,
-          previous_post_processed_outputs,
-      )
-      if output_state.solver_numeric_outputs.sawtooth_crash:
-        return output_state, post_processed_outputs
-
-    if dynamic_runtime_params_slice_t.numerics.adaptive_dt:
-      return self._adaptive_step(
+    if self._sawtooth_solver is not None:
+      output_state, post_processed_outputs = xnp.cond(
+          input_state.solver_numeric_outputs.sawtooth_crash,
+          lambda *args: (input_state, previous_post_processed_outputs),
+          self._sawtooth_step,
           dynamic_runtime_params_slice_t,
           geo_t,
           explicit_source_profiles,
@@ -245,14 +255,19 @@ class SimulationStepFn:
           previous_post_processed_outputs,
       )
 
+      output_state, post_processed_outputs = xnp.cond(
+          # If the current state is a sawtooth and the previous state was not,
+          # then we triggered a sawtooth crash and exit early.
+          output_state.solver_numeric_outputs.sawtooth_crash
+          & ~input_state.solver_numeric_outputs.sawtooth_crash,
+          lambda: (output_state, post_processed_outputs),
+          _step,
+      )
     else:
-      return self._fixed_step(
-          dynamic_runtime_params_slice_t,
-          geo_t,
-          explicit_source_profiles,
-          input_state,
-          previous_post_processed_outputs,
-      )
+      # If no sawtooth model is provided, take a normal step.
+      output_state, post_processed_outputs = _step()
+
+    return output_state, post_processed_outputs
 
   def _sawtooth_step(
       self,
@@ -418,12 +433,12 @@ class SimulationStepFn:
           next_dt < dynamic_runtime_params_slice_t.numerics.min_dt
       )
 
-      take_another_step = xnp.py_cond(
+      take_another_step = xnp.cond(
           solver_did_not_converge,
           # If the solver did not converge then we check if we are at the exact
           # final time and should take a smaller step. If not we also check if
           # the next dt is too small, if so we should end the step.
-          lambda: xnp.py_cond(
+          lambda: xnp.cond(
               at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
           ),
           lambda: False,
@@ -492,7 +507,7 @@ class SimulationStepFn:
           core_profiles_t_plus_dt,
       )
 
-    _, result = xnp.py_while(
+    _, result = xnp.while_loop(
         cond_fun,
         body_fun,
         (
