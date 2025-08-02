@@ -123,6 +123,7 @@ def get_prescribed_core_profile_values(
   n_e = n_e_cell_variable.value
   n_i = ions.n_i.value
   n_impurity = ions.n_impurity.value
+  impurity_fractions = ions.impurity_fractions
 
   return {
       'T_i': T_i,
@@ -130,12 +131,14 @@ def get_prescribed_core_profile_values(
       'n_e': n_e,
       'n_i': n_i,
       'n_impurity': n_impurity,
+      'impurity_fractions': impurity_fractions,
       'Z_i': ions.Z_i,
       'Z_i_face': ions.Z_i_face,
       'Z_impurity': ions.Z_impurity,
       'Z_impurity_face': ions.Z_impurity_face,
       'A_i': ions.A_i,
       'A_impurity': ions.A_impurity,
+      'A_impurity_face': ions.A_impurity_face,
       'Z_eff': ions.Z_eff,
       'Z_eff_face': ions.Z_eff_face,
   }
@@ -188,12 +191,14 @@ def update_core_profiles_during_step(
       updated_core_profiles,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
+      impurity_fractions=ions.impurity_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
+      A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
@@ -273,6 +278,7 @@ def update_core_and_source_profiles_after_step(
       n_e=updated_core_profiles_t_plus_dt.n_e,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
+      impurity_fractions=ions.impurity_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
@@ -286,6 +292,7 @@ def update_core_and_source_profiles_after_step(
       ),
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
+      A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
       v_loop_lcfs=v_loop_lcfs,
@@ -383,12 +390,12 @@ def compute_boundary_conditions_for_t_plus_dt(
       static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  )
+  ).Z_mixture
   Z_impurity_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  )
+  ).Z_mixture
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Z_i_edge,
@@ -529,12 +536,14 @@ def provide_core_profiles_t_plus_dt(
       n_e=n_e,
       n_i=n_i,
       n_impurity=n_impurity,
+      impurity_fractions=updated_values['impurity_fractions'],
       Z_i=updated_values['Z_i'],
       Z_i_face=Z_i_face,
       Z_impurity=updated_values['Z_impurity'],
       Z_impurity_face=Z_impurity_face,
       A_i=updated_values['A_i'],
       A_impurity=updated_values['A_impurity'],
+      A_impurity_face=updated_values['A_impurity_face'],
       Z_eff=updated_values['Z_eff'],
       Z_eff_face=updated_values['Z_eff_face'],
   )
