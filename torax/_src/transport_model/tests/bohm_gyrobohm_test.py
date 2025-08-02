@@ -94,7 +94,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         main_ion=mock.create_autospec(
             plasma_composition.DynamicIonMixture,
             instance=True,
-            avg_A=2.0,
+            A_avg=2.0,
         ),
     )
 
