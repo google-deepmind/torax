@@ -52,6 +52,7 @@ class GeometryTest(parameterized.TestCase):
         R_out=np.arange(1, 2, 0.01),
         F=np.arange(0, 1.0, 0.01),
         int_dl_over_Bp=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_1_over_R=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
