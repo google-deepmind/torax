@@ -224,10 +224,10 @@ class SolverNumericOutputs:
       corresponds to a sawtooth crash step.
   """
 
-  outer_solver_iterations: int = 0
-  solver_error_state: int = 0
-  inner_solver_iterations: int = 0
-  sawtooth_crash: bool = False
+  outer_solver_iterations: int | jax.Array = 0
+  solver_error_state: int | jax.Array = 0
+  inner_solver_iterations: int | jax.Array = 0
+  sawtooth_crash: bool | jax.Array = False
 
 
 @enum.unique
