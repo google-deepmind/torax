@@ -254,6 +254,7 @@ def _get_example_L_LY_data(
       'TQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'FB': np.full(len_times, prefactor).squeeze(),
       'FA': np.full(len_times, prefactor).squeeze(),
+      'Q0Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'Q1Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'Q2Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'Q3Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
