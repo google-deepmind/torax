@@ -30,6 +30,8 @@ def geometry_from_IMAS(
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
     hires_factor: int = 4,
+    slice_time: float | None = None,
+    slice_index: int = 0,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
@@ -46,6 +48,9 @@ def geometry_from_IMAS(
     n_rho: Radial grid points (num cells)
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
+    slice_time: Time of slice to load from IMAS IDS. If given, overrides
+      slice_index.
+    slice_index: Index of slice to load from IMAS IDS.
     equilibrium_object: The equilibrium IDS containing the relevant data.
     imas_uri: The IMAS uri containing the equilibrium data.
     imas_filepath: The path to the IMAS netCDF file containing the equilibrium
@@ -72,9 +77,36 @@ def geometry_from_IMAS(
     raise ValueError(
         "equilibrium_object must be a string (file path) or an IDS"
     )
-  # TODO(b/431977390): Currently only the first time slice is used, extend to
+  # TODO(b/431977390): Currently only a single time slice is used, extend to
   # support multiple time slices.
-  IMAS_data = equilibrium.time_slice[0]
+  # Convert time to index
+  if slice_time is not None:
+    if not np.all(equilibrium.time[:-1] <= equilibrium.time[1:]):
+      sorting_indices = np.argsort(equilibrium.time)
+    else:
+      sorting_indices = np.arange(len(equilibrium.time))
+    # Find the closest time in the IDS that is <= slice_time
+    slice_index = (
+        np.searchsorted(
+            equilibrium.time[sorting_indices], slice_time, side="right"
+        )
+        - 1
+    )
+    if not np.allclose(
+        equilibrium.time[sorting_indices][slice_index], slice_time, atol=1e-9
+    ):
+      logging.warn(
+          f"Requested t={slice_time} not in IDS; "
+          f"using t={equilibrium.time[slice_index]})"
+      )
+
+  if slice_index >= len(equilibrium.time_slice):
+    raise IndexError(
+        f"slice_index={slice_index} out of range for IDS with "
+        f"{len(equilibrium.time_slice)} time slices"
+    )
+  IMAS_data = equilibrium.time_slice[slice_index]
+  B_0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_phi)
   R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)
   B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
 

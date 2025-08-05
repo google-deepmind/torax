@@ -14,7 +14,8 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 import functools
 import inspect
 import logging
@@ -296,6 +297,9 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
       the with running TORAX using the provided APIs. To use this option you
       must implement a custom run loop. Only one of imas_filepath, imas_uri or
       equilibrium_object can be set.
+    slice_time: Time of slice to load from IMAS IDS. If given, overrides
+      slice_index.
+    slice_index: Index of slice to load from IMAS IDS.
   """
 
   geometry_type: Annotated[Literal['imas'], TIME_INVARIANT] = 'imas'
@@ -306,6 +310,8 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   imas_filepath: str | None = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
+  slice_index: pydantic.NonNegativeInt = 0
+  slice_time: pydantic.NonNegativeFloat | None = None
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
