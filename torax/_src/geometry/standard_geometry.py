@@ -942,6 +942,8 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
+      slice_time: float | None = None,
+      slice_index: int = 0,
       equilibrium_object: ids_toplevel.IDSToplevel | None = None,
       imas_uri: str | None = None,
       imas_filepath: str | None = None,
@@ -956,6 +958,9 @@ class StandardGeometryIntermediates:
         values in the Geometry are rescaled to match the new Ip.
       n_rho: Radial grid points (num cells).
       hires_factor: High resolution factor for calculations.
+      slice_time: Time of slice to load from IMAS IDS. If given, overrides
+        slice_index.
+      slice_index: Index of slice to load from IMAS IDS (default 0).
       equilibrium_object: The equilibrium IDS containing the relevant data.
       imas_uri: The IMAS uri containing the equilibrium data.
       imas_filepath: The path to the IMAS netCDF file containing the equilibrium
@@ -973,6 +978,8 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        slice_time=slice_time,
+        slice_index=slice_index,
     )
     return cls(geometry_type=geometry.GeometryType.IMAS, **inputs)
 
