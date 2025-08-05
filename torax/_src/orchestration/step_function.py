@@ -45,7 +45,7 @@ from torax._src.transport_model import transport_coefficients_builder
 
 
 def check_for_errors(
-    numerics: numerics_lib.DynamicNumerics,
+    numerics: numerics_lib.Numerics,
     output_state: sim_state.ToraxSimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:

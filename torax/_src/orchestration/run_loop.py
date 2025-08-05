@@ -135,7 +135,7 @@ def run_loop(
           post_processing_history[-1],
       )
       sim_error = step_function.check_for_errors(
-          initial_dynamic_runtime_params_slice.numerics,
+          dynamic_runtime_params_slice_provider.numerics,
           current_state,
           post_processed_outputs,
       )

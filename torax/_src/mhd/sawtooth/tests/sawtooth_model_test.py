@@ -133,11 +133,8 @@ class SawtoothModelTest(parameterized.TestCase):
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
-    dynamic_runtime_params_slice = (
-        self.dynamic_runtime_params_slice_provider(output_state.t)
-    )
     sim_error = step_function.check_for_errors(
-        dynamic_runtime_params_slice.numerics,
+        self.dynamic_runtime_params_slice_provider.numerics,
         output_state,
         self.initial_post_processed_outputs,
     )
@@ -176,11 +173,8 @@ class SawtoothModelTest(parameterized.TestCase):
         input_state=initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
-    dynamic_runtime_params_slice = (
-        self.dynamic_runtime_params_slice_provider(output_state.t)
-    )
     sim_error = step_function.check_for_errors(
-        dynamic_runtime_params_slice.numerics,
+        self.dynamic_runtime_params_slice_provider.numerics,
         output_state,
         self.initial_post_processed_outputs,
     )
@@ -226,13 +220,8 @@ class SawtoothModelTest(parameterized.TestCase):
           input_state=new_input_state_should_not_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )
-      dynamic_runtime_params_slice = (
-          self.dynamic_runtime_params_slice_provider(
-              output_state_should_not_crash.t
-          )
-      )
       sim_error = step_function.check_for_errors(
-          dynamic_runtime_params_slice.numerics,
+          self.dynamic_runtime_params_slice_provider.numerics,
           output_state_should_not_crash,
           post_processed_outputs0,
       )

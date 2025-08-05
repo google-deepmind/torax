@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import copy
 import dataclasses
 
 from absl.testing import absltest
@@ -32,16 +32,16 @@ class StepFunctionTest(absltest.TestCase):
         default_configs.get_default_config_dict()
     )
     (
-        dynamic_provider,
+        self.dynamic_provider,
         self.sim_state,
         self.post_processed_outputs,
         _,
     ) = run_simulation.prepare_simulation(torax_config)
-    self.dynamic_slice = dynamic_provider(torax_config.numerics.t_initial)
+    self.dynamic_slice = self.dynamic_provider(torax_config.numerics.t_initial)
 
   def test_no_error(self):
     error = step_function.check_for_errors(
-        self.dynamic_slice.numerics,
+        self.dynamic_provider.numerics,
         self.sim_state,
         self.post_processed_outputs,
     )
@@ -59,7 +59,7 @@ class StepFunctionTest(absltest.TestCase):
         self.sim_state, core_profiles=core_profiles
     )
     error = step_function.check_for_errors(
-        self.dynamic_slice.numerics,
+        self.dynamic_provider.numerics,
         new_sim_state_core_profiles,
         self.post_processed_outputs,
     )
@@ -71,7 +71,7 @@ class StepFunctionTest(absltest.TestCase):
         P_aux_total=jnp.array(jnp.nan),
     )
     error = step_function.check_for_errors(
-        self.dynamic_slice.numerics,
+        self.dynamic_provider.numerics,
         self.sim_state,
         new_post_processed_outputs,
     )
@@ -91,21 +91,15 @@ class StepFunctionTest(absltest.TestCase):
         self.sim_state, core_sources=new_core_sources
     )
     error = step_function.check_for_errors(
-        self.dynamic_slice.numerics,
+        self.dynamic_provider.numerics,
         new_sim_state_sources,
         self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_below_min_dt(self):
-    dynamic_slice = dataclasses.replace(
-        self.dynamic_slice,
-        numerics=dataclasses.replace(
-            self.dynamic_slice.numerics,
-            min_dt=2.0,
-            dt_reduction_factor=2.0,
-        ),
-    )
+    numerics = copy.deepcopy(self.dynamic_provider.numerics)
+    numerics._update_fields({'min_dt': 2.0, 'dt_reduction_factor': 2.0})
 
     new_sim_state = dataclasses.replace(
         self.sim_state,
@@ -117,23 +111,18 @@ class StepFunctionTest(absltest.TestCase):
         ),
     )
     error = step_function.check_for_errors(
-        dynamic_slice.numerics,
-        new_sim_state,
-        self.post_processed_outputs,
+        numerics, new_sim_state, self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.REACHED_MIN_DT)
 
   def test_no_error_when_below_min_dt_but_solver_converged(self):
-    dynamic_slice = dataclasses.replace(
-        self.dynamic_slice,
-        numerics=dataclasses.replace(
-            self.dynamic_slice.numerics,
-            min_dt=2.0,
-            dt_reduction_factor=2.0,
-            t_final=5.0,
-            exact_t_final=True,
-        ),
-    )
+    numerics = copy.deepcopy(self.dynamic_provider.numerics)
+    numerics._update_fields({
+        't_final': 5.0,
+        'exact_t_final': True,
+        'min_dt': 2.0,
+        'dt_reduction_factor': 2.0,
+    })
     new_sim_state = dataclasses.replace(
         self.sim_state,
         dt=jnp.array(1.0),
@@ -145,9 +134,7 @@ class StepFunctionTest(absltest.TestCase):
         ),
     )
     error = step_function.check_for_errors(
-        dynamic_slice.numerics,
-        new_sim_state,
-        self.post_processed_outputs,
+        numerics, new_sim_state, self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NO_ERROR)
 

@@ -137,7 +137,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           output_state.core_profiles.T_i.value[0], expected_combined_value
       )
       sim_error = step_function.check_for_errors(
-          dynamic_runtime_params_slice_provider(initial_state.t).numerics,
+          dynamic_runtime_params_slice_provider.numerics,
           output_state,
           post_processed_outputs,
       )
