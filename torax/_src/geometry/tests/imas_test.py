@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import imas
 import numpy as np
+import pydantic
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import imas as imas_geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -97,6 +98,60 @@ class EquilibriumTest(parameterized.TestCase):
         equilibrium_object=equilibrium_in, imas_filepath=None
     )
     config.build_geometry()
+
+  def test_IMAS_loading_specific_slice(self):
+    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+    SLICE_TIME = 5
+    SLICE_INDEX = 1
+    config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
+    config_at_slice_from_time = geometry_pydantic_model.IMASConfig(
+        imas_filepath=filename, slice_time=SLICE_TIME
+    )
+    config_at_slice_from_index = geometry_pydantic_model.IMASConfig(
+        imas_filepath=filename, slice_index=SLICE_INDEX
+    )
+    geo_at_0 = config_at_0.build_geometry()
+    geo_at_slice_from_time = config_at_slice_from_time.build_geometry()
+    geo_at_slice_from_index = config_at_slice_from_index.build_geometry()
+
+    for key in geo_at_0.__dict__.keys():
+      np.testing.assert_allclose(
+          geo_at_slice_from_time[key],
+          geo_at_slice_from_index[key],
+          err_msg=f'Value {key} mismatched between slice_time and slice_index',
+      )
+      with self.assertRaises(AssertionError):
+        np.testing.assert_allclose(
+            geo_at_0[key],
+            geo_at_slice_from_time[key],
+        )
+      with self.assertRaises(AssertionError):
+        np.testing.assert_allclose(
+            geo_at_0[key],
+            geo_at_slice_from_index[key],
+        )
+
+  def test_IMAS_raises_if_slice_specified_twice(self):
+    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        'exactly one of `slice_time` and `slice_index`',
+    ):
+      geometry_pydantic_model.IMASConfig(
+          imas_filepath=filename, slice_index=1, slice_time=1
+      )
+
+  def test_IMAS_raises_if_slice_out_of_range(self):
+    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+    with self.assertRaisesRegex(
+        IndexError,
+        'out of range',
+    ):
+      config = geometry_pydantic_model.IMASConfig(
+          imas_filepath=filename,
+          slice_index=100,
+      )
+      config.build_geometry()
 
 
 if __name__ == '__main__':
