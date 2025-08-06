@@ -88,6 +88,11 @@ def geometry_from_IMAS(
           f"t={slice_time} not in equilibrium.time."
           f"Using t={equilibrium.time[slice_index]} instead."
       )
+  if slice_index > len(equilibrium.time_slice):
+    raise IndexError(
+        f"slice_index={slice_index} out of range for IDS with "
+        f"{len(equilibrium.time_slice)} time slices"
+    )
   IMAS_data = equilibrium.time_slice[slice_index]
   B_0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_phi)
   R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)
