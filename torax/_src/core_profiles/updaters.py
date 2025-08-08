@@ -383,12 +383,12 @@ def compute_boundary_conditions_for_t_plus_dt(
       static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  )
+  ).Z_mixture
   Z_impurity_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  )
+  ).Z_mixture
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Z_i_edge,
