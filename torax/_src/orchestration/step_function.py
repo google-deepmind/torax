@@ -120,6 +120,12 @@ class SimulationStepFn:
     self._static_runtime_params_slice = static_runtime_params_slice
 
   @property
+  def dynamic_runtime_params_slice_provider(
+      self,
+  ) -> build_runtime_params.DynamicRuntimeParamsSliceProvider:
+    return self._dynamic_runtime_params_slice_provider
+
+  @property
   def static_runtime_params_slice(
       self,
   ) -> runtime_params_slice.StaticRuntimeParamsSlice:

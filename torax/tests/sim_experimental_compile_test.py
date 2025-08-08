@@ -13,10 +13,15 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src.orchestration import jit_run_loop
+from torax._src.orchestration import run_loop
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
+
 
 _ALL_PROFILES = (
     output.T_I,
@@ -264,10 +269,14 @@ class SimExperimentalCompileTest(sim_test_case.SimTestCase):
       self,
       config_name: str,
   ):
-    self._test_run_simulation(
-        config_name,
-        profiles=_ALL_PROFILES,
-    )
+    mock_run_loop = mock.MagicMock(side_effect=jit_run_loop.run_loop)
+    with mock.patch.object(run_loop, 'run_loop', mock_run_loop):
+      self._test_run_simulation(
+          config_name,
+          profiles=_ALL_PROFILES,
+      )
+    # Check the mock run loop was actually called.
+    mock_run_loop.assert_called_once()
 
 
 if __name__ == '__main__':
