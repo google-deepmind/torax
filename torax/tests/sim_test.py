@@ -220,6 +220,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation',
           'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
       ),
+      # Predictor-corrector with Mavrin radiation and n_e_ratios impurity mode.
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios',
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios.py',
+      ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
           'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
