@@ -22,7 +22,6 @@ from torax._src.orchestration import run_loop
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 
-
 _ALL_PROFILES = (
     output.T_I,
     output.T_E,
