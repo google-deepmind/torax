@@ -142,6 +142,8 @@ class StandardGeometryIntermediates:
     int_dl_over_Bp: :math:`\oint dl/B_p` (field-line contour integral on the
       flux surface) [:math:`\mathrm{m / T}`], where :math:`B_p` is the poloidal
       magnetic field.
+    flux_surf_avg_1_over_R: Flux surface average of :math:`1/R`
+      [:math:`\mathrm{m^{-1}}`].
     flux_surf_avg_1_over_R2: Flux surface average of :math:`1/R^2`
       [:math:`\mathrm{m^{-2}}`].
     flux_surf_avg_Bp2: Flux surface average of :math:`B_p^2`
@@ -177,6 +179,7 @@ class StandardGeometryIntermediates:
   R_out: chex.Array
   F: chex.Array
   int_dl_over_Bp: chex.Array
+  flux_surf_avg_1_over_R: chex.Array
   flux_surf_avg_1_over_R2: chex.Array
   flux_surf_avg_Bp2: chex.Array
   flux_surf_avg_RBp: chex.Array
@@ -317,6 +320,7 @@ class StandardGeometryIntermediates:
     int_dl_over_Bp = (
         chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * R_major / B_0
     )
+    flux_surf_avg_1_over_R = chease_data['<1/R>profile'] / R_major
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / R_major**2
     flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B_0**2
     flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
@@ -340,6 +344,7 @@ class StandardGeometryIntermediates:
         R_out=R_out_chease,
         F=F,
         int_dl_over_Bp=int_dl_over_Bp,
+        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
         flux_surf_avg_Bp2=flux_surf_avg_Bp2,
         flux_surf_avg_RBp=flux_surf_avg_RBp,
@@ -523,6 +528,7 @@ class StandardGeometryIntermediates:
         'TQ',
         'FB',
         'FA',
+        'Q0Q',
         'Q1Q',
         'Q2Q',
         'Q3Q',
@@ -596,6 +602,7 @@ class StandardGeometryIntermediates:
     # replaces the zero does not matter, since it will be replaced by a spline
     # extrapolation in the post_init.
     LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
+
     return cls(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
@@ -609,6 +616,7 @@ class StandardGeometryIntermediates:
         R_out=LY['rgeom'] + LY['aminor'],
         F=np.abs(LY['TQ']),
         int_dl_over_Bp=1 / LY_Q1Q,
+        flux_surf_avg_1_over_R=LY['Q0Q'],
         flux_surf_avg_1_over_R2=LY['Q2Q'],
         flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
         flux_surf_avg_RBp=np.abs(LY['Q5Q']) / (2 * np.pi),
@@ -765,6 +773,7 @@ class StandardGeometryIntermediates:
     R_inboard, R_outboard = np.empty(len(surfaces) + 1), np.empty(
         len(surfaces) + 1
     )
+    flux_surf_avg_1_over_R_eqdsk = np.empty(len(surfaces) + 1)  # <1/R>
     flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces) + 1)  # <1/R**2>
     flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <Bp**2>
     flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
@@ -799,8 +808,13 @@ class StandardGeometryIntermediates:
       # plasma current
       surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
 
-      # 4 FSA, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
+      # Flux surface averaged equilibrium terms
+      # <1/R>, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
       # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_FSA_int_one_over_r = (
+          np.sum(1 / x_surface * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
       surface_FSA_int_one_over_r2 = (
           np.sum(1 / x_surface**2 * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
@@ -845,6 +859,7 @@ class StandardGeometryIntermediates:
       R_inboard[n + 1] = x_surface.min()
       R_outboard[n + 1] = x_surface.max()
       int_dl_over_Bp_eqdsk[n + 1] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R_eqdsk[n + 1] = surface_FSA_int_one_over_r
       flux_surf_avg_1_over_R2_eqdsk[n + 1] = surface_FSA_int_one_over_r2
       flux_surf_avg_RBp_eqdsk[n + 1] = surface_FSA_abs_grad_psi
       flux_surf_avg_R2Bp2_eqdsk[n + 1] = surface_FSA_abs_grad_psi2
@@ -863,6 +878,7 @@ class StandardGeometryIntermediates:
     R_inboard[0] = Raxis
     R_outboard[0] = Raxis
     int_dl_over_Bp_eqdsk[0] = 0
+    flux_surf_avg_1_over_R_eqdsk[0] = 1 / Raxis
     flux_surf_avg_1_over_R2_eqdsk[0] = 1 / Raxis**2
     flux_surf_avg_RBp_eqdsk[0] = 0
     flux_surf_avg_R2Bp2_eqdsk[0] = 0
@@ -922,6 +938,7 @@ class StandardGeometryIntermediates:
         R_out=R_outboard,
         F=F_eqdsk,
         int_dl_over_Bp=int_dl_over_Bp_eqdsk,
+        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R_eqdsk,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
         flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
         flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
@@ -1037,13 +1054,15 @@ def build_standard_geometry(
 
   # dV/drhon, dS/drhon
   vpr = intermediate.vpr
-  spr = vpr / (2 * np.pi * intermediate.R_major)
+  spr = vpr * intermediate.flux_surf_avg_1_over_R / (2 * np.pi)
 
   # Volume and area
   volume_intermediate = scipy.integrate.cumulative_trapezoid(
       y=vpr, x=rho_norm_intermediate, initial=0.0
   )
-  area_intermediate = volume_intermediate / (2 * np.pi * intermediate.R_major)
+  area_intermediate = scipy.integrate.cumulative_trapezoid(
+      y=spr, x=rho_norm_intermediate, initial=0.0
+  )
 
   # plasma current density
   dI_tot_drhon = np.gradient(intermediate.Ip_profile, rho_norm_intermediate)
