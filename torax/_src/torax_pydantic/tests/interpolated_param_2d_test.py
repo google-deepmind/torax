@@ -42,7 +42,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               _VALUES_ARRAY,
           ),
           nx=4,
-          dx=0.25,
           time=0.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -53,7 +52,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               _VALUES_ARRAY,
           ),
           nx=4,
-          dx=0.25,
           time=1.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -64,7 +62,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               _VALUES_ARRAY.tolist(),
           ),
           nx=4,
-          dx=0.25,
           time=1.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -76,7 +73,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
           nx=4,
-          dx=0.25,
           time=0.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -88,7 +84,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
           nx=4,
-          dx=0.25,
           time=1.0,
           expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
@@ -100,7 +95,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
           ),
           nx=4,
-          dx=0.25,
           time=1.0,
           expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
@@ -112,7 +106,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
@@ -124,7 +117,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
@@ -142,7 +134,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               },
           ),
           nx=4,
-          dx=0.25,
           time=0.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -160,7 +151,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               },
           ),
           nx=4,
-          dx=0.25,
           time=1.01,
           expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
@@ -178,7 +168,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               },
           ),
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -189,7 +178,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
           nx=4,
-          dx=0.25,
           time=0.0,
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
@@ -200,7 +188,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
           nx=4,
-          dx=0.25,
           time=1.0,
           expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
@@ -211,7 +198,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
@@ -229,43 +215,29 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               dims=['time', 'value'],
           ),
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
-      ),
-      dict(
-          testcase_name='single_dict_t=0',
-          time_rho_interpolated_input={
-              0.25: 18.0,
-              0.95: 5.0,
-          },
-          nx=4,
-          dx=0.5,
-          time=0.0,
-          expected_output=np.array([18.0, 8.714286, 5.0, 5.0]),
       ),
       # Single dict represents a constant (in time) radial profile.
       dict(
           testcase_name='single_dict_t=0.5',
           time_rho_interpolated_input={
-              0.475: 18.0,
-              0.9: 5.0,
+              0.1: 18.0,
+              0.2: 5.0,
           },
           nx=4,
-          dx=0.95,
           time=0.5,
-          expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
+          expected_output=np.array([14.75, 5.0, 5.0, 5.0]),
       ),
       dict(
           testcase_name='single_dict_t=0.0',
           time_rho_interpolated_input={
-              0.475: 18.0,
-              0.9: 5.0,
+              0.1: 18.0,
+              0.2: 5.0,
           },
           nx=4,
-          dx=0.95,
           time=0.0,
-          expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
+          expected_output=np.array([14.75, 5.0, 5.0, 5.0]),
       ),
       dict(
           testcase_name='nested_dict_t=0.5',
@@ -274,7 +246,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               1.0: {0.125: 5.0, 0.375: 6.0, 0.625: 7.0, 0.875: 8.0},
           },
           nx=4,
-          dx=0.25,
           time=0.5,
           expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
@@ -283,7 +254,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           testcase_name='float_t=0.0',
           time_rho_interpolated_input=1.0,
           nx=4,
-          dx=0.5,
           time=0.0,
           expected_output=np.array([1.0, 1.0, 1.0, 1.0]),
       ),
@@ -291,18 +261,17 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           testcase_name='float_t=5.0',
           time_rho_interpolated_input=1.0,
           nx=4,
-          dx=0.5,
           time=5.0,
           expected_output=np.array([1.0, 1.0, 1.0, 1.0]),
       ),
   )
   def test_time_varying_array_parses_inputs_correctly(
-      self, time_rho_interpolated_input, nx, dx, time, expected_output
+      self, time_rho_interpolated_input, nx, time, expected_output
   ):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=nx, dx=dx)
+    grid = interpolated_param_2d.Grid1D(nx=nx)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     np.testing.assert_allclose(
@@ -395,8 +364,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     self.assertEqual(array_1, array_2)
 
   def test_grid1d_cache(self):
-    grid_1 = interpolated_param_2d.Grid1D(nx=10, dx=0.1)
-    grid_2 = interpolated_param_2d.Grid1D(nx=10, dx=0.1)
+    grid_1 = interpolated_param_2d.Grid1D(nx=10,)
+    grid_2 = interpolated_param_2d.Grid1D(nx=10,)
 
     # Ensure cell_centers and face_centers are cached, and use the same
     # underlying NumPy arrays.
@@ -424,7 +393,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4, dx=0.25)
+    grid = interpolated_param_2d.Grid1D(nx=4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -473,7 +442,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4, dx=0.25)
+    grid = interpolated_param_2d.Grid1D(nx=4)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit

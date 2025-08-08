@@ -1057,9 +1057,8 @@ def build_standard_geometry(
   j_total = np.concatenate([np.array([j_total_face_axis]), j_total_face_bulk])
 
   # fill geometry structure
-  drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
   # normalized grid
-  mesh = torax_pydantic.Grid1D(nx=intermediate.n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D(nx=intermediate.n_rho,)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   rho_face_norm = mesh.face_centers

@@ -65,7 +65,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D(nx=10, dx=0.1)
+    torax_mesh = torax_pydantic.Grid1D(nx=10,)
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )
