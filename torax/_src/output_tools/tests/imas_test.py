@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -36,8 +35,8 @@ class EquilibriumTest(sim_test_case.SimTestCase):
   def test_IMAS_geometry_input_output_roundtrip(
       self,
       config_name,
-      rtol: Optional[float] = None,
-      atol: Optional[float] = None,
+      rtol: float | None = None,
+      atol: float | None = None,
   ):
     """Test the default IMAS geometry can be built and converted back to IDS."""
     # Input equilibrium reading.
