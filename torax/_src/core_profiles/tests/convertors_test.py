@@ -64,6 +64,7 @@ class ConvertersTest(parameterized.TestCase):
         n_e=n_e,
         n_i=mock.ANY,
         n_impurity=mock.ANY,
+        impurity_fractions=mock.ANY,
         psidot=mock.ANY,
         q_face=mock.ANY,
         s_face=mock.ANY,

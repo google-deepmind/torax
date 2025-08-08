@@ -115,7 +115,7 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
     # Gyrobohm term of heat transport
     chi_e_gB = (
         jnp.sqrt(
-            dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A / 2
+            dynamic_runtime_params_slice.plasma_composition.main_ion.A_avg / 2
         )
         * jnp.sqrt(core_profiles.T_e.face_value() * 1e3)
         / geo.B_0**2
