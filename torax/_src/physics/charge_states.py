@@ -14,14 +14,18 @@
 
 """Routines for calculating impurity charge states."""
 
+import dataclasses
 from typing import Final, Mapping, Sequence
 
 import immutabledict
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import plasma_composition
+
+# pylint: disable=invalid-name
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
@@ -86,6 +90,33 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ChargeStateInfo:
+  """Container for average charge state calculations.
+
+  Attributes:
+    Z_avg: Average charge of the mixture, weighted by ion fractions. <Z> =
+      sum(fraction_i * Z_i).
+    Z2_avg: Average squared charge of the mixture, weighted by ion fractions.
+      <Z^2> = sum(fraction_i * Z_i^2).
+    Z_per_species: Charge state for each individual ion species in the mixture.
+      For impurities, this is the outcome of a temperature dependent charge
+      state calculation.
+    Z_mixture: Effective charge of the mixture, defined as <Z^2> / <Z>. This is
+      the charge used in quasineutrality calculations when treating the mixture
+      as a single effective species.
+  """
+
+  Z_avg: array_typing.ArrayFloat
+  Z2_avg: array_typing.ArrayFloat
+  Z_per_species: array_typing.ArrayFloat
+
+  @property
+  def Z_mixture(self) -> array_typing.ArrayFloat:
+    return self.Z2_avg / self.Z_avg
+
+
 # pylint: disable=invalid-name
 def calculate_average_charge_state_single_species(
     T_e: array_typing.ArrayFloat,
@@ -135,7 +166,7 @@ def get_average_charge_state(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
     T_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
   Equations for quasineutrality and Zeff are the following:
@@ -171,18 +202,44 @@ def get_average_charge_state(
       face grid, or a single scalar.
 
   Returns:
-    avg_Z: Average charge state profile [amu].
-      The shape of avg_Z is the same as T_e.
+    AverageChargeState: dataclass with average charge state info.
   """
 
   if ion_mixture.Z_override is not None:
-    return jnp.ones_like(T_e) * ion_mixture.Z_override
+    override_val = jnp.ones_like(T_e) * ion_mixture.Z_override
+    return ChargeStateInfo(
+        Z_avg=override_val,
+        Z2_avg=override_val**2,
+        Z_per_species=jnp.stack([override_val for _ in ion_symbols]),
+    )
 
-  avg_Z = jnp.zeros_like(T_e)
-  avg_Z2 = jnp.zeros_like(T_e)
-  for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
-    Z_species = calculate_average_charge_state_single_species(T_e, ion_symbol)
-    avg_Z += fraction * Z_species
-    avg_Z2 += fraction * Z_species**2
+  Z_per_species = jnp.stack([
+      calculate_average_charge_state_single_species(T_e, ion_symbol)
+      for ion_symbol in ion_symbols
+  ])
 
-  return avg_Z2 / avg_Z
+  # Handle both radially constant (1D) and radially varying (2D) fractions.
+  # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
+  # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
+  # Furthermore, Z_per_species has shape (n_species,) if T_e is a scalar, or
+  # (n_species, n_grid) if T_e is an array. The code below handles all cases.
+  fractions = ion_mixture.fractions
+  if fractions.ndim == 1:
+    # Radially constant fractions: reshape for broadcasting
+    fractions_reshaped = jnp.reshape(
+        fractions,
+        fractions.shape + (1,) * (Z_per_species.ndim - 1),
+    )
+  else:
+    # Radially varying fractions: shapes are already compatible for
+    # element-wise ops.
+    fractions_reshaped = fractions
+
+  Z_avg = jnp.sum(fractions_reshaped * Z_per_species, axis=0)
+  Z2_avg = jnp.sum(fractions_reshaped * Z_per_species**2, axis=0)
+
+  return ChargeStateInfo(
+      Z_avg=Z_avg,
+      Z2_avg=Z2_avg,
+      Z_per_species=Z_per_species,
+  )
