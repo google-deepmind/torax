@@ -13,16 +13,14 @@
 # limitations under the License.
 
 """JAX root finding functions."""
-
-
 import dataclasses
 import functools
 from typing import Callable, Final
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
-
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
