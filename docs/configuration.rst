@@ -1747,6 +1747,68 @@ transport
      This is the default model. This model does not have any additional
      configurable parameters.
 
+restart
+-------
+
+If this optional entry is supplied in the config, TORAX will be run starting from the
+selected state in a previous simulation. This can be used to resume a completed
+simulation.
+
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
+
+``filename`` (PathLike)
+  Path to an existing TORAX output file (netCDF format).
+
+``time`` (float)
+  Time in output file to load as the new initial state.
+
+``do_restart`` (bool)
+  If True, perform the restart from the selected state. If False, disable the
+  restart and run the simulation as normal.
+
+``stitch`` (bool)
+  If True, concatenate the old and new simulation histories in the resulting
+  output file. If False, output file will only contain the new history.
+
+
+For example, following a simulation in which a state file is saved to
+``/path/to/torax_state_file.nc``, a new simulation can be started from the old
+state at ``t=10`` by adding the following to the config:
+
+.. code-block:: python
+
+  'restart': {
+      'filename': '/path/to/torax_state_file.nc',
+      'time': 10,
+      'do_restart': True,
+      'stitch': True,
+  }
+
+The resulting simulation will recreate the state from ``t=10`` in the
+previous simulation, and then run forwards from that point in time. For
+all subsequent steps the dynamic runtime parameters will be constructed using
+the runtime parameter configuration provided in the new config (from ``t=10``
+onwards).
+
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
+Some potential use cases for this feature include:
+
+* Restarting a simulation that was healthy up to a certain time and then failed.
+  After fixing the cause of the failure, a new simulation can be run from the
+  last healthy point.
+
+* Performing uncertainty quantification by sweeping a set of configs starting
+  from the same initial plasma state. After performing an initial simulation,
+  the restart option could be used to run a set of configs with modified
+  parameters to evaluate the impact of their variation.
+
+
 Additional Notes
 ================
 
@@ -1924,43 +1986,3 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'calculator_type': 'fixed',
       },
   }
-
-
-Restarting a simulation
-=======================
-In order to restart a simulation a field can be added to the config.
-
-For example following a simulation in which a state file is saved to
-``/path/to/torax_state_file.nc``, if we want to start a new simulation from the
-state of the previous one at ``t=10`` we could add the following to our config:
-
-.. code-block:: python
-
-  {
-      'filename': '/path/to/torax_state_file.nc',
-      'time': 10,
-      'do_restart': True,  # Toggle to enable/disable a restart.
-      # Whether or not to pre"stitch" the contents of the loaded state file up
-      # to `time` with the output state file from this simulation.
-      'stitch': True,
-  }
-
-The subsequence simulation will then recreate the state from ``t=10`` in the
-previous simulation and then run the simulation from that point in time. For
-all subsequent steps the dynamic runtime parameters will be constructed using
-the given runtime parameter configuration (from ``t=10`` onwards).
-
-If the requested restart time is not exactly available in the state file, the
-simulation will restart from the closest available time. A warning will be
-logged in this case.
-
-We envisage this feature being useful for example to:
-
-* restart a(n expensive) simulation that was healthy up till a certain time and
-  then failed. After discovering the issue for breakage you could then restart
-  the sim from the last healthy point.
-
-* do uncertainty quantification by sweeping lots of configs following running
-  a simulation up to a certain point in time. After running the initial
-  simulation you could then modify and sweep the runtime parameter config in
-  order to do some uncertainty quantification.
