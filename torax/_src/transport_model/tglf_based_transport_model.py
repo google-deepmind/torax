@@ -139,17 +139,35 @@ class TGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> TGLFInputs:
-    # TODO: Currently, geometry parameters are just taken from the global
-    # profiles. For complete accuracy, a Miller (or s-α) geometry fit routine
-    # should be implemented to calculate *local* geometry parameters.
+    """Construct a TGLFInputs object from the TORAX state.
 
-    # TODO: Currently, only a subset of TGLF inputs have been implemented.
+    Normalisation and coordinate conventions:
+      TGLF values are normalised with respect to:
+        - Minor radius at the LCFS (a) in m
+        - B_unit in T (defined at https://gafusion.github.io/doc/geometry.html#effective-field)
+        - The ion sound speed in m/s (defined at https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization)
+      The radial coordinate is the minor radius of the flux surface (r) in m.
+      Psi_TGLF is Psi_TORAX / 2π.
 
-    # In this function, units and equations will be SI
-    # As a heads up, be warned TGLF uses a combination of:
-    # - SI with densities in 1e19 m^-3 and temperatures in keV
-    # - CGS Gaussian
-    # https://gafusion.github.io/doc/input_gacode.html
+    Shortcomings:
+      Currently, geometry parameters are taken directly from the global
+      profiles. For complete accuracy, a Miller (or s-α) geometry fit routine
+      should instead be implemented to calculate *local* geometry parameters.
+
+      At present, only a subset of TGLF inputs have been implemented.
+
+    References:
+      The main points of reference for this implementation are:
+        - The TGLF documentation (https://gafusion.github.io/doc/tglf)
+        - General GACode documentation (https://gafusion.github.io/doc/input_gacode.html)
+        - The CGYRO documentation (https://gafusion.github.io/doc/cgyro.html)
+
+      If something isn't documented in TGLF, it will use the same definitions as
+      CGYRO and other GACode libraries. The implementation in this function uses
+      SI units and definitions throughout unless specified otherwise; be careful
+      when comparing with the TGLF docs, as they use a combination of SI, keV,
+      1e19m^-3, and Gaussian CGS.
+    """
     constants = constants_module.CONSTANTS
     T_e = core_profiles.T_e.face_value() * constants.keV2J
     n_e = core_profiles.n_e.face_value()
@@ -191,7 +209,7 @@ class TGLFBasedTransportModel(
     # https://gafusion.github.io/doc/cgyro/cgyro_list.html#cgyro-nu-ee
     # - In the TGLF docs, XNUE is labelled as electron-ion collision
     #   frequency. It is believed that it should actually be the electron-
-    #   electroncollision frequency, see
+    #   electron collision frequency, see
     #   https://pyrokinetics.readthedocs.io/en/latest/user_guide/collisions.html#tglf
     # - In the TGLF docs, nu_ee is shown in CGS units. Below is the SI version.
     # - TGLF uses a slightly different calculation of log_Lambda to those in
