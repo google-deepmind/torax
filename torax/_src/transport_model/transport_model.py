@@ -20,7 +20,6 @@ coefficients.
 
 import abc
 import dataclasses
-from typing import Optional
 
 import jax
 from jax import numpy as jnp
@@ -56,10 +55,10 @@ class TurbulentTransport:
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_face_el_bohm: Optional[jax.Array] = None
-  chi_face_el_gyrobohm: Optional[jax.Array] = None
-  chi_face_ion_bohm: Optional[jax.Array] = None
-  chi_face_ion_gyrobohm: Optional[jax.Array] = None
+  chi_face_el_bohm: jax.Array | None = None
+  chi_face_el_gyrobohm: jax.Array | None = None
+  chi_face_ion_bohm: jax.Array | None = None
+  chi_face_ion_gyrobohm: jax.Array | None = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a reference.

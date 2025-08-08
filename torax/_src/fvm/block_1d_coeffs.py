@@ -21,7 +21,7 @@ calculations specific to plasma physics to provide these coefficients.
 """
 
 import dataclasses
-from typing import Any, Optional, TypeAlias
+from typing import Any, TypeAlias
 
 import jax
 
@@ -32,9 +32,7 @@ import jax
 # ((a, b), (c, d)) where a, b, c, d are each jax.Array
 #
 # ((a, None), (None, d)) : represents a diagonal block matrix
-OptionalTupleMatrix: TypeAlias = Optional[
-    tuple[tuple[Optional[jax.Array], ...], ...]
-]
+OptionalTupleMatrix: TypeAlias = tuple[tuple[jax.Array | None, ...], ...] | None
 
 
 # Alias for better readability.
@@ -90,9 +88,9 @@ class Block1DCoeffs:
       which calculated these coeffs.
   """
   transient_in_cell: tuple[jax.Array, ...]
-  transient_out_cell: Optional[tuple[jax.Array, ...]] = None
-  d_face: Optional[tuple[jax.Array, ...]] = None
-  v_face: Optional[tuple[jax.Array, ...]] = None
+  transient_out_cell: tuple[jax.Array, ...] | None = None
+  d_face: tuple[jax.Array, ...] | None = None
+  v_face: tuple[jax.Array, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
-  source_cell: Optional[tuple[Optional[jax.Array], ...]] = None
-  auxiliary_outputs: Optional[AuxiliaryOutput] = None
+  source_cell: tuple[jax.Array | None, ...] | None = None
+  auxiliary_outputs: AuxiliaryOutput | None = None

@@ -16,7 +16,7 @@
 
 import copy
 import os
-from typing import Any, Final, Optional, Sequence
+from typing import Any, Final, Sequence
 
 from absl.testing import parameterized
 import chex
@@ -195,9 +195,9 @@ class SimTestCase(parameterized.TestCase):
       self,
       config_name: str,
       profiles: Sequence[str],
-      ref_name: Optional[str] = None,
-      rtol: Optional[float] = None,
-      atol: Optional[float] = None,
+      ref_name: str | None = None,
+      rtol: float | None = None,
+      atol: float | None = None,
       write_output: bool = True,
   ):
     """Integration test comparing to TORAX reference output."""
