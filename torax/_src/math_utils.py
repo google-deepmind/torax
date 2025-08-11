@@ -111,6 +111,7 @@ def cell_to_face(
   return face_values
 
 
+@array_typing.jaxtyped
 def tridiag(
     diag: jt.Shaped[array_typing.Array, 'size'],
     above: jt.Shaped[array_typing.Array, 'size-1'],

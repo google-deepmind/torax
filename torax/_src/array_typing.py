@@ -17,6 +17,7 @@ from typing import TypeAlias
 import jax
 import jaxtyping as jt
 import numpy as np
+import typeguard
 
 Array: TypeAlias = jax.Array | np.ndarray
 
@@ -26,3 +27,5 @@ ScalarInt: TypeAlias = jt.Int[Array | int, ""]
 
 ArrayFloat: TypeAlias = jt.Float[Array, "rhon"]
 ArrayBool: TypeAlias = jt.Bool[Array, "rhon"]
+
+jaxtyped = jt.jaxtyped(typechecker=typeguard.typechecked)
