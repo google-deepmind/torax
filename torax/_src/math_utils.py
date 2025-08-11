@@ -111,7 +111,11 @@ def cell_to_face(
   return face_values
 
 
-def tridiag(diag: jax.Array, above: jax.Array, below: jax.Array) -> jax.Array:
+def tridiag(
+    diag: jt.Shaped[array_typing.Array, 'size'],
+    above: jt.Shaped[array_typing.Array, 'size-1'],
+    below: jt.Shaped[array_typing.Array, 'size-1'],
+) -> jt.Shaped[array_typing.Array, 'size size']:
   """Builds a tridiagonal matrix.
 
   Args:

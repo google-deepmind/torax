@@ -13,11 +13,16 @@
 # limitations under the License.
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
-import chex
+from typing import TypeAlias
+import jax
 import jaxtyping as jt
+import numpy as np
 
-ScalarFloat = jt.Float[chex.Array | float, ""]
-ScalarBool = jt.Bool[chex.Array | bool, ""]
-ScalarInt = jt.Int[chex.Array | int, ""]
-ArrayFloat = jt.Float[chex.Array, "rhon"]
-ArrayBool = jt.Bool[chex.Array, "rhon"]
+Array: TypeAlias = jax.Array | np.ndarray
+
+ScalarFloat: TypeAlias = jt.Float[Array | float, ""]
+ScalarBool: TypeAlias = jt.Bool[Array | bool, ""]
+ScalarInt: TypeAlias = jt.Int[Array | int, ""]
+
+ArrayFloat: TypeAlias = jt.Float[Array, "rhon"]
+ArrayBool: TypeAlias = jt.Bool[Array, "rhon"]
