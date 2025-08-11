@@ -15,7 +15,6 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
-from typing import Optional
 
 from absl import logging
 import jax
@@ -136,15 +135,15 @@ class CoreTransport:
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_face_el_bohm: Optional[jax.Array] = None
-  chi_face_el_gyrobohm: Optional[jax.Array] = None
-  chi_face_ion_bohm: Optional[jax.Array] = None
-  chi_face_ion_gyrobohm: Optional[jax.Array] = None
-  chi_neo_i: Optional[jax.Array] = None
-  chi_neo_e: Optional[jax.Array] = None
-  D_neo_e: Optional[jax.Array] = None
-  V_neo_e: Optional[jax.Array] = None
-  V_neo_ware_e: Optional[jax.Array] = None
+  chi_face_el_bohm: jax.Array | None = None
+  chi_face_el_gyrobohm: jax.Array | None = None
+  chi_face_ion_bohm: jax.Array | None = None
+  chi_face_ion_gyrobohm: jax.Array | None = None
+  chi_neo_i: jax.Array | None = None
+  chi_neo_e: jax.Array | None = None
+  D_neo_e: jax.Array | None = None
+  V_neo_e: jax.Array | None = None
+  V_neo_ware_e: jax.Array | None = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.

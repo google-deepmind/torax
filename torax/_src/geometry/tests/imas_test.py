@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-from typing import Optional
 from unittest import mock
 
 from absl.testing import absltest
@@ -30,8 +29,8 @@ class EquilibriumTest(parameterized.TestCase):
   @parameterized.parameters([dict(rtol=1e-1, atol=1e-8)])
   def test_geometry_from_IMAS(
       self,
-      rtol: Optional[float] = None,
-      atol: Optional[float] = None,
+      rtol: float | None = None,
+      atol: float | None = None,
   ):
     """Test to compare CHEASE and IMAS methods for the same equilibrium."""
     # Loading the equilibrium and constructing geometry object
