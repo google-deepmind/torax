@@ -43,9 +43,9 @@ from torax._src.geometry import geometry
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
     Z_i: array_typing.ScalarFloat,
-    Z_impurity: array_typing.ArrayFloat,
-    Z_eff: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    Z_impurity: array_typing.FloatVector,
+    Z_eff: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
@@ -107,7 +107,7 @@ def calculate_pressure(
 
 def calc_pprime(
     core_profiles: state.CoreProfiles,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   r"""Calculates total pressure gradient with respect to poloidal flux.
 
   Args:
@@ -168,7 +168,7 @@ def calc_pprime(
 def calc_FFprime(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   r"""Calculates FF', an output quantity used for equilibrium coupling.
 
   Calculation is based on the following formulation of the magnetic

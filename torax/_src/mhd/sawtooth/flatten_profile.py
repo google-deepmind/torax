@@ -27,7 +27,7 @@ from torax._src.geometry import geometry
 def flatten_density_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
+    redistribution_mask: array_typing.BoolVector,
     flattening_factor: array_typing.ScalarFloat,
     original_density_profile: cell_variable.CellVariable,
     geo: geometry.Geometry,
@@ -98,7 +98,7 @@ def flatten_density_profile(
 def flatten_temperature_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
+    redistribution_mask: array_typing.BoolVector,
     flattening_factor: array_typing.ScalarFloat,
     original_temperature_profile: cell_variable.CellVariable,
     original_density_profile: cell_variable.CellVariable,
@@ -189,10 +189,10 @@ def flatten_temperature_profile(
 def flatten_current_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
+    redistribution_mask: array_typing.BoolVector,
     flattening_factor: array_typing.ScalarFloat,
     original_psi_profile: cell_variable.CellVariable,
-    original_j_total_profile: array_typing.ArrayFloat,
+    original_j_total_profile: array_typing.FloatVector,
     Ip_total: array_typing.ScalarFloat,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
@@ -289,9 +289,9 @@ def _get_trial_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
     flattening_factor: array_typing.ScalarFloat,
-    original_profile: array_typing.ArrayFloat,
+    original_profile: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Returns a trial new value using two linear interpolations."""
 
   rho_norm = geo.rho_norm
@@ -317,10 +317,10 @@ def _get_trial_profile(
 
 
 def _get_scaling_factor(
-    original_profile: array_typing.ArrayFloat,
-    trial_profile: array_typing.ArrayFloat,
+    original_profile: array_typing.FloatVector,
+    trial_profile: array_typing.FloatVector,
     value_at_mixing_edge: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
+    redistribution_mask: array_typing.BoolVector,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Returns a profile scaling factor based on integral conservation."""

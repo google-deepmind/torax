@@ -34,6 +34,7 @@ def _zero() -> array_typing.ScalarFloat:
   return jnp.zeros(())
 
 
+@array_typing.jaxtyped
 @chex.dataclass(frozen=True)
 class CellVariable:
   """A variable representing values of the cells along the radius.
@@ -54,14 +55,14 @@ class CellVariable:
   """
 
   # t* means match 0 or more leading time dimensions.
-  value: jt.Float[chex.Array, 't* cell']
-  dr: jt.Float[chex.Array, 't*']
-  left_face_constraint: jt.Float[chex.Array, 't*'] | None = None
-  right_face_constraint: jt.Float[chex.Array, 't*'] | None = None
-  left_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
+  value: jt.Float[array_typing.Array, '*t cell']
+  dr: jt.Float[array_typing.Array, '*t']
+  left_face_constraint: jt.Float[array_typing.Array, '*t'] | None = None
+  right_face_constraint: jt.Float[array_typing.Array, '*t'] | None = None
+  left_face_grad_constraint: jt.Float[array_typing.Array, '*t'] | None = (
       dataclasses.field(default_factory=_zero)
   )
-  right_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
+  right_face_grad_constraint: jt.Float[array_typing.Array, '*t'] | None = (
       dataclasses.field(default_factory=_zero)
   )
   # Can't make the above default values be jax zeros because that would be a
@@ -132,8 +133,8 @@ class CellVariable:
       )
 
   def face_grad(
-      self, x: jt.Float[chex.Array, 'cell'] | None = None
-  ) -> jt.Float[chex.Array, 'face']:
+      self, x: jt.Float[array_typing.Array, 'cell'] | None = None
+  ) -> jt.Float[array_typing.Array, 'face']:
     """Returns the gradient of this value with respect to the faces.
 
     Implemented using forward differencing of cells. Leftmost and rightmost
@@ -194,7 +195,7 @@ class CellVariable:
     right = jnp.expand_dims(right_grad, axis=0)
     return jnp.concatenate([left, forward_difference, right])
 
-  def _left_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def _left_face_value(self) -> jt.Float[array_typing.Array, '#t']:
     """Calculates the value of the leftmost face."""
     if self.left_face_constraint is not None:
       value = self.left_face_constraint
@@ -206,7 +207,7 @@ class CellVariable:
       value = self.value[..., 0:1]
     return value
 
-  def _right_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def _right_face_value(self) -> jt.Float[array_typing.Array, '#t']:
     """Calculates the value of the rightmost face."""
     if self.right_face_constraint is not None:
       value = self.right_face_constraint

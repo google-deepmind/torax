@@ -27,7 +27,6 @@ Functions:
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
 """
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -46,7 +45,7 @@ _trapz = jax.scipy.integrate.trapezoid
 def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> chex.Array:
+) -> array_typing.Array:
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
@@ -65,7 +64,7 @@ def calc_q_face(
 def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array, chex.Array]:
+) -> tuple[array_typing.Array, array_typing.Array, array_typing.Array]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
   Calculation based on j_total = dI/dS
@@ -242,8 +241,8 @@ def calc_li3(
 
 
 def calc_q95(
-    psi_norm_face: array_typing.ArrayFloat,
-    q_face: array_typing.ArrayFloat,
+    psi_norm_face: array_typing.FloatVector,
+    q_face: array_typing.FloatVector,
 ) -> array_typing.ScalarFloat:
   """Calculates q95 from the q profile and the normalized poloidal flux.
 
@@ -273,8 +272,8 @@ def calculate_psi_grad_constraint_from_Ip(
 
 def calculate_psidot_from_psi_sources(
     *,
-    psi_sources: array_typing.ArrayFloat,
-    sigma: array_typing.ArrayFloat,
+    psi_sources: array_typing.FloatVector,
+    sigma: array_typing.FloatVector,
     resistivity_multiplier: float,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,

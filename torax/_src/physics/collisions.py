@@ -146,10 +146,10 @@ def calc_nu_star(
 
 
 def fast_ion_fractional_heating_formula(
-    birth_energy: float | array_typing.ArrayFloat,
-    T_e: array_typing.ArrayFloat,
+    birth_energy: float | array_typing.FloatVector,
+    T_e: array_typing.FloatVector,
     fast_ion_mass: float,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Returns the fraction of heating that goes to the ions.
 
   From eq. 5 and eq. 26 in Mikkelsen Nucl. Tech. Fusion 237 4 1983.

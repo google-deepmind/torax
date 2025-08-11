@@ -44,12 +44,12 @@ class DynamicProfileConditions:
   T_i_right_bc: array_typing.ScalarFloat
   T_e_right_bc: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
-  T_e: array_typing.ArrayFloat
-  T_i: array_typing.ArrayFloat
+  T_e: array_typing.FloatVector
+  T_i: array_typing.FloatVector
   # If provided as array, Psi profile defined on the cell grid.
-  psi: array_typing.ArrayFloat | None
+  psi: array_typing.FloatVector | None
   # Electron density profile on the cell grid.
-  n_e: array_typing.ArrayFloat
+  n_e: array_typing.FloatVector
   nbar: array_typing.ScalarFloat
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.ScalarFloat

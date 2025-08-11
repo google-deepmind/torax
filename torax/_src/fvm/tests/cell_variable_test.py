@@ -209,8 +209,8 @@ class CellVariableTest(parameterized.TestCase):
           dr=[0.1, 0.2],
           left_face_constraint=None,
           right_face_constraint=None,
-          left_face_grad_constraint=0.0,
-          right_face_grad_constraint=0.0,
+          left_face_grad_constraint=[0.0, 0.0],
+          right_face_grad_constraint=[0.0, 0.0],
           expected_grad=[
               [5.0, 20.0, 5.0, -10.0],
               [2.5, 0.0, 0.0, 2.5],

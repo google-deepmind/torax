@@ -76,7 +76,7 @@ def get_prescribed_core_profile_values(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> dict[str, array_typing.ArrayFloat]:
+) -> dict[str, array_typing.FloatVector]:
   """Updates core profiles which are not being evolved by PDE.
 
   Uses same functions as for profile initialization.

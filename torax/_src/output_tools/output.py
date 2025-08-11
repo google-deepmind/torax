@@ -17,12 +17,13 @@ from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
-import os
 
 from absl import logging
 import chex
 import jax
 import numpy as np
+import os
+from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -169,8 +170,8 @@ def concat_datatrees(
 
 
 def _extend_cell_grid_to_boundaries(
-    cell_var: chex.Array, face_var: chex.Array
-) -> chex.Array:
+    cell_var: array_typing.Array, face_var: array_typing.Array
+) -> array_typing.Array:
   """Merge face+cell grids into single [left_face, cells, right_face] grid."""
   left_value = np.expand_dims(face_var[:, 0], axis=-1)
   right_value = np.expand_dims(face_var[:, -1], axis=-1)
@@ -268,22 +269,22 @@ class StateHistory:
     return self._sim_error
 
   @property
-  def times(self) -> chex.Array:
+  def times(self) -> array_typing.Array:
     """Returns the time of the simulation."""
     return self._times
 
   @property
-  def rho_cell_norm(self) -> chex.Array:
+  def rho_cell_norm(self) -> array_typing.Array:
     """Returns the normalized toroidal coordinate on the cell grid."""
     return self._rho_cell_norm
 
   @property
-  def rho_face_norm(self) -> chex.Array:
+  def rho_face_norm(self) -> array_typing.Array:
     """Returns the normalized toroidal coordinate on the face grid."""
     return self._rho_face_norm
 
   @property
-  def rho_norm(self) -> chex.Array:
+  def rho_norm(self) -> array_typing.Array:
     """Returns the rho on the cell grid with the left and right face boundaries."""
     return self._rho_norm
 
@@ -643,7 +644,7 @@ class StateHistory:
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or field_name == "j_total"
-          or not isinstance(data, chex.Array)
+          or not isinstance(data, array_typing.Array)
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:

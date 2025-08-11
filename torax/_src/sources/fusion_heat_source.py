@@ -15,10 +15,10 @@
 """Fusion heat source for both ion and electron heat equations."""
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -51,8 +51,8 @@ def calc_fusion(
     core_profiles: Core plasma profiles.
     static_runtime_params_slice: Static runtime params, used to determine the
       existence of deuterium and tritium.
-    dynamic_runtime_params_slice: Dynamic runtime params, used to extract the
-      D and T densities.
+    dynamic_runtime_params_slice: Dynamic runtime params, used to extract the D
+      and T densities.
 
   Returns:
     Tuple of P_total, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
@@ -151,7 +151,7 @@ def fusion_heat_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.Array, ...]:
   """Model function for fusion heating."""
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(

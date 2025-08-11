@@ -45,7 +45,7 @@ class DynamicIonMixture:
       provided, it is used instead for the average Z.
   """
 
-  fractions: array_typing.ArrayFloat
+  fractions: array_typing.FloatVector
   avg_A: array_typing.ScalarFloat
   Z_override: array_typing.ScalarFloat | None = None
 
@@ -107,8 +107,8 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: DynamicIonMixture
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
+  Z_eff: array_typing.FloatVector
+  Z_eff_face: array_typing.FloatVector
 
 
 @jax.tree_util.register_pytree_node_class

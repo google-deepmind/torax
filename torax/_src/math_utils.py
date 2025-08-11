@@ -21,7 +21,6 @@ physics or differential equation solvers.
 import enum
 import functools
 
-import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
@@ -46,11 +45,12 @@ class IntegralPreservationQuantity(enum.Enum):
     jax_utils.jit,
     static_argnames=['preserved_quantity'],
 )
+@array_typing.jaxtyped
 def cell_to_face(
-    cell_values: jt.Float[chex.Array, 'rhon'],
+    cell_values: jt.Float[array_typing.Array, 'rhon'],
     geo: geometry.Geometry,
     preserved_quantity: IntegralPreservationQuantity = IntegralPreservationQuantity.VALUE,
-) -> jt.Float[chex.Array, 'rhon+1']:
+) -> jt.Float[array_typing.Array, 'rhon+1']:
   """Convert cell values to face values.
 
   We make four assumptions:
@@ -198,8 +198,9 @@ def cumulative_trapezoid(
 
 
 @jax_utils.jit
+@array_typing.jaxtyped
 def cell_integration(
-    x: array_typing.ArrayFloat, geo: geometry.Geometry
+    x: array_typing.FloatVector, geo: geometry.Geometry
 ) -> array_typing.ScalarFloat:
   r"""Integrate a value `x` over the rhon grid.
 
@@ -222,32 +223,36 @@ def cell_integration(
   return jnp.sum(x * geo.drho_norm)
 
 
+@array_typing.jaxtyped
 def area_integration(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Calculates integral of value using an area metric."""
   return cell_integration(value * geo.spr, geo)
 
 
+@array_typing.jaxtyped
 def volume_integration(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Calculates integral of value using a volume metric."""
   return cell_integration(value * geo.vpr, geo)
 
 
+@array_typing.jaxtyped
 def line_average(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Calculates line-averaged value from input profile."""
   return cell_integration(value, geo)
 
 
+@array_typing.jaxtyped
 def volume_average(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
   """Calculates volume-averaged value from input profile."""
