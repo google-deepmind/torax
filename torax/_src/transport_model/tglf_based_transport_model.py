@@ -264,17 +264,14 @@ class TGLFBasedTransportModel(
     # Gyrobohm diffusivity
     # https://gafusion.github.io/doc/tglf/tglf_table.html#id7
     # https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
-    # - TGLF uses the same normalisation as CGYRO. This has an extra c^2 factor
-    #   compared to TORAX's calculate_chiGB
-    # - calculate_chiGB converts to J internally, so we pass in keV
-    chiGB = (
-        quasilinear_transport_model.calculate_chiGB(
-            reference_temperature=core_profiles.T_e.face_value(),
-            reference_magnetic_field=B_unit,
-            reference_mass=m_D_amu,
-            reference_length=a,
-        )
-        * constants.c**2
+    # - TGLF uses the same normalisation as CGYRO.
+    # - The extra c^2 in the docs comes from CGS Gaussian units when
+    #   calculating \rho_s
+    chiGB = quasilinear_transport_model.calculate_chiGB(
+        reference_temperature=core_profiles.T_e.face_value(),  # [keV]
+        reference_magnetic_field=B_unit,
+        reference_mass=m_D_amu,  # [amu]
+        reference_length=a,
     )
 
     return TGLFInputs(
