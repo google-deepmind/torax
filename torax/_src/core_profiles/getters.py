@@ -39,14 +39,14 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  Z_i: array_typing.ArrayFloat
-  Z_i_face: array_typing.ArrayFloat
-  Z_impurity: array_typing.ArrayFloat
-  Z_impurity_face: array_typing.ArrayFloat
+  Z_i: array_typing.FloatVector
+  Z_i_face: array_typing.FloatVector
+  Z_impurity: array_typing.FloatVector
+  Z_impurity_face: array_typing.FloatVector
   A_i: array_typing.ScalarFloat
   A_impurity: array_typing.ScalarFloat
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
+  Z_eff: array_typing.FloatVector
+  Z_eff_face: array_typing.FloatVector
 
 
 def get_updated_ion_temperature(
@@ -283,10 +283,10 @@ def _get_charge_states(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     T_e: cell_variable.CellVariable,
 ) -> tuple[
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
+    array_typing.FloatVector,
+    array_typing.FloatVector,
+    array_typing.FloatVector,
+    array_typing.FloatVector,
 ]:
   """Updated charge states based on IonMixtures and electron temperature."""
   Z_i = charge_states.get_average_charge_state(
@@ -315,11 +315,11 @@ def _get_charge_states(
 
 
 def _calculate_Z_eff(
-    Z_i: array_typing.ArrayFloat,
-    Z_impurity: array_typing.ArrayFloat,
-    n_i: array_typing.ArrayFloat,
-    n_impurity: array_typing.ArrayFloat,
-    n_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    Z_i: array_typing.FloatVector,
+    Z_impurity: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_impurity: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates Z_eff based on impurity and main_ion."""
   return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

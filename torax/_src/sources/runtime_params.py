@@ -50,7 +50,7 @@ class DynamicRuntimeParams:
   profiles.
   """
 
-  prescribed_values: tuple[array_typing.ArrayFloat, ...]
+  prescribed_values: tuple[array_typing.FloatVector, ...]
 
 
 @jax.tree_util.register_dataclass

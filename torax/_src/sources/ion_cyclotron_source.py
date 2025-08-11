@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Surrogate model for ion-cyclotron resonance heating (ICRH) model."""
+
 import dataclasses
 import functools
 import json
@@ -104,11 +105,11 @@ class ToricNNOutputs:
   """Outputs from the ToricNN model."""
 
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
-  power_deposition_He3: array_typing.ArrayFloat
+  power_deposition_He3: array_typing.FloatVector
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
-  power_deposition_2T: array_typing.ArrayFloat
+  power_deposition_2T: array_typing.FloatVector
   # Power deposition on electrons in MW/m^3/MW_{abs}.
-  power_deposition_e: array_typing.ArrayFloat
+  power_deposition_e: array_typing.FloatVector
 
 
 class _ToricNN(nn.Module):
@@ -345,7 +346,7 @@ def icrh_model_func(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
     toric_nn: ToricNNWrapper,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.Array, ...]:
   """Compute ion/electron heat source terms."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

@@ -59,8 +59,8 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 def _alpha_closed_form(
     *,
     beta: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    profile_data: array_typing.ArrayFloat,
+    rho_norm: array_typing.FloatVector,
+    profile_data: array_typing.FloatVector,
     profile_edge_value: array_typing.ScalarFloat,
 ) -> array_typing.ScalarFloat:
   """Returns analytical closed form of alpha for parameterized profiles.
@@ -122,8 +122,8 @@ def _alpha_closed_form(
 
 def _loss_for_beta_t(
     beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
 ) -> array_typing.ScalarFloat:
   """Returns the loss function for the temperature fit for a given beta_t.
 
@@ -156,9 +156,9 @@ def _te_pred_fn(
     *,
     alpha_t: array_typing.ScalarFloat,
     beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   return (te_data[0] - te_data[-1]) * (
       (1 - rho_norm**beta_t)
   ) ** alpha_t + te_data[-1]
@@ -168,8 +168,8 @@ def _te_loss_fn(
     *,
     alpha_t: array_typing.ScalarFloat,
     beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
 ) -> array_typing.ScalarFloat:
   """Returns the loss function for the temperature fit.
 
@@ -199,8 +199,8 @@ def _te_loss_fn(
 
 def _solve_alpha_t_beta_t_grid_search(
     *,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
     beta_scan_parameters: tuple[float, float, int],
 ) -> tuple[array_typing.ScalarFloat, array_typing.ScalarFloat]:
   """Returns the alpha and beta parameters that minimize the temperature loss function.
@@ -246,7 +246,7 @@ def cyclotron_radiation_albajar(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.ArrayFloat, ...]:
+) -> tuple[array_typing.FloatVector, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:

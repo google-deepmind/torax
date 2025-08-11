@@ -148,7 +148,7 @@ class PostProcessedOutputs:
   pressure_thermal_i: cell_variable.CellVariable
   pressure_thermal_e: cell_variable.CellVariable
   pressure_thermal_total: cell_variable.CellVariable
-  pprime: array_typing.ArrayFloat
+  pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
   W_thermal_i: array_typing.ScalarFloat
   W_thermal_e: array_typing.ScalarFloat
@@ -158,8 +158,8 @@ class PostProcessedOutputs:
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
-  FFprime: array_typing.ArrayFloat
-  psi_norm: array_typing.ArrayFloat
+  FFprime: array_typing.FloatVector
+  psi_norm: array_typing.FloatVector
   # Integrated heat sources
   P_SOL_i: array_typing.ScalarFloat
   P_SOL_e: array_typing.ScalarFloat
@@ -214,8 +214,8 @@ class PostProcessedOutputs:
   rho_q_3_1_first: array_typing.ScalarFloat
   rho_q_3_1_second: array_typing.ScalarFloat
   I_bootstrap: array_typing.ScalarFloat
-  j_external: array_typing.ArrayFloat
-  j_ohmic: array_typing.ArrayFloat
+  j_external: array_typing.FloatVector
+  j_ohmic: array_typing.FloatVector
   S_gas_puff: array_typing.ScalarFloat
   S_pellet: array_typing.ScalarFloat
   S_generic_particle: array_typing.ScalarFloat
@@ -359,11 +359,11 @@ PARTICLE_SOURCE_TRANSFORMATIONS = {
 
 
 def _get_integrated_source_value(
-    source_profiles_dict: dict[str, array_typing.ArrayFloat],
+    source_profiles_dict: dict[str, array_typing.FloatVector],
     internal_source_name: str,
     geo: geometry.Geometry,
     integration_fn: Callable[
-        [array_typing.ArrayFloat, geometry.Geometry], jax.Array
+        [array_typing.FloatVector, geometry.Geometry], jax.Array
     ],
 ) -> jax.Array:
   """Integrates a source profile if it exists, otherwise returns 0.0."""

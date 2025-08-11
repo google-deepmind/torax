@@ -19,8 +19,7 @@ See function docstring for details.
 
 import functools
 from typing import Callable, Final
-
-import chex
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
@@ -43,10 +42,10 @@ MIN_DELTA: Final[float] = 1e-7
 
 
 def _log_iterations(
-    residual: chex.Array,
-    iterations: chex.Array,
-    delta_reduction: chex.Array | None = None,
-    dt: chex.Array | None = None,
+    residual: array_typing.Array,
+    iterations: array_typing.Array,
+    delta_reduction: array_typing.Array | None = None,
+    dt: array_typing.Array | None = None,
 ) -> None:
   """Logs info on internal Newton-Raphson iterations.
 
@@ -86,7 +85,7 @@ def _log_iterations(
     ],
 )
 def newton_raphson_solve_block(
-    dt: chex.Array,
+    dt: array_typing.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -322,7 +321,7 @@ def newton_raphson_solve_block(
 
 
 def _error_cond(
-    final_state: dict[str, chex.Array], coarse_tol: float, tol: float
+    final_state: dict[str, array_typing.Array], coarse_tol: float, tol: float
 ):
   return xnp.cond(
       _residual_scalar(final_state['residual']) < tol,
@@ -340,7 +339,7 @@ def _residual_scalar(x):
 
 
 def _cond(
-    state: dict[str, chex.Array],
+    state: dict[str, array_typing.Array],
     tau_min: float,
     maxiter: int,
     tol: float,
@@ -358,12 +357,12 @@ def _cond(
 
 
 def _body(
-    input_state: dict[str, chex.Array],
-    jacobian_fun: Callable[[chex.Array], chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
+    input_state: dict[str, array_typing.Array],
+    jacobian_fun: Callable[[array_typing.Array], array_typing.Array],
+    residual_fun: Callable[[array_typing.Array], array_typing.Array],
     log_iterations: bool,
     delta_reduction_factor: float,
-) -> dict[str, chex.Array]:
+) -> dict[str, array_typing.Array]:
   """Calculates next guess in Newton-Raphson iteration."""
   a_mat = jacobian_fun(input_state['x'])
   rhs = -input_state['residual']
@@ -406,8 +405,8 @@ def _body(
 
 
 def _compute_output_delta_state(
-    initial_state: dict[str, chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
+    initial_state: dict[str, array_typing.Array],
+    residual_fun: Callable[[array_typing.Array], array_typing.Array],
     delta_reduction_factor: float,
 ):
   """Updates output delta state."""
@@ -432,8 +431,8 @@ def _compute_output_delta_state(
 
 
 def _delta_cond(
-    delta_state: dict[str, chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
+    delta_state: dict[str, array_typing.Array],
+    residual_fun: Callable[[array_typing.Array], array_typing.Array],
 ) -> bool:
   """Check if delta obtained from Newton step is valid.
 
@@ -468,9 +467,9 @@ def _delta_cond(
 
 
 def _delta_body(
-    input_delta_state: dict[str, chex.Array],
+    input_delta_state: dict[str, array_typing.Array],
     delta_reduction_factor: float,
-) -> dict[str, chex.Array]:
+) -> dict[str, array_typing.Array]:
   """Reduces step size for this Newton iteration."""
   return input_delta_state | dict(
       delta=input_delta_state['delta'] * delta_reduction_factor,

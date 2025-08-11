@@ -21,13 +21,13 @@ CHEASE, FBT, etc.
 from collections.abc import Mapping
 import dataclasses
 import logging
-
 import chex
 import contourpy
 from imas import ids_toplevel
 import jax
 import numpy as np
 import scipy
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import interpolated_param
 from torax._src.geometry import geometry
@@ -74,14 +74,14 @@ class StandardGeometry(geometry.Geometry):
   """
 
   Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
-  Ip_profile_face: chex.Array
-  psi: chex.Array
-  psi_from_Ip: chex.Array
-  psi_from_Ip_face: chex.Array
-  j_total: chex.Array
-  j_total_face: chex.Array
-  delta_upper_face: chex.Array
-  delta_lower_face: chex.Array
+  Ip_profile_face: array_typing.Array
+  psi: array_typing.Array
+  psi_from_Ip: array_typing.Array
+  psi_from_Ip_face: array_typing.Array
+  j_total: array_typing.Array
+  j_total_face: array_typing.Array
+  delta_upper_face: array_typing.Array
+  delta_lower_face: array_typing.Array
 
 
 @jax.tree_util.register_dataclass
@@ -170,21 +170,21 @@ class StandardGeometryIntermediates:
   R_major: chex.Numeric
   a_minor: chex.Numeric
   B_0: chex.Numeric
-  psi: chex.Array
-  Ip_profile: chex.Array
-  Phi: chex.Array
-  R_in: chex.Array
-  R_out: chex.Array
-  F: chex.Array
-  int_dl_over_Bp: chex.Array
-  flux_surf_avg_1_over_R2: chex.Array
-  flux_surf_avg_Bp2: chex.Array
-  flux_surf_avg_RBp: chex.Array
-  flux_surf_avg_R2Bp2: chex.Array
-  delta_upper_face: chex.Array
-  delta_lower_face: chex.Array
-  elongation: chex.Array
-  vpr: chex.Array
+  psi: array_typing.Array
+  Ip_profile: array_typing.Array
+  Phi: array_typing.Array
+  R_in: array_typing.Array
+  R_out: array_typing.Array
+  F: array_typing.Array
+  int_dl_over_Bp: array_typing.Array
+  flux_surf_avg_1_over_R2: array_typing.Array
+  flux_surf_avg_Bp2: array_typing.Array
+  flux_surf_avg_RBp: array_typing.Array
+  flux_surf_avg_R2Bp2: array_typing.Array
+  delta_upper_face: array_typing.Array
+  delta_lower_face: array_typing.Array
+  elongation: array_typing.Array
+  vpr: array_typing.Array
   n_rho: int
   hires_factor: int
   z_magnetic_axis: chex.Numeric | None
