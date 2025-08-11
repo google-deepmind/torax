@@ -17,8 +17,8 @@ import contextlib
 import functools
 import threading
 from typing import Any, Callable, TYPE_CHECKING, TypeVar
-
 from absl import logging as native_logging
+
 import jax
 import jax.numpy as jnp
 import numpy as np
