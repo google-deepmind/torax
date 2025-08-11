@@ -496,6 +496,12 @@ class StateHistory:
 
     for field in dataclasses.fields(stacked_core_profiles):
       attr_name = field.name
+
+      # Skip impurity_fractions since we have not yet converged on the public
+      # API for individual impurity density extensions.
+      if attr_name == "impurity_fractions":
+        continue
+
       attr_value = getattr(stacked_core_profiles, attr_name)
 
       output_key = output_name_map.get(attr_name, attr_name)
