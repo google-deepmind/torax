@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helpers for tests using core profiles."""
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -74,7 +74,7 @@ def make_zero_core_profiles(
 
 
 def verify_core_profiles(
-    ref_profiles: dict[str, chex.Array],
+    ref_profiles: dict[str, array_typing.Array],
     index: int,
     core_profiles: state.CoreProfiles,
 ):

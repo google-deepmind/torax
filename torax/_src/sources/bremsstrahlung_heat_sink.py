@@ -17,10 +17,10 @@
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
 from typing import Annotated, ClassVar, Final, Literal
-
 import chex
 import jax
 from jax import numpy as jnp
+import jaxtyping as jt
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -48,7 +48,7 @@ def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
   """Calculate the Bremsstrahlung radiation power profile.
 
   Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
@@ -104,7 +104,7 @@ def bremsstrahlung_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[jt.Float[jax.Array, ''], ...]:
   """Model function for the Bremsstrahlung heat sink."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

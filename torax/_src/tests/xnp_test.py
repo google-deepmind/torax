@@ -18,6 +18,7 @@ from absl.testing import parameterized
 import chex
 import jax
 import numpy as np
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import xnp
 
@@ -41,7 +42,7 @@ class XNPTest(parameterized.TestCase):
       jax.config.update('jax_enable_x64', self.original_x64)
 
   def test_xnp(self):
-    def f(x: chex.Array):
+    def f(x: array_typing.Array):
       x = x + 1
       x = xnp.square(x)
       return xnp.sin(x)
@@ -60,7 +61,7 @@ class XNPTest(parameterized.TestCase):
     # Disable experimental compile.
     os.environ['TORAX_EXPERIMENTAL_COMPILE'] = 'False'
 
-    def f(x: chex.Array):
+    def f(x: array_typing.Array):
       return xnp.sin(x)
 
     # With compile turned off, we should run with numpy.
