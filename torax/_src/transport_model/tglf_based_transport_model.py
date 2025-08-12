@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
 import dataclasses
+import logging
 
 import jax
 from jax import numpy as jnp
@@ -22,6 +23,8 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
+from typing_extensions import override
 
 
 @jax.tree_util.register_dataclass
@@ -57,6 +60,8 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     delta_shear: Shear in triangularity, defined as :math:`r\frac{d\delta}{dr}`.
     beta_e: Electron pressure normalized by TGLF's :math:`B_\mathrm{unit}`.
     Zeff: Effective charge.
+    Q_GB: TGLF heat flux normalisation factor.
+    Gamma_GB: TGLF particle flux normalisation factor.
   """
 
   Ti_over_Te: array_typing.FloatVectorFace
@@ -71,6 +76,8 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   delta_shear: array_typing.FloatVectorFace
   beta_e: array_typing.FloatVectorFace
   Zeff: array_typing.FloatVectorFace
+  Q_GB: array_typing.FloatVectorFace
+  Gamma_GB: array_typing.FloatVectorFace
 
   # Also define all the TGLF notations for the variables
   @property
@@ -136,6 +143,10 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   @property
   def VEXB_SHEAR(self) -> array_typing.FloatVectorFace:
     # TODO(b/381199010): Replace with real values once rotation added to TORAX
+    logging.warning(
+        "VEXB_SHEAR is not yet implemented in TORAX. TGLF based transport"
+        " models may produce spurious results."
+    )
     return jnp.zeros_like(self.r_minor)
 
 
@@ -192,7 +203,7 @@ class TGLFBasedTransportModel(
       A `TGLFInputs` dataclass containing dimensionless inputs required by
       TGLF-based models.
     """
-    T_e = core_profiles.T_e.face_value() * constants.CONSTANTS.keV_to_J
+    T_e_J = core_profiles.T_e.face_value() * constants.CONSTANTS.keV_to_J
     n_e = core_profiles.n_e.face_value()
 
     # Reference values used for TGLF-specific normalisation
@@ -206,9 +217,10 @@ class TGLFBasedTransportModel(
     #   https://gacode.io/cgyro.html#faq
     # - c_s (ion sound speed)
     #   https://gacode.io/cgyro.html#id10
-    m_D_amu = constants.ION_PROPERTIES_DICT['D'].A  # Mass of deuterium [amu]
-    m_D = m_D_amu * constants.CONSTANTS.m_amu  # Mass of deuterium [kg]
-    c_s = (T_e / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
+    m_D = (
+        constants.ION_PROPERTIES_DICT["D"].A * constants.CONSTANTS.m_amu
+    )  # Mass of deuterium [kg]
+    c_s = (T_e_J / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
     r = geo.r_mid_face  # Flux surface centroid minor radius [m]
     B_unit = (
@@ -216,6 +228,7 @@ class TGLFBasedTransportModel(
         / (2 * jnp.pi * r)  # Note: psi_TGLF is psi_TORAX/2π
         * jnp.gradient(core_profiles.psi.face_value(), r)
     )
+    rho_s = m_D * c_s / (constants.CONSTANTS.q_e * B_unit)  # Ion gyroradius
 
     # Temperature ratio
     Ti_over_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
@@ -243,7 +256,7 @@ class TGLFBasedTransportModel(
     #   https://github.com/gafusion/gacode/blob/740bb2dc811bc1ad38be65ea4b87330995931305/cgyro/src/cgyro_make_profiles.F90#L145
     #   This is different to Wesson by about ~0.5%. Below, we use the TLGF
     #   version, but with n_e [m^-3] and T_e [J].
-    log_Lambda = 74.2 - 0.5 * jnp.log(n_e) + jnp.log(T_e)
+    log_Lambda = 74.2 - 0.5 * jnp.log(n_e) + jnp.log(T_e_J)
 
     # ν_ee = (sqrt(2) n_e q_e^4 lnΛ) / (16 π ε_0^2 m_e^0.5 T_e^1.5)
     # Compute via the log for stability
@@ -256,9 +269,8 @@ class TGLFBasedTransportModel(
         - jnp.log(jnp.pi)
         - 2 * jnp.log(constants.CONSTANTS.epsilon_0)
         - 0.5 * jnp.log(constants.CONSTANTS.m_e)
-        - 1.5 * jnp.log(T_e)
+        - 1.5 * jnp.log(T_e_J)
     )
-
     normalized_nu_ee = jnp.exp(log_nu_ee) / (c_s / a)
 
     # Dimensionless safety factor shear
@@ -279,7 +291,7 @@ class TGLFBasedTransportModel(
     # https://gacode.io/cgyro/cgyro_list.html#betae-unit
     # - In the TGLF docs, beta_e equation shown in CGS units, this is the SI
     #   version
-    beta_e = 2 * constants.CONSTANTS.mu_0 * n_e * T_e / B_unit**2
+    beta_e = 2 * constants.CONSTANTS.mu_0 * n_e * T_e_J / B_unit**2
 
     # Major radius shear = drmaj/drmin, where 'rmaj' is the flux surface
     # centroid major radius and 'rmin' the flux surface centroid minor radius
@@ -296,22 +308,16 @@ class TGLFBasedTransportModel(
     # https://gacode.io/tglf/tglf_list.html#tglf-s-delta-loc
     delta_shear = r * jnp.gradient(geo.delta_face, r)
 
-    # Gyrobohm diffusivity
+    # Output normalisations
     # https://gacode.io/tglf/tglf_table.html#id7
     # https://gacode.io/cgyro.html#id10
-    # - TGLF uses the same normalisation as CGYRO.
-    # - The extra c^2 in the docs comes from CGS Gaussian units when
-    #   calculating \rho_s
-    chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.T_e.face_value(),  # [keV]
-        reference_magnetic_field=B_unit,
-        reference_mass=m_D_amu,  # [amu]
-        reference_length=a,
-    )
+    GB = c_s * (rho_s / a) ** 2
+    Q_GB = n_e * T_e_J * GB  # [W/m^2]
+    Gamma_GB = n_e * GB
 
     return TGLFInputs(
         # From QuasilinearInputs
-        chiGB=chiGB,
+        chiGB=jnp.zeros_like(geo.rho_face_norm),  # unused
         Rmin=geo.a_minor,
         Rmaj=geo.R_major,
         lref_over_lti=normalized_log_gradients.lref_over_lti,
@@ -332,4 +338,62 @@ class TGLFBasedTransportModel(
         delta_shear=delta_shear,
         beta_e=beta_e,
         Zeff=core_profiles.Z_eff_face,
+        Q_GB=Q_GB,
+        Gamma_GB=Gamma_GB,
+    )
+
+  @override
+  def _make_core_transport(
+      self,
+      electron_heat_flux_GB: jax.Array,
+      ion_heat_flux_GB: jax.Array,
+      electron_particle_flux_GB: jax.Array,
+      tglf_inputs: TGLFInputs,
+      transport: RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> transport_model_lib.TurbulentTransport:
+    # Denormalised TGLF output fluxes
+    Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
+    Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
+    Gamma_e = electron_particle_flux_GB * tglf_inputs.Gamma_GB  # [s^-1/m^2]
+
+    # Total thermal power and particle rate
+    dV_drho = geo.vpr_face / geo.rho_b
+    P_e = Q_e * dV_drho  # [W]
+    P_i = Q_i * dV_drho  # [W]
+    S_e = Gamma_e * dV_drho  # [s^-1]
+
+    # Convert from power to chi
+    # Note: g1/vpr = ⟨(∇ρₙ)²⟩ ∂V/∂ρₙ, and has units [m]
+    dT_e_drhon = core_profiles.T_e.face_grad() * constants.CONSTANTS.keV_to_J
+    dT_i_drhon = core_profiles.T_i.face_grad() * constants.CONSTANTS.keV_to_J
+    chi_e = -P_e / (
+        core_profiles.n_e.face_value() * dT_e_drhon * geo.g1_over_vpr_face
+    )
+    chi_i = -P_i / (
+        core_profiles.n_i.face_value() * dT_i_drhon * geo.g1_over_vpr_face
+    )
+
+    # Convert from particle rate to D, V using effective diffusivity/convectivity
+    # method. This sets purely diffusive transport in regions where the flux is
+    # with the temperature gradient, otherwise it sets purely convective transport.
+    D_eff = -S_e / (core_profiles.n_e.face_grad() * geo.g1_over_vpr_face)
+    V_eff = S_e / (core_profiles.n_e.face_value() * geo.g0_face)
+    D_eff_mask = ((S_e >= 0) & (tglf_inputs.lref_over_lne >= 0)) | (
+        (S_e < 0) & (tglf_inputs.lref_over_lne < 0)
+    )
+    # For stability, we also set purely diffusive transport at some minimum
+    # threshold of the temperature gradient
+    D_eff_mask &= abs(tglf_inputs.lref_over_lne) >= transport.An_min
+
+    # Apply the mask
+    d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
+    v_face_el = jnp.where(D_eff_mask, 0.0, V_eff)
+
+    return transport_model_lib.TurbulentTransport(
+        chi_face_ion=chi_i,
+        chi_face_el=chi_e,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
     )
