@@ -39,11 +39,13 @@ class Grid1D(model_base.BaseModelFrozen):
 
   Attributes:
     nx: Number of cells.
-    dx: Distance between cell centers.
   """
 
   nx: typing_extensions.Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
-  dx: typing_extensions.Annotated[pydantic.PositiveFloat, model_base.JAX_STATIC]
+
+  @functools.cached_property
+  def dx(self) -> float:
+    return 1 / self.nx
 
   @property
   def face_centers(self) -> np.ndarray:
@@ -441,7 +443,6 @@ def set_grid(
     # the same NumPy arrays.
     new_grid = Grid1D.model_construct(
         nx=grid.nx,
-        dx=grid.dx,
         face_centers=grid.face_centers,
         cell_centers=grid.cell_centers,
     )

@@ -59,7 +59,7 @@ class SourceTestCase(parameterized.TestCase):
     self.assertIsInstance(source, self._source_config_class)
     torax_pydantic.set_grid(
         source,
-        torax_pydantic.Grid1D(nx=4, dx=0.25),
+        torax_pydantic.Grid1D(nx=4,),
     )
     dynamic_params = source.build_dynamic_params(t=0.0)
     self.assertIsInstance(

@@ -43,7 +43,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
-    torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4, dx=0.25))
+    torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4,))
     runtime_params = getattr(sources, self._source_name).build_dynamic_params(
         t=0.0
     )

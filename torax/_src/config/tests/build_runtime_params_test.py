@@ -33,7 +33,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._torax_mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
+    self._torax_mesh = torax_pydantic.Grid1D(nx=4,)
 
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params slice provider is time dependent."""

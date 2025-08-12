@@ -14,6 +14,7 @@
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
 from typing import TypeAlias
+
 import jax
 import jaxtyping as jt
 import numpy as np

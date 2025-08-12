@@ -162,7 +162,7 @@ class PydanticModelTest(parameterized.TestCase):
             ),
         },
     })
-    mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
+    mesh = torax_pydantic.Grid1D(nx=4,)
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertLen(source.prescribed_values, 1)
