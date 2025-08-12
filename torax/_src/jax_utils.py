@@ -18,7 +18,7 @@ import contextlib
 import functools
 import inspect
 import os
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 
 import chex
 import equinox as eqx
@@ -27,7 +27,8 @@ from jax import numpy as jnp
 import numpy as np
 
 T = TypeVar('T')
-BooleanNumeric = Any  # A bool, or a Boolean array.
+BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
+_State = ParamSpec('_State')
 
 
 @functools.cache
@@ -296,3 +297,46 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+@functools.partial(jit, static_argnames=['cond_fun', 'body_fun', 'max_steps'])
+def max_steps_while_loop(
+    cond_fun: Callable[[_State], BooleanNumeric],
+    body_fun: Callable[[_State], _State],
+    init_val: _State,
+    max_steps: int,
+) -> _State:
+  """A reverse-mode differentiable while_loop using jax.lax.scan.
+
+  Args:
+    cond_fun: As in jax.lax.while_loop.
+    body_fun: As in jax.lax.while_loop.
+    init_val: As in jax.lax.while_loop.
+    max_steps: An integer, the maximum number of iterations the loop can
+      perform. This is crucial for defining a fixed computational graph for
+      scan.
+
+  Returns:
+    The final state after the loop terminates or `max_steps` are reached.
+  """
+  # Initial carry for the scan: (current_state, while_loop_condition_met)
+  initial_scan_carry = (init_val, jnp.array(True, dtype=jnp.bool_))
+
+  def scan_body(carry, _):
+    current_state, cond_met_prev = carry
+
+    cond_eval = cond_fun(current_state)
+    should_execute_body = jnp.logical_and(cond_met_prev, cond_eval)
+
+    next_state = jax.lax.cond(
+        should_execute_body, body_fun, lambda s: s, current_state
+    )
+    next_cond_met = should_execute_body
+
+    return (next_state, next_cond_met), None
+
+  dummy_xs = jnp.arange(max_steps)
+
+  (final_state, _), _ = jax.lax.scan(scan_body, initial_scan_carry, dummy_xs)
+
+  return final_state
