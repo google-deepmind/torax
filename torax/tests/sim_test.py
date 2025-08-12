@@ -248,6 +248,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_neoclassical',
           'test_iterhybrid_predictor_corrector_neoclassical.py',
       ),
+      # Predictor-corrector solver with TGLFNNukaea transport
+      (
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
+      ),
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
