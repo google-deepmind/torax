@@ -293,23 +293,23 @@ def _get_charge_states(
       ion_symbols=static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
       T_e=T_e.value,
-  )
+  ).Z_mixture
   Z_i_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
       T_e=T_e.face_value(),
-  )
+  ).Z_mixture
 
   Z_impurity = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
       T_e=T_e.value,
-  )
+  ).Z_mixture
   Z_impurity_face = charge_states.get_average_charge_state(
       ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
       T_e=T_e.face_value(),
-  )
+  ).Z_mixture
 
   return Z_i, Z_i_face, Z_impurity, Z_impurity_face
 
