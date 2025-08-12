@@ -22,7 +22,7 @@ dependencies = [
     "jaxlib>=0.7.0",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "fusion_surrogates==0.1.0",
+    "fusion_surrogates[tglfnnukaea]",
     "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.11'",
