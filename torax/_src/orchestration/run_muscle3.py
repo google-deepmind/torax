@@ -14,8 +14,8 @@ import logging
 
 from imas import DBEntry
 from libmuscle import Instance
-from torax._src.config.build_runtime_params import get_consistent_dynamic_runtime_params_slice_and_geometry
 from torax._src.config import build_runtime_params
+from torax._src.config.build_runtime_params import get_consistent_dynamic_runtime_params_slice_and_geometry
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration.muscle3_utils import get_geometry_config_dict
