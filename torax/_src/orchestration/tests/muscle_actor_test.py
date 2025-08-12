@@ -107,10 +107,11 @@ def test_actor_input(tmp_path, monkeypatch):
 def test_actor_output(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     data_sink_path = (tmp_path / "sink_dir").absolute()
+    sink_uri = f"imas:hdf5?path={data_sink_path}"
     config_path = f"{torax.__path__[0]}/examples/iterhybrid_predictor_corrector.py"
     configuration = ymmsl.load(
         YMMSL_OUTPUT.format(
-            data_sink_path=data_sink_path,
+            data_sink_path=sink_uri,
             config_path=config_path,
         )
     )
