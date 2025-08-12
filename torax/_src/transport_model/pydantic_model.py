@@ -31,6 +31,7 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import tglfnn_ukaea_transport_model
 import typing_extensions
 
 
@@ -167,6 +168,52 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        **base_kwargs,
+    )
+
+
+# pylint: disable=invalid-name
+class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
+  """Model for the TGLFNN-ukaea transport model.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
+    ...
+  """
+
+  model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
+      'tglfnn-ukaea'
+  )
+  machine: Literal['step', 'multimachine']
+  config_path: pydantic.FilePath
+  stats_path: pydantic.FilePath
+  efe_gb_pt: pydantic.FilePath
+  efi_gb_pt: pydantic.FilePath
+  pfi_gb_pt: pydantic.FilePath
+  # Quasilinear transport options
+  DV_effective: bool
+  An_min: float
+
+  def build_transport_model(
+      self,
+  ) -> tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel:
+    return tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine=self.machine,
+        config_path=self.config_path,
+        stats_path=self.stats_path,
+        efe_gb_pt=self.efe_gb_pt,
+        efi_gb_pt=self.efi_gb_pt,
+        pfi_gb_pt=self.pfi_gb_pt,
+    )
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> tglfnn_ukaea_transport_model.DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return tglfnn_ukaea_transport_model.DynamicRuntimeParams(
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        # From base
         **base_kwargs,
     )
 
@@ -352,6 +399,7 @@ try:
   # errors in pytype.
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -361,6 +409,7 @@ try:
 except ImportError:
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
