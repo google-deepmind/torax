@@ -13,12 +13,16 @@
 # limitations under the License.
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
-from typing import TypeAlias
 
+from typing import Callable, ParamSpec, TypeAlias, TypeVar
 import jax
 import jaxtyping as jt
 import numpy as np
+from torax._src import jax_utils
 import typeguard
+
+_Params = ParamSpec("_Params")
+_Return = TypeVar("_Return")
 
 Array: TypeAlias = jax.Array | np.ndarray
 
@@ -29,4 +33,23 @@ ScalarInt: TypeAlias = jt.Int[Array | int, ""]
 ArrayFloat: TypeAlias = jt.Float[Array, "rhon"]
 ArrayBool: TypeAlias = jt.Bool[Array, "rhon"]
 
-jaxtyped = jt.jaxtyped(typechecker=typeguard.typechecked)
+
+def jaxtyped(fn: Callable[_Params, _Return]) -> Callable[_Params, _Return]:
+  """Function decorator to perform runtime type-checking.
+
+  This will perform jaxtyping runtime type checking if the environment variable
+  `TORAX_JAXTYPING` is set to "true" (default is "false").
+
+  Args:
+    fn: The function to decorate.
+
+  Returns:
+    The decorated function.
+  """
+  runtime_checking = jax_utils.env_bool(
+      name="TORAX_JAXTYPING", default=False
+  )
+  if runtime_checking:
+    return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
+  else:
+    return fn

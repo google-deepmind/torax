@@ -21,6 +21,7 @@ concurrency:
 # Set the correct env variables for all the unit tests
 env:
   TORAX_ERRORS_ENABLED: 1
+  TORAX_JAXTYPING: 1
   PYTEST_NUM_SHARDS: 8  # Controls tests sharding enabled by `pytest-shard`
 
 jobs:
