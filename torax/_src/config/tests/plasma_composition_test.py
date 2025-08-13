@@ -21,6 +21,7 @@ from torax._src import jax_utils
 from torax._src.config import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
+from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -149,6 +150,136 @@ class PlasmaCompositionTest(parameterized.TestCase):
       output = f(pc, t)
       chex.assert_trees_all_close(output.Z_eff, updated_zeff)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='default',
+          config={},
+          expected_impurity_names=('Ne',),
+          expected_Z_override=None,
+          expected_A_override=None,
+      ),
+      dict(
+          testcase_name='legacy_impurity_string',
+          config={'impurity': 'Ar'},
+          expected_impurity_names=('Ar',),
+          expected_Z_override=None,
+          expected_A_override=None,
+      ),
+      dict(
+          testcase_name='legacy_impurity_dict_single_species',
+          config={'impurity': {'Be': 1.0}},
+          expected_impurity_names=('Be',),
+          expected_Z_override=None,
+          expected_A_override=None,
+      ),
+      dict(
+          testcase_name='legacy_impurity_dict_multiple_species',
+          config={'impurity': {'Ar': 0.6, 'Ne': 0.4}},
+          expected_impurity_names=('Ar', 'Ne'),
+          expected_Z_override=None,
+          expected_A_override=None,
+      ),
+      dict(
+          testcase_name='legacy_with_overrides',
+          config={'impurity': 'Ar', 'Z_impurity_override': 8.0},
+          expected_impurity_names=('Ar',),
+          expected_Z_override=8.0,
+          expected_A_override=None,
+      ),
+      dict(
+          testcase_name='new_api_explicit',
+          config={
+              'impurity': {
+                  'impurity_mode': 'fractions',
+                  'species': {'C': 0.5, 'N': 0.5},
+                  'Z_override': 6.5,
+                  'A_override': 13.0,
+              },
+          },
+          expected_impurity_names=('C', 'N'),
+          expected_Z_override=6.5,
+          expected_A_override=13.0,
+      ),
+  )
+  def test_impurity_api(
+      self,
+      config,
+      expected_impurity_names,
+      expected_Z_override,
+      expected_A_override,
+  ):
+    pc = plasma_composition.PlasmaComposition(**config)
+    self.assertEqual(pc.get_impurity_names(), expected_impurity_names)
+    if pc.impurity.Z_override is not None:
+      self.assertEqual(
+          pc.impurity.Z_override.get_value(0.0), expected_Z_override
+      )
+    else:
+      self.assertIsNone(expected_Z_override)
+    if pc.impurity.A_override is not None:
+      self.assertEqual(
+          pc.impurity.A_override.get_value(0.0), expected_A_override
+      )
+    else:
+      self.assertIsNone(expected_A_override)
+
+  def test_impurity_api_warning(self):
+    with self.assertLogs(level='WARNING') as log_output:
+      plasma_composition.PlasmaComposition(
+          impurity={
+              'impurity_mode': 'fractions',
+              'species': 'Ne',
+              'Z_override': 5.0,
+          },
+          Z_impurity_override=6.0,
+      )
+      self.assertIn(
+          'Z_impurity_override and/or A_impurity_override are set',
+          log_output[0][0].message,
+      )
+
+  def test_update_fields_with_legacy_impurity_input(self):
+    """Tests updating legacy impurity format via update_fields."""
+    config_dict = {
+        'profile_conditions': {},
+        'plasma_composition': {'impurity': {'Ne': 0.99, 'W': 0.01}},
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    config_updates = {'plasma_composition.impurity': {'Ne': 0.98, 'W': 0.02}}
+
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    self.assertEqual(
+        torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
+    )
+    assert(torax_config.plasma_composition.impurity.species['Ne'] is not None)
+    assert(torax_config.plasma_composition.impurity.species['W'] is not None)
+    self.assertEqual(
+        torax_config.plasma_composition.impurity.species['Ne'].get_value(0.0),
+        0.99,
+    )
+    self.assertEqual(
+        torax_config.plasma_composition.impurity.species['W'].get_value(0.0),
+        0.01,
+    )
+    torax_config.update_fields(config_updates)
+    self.assertEqual(
+        torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
+    )
+    self.assertEqual(
+        torax_config.plasma_composition.impurity.species['Ne'].get_value(0.0),
+        0.98,
+    )
+    self.assertEqual(
+        torax_config.plasma_composition.impurity.species['W'].get_value(0.0),
+        0.02,
+    )
 
 
 class IonMixtureTest(parameterized.TestCase):
