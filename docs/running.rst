@@ -77,6 +77,18 @@ internal TORAX functions. Used for debugging.
 
   export TORAX_COMPILATION_ENABLED=<True/False>
 
+``TORAX_EXPERIMENTAL_COMPILE`` (default: `False`) - If `True`, trigger expanded
+compilation up to the TORAX step function's call method. Normally with
+`TORAX_COMPILATION_ENABLED` flag set to `True` TORAX will compile a more limited
+set of functions. This is an experimental flag at the moment and will lead to
+faster simulations (at the expense of larger compilation time). We are currently
+working on reducing compile times so that the behaviour of this flag is
+triggered by `TORAX_COMPILATION_ENABLED`.
+
+.. code-block:: console
+
+  export TORAX_EXPERIMENTAL_COMPILE=<True/False>
+
 .. _torax_flags:
 
 run_torax flags

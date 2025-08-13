@@ -166,7 +166,7 @@ def run_loop(
 ]:
   """Version of torax._src.orchestration.run_loop that loops with jax.jit.
 
-  This function must be run with EXPERIMENTAL_COMPILE=True.
+  This function must be run with TORAX_EXPERIMENTAL_COMPILE=True.
   Unlike the `run_loop` function, This does not support logging or progress bar.
 
   Args:

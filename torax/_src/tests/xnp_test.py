@@ -26,8 +26,8 @@ class XNPTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.original_flag = jax_utils.env_bool('EXPERIMENTAL_COMPILE', False)
-    os.environ['EXPERIMENTAL_COMPILE'] = 'True'
+    self.original_flag = jax_utils.env_bool('TORAX_EXPERIMENTAL_COMPILE', False)
+    os.environ['TORAX_EXPERIMENTAL_COMPILE'] = 'True'
     if 'jax_enable_x64' in jax.config.values:
       self.original_x64 = jax.config.read('jax_enable_x64')
     else:
@@ -36,7 +36,7 @@ class XNPTest(parameterized.TestCase):
 
   def tearDown(self):
     super().tearDown()
-    os.environ['EXPERIMENTAL_COMPILE'] = str(self.original_flag)
+    os.environ['TORAX_EXPERIMENTAL_COMPILE'] = str(self.original_flag)
     if self.original_x64 is not None:
       jax.config.update('jax_enable_x64', self.original_x64)
 
@@ -58,7 +58,7 @@ class XNPTest(parameterized.TestCase):
   def test_xnp_with_experimental_compile_off_and_on(self):
     x = np.random.rand(10)
     # Disable experimental compile.
-    os.environ['EXPERIMENTAL_COMPILE'] = 'False'
+    os.environ['TORAX_EXPERIMENTAL_COMPILE'] = 'False'
 
     def f(x: chex.Array):
       return xnp.sin(x)
@@ -67,7 +67,7 @@ class XNPTest(parameterized.TestCase):
     self.assertIsInstance(xnp.jit(f)(x), np.ndarray)
 
     # Re-enable experimental compile.
-    os.environ['EXPERIMENTAL_COMPILE'] = 'True'
+    os.environ['TORAX_EXPERIMENTAL_COMPILE'] = 'True'
     self.assertIsInstance(xnp.jit(f)(x), jax.Array)
 
 

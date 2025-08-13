@@ -65,8 +65,8 @@ def jit(*args, **kwargs):
     with _jit_context():
       return func(*func_args, **func_kwargs)
 
-  # if EXPERIMENTAL_COMPILE is not set use default `False` and do not JIT.
-  if jax_utils.env_bool('EXPERIMENTAL_COMPILE', False):
+  # if TORAX_EXPERIMENTAL_COMPILE is not set use default `False` and do not JIT.
+  if jax_utils.env_bool('TORAX_EXPERIMENTAL_COMPILE', False):
     return jax.jit(wrapped_func, *args[1:], **kwargs)
   else:
     return func
