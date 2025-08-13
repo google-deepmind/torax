@@ -17,7 +17,7 @@ import copy
 import dataclasses
 import functools
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Mapping
 import chex
 import jax
 from jax import numpy as jnp
@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -61,6 +62,26 @@ class DynamicImpurityFractions(DynamicIonMixture):
   impurity_mode: str = dataclasses.field(
       default='fractions', metadata={'static': True}
   )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class DynamicNeRatios:
+  """Analogous to DynamicImpurityFractions but for n_e_ratio inputs."""
+
+  n_e_ratios: array_typing.ArrayFloat
+  avg_A: array_typing.ScalarFloat
+  Z_override: array_typing.ScalarFloat | None = None
+  impurity_mode: str = dataclasses.field(
+      default='n_e_ratios', metadata={'static': True}
+  )
+
+  @property
+  def fractions(self) -> array_typing.ArrayFloat:
+    """Returns the impurity fractions calculated from the n_e_ratios."""
+    return self.n_e_ratios / (
+        jnp.sum(self.n_e_ratios) + constants.CONSTANTS.eps
+    )
 
 
 class IonMixture(torax_pydantic.BaseModelFrozen):
@@ -148,11 +169,49 @@ class ImpurityFractionsModel(IonMixture):
     return data
 
 
+class NeRatiosModel(torax_pydantic.BaseModelFrozen):
+  """Impurity content defined by ratios of impurity to electron density."""
+
+  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
+  Z_override: torax_pydantic.TimeVaryingScalar | None = None
+  A_override: torax_pydantic.TimeVaryingScalar | None = None
+  impurity_mode: Annotated[Literal['n_e_ratios'], torax_pydantic.JAX_STATIC] = (
+      'n_e_ratios'
+  )
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicNeRatios:
+    """Creates a DynamicNeRatios object at a given time."""
+    ions = self.species.keys()
+    n_e_ratios_arr = jnp.array(
+        [ratio.get_value(t) for ratio in self.species.values()]
+    )
+    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
+    fractions = n_e_ratios_arr / (
+        jnp.sum(n_e_ratios_arr) + constants.CONSTANTS.eps
+    )
+
+    if not self.A_override:
+      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
+      avg_A = jnp.sum(As * fractions)
+    else:
+      avg_A = self.A_override.get_value(t)
+
+    return DynamicNeRatios(
+        impurity_mode=self.impurity_mode,
+        n_e_ratios=n_e_ratios_arr,
+        avg_A=avg_A,
+        Z_override=Z_override,
+    )
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
-  impurity: DynamicImpurityFractions
+  impurity: DynamicImpurityFractions | DynamicNeRatios
   Z_eff: array_typing.ArrayFloat
   Z_eff_face: array_typing.ArrayFloat
 
@@ -171,28 +230,22 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
       `ION_SYMBOLS`. For mixtures the input is an IonMixture object, constructed
       from a dict mapping ion symbols to their fractional concentration in the
       mixture.
-    impurity: Impurity species. This is a dictionary that configures the
-      impurity ions in the plasma. It has the following keys: `impurity_mode`:
-      Determines how the impurity species are defined. Currently, only
-      'fractions' is implemented. *   `'fractions'`: The impurities are defined
-      by their fractional concentrations within the total impurity population.
+    impurity: Dictionary configuring plasma impurities with the following keys:
+      `impurity_mode`: Sets how the impurity species are defined.
       `species`: A dictionary mapping ion symbols (e.g., 'Ne', 'W') to their
-      respective values. The interpretation of these values depends on the
-      `impurity_mode`. *   If `impurity_mode` is `'fractions'`, the values
-      represent the fraction of each ion species within the total impurity
-      density. These fractions must sum to 1.0. `Z_override`: Optional. If
-      provided, this value overrides the calculated average charge (Z) of the
-      impurity mixture. `A_override`: Optional. If provided, this value
-      overrides the calculated average mass (A) of the impurity mixture. Other
-      modes (`'n_e_density_ratios'` and `'n_e_density_ratios_and_Z_eff'`) are
-      not yet implemented. Finally, backwards compatibility is provided for
-      legacy inputs to `'impurity'`, e.g. string or dict inputs similar to
-      `main_ion`, such as `'Ar'` or `{'Ar': 0.6, 'Ne': 0.4}`. In these cases,
-      `impurity_mode` is inferred to be `'fractions'`, and `Z_override` and
-      `A_override` are set to the top-level `Z_impurity_override` and
-      `A_impurity_override` if provided, or `None` otherwise. A pydantic before
-      validator handles this.
-    Z_eff: Constraint for impurity densities.
+        respective values. The interpretation of these values depends on the
+        `impurity_mode` as follows.
+          * `'fractions'`: relative fractional abundances.
+          * `'n_e_ratios'`: ratios of impurity density to electron density.
+            Z_eff is ignored in this mode.
+      `Z_override`: Optional. Overrides the calculated impurity average charge
+      `A_override`: Optional. Overrides the calculated average impurity mass
+      Backwards compatibility is provided for legacy inputs to `'impurity'`,
+      e.g. string or dict inputs similar to `main_ion`, such as `'Ar'` or
+      `{'Ar': 0.6, 'Ne': 0.4}`.
+    Z_eff: Constraint for impurity densities. If the impurity_mode is
+      `'n_e_ratios'`, and the input is not None, then any input value will be
+      ignored and a warning provided to the user.
     Z_i_override: Optional arbitrary masses and charges which can be used to
       override the data for the average Z and A of each IonMixture for main_ions
       or impurities. Useful for testing or testing physical sensitivities,
@@ -206,7 +259,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """
 
   impurity: Annotated[
-      ImpurityFractionsModel,
+      ImpurityFractionsModel | NeRatiosModel,
       pydantic.Field(discriminator='impurity_mode'),
   ]
   main_ion: runtime_validation_utils.IonMapping = (
@@ -274,6 +327,19 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         'A_override': A_impurity_override,
     }
     return configurable_data
+
+  @pydantic.model_validator(mode='after')
+  def _check_zeff_usage(self) -> typing_extensions.Self:
+    """Warns user if Z_eff is provided but will be ignored."""
+    if (
+        isinstance(self.impurity, NeRatiosModel)
+        and self.Z_eff.value != 1.0  # default value if input Z_eff is None
+    ):
+      logging.warning(
+          "Z_eff is provided but impurity_mode is 'n_e_ratios'. Z_eff will be"
+          ' an emergent quantity and the input value will be ignored.'
+      )
+    return self
 
   def tree_flatten(self):
     # Override the default tree_flatten to also save out the cached
