@@ -169,14 +169,14 @@ def _calculate_impurity_radiation_single_species(
 )
 def calculate_total_impurity_radiation(
     ion_symbols: Sequence[str],
-    ion_mixture: plasma_composition.DynamicIonMixture,
+    impurity_fractions: array_typing.ArrayFloat,
     T_e: array_typing.ArrayFloat,
 ) -> array_typing.ArrayFloat:
   """Calculates impurity line radiation profile (JAX-compatible).
 
   Args:
     ion_symbols: Ion symbols of the impurity species.
-    ion_mixture: DynamicIonMixture object containing impurity information.
+    impurity_fractions: Impurity fractions corresponding to the ion symbols.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 
@@ -187,7 +187,7 @@ def calculate_total_impurity_radiation(
   """
 
   effective_LZ = jnp.zeros_like(T_e)
-  for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
+  for ion_symbol, fraction in zip(ion_symbols, impurity_fractions):
     effective_LZ += fraction * _calculate_impurity_radiation_single_species(
         T_e, ion_symbol
     )
@@ -204,11 +204,11 @@ def impurity_radiation_mavrin_fit(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
-  ion_symbols = static_runtime_params_slice.impurity_names
-  ion_mixture = dynamic_runtime_params_slice.plasma_composition.impurity
+
+  # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
-      ion_symbols=ion_symbols,
-      ion_mixture=ion_mixture,
+      ion_symbols=static_runtime_params_slice.impurity_names,
+      impurity_fractions=core_profiles.impurity_fractions,
       T_e=core_profiles.T_e.value,
   )
 
@@ -224,9 +224,13 @@ def impurity_radiation_mavrin_fit(
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
 
-  # ion_symbols is a static argument so can use the for loop under jit
+  ion_mixture = plasma_composition.DynamicIonMixture(
+      fractions=core_profiles.impurity_fractions,
+      A_avg=core_profiles.A_impurity,
+      Z_override=dynamic_runtime_params_slice.plasma_composition.impurity.Z_override,
+  )
   charge_state_info = charge_states.get_average_charge_state(
-      ion_symbols=ion_symbols,
+      ion_symbols=static_runtime_params_slice.impurity_names,
       ion_mixture=ion_mixture,
       T_e=core_profiles.T_e.value,
   )

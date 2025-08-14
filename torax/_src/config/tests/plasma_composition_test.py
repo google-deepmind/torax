@@ -139,7 +139,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       # Z_eff is an array, so we check it's all close to the initial value
       chex.assert_trees_all_close(output.Z_eff, initial_zeff)
       if A_override is not None:
-        self.assertEqual(output.main_ion.avg_A, A_override)
+        self.assertEqual(output.main_ion.A_avg, A_override)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
@@ -196,7 +196,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           testcase_name='new_api_explicit',
           config={
               'impurity': {
-                  'impurity_mode': 'fractions',
+                  'impurity_mode': plasma_composition.IMPURITY_MODE_FRACTIONS,
                   'species': {'C': 0.5, 'N': 0.5},
                   'Z_override': 6.5,
                   'A_override': 13.0,
@@ -211,7 +211,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           testcase_name='new_api_n_e_ratios',
           config={
               'impurity': {
-                  'impurity_mode': 'n_e_ratios',
+                  'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
                   'species': {'C': 0.01, 'N': 0.02},
                   'Z_override': 6.5,
                   'A_override': 13.0,
@@ -221,6 +221,23 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_Z_override=6.5,
           expected_A_override=13.0,
           expected_impurity_model_type=plasma_composition.NeRatiosModel,
+      ),
+      dict(
+          testcase_name='new_api_n_e_ratios_Z_eff',
+          config={
+              'impurity': {
+                  'impurity_mode': (
+                      plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF
+                  ),
+                  'species': {'C': 0.01, 'N': None},
+                  'Z_override': 6.5,
+                  'A_override': 13.0,
+              },
+          },
+          expected_impurity_names=('C', 'N'),
+          expected_Z_override=6.5,
+          expected_A_override=13.0,
+          expected_impurity_model_type=plasma_composition.NeRatiosZeffModel,
       ),
   )
   def test_impurity_api(
@@ -251,7 +268,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertLogs(level='WARNING') as log_output:
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'fractions',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_FRACTIONS,
               'species': 'Ne',
               'Z_override': 5.0,
           },
@@ -267,13 +284,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertLogs(level='WARNING') as log_output:
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'n_e_ratios',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
               'species': {'Ne': 0.01},
           },
           Z_eff=1.5,
       )
       self.assertIn(
-          "Z_eff is provided but impurity_mode is 'n_e_ratios'",
+          'Z_eff is provided but impurity_mode is'
+          f" '{plasma_composition.IMPURITY_MODE_NE_RATIOS}'",
           log_output[0][0].message,
       )
 
@@ -282,13 +300,52 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'n_e_ratios',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
               'species': {'Ne': -0.1},
           }
       )
 
+  def test_ne_ratios_Z_eff_validation_error_for_negative_ratio(self):
+    """Tests that n_e_ratios must be non-negative."""
+    with self.assertRaises(pydantic.ValidationError):
+      plasma_composition.PlasmaComposition(
+          impurity={
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+              'species': {'Ne': -0.1, 'W': None},
+          }
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='no_none',
+          species={'Ne': 0.01, 'W': 1e-5},
+          should_raise=True,
+      ),
+      dict(
+          testcase_name='one_none',
+          species={'Ne': 0.01, 'W': None},
+          should_raise=False,
+      ),
+      dict(
+          testcase_name='two_nones',
+          species={'Ne': None, 'W': None},
+          should_raise=True,
+      ),
+  )
+  def test_ne_ratios_Z_eff_validation(self, species, should_raise):
+    """Tests that NeRatiosZeffModel must have exactly one None species."""
+    config = {
+        'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+        'species': species,
+    }
+    if should_raise:
+      with self.assertRaises(pydantic.ValidationError):
+        plasma_composition.PlasmaComposition(impurity=config)
+    else:
+      plasma_composition.PlasmaComposition(impurity=config)
+
   def test_ne_ratios_avg_a_calculation(self):
-    """Tests that avg_A is calculated correctly for NeRatiosModel."""
+    """Tests that A_avg is calculated correctly for NeRatiosModel."""
     # These n_e_ratios correspond to 1/3 C and 2/3 N fractions.
     n_e_ratios_species = {'C': 0.01, 'N': 0.02}
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
@@ -296,23 +353,29 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'n_e_ratios',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
     dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
+    assert isinstance(
+        dynamic_impurity_ne_ratios, plasma_composition.DynamicNeRatios
+    )
 
     pc_fractions = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'fractions',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_FRACTIONS,
             'species': fractions_species,
         }
     )
     dynamic_impurity_fractions = pc_fractions.impurity.build_dynamic_params(t)
+    assert isinstance(
+        dynamic_impurity_fractions, plasma_composition.DynamicImpurityFractions
+    )
 
     np.testing.assert_allclose(
-        dynamic_impurity_ne_ratios.avg_A,
-        dynamic_impurity_fractions.avg_A,
+        dynamic_impurity_ne_ratios.A_avg,
+        dynamic_impurity_fractions.A_avg,
         rtol=1e-5,
     )
 
@@ -320,7 +383,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     """Smoke test for JIT compilation of NeRatiosModel."""
     pc = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'n_e_ratios',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
             'species': {'C': {0.0: 0.01}, 'N': {0.0: 0.02}},
         }
     )
@@ -334,6 +397,32 @@ class PlasmaCompositionTest(parameterized.TestCase):
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
     self.assertIsInstance(output.impurity, plasma_composition.DynamicNeRatios)
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+    # run again to check for re-compilation
+    f(pc, 0.0)
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_ne_ratios_zeff_model_under_jit(self):
+    """Smoke test for JIT compilation of NeRatiosZeffModel."""
+    pc = plasma_composition.PlasmaComposition(
+        impurity={
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+            'species': {'C': {0.0: 0.01}, 'N': None},
+        },
+        Z_eff=2.0,
+    )
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+
+    @jax.jit
+    def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
+      return pc_model.build_dynamic_params(t=t)
+
+    # Just a smoke test to ensure it jits and runs.
+    output = f(pc, 0.0)
+    self.assertIsInstance(
+        output.impurity, plasma_composition.DynamicNeRatiosZeff
+    )
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
     # run again to check for re-compilation
     f(pc, 0.0)
@@ -358,8 +447,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
     self.assertEqual(
         torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
     )
-    assert(torax_config.plasma_composition.impurity.species['Ne'] is not None)
-    assert(torax_config.plasma_composition.impurity.species['W'] is not None)
+    assert torax_config.plasma_composition.impurity.species['Ne'] is not None
+    assert torax_config.plasma_composition.impurity.species['W'] is not None
     self.assertEqual(
         torax_config.plasma_composition.impurity.species['Ne'].get_value(0.0),
         0.99,
@@ -456,7 +545,7 @@ class IonMixtureTest(parameterized.TestCase):
         T_e=np.array(10.0),  # Ensure that all ions in test are fully ionized
     ).Z_mixture
     np.testing.assert_allclose(calculated_Z, expected_Z)
-    np.testing.assert_allclose(dynamic_mixture.avg_A, expected_A)
+    np.testing.assert_allclose(dynamic_mixture.A_avg, expected_A)
 
   @parameterized.named_parameters(
       ('no_override', None, None, 1.0, 2.0141),
@@ -483,7 +572,7 @@ class IonMixtureTest(parameterized.TestCase):
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override
     np.testing.assert_allclose(calculated_Z, Z_expected)
-    np.testing.assert_allclose(dynamic_mixture.avg_A, A_expected)
+    np.testing.assert_allclose(dynamic_mixture.A_avg, A_expected)
 
   def test_model_validate(self):
     """Test that IonMixture.from_config behaves as expected."""
