@@ -170,12 +170,12 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
     T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
-    avg_A = 2.0  # arbitrary, not used.
+    A_avg = np.nan  # not used.
     ion_symbols = tuple(species.keys())
     fractions = np.array(tuple(species.values()))
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=fractions,
-        avg_A=avg_A,
+        A_avg=A_avg,
     )
     Z_calculated = charge_states.get_average_charge_state(
         ion_symbols, ion_mixture, T_e
@@ -191,7 +191,7 @@ class ChargeStatesTest(parameterized.TestCase):
     ion_symbols = tuple(species.keys())
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=np.array(tuple(species.values())),
-        avg_A=2.0,  # arbitrary, not used.
+        A_avg=2.0,  # arbitrary, not used.
         Z_override=np.array([50.0, 50.0, 50.0]),
     )
     Z_calculated = charge_states.get_average_charge_state(
