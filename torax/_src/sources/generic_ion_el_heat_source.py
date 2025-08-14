@@ -40,11 +40,11 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
-  electron_heat_fraction: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
+  electron_heat_fraction: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
 
 
 def calc_generic_heat_source(

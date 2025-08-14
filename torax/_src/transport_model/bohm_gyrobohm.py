@@ -33,17 +33,17 @@ from torax._src.transport_model import transport_model as transport_model_lib
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  chi_e_bohm_coeff: array_typing.ScalarFloat
-  chi_e_gyrobohm_coeff: array_typing.ScalarFloat
-  chi_i_bohm_coeff: array_typing.ScalarFloat
-  chi_i_gyrobohm_coeff: array_typing.ScalarFloat
-  D_face_c1: array_typing.ScalarFloat
-  D_face_c2: array_typing.ScalarFloat
-  V_face_coeff: array_typing.ScalarFloat
-  chi_e_bohm_multiplier: array_typing.ScalarFloat
-  chi_e_gyrobohm_multiplier: array_typing.ScalarFloat
-  chi_i_bohm_multiplier: array_typing.ScalarFloat
-  chi_i_gyrobohm_multiplier: array_typing.ScalarFloat
+  chi_e_bohm_coeff: array_typing.FloatScalar
+  chi_e_gyrobohm_coeff: array_typing.FloatScalar
+  chi_i_bohm_coeff: array_typing.FloatScalar
+  chi_i_gyrobohm_coeff: array_typing.FloatScalar
+  D_face_c1: array_typing.FloatScalar
+  D_face_c2: array_typing.FloatScalar
+  V_face_coeff: array_typing.FloatScalar
+  chi_e_bohm_multiplier: array_typing.FloatScalar
+  chi_e_gyrobohm_multiplier: array_typing.FloatScalar
+  chi_i_bohm_multiplier: array_typing.FloatScalar
+  chi_i_gyrobohm_multiplier: array_typing.FloatScalar
 
 
 class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):

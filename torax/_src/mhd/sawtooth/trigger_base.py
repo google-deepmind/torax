@@ -35,7 +35,7 @@ class TriggerModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
+  ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:
     """Indicates if a crash is triggered and the radius of the q=1 surface."""
 
   @abc.abstractmethod

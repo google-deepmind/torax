@@ -54,11 +54,11 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def _calculate_psi_value_constraint_from_v_loop(
-    dt: array_typing.ScalarFloat,
-    theta: array_typing.ScalarFloat,
-    v_loop_lcfs_t: array_typing.ScalarFloat,
-    v_loop_lcfs_t_plus_dt: array_typing.ScalarFloat,
-    psi_lcfs_t: array_typing.ScalarFloat,
+    dt: array_typing.FloatScalar,
+    theta: array_typing.FloatScalar,
+    v_loop_lcfs_t: array_typing.FloatScalar,
+    v_loop_lcfs_t_plus_dt: array_typing.FloatScalar,
+    psi_lcfs_t: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
   theta_weighted_v_loop_lcfs = (
@@ -76,7 +76,7 @@ def get_prescribed_core_profile_values(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> dict[str, array_typing.ArrayFloat]:
+) -> dict[str, array_typing.FloatVector]:
   """Updates core profiles which are not being evolved by PDE.
 
   Uses same functions as for profile initialization.
@@ -202,7 +202,7 @@ def update_core_profiles_during_step(
 
 
 def update_core_and_source_profiles_after_step(
-    dt: array_typing.ScalarFloat,
+    dt: array_typing.FloatScalar,
     x_new: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -340,7 +340,7 @@ def update_core_and_source_profiles_after_step(
 
 
 def compute_boundary_conditions_for_t_plus_dt(
-    dt: array_typing.ScalarFloat,
+    dt: array_typing.FloatScalar,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -546,7 +546,7 @@ def provide_core_profiles_t_plus_dt(
 def _update_v_loop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
-    dt: array_typing.ScalarFloat,
+    dt: array_typing.FloatScalar,
 ) -> jax.Array:
   """Updates the v_loop_lcfs for the next timestep.
 

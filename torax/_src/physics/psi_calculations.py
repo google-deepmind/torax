@@ -242,9 +242,9 @@ def calc_li3(
 
 
 def calc_q95(
-    psi_norm_face: array_typing.ArrayFloat,
-    q_face: array_typing.ArrayFloat,
-) -> array_typing.ScalarFloat:
+    psi_norm_face: array_typing.FloatVector,
+    q_face: array_typing.FloatVector,
+) -> array_typing.FloatScalar:
   """Calculates q95 from the q profile and the normalized poloidal flux.
 
   Args:
@@ -260,7 +260,7 @@ def calc_q95(
 
 
 def calculate_psi_grad_constraint_from_Ip(
-    Ip: array_typing.ScalarFloat,
+    Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
@@ -273,8 +273,8 @@ def calculate_psi_grad_constraint_from_Ip(
 
 def calculate_psidot_from_psi_sources(
     *,
-    psi_sources: array_typing.ArrayFloat,
-    sigma: array_typing.ArrayFloat,
+    psi_sources: array_typing.FloatVector,
+    sigma: array_typing.FloatVector,
     resistivity_multiplier: float,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,

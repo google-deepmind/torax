@@ -82,9 +82,9 @@ class GenericParticleSource(source.Source):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  particle_width: array_typing.ScalarFloat
-  deposition_location: array_typing.ScalarFloat
-  S_total: array_typing.ScalarFloat
+  particle_width: array_typing.FloatScalar
+  deposition_location: array_typing.FloatScalar
+  S_total: array_typing.FloatScalar
 
 
 class GenericParticleSourceConfig(base.SourceModelBase):

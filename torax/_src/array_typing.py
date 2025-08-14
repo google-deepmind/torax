@@ -25,12 +25,14 @@ T = TypeVar("T")
 
 Array: TypeAlias = jax.Array | np.ndarray
 
-ScalarFloat: TypeAlias = jt.Float[Array | float, ""]
-ScalarBool: TypeAlias = jt.Bool[Array | bool, ""]
-ScalarInt: TypeAlias = jt.Int[Array | int, ""]
+FloatScalar: TypeAlias = jt.Float[Array | float, ""]
+BoolScalar: TypeAlias = jt.Bool[Array | bool, ""]
+IntScalar: TypeAlias = jt.Int[Array | int, ""]
 
-ArrayFloat: TypeAlias = jt.Float[Array, "rhon"]
-ArrayBool: TypeAlias = jt.Bool[Array, "rhon"]
+FloatVector: TypeAlias = jt.Float[Array, "_"]
+BoolVector: TypeAlias = jt.Bool[Array, "_"]
+FloatVectorCell: TypeAlias = jt.Float[Array, "rhon"]
+FloatVectorFace: TypeAlias = jt.Float[Array, "rhon+1"]
 
 
 def jaxtyped(fn: T) -> T:
@@ -45,9 +47,7 @@ def jaxtyped(fn: T) -> T:
   Returns:
     The decorated function.
   """
-  runtime_checking = jax_utils.env_bool(
-      name="TORAX_JAXTYPING", default=False
-  )
+  runtime_checking = jax_utils.env_bool(name="TORAX_JAXTYPING", default=False)
   if runtime_checking:
     return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
   else:

@@ -40,10 +40,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   See base class runtime_params.DynamicRuntimeParams docstring for more info.
   """
 
-  chi_i: array_typing.ArrayFloat
-  chi_e: array_typing.ArrayFloat
-  D_e: array_typing.ArrayFloat
-  V_e: array_typing.ArrayFloat
+  chi_i: array_typing.FloatVector
+  chi_e: array_typing.FloatVector
+  D_e: array_typing.FloatVector
+  V_e: array_typing.FloatVector
 
 
 class ConstantTransportModel(transport_model_lib.TransportModel):

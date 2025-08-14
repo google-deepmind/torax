@@ -125,4 +125,4 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  fraction_P_heating: array_typing.ScalarFloat
+  fraction_P_heating: array_typing.FloatScalar

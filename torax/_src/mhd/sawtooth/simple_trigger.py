@@ -39,7 +39,7 @@ class SimpleTrigger(trigger_base.TriggerModel):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
+  ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:
     """Checks if the simple critical shear condition for a sawtooth is met.
 
     Args:
@@ -120,7 +120,7 @@ class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):
     s_critical: Critical shear value at q=1 for sawtooth triggering.
   """
 
-  s_critical: array_typing.ScalarFloat
+  s_critical: array_typing.FloatScalar
 
 
 class SimpleTriggerConfig(trigger_base.TriggerConfig):

@@ -141,7 +141,7 @@ def initial_core_profiles(
 
 
 def update_psi_from_j(
-    Ip: array_typing.ScalarFloat,
+    Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
     j_total_hires: jax.Array,
     use_v_loop_lcfs_boundary_condition: bool = False,

@@ -35,9 +35,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
   alpha: float
   chi_stiff: float
-  chi_e_i_ratio: array_typing.ScalarFloat
-  chi_D_ratio: array_typing.ScalarFloat
-  VR_D_ratio: array_typing.ScalarFloat
+  chi_e_i_ratio: array_typing.FloatScalar
+  chi_D_ratio: array_typing.FloatScalar
+  VR_D_ratio: array_typing.FloatScalar
 
 
 class CriticalGradientTransportModel(transport_model.TransportModel):

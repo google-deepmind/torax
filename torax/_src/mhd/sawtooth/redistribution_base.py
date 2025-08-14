@@ -31,7 +31,7 @@ class RedistributionModel(abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
-      rho_norm_q1: array_typing.ScalarFloat,
+      rho_norm_q1: array_typing.FloatScalar,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,

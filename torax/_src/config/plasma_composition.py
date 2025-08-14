@@ -49,9 +49,9 @@ class DynamicIonMixture:
       provided, it is used instead for the average Z.
   """
 
-  fractions: array_typing.ArrayFloat
-  avg_A: array_typing.ScalarFloat
-  Z_override: array_typing.ScalarFloat | None = None
+  fractions: array_typing.FloatVector
+  avg_A: array_typing.FloatScalar
+  Z_override: array_typing.FloatScalar | None = None
 
 
 @jax.tree_util.register_dataclass
@@ -69,15 +69,15 @@ class DynamicImpurityFractions(DynamicIonMixture):
 class DynamicNeRatios:
   """Analogous to DynamicImpurityFractions but for n_e_ratio inputs."""
 
-  n_e_ratios: array_typing.ArrayFloat
-  avg_A: array_typing.ScalarFloat
-  Z_override: array_typing.ScalarFloat | None = None
+  n_e_ratios: array_typing.FloatVector
+  avg_A: array_typing.FloatScalar
+  Z_override: array_typing.FloatScalar | None = None
   impurity_mode: str = dataclasses.field(
       default='n_e_ratios', metadata={'static': True}
   )
 
   @property
-  def fractions(self) -> array_typing.ArrayFloat:
+  def fractions(self) -> array_typing.FloatVector:
     """Returns the impurity fractions calculated from the n_e_ratios."""
     return self.n_e_ratios / (
         jnp.sum(self.n_e_ratios) + constants.CONSTANTS.eps
@@ -212,8 +212,8 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
 class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: DynamicImpurityFractions | DynamicNeRatios
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
+  Z_eff: array_typing.FloatVector
+  Z_eff_face: array_typing.FloatVector
 
 
 @jax.tree_util.register_pytree_node_class

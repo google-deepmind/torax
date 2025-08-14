@@ -43,7 +43,7 @@ class DynamicNumerics:
   chi_timestep_prefactor: float
   fixed_dt: float
   dt_reduction_factor: float
-  resistivity_multiplier: array_typing.ScalarFloat
+  resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})

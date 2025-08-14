@@ -38,7 +38,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
-  a: array_typing.ScalarFloat
+  a: array_typing.FloatScalar
   b: bool
 
 

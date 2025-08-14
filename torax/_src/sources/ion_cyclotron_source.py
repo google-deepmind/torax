@@ -74,28 +74,28 @@ class ToricNNInputs:
   """Inputs to the ToricNN model."""
 
   # ICRF wave frequency in MHz, training range = 119 to 121.
-  frequency: array_typing.ScalarFloat
+  frequency: array_typing.FloatScalar
   # Volume average temperature in keV, training range = 1.5 to 8.5.
-  volume_average_temperature: array_typing.ScalarFloat
+  volume_average_temperature: array_typing.FloatScalar
   # Volume average density in 10^20 m^-3, training range = 1.1 to 5.1.
-  volume_average_density: array_typing.ScalarFloat
+  volume_average_density: array_typing.FloatScalar
   # He3 minority concentration relative to the electron density in %,
   # training range = 1 to 5.
-  minority_concentration: array_typing.ScalarFloat
+  minority_concentration: array_typing.FloatScalar
   # Distance from last closed flux surface (LCFS) to the inner wall in m,
   # training range = 0 to 0.03.
-  gap_inner: array_typing.ScalarFloat
+  gap_inner: array_typing.FloatScalar
   # Distance from LCFS to the outer midplane limiter in m,
   # training range = 0 to 0.05.
-  gap_outer: array_typing.ScalarFloat
+  gap_outer: array_typing.FloatScalar
   # Vertical position of magnetic axis in m, training range = -0.05 to 0.05.
-  z0: array_typing.ScalarFloat
+  z0: array_typing.FloatScalar
   # Temperature profile peaking factor, training range = 2 to 3.
-  temperature_peaking_factor: array_typing.ScalarFloat
+  temperature_peaking_factor: array_typing.FloatScalar
   # Density profile peaking factor, training range = 1.15 to 1.65.
-  density_peaking_factor: array_typing.ScalarFloat
+  density_peaking_factor: array_typing.FloatScalar
   # Toroidal magnetic field on axis in T, training range = 11.8 to 12.5.
-  B_0: array_typing.ScalarFloat
+  B_0: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -104,11 +104,11 @@ class ToricNNOutputs:
   """Outputs from the ToricNN model."""
 
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
-  power_deposition_He3: array_typing.ArrayFloat
+  power_deposition_He3: array_typing.FloatVector
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
-  power_deposition_2T: array_typing.ArrayFloat
+  power_deposition_2T: array_typing.FloatVector
   # Power deposition on electrons in MW/m^3/MW_{abs}.
-  power_deposition_e: array_typing.ArrayFloat
+  power_deposition_e: array_typing.FloatVector
 
 
 class _ToricNN(nn.Module):
@@ -305,10 +305,10 @@ def _toric_nn_predict(
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  frequency: array_typing.ScalarFloat
-  minority_concentration: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+  frequency: array_typing.FloatScalar
+  minority_concentration: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
 

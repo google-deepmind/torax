@@ -39,20 +39,20 @@ _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.ScalarFloat
-  v_loop_lcfs: array_typing.ScalarFloat
-  T_i_right_bc: array_typing.ScalarFloat
-  T_e_right_bc: array_typing.ScalarFloat
+  Ip: array_typing.FloatScalar
+  v_loop_lcfs: array_typing.FloatScalar
+  T_i_right_bc: array_typing.FloatScalar
+  T_e_right_bc: array_typing.FloatScalar
   # Temperature profiles defined on the cell grid.
-  T_e: array_typing.ArrayFloat
-  T_i: array_typing.ArrayFloat
+  T_e: array_typing.FloatVector
+  T_i: array_typing.FloatVector
   # If provided as array, Psi profile defined on the cell grid.
-  psi: array_typing.ArrayFloat | None
+  psi: array_typing.FloatVector | None
   # Electron density profile on the cell grid.
-  n_e: array_typing.ArrayFloat
-  nbar: array_typing.ScalarFloat
+  n_e: array_typing.FloatVector
+  nbar: array_typing.FloatScalar
   n_e_nbar_is_fGW: bool
-  n_e_right_bc: array_typing.ScalarFloat
+  n_e_right_bc: array_typing.FloatScalar
   n_e_right_bc_is_fGW: bool
   current_profile_nu: float
   initial_j_is_total_current: bool

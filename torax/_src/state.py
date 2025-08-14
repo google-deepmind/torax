@@ -70,22 +70,22 @@ class CoreProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  q_face: array_typing.ArrayFloat
-  s_face: array_typing.ArrayFloat
-  v_loop_lcfs: array_typing.ScalarFloat
-  Z_i: array_typing.ArrayFloat
-  Z_i_face: array_typing.ArrayFloat
-  A_i: array_typing.ScalarFloat
-  Z_impurity: array_typing.ArrayFloat
-  Z_impurity_face: array_typing.ArrayFloat
-  A_impurity: array_typing.ScalarFloat
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
-  sigma: array_typing.ArrayFloat
-  sigma_face: array_typing.ArrayFloat
-  j_total: array_typing.ArrayFloat
-  j_total_face: array_typing.ArrayFloat
-  Ip_profile_face: array_typing.ArrayFloat
+  q_face: array_typing.FloatVector
+  s_face: array_typing.FloatVector
+  v_loop_lcfs: array_typing.FloatScalar
+  Z_i: array_typing.FloatVector
+  Z_i_face: array_typing.FloatVector
+  A_i: array_typing.FloatScalar
+  Z_impurity: array_typing.FloatVector
+  Z_impurity_face: array_typing.FloatVector
+  A_impurity: array_typing.FloatScalar
+  Z_eff: array_typing.FloatVector
+  Z_eff_face: array_typing.FloatVector
+  sigma: array_typing.FloatVector
+  sigma_face: array_typing.FloatVector
+  j_total: array_typing.FloatVector
+  j_total_face: array_typing.FloatVector
+  Ip_profile_face: array_typing.FloatVector
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""

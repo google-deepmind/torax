@@ -24,4 +24,4 @@ from torax._src import array_typing
 class DynamicRuntimeParams:
   """Input params for the pedestal model."""
 
-  set_pedestal: array_typing.ScalarBool
+  set_pedestal: array_typing.BoolScalar

@@ -25,10 +25,10 @@ from torax._src.geometry import geometry
 
 
 def flatten_density_profile(
-    rho_norm_q1: array_typing.ScalarFloat,
-    rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
-    flattening_factor: array_typing.ScalarFloat,
+    rho_norm_q1: array_typing.FloatScalar,
+    rho_norm_mixing: array_typing.FloatScalar,
+    redistribution_mask: array_typing.BoolVector,
+    flattening_factor: array_typing.FloatScalar,
     original_density_profile: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
@@ -96,10 +96,10 @@ def flatten_density_profile(
 
 
 def flatten_temperature_profile(
-    rho_norm_q1: array_typing.ScalarFloat,
-    rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
-    flattening_factor: array_typing.ScalarFloat,
+    rho_norm_q1: array_typing.FloatScalar,
+    rho_norm_mixing: array_typing.FloatScalar,
+    redistribution_mask: array_typing.BoolVector,
+    flattening_factor: array_typing.FloatScalar,
     original_temperature_profile: cell_variable.CellVariable,
     original_density_profile: cell_variable.CellVariable,
     flattened_density_profile: cell_variable.CellVariable,
@@ -187,13 +187,13 @@ def flatten_temperature_profile(
 
 # pylint: disable=invalid-name
 def flatten_current_profile(
-    rho_norm_q1: array_typing.ScalarFloat,
-    rho_norm_mixing: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
-    flattening_factor: array_typing.ScalarFloat,
+    rho_norm_q1: array_typing.FloatScalar,
+    rho_norm_mixing: array_typing.FloatScalar,
+    redistribution_mask: array_typing.BoolVector,
+    flattening_factor: array_typing.FloatScalar,
     original_psi_profile: cell_variable.CellVariable,
-    original_j_total_profile: array_typing.ArrayFloat,
-    Ip_total: array_typing.ScalarFloat,
+    original_j_total_profile: array_typing.FloatVector,
+    Ip_total: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Redistributes a poloidal flux profile while preserving total current.
@@ -286,12 +286,12 @@ def flatten_current_profile(
 
 
 def _get_trial_profile(
-    rho_norm_q1: array_typing.ScalarFloat,
-    rho_norm_mixing: array_typing.ScalarFloat,
-    flattening_factor: array_typing.ScalarFloat,
-    original_profile: array_typing.ArrayFloat,
+    rho_norm_q1: array_typing.FloatScalar,
+    rho_norm_mixing: array_typing.FloatScalar,
+    flattening_factor: array_typing.FloatScalar,
+    original_profile: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Returns a trial new value using two linear interpolations."""
 
   rho_norm = geo.rho_norm
@@ -317,12 +317,12 @@ def _get_trial_profile(
 
 
 def _get_scaling_factor(
-    original_profile: array_typing.ArrayFloat,
-    trial_profile: array_typing.ArrayFloat,
-    value_at_mixing_edge: array_typing.ScalarFloat,
-    redistribution_mask: array_typing.ArrayBool,
+    original_profile: array_typing.FloatVector,
+    trial_profile: array_typing.FloatVector,
+    value_at_mixing_edge: array_typing.FloatScalar,
+    redistribution_mask: array_typing.BoolVector,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Returns a profile scaling factor based on integral conservation."""
 
   # Use where mask for integration regions. Shift by mixing value to

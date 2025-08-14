@@ -148,81 +148,81 @@ class PostProcessedOutputs:
   pressure_thermal_i: cell_variable.CellVariable
   pressure_thermal_e: cell_variable.CellVariable
   pressure_thermal_total: cell_variable.CellVariable
-  pprime: array_typing.ArrayFloat
+  pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
-  W_thermal_i: array_typing.ScalarFloat
-  W_thermal_e: array_typing.ScalarFloat
-  W_thermal_total: array_typing.ScalarFloat
-  tau_E: array_typing.ScalarFloat
-  H89P: array_typing.ScalarFloat
-  H98: array_typing.ScalarFloat
-  H97L: array_typing.ScalarFloat
-  H20: array_typing.ScalarFloat
-  FFprime: array_typing.ArrayFloat
-  psi_norm: array_typing.ArrayFloat
+  W_thermal_i: array_typing.FloatScalar
+  W_thermal_e: array_typing.FloatScalar
+  W_thermal_total: array_typing.FloatScalar
+  tau_E: array_typing.FloatScalar
+  H89P: array_typing.FloatScalar
+  H98: array_typing.FloatScalar
+  H97L: array_typing.FloatScalar
+  H20: array_typing.FloatScalar
+  FFprime: array_typing.FloatVector
+  psi_norm: array_typing.FloatVector
   # Integrated heat sources
-  P_SOL_i: array_typing.ScalarFloat
-  P_SOL_e: array_typing.ScalarFloat
-  P_SOL_total: array_typing.ScalarFloat
-  P_aux_i: array_typing.ScalarFloat
-  P_aux_e: array_typing.ScalarFloat
-  P_aux_total: array_typing.ScalarFloat
-  P_external_injected: array_typing.ScalarFloat
-  P_ei_exchange_i: array_typing.ScalarFloat
-  P_ei_exchange_e: array_typing.ScalarFloat
-  P_aux_generic_i: array_typing.ScalarFloat
-  P_aux_generic_e: array_typing.ScalarFloat
-  P_aux_generic_total: array_typing.ScalarFloat
-  P_alpha_i: array_typing.ScalarFloat
-  P_alpha_e: array_typing.ScalarFloat
-  P_alpha_total: array_typing.ScalarFloat
-  P_ohmic_e: array_typing.ScalarFloat
-  P_bremsstrahlung_e: array_typing.ScalarFloat
-  P_cyclotron_e: array_typing.ScalarFloat
-  P_ecrh_e: array_typing.ScalarFloat
-  P_radiation_e: array_typing.ScalarFloat
-  I_ecrh: array_typing.ScalarFloat
-  I_aux_generic: array_typing.ScalarFloat
-  Q_fusion: array_typing.ScalarFloat
-  P_icrh_e: array_typing.ScalarFloat
-  P_icrh_i: array_typing.ScalarFloat
-  P_icrh_total: array_typing.ScalarFloat
-  P_LH_high_density: array_typing.ScalarFloat
-  P_LH_min: array_typing.ScalarFloat
-  P_LH: array_typing.ScalarFloat
-  n_e_min_P_LH: array_typing.ScalarFloat
-  E_fusion: array_typing.ScalarFloat
-  E_aux: array_typing.ScalarFloat
-  T_e_volume_avg: array_typing.ScalarFloat
-  T_i_volume_avg: array_typing.ScalarFloat
-  n_e_volume_avg: array_typing.ScalarFloat
-  n_i_volume_avg: array_typing.ScalarFloat
-  n_e_line_avg: array_typing.ScalarFloat
-  n_i_line_avg: array_typing.ScalarFloat
-  fgw_n_e_volume_avg: array_typing.ScalarFloat
-  fgw_n_e_line_avg: array_typing.ScalarFloat
-  q95: array_typing.ScalarFloat
-  W_pol: array_typing.ScalarFloat
-  li3: array_typing.ScalarFloat
-  dW_thermal_dt: array_typing.ScalarFloat
-  rho_q_min: array_typing.ScalarFloat
-  q_min: array_typing.ScalarFloat
-  rho_q_3_2_first: array_typing.ScalarFloat
-  rho_q_3_2_second: array_typing.ScalarFloat
-  rho_q_2_1_first: array_typing.ScalarFloat
-  rho_q_2_1_second: array_typing.ScalarFloat
-  rho_q_3_1_first: array_typing.ScalarFloat
-  rho_q_3_1_second: array_typing.ScalarFloat
-  I_bootstrap: array_typing.ScalarFloat
-  j_external: array_typing.ArrayFloat
-  j_ohmic: array_typing.ArrayFloat
-  S_gas_puff: array_typing.ScalarFloat
-  S_pellet: array_typing.ScalarFloat
-  S_generic_particle: array_typing.ScalarFloat
-  beta_tor: array_typing.ScalarFloat
-  beta_pol: array_typing.ScalarFloat
-  beta_N: array_typing.ScalarFloat
-  S_total: array_typing.ScalarFloat
+  P_SOL_i: array_typing.FloatScalar
+  P_SOL_e: array_typing.FloatScalar
+  P_SOL_total: array_typing.FloatScalar
+  P_aux_i: array_typing.FloatScalar
+  P_aux_e: array_typing.FloatScalar
+  P_aux_total: array_typing.FloatScalar
+  P_external_injected: array_typing.FloatScalar
+  P_ei_exchange_i: array_typing.FloatScalar
+  P_ei_exchange_e: array_typing.FloatScalar
+  P_aux_generic_i: array_typing.FloatScalar
+  P_aux_generic_e: array_typing.FloatScalar
+  P_aux_generic_total: array_typing.FloatScalar
+  P_alpha_i: array_typing.FloatScalar
+  P_alpha_e: array_typing.FloatScalar
+  P_alpha_total: array_typing.FloatScalar
+  P_ohmic_e: array_typing.FloatScalar
+  P_bremsstrahlung_e: array_typing.FloatScalar
+  P_cyclotron_e: array_typing.FloatScalar
+  P_ecrh_e: array_typing.FloatScalar
+  P_radiation_e: array_typing.FloatScalar
+  I_ecrh: array_typing.FloatScalar
+  I_aux_generic: array_typing.FloatScalar
+  Q_fusion: array_typing.FloatScalar
+  P_icrh_e: array_typing.FloatScalar
+  P_icrh_i: array_typing.FloatScalar
+  P_icrh_total: array_typing.FloatScalar
+  P_LH_high_density: array_typing.FloatScalar
+  P_LH_min: array_typing.FloatScalar
+  P_LH: array_typing.FloatScalar
+  n_e_min_P_LH: array_typing.FloatScalar
+  E_fusion: array_typing.FloatScalar
+  E_aux: array_typing.FloatScalar
+  T_e_volume_avg: array_typing.FloatScalar
+  T_i_volume_avg: array_typing.FloatScalar
+  n_e_volume_avg: array_typing.FloatScalar
+  n_i_volume_avg: array_typing.FloatScalar
+  n_e_line_avg: array_typing.FloatScalar
+  n_i_line_avg: array_typing.FloatScalar
+  fgw_n_e_volume_avg: array_typing.FloatScalar
+  fgw_n_e_line_avg: array_typing.FloatScalar
+  q95: array_typing.FloatScalar
+  W_pol: array_typing.FloatScalar
+  li3: array_typing.FloatScalar
+  dW_thermal_dt: array_typing.FloatScalar
+  rho_q_min: array_typing.FloatScalar
+  q_min: array_typing.FloatScalar
+  rho_q_3_2_first: array_typing.FloatScalar
+  rho_q_3_2_second: array_typing.FloatScalar
+  rho_q_2_1_first: array_typing.FloatScalar
+  rho_q_2_1_second: array_typing.FloatScalar
+  rho_q_3_1_first: array_typing.FloatScalar
+  rho_q_3_1_second: array_typing.FloatScalar
+  I_bootstrap: array_typing.FloatScalar
+  j_external: array_typing.FloatVector
+  j_ohmic: array_typing.FloatVector
+  S_gas_puff: array_typing.FloatScalar
+  S_pellet: array_typing.FloatScalar
+  S_generic_particle: array_typing.FloatScalar
+  beta_tor: array_typing.FloatScalar
+  beta_pol: array_typing.FloatScalar
+  beta_N: array_typing.FloatScalar
+  S_total: array_typing.FloatScalar
   # pylint: enable=invalid-name
 
   @classmethod
@@ -359,11 +359,11 @@ PARTICLE_SOURCE_TRANSFORMATIONS = {
 
 
 def _get_integrated_source_value(
-    source_profiles_dict: dict[str, array_typing.ArrayFloat],
+    source_profiles_dict: dict[str, array_typing.FloatVector],
     internal_source_name: str,
     geo: geometry.Geometry,
     integration_fn: Callable[
-        [array_typing.ArrayFloat, geometry.Geometry], jax.Array
+        [array_typing.FloatVector, geometry.Geometry], jax.Array
     ],
 ) -> jax.Array:
   """Integrates a source profile if it exists, otherwise returns 0.0."""

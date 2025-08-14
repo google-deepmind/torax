@@ -36,15 +36,15 @@ class PedestalModelOutput:
   """Output of the PedestalModel."""
 
   # The location of the pedestal.
-  rho_norm_ped_top: array_typing.ScalarFloat
+  rho_norm_ped_top: array_typing.FloatScalar
   # The index of the pedestal in rho_norm.
-  rho_norm_ped_top_idx: array_typing.ScalarInt
+  rho_norm_ped_top_idx: array_typing.IntScalar
   # The ion temperature at the pedestal.
-  T_i_ped: array_typing.ScalarFloat
+  T_i_ped: array_typing.FloatScalar
   # The electron temperature at the pedestal.
-  T_e_ped: array_typing.ScalarFloat
+  T_e_ped: array_typing.FloatScalar
   # The electron density at the pedestal in units 10^-3.
-  n_e_ped: array_typing.ScalarFloat
+  n_e_ped: array_typing.FloatScalar
 
 
 class PedestalModel(abc.ABC):

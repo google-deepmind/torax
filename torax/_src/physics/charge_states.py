@@ -31,7 +31,7 @@ from torax._src.config import plasma_composition
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
 # Radiation Effects and Defects in Solids, 173:5-6, 388-398,
 # DOI: 10.1080/10420150.2018.1462361
-_MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([  # Carbon
             [-7.2007e00, -1.2217e01, -7.3521e00, -1.7632e00, 5.8588e00],
@@ -76,7 +76,7 @@ _MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 # Temperature boundaries in keV, separating the rows for the fit coefficients.
-_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([0.7]),
         'N': np.array([0.7]),
@@ -108,20 +108,20 @@ class ChargeStateInfo:
       as a single effective species.
   """
 
-  Z_avg: array_typing.ArrayFloat
-  Z2_avg: array_typing.ArrayFloat
-  Z_per_species: array_typing.ArrayFloat
+  Z_avg: array_typing.FloatVector
+  Z2_avg: array_typing.FloatVector
+  Z_per_species: array_typing.FloatVector
 
   @property
-  def Z_mixture(self) -> array_typing.ArrayFloat:
+  def Z_mixture(self) -> array_typing.FloatVector:
     return self.Z2_avg / self.Z_avg
 
 
 # pylint: disable=invalid-name
 def calculate_average_charge_state_single_species(
-    T_e: array_typing.ArrayFloat,
+    T_e: array_typing.FloatVector,
     ion_symbol: str,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Calculates the average charge state of an impurity based on the Marvin 2018 polynomial fit.
 
   The polynomial fit range is 0.1-100 keV, which is well within the typical
@@ -165,7 +165,7 @@ def calculate_average_charge_state_single_species(
 def get_average_charge_state(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
-    T_e: array_typing.ArrayFloat,
+    T_e: array_typing.FloatVector,
 ) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 

@@ -79,9 +79,9 @@ class PelletSource(source.Source):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  pellet_width: array_typing.ScalarFloat
-  pellet_deposition_location: array_typing.ScalarFloat
-  S_total: array_typing.ScalarFloat
+  pellet_width: array_typing.FloatScalar
+  pellet_deposition_location: array_typing.FloatScalar
+  S_total: array_typing.FloatScalar
 
 
 class PelletSourceConfig(base.SourceModelBase):

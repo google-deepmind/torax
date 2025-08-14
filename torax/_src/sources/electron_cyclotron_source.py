@@ -44,11 +44,11 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
-  current_drive_efficiency: array_typing.ArrayFloat
-  extra_prescribed_power_density: array_typing.ArrayFloat
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
+  current_drive_efficiency: array_typing.FloatVector
+  extra_prescribed_power_density: array_typing.FloatVector
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
 
 
 def calc_heating_and_current(

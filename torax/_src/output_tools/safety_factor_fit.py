@@ -44,14 +44,14 @@ class SafetyFactorFit:
       plane.
   """
 
-  rho_q_min: array_typing.ScalarFloat
-  q_min: array_typing.ScalarFloat
-  rho_q_3_2_first: array_typing.ScalarFloat
-  rho_q_2_1_first: array_typing.ScalarFloat
-  rho_q_3_1_first: array_typing.ScalarFloat
-  rho_q_3_2_second: array_typing.ScalarFloat
-  rho_q_2_1_second: array_typing.ScalarFloat
-  rho_q_3_1_second: array_typing.ScalarFloat
+  rho_q_min: array_typing.FloatScalar
+  q_min: array_typing.FloatScalar
+  rho_q_3_2_first: array_typing.FloatScalar
+  rho_q_2_1_first: array_typing.FloatScalar
+  rho_q_3_1_first: array_typing.FloatScalar
+  rho_q_3_2_second: array_typing.FloatScalar
+  rho_q_2_1_second: array_typing.FloatScalar
+  rho_q_3_1_second: array_typing.FloatScalar
 
 
 def _sliding_window_of_three(flat_array: jax.Array) -> jax.Array:

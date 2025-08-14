@@ -47,7 +47,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'mavrin_fit'
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
 # Radiation Effects and Defects in Solids, 173:5-6, 388-398,
 # DOI: 10.1080/10420150.2018.1462361
-_MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'He3': np.array([
             [2.5020e-02, -9.3730e-02, 1.0156e-01, 3.1469e-01, -3.5551e01],
@@ -104,7 +104,7 @@ _MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 # Temperature boundaries in keV, separating the rows for the fit coefficients.
-_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([0.5]),
         'N': np.array([0.5, 2.0]),
@@ -120,9 +120,9 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 
 # pylint: disable=invalid-name
 def _calculate_impurity_radiation_single_species(
-    T_e: array_typing.ArrayFloat,
+    T_e: array_typing.FloatVector,
     ion_symbol: str,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Calculates the line radiation for single impurity species.
 
   Polynomial fit range is 0.1-100 keV, which is well within the typical
@@ -170,8 +170,8 @@ def _calculate_impurity_radiation_single_species(
 def calculate_total_impurity_radiation(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
-    T_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    T_e: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates impurity line radiation profile (JAX-compatible).
 
   Args:
@@ -291,4 +291,4 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  radiation_multiplier: array_typing.ScalarFloat
+  radiation_multiplier: array_typing.FloatScalar

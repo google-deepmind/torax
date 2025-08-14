@@ -39,14 +39,14 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  Z_i: array_typing.ArrayFloat
-  Z_i_face: array_typing.ArrayFloat
-  Z_impurity: array_typing.ArrayFloat
-  Z_impurity_face: array_typing.ArrayFloat
-  A_i: array_typing.ScalarFloat
-  A_impurity: array_typing.ScalarFloat
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
+  Z_i: array_typing.FloatVector
+  Z_i_face: array_typing.FloatVector
+  Z_impurity: array_typing.FloatVector
+  Z_impurity_face: array_typing.FloatVector
+  A_i: array_typing.FloatScalar
+  A_impurity: array_typing.FloatScalar
+  Z_eff: array_typing.FloatVector
+  Z_eff_face: array_typing.FloatVector
 
 
 def get_updated_ion_temperature(
@@ -305,12 +305,48 @@ def get_updated_ions(
   )
 
 
+def _get_charge_states(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    T_e: cell_variable.CellVariable,
+) -> tuple[
+    array_typing.FloatVector,
+    array_typing.FloatVector,
+    array_typing.FloatVector,
+    array_typing.FloatVector,
+]:
+  """Updated charge states based on IonMixtures and electron temperature."""
+  Z_i = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      T_e=T_e.value,
+  ).Z_mixture
+  Z_i_face = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      T_e=T_e.face_value(),
+  ).Z_mixture
+
+  Z_impurity = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.impurity_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      T_e=T_e.value,
+  ).Z_mixture
+  Z_impurity_face = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.impurity_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      T_e=T_e.face_value(),
+  ).Z_mixture
+
+  return Z_i, Z_i_face, Z_impurity, Z_impurity_face
+
+
 def _calculate_Z_eff(
-    Z_i: array_typing.ArrayFloat,
-    Z_impurity: array_typing.ArrayFloat,
-    n_i: array_typing.ArrayFloat,
-    n_impurity: array_typing.ArrayFloat,
-    n_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    Z_i: array_typing.FloatVector,
+    Z_impurity: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_impurity: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates Z_eff based on impurity and main_ion."""
   return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

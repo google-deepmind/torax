@@ -29,7 +29,7 @@ from torax._src import array_typing
 import typing_extensions
 
 
-def _zero() -> array_typing.ScalarFloat:
+def _zero() -> array_typing.FloatScalar:
   """Returns a scalar zero as a jax Array."""
   return jnp.zeros(())
 

@@ -40,8 +40,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  puff_decay_length: array_typing.ScalarFloat
-  S_total: array_typing.ScalarFloat
+  puff_decay_length: array_typing.FloatScalar
+  S_total: array_typing.FloatScalar
 
 
 # Default formula: exponential

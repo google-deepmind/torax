@@ -43,10 +43,10 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
 
-  I_generic: array_typing.ScalarFloat
-  fraction_of_total_current: array_typing.ScalarFloat
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
+  I_generic: array_typing.FloatScalar
+  fraction_of_total_current: array_typing.FloatScalar
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
   use_absolute_current: bool
 
 

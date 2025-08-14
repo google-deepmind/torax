@@ -38,7 +38,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
 
   def __call__(
       self,
-      rho_norm_q1: array_typing.ScalarFloat,
+      rho_norm_q1: array_typing.FloatScalar,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
@@ -195,7 +195,7 @@ class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
       of mixing_radius_multiplier * rho_norm_at_q1.
   """
 
-  mixing_radius_multiplier: array_typing.ScalarFloat
+  mixing_radius_multiplier: array_typing.FloatScalar
 
 
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):

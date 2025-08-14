@@ -28,7 +28,7 @@ class TriggerDynamicRuntimeParams:
     minimum_radius: Minimum radius of q=1 surface for triggering [rho_norm].
   """
 
-  minimum_radius: array_typing.ScalarFloat
+  minimum_radius: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -41,7 +41,7 @@ class RedistributionDynamicRuntimeParams:
       surface.
   """
 
-  flattening_factor: array_typing.ScalarFloat
+  flattening_factor: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -57,4 +57,4 @@ class DynamicRuntimeParams:
 
   trigger_params: TriggerDynamicRuntimeParams
   redistribution_params: RedistributionDynamicRuntimeParams
-  crash_step_duration: array_typing.ScalarFloat
+  crash_step_duration: array_typing.FloatScalar

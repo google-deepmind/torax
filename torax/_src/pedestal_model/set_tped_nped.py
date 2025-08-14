@@ -31,11 +31,11 @@ from typing_extensions import override
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  n_e_ped: array_typing.ScalarFloat
-  T_i_ped: array_typing.ScalarFloat
-  T_e_ped: array_typing.ScalarFloat
-  rho_norm_ped_top: array_typing.ScalarFloat
-  n_e_ped_is_fGW: array_typing.ScalarBool
+  n_e_ped: array_typing.FloatScalar
+  T_i_ped: array_typing.FloatScalar
+  T_e_ped: array_typing.FloatScalar
+  rho_norm_ped_top: array_typing.FloatScalar
+  n_e_ped_is_fGW: array_typing.BoolScalar
 
 
 class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
