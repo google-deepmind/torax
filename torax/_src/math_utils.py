@@ -45,6 +45,7 @@ class IntegralPreservationQuantity(enum.Enum):
     jax_utils.jit,
     static_argnames=['preserved_quantity'],
 )
+@array_typing.jaxtyped
 def cell_to_face(
     cell_values: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
@@ -197,6 +198,7 @@ def cumulative_trapezoid(
 
 
 @jax_utils.jit
+@array_typing.jaxtyped
 def cell_integration(
     x: array_typing.FloatVectorCell, geo: geometry.Geometry
 ) -> array_typing.FloatScalar:
@@ -221,6 +223,7 @@ def cell_integration(
   return jnp.sum(x * geo.drho_norm)
 
 
+@array_typing.jaxtyped
 def area_integration(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
@@ -229,6 +232,7 @@ def area_integration(
   return cell_integration(value * geo.spr, geo)
 
 
+@array_typing.jaxtyped
 def volume_integration(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
@@ -237,6 +241,7 @@ def volume_integration(
   return cell_integration(value * geo.vpr, geo)
 
 
+@array_typing.jaxtyped
 def line_average(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
@@ -245,6 +250,7 @@ def line_average(
   return cell_integration(value, geo)
 
 
+@array_typing.jaxtyped
 def volume_average(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
