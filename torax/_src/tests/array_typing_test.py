@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 
+import dataclasses
 import os
 from unittest import mock
 from absl.testing import absltest
@@ -26,6 +27,11 @@ def _f_invalid_shape(
     x: jt.Float[jax.Array, "size size"],
 ) -> jt.Float[jax.Array, "size"]:
   return x**2
+
+
+@dataclasses.dataclass(frozen=True)
+class TestClass:
+  x: jt.Float[jax.Array, "size size"]
 
 
 class ArrayTypingTest(absltest.TestCase):
@@ -49,6 +55,13 @@ class ArrayTypingTest(absltest.TestCase):
     x = jnp.ones((3, 3))
     f = array_typing.jaxtyped(_f_invalid_shape)
     f(x)
+
+  def test_dataclass(self):
+    test_class = array_typing.jaxtyped(TestClass)
+    with self.assertRaises(jt.TypeCheckError):
+      test_class(x=jnp.ones((3,)))
+
+    test_class(x=jnp.ones((3, 3)))
 
 
 if __name__ == "__main__":
