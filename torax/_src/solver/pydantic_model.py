@@ -55,7 +55,9 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       torax_pydantic.UnitInterval, torax_pydantic.JAX_STATIC
   ] = 1.0
   use_predictor_corrector: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  n_corrector_steps: pydantic.PositiveInt = 10
+  n_corrector_steps: Annotated[
+      pydantic.PositiveInt, torax_pydantic.JAX_STATIC
+  ] = 10
   convection_dirichlet_mode: Annotated[
       Literal['ghost', 'direct', 'semi-implicit'], torax_pydantic.JAX_STATIC
   ] = 'ghost'

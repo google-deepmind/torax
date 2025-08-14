@@ -36,4 +36,4 @@ class DynamicRuntimeParams:
 
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
-  n_corrector_steps: int
+  n_corrector_steps: int = dataclasses.field(metadata={'static': True})
