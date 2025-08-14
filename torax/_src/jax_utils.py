@@ -19,7 +19,6 @@ import functools
 import inspect
 import os
 from typing import Any, Callable, Literal, TypeVar
-
 import chex
 import equinox as eqx
 import jax
@@ -28,6 +27,7 @@ import numpy as np
 
 T = TypeVar('T')
 BooleanNumeric = Any  # A bool, or a Boolean array.
+PyTree = Any
 
 
 @functools.cache
@@ -296,3 +296,45 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+def batched_cond(
+    pred: jax.Array,
+    true_fun: Callable[..., PyTree],
+    false_fun: Callable[..., PyTree],
+    operands: tuple[PyTree, ...],
+    implementation: Literal['vectorize', 'map'] = 'vectorize',
+):
+  """A batched version of jax.lax.cond.
+
+  Args:
+    pred: Boolean 1D array `[batch_size]`, indicating which branch function to
+      apply.
+    true_fun: Function (A -> B), to be applied if `pred` is True.
+    false_fun: Function (A -> B), to be applied if `pred` is False.
+    operands: A tuple of arguments to pass to the functions. Each jax.Array must
+      have a leading batch dimension of size `batch_size`.
+    implementation: The implementation to use. 'vectorize' compiles to a
+      `jax.lax.select`, where both branches are evaluated. 'map' uses
+      `jax.lax.map`.
+
+  Returns:
+    The result of applying the appropriate function to each element of the
+    batch.
+  """
+
+  if not isinstance(operands, tuple):
+    raise ValueError('The args must be a tuple.')
+
+  if pred.ndim != 1 or pred.dtype != jnp.bool:
+    raise ValueError('pred must be a 1D array of bools.')
+
+  f = lambda args: jax.lax.cond(args[0], true_fun, false_fun, *args[1])
+  match implementation:
+    case 'vectorize':
+      # This is compiled to a jax.lax.select, where both branches are evaluated.
+      return jax.vmap(f)((pred, operands))
+    case 'map':
+      return jax.lax.map(f, (pred, operands))
+    case _:
+      raise ValueError(f'Unknown implementation: {implementation}')
