@@ -23,7 +23,6 @@ python3 run_simulation_main.py \
 from collections.abc import Sequence
 import enum
 import functools
-import os
 import pathlib
 import time
 
