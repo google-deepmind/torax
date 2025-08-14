@@ -61,11 +61,13 @@ def geometry_from_IMAS(
   elif imas_uri is not None:
     equilibrium = _load_geo_data(
         imas_uri,
+        'equilibrium',
         geometry_directory,
     )
   elif imas_filepath is not None:
     equilibrium = _load_geo_data(
         imas_filepath,
+        'equilibrium',
         geometry_directory,
     )
   else:
@@ -195,11 +197,12 @@ def geometry_from_IMAS(
 
 def _load_geo_data(
     uri: str,
+    ids_name: str,
     geometry_directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
   """Loads a full equilibrium IDS for a given uri or path_name and a given ids_name."""
   geometry_directory = geometry_loader.get_geometry_dir(geometry_directory)
   uri = os.path.join(geometry_directory, uri)
   with imas.DBEntry(uri=uri, mode="r") as db:
-    ids = db.get(ids_name="equilibrium")
+    ids = db.get(ids_name=ids_name)
   return ids

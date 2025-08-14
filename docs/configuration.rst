@@ -1996,6 +1996,18 @@ There are three main methods to load IMAS equilibrium:
 * Providing the equilibium IDS on the fly (equilibrium_object).
   Using this method the IDS can be provided externally or pre-loaded.
 
+Loading Profiles
+^^^^^^^^^^^^^^^^
+
+The initial and optionnally prescribed time-dependence of the temperature, density and current profiles given in the config can be loaded from any IMAS core_profiles or plasma_profiles IDS.
+The IDSs needs to be in Data Dictionary version 4.0.0 or newer.
+The mapping function :todo:`add the actual link to the function` |core_profiles_from_imas| returns a dictionary with the data from core_profiles to load into the config. The IDS needs to be provided on the fly as it can be done for the geometry.
+The IDS object can be loaded from an IMAS netCDF file using the `IMAS-Python library <https://imas-python.readthedocs.io/en/latest/netcdf.html>`_ .
+
+It is then possible to start a simulation by loading a pre-existing config and then update it with the dictionary containing the IMAS profiles using the function :todo:`same: add the link to the help function` |update_dict|.
+
+
+
 Config example
 ==============
 
