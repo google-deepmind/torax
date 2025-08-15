@@ -205,7 +205,25 @@ def impurity_radiation_mavrin_fit(
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
   ion_symbols = static_runtime_params_slice.impurity_names
-  ion_mixture = dynamic_runtime_params_slice.plasma_composition.impurity
+
+  impurity_mode = (
+      dynamic_runtime_params_slice.plasma_composition.impurity.impurity_mode
+  )
+
+  match impurity_mode:
+    case plasma_composition.IMPURITY_MODE_FRACTIONS:
+      ion_mixture = dynamic_runtime_params_slice.plasma_composition.impurity
+
+    case plasma_composition.IMPURITY_MODE_NE_RATIOS:
+      ion_mixture = plasma_composition.DynamicIonMixture(
+          fractions=dynamic_runtime_params_slice.plasma_composition.impurity.fractions,
+          avg_A=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+          Z_override=dynamic_runtime_params_slice.plasma_composition.impurity.Z_override,
+      )
+    case _:
+      # Not expected to be reached but needed to avoid linter errors.
+      raise ValueError(f'Unknown impurity mode: {impurity_mode}')
+
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=ion_symbols,
       ion_mixture=ion_mixture,

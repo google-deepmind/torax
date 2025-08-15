@@ -27,8 +27,13 @@ from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+from typing_extensions import Final
 
 # pylint: disable=invalid-name
+
+# Constants for impurity modes.
+IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
+IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
 
 
 @jax.tree_util.register_dataclass
@@ -60,7 +65,7 @@ class DynamicImpurityFractions(DynamicIonMixture):
   """Extends DynamicIonMixture to include (static) impurity_mode."""
 
   impurity_mode: str = dataclasses.field(
-      default='fractions', metadata={'static': True}
+      default=IMPURITY_MODE_FRACTIONS, metadata={'static': True}
   )
 
 
@@ -73,7 +78,7 @@ class DynamicNeRatios:
   avg_A: array_typing.FloatScalar
   Z_override: array_typing.FloatScalar | None = None
   impurity_mode: str = dataclasses.field(
-      default='n_e_ratios', metadata={'static': True}
+      default=IMPURITY_MODE_NE_RATIOS, metadata={'static': True}
   )
 
   @property
@@ -139,9 +144,9 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 class ImpurityFractionsModel(IonMixture):
   """Impurity content defined by fractional abundances."""
 
-  impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
-      'fractions'
-  )
+  impurity_mode: Annotated[
+      Literal['fractions'], torax_pydantic.JAX_STATIC
+  ] = 'fractions'
   # Default impurity setting. Parent class has species without a default.
   species: runtime_validation_utils.IonMapping = (
       torax_pydantic.ValidatedDefault({'Ne': 1.0})
@@ -165,7 +170,7 @@ class ImpurityFractionsModel(IonMixture):
     # Maps legacy inputs to the new API format.
     # TODO(b/434175938): Remove this once V1 API is deprecated.
     if 'species' not in data and 'impurity_mode' not in data:
-      return {'species': data, 'impurity_mode': 'fractions'}
+      return {'species': data, 'impurity_mode': IMPURITY_MODE_FRACTIONS}
     return data
 
 
@@ -175,9 +180,9 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
-  impurity_mode: Annotated[Literal['n_e_ratios'], torax_pydantic.JAX_STATIC] = (
-      'n_e_ratios'
-  )
+  impurity_mode: Annotated[
+      Literal['n_e_ratios'], torax_pydantic.JAX_STATIC
+  ] = 'n_e_ratios'
 
   def build_dynamic_params(
       self,
@@ -296,7 +301,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # overrides are removed, and set default directly in class attribute.
     if 'impurity' not in configurable_data:
       configurable_data['impurity'] = {
-          'impurity_mode': 'fractions',
+          'impurity_mode': IMPURITY_MODE_FRACTIONS,
           'Z_override': Z_impurity_override,
           'A_override': A_impurity_override,
       }
@@ -321,7 +326,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # Non-conformant inputs are caught by ImpurityFractionsModel validation.
     # TODO(b/434175938): Remove this once V1 API is deprecated.
     configurable_data['impurity'] = {
-        'impurity_mode': 'fractions',
+        'impurity_mode': IMPURITY_MODE_FRACTIONS,
         'species': impurity_data,
         'Z_override': Z_impurity_override,
         'A_override': A_impurity_override,
@@ -336,8 +341,9 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         and self.Z_eff.value != 1.0  # default value if input Z_eff is None
     ):
       logging.warning(
-          "Z_eff is provided but impurity_mode is 'n_e_ratios'. Z_eff will be"
-          ' an emergent quantity and the input value will be ignored.'
+          "Z_eff is provided but impurity_mode is '%s'. Z_eff will be an"
+          ' emergent quantity and the input value will be ignored.',
+          IMPURITY_MODE_NE_RATIOS,
       )
     return self
 

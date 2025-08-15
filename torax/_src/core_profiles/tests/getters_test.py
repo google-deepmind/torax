@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
+from torax._src.config import plasma_composition as plasma_composition_lib
 from torax._src.config import profile_conditions as profile_conditions_lib
-from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
@@ -457,12 +457,118 @@ class GettersTest(parameterized.TestCase):
     ) * ions.Z_impurity**2
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
+  def test_get_updated_ions_with_n_e_ratios(self):
+    """Tests get_updated_ions for n_e_ratios vs fractions mode."""
+    # 1. Define ground truth plasma parameters
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ne': 0.005, 'Ar': 0.001}
+    impurity_symbols = tuple(n_e_ratios.keys())
 
-def _create_static_slice_mock(
-) -> runtime_params_slice.StaticRuntimeParamsSlice:
-  return mock.create_autospec(
-      runtime_params_slice.StaticRuntimeParamsSlice, instance=True,
-  )
+    # 2. Calculate equivalent fractions and Z_eff for a fractions-based config
+    # Calculate charge states
+    z_main = constants.ION_PROPERTIES_DICT['D'].Z
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            jnp.array(t_e_keV), symbol
+        )
+        for symbol in impurity_symbols
+    }
+
+    # Calculate Z_eff
+    zeff = (
+        1 - sum(r * z_impurities[s] for s, r in n_e_ratios.items())
+    ) * z_main + sum(r * z_impurities[s] ** 2 for s, r in n_e_ratios.items())
+
+    # Calculate impurity fractions
+    total_impurity_ratio = sum(n_e_ratios.values())
+    impurity_fractions = {
+        symbol: ratio / total_impurity_ratio
+        for symbol, ratio in n_e_ratios.items()
+    }
+
+    # 3. Create the two configurations
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib.IMPURITY_MODE_NE_RATIOS,
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # Config 2: fractions + Z_eff
+    config_dict_fractions = base_config_dict.copy()
+    config_dict_fractions['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib.IMPURITY_MODE_FRACTIONS,
+            'species': impurity_fractions,
+        },
+        'Z_eff': float(zeff),
+    }
+    torax_config_fractions = model_config.ToraxConfig.from_dict(
+        config_dict_fractions
+    )
+
+    # 4. Run get_updated_ions for both and compare
+    def _run_get_updated_ions(torax_config):
+      provider = (
+          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+              torax_config
+          )
+      )
+      static_slice = build_runtime_params.build_static_params_from_config(
+          torax_config
+      )
+      dynamic_runtime_params_slice = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          static_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ions_fractions = _run_get_updated_ions(torax_config_fractions)
+
+    # 5. Assertions
+    chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
 
 
 if __name__ == '__main__':

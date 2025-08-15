@@ -419,17 +419,20 @@ follows:
       **time-varying-scalar**. The ion mixture API thus supports features such
       as time varying isotope ratios.
 
-``impurity`` (dict[str, **time-varying-scalar**] | str [default = ``'Ne'``])
-  Specifies the impurity species, following the same syntax as ``main_ion``. A
-  single effective impurity species is currently supported, although multiple
-  impurities can still be defined as a mixture.
+``impurity`` (dict)
+  Specifies the impurity species. The way impurities are defined is set by the
+  ``impurity_mode`` field within this dictionary. Two modes are supported:
+  ``'fractions'`` and ``'n_e_ratios'``. See the "Plasma Composition Examples"
+  section below for details. For backward compatibility, legacy formats (e.g.,
+  ``'impurity': 'Ne'`` or ``'impurity': {'Ne': 0.8, 'Ar': 0.2}``) are
+  automatically converted to the ``'fractions'`` mode.
 
 ``Z_eff`` ( **time-varying-array** [default = 1.0])
-  Plasma effective charge number, defined as
-  :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is the
-  normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and
-  impurity charge states, a consistent :math:`\hat{n}_i` is calculated, with the
-  appropriate degree of main ion dilution.
+  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`,
+  where :math:`\hat{n}_i` is the normalized ion density :math:`n_i/n_e`. This is
+  a required input when using the ``'fractions'`` impurity mode. When using the
+  ``'n_e_ratios'`` mode, ``Z_eff`` is an emergent calculated quantity, and any
+  user-provided ``Z_eff`` value will be ignored (a warning will be issued).
 
 ``Z_i_override`` (**time-varying-scalar** | None [default = None])
   An optional override for the main ion's charge (Z) or average charge of an
@@ -442,12 +445,18 @@ follows:
   calculated from the ``main_ion`` specification.
 
 ``Z_impurity_override`` (**time-varying-scalar** | None [default = None])
-  As ``Z_i_override``, but for the impurity ion. If provided, this value will be
-  used instead of the Z calculated from the ``impurity`` specification.
+  (DEPRECATED) As ``Z_i_override``, but for the impurity ion. This is only used
+  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
+  When using the new API (with ``impurity_mode``), this parameter is ignored
+  and a warning is issued. Use ``Z_override`` inside the ``impurity`` dictionary
+  instead.
 
 ``A_impurity_override`` (**time-varying-scalar** | None [default = None])
-  As ``A_i_override``, but for the impurity ion. If provided, this value will be
-  used instead of the A calculated from the ``impurity`` specification.
+  (DEPRECATED) As ``A_i_override``, but for the impurity ion. This is only used
+  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
+  When using the new API (with ``impurity_mode``), this parameter is ignored
+  and a warning is issued. Use ``A_override`` inside the ``impurity`` dictionary
+  instead.
 
 The average charge state of each ion in each mixture is determined by
 `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_, which are
@@ -455,15 +464,15 @@ fitted to atomic data, and in the temperature ranges of interest in the tokamak
 core, are well approximated as 1D functions of electron temperature. All ions
 with atomic numbers below Carbon are assumed to be fully ionized.
 
-Plasma composition examples
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Plasma Composition Examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We remind that for all cases below, the impurity density is solely constrained
-by the input ``Z_eff`` value and the impurity charge state, presently assumed to
-be fully ionized. Imminent development will support temperature-dependent
-impurity average charge states,
+**1. Main Ion settings**
 
-* Pure deuterium plasma:
+In all examples below, the impurity mode is the default ``'fractions'`` mode,
+with a single impurity species set for each case.
+
+* Pure deuterium main ions:
 
   .. code-block:: python
 
@@ -473,7 +482,7 @@ impurity average charge states,
         'Z_eff': 1.5,
     }
 
-* 50-50 DT ion mixture:
+* 50-50 DT main ion mixture:
 
   .. code-block:: python
 
@@ -483,7 +492,7 @@ impurity average charge states,
         'Z_eff': 1.8,
     }
 
-* Time-varying DT ion mixture:
+* Time-varying DT main ion mixture:
 
   .. code-block:: python
 
@@ -493,8 +502,94 @@ impurity average charge states,
         'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
       },
       'impurity': 'W',  # Tungsten
-      'Z_eff': 2.0,
+      'Z_eff': 1.1,
     }
+
+
+**2. Impurity Fractions Mode (`impurity_mode: 'fractions'`)**
+
+This is the default and backward-compatible mode. You provide fractional
+abundances for a set of impurities, which are then treated as a single
+effective impurity species. ``Z_eff`` is a required input to constrain the
+total impurity density. Attributes in the ``impurity`` dict are as follows:
+
+*   ``impurity_mode`` (str): Must be ``'fractions'``.
+*   ``species`` (dict[str, **time-varying-scalar**] | str): A single impurity
+    string (e.g., ``'Ne'``) or a dict of impurities and their fractional
+    abundances within the impurity mix (e.g., ``{'Ne': 0.8, 'Ar': 0.2}``).
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: Pure deuterium plasma with a Neon impurity, constrained by a time- and
+space-varying Z_eff.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'fractions',
+          'species': 'Ne',
+      },
+      'Z_eff': {
+          0.0: {0.0: 1.2, 1.0: 1.5}, # At t=0, Z_eff profile from 1.2 to 1.5
+          5.0: {0.0: 2.0, 1.0: 2.5}, # At t=5, Z_eff profile from 2.0 to 2.5
+      },
+  }
+
+Example: Pure deuterium plasma with Neon and Argon impurity, consistent with a
+flat and constant Z_eff, and time varying fractional abundances.
+
+.. code-block:: python
+
+  'plasma_composition': {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': {
+                'Ne': {0.0: 0.1, 5.0: 0.9},
+                'Ar': {0.0: 0.9, 5.0: 0.1},
+            },
+        },
+        'Z_eff': 2.0,
+    }
+
+**3. Impurity n_e Ratios Mode (`impurity_mode: 'n_e_ratios'`)**
+
+Specify the density of each impurity species as a ratio of the electron density
+(n_impurity / n_e). In this mode, ``Z_eff`` is an emergent quantity calculated
+by TORAX, and any user-provided ``Z_eff`` will be ignored (a warning will be
+issued).
+
+*   ``impurity_mode`` (str): Must be ``'n_e_ratios'``.
+*   ``species`` (dict[str, **time-varying-scalar**]): A dict mapping each
+    impurity symbol to its density ratio with n_e. The values must be
+    non-negative.
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: A plasma with a time-varying Tungsten concentration and constant Neon.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'n_e_ratios',
+          'species': {
+              'W': {0.0: 1e-5, 10.0: 1e-4}, # n_W/n_e ramps from 1e-5 to 1e-4
+              'Ne': 0.01, # n_Ne/n_e is constant
+          },
+      },
+      # 'Z_eff': 2.0 # This would be ignored and a warning would be issued.
+  }
+
+Too large impurity ratios may lead to negative main ion densities being
+calculated, which will lead to TORAX returning an error.
 
 Allowed ion symbols
 ^^^^^^^^^^^^^^^^^^^
@@ -1128,36 +1223,37 @@ The runtime parameters are as follows.
 Example:
 
 .. code-block:: python
+
+  ...
+  'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+          {
+              'model_name': 'constant',
+              'chi_i': 1.0,
+              'rho_max': 0.3,
+          },
+          {
+              'model_name': 'constant',
+              'chi_i': 2.0,
+              'rho_min': 0.2,
+          },
+      ],
+      'pedestal_transport_models': [
+          {
+              'model_name': 'constant',
+              'chi_i': 0.5,
+          },
+      ],
+    },
+    'pedestal': {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+        'rho_norm_ped_top': 0.9,
+        'n_e_ped': 0.8,
+        'n_e_ped_is_fGW': True,
+    },
     ...
-    'transport': {
-        'model_name': 'combined',
-        'transport_models': [
-            {
-               'model_name': 'constant',
-               'chi_i': 1.0,
-               'rho_max': 0.3,
-            },
-            {
-                'model_name': 'constant',
-                'chi_i': 2.0,
-                'rho_min': 0.2,
-            },
-        ],
-        'pedestal_transport_models': [
-            {
-                'model_name': 'constant',
-                'chi_i': 0.5,
-            },
-        ],
-      },
-      'pedestal': {
-          'model_name': 'set_T_ped_n_ped',
-          'set_pedestal': True,
-          'rho_norm_ped_top': 0.9,
-          'n_e_ped': 0.8,
-          'n_e_ped_is_fGW': True,
-      },
-      ...
 
 This would produce a ``chi_i`` profile that looks like the following.
 
@@ -1744,8 +1840,8 @@ transport
   * ``'angioni_sauter'``
     The Angioni-Sauter neoclassical transport model from
     `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-     This is the default model. This model does not have any additional
-     configurable parameters.
+    This is the default model. This model does not have any additional
+    configurable parameters.
 
 restart
 -------

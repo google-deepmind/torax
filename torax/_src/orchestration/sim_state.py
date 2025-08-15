@@ -90,8 +90,10 @@ def _log_nans(
   if nan_count >= 10:
     logging.info("""\nA common cause of widespread NaNs is negative densities or
         temperatures evolving during the solver step. This often arises through
-        physical reasons like radiation collapse. Check the output file for
-        near-zero temperatures or densities at the last valid step.""")
+        physical reasons like radiation collapse, or unphysical configuration
+        such as impurity densities incompatible with physical quasineutrality.
+        Check the output file for near-zero temperatures or densities at the
+        last valid step.""")
 
 
 def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:

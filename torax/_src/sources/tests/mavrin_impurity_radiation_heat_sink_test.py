@@ -14,6 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.config import plasma_composition
 from torax._src.core_profiles import initialization
@@ -34,6 +35,37 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         source_config_class=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         model_name=impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME,
+    )
+
+  def _run_source_model(self, torax_config: model_config.ToraxConfig):
+    """Helper to run the impurity radiation model for a given config."""
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    )
+    dynamic_runtime_params_slice = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        static_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
+        neoclassical_models,
+    )
+    return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
+        static_runtime_params_slice=static_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        unused_geo=geo,
+        source_name=self._source_name,
+        core_profiles=core_profiles,
+        unused_calculated_source_profiles=None,
+        unused_conductivity=None,
     )
 
   def test_correct_dynamic_params_built(self):
@@ -362,36 +394,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     # --- 3. Call the function under test ---
-    provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
-    dynamic_runtime_params_slice = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
-    core_profiles = initialization.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
-        geo,
-        source_models,
-        neoclassical_models,
-    )
-    calculated_radiation = (
-        impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
-            static_runtime_params_slice=static_slice,
-            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-            unused_geo=geo,
-            source_name=self._source_name,
-            core_profiles=core_profiles,
-            unused_calculated_source_profiles=None,
-            unused_conductivity=None,
-        )
-    )
+    calculated_radiation = self._run_source_model(torax_config)
 
     # --- 4. Assertions ---
     np.testing.assert_allclose(
@@ -401,6 +404,102 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         err_msg=(
             'Radiation from mixture does not match sum of individual'
             ' radiations.'
+        ),
+    )
+
+  def test_radiation_from_ne_ratios_vs_fractions(self):
+    """Test that n_e_ratios and fractions impurity modes give same radiation."""
+    # 1. Define plasma parameters
+    t_e_keV = 15.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ar': 0.001, 'W': 0.0001}
+    impurity_symbols = tuple(n_e_ratios.keys())
+    main_ion_symbol = 'D'
+
+    # 2. Calculate equivalent fractions and Z_eff for the fractions-based config
+    # Calculate charge states
+    z_main = constants.ION_PROPERTIES_DICT[main_ion_symbol].Z
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            np.array(t_e_keV), symbol
+        )
+        for symbol in impurity_symbols
+    }
+
+    # Calculate Z_eff
+    zeff = (1 - sum(
+        r * z_impurities[s] for s, r in n_e_ratios.items()
+    )) * z_main + sum(r * z_impurities[s] ** 2 for s, r in n_e_ratios.items())
+
+    # Calculate impurity fractions
+    total_impurity_ne_ratio = sum(n_e_ratios.values())
+    impurity_fractions = {
+        symbol: ratio / total_impurity_ne_ratio
+        for symbol, ratio in n_e_ratios.items()
+    }
+
+    # 3. Create the two configurations
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_i': t_e_keV,
+            'n_e_right_bc': n_e_val,
+            'T_e_right_bc': t_e_keV,
+            'T_i_right_bc': t_e_keV,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {self._source_name: {'model_name': self._model_name}},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': main_ion_symbol,
+        'impurity': {
+            'impurity_mode': (
+                plasma_composition.IMPURITY_MODE_NE_RATIOS
+            ),
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # Config 2: fractions + Z_eff
+    config_dict_fractions = base_config_dict.copy()
+    config_dict_fractions['plasma_composition'] = {
+        'main_ion': main_ion_symbol,
+        'impurity': {
+            'impurity_mode': (
+                plasma_composition.IMPURITY_MODE_FRACTIONS
+            ),
+            'species': impurity_fractions,
+        },
+        'Z_eff': float(zeff),
+    }
+    torax_config_fractions = model_config.ToraxConfig.from_dict(
+        config_dict_fractions
+    )
+
+    # 4. Run the impurity radiation model for both and compare
+    radiation_ne_ratios = self._run_source_model(torax_config_ne_ratios)
+    radiation_fractions = self._run_source_model(torax_config_fractions)
+
+    # 5. Assertions
+    np.testing.assert_allclose(
+        radiation_ne_ratios,
+        radiation_fractions,
+        rtol=1e-6,
+        err_msg=(
+            'Radiation from n_e_ratios mode does not match radiation from'
+            ' fractions mode.'
         ),
     )
 

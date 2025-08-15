@@ -196,7 +196,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
           testcase_name='new_api_explicit',
           config={
               'impurity': {
-                  'impurity_mode': 'fractions',
+                  'impurity_mode': (
+                      plasma_composition.IMPURITY_MODE_FRACTIONS
+                  ),
                   'species': {'C': 0.5, 'N': 0.5},
                   'Z_override': 6.5,
                   'A_override': 13.0,
@@ -211,7 +213,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
           testcase_name='new_api_n_e_ratios',
           config={
               'impurity': {
-                  'impurity_mode': 'n_e_ratios',
+                  'impurity_mode': (
+                      plasma_composition.IMPURITY_MODE_NE_RATIOS
+                  ),
                   'species': {'C': 0.01, 'N': 0.02},
                   'Z_override': 6.5,
                   'A_override': 13.0,
@@ -251,7 +255,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertLogs(level='WARNING') as log_output:
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'fractions',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_FRACTIONS,
               'species': 'Ne',
               'Z_override': 5.0,
           },
@@ -267,13 +271,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertLogs(level='WARNING') as log_output:
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'n_e_ratios',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
               'species': {'Ne': 0.01},
           },
           Z_eff=1.5,
       )
       self.assertIn(
-          "Z_eff is provided but impurity_mode is 'n_e_ratios'",
+          'Z_eff is provided but impurity_mode is'
+          f" '{plasma_composition.IMPURITY_MODE_NE_RATIOS}'",
           log_output[0][0].message,
       )
 
@@ -282,7 +287,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'n_e_ratios',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
               'species': {'Ne': -0.1},
           }
       )
@@ -296,7 +301,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'n_e_ratios',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
@@ -304,7 +309,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     pc_fractions = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'fractions',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_FRACTIONS,
             'species': fractions_species,
         }
     )
@@ -320,7 +325,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     """Smoke test for JIT compilation of NeRatiosModel."""
     pc = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'n_e_ratios',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS,
             'species': {'C': {0.0: 0.01}, 'N': {0.0: 0.02}},
         }
     )

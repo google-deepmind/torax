@@ -259,6 +259,12 @@ class SimError(enum.Enum):
       case SimError.REACHED_MIN_DT:
         logging.error("""
             Simulation stopped because the adaptive time step became too small.
+            A common cause of vanishing timesteps is due to the nonlinear solver
+            tending to negative densities or temperatures. This often arises
+            through physical reasons like radiation collapse, or unphysical
+            configuration such as impurity densities incompatible with physical
+            quasineutrality. Check the output file for near-zero temperatures or
+            densities at the last valid step.
             """)
       case SimError.NO_ERROR:
         pass
