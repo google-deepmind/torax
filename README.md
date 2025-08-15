@@ -70,7 +70,7 @@ is outlined in our readthedocs pages.
 
 ### Requirements
 
-Install Python 3.10 or greater.
+Install Python 3.11 or greater.
 
 Make sure that tkinter is installed:
 
