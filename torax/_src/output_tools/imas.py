@@ -74,7 +74,7 @@ def torax_state_to_imas_equilibrium(
   try:
     eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
   except ValueError as e:
-    pass
+    logging.warning(e)
   eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
   eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
   eq.profiles_1d.volume = geometry.volume_face
