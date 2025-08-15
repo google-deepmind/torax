@@ -14,9 +14,9 @@
 """Base class and utils for TGLF-based models."""
 import dataclasses
 
-import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.geometry import geometry
@@ -37,94 +37,97 @@ class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
 @dataclasses.dataclass(frozen=True)
 class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   r"""Dimensionless inputs to TGLF-based models.
-
   See https://gafusion.github.io/doc/tglf/tglf_table.html for definitions.
+
+  Attributes:
+    Ti_over_Te: Ratio of ion temperature to electron temperature.
+    r_minor: Flux surface centroid minor radius.
+    dr_major: Gradient of the flux surface centroid major radius with respect to
+      the minor radius (:math:`dr_{major}/dr_{minor}`).
+    q: The safety factor.
+    q_prime: Magnetic shear, defined as :math:`\frac{q^2 a^2 s}{r^2}`.
+    nu_ee: The electron-electron collision frequency.
+    kappa: Plasma elongation.
+    kappa_shear: Shear in elongation, defined as
+      :math:`\frac{r}{\kappa} \frac{d\kappa}{dr}`.
+    delta: Plasma triangularity.
+    delta_shear: Shear in triangularity, defined as :math:`r\frac{d\delta}{dr}`.
+    beta_e: Electron pressure normalized by TGLF's :math:`B_\mathrm{unit}`.
+    Zeff: Effective charge.
   """
 
-  # Ti/Te
-  Ti_over_Te: chex.Array
-  # Flux surface centroid minor radius
-  r_minor: chex.Array
-  # Flux surface centroid major radius gradient, drmajor/dr
-  dr_major: chex.Array
-  # q
-  q: chex.Array
-  # q^2 a^2 s / r^2
-  q_prime: chex.Array
-  # nu_ee (see note in prepare_tglf_inputs)
-  nu_ee: chex.Array
-  # Elongation, kappa
-  kappa: chex.Array
-  # Shear in elongation, r/kappa dkappa/dr
-  kappa_shear: chex.Array
-  # Triangularity, delta
-  delta: chex.Array
-  # Shear in triangularity, r ddelta/dr
-  delta_shear: chex.Array
-  # Electron pressure defined w.r.t B_unit
-  beta_e: chex.Array
-  # Effective charge
-  Zeff: chex.Array
+  Ti_over_Te: array_typing.FloatVectorFace
+  r_minor: array_typing.FloatVectorFace
+  dr_major: array_typing.FloatVectorFace
+  q: array_typing.FloatVectorFace
+  q_prime: array_typing.FloatVectorFace
+  nu_ee: array_typing.FloatVectorFace
+  kappa: array_typing.FloatVectorFace
+  kappa_shear: array_typing.FloatVectorFace
+  delta: array_typing.FloatVectorFace
+  delta_shear: array_typing.FloatVectorFace
+  beta_e: array_typing.FloatVectorFace
+  Zeff: array_typing.FloatVectorFace
 
   # Also define all the TGLF notations for the variables
   @property
-  def TAUS_2(self):
+  def TAUS_2(self) -> array_typing.FloatVectorFace:
     return self.Ti_over_Te
 
   @property
-  def DRMAJDX_LOC(self):
+  def DRMAJDX_LOC(self) -> array_typing.FloatVectorFace:
     return self.dr_major
 
   @property
-  def Q_LOC(self):
+  def Q_LOC(self) -> array_typing.FloatVectorFace:
     return self.q
 
   @property
-  def Q_PRIME_LOC(self):
+  def Q_PRIME_LOC(self) -> array_typing.FloatVectorFace:
     return self.q_prime
 
   @property
-  def XNUE(self):
+  def XNUE(self) -> array_typing.FloatVectorFace:
     return self.nu_ee
 
   @property
-  def KAPPA_LOC(self):
+  def KAPPA_LOC(self) -> array_typing.FloatVectorFace:
     return self.kappa
 
   @property
-  def S_KAPPA_LOC(self):
+  def S_KAPPA_LOC(self) -> array_typing.FloatVectorFace:
     return self.kappa_shear
 
   @property
-  def DELTA_LOC(self):
+  def DELTA_LOC(self) -> array_typing.FloatVectorFace:
     return self.delta
 
   @property
-  def S_DELTA_LOC(self):
+  def S_DELTA_LOC(self) -> array_typing.FloatVectorFace:
     return self.delta_shear
 
   @property
-  def BETAE(self):
+  def BETAE(self) -> array_typing.FloatVectorFace:
     return self.beta_e
 
   @property
-  def ZEFF(self):
+  def ZEFF(self) -> array_typing.FloatVectorFace:
     return self.Zeff
 
   @property
-  def RLNS_1(self):
+  def RLNS_1(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lne
 
   @property
-  def RLTS_1(self):
+  def RLTS_1(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lte
 
   @property
-  def RLTS_2(self):
+  def RLTS_2(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lti
 
   @property
-  def RMIN_LOC(self):
+  def RMIN_LOC(self) -> array_typing.FloatVectorFace:
     return self.r_minor
 
 
@@ -183,7 +186,7 @@ class TGLFBasedTransportModel(
     #   https://gafusion.github.io/doc/cgyro.html#faq
     # - c_s (ion sound speed)
     #   https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
-    m_D_amu = 2.014  # Mass of deuterium [amu] TODO: load from lookup table
+    m_D_amu = constants.ION_PROPERTIES_DICT['D'].A  # Mass of deuterium [amu]
     m_D = m_D_amu * constants.mp  # Mass of deuterium [kg]
     c_s = (T_e / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
@@ -221,10 +224,22 @@ class TGLFBasedTransportModel(
     #   This is different to Wesson by about ~0.5%. Below, we use the TLGF
     #   version, but with n_e [m^-3] and T_e [J].
     log_Lambda = 74.2 - 0.5 * jnp.log(n_e) + jnp.log(T_e)
-    nu_ee = (jnp.sqrt(2) * n_e * constants.qe**4 * log_Lambda) / (
-        16 * jnp.pi * constants.epsilon0**2 * constants.me**0.5 * T_e**1.5
+
+    # ν_ee = (sqrt(2) n_e q_e^4 lnΛ) / (16 π ε_0^2 m_e^0.5 T_e^1.5)
+    # Compute via the log for stability
+    log_nu_ee = (
+        0.5 * jnp.log(2)
+        + jnp.log(n_e)
+        + 4 * jnp.log(constants.qe)
+        + jnp.log(log_Lambda)
+        - jnp.log(16)
+        - jnp.log(jnp.pi)
+        - 2 * jnp.log(constants.epsilon0)
+        - 0.5 * jnp.log(constants.me)
+        - 1.5 * jnp.log(T_e)
     )
-    normalized_nu_ee = nu_ee / (c_s / a)
+
+    normalized_nu_ee = jnp.exp(log_nu_ee) / (c_s / a)
 
     # Dimensionless safety factor shear
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-q-prime-loc
