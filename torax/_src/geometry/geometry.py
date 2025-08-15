@@ -340,11 +340,7 @@ class Geometry:
   @property
   def gm9(self) -> jax.Array:
     r"""<1/R> on cell grid [:math:`\mathrm{m}^{-1}`]."""
-    bulk = 2 * jnp.pi * self.spr[..., 1:] / self.vpr[..., 1:]
-    first_element = 1 / self.R_major
-    return jnp.concatenate(
-        [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
-    )
+    return 2 * jnp.pi * self.spr / self.vpr
 
   @property
   def gm9_face(self) -> jax.Array:
