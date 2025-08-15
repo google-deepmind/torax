@@ -74,8 +74,9 @@ def geometry_from_IMAS(
   # TODO(b/431977390): Currently only the first time slice is used, extend to
   # support multiple time slices.
   IMAS_data = equilibrium.time_slice[0]
-  B_0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_phi)
   R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)
+  # B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
+  B_0 = np.asarray(np.abs(IMAS_data.profiles_1d.f[-1]) / R_major)
 
   # Poloidal flux.
   psi = 1 * IMAS_data.profiles_1d.psi  # Sign changed ddv4
