@@ -35,6 +35,11 @@ from torax._src.torax_pydantic.model_config import ToraxConfig
 
 # pylint: enable=g-importing-member
 
+os.environ['XLA_FLAGS'] = (
+    os.environ.get('XLA_FLAGS', '')
+    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+)
+
 __version__ = version.TORAX_VERSION
 __version_info__ = version.TORAX_VERSION_INFO
 

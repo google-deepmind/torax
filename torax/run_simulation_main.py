@@ -23,6 +23,7 @@ python3 run_simulation_main.py \
 from collections.abc import Sequence
 import enum
 import functools
+import os
 import pathlib
 import time
 
@@ -36,6 +37,10 @@ from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
 
+os.environ['XLA_FLAGS'] = (
+    os.environ.get('XLA_FLAGS', '')
+    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+)
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '

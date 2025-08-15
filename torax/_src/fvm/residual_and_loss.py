@@ -292,17 +292,6 @@ def theta_method_block_residual(
         'evolving_names',
     ],
 )
-def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-function-docstring
-  return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
-
-
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'static_runtime_params_slice',
-        'evolving_names',
-    ],
-)
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,

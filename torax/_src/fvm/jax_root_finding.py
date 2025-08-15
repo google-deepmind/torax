@@ -47,6 +47,7 @@ def root_newton_raphson(
     delta_reduction_factor: float = 0.5,
     tau_min: float = 0.01,
     log_iterations: bool = False,
+    use_jax_custom_root: bool = True,
 ) -> tuple[jax.Array, RootMetadata]:
   """A differentiable Newton-Raphson root finder.
 
@@ -66,6 +67,9 @@ def root_newton_raphson(
       routine resets at a lower timestep.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
+    use_jax_custom_root: If true, use jax.lax.custom_root to allow for
+      differentiable solving. This can increase compile times even when no
+      derivatives are requested.
 
   Returns:
     A tuple `(x_root, RootMetadata(...))`.
@@ -113,13 +117,16 @@ def root_newton_raphson(
   def back(g, y):
     return jnp.linalg.solve(jax.jacfwd(g)(y), y)
 
-  x_out, metadata = jax.lax.custom_root(
-      f=fun,
-      initial_guess=x0,
-      solve=_newton_raphson,
-      tangent_solve=back,
-      has_aux=True,
-  )
+  if use_jax_custom_root:
+    x_out, metadata = jax.lax.custom_root(
+        f=fun,
+        initial_guess=x0,
+        solve=_newton_raphson,
+        tangent_solve=back,
+        has_aux=True,
+    )
+  else:
+    x_out, metadata = _newton_raphson(fun, x0)
 
   # Tell the caller whether or not x_new successfully reduces the residual below
   # the tolerance by providing an extra output, error.
