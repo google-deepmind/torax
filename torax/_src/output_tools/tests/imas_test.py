@@ -42,7 +42,8 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     # Input equilibrium reading.
     config_dict = self._get_config_dict(config_name)
     equilibrium_in = imas_geometry._load_imas_data(
-        config_dict['geometry']['imas_filepath']
+        config_dict['geometry']['imas_filepath'],
+        ids_name ='equilibrium',
     )
     # Build TORAXSimState object and write output to equilibrium IDS.
     # Improve resolution to compare the input without losing too much

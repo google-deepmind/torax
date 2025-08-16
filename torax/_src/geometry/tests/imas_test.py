@@ -91,7 +91,7 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    equilibrium_in = imas_geometry._load_imas_data(filename)
+    equilibrium_in = imas_geometry._load_imas_data(filename, ids_name='equilibrium')
     config = geometry_pydantic_model.IMASConfig(
         equilibrium_object=equilibrium_in, imas_filepath=None
     )
