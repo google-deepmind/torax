@@ -13,6 +13,7 @@
 # limitations under the License.
 """Helper functions for IMAS output."""
 
+import logging
 import imas
 from imas import ids_toplevel
 import numpy as np
@@ -70,7 +71,11 @@ def torax_state_to_imas_equilibrium(
   eq.profiles_1d.triangularity_upper = geometry.delta_upper_face
   eq.profiles_1d.triangularity_lower = geometry.delta_lower_face
   eq.profiles_1d.elongation = geometry.elongation_face
-  eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
+  # only output z_magnetic_axis if available
+  try:
+    eq.global_quantities.magnetic_axis.z = geometry.z_magnetic_axis()
+  except ValueError as e:
+    logging.warning(e)
   eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
   eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
   eq.profiles_1d.volume = geometry.volume_face
@@ -91,19 +96,21 @@ def torax_state_to_imas_equilibrium(
   # gm7 = <\nabla V> / (dV/drhotor)
   gm7 = np.array(geometry.g0_face[1:] / (dvoldpsi[1:] * dpsidrhotor[1:]))
   gm7_on_axis = np.array([1.0])
-  gm7 = np.concat([gm7_on_axis, gm7])
+  gm7 = np.concatenate([gm7_on_axis, gm7])
   eq.profiles_1d.gm7 = gm7
   # gm3 = <(\nabla V)**2>/(dV/drhotor)**2
   gm3 = np.array(
       geometry.g1_face[1:] / (dpsidrhotor[1:] ** 2 * dvoldpsi[1:] ** 2)
   )
   gm3_on_axis = np.array([1.0])
-  gm3 = np.concat([gm3_on_axis, gm3])
+  gm3 = np.concatenate([gm3_on_axis, gm3])
   eq.profiles_1d.gm3 = gm3
   # gm2 = <(\nabla V)**2/R**2>/(dV/drhotor)**2
-  gm2 = np.array(geometry.g2_face[1:] / (dpsidrhotor[1:]**2 * dvoldpsi[1:]**2))
+  gm2 = np.array(
+      geometry.g2_face[1:] / (dpsidrhotor[1:] ** 2 * dvoldpsi[1:] ** 2)
+  )
   gm2_on_axis = np.array([1 / (geometry.R_major**2)])
-  gm2 = np.concat([gm2_on_axis, gm2])
+  gm2 = np.concatenate([gm2_on_axis, gm2])
   eq.profiles_1d.gm2 = gm2
 
   # Quantities useful for coupling with equilibrium code
