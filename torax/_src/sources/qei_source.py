@@ -61,15 +61,14 @@ class QeiSource(source.Source):
 
   def get_qei(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
-        static_runtime_params_slice.sources[self.source_name].mode
-        == runtime_params_lib.Mode.MODEL_BASED.value,
+        dynamic_runtime_params_slice.sources[self.source_name].mode
+        == runtime_params_lib.Mode.MODEL_BASED,
         lambda: _model_based_qei(
             dynamic_runtime_params_slice,
             geo,
@@ -172,6 +171,8 @@ class QeiSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         Qei_multiplier=self.Qei_multiplier,
     )
 

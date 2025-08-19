@@ -148,9 +148,9 @@ class Source(abc.ABC):
         self.source_name
     ]
 
-    mode = static_runtime_params_slice.sources[self.source_name].mode
+    mode = dynamic_source_runtime_params.mode
     match mode:
-      case runtime_params_lib.Mode.MODEL_BASED.value:
+      case runtime_params_lib.Mode.MODEL_BASED:
         if self.model_func is None:
           raise ValueError(
               'Source is in MODEL_BASED mode but has no model function.'
@@ -164,7 +164,7 @@ class Source(abc.ABC):
             calculated_source_profiles,
             conductivity,
         )
-      case runtime_params_lib.Mode.PRESCRIBED.value:
+      case runtime_params_lib.Mode.PRESCRIBED:
         if len(self.affected_core_profiles) != len(
             dynamic_source_runtime_params.prescribed_values
         ):
@@ -175,7 +175,7 @@ class Source(abc.ABC):
               f' Expected: {len(self.affected_core_profiles)}.'
           )
         return dynamic_source_runtime_params.prescribed_values
-      case runtime_params_lib.Mode.ZERO.value:
+      case runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
         return (zeros,) * len(self.affected_core_profiles)
       case _:

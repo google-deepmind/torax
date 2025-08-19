@@ -95,7 +95,6 @@ def build_source_profiles(
     bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
   else:
     qei = source_models.qei_source.get_qei(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -142,11 +141,11 @@ def build_standard_source_profiles(
   """Updates calculated_source_profiles with standard source profiles."""
 
   def calculate_source(source_name, source):
-    static_source_runtime_params = static_runtime_params_slice.sources[
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         source_name
     ]
     if (
-        explicit == static_source_runtime_params.is_explicit
+        explicit == dynamic_source_runtime_params.is_explicit
     ) | calculate_anyway:
       value = source.get_value(
           static_runtime_params_slice,

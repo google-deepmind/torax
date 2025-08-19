@@ -44,16 +44,11 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class StaticRuntimeParams(runtime_params_lib.StaticRuntimeParams):
-  beta_min: float
-  beta_max: float
-  beta_grid_size: int
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   wall_reflection_coeff: array_typing.FloatScalar
+  beta_min: array_typing.FloatScalar
+  beta_max: array_typing.FloatScalar
+  beta_grid_size: int = dataclasses.field(metadata={'static': True})
 
 
 def _alpha_closed_form(
@@ -239,7 +234,7 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
@@ -268,7 +263,7 @@ def cyclotron_radiation_albajar(
   0<rhonorm<0.9, to avoid pedestal effects.
 
   Args:
-    static_runtime_params_slice: A slice of static runtime parameters.
+    unused_static_runtime_params_slice: A slice of static runtime parameters.
     dynamic_runtime_params_slice: A slice of dynamic runtime parameters.
     geo: The geometry object.
     source_name: The name of the source.
@@ -282,12 +277,7 @@ def cyclotron_radiation_albajar(
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
-  static_source_runtime_params = static_runtime_params_slice.sources[
-      source_name
-  ]
-
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  assert isinstance(static_source_runtime_params, StaticRuntimeParams)
 
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
@@ -311,9 +301,9 @@ def cyclotron_radiation_albajar(
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
-      static_source_runtime_params.beta_min,
-      static_source_runtime_params.beta_max,
-      static_source_runtime_params.beta_grid_size,
+      dynamic_source_runtime_params.beta_min,
+      dynamic_source_runtime_params.beta_max,
+      dynamic_source_runtime_params.beta_grid_size,
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=geo.rho_face_norm,
@@ -427,11 +417,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
             [v.get_value(t) for v in self.prescribed_values]
         ),
         wall_reflection_coeff=self.wall_reflection_coeff,
-    )
-
-  def build_static_params(self) -> 'StaticRuntimeParams':
-    return StaticRuntimeParams(
-        mode=self.mode.value,
+        mode=self.mode,
         is_explicit=self.is_explicit,
         beta_min=self.beta_min,
         beta_max=self.beta_max,

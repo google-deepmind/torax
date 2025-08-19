@@ -55,12 +55,6 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       torax_pydantic.ValidatedDefault(({0: {0: 0, 1: 0}},))
   )
 
-  def build_static_params(self) -> runtime_params.StaticRuntimeParams:
-    return runtime_params.StaticRuntimeParams(
-        mode=self.mode.value,
-        is_explicit=self.is_explicit,
-    )
-
   @abc.abstractmethod
   def build_source(self) -> source_lib.Source:
     """Builds a source object from the model config."""

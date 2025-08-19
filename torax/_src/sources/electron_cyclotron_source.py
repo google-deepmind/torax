@@ -183,6 +183,8 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         current_drive_efficiency=self.current_drive_efficiency.get_value(t),
         extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t

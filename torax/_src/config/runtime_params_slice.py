@@ -109,8 +109,6 @@ class StaticRuntimeParamsSlice:
   TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
-  # Mapping of source name to source-specific static runtime params.
-  sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Ion symbols for main ion and impurity (which each could be mixtures of ions)
   # These are static to simplify source functions for fusion power and radiation
   # which are species-dependent.
@@ -121,7 +119,6 @@ class StaticRuntimeParamsSlice:
 
   def __hash__(self):
     return hash((
-        tuple(sorted(self.sources.items())),  # Hashable version of sources
         self.main_ion_names,
         self.impurity_names,
     ))

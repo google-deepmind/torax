@@ -48,11 +48,6 @@ def build_static_params_from_config(
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice from a ToraxConfig."""
   return runtime_params_slice.StaticRuntimeParamsSlice(
-      sources={
-          source_name: source_config.build_static_params()
-          for source_name, source_config in dict(config.sources).items()
-          if source_config is not None
-      },
       main_ion_names=config.plasma_composition.get_main_ion_names(),
       impurity_names=config.plasma_composition.get_impurity_names(),
   )

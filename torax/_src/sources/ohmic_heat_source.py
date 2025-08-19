@@ -119,6 +119,8 @@ class OhmicHeatSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
     )
 
   def build_source(self) -> OhmicHeatSource:

@@ -127,6 +127,8 @@ class GenericParticleSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),
