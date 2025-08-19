@@ -49,7 +49,6 @@ from torax._src.pedestal_model import runtime_params as pedestal_model_params
 from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.time_step_calculator import runtime_params as time_step_calculator_runtime_params
-from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import runtime_params as transport_model_params
 
 # Many of the variables follow scientific or mathematical notation, so disable
@@ -112,8 +111,6 @@ class StaticRuntimeParamsSlice:
   """
   # Mapping of source name to source-specific static runtime params.
   sources: Mapping[str, sources_params.StaticRuntimeParams]
-  # Torax mesh used to construct the geometry.
-  torax_mesh: torax_pydantic.Grid1D
   # Ion symbols for main ion and impurity (which each could be mixtures of ions)
   # These are static to simplify source functions for fusion power and radiation
   # which are species-dependent.
@@ -125,7 +122,6 @@ class StaticRuntimeParamsSlice:
   def __hash__(self):
     return hash((
         tuple(sorted(self.sources.items())),  # Hashable version of sources
-        hash(self.torax_mesh),  # Grid1D has a hash method defined.
         self.main_ion_names,
         self.impurity_names,
     ))

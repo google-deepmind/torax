@@ -306,7 +306,7 @@ def cyclotron_radiation_albajar(
   # Calculate profile fit parameters
   alpha_n = _alpha_closed_form(
       beta=2.0,
-      rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
+      rho_norm=geo.rho_face_norm,
       profile_data=n_e20_face,
       profile_edge_value=0.0,
   )
@@ -316,7 +316,7 @@ def cyclotron_radiation_albajar(
       static_source_runtime_params.beta_grid_size,
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
-      rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
+      rho_norm=geo.rho_face_norm,
       te_data=core_profiles.T_e.face_value(),
       beta_scan_parameters=beta_scan_parameters,
   )
