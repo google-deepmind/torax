@@ -17,11 +17,13 @@
 Must be run with TORAX_COMPILATION_ENABLED=False. Used for generating ground
 truth for surrogate model evaluations.
 """
+
 import dataclasses
 import datetime
 import os
 import subprocess
 import tempfile
+from typing import Annotated
 from typing import Literal
 
 import chex
@@ -35,6 +37,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
@@ -407,7 +410,9 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
       D.
   """
 
-  model_name: Literal['qualikiz'] = 'qualikiz'
+  model_name: Annotated[Literal['qualikiz'], torax_pydantic.JAX_STATIC] = (
+      'qualikiz'
+  )
   n_max_runs: pydantic.PositiveInt = 2
   n_processes: pydantic.PositiveInt = 8
   collisionality_multiplier: pydantic.PositiveFloat = 1.0

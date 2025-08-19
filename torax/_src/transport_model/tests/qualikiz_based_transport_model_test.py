@@ -13,8 +13,7 @@
 # limitations under the License.
 from collections.abc import Mapping
 import dataclasses
-from typing import Any, Literal
-
+from typing import Annotated, Any, Literal
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -28,6 +27,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -218,7 +218,9 @@ class QualikizBasedTransportModelConfig(
       D.
   """
 
-  model_name: Literal['qualikiz_based'] = 'qualikiz_based'
+  model_name: Annotated[
+      Literal['qualikiz_based'], torax_pydantic.JAX_STATIC
+  ] = 'qualikiz_based'
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True

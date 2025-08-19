@@ -26,6 +26,7 @@ import dataclasses
 
 import chex
 import jax
+from torax._src import jax_utils
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
 from torax._src.config import profile_conditions as profile_conditions_lib
@@ -74,6 +75,7 @@ class DynamicRuntimeParamsSliceProvider:
   object (if for example updating the simulation).
   ```
   """
+
   sources: sources_pydantic_model.Sources
   numerics: numerics_lib.Numerics
   profile_conditions: profile_conditions_lib.ProfileConditions
@@ -104,6 +106,7 @@ class DynamicRuntimeParamsSliceProvider:
         time_step_calculator=config.time_step_calculator,
     )
 
+  @jax_utils.jit
   def __call__(
       self,
       t: chex.Numeric,

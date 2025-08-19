@@ -13,7 +13,7 @@
 # limitations under the License.
 from collections.abc import Mapping
 import dataclasses
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from unittest import mock
 
 from absl.testing import absltest
@@ -33,6 +33,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params
@@ -302,7 +303,9 @@ class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
   """QuasilinearTransportConfig for testing purposes."""
 
   # pylint: disable=invalid-name
-  model_name: Literal['quasilinear'] = 'quasilinear'
+  model_name: Annotated[Literal['quasilinear'], torax_pydantic.JAX_STATIC] = (
+      'quasilinear'
+  )
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
