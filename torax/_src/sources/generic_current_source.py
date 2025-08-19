@@ -157,6 +157,8 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         I_generic=self.I_generic.get_value(t),
         fraction_of_total_current=self.fraction_of_total_current.get_value(t),
         gaussian_width=self.gaussian_width.get_value(t),

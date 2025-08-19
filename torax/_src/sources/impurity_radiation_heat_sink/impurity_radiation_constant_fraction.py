@@ -107,6 +107,8 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         fraction_P_heating=self.fraction_P_heating.get_value(t),
     )
 

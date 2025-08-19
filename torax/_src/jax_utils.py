@@ -18,7 +18,7 @@ import contextlib
 import functools
 import inspect
 import os
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 
 import chex
 import equinox as eqx
@@ -27,7 +27,8 @@ from jax import numpy as jnp
 import numpy as np
 
 T = TypeVar('T')
-BooleanNumeric = Any  # A bool, or a Boolean array.
+BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
+_State = ParamSpec('_State')
 
 
 @functools.cache
@@ -296,3 +297,55 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+@functools.partial(
+    jit, static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll']
+)
+def while_loop_bounded(
+    cond_fun: Callable[[_State], BooleanNumeric],
+    body_fun: Callable[[_State], _State],
+    init_val: _State,
+    max_steps: int,
+    scan_unroll: int = 1,
+) -> _State:
+  """A reverse-mode differentiable while_loop.
+
+  This makes use of jax.lax.scan and `max_steps` to define a fixed size
+  computational graph. The body_fun is called the same number of times it would
+  be under a jax.lax.while_loop i.e. until `cond_fun` returns False (unless the
+  `max_steps` is reached).
+
+  Args:
+    cond_fun: As in jax.lax.while_loop.
+    body_fun: As in jax.lax.while_loop.
+    init_val: As in jax.lax.while_loop.
+    max_steps: An integer, the maximum number of iterations the loop can
+      perform. This is crucial for defining a fixed computational graph for
+      scan.
+    scan_unroll: The number of iterations to unroll the internal scan by.
+
+  Returns:
+    The final state after `cond_fun` returns `False` or `max_steps` are reached.
+  """
+  # Initial carry for the scan: (current_state, while_loop_condition_met)
+  initial_scan_carry = (init_val, jnp.array(True, dtype=jnp.bool_))
+
+  def scan_body(carry, _):
+    current_state, cond_prev = carry
+    # Only execute cond if the previous cond was True.
+    should_execute_body = jax.lax.cond(
+        cond_prev, cond_fun, lambda _: False, current_state
+    )
+    # If the `while_loop` would have terminated, we no-op.
+    next_state = jax.lax.cond(
+        should_execute_body, body_fun, lambda s: s, current_state
+    )
+
+    return (next_state, should_execute_body), None
+
+  (final_state, _), _ = jax.lax.scan(
+      scan_body, initial_scan_carry, length=max_steps, unroll=scan_unroll
+  )
+
+  return final_state

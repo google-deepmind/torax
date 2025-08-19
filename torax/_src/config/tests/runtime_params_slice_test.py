@@ -59,21 +59,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     self.assertEqual(hash(static_slice1), hash(static_slice2))
 
-  def test_static_runtime_params_slice_hash_different_for_different_params(
-      self,
-  ):
-    """Test that the hash changes when the static params change."""
-    static_slice1 = build_runtime_params.build_static_params_from_config(
-        self._torax_config
-    )
-    new_config = default_configs.get_default_config_dict()
-    new_config['plasma_composition']['main_ion'] = {'D': 1.0}
-    new_torax_config = model_config.ToraxConfig.from_dict(new_config)
-    static_slice2 = build_runtime_params.build_static_params_from_config(
-        new_torax_config
-    )
-    self.assertNotEqual(hash(static_slice1), hash(static_slice2))
-
 
 if __name__ == '__main__':
   absltest.main()

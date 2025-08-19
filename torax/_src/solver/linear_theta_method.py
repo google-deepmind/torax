@@ -88,7 +88,6 @@ class LinearThetaMethod(solver_lib.Solver):
     # init_val is the initialization for the predictor_corrector loop.
     x_new = predictor_corrector_method.predictor_corrector_method(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=(
             dynamic_runtime_params_slice_t_plus_dt
         ),
@@ -101,7 +100,7 @@ class LinearThetaMethod(solver_lib.Solver):
         explicit_source_profiles=explicit_source_profiles,
     )
 
-    if static_runtime_params_slice.solver.use_predictor_corrector:
+    if dynamic_runtime_params_slice_t_plus_dt.solver.use_predictor_corrector:
       inner_solver_iterations = (
           1 + dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps
       )

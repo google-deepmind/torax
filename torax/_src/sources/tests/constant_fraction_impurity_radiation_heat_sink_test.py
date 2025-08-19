@@ -49,6 +49,8 @@ class ImpurityRadiationConstantFractionTest(
     impurity_radiation_dynamic = (
         impurity_radiation_constant_fraction.DynamicRuntimeParams(
             prescribed_values=mock.ANY,
+            mode=runtime_params_lib.Mode.MODEL_BASED,
+            is_explicit=False,
             fraction_P_heating=0.5,
         )
     )
@@ -60,10 +62,7 @@ class ImpurityRadiationConstantFractionTest(
         P_total=120e6,
         electron_heat_fraction=0.66666,
         absorption_fraction=1.0,
-    )
-
-    static = runtime_params_lib.StaticRuntimeParams(
-        mode=runtime_params_lib.Mode.MODEL_BASED.value,
+        mode=runtime_params_lib.Mode.MODEL_BASED,
         is_explicit=False,
     )
 
@@ -75,18 +74,13 @@ class ImpurityRadiationConstantFractionTest(
         },
     )
 
-    static_slice = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={heat_name: static, impurity_name: static},
-    )
-
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource(
         model_func=generic_ion_el_heat_source.default_formula,
     )
 
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
-        static_slice,
+        mock.ANY,
         dynamic_slice,
         geo,
         mock.ANY,
@@ -100,7 +94,7 @@ class ImpurityRadiationConstantFractionTest(
 
     impurity_radiation_heat_sink_power_density = (
         impurity_radiation_sink.get_value(
-            static_runtime_params_slice=static_slice,
+            static_runtime_params_slice=mock.ANY,
             dynamic_runtime_params_slice=dynamic_slice,
             geo=geo,
             core_profiles=mock.ANY,

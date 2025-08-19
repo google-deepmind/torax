@@ -158,7 +158,6 @@ def optimizer_solve_block(
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,

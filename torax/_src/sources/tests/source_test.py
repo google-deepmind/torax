@@ -36,28 +36,18 @@ class SourceTest(parameterized.TestCase):
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
                 prescribed_values=np.zeros_like(geo.rho_norm),
-            )
-        )
-    }
-    static_source_params = {
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.StaticRuntimeParams(
-                mode=runtime_params_lib.Mode.ZERO.value,
+                mode=runtime_params_lib.Mode.ZERO,
                 is_explicit=False,
             )
         )
     }
-    static_slice = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources=static_source_params,
-    )
     dynamic_slice = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=static_slice,
+        static_runtime_params_slice=mock.ANY,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -85,21 +75,11 @@ class SourceTest(parameterized.TestCase):
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
-            )
-        )
-    }
-    static_source_params = {
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.StaticRuntimeParams(
-                mode=mode.value,
+                mode=mode,
                 is_explicit=False,
             )
         )
     }
-    static_slice = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources=static_source_params,
-    )
     dynamic_slice = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources=dynamic_source_params,
@@ -110,7 +90,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=static_slice,
+        static_runtime_params_slice=mock.ANY,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -129,28 +109,18 @@ class SourceTest(parameterized.TestCase):
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
                 prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
-            )
-        )
-    }
-    static_source_params = {
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.StaticRuntimeParams(
-                mode=runtime_params_lib.Mode.PRESCRIBED.value,
+                mode=runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
         )
     }
-    static_slice = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources=static_source_params,
-    )
     dynamic_slice = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=static_slice,
+        static_runtime_params_slice=mock.ANY,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -176,21 +146,11 @@ class SourceTest(parameterized.TestCase):
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
             runtime_params_lib.DynamicRuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
-            )
-        )
-    }
-    static_source_params = {
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.StaticRuntimeParams(
-                mode=runtime_params_lib.Mode.PRESCRIBED.value,
+                mode=runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
         )
     }
-    static_slice = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources=static_source_params,
-    )
     dynamic_slice = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources=dynamic_source_params,
@@ -201,7 +161,7 @@ class SourceTest(parameterized.TestCase):
     ):
       source.get_value(
           dynamic_runtime_params_slice=dynamic_slice,
-          static_runtime_params_slice=static_slice,
+          static_runtime_params_slice=mock.ANY,
           geo=mock.ANY,
           core_profiles=mock.ANY,
           calculated_source_profiles=None,

@@ -60,7 +60,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
         neoclassical_models=neoclassical_models,
     )
     qei = source.get_qei(
-        static_slice,
         dynamic_slice,
         geo,
         core_profiles,

@@ -127,19 +127,23 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
       ),
       is_explicit=(True, False),
   )
-  def test_runtime_params_builds_static_params(
+  def test_runtime_params_builds_dynamic_params(
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
-    """Tests that the static params are built correctly."""
     source_config = self._source_config_class.from_dict({
         "mode": mode,
         "is_explicit": is_explicit,
         "model_path": _DUMMY_MODEL_PATH,
     })
-    static_params = source_config.build_static_params()
-    self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
-    self.assertEqual(static_params.mode, mode.value)
-    self.assertEqual(static_params.is_explicit, is_explicit)
+    torax_pydantic.set_grid(
+        source_config,
+        torax_pydantic.Grid1D(nx=4,),
+    )
+    dynamic_params = source_config.build_dynamic_params(t=0.0)
+    self.assertIsInstance(
+        dynamic_params, runtime_params_lib.DynamicRuntimeParams)
+    self.assertEqual(dynamic_params.mode, mode)
+    self.assertEqual(dynamic_params.is_explicit, is_explicit)
 
   def test_toric_nn_loads_and_predicts_with_dummy_model(self):
     """Test that the ToricNNWrapper loads and predicts consistently."""

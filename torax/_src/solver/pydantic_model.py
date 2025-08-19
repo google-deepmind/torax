@@ -14,7 +14,6 @@
 
 """Pydantic config for Solver."""
 import abc
-import dataclasses
 import functools
 from typing import Annotated, Literal
 
@@ -73,16 +72,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     """Builds dynamic runtime params from the config."""
 
-  def build_static_params(self) -> runtime_params.StaticRuntimeParams:
-    """Builds static runtime params from the config."""
-    return runtime_params.StaticRuntimeParams(
-        theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
-        use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
-    )
-
   @abc.abstractmethod
   def build_solver(
       self,
@@ -106,6 +95,11 @@ class LinearThetaMethod(BaseSolver):
   @functools.cached_property
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
@@ -151,22 +145,16 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
 
-  def build_static_params(
-      self,
-  ) -> nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams:
-    """Builds static runtime params from the config."""
-    base_params = super().build_static_params()
-    return nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams(
-        **dataclasses.asdict(base_params),
-        initial_guess_mode=self.initial_guess_mode.value,
-        log_iterations=self.log_iterations,
-    )
-
   @functools.cached_property
   def build_dynamic_params(
       self,
   ) -> nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams:
     return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         maxiter=self.n_max_iterations,
@@ -175,6 +163,8 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         n_corrector_steps=self.n_corrector_steps,
         delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,
+        initial_guess_mode=self.initial_guess_mode.value,
+        log_iterations=self.log_iterations,
     )
 
   def build_solver(
@@ -207,26 +197,22 @@ class OptimizerThetaMethod(BaseSolver):
   n_max_iterations: pydantic.NonNegativeInt = 100
   loss_tol: float = 1e-10
 
-  def build_static_params(
-      self,
-  ) -> nonlinear_theta_method.StaticOptimizerRuntimeParams:
-    """Builds static runtime params from the config."""
-    base_params = super().build_static_params()
-    return nonlinear_theta_method.StaticOptimizerRuntimeParams(
-        **dataclasses.asdict(base_params),
-        initial_guess_mode=self.initial_guess_mode.value,
-    )
-
   @functools.cached_property
   def build_dynamic_params(
       self,
   ) -> nonlinear_theta_method.DynamicOptimizerRuntimeParams:
     return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
+        initial_guess_mode=self.initial_guess_mode.value,
     )
 
   def build_solver(

@@ -259,6 +259,8 @@ class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class DynamicPlasmaComposition:
+  main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
+  impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   main_ion: DynamicIonMixture
   impurity: DynamicImpurityFractions | DynamicNeRatios
   Z_eff: array_typing.FloatVector
@@ -444,6 +446,8 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicPlasmaComposition:
     return DynamicPlasmaComposition(
+        main_ion_names=self.get_main_ion_names(),
+        impurity_names=self.get_impurity_names(),
         main_ion=self._main_ion_mixture.build_dynamic_params(t),
         impurity=self.impurity.build_dynamic_params(t),
         Z_eff=self.Z_eff.get_value(t),

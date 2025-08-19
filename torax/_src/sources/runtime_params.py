@@ -51,12 +51,5 @@ class DynamicRuntimeParams:
   """
 
   prescribed_values: tuple[array_typing.FloatVector, ...]
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class StaticRuntimeParams:
-  """Static params for the sources."""
-
-  mode: str
-  is_explicit: bool
+  mode: Mode = dataclasses.field(metadata={"static": True})
+  is_explicit: bool = dataclasses.field(metadata={"static": True})

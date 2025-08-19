@@ -171,6 +171,8 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         gaussian_width=self.gaussian_width.get_value(t),
         gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),

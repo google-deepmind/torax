@@ -195,7 +195,7 @@ def calculate_total_impurity_radiation(
 
 
 def impurity_radiation_mavrin_fit(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     unused_geo: geometry.Geometry,
     source_name: str,
@@ -204,7 +204,7 @@ def impurity_radiation_mavrin_fit(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
-  ion_symbols = static_runtime_params_slice.impurity_names
+  ion_symbols = dynamic_runtime_params_slice.plasma_composition.impurity_names
 
   impurity_mode = (
       dynamic_runtime_params_slice.plasma_composition.impurity.impurity_mode
@@ -295,6 +295,8 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         radiation_multiplier=self.radiation_multiplier,
     )
 

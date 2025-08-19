@@ -780,7 +780,6 @@ def _sawtooth_step(
     # API does not include the post-processed outputs.
     x_evolved = _evolve_x_after_sawtooth(
         x_redistributed=x_candidate,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_crash_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
         core_profiles_redistributed=core_profiles_t_plus_crash_dt,
         geo_t_plus_crash_dt=geo_t_plus_crash_dt,
@@ -868,7 +867,6 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
 
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     core_profiles_redistributed: state.CoreProfiles,
     geo_t_plus_crash_dt: geometry.Geometry,
@@ -885,7 +883,6 @@ def _evolve_x_after_sawtooth(
   )
 
   ions = getters.get_updated_ions(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_crash_dt,
       geo_t_plus_crash_dt,
       updated_core_profiles.n_e,

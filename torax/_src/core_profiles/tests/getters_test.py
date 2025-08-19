@@ -236,9 +236,6 @@ class GettersTest(parameterized.TestCase):
             torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     dynamic_runtime_params_slice = provider(t=1.0)
     geo = torax_config.geometry.build_provider(t=1.0)
 
@@ -254,7 +251,6 @@ class GettersTest(parameterized.TestCase):
         geo,
     )
     ions = getters.get_updated_ions(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         n_e,
@@ -411,9 +407,6 @@ class GettersTest(parameterized.TestCase):
             torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     dynamic_runtime_params_slice = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     T_e_cell_variable = cell_variable.CellVariable(
@@ -429,7 +422,6 @@ class GettersTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         n_e_cell_variable,
@@ -538,9 +530,6 @@ class GettersTest(parameterized.TestCase):
               torax_config
           )
       )
-      static_slice = build_runtime_params.build_static_params_from_config(
-          torax_config
-      )
       dynamic_runtime_params_slice = provider(t=0.0)
       geo = torax_config.geometry.build_provider(t=0.0)
 
@@ -557,7 +546,6 @@ class GettersTest(parameterized.TestCase):
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
-          static_slice,
           dynamic_runtime_params_slice,
           geo,
           n_e_cell_variable,

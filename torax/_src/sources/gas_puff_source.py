@@ -119,6 +119,8 @@ class GasPuffSourceConfig(base.SourceModelBase):
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_total=self.S_total.get_value(t),
     )

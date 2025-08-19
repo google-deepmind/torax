@@ -250,7 +250,6 @@ def theta_method_block_residual(
   )
   core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
       x_new_guess,
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
@@ -267,15 +266,16 @@ def theta_method_block_residual(
       use_pereverzev=False,
   )
 
+  solver_params = dynamic_runtime_params_slice_t_plus_dt.solver
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
       dt=dt,
       x_old=x_old,
       x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_implicit=static_runtime_params_slice.solver.theta_implicit,
-      convection_dirichlet_mode=static_runtime_params_slice.solver.convection_dirichlet_mode,
-      convection_neumann_mode=static_runtime_params_slice.solver.convection_neumann_mode,
+      theta_implicit=solver_params.theta_implicit,
+      convection_dirichlet_mode=solver_params.convection_dirichlet_mode,
+      convection_neumann_mode=solver_params.convection_neumann_mode,
   )
 
   lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec

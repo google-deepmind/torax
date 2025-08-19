@@ -14,7 +14,6 @@
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import dataclasses
-import functools
 
 import jax
 from jax import numpy as jnp
@@ -280,11 +279,8 @@ def _get_ion_properties_from_n_e_ratios(
 
 
 # jitted since also used outside the solver
-@functools.partial(
-    jax_utils.jit, static_argnames=["static_runtime_params_slice"]
-)
+@jax_utils.jit
 def get_updated_ions(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
@@ -302,7 +298,6 @@ def get_updated_ions(
   n_impurity*Z_impurity + n_i*Z_i = n_e
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Geometry of the tokamak.
     n_e: Electron density profile [m^-3].
@@ -325,12 +320,12 @@ def get_updated_ions(
   """
 
   Z_i = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_symbols=dynamic_runtime_params_slice.plasma_composition.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
       T_e=T_e.value,
   ).Z_mixture
   Z_i_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_symbols=dynamic_runtime_params_slice.plasma_composition.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
       T_e=T_e.face_value(),
   ).Z_mixture
@@ -343,7 +338,7 @@ def get_updated_ions(
   match impurity_mode:
     case plasma_composition.IMPURITY_MODE_FRACTIONS:
       ion_properties = _get_ion_properties_from_fractions(
-          static_runtime_params_slice.impurity_names,
+          dynamic_runtime_params_slice.plasma_composition.impurity_names,
           impurity_dynamic_params,
           T_e,
           Z_i,
@@ -354,7 +349,7 @@ def get_updated_ions(
 
     case plasma_composition.IMPURITY_MODE_NE_RATIOS:
       ion_properties = _get_ion_properties_from_n_e_ratios(
-          static_runtime_params_slice.impurity_names,
+          dynamic_runtime_params_slice.plasma_composition.impurity_names,
           impurity_dynamic_params,
           T_e,
           Z_i,
@@ -416,42 +411,6 @@ def get_updated_ions(
       Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
   )
-
-
-def _get_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    T_e: cell_variable.CellVariable,
-) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorFace,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorFace,
-]:
-  """Updated charge states based on IonMixtures and electron temperature."""
-  Z_i = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.value,
-  ).Z_mixture
-  Z_i_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.face_value(),
-  ).Z_mixture
-
-  Z_impurity = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.value,
-  ).Z_mixture
-  Z_impurity_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.face_value(),
-  ).Z_mixture
-
-  return Z_i, Z_i_face, Z_impurity, Z_impurity_face
 
 
 def _calculate_Z_eff(

@@ -107,19 +107,13 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),)
+                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,
             )
         },
     )
@@ -130,7 +124,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
+        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
@@ -170,14 +164,6 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
@@ -185,7 +171,9 @@ class SourceModelsTest(parameterized.TestCase):
                 prescribed_values=(
                     jnp.ones(self.geo.rho.shape),
                     jnp.ones(self.geo.rho.shape),
-                )
+                ),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,
             )
         },
     )
@@ -196,7 +184,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
+        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
@@ -263,19 +251,13 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True  # Set the source to be explicit.
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),)
+                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,  # Set the source to be explicit.
             )
         },
     )
@@ -286,7 +268,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
+        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
