@@ -342,6 +342,27 @@ class PlasmaCompositionTest(parameterized.TestCase):
     else:
       plasma_composition.PlasmaComposition(impurity=config)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='fractions',
+          impurity_mode=plasma_composition.IMPURITY_MODE_FRACTIONS,
+      ),
+      dict(
+          testcase_name='n_e_ratios',
+          impurity_mode=plasma_composition.IMPURITY_MODE_NE_RATIOS,
+      ),
+      dict(
+          testcase_name='n_e_ratios_Z_eff',
+          impurity_mode=plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+      ),
+  )
+  def test_empty_species_validation(self, impurity_mode):
+    """Tests validation error for empty species dict."""
+    with self.assertRaises(pydantic.ValidationError):
+      plasma_composition.PlasmaComposition(
+          impurity={'impurity_mode': impurity_mode, 'species': {}}
+      )
+
   def test_ne_ratios_avg_a_calculation(self):
     """Tests that avg_A is calculated correctly for NeRatiosModel."""
     # These n_e_ratios correspond to 1/3 C and 2/3 N fractions.

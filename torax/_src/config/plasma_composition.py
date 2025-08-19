@@ -34,6 +34,7 @@ from typing_extensions import Final
 # Constants for impurity modes.
 IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
 IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
+IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
 @jax.tree_util.register_dataclass
@@ -97,7 +98,7 @@ class DynamicNeRatiosZeff:
   Z_override: array_typing.FloatScalar | None = None
   A_override: array_typing.FloatScalar | None = None
   impurity_mode: str = dataclasses.field(
-      default='n_e_ratios_Z_eff', metadata={'static': True}
+      default=IMPURITY_MODE_NE_RATIOS_ZEFF, metadata={'static': True}
   )
 
 
@@ -196,6 +197,12 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
       Literal['n_e_ratios'], torax_pydantic.JAX_STATIC
   ] = 'n_e_ratios'
 
+  @pydantic.model_validator(mode='after')
+  def _validate_species_not_empty(self) -> typing_extensions.Self:
+    if not self.species:
+      raise ValueError('The species dictionary cannot be empty.')
+    return self
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
@@ -247,6 +254,8 @@ class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _validate_one_none(self) -> typing_extensions.Self:
+    if not self.species:
+      raise ValueError('The species dictionary cannot be empty.')
     none_count = sum(v is None for v in self.species.values())
     if none_count != 1:
       raise ValueError(
