@@ -41,7 +41,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'bosch_hale'
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes DT fusion power with the Bosch-Hale parameterization NF 1992.
@@ -49,10 +49,9 @@ def calc_fusion(
   Args:
     geo: Magnetic geometry.
     core_profiles: Core plasma profiles.
-    static_runtime_params_slice: Static runtime params, used to determine the
-      existence of deuterium and tritium.
-    dynamic_runtime_params_slice: Dynamic runtime params, used to extract the
-      D and T densities.
+    unused_static_runtime_params_slice: Unused static runtime params
+    dynamic_runtime_params_slice: Dynamic runtime params, used to extract the D
+      and T densities.
 
   Returns:
     Tuple of P_total, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
@@ -61,7 +60,9 @@ def calc_fusion(
 
   # If both D and T not present in the main ion mixture, return zero fusion.
   # Otherwise, calculate the fusion power.
-  if not {'D', 'T'}.issubset(static_runtime_params_slice.main_ion_names):
+  if not {'D', 'T'}.issubset(
+      dynamic_runtime_params_slice.plasma_composition.main_ion_names
+  ):
     return (
         jnp.array(0.0, dtype=jax_utils.get_dtype()),
         jnp.zeros_like(core_profiles.T_i.value),
@@ -71,7 +72,7 @@ def calc_fusion(
     product = 1.0
     for fraction, symbol in zip(
         dynamic_runtime_params_slice.plasma_composition.main_ion.fractions,
-        static_runtime_params_slice.main_ion_names,
+        dynamic_runtime_params_slice.plasma_composition.main_ion_names,
     ):
       if symbol == 'D' or symbol == 'T':
         product *= fraction
@@ -144,7 +145,7 @@ def calc_fusion(
 
 
 def fusion_heat_model_func(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     unused_source_name: str,
@@ -157,7 +158,7 @@ def fusion_heat_model_func(
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,
       core_profiles,
-      static_runtime_params_slice,
+      unused_static_runtime_params_slice,
       dynamic_runtime_params_slice,
   )
   return (Pfus_i, Pfus_e)

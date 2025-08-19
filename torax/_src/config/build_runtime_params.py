@@ -47,10 +47,9 @@ def build_static_params_from_config(
     config: model_config.ToraxConfig,
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice from a ToraxConfig."""
-  return runtime_params_slice.StaticRuntimeParamsSlice(
-      main_ion_names=config.plasma_composition.get_main_ion_names(),
-      impurity_names=config.plasma_composition.get_impurity_names(),
-  )
+  # Unused, but kept in signature to maintain internal API for now
+  del config
+  return runtime_params_slice.StaticRuntimeParamsSlice()
 
 
 @jax.tree_util.register_dataclass

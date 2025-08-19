@@ -110,7 +110,6 @@ class CoeffsCallback:
     # Update core_profiles with the subset of new values of evolving variables
     core_profiles = updaters.update_core_profiles_during_step(
         x,
-        self.static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,

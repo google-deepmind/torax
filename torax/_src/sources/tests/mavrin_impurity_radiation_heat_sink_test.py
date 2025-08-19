@@ -59,7 +59,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         neoclassical_models,
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
-        static_runtime_params_slice=static_slice,
+        unused_static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         unused_geo=geo,
         source_name=self._source_name,

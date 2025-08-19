@@ -67,12 +67,8 @@ def _calculate_psi_value_constraint_from_v_loop(
   return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=['static_runtime_params_slice'],
-)
+@jax_utils.jit
 def get_prescribed_core_profile_values(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -82,7 +78,6 @@ def get_prescribed_core_profile_values(
   Uses same functions as for profile initialization.
 
   Args:
-    static_runtime_params_slice: Static simulation runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     core_profiles: Core profiles dataclass to be updated
@@ -114,7 +109,6 @@ def get_prescribed_core_profile_values(
   else:
     n_e_cell_variable = core_profiles.n_e
   ions = getters.get_updated_ions(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       n_e_cell_variable,
@@ -141,16 +135,9 @@ def get_prescribed_core_profile_values(
   }
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'static_runtime_params_slice',
-        'evolving_names',
-    ],
-)
+@functools.partial(jax_utils.jit, static_argnames=['evolving_names'])
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -165,7 +152,6 @@ def update_core_profiles_during_step(
 
   Args:
     x_new: The new values of the evolving variables.
-    static_runtime_params_slice: The static runtime params slice.
     dynamic_runtime_params_slice: The dynamic runtime params slice.
     geo: Magnetic geometry.
     core_profiles: The old set of core plasma profiles.
@@ -177,7 +163,6 @@ def update_core_profiles_during_step(
   )
 
   ions = getters.get_updated_ions(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       updated_core_profiles.n_e,
@@ -242,7 +227,6 @@ def update_core_and_source_profiles_after_step(
   )
 
   ions = getters.get_updated_ions(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,
       geo,
       updated_core_profiles_t_plus_dt.n_e,
@@ -371,6 +355,8 @@ def compute_boundary_conditions_for_t_plus_dt(
   profile_conditions_t_plus_dt = (
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions
   )
+  # Unused, but kept in signature to maintain internal API for now
+  del static_runtime_params_slice
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
@@ -380,12 +366,12 @@ def compute_boundary_conditions_for_t_plus_dt(
   n_e_right_bc = n_e.right_face_constraint
 
   Z_i_edge = charge_states.get_average_charge_state(
-      static_runtime_params_slice.main_ion_names,
+      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   ).Z_mixture
   Z_impurity_edge = charge_states.get_average_charge_state(
-      static_runtime_params_slice.impurity_names,
+      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
       T_e=profile_conditions_t_plus_dt.T_e_right_bc,
   ).Z_mixture
@@ -471,7 +457,6 @@ def provide_core_profiles_t_plus_dt(
       core_profiles_t=core_profiles_t,
   )
   updated_values = get_prescribed_core_profile_values(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t,

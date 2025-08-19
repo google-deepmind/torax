@@ -112,15 +112,9 @@ class StaticRuntimeParamsSlice:
   # Ion symbols for main ion and impurity (which each could be mixtures of ions)
   # These are static to simplify source functions for fusion power and radiation
   # which are species-dependent.
-  # TODO(b/390279669): add guards against changing ion information
-  # inconsistently between the static and dynamic runtime params slices.
-  main_ion_names: tuple[str, ...]
-  impurity_names: tuple[str, ...]
 
   def __hash__(self):
     return hash((
-        self.main_ion_names,
-        self.impurity_names,
     ))
 
 

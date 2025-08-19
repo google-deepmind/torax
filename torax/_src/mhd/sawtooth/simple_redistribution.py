@@ -119,7 +119,6 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
         or dynamic_runtime_params_slice.numerics.evolve_electron_heat
     ):
       ions_redistributed = getters.get_updated_ions(
-          static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           n_e_redistributed,

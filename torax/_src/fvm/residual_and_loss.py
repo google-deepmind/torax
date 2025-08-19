@@ -250,7 +250,6 @@ def theta_method_block_residual(
   )
   core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
       x_new_guess,
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,

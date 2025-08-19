@@ -75,7 +75,6 @@ def initial_core_profiles(
   )
 
   ions = getters.get_updated_ions(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       n_e,
