@@ -217,7 +217,7 @@ def impurity_radiation_mavrin_fit(
     case plasma_composition.IMPURITY_MODE_NE_RATIOS:
       ion_mixture = plasma_composition.DynamicIonMixture(
           fractions=dynamic_runtime_params_slice.plasma_composition.impurity.fractions,
-          avg_A=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+          A_avg=dynamic_runtime_params_slice.plasma_composition.impurity.A_avg,
           Z_override=dynamic_runtime_params_slice.plasma_composition.impurity.Z_override,
       )
     case _:

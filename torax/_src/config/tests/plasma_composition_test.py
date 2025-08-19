@@ -139,7 +139,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       # Z_eff is an array, so we check it's all close to the initial value
       chex.assert_trees_all_close(output.Z_eff, initial_zeff)
       if A_override is not None:
-        self.assertEqual(output.main_ion.avg_A, A_override)
+        self.assertEqual(output.main_ion.A_avg, A_override)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
@@ -364,7 +364,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       )
 
   def test_ne_ratios_avg_a_calculation(self):
-    """Tests that avg_A is calculated correctly for NeRatiosModel."""
+    """Tests that A_avg is calculated correctly for NeRatiosModel."""
     # These n_e_ratios correspond to 1/3 C and 2/3 N fractions.
     n_e_ratios_species = {'C': 0.01, 'N': 0.02}
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
@@ -393,8 +393,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        dynamic_impurity_ne_ratios.avg_A,
-        dynamic_impurity_fractions.avg_A,
+        dynamic_impurity_ne_ratios.A_avg,
+        dynamic_impurity_fractions.A_avg,
         rtol=1e-5,
     )
 
@@ -564,7 +564,7 @@ class IonMixtureTest(parameterized.TestCase):
         T_e=np.array(10.0),  # Ensure that all ions in test are fully ionized
     ).Z_mixture
     np.testing.assert_allclose(calculated_Z, expected_Z)
-    np.testing.assert_allclose(dynamic_mixture.avg_A, expected_A)
+    np.testing.assert_allclose(dynamic_mixture.A_avg, expected_A)
 
   @parameterized.named_parameters(
       ('no_override', None, None, 1.0, 2.0141),
@@ -591,7 +591,7 @@ class IonMixtureTest(parameterized.TestCase):
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override
     np.testing.assert_allclose(calculated_Z, Z_expected)
-    np.testing.assert_allclose(dynamic_mixture.avg_A, A_expected)
+    np.testing.assert_allclose(dynamic_mixture.A_avg, A_expected)
 
   def test_model_validate(self):
     """Test that IonMixture.from_config behaves as expected."""

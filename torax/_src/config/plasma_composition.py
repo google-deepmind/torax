@@ -48,7 +48,7 @@ class DynamicIonMixture:
 
   Attributes:
     fractions: Ion fractions for a time slice.
-    avg_A: Average A of the mixture.
+    A_avg: Average A of the mixture.
     Z_override: Typically, the average Z is calculated according to the
       temperature dependent charge-state-distribution, or for low-Z cases by the
       atomic numbers of the ions assuming full ionization. If Z_override is
@@ -56,7 +56,7 @@ class DynamicIonMixture:
   """
 
   fractions: array_typing.FloatVector
-  avg_A: array_typing.FloatScalar
+  A_avg: array_typing.FloatScalar
   Z_override: array_typing.FloatScalar | None = None
 
 
@@ -76,7 +76,7 @@ class DynamicNeRatios:
   """Analogous to DynamicImpurityFractions but for n_e_ratio inputs."""
 
   n_e_ratios: array_typing.FloatVector
-  avg_A: array_typing.FloatScalar
+  A_avg: array_typing.FloatScalar
   Z_override: array_typing.FloatScalar | None = None
   impurity_mode: str = dataclasses.field(
       default=IMPURITY_MODE_NE_RATIOS, metadata={'static': True}
@@ -143,13 +143,13 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 
     if not self.A_override:
       As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      avg_A = jnp.sum(As * fractions)
+      A_avg = jnp.sum(As * fractions)
     else:
-      avg_A = self.A_override.get_value(t)
+      A_avg = self.A_override.get_value(t)
 
     return DynamicIonMixture(
         fractions=fractions,
-        avg_A=avg_A,
+        A_avg=A_avg,
         Z_override=Z_override,
     )
 
@@ -171,7 +171,7 @@ class ImpurityFractionsModel(IonMixture):
     # Use the result to construct the specialized DynamicFractions dataclass
     return DynamicImpurityFractions(
         fractions=dynamic_impurity_mixture.fractions,
-        avg_A=dynamic_impurity_mixture.avg_A,
+        A_avg=dynamic_impurity_mixture.A_avg,
         Z_override=dynamic_impurity_mixture.Z_override,
     )
 
@@ -219,14 +219,14 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
 
     if not self.A_override:
       As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      avg_A = jnp.sum(As * fractions)
+      A_avg = jnp.sum(As * fractions)
     else:
-      avg_A = self.A_override.get_value(t)
+      A_avg = self.A_override.get_value(t)
 
     return DynamicNeRatios(
         impurity_mode=self.impurity_mode,
         n_e_ratios=n_e_ratios_arr,
-        avg_A=avg_A,
+        A_avg=A_avg,
         Z_override=Z_override,
     )
 

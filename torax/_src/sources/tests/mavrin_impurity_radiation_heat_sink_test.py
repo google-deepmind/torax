@@ -112,7 +112,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     T_e = np.array(temperature)
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=np.array([1.0]),
-        avg_A=2.0,  # unused
+        A_avg=2.0,  # unused
     )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
@@ -149,7 +149,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     ion_symbol = ('W',)
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=np.array([1.0]),
-        avg_A=2.0,  # unused
+        A_avg=2.0,  # unused
     )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
@@ -284,12 +284,12 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     """
     T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
-    avg_A = 2.0  # arbitrary, not used.
+    A_avg = 2.0  # arbitrary, not used.
     ion_symbols = tuple(species.keys())
     fractions = np.array(tuple(species.values()))
     ion_mixture = plasma_composition.DynamicIonMixture(
         fractions=fractions,
-        avg_A=avg_A,
+        A_avg=A_avg,
     )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(

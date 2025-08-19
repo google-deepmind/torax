@@ -227,7 +227,7 @@ def _get_ion_properties_from_n_e_ratios(
   """Calculates ion properties when impurity content is defined by n_e ratios."""
   impurity_mixture = plasma_composition.DynamicIonMixture(
       fractions=impurity_dynamic_params.fractions,
-      avg_A=impurity_dynamic_params.avg_A,
+      A_avg=impurity_dynamic_params.A_avg,
       Z_override=impurity_dynamic_params.Z_override,
   )
   average_charge_state_cell = charge_states.get_average_charge_state(
@@ -411,8 +411,8 @@ def get_updated_ions(
       Z_i_face=Z_i_face,
       Z_impurity=ion_properties.Z_impurity,
       Z_impurity_face=ion_properties.Z_impurity_face,
-      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
-      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
+      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.A_avg,
+      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.A_avg,
       Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
   )
