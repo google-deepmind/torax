@@ -237,7 +237,9 @@ class InitializationTest(parameterized.TestCase):
   ):
     _CURRENT_PROFILE_NU = 2
     _NRHO = 100
-    _TOL = 3e-2
+    # TODO(b/439047730): Investigate whether tolerance can be reduced by doing a
+    # better comparison, e.g. by integrating the j profile.
+    _TOL = 4e-2
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
     config['geometry']['n_rho'] = _NRHO

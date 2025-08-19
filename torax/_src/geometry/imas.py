@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Useful functions for handling of IMAS IDSs."""
+import logging
 import os
 from typing import Any
 
@@ -123,6 +124,17 @@ def geometry_from_IMAS(
   int_dl_over_Bp = dvoldpsi  # C1
   flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1  # C2/C1
 
+  # This branching is needed since currently not all equilibrium codes output
+  # <1/R>
+  if IMAS_data.profiles_1d.gm9:
+    flux_surf_avg_1_over_R = IMAS_data.profiles_1d.gm9
+  else:
+    logging.warning(
+        "Flux surface averaged <1/R> profile (gm9) not found;"
+        " assuming <1/R> ≈ 1/R_major (constant)"
+    )
+    flux_surf_avg_1_over_R = 1 / R_major
+
   # jtor = dI/drhon / (drho/dS) = dI/drhon / spr
   # spr = vpr / ( 2 * np.pi * R_major)
   # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
@@ -164,6 +176,7 @@ def geometry_from_IMAS(
       "R_out": R_out,
       "F": F,
       "int_dl_over_Bp": int_dl_over_Bp,
+      "flux_surf_avg_1_over_R": flux_surf_avg_1_over_R,
       "flux_surf_avg_1_over_R2": flux_surf_avg_1_over_R2,
       "flux_surf_avg_RBp": flux_surf_avg_RBp,
       "flux_surf_avg_R2Bp2": flux_surf_avg_R2Bp2,
