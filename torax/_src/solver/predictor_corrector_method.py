@@ -35,13 +35,11 @@ from torax._src.sources import source_profiles
 @functools.partial(
     xnp.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'coeffs_callback',
     ],
 )
 def predictor_corrector_method(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -55,8 +53,6 @@ def predictor_corrector_method(
 
   Args:
     dt: current timestep
-    static_runtime_params_slice: General input parameters which are fixed
-      through a simulation run, and if changed, would trigger a recompile.
     dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters
       corresponding to the next time step, needed for the implicit PDE
       coefficients.
@@ -78,6 +74,7 @@ def predictor_corrector_method(
   Returns:
     x_new: Solution of evolving core profile state variables
   """
+  solver_params = dynamic_runtime_params_slice_t_plus_dt.solver
 
   # predictor-corrector loop. Will only be traversed once if not in
   # predictor-corrector mode
@@ -97,16 +94,16 @@ def predictor_corrector_method(
         x_new_guess=x_new_guess,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
-        theta_implicit=static_runtime_params_slice.solver.theta_implicit,
+        theta_implicit=solver_params.theta_implicit,
         convection_dirichlet_mode=(
-            static_runtime_params_slice.solver.convection_dirichlet_mode
+            solver_params.convection_dirichlet_mode
         ),
         convection_neumann_mode=(
-            static_runtime_params_slice.solver.convection_neumann_mode
+            solver_params.convection_neumann_mode
         ),
     )
 
-  if static_runtime_params_slice.solver.use_predictor_corrector:
+  if solver_params.use_predictor_corrector:
     x_new = xnp.fori_loop(
         0,
         dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps + 1,

@@ -54,7 +54,6 @@ def build_static_params_from_config(
           if source_config is not None
       },
       torax_mesh=config.geometry.build_provider.torax_mesh,
-      solver=config.solver.build_static_params(),
       main_ion_names=config.plasma_composition.get_main_ion_names(),
       impurity_names=config.plasma_composition.get_impurity_names(),
   )

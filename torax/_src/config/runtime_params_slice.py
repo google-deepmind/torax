@@ -110,9 +110,6 @@ class StaticRuntimeParamsSlice:
   TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
-
-  # Solver-specific static runtime params.
-  solver: solver_params.StaticRuntimeParams
   # Mapping of source name to source-specific static runtime params.
   sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Torax mesh used to construct the geometry.
@@ -127,7 +124,6 @@ class StaticRuntimeParamsSlice:
 
   def __hash__(self):
     return hash((
-        self.solver,
         tuple(sorted(self.sources.items())),  # Hashable version of sources
         hash(self.torax_mesh),  # Grid1D has a hash method defined.
         self.main_ion_names,
