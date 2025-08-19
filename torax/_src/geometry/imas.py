@@ -81,9 +81,9 @@ def geometry_from_IMAS(
   # support multiple time slices.
   if slice_time is not None:
     if slice_time in equilibrium.time:
-      slice_index = np.nonzero(equilibrium.time == slice_time)
+      slice_index = np.nonzero(equilibrium.time == slice_time)[0]
     else:
-      slice_index = np.searchsorted(slice_time, equilibrium.time)
+      slice_index = np.searchsorted(equilibrium.time, slice_time)
       logging.warning(
           f"t={slice_time} not in equilibrium.time."
           f"Using t={equilibrium.time[slice_index]} instead."

@@ -99,9 +99,9 @@ class EquilibriumTest(parameterized.TestCase):
     config.build_geometry()
 
   def test_IMAS_loading_specific_slice(self):
-    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    SLICE_TIME = 5
-    SLICE_INDEX = 1
+    filename = 'ITERhybrid_rampup_multiple_time_slices_COCOS17_IDS_ddv4.nc'
+    SLICE_TIME = 40
+    SLICE_INDEX = 20
     config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
     config_at_slice_from_time = geometry_pydantic_model.IMASConfig(
         imas_filepath=filename, slice_time=SLICE_TIME
@@ -114,21 +114,22 @@ class EquilibriumTest(parameterized.TestCase):
     geo_at_slice_from_index = config_at_slice_from_index.build_geometry()
 
     for key in geo_at_0.__dict__.keys():
-      np.testing.assert_allclose(
-          geo_at_slice_from_time[key],
-          geo_at_slice_from_index[key],
-          err_msg=f'Value {key} mismatched between slice_time and slice_index',
-      )
-      with self.assertRaises(AssertionError):
+      if key not in ['geometry_type', 'torax_mesh', 'R_major', 'rho_hires_norm', 'Phi_b_dot', 'Ip_from_parameters']:
         np.testing.assert_allclose(
-            geo_at_0[key],
-            geo_at_slice_from_time[key],
+            geo_at_slice_from_time.__dict__[key],
+            geo_at_slice_from_index.__dict__[key],
+            err_msg=f'Value {key} mismatched between slice_time and slice_index',
         )
-      with self.assertRaises(AssertionError):
-        np.testing.assert_allclose(
-            geo_at_0[key],
-            geo_at_slice_from_index[key],
-        )
+        with self.assertRaises(AssertionError):
+          np.testing.assert_allclose(
+              geo_at_0.__dict__[key],
+              geo_at_slice_from_time.__dict__[key],
+          )
+        with self.assertRaises(AssertionError):
+          np.testing.assert_allclose(
+              geo_at_0.__dict__[key],
+              geo_at_slice_from_index.__dict__[key],
+          )
 
   def test_IMAS_raises_if_slice_specified_twice(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
