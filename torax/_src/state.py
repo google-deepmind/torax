@@ -60,7 +60,8 @@ class CoreProfiles:
         [dimensionless].
       Z_eff: Effective charge on cell grid [dimensionless].
       Z_eff_face: Effective charge on face grid [dimensionless].
-      A_impurity: Impurity mass [amu].
+      A_impurity: Impurity mass on cell grid [amu].
+      A_impurity_face: Impurity mass on face grid [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
       j_total: Total current density on the cell grid [A/m^2].
@@ -84,7 +85,8 @@ class CoreProfiles:
   A_i: array_typing.FloatScalar
   Z_impurity: array_typing.FloatVectorCell
   Z_impurity_face: array_typing.FloatVectorFace
-  A_impurity: array_typing.FloatScalar
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
   sigma: array_typing.FloatVectorCell

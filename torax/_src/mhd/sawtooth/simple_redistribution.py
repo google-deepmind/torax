@@ -134,6 +134,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
           Z_impurity_face=core_profiles_t.Z_impurity_face,
           A_i=core_profiles_t.A_i,
           A_impurity=core_profiles_t.A_impurity,
+          A_impurity_face=core_profiles_t.A_impurity_face,
           Z_eff=core_profiles_t.Z_eff,
           Z_eff_face=core_profiles_t.Z_eff_face,
       )
@@ -171,6 +172,8 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
         n_impurity=ions_redistributed.n_impurity,
         Z_i=ions_redistributed.Z_i,
         Z_i_face=ions_redistributed.Z_i_face,
+        A_impurity=ions_redistributed.A_impurity,
+        A_impurity_face=ions_redistributed.A_impurity_face,
         Z_impurity=ions_redistributed.Z_impurity,
         Z_impurity_face=ions_redistributed.Z_impurity_face,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),

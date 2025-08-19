@@ -45,7 +45,8 @@ class Ions:
   Z_impurity: array_typing.FloatVectorCell
   Z_impurity_face: array_typing.FloatVectorFace
   A_i: array_typing.FloatScalar
-  A_impurity: array_typing.FloatScalar
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
 
@@ -162,6 +163,8 @@ def get_updated_electron_density(
 class _IonProperties:
   """Helper container for holding ion calculation outputs."""
 
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
   Z_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
@@ -208,6 +211,10 @@ def _get_ion_properties_from_fractions(
       ),
   )
   return _IonProperties(
+      A_impurity=jnp.full_like(Z_impurity, impurity_dynamic_params.A_avg),
+      A_impurity_face=jnp.full_like(
+          Z_impurity_face, impurity_dynamic_params.A_avg
+      ),
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
       Z_eff=Z_eff,
@@ -273,6 +280,10 @@ def _get_ion_properties_from_n_e_ratios(
       axis=0,
   )
   return _IonProperties(
+      A_impurity=jnp.full_like(Z_impurity, impurity_dynamic_params.A_avg),
+      A_impurity_face=jnp.full_like(
+          Z_impurity_face, impurity_dynamic_params.A_avg
+      ),
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
       Z_eff=Z_eff,
@@ -320,7 +331,8 @@ def get_updated_ions(
       Z_impurity_face: Average charge state of impurities on face grid
       [dimensionless].
       A_i: Average atomic number of main ion [amu].
-      A_impurity: Average atomic number of impurities [amu].
+      A_impurity: Average atomic number of impurities on cell grid [amu].
+      A_impurity_face: Average atomic number of impurities on face grid [amu].
   """
 
   Z_i = charge_states.get_average_charge_state(
@@ -412,7 +424,8 @@ def get_updated_ions(
       Z_impurity=ion_properties.Z_impurity,
       Z_impurity_face=ion_properties.Z_impurity_face,
       A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.A_avg,
-      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.A_avg,
+      A_impurity=ion_properties.A_impurity,
+      A_impurity_face=ion_properties.A_impurity_face,
       Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
   )
@@ -425,5 +438,5 @@ def _calculate_Z_eff(
     n_impurity: array_typing.FloatVector,
     n_e: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
-  """Calculates Z_eff based on impurity and main_ion."""
+  """Calculates Z_eff based on single effective impurity and main_ion."""
   return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

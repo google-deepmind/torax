@@ -17,6 +17,7 @@ from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
+
 import os
 
 from absl import logging
@@ -511,6 +512,25 @@ class StateHistory:
       if attr_name.endswith("_face") and (
           attr_name.removesuffix("_face") in core_profile_field_names
       ):
+        continue
+
+      # Special handling for A_impurity for backward compatibility with V1
+      # API for default 'fractions' impurity mode where A_impurity was a scalar.
+      # TODO(b/434175938): Remove this once we move to V2
+      if attr_name == "A_impurity":
+        # Check if A_impurity is constant across the radial dimension for all
+        # time steps. Need slicing (not indexing) to avoid a broadcasting error.
+        is_constant = np.all(attr_value == attr_value[..., 0:1], axis=-1)
+        if np.all(is_constant):
+          # Save as a scalar time-series. Take the value at the first point.
+          data_to_save = attr_value[..., 0]
+        else:
+          # Save as a profile.
+          face_value = getattr(stacked_core_profiles, "A_impurity_face")
+          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+        xr_dict[output_key] = self._pack_into_data_array(
+            output_key, data_to_save
+        )
         continue
 
       if hasattr(attr_value, "cell_plus_boundaries"):

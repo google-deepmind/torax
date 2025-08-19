@@ -58,7 +58,8 @@ def make_zero_core_profiles(
       Z_impurity_face=Z_impurity_face
       if Z_impurity_face is not None
       else jnp.zeros_like(geo.rho_face),
-      A_impurity=jnp.zeros(()),
+      A_impurity=jnp.zeros_like(geo.rho),
+      A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
       Z_eff_face=jnp.zeros_like(geo.rho_face),
       sigma=jnp.zeros_like(geo.rho),

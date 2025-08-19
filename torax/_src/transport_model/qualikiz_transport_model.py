@@ -344,7 +344,7 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(core_profiles.A_impurity),
+      A=20,  # will be a scan variable
       Z=10,  # will be a scan variable
   )
 
@@ -380,6 +380,7 @@ def _extract_qualikiz_plan(
       'Ati1': np.array(qualikiz_inputs.Ati),
       'Ani1': np.array(qualikiz_inputs.Ani1),
       'Zi1': np.array(Zi1),
+      'Ai1': np.array(core_profiles.A_impurity_face),
   }
   # pylint: enable=invalid-name
 
