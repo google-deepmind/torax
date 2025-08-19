@@ -39,6 +39,7 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
+  impurity_fractions: array_typing.FloatVector
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
@@ -166,6 +167,7 @@ class _IonProperties:
   Z_eff: array_typing.FloatVectorCell
   dilution_factor: array_typing.FloatVectorCell
   dilution_factor_edge: array_typing.FloatScalar
+  impurity_fractions: array_typing.FloatVector
 
 
 def _get_ion_properties_from_fractions(
@@ -211,6 +213,7 @@ def _get_ion_properties_from_fractions(
       Z_eff=Z_eff,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
+      impurity_fractions=impurity_dynamic_params.fractions,
   )
 
 
@@ -275,6 +278,7 @@ def _get_ion_properties_from_n_e_ratios(
       Z_eff=Z_eff,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
+      impurity_fractions=impurity_mixture.fractions,
   )
 
 
@@ -402,6 +406,7 @@ def get_updated_ions(
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
+      impurity_fractions=ion_properties.impurity_fractions,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
       Z_impurity=ion_properties.Z_impurity,

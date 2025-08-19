@@ -19,7 +19,9 @@ import enum
 from absl import logging
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 import typing_extensions
@@ -44,15 +46,18 @@ class CoreProfiles:
       psidot: Time derivative of poloidal flux (loop voltage) [V].
       n_e: Electron density [m^-3].
       n_i: Main ion density [m^-3].
-      n_impurity: Impurity density [m^-3].
+      n_impurity: Impurity density of bundled impurity [m^-3].
+      impurity_fractions: Fractional abundances of invididual impurity species.
       q_face: Safety factor.
       s_face: Magnetic shear.
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
-      Z_impurity: Impurity charge on cell grid [dimensionless].
-      Z_impurity_face: Impurity charge on face grid [dimensionless].
+      Z_impurity: Impurity charge of bundled impurity on cell grid
+        [dimensionless].
+      Z_impurity_face: Impurity charge of bundled impurity on face grid
+        [dimensionless].
       Z_eff: Effective charge on cell grid [dimensionless].
       Z_eff_face: Effective charge on face grid [dimensionless].
       A_impurity: Impurity mass [amu].
@@ -70,22 +75,23 @@ class CoreProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  q_face: array_typing.FloatVector
-  s_face: array_typing.FloatVector
+  impurity_fractions: array_typing.FloatVector
+  q_face: array_typing.FloatVectorFace
+  s_face: array_typing.FloatVectorFace
   v_loop_lcfs: array_typing.FloatScalar
-  Z_i: array_typing.FloatVector
-  Z_i_face: array_typing.FloatVector
+  Z_i: array_typing.FloatVectorCell
+  Z_i_face: array_typing.FloatVectorFace
   A_i: array_typing.FloatScalar
-  Z_impurity: array_typing.FloatVector
-  Z_impurity_face: array_typing.FloatVector
+  Z_impurity: array_typing.FloatVectorCell
+  Z_impurity_face: array_typing.FloatVectorFace
   A_impurity: array_typing.FloatScalar
-  Z_eff: array_typing.FloatVector
-  Z_eff_face: array_typing.FloatVector
-  sigma: array_typing.FloatVector
-  sigma_face: array_typing.FloatVector
-  j_total: array_typing.FloatVector
-  j_total_face: array_typing.FloatVector
-  Ip_profile_face: array_typing.FloatVector
+  Z_eff: array_typing.FloatVectorCell
+  Z_eff_face: array_typing.FloatVectorFace
+  sigma: array_typing.FloatVectorCell
+  sigma_face: array_typing.FloatVectorFace
+  j_total: array_typing.FloatVectorCell
+  j_total_face: array_typing.FloatVectorFace
+  Ip_profile_face: array_typing.FloatVectorFace
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
@@ -94,7 +100,7 @@ class CoreProfiles:
         self.n_e.value,
     ).item()
 
-  def negative_temperature_or_density(self) -> bool:
+  def negative_temperature_or_density(self) -> jax.Array:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
         self.T_i,
@@ -102,9 +108,15 @@ class CoreProfiles:
         self.n_e,
         self.n_i,
         self.n_impurity,
+        self.impurity_fractions,
     )
-    return any(
-        [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
+    # Check if any profile is less than -eps
+    # (allowing for numerical precision errors)
+    return np.any(
+        np.array([
+            np.any(np.less(x, -constants.CONSTANTS.eps))
+            for x in jax.tree.leaves(profiles_to_check)
+        ])
     )
 
   def __str__(self) -> str:
@@ -115,6 +127,7 @@ class CoreProfiles:
         psi={self.psi},
         n_e={self.n_e},
         n_impurity={self.n_impurity},
+        impurity_fractions={self.impurity_fractions},
         n_i={self.n_i},
       )
     """

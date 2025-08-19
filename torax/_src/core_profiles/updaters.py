@@ -117,6 +117,7 @@ def get_prescribed_core_profile_values(
   n_e = n_e_cell_variable.value
   n_i = ions.n_i.value
   n_impurity = ions.n_impurity.value
+  impurity_fractions = ions.impurity_fractions
 
   return {
       'T_i': T_i,
@@ -124,6 +125,7 @@ def get_prescribed_core_profile_values(
       'n_e': n_e,
       'n_i': n_i,
       'n_impurity': n_impurity,
+      'impurity_fractions': impurity_fractions,
       'Z_i': ions.Z_i,
       'Z_i_face': ions.Z_i_face,
       'Z_impurity': ions.Z_impurity,
@@ -173,6 +175,7 @@ def update_core_profiles_during_step(
       updated_core_profiles,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
+      impurity_fractions=ions.impurity_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
@@ -257,6 +260,7 @@ def update_core_and_source_profiles_after_step(
       n_e=updated_core_profiles_t_plus_dt.n_e,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
+      impurity_fractions=ions.impurity_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
@@ -514,6 +518,7 @@ def provide_core_profiles_t_plus_dt(
       n_e=n_e,
       n_i=n_i,
       n_impurity=n_impurity,
+      impurity_fractions=updated_values['impurity_fractions'],
       Z_i=updated_values['Z_i'],
       Z_i_face=Z_i_face,
       Z_impurity=updated_values['Z_impurity'],
