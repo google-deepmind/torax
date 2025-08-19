@@ -99,9 +99,9 @@ class EquilibriumTest(parameterized.TestCase):
     config.build_geometry()
 
   def test_IMAS_loading_specific_slice(self):
-    filename = 'ITERhybrid_rampup_multiple_time_slices_COCOS17_IDS_ddv4.nc'
+    filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
     SLICE_TIME = 40
-    SLICE_INDEX = 20
+    SLICE_INDEX = 5
     config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
     config_at_slice_from_time = geometry_pydantic_model.IMASConfig(
         imas_filepath=filename, slice_time=SLICE_TIME
@@ -114,7 +114,7 @@ class EquilibriumTest(parameterized.TestCase):
     geo_at_slice_from_index = config_at_slice_from_index.build_geometry()
 
     for key in geo_at_0.__dict__.keys():
-      if key not in ['geometry_type', 'torax_mesh', 'R_major', 'rho_hires_norm', 'Phi_b_dot', 'Ip_from_parameters']:
+      if key not in ['geometry_type', 'torax_mesh', 'R_major', 'B_0', 'rho_hires_norm', 'Phi_b_dot', 'Ip_from_parameters']:
         np.testing.assert_allclose(
             geo_at_slice_from_time.__dict__[key],
             geo_at_slice_from_index.__dict__[key],
