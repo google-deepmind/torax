@@ -1,3 +1,5 @@
+# In file: torax/_src/core_profiles/tests/updaters_test.py
+
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,12 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
-from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
@@ -30,7 +34,28 @@ class UpdatersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    jax_utils.enable_errors(True)
+    # Build a default geo object for convenience.
+    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+
+    T_e = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm),
+        dr=self.geo.drho_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+    n_e = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm),
+        dr=self.geo.drho_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+
+    self.core_profiles_t = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        T_e=T_e,
+        n_e=n_e,
+    )
 
   @parameterized.named_parameters(
       dict(
@@ -124,7 +149,7 @@ class UpdatersTest(parameterized.TestCase):
       n_e_right_bc_is_fGW,
       expected_n_e_right_bc,
   ):
-    """Tests that compute_boundary_conditions_t_plus_dt works."""
+    """Tests that compute_boundary_conditions_for_t_plus_dt works for n_e."""
     config = default_configs.get_default_config_dict()
 
     if n_e_nbar_is_fGW:
@@ -152,15 +177,14 @@ class UpdatersTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = provider(t=1.0)
-    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=geo,
-        core_profiles_t=mock.ANY,  # Unused
+        geo_t_plus_dt=self.geo,
+        core_profiles_t=self.core_profiles_t,
     )
 
     np.testing.assert_allclose(
@@ -193,15 +217,14 @@ class UpdatersTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = provider(t=1.0)
-    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=geo,
-        core_profiles_t=mock.ANY,  # Unused
+        geo_t_plus_dt=self.geo,
+        core_profiles_t=self.core_profiles_t,
     )
 
     self.assertEqual(
@@ -233,15 +256,14 @@ class UpdatersTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = provider(t=1.0)
-    geo = torax_config.geometry.build_provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
         static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
-        geo_t_plus_dt=geo,
-        core_profiles_t=mock.ANY,  # Unused
+        geo_t_plus_dt=self.geo,
+        core_profiles_t=self.core_profiles_t,
     )
 
     self.assertEqual(
@@ -268,16 +290,15 @@ class UpdatersTest(parameterized.TestCase):
         v_loop_lcfs_t_plus_dt_expected,
         psi_lcfs_t,
     )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
     psi_t = cell_variable.CellVariable(
-        value=np.ones_like(geo.rho) * 0.5,
-        dr=geo.drho_norm,
+        value=np.ones_like(self.geo.rho) * 0.5,
+        dr=self.geo.drho_norm,
         right_face_grad_constraint=0.0,
     )
     psi_t_plus_dt = cell_variable.CellVariable(
-        value=np.ones_like(geo.rho) * psi_lcfs_t_plus_dt,
-        dr=geo.drho_norm,
+        value=np.ones_like(self.geo.rho) * psi_lcfs_t_plus_dt,
+        dr=self.geo.drho_norm,
         right_face_grad_constraint=0.0,
     )
 

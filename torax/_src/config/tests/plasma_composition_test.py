@@ -226,7 +226,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
           testcase_name='new_api_n_e_ratios_Z_eff',
           config={
               'impurity': {
-                  'impurity_mode': 'n_e_ratios_Z_eff',
+                  'impurity_mode': (
+                      plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF
+                  ),
                   'species': {'C': 0.01, 'N': None},
                   'Z_override': 6.5,
                   'A_override': 13.0,
@@ -308,7 +310,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       plasma_composition.PlasmaComposition(
           impurity={
-              'impurity_mode': 'n_e_ratios_Z_eff',
+              'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
               'species': {'Ne': -0.1, 'W': None},
           }
       )
@@ -333,7 +335,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   def test_ne_ratios_Z_eff_validation(self, species, should_raise):
     """Tests that NeRatiosZeffModel must have exactly one None species."""
     config = {
-        'impurity_mode': 'n_e_ratios_Z_eff',
+        'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
         'species': species,
     }
     if should_raise:
@@ -425,7 +427,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     """Smoke test for JIT compilation of NeRatiosZeffModel."""
     pc = plasma_composition.PlasmaComposition(
         impurity={
-            'impurity_mode': 'n_e_ratios_Z_eff',
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
             'species': {'C': {0.0: 0.01}, 'N': None},
         },
         Z_eff=2.0,

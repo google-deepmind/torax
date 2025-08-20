@@ -41,7 +41,6 @@ from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
@@ -372,16 +371,22 @@ def compute_boundary_conditions_for_t_plus_dt(
   )
   n_e_right_bc = n_e.right_face_constraint
 
-  Z_i_edge = charge_states.get_average_charge_state(
-      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
-      T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  ).Z_mixture
-  Z_impurity_edge = charge_states.get_average_charge_state(
-      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
-      T_e=profile_conditions_t_plus_dt.T_e_right_bc,
-  ).Z_mixture
+  # Used for edge calculations and input arguments have correct edge BCs.
+  ions_edge = getters.get_updated_ions(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt,
+      dataclasses.replace(
+          core_profiles_t.n_e,
+          right_face_constraint=profile_conditions_t_plus_dt.n_e_right_bc,
+      ),
+      dataclasses.replace(
+          core_profiles_t.T_e,
+          right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
+      ),
+  )
+
+  Z_i_edge = ions_edge.Z_i_face[-1]
+  Z_impurity_edge = ions_edge.Z_impurity_face[-1]
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Z_i_edge,

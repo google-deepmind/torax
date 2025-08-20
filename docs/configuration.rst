@@ -421,18 +421,19 @@ follows:
 
 ``impurity`` (dict)
   Specifies the impurity species. The way impurities are defined is set by the
-  ``impurity_mode`` field within this dictionary. Two modes are supported:
-  ``'fractions'`` and ``'n_e_ratios'``. See the "Plasma Composition Examples"
-  section below for details. For backward compatibility, legacy formats (e.g.,
-  ``'impurity': 'Ne'`` or ``'impurity': {'Ne': 0.8, 'Ar': 0.2}``) are
-  automatically converted to the ``'fractions'`` mode.
+  ``impurity_mode`` field within this dictionary. Three modes are supported:
+  ``'fractions'``, ``'n_e_ratios'``, and ``'n_e_ratios_Z_eff'``. See the
+  "Plasma Composition Examples" section below for details. For backward
+  compatibility, legacy formats (e.g., ``'impurity': 'Ne'`` or ``'impurity':
+  {'Ne': 0.8, 'Ar': 0.2}``) are automatically converted to the ``'fractions'``
+  mode.
 
 ``Z_eff`` ( **time-varying-array** [default = 1.0])
-  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`,
-  where :math:`\hat{n}_i` is the normalized ion density :math:`n_i/n_e`. This is
-  a required input when using the ``'fractions'`` impurity mode. When using the
-  ``'n_e_ratios'`` mode, ``Z_eff`` is an emergent calculated quantity, and any
-  user-provided ``Z_eff`` value will be ignored (a warning will be issued).
+  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i n_i Z_i^2 / n_e`.
+  This is a required input when using the ``'fractions'`` or
+  ``'n_e_ratios_Z_eff'`` impurity modes. When using the ``'n_e_ratios'``
+  mode, ``Z_eff`` is an emergent calculated quantity, and any user-provided
+  ``Z_eff`` value will be ignored (a warning will be issued).
 
 ``Z_i_override`` (**time-varying-scalar** | None [default = None])
   An optional override for the main ion's charge (Z) or average charge of an
@@ -590,6 +591,43 @@ Example: A plasma with a time-varying Tungsten concentration and constant Neon.
 
 Too large impurity ratios may lead to negative main ion densities being
 calculated, which will lead to TORAX returning an error.
+
+**4. Impurity n_e Ratios with Z_eff Constraint (`impurity_mode: 'n_e_ratios_Z_eff'`)**
+
+Specify the density of each impurity species as a ratio of the electron
+density (`n_impurity / n_e`), with exactly one species designated as `None`.
+TORAX will calculate the density of the `None` species to be self-consistent
+with the provided `Z_eff` profile and the densities of the other "known"
+impurities.
+
+*   ``impurity_mode`` (str): Must be ``'n_e_ratios_Z_eff'``.
+*   ``species`` (dict[str, **time-varying-scalar** | None]): A dict mapping each
+    impurity symbol to its density ratio with n_e. Exactly one value must be
+    `None`. All other values must be non-negative.
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: A plasma with a known, constant Neon concentration, where the
+Tungsten concentration is unknown but `Z_eff` ramps up over time.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'n_e_ratios_Z_eff',
+          'species': {
+              'Ne': 0.01,  # n_Ne/n_e is constant
+              'W': None,     # n_W/n_e will be calculated
+          },
+      },
+      'Z_eff': {0.0: 2.0, 10.0: 2.2}, # Z_eff ramps from 2.0 to 2.2
+  }
+
+An error will be raised if the calculated density for the unknown impurity
+species becomes negative.
 
 Allowed ion symbols
 ^^^^^^^^^^^^^^^^^^^

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -557,6 +558,112 @@ class GettersTest(parameterized.TestCase):
 
     # 5. Assertions
     chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
+
+  def test_get_updated_ions_with_n_e_ratios_Z_eff(self):
+    """Tests get_updated_ions for n_e_ratios_Z_eff vs fractions mode."""
+    # 1. Define plasma parameters
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ne': 0.005, 'Ar': 0.001}  # for n_e_ratios mode
+
+    # 2. Create the two configurations
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios (ground truth)
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # 3. Run get_updated_ions for n_e_ratios to get the ground truth ions and
+    # Z_eff
+    def _run_get_updated_ions(torax_config):
+      provider = (
+          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+              torax_config
+          )
+      )
+      dynamic_runtime_params_slice = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          dynamic_runtime_params_slice,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ground_truth_zeff = ions_ne_ratios.Z_eff
+
+    # 4. Config 2: n_e_ratios_Z_eff (what we are testing)
+    config_dict_ne_ratios_zeff = base_config_dict.copy()
+    config_dict_ne_ratios_zeff['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': (
+                plasma_composition_lib.IMPURITY_MODE_NE_RATIOS_ZEFF
+            ),
+            'species': {'C': 0.01, 'Ne': None, 'Ar': 0.001},
+        },
+        'Z_eff': float(
+            ground_truth_zeff[0]
+        ),  # Use the calculated Z_eff as input
+    }
+    torax_config_ne_ratios_zeff = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios_zeff
+    )
+
+    # 5. Run get_updated_ions for n_e_ratios_Z_eff
+    ions_ne_ratios_zeff = _run_get_updated_ions(torax_config_ne_ratios_zeff)
+
+    # 6. Assertions
+
+    # Reshape the impurity_fractions from the n_e_ratios mode to match the
+    # shape from the n_e_ratios_Z_eff mode (n_species, n_grid).
+    fractions_2d = np.broadcast_to(
+        ions_ne_ratios.impurity_fractions[:, np.newaxis],
+        ions_ne_ratios_zeff.impurity_fractions.shape,
+    )
+    ions_ne_ratios = dataclasses.replace(
+        ions_ne_ratios,
+        impurity_fractions=fractions_2d,
+    )
+
+    chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
 
 
 if __name__ == '__main__':

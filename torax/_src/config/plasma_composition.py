@@ -93,8 +93,9 @@ class DynamicNeRatios:
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicNeRatiosZeff:
-  """Used to later populate a DynamicNeRatios once the None species is known."""
+  """Analogous to DynamicImpurityFractions but for n_e_ratio_Z_eff inputs."""
   n_e_ratios: Mapping[str, array_typing.FloatScalar | None]
+  unknown_species: str = dataclasses.field(metadata={'static': True})
   Z_override: array_typing.FloatScalar | None = None
   A_override: array_typing.FloatScalar | None = None
   impurity_mode: str = dataclasses.field(
@@ -243,11 +244,18 @@ class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
   ] = 'n_e_ratios_Z_eff'
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicNeRatiosZeff:
+    unknown_species = next(
+        (symbol for symbol, ratio in self.species.items() if ratio is None),
+        None,
+    )
+    # The validator ensures unknown_species is not None but add an extra check.
+    assert unknown_species is not None
     return DynamicNeRatiosZeff(
         n_e_ratios={
             symbol: ratio.get_value(t) if ratio is not None else None
             for symbol, ratio in self.species.items()
         },
+        unknown_species=unknown_species,
         Z_override=self.Z_override.get_value(t) if self.Z_override else None,
         A_override=self.A_override.get_value(t) if self.A_override else None,
     )
@@ -271,9 +279,9 @@ class DynamicPlasmaComposition:
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   main_ion: DynamicIonMixture
-  impurity: DynamicImpurityFractions | DynamicNeRatios
-  Z_eff: array_typing.FloatVector
-  Z_eff_face: array_typing.FloatVector
+  impurity: DynamicImpurityFractions | DynamicNeRatios | DynamicNeRatiosZeff
+  Z_eff: array_typing.FloatVectorCell
+  Z_eff_face: array_typing.FloatVectorFace
 
 
 @jax.tree_util.register_pytree_node_class

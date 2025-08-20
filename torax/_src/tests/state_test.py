@@ -237,6 +237,33 @@ class ImpurityFractionsTest(parameterized.TestCase):
           ),
       )
 
+  def test_negative_impurity_triggers_error(self):
+    """Tests that an unphysical config leading to negative impurity fraction is caught."""
+    config_dict = copy.deepcopy(self.base_config_dict)
+    config_dict['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+            'species': {
+                'C': 0.02,  # Carbon ratio is fixed and too high for Z_eff
+                'W': None,  # Tungsten is constrained by Z_eff
+            },
+        },
+        'Z_eff': 1.5,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    _, state_history = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+
+    # The simulation should have stopped early with an error.
+    self.assertEqual(
+        state_history.sim_error, state.SimError.NEGATIVE_CORE_PROFILES
+    )
+    # Verify that the simulation terminated before reaching t_final.
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
 
 if __name__ == '__main__':
   absltest.main()

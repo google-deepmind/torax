@@ -218,15 +218,22 @@ def get_average_charge_state(
       for ion_symbol in ion_symbols
   ])
 
-  # ion_mixture.fractions has shape (n_species,).
-  # Z_per_species has shape (n_species,) if T_e is a scalar, or
-  # (n_species, n_grid) if T_e is an array.
-  # We need to broadcast fractions for element-wise multiplication.
-  # Reshape fractions to be broadcastable with Z_per_species.
-  fractions_reshaped = jnp.reshape(
-      ion_mixture.fractions,
-      ion_mixture.fractions.shape + (1,) * (Z_per_species.ndim - 1),
-  )
+  # Handle both radially constant (1D) and radially varying (2D) fractions.
+  # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
+  # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
+  # Furthermore, Z_per_species has shape (n_species,) if T_e is a scalar, or
+  # (n_species, n_grid) if T_e is an array. The code below handles all cases.
+  fractions = ion_mixture.fractions
+  if fractions.ndim == 1:
+    # Radially constant fractions: reshape for broadcasting
+    fractions_reshaped = jnp.reshape(
+        fractions,
+        fractions.shape + (1,) * (Z_per_species.ndim - 1),
+    )
+  else:
+    # Radially varying fractions: shapes are already compatible for
+    # element-wise ops.
+    fractions_reshaped = fractions
 
   Z_avg = jnp.sum(fractions_reshaped * Z_per_species, axis=0)
   Z2_avg = jnp.sum(fractions_reshaped * Z_per_species**2, axis=0)
