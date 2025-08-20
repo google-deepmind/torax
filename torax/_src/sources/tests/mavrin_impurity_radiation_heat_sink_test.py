@@ -110,14 +110,10 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   ):
     """Test with valid ions and within temperature range."""
     T_e = np.array(temperature)
-    ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=np.array([1.0]),
-        A_avg=2.0,  # unused
-    )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            ion_mixture,
+            np.array([1.0]),
             T_e,
         )
     )
@@ -147,21 +143,19 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def test_temperature_clipping(self, T_e_input, T_e_clipped):
     """Test with valid ions and within temperature range."""
     ion_symbol = ('W',)
-    ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=np.array([1.0]),
-        A_avg=2.0,  # unused
-    )
+    impurity_fractions = np.array([1.0])
+
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            ion_mixture,
+            impurity_fractions,
             T_e_input,
         )
     )
     LZ_expected = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            ion_mixture,
+            impurity_fractions,
             T_e_clipped,
         )
     )
@@ -284,17 +278,12 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     """
     T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
-    A_avg = 2.0  # arbitrary, not used.
     ion_symbols = tuple(species.keys())
-    fractions = np.array(tuple(species.values()))
-    ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=fractions,
-        A_avg=A_avg,
-    )
+    impurity_fractions = np.array(tuple(species.values()))
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbols,
-            ion_mixture,
+            impurity_fractions,
             T_e,
         )
     )
