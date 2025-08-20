@@ -29,6 +29,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import scipy
+from shapely import Point, Polygon
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import interpolated_param
@@ -741,12 +742,29 @@ class StandardGeometryIntermediates:
 
     # Mask for the region inside the LCFS
     # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
-    offset = 0.01
+    cgf_psi = contourpy.contour_generator(X, Z, psi_eqdsk_2dgrid)
+    sep_vertices = cgf_psi.create_contour((eqfile['psibdry'] - eqfile['psimag']) * 0.9999)
+
+    # Check which flux contour bounds contains the magnetic axis, select that contour
+    idxsep = 0
+    for idxsep, contour_vertices in enumerate(sep_vertices):
+        if (
+            (Raxis > contour_vertices.T[0].min()) &
+            (Raxis < contour_vertices.T[0].max()) &
+            (Zaxis > contour_vertices.T[1].min()) &
+            (Zaxis < contour_vertices.T[1].max())
+        ):
+            break
+    Xsep, Zsep = sep_vertices[idxsep].T[0], sep_vertices[idxsep].T[1]
+
+    #offset = 0.01
+    xoffset = 1.25 * eqfile['xdim'] / (eqfile['nx'] - 1)
+    zoffset = 1.25 * eqfile['zdim'] / (eqfile['nz'] - 1)
     mask = (
-        (X > Xlcfs.min() - offset)
-        & (X < Xlcfs.max() + offset)
-        & (Z > Zlcfs.min() - offset)
-        & (Z < Zlcfs.max() + offset)
+        (X > Xsep.min() - xoffset)
+        & (X < Xsep.max() + xoffset)
+        & (Z > Zsep.min() - zoffset)
+        & (Z < Zsep.max() + zoffset)
     )
     masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
 
@@ -773,7 +791,12 @@ class StandardGeometryIntermediates:
             Possible reason is too many surfaces requested.
             Try reducing n_surfaces from the current value of {n_surfaces}.
             """)
-      x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
+      c_idx = 0
+      for vv in range(len(vertices)):
+        if Polygon(vertices[vv]).contains(Point(eqfile['xmag'], eqfile['zmag'])):
+          c_idx = vv
+          break
+      x_surface, z_surface = vertices[c_idx].T[0], vertices[c_idx].T[1]
       surfaces.append((x_surface, z_surface))
 
     # ------------------------------------------------------------------ #
