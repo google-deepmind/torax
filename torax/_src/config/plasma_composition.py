@@ -37,6 +37,32 @@ IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
 IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
+def calculate_fractions_from_ratios(
+    ratios: array_typing.FloatVector,
+) -> array_typing.FloatVector:
+  """Calculates fractions from ratios, handling the all-zero case."""
+  # Ratios can be 1D (n_species,) or 2D (n_species, n_grid).
+  # Sum over the species axis.
+  total_ratio = jnp.sum(ratios, axis=0)
+
+  is_positive = total_ratio > 0.0
+
+  # Avoid division by zero by replacing zeros in total_ratio with 1.0.
+  # The result of this division will be masked out by jnp.where anyway.
+  safe_total_ratio = jnp.where(is_positive, total_ratio, 1.0)
+
+  # Calculate fractions where total_ratio is positive.
+  calculated_fractions = ratios / safe_total_ratio
+
+  # For the zero impurity case, return uniform fractions to avoid NaNs.
+  # The choice is arbitrary as it will be multiplied by zero impurity density.
+  num_species = ratios.shape[0]
+  # num_species guaranteed to be > 0 since no empty impurity dict is allowed.
+  uniform_fractions = jnp.ones_like(ratios) / num_species
+
+  return jnp.where(is_positive, calculated_fractions, uniform_fractions)
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicIonMixture:
@@ -47,8 +73,10 @@ class DynamicIonMixture:
   functions for fusion power and radiation which are species-dependent.
 
   Attributes:
-    fractions: Ion fractions for a time slice.
-    A_avg: Average A of the mixture.
+    fractions: Ion fractions for a time slice. Can be 1D (n_species,) for
+      radially constant fractions, or 2D (n_species, n_grid) for radially
+      varying fractions.
+    A_avg: Average A of the mixture. Can be a scalar or 1D array (n_grid,).
     Z_override: Typically, the average Z is calculated according to the
       temperature dependent charge-state-distribution, or for low-Z cases by the
       atomic numbers of the ions assuming full ionization. If Z_override is
@@ -56,7 +84,7 @@ class DynamicIonMixture:
   """
 
   fractions: array_typing.FloatVector
-  A_avg: array_typing.FloatScalar
+  A_avg: array_typing.FloatScalar | array_typing.FloatVectorCell
   Z_override: array_typing.FloatScalar | None = None
 
 
@@ -85,9 +113,7 @@ class DynamicNeRatios:
   @property
   def fractions(self) -> array_typing.FloatVector:
     """Returns the impurity fractions calculated from the n_e_ratios."""
-    return self.n_e_ratios / (
-        jnp.sum(self.n_e_ratios) + constants.CONSTANTS.eps
-    )
+    return calculate_fractions_from_ratios(self.n_e_ratios)
 
 
 @jax.tree_util.register_dataclass
@@ -214,9 +240,7 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
         [ratio.get_value(t) for ratio in self.species.values()]
     )
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
-    fractions = n_e_ratios_arr / (
-        jnp.sum(n_e_ratios_arr) + constants.CONSTANTS.eps
-    )
+    fractions = calculate_fractions_from_ratios(n_e_ratios_arr)
 
     if not self.A_override:
       As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])

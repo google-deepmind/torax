@@ -20,6 +20,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
@@ -28,6 +29,7 @@ from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.orchestration import run_simulation
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.test_utils import default_configs
@@ -664,6 +666,85 @@ class GettersTest(parameterized.TestCase):
     )
 
     chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
+
+  @parameterized.parameters(
+      (
+          plasma_composition_lib.IMPURITY_MODE_FRACTIONS,
+          {'Ne': 0.5, 'W': 0.5},
+          1.0,
+      ),
+      (
+          plasma_composition_lib.IMPURITY_MODE_NE_RATIOS,
+          {'Ne': 0.0, 'W': 0.0},
+          None,
+      ),
+      (
+          plasma_composition_lib.IMPURITY_MODE_NE_RATIOS_ZEFF,
+          {'Ne': 0.0, 'W': None},
+          1.0,
+      ),
+  )
+  def test_get_updated_ions_with_zero_impurities(
+      self, impurity_mode, species, Z_eff
+  ):
+    config_dict = {
+        'profile_conditions': {},
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': {
+                'impurity_mode': impurity_mode,
+                'species': species,
+            },
+        },
+        'numerics': {'t_final': 0.1},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    if Z_eff is not None:
+      config_dict['plasma_composition']['Z_eff'] = Z_eff
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    provider = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+            torax_config
+        )
+    )
+    dynamic_runtime_params_slice = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    static_slice = build_runtime_params.build_static_params_from_config(
+        torax_config
+    )
+
+    initial_core_profiles = initialization.initial_core_profiles(
+        static_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    ions = getters.get_updated_ions(
+        dynamic_runtime_params_slice,
+        geo,
+        initial_core_profiles.n_e,
+        initial_core_profiles.T_e,
+    )
+
+    np.testing.assert_allclose(ions.n_impurity.value, 0.0)
+    np.testing.assert_allclose(ions.Z_eff, 1.0)
+    np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
+
+    _, state_history = run_simulation.run_simulation(torax_config)
+    np.testing.assert_equal(
+        state_history.sim_error,
+        state.SimError.NO_ERROR,
+        err_msg='Simulation resulted in an unexpected error.',
+    )
 
 
 if __name__ == '__main__':

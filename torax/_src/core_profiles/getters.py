@@ -427,9 +427,11 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       [full_n_e_ratios_face[s] for s in impurity_symbols]
   )
 
-  fractions = n_e_ratios_all_species / jnp.sum(n_e_ratios_all_species, axis=0)
-  fractions_face = n_e_ratios_all_species_face / jnp.sum(
-      n_e_ratios_all_species_face, axis=0
+  fractions = plasma_composition.calculate_fractions_from_ratios(
+      n_e_ratios_all_species
+  )
+  fractions_face = plasma_composition.calculate_fractions_from_ratios(
+      n_e_ratios_all_species_face
   )
 
   # Build the final ion mixture and calculate properties
