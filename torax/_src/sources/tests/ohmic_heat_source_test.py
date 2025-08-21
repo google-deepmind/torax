@@ -50,7 +50,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         ' an explicit source.',
     ):
       source.get_value(
-          mock.ANY,
           dynamic_runtime_params_slice,
           mock.ANY,
           mock.ANY,
@@ -78,7 +77,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         ' an explicit source.',
     ):
       source.get_value(
-          mock.ANY,
           dynamic_runtime_params_slice,
           mock.ANY,
           mock.ANY,

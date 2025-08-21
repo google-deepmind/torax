@@ -164,13 +164,11 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
 
   def build_solver(
       self,
-      static_runtime_params_slice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> 'FakeSolver':
     return FakeSolver(
         param=self.param,
         max_value=self.max_value,
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
         inner_solver_iterations=self.inner_solver_iterations,
     )
@@ -196,12 +194,10 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       self,
       param: str,
       max_value: float,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
       inner_solver_iterations: list[int] | None = None,
   ):
     super().__init__(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
     self._param = param

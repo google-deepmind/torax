@@ -52,7 +52,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calc_heating_and_current(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
@@ -66,7 +65,6 @@ def calc_heating_and_current(
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
 
   Args:
-    unused_static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Global runtime parameters
     geo: Magnetic geometry.
     source_name: Name of the source.

@@ -64,9 +64,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
             torax_config
         )
     )
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
@@ -75,7 +72,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     geo = torax_config.geometry.build_provider(time)
     dynamic_runtime_params_slice = provider(t=time)
     core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,

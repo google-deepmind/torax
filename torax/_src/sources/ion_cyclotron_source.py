@@ -337,7 +337,6 @@ def _helium3_tail_temperature(
 
 
 def icrh_model_func(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,

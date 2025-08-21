@@ -73,11 +73,7 @@ class FormulasTest(parameterized.TestCase):
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     self.core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,

@@ -39,7 +39,6 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
   def __call__(
       self,
       rho_norm_q1: array_typing.FloatScalar,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -57,7 +56,6 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
 
     Args:
       rho_norm_q1: The radius of the q=1 surface.
-      static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice: Dynamic runtime parameters.
       geo: Geometry object.
       core_profiles_t: Core plasma profiles *before* redistribution.

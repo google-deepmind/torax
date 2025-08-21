@@ -193,7 +193,6 @@ def update_core_profiles_during_step(
 def update_core_and_source_profiles_after_step(
     dt: array_typing.FloatScalar,
     x_new: tuple[cell_variable.CellVariable, ...],
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
@@ -210,7 +209,6 @@ def update_core_and_source_profiles_after_step(
   Args:
     dt: The size of the last timestep.
     x_new: The new values of the evolving variables.
-    static_runtime_params_slice: The static runtime params slice.
     dynamic_runtime_params_slice_t_plus_dt: The dynamic runtime params slice.
     geo: Magnetic geometry.
     core_profiles_t: The old set of core plasma profiles.
@@ -298,7 +296,6 @@ def update_core_and_source_profiles_after_step(
 
   # build_source_profiles calculates the union with explicit + implicit
   total_source_profiles = source_profile_builders.build_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       source_models=source_models,
@@ -331,7 +328,6 @@ def update_core_and_source_profiles_after_step(
 
 def compute_boundary_conditions_for_t_plus_dt(
     dt: array_typing.FloatScalar,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
@@ -341,7 +337,6 @@ def compute_boundary_conditions_for_t_plus_dt(
 
   Args:
     dt: Size of the next timestep
-    static_runtime_params_slice: Static (concrete) runtime parameters
     dynamic_runtime_params_slice_t: Dynamic runtime parameters for the current
       timestep. Will not be used if
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs is
@@ -361,8 +356,6 @@ def compute_boundary_conditions_for_t_plus_dt(
   profile_conditions_t_plus_dt = (
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions
   )
-  # Unused, but kept in signature to maintain internal API for now
-  del static_runtime_params_slice
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
@@ -453,7 +446,6 @@ def compute_boundary_conditions_for_t_plus_dt(
 
 def provide_core_profiles_t_plus_dt(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
@@ -462,7 +454,6 @@ def provide_core_profiles_t_plus_dt(
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = compute_boundary_conditions_for_t_plus_dt(
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,

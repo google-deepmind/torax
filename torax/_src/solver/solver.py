@@ -35,33 +35,20 @@ class Solver(abc.ABC):
   """Solves for a single time steps update to State.
 
   Attributes:
-    static_runtime_params_slice: Static runtime parameters. Input params that
-      trigger recompilation when they change. These don't have to be
-      JAX-friendly types and can be used in control-flow logic.
     physics_models: Physics models.
   """
 
   def __init__(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ):
-    self.static_runtime_params_slice = static_runtime_params_slice
     self.physics_models = physics_models
 
   def __hash__(self) -> int:
-    return hash((
-        self.static_runtime_params_slice,
-        self.physics_models,
-    ))
+    return hash(self.physics_models)
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
-    return (
-        self.static_runtime_params_slice == other.static_runtime_params_slice
-        and self.static_runtime_params_slice
-        == other.static_runtime_params_slice
-        and self.physics_models == other.physics_models
-    )
+    return self.physics_models == other.physics_models
 
   @functools.partial(
       xnp.jit,
@@ -124,7 +111,6 @@ class Solver(abc.ABC):
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          static_runtime_params_slice=self.static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t,
@@ -146,7 +132,6 @@ class Solver(abc.ABC):
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -166,9 +151,6 @@ class Solver(abc.ABC):
 
     Args:
       dt: Time step duration.
-      static_runtime_params_slice: Input params that trigger recompilation when
-        they change. These don't have to be JAX-friendly types and can be used
-        in control-flow logic.
       dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
         time of the step). These runtime params can change from step to step
         without triggering a recompilation.

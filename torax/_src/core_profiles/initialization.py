@@ -41,7 +41,6 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
@@ -50,7 +49,6 @@ def initial_core_profiles(
   """Calculates the initial core profiles.
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
@@ -132,7 +130,6 @@ def initial_core_profiles(
   )
 
   return _init_psi_and_psi_derived(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -214,7 +211,6 @@ def update_psi_from_j(
 
 
 def _init_psi_and_psi_derived(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -231,7 +227,6 @@ def _init_psi_and_psi_derived(
     this method is iterated to converge to the true psi.
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
     core_profiles: Core profiles.
@@ -248,7 +243,6 @@ def _init_psi_and_psi_derived(
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
   # Updates the calculated source profiles with the standard source profiles.
   source_profile_builders.build_standard_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,

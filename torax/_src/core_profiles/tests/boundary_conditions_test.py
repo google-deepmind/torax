@@ -77,11 +77,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
     initial_dynamic_runtime_params_slice = provider(
         t=torax_config.numerics.t_initial
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         initial_dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -94,7 +90,6 @@ class BoundaryConditionsTest(parameterized.TestCase):
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,  # Not used
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
         core_profiles_t=core_profiles,
-        static_runtime_params_slice=static_slice,
         geo_t_plus_dt=geo,
     )
     # pylint: disable=invalid-name

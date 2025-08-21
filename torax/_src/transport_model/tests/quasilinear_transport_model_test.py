@@ -64,12 +64,8 @@ def _get_model_and_model_inputs(
       )
   )
   geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
-  static_slice = build_runtime_params.build_static_params_from_config(
-      torax_config
-  )
   core_profiles = initialization.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,

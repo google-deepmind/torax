@@ -57,7 +57,6 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -73,7 +72,6 @@ class NonlinearThetaMethod(solver.Solver):
     """See Solver._x_new docstring."""
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=self.physics_models,
         evolving_names=evolving_names,
     )
@@ -82,7 +80,6 @@ class NonlinearThetaMethod(solver.Solver):
         solver_numeric_outputs,
     ) = self._x_new_helper(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
@@ -103,7 +100,6 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -126,8 +122,6 @@ class NonlinearThetaMethod(solver.Solver):
 
     Args:
       dt: Time step duration.
-      static_runtime_params_slice: Static runtime parameters. Changes to these
-        runtime params will trigger recompilation.
       dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
         time of the step).
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
@@ -161,7 +155,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -183,7 +176,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         solver_numeric_outputs,
     ) = optimizer_solve_block.optimizer_solve_block(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
@@ -215,7 +207,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -238,7 +229,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         solver_numeric_outputs,
     ) = newton_raphson_solve_block.newton_raphson_solve_block(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,

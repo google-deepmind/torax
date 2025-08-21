@@ -34,11 +34,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     step_fn = _get_step_fn(torax_config)
 
-    static, dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
+    dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
 
     non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
         t=torax_config.numerics.t_initial,
-        static_runtime_params_slice=static,
         dynamic_runtime_params_slice_provider=dynamic,
         geometry_provider=geo,
         step_fn=step_fn,
@@ -48,7 +47,6 @@ class InitialStateTest(sim_test_case.SimTestCase):
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
             t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            static_runtime_params_slice=static,
             dynamic_runtime_params_slice_provider=dynamic,
             geometry_provider=geo,
             step_fn=step_fn,
@@ -95,7 +93,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     config['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    static, dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
+    dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
     step_fn = _get_step_fn(torax_config)
 
     # Load in the reference core profiles.
@@ -126,7 +124,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     dynamic.profile_conditions.normalize_n_e_to_nbar = False
     dynamic.profile_conditions.n_e_right_bc_is_absolute = True
 
-    result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
+    result = initial_state._get_initial_state(dynamic, geo, step_fn)
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
@@ -139,23 +137,19 @@ def _get_step_fn(torax_config):
 
 
 def _get_geo_and_runtime_params_providers(torax_config):
-  static_runtime_params_slice = (
-      build_runtime_params.build_static_params_from_config(torax_config)
-  )
   dynamic_runtime_params_slice_provider = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
           torax_config
       )
   )
   return (
-      static_runtime_params_slice,
       dynamic_runtime_params_slice_provider,
       torax_config.geometry.build_provider,
   )
 
 
 def _get_geo_and_runtime_params_slice(torax_config):
-  static, dynamic_provider, geo_provider = (
+  dynamic_provider, geo_provider = (
       _get_geo_and_runtime_params_providers(torax_config)
   )
   dynamic_runtime_params_slice_for_init, geo_for_init = (
@@ -166,7 +160,6 @@ def _get_geo_and_runtime_params_slice(torax_config):
       )
   )
   return (
-      static,
       dynamic_runtime_params_slice_for_init,
       geo_for_init,
   )

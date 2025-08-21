@@ -93,31 +93,6 @@ class DynamicRuntimeParamsSlice:
   time_step_calculator: time_step_calculator_runtime_params.DynamicRuntimeParams
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class StaticRuntimeParamsSlice:
-  """Static arguments to SimulationStepFn which cannot be changed.
-
-  If any changes are made to these arguments, then components in
-  SimulationStepFn must be recompiled.
-
-  NOTE: These are not the only parameters which can trigger recompilations! For
-  instance, if the geometry changes its shape (i.e. nr or hires_factor change),
-  that can also trigger a recompile. This is just to note that this list is not
-  an exhaustive list of what can cause recompilations.
-
-  TODO(b/335596447): Add function to help users detect whether their
-  change in config will trigger a recompile.
-  """
-  # Ion symbols for main ion and impurity (which each could be mixtures of ions)
-  # These are static to simplify source functions for fusion power and radiation
-  # which are species-dependent.
-
-  def __hash__(self):
-    return hash((
-    ))
-
-
 def make_ip_consistent(
     dynamic_runtime_params_slice: DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,

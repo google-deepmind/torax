@@ -66,11 +66,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         )
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=physics_models.source_models,
@@ -78,7 +74,6 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         source_models=physics_models.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
@@ -87,7 +82,6 @@ class CoreProfileSettersTest(parameterized.TestCase):
         explicit=True,
     )
     calc_coeffs.calc_coeffs(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -103,11 +97,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ) -> calc_coeffs.CoeffsCallback:
       physics_models = torax_config.build_physics_models()
       evolving_names = tuple(['T_i'])
-      static_runtime_params_slice = (
-          build_runtime_params.build_static_params_from_config(torax_config)
-      )
       return calc_coeffs.CoeffsCallback(
-          static_runtime_params_slice=static_runtime_params_slice,
           physics_models=physics_models,
           evolving_names=evolving_names,
       )

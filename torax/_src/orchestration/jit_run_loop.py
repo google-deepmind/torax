@@ -171,10 +171,7 @@ def run_loop(
 
   Args:
     dynamic_runtime_params_slice_provider: Provides a DynamicRuntimeParamsSlice
-      to use as input for each time step. See static_runtime_params_slice and
-      the runtime_params_slice module docstring for runtime_params_slice to
-      understand why we need the dynamic and static config slices and what they
-      control.
+      to use as input for each time step.
     initial_state: The starting state of the simulation. This includes both the
       state variables which the solver.Solver will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.

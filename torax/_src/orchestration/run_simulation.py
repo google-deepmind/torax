@@ -49,7 +49,7 @@ def prepare_simulation(
 
   Returns:
     A tuple containing:
-      - The static runtime parameters slice.
+
       - The dynamic runtime parameters slice provider.
       - The initial state.
       - The initial post processed outputs.
@@ -58,12 +58,7 @@ def prepare_simulation(
   geometry_provider = torax_config.geometry.build_provider
   physics_models = torax_config.build_physics_models()
 
-  static_runtime_params_slice = (
-      build_runtime_params.build_static_params_from_config(torax_config)
-  )
-
   solver = torax_config.solver.build_solver(
-      static_runtime_params_slice=static_runtime_params_slice,
       physics_models=physics_models,
   )
 
@@ -76,7 +71,6 @@ def prepare_simulation(
   step_fn = step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-      static_runtime_params_slice=static_runtime_params_slice,
       geometry_provider=geometry_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
   )
@@ -86,7 +80,6 @@ def prepare_simulation(
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
             t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
             step_fn=step_fn,
@@ -96,7 +89,6 @@ def prepare_simulation(
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
             step_fn=step_fn,

@@ -67,11 +67,7 @@ class AngioniSauterTest(absltest.TestCase):
         )
     )
 
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,

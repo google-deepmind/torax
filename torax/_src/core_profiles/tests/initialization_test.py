@@ -50,7 +50,6 @@ class InitializationTest(parameterized.TestCase):
     dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
-        mock.ANY,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
@@ -94,11 +93,7 @@ class InitializationTest(parameterized.TestCase):
         )(t=1.0)
     )
     geo = torax_config.geometry.build_provider(t=1.0)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -355,11 +350,6 @@ def _calculate_currents(
     jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, geometry.Geometry
 ]:
   """Calculates j_total, j_external, and j_ohmic currents."""
-
-  static_slice = build_runtime_params.build_static_params_from_config(
-      torax_config
-  )
-
   dynamic_slice, geo = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=torax_config.numerics.t_initial,
@@ -372,7 +362,6 @@ def _calculate_currents(
 
   core_profiles = initialization.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_slice,
-      static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,
@@ -381,7 +370,6 @@ def _calculate_currents(
       geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
-      static_runtime_params_slice=static_slice,
       dynamic_runtime_params_slice=dynamic_slice,
       geo=geo,
       core_profiles=core_profiles,

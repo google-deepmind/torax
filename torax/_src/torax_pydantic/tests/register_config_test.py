@@ -43,7 +43,6 @@ class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
 
 
 def double_gas_puff_source(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
@@ -53,7 +52,6 @@ def double_gas_puff_source(
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from puffs."""
   output = gas_puff_source_lib.calc_puff_source(
-      unused_static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       source_name,
@@ -189,6 +187,7 @@ class RegisterConfigTest(parameterized.TestCase):
       register_config.register_source_model_config(
           NewGasPuffSourceModelConfig, 'foo_source'
       )
+
 
 if __name__ == '__main__':
   absltest.main()

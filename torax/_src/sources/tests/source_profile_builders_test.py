@@ -53,18 +53,13 @@ class SourceModelsTest(parameterized.TestCase):
         )
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -73,7 +68,6 @@ class SourceModelsTest(parameterized.TestCase):
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -124,7 +118,6 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
@@ -184,7 +177,6 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
@@ -268,7 +260,6 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=mock.ANY,
         dynamic_runtime_params_slice=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,

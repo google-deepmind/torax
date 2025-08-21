@@ -13,8 +13,6 @@
 # limitations under the License.
 """Methods for building simulation parameters.
 
-For the static_runtime_params_slice this is a method
-`build_static_runtime_params__from_config`.
 For the dynamic_runtime_params_slice this is a class
 `DynamicRuntimeParamsSliceProvider` which provides a slice of the
 DynamicRuntimeParamsSlice to use during time t of the sim.
@@ -42,15 +40,6 @@ from torax._src.time_step_calculator import pydantic_model as time_step_calculat
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
 import typing_extensions
-
-
-def build_static_params_from_config(
-    config: model_config.ToraxConfig,
-) -> runtime_params_slice.StaticRuntimeParamsSlice:
-  """Builds a StaticRuntimeParamsSlice from a ToraxConfig."""
-  # Unused, but kept in signature to maintain internal API for now
-  del config
-  return runtime_params_slice.StaticRuntimeParamsSlice()
 
 
 @jax.tree_util.register_dataclass

@@ -35,7 +35,6 @@ class SimpleTriggerTest(parameterized.TestCase):
     self.geo = geometry_pydantic_model.CircularConfig(
         n_rho=_NRHO
     ).build_geometry()
-    self.mock_static_params = mock.ANY
     self.trigger = simple_trigger.SimpleTrigger()
 
   def _get_mock_core_profiles(
@@ -133,7 +132,6 @@ class SimpleTriggerTest(parameterized.TestCase):
     )
 
     trigger_result, _ = self.trigger(
-        self.mock_static_params,
         mock_dynamic_params,
         self.geo,
         mock_core_profiles,

@@ -47,7 +47,6 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=mock.ANY,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -90,7 +89,6 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=mock.ANY,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -120,7 +118,6 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_slice,
-        static_runtime_params_slice=mock.ANY,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -161,7 +158,6 @@ class SourceTest(parameterized.TestCase):
     ):
       source.get_value(
           dynamic_runtime_params_slice=dynamic_slice,
-          static_runtime_params_slice=mock.ANY,
           geo=mock.ANY,
           core_profiles=mock.ANY,
           calculated_source_profiles=None,

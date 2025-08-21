@@ -65,16 +65,12 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=torax_config.numerics.t_initial,
         )
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -239,16 +235,12 @@ class TransportSmoothingTest(parameterized.TestCase):
             torax_config
         )(t=torax_config.numerics.t_initial)
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,

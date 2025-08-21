@@ -35,14 +35,12 @@ class LinearThetaMethod(solver_lib.Solver):
       xnp.jit,
       static_argnames=[
           'self',
-          'static_runtime_params_slice',
           'evolving_names',
       ],
   )
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -65,7 +63,6 @@ class LinearThetaMethod(solver_lib.Solver):
     )
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=self.physics_models,
         evolving_names=evolving_names,
     )
@@ -84,7 +81,7 @@ class LinearThetaMethod(solver_lib.Solver):
 
     # Calculate x_new with the predictor corrector method. Reverts to a
     # standard linear solve if
-    # static_runtime_params_slice.predictor_corrector=False.
+    # runtime_params_slice.predictor_corrector=False.
     # init_val is the initialization for the predictor_corrector loop.
     x_new = predictor_corrector_method.predictor_corrector_method(
         dt=dt,

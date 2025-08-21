@@ -17,7 +17,6 @@
 import dataclasses
 
 import jax
-from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -35,20 +34,9 @@ from torax._src.sources import source_profiles as source_profiles_lib
 class SawtoothSolver(solver.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
-  def __init__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      physics_models: physics_models_lib.PhysicsModels,
-  ):
-    super().__init__(
-        static_runtime_params_slice=static_runtime_params_slice,
-        physics_models=physics_models,
-    )
-
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
@@ -72,7 +60,6 @@ class SawtoothSolver(solver.Solver):
 
     Args:
       dt: Sawtooth step duration.
-      static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice_t: Dynamic runtime parameters at time t.
       dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters at time
         t + crash_dt.
@@ -93,7 +80,6 @@ class SawtoothSolver(solver.Solver):
       raise ValueError('Sawtooth model is None.')
 
     trigger_sawtooth, rho_norm_q1 = sawtooth_models.trigger_model(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         geo_t,
         core_profiles_t,
@@ -106,7 +92,6 @@ class SawtoothSolver(solver.Solver):
 
       redistributed_core_profiles = sawtooth_models.redistribution_model(
           rho_norm_q1,
-          static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
           geo_t,
           core_profiles_t,

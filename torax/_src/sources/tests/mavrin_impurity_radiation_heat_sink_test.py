@@ -44,22 +44,17 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             torax_config
         )
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     dynamic_runtime_params_slice = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
         neoclassical_models,
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
-        unused_static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         unused_geo=geo,
         source_name=self._source_name,

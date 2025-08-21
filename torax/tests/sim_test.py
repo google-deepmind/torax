@@ -440,7 +440,6 @@ class SimTest(sim_test_case.SimTestCase):
     original_get_initial_state = initial_state._get_initial_state
 
     def wrapped_get_initial_state(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         step_fn,
@@ -482,7 +481,6 @@ class SimTest(sim_test_case.SimTestCase):
           True
       )
       return original_get_initial_state(
-          static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           step_fn,

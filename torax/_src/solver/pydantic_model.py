@@ -19,7 +19,6 @@ from typing import Annotated, Literal
 
 import pydantic
 from torax._src import physics_models as physics_models_lib
-from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -75,7 +74,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
@@ -107,11 +105,9 @@ class LinearThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 
@@ -169,11 +165,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 
@@ -217,11 +211,9 @@ class OptimizerThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 

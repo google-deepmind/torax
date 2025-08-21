@@ -42,7 +42,6 @@ class SourceProfileFunction(Protocol):
 
   def __call__(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       source_name: str,
@@ -109,7 +108,6 @@ class Source(abc.ABC):
 
   def get_value(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -119,7 +117,6 @@ class Source(abc.ABC):
     """Returns the cell grid profile for this source during one time step.
 
     Args:
-      static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice: Slice of the general TORAX config that can
         be used as input for this time step.
       geo: Geometry of the torus.
@@ -156,7 +153,6 @@ class Source(abc.ABC):
               'Source is in MODEL_BASED mode but has no model function.'
           )
         return self.model_func(
-            static_runtime_params_slice,
             dynamic_runtime_params_slice,
             geo,
             self.source_name,

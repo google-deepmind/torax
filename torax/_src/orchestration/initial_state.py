@@ -35,7 +35,6 @@ import xarray as xr
 
 def get_initial_state_and_post_processed_outputs(
     t: float,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
@@ -49,7 +48,6 @@ def get_initial_state_and_post_processed_outputs(
       )
   )
   initial_state = _get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
@@ -62,7 +60,6 @@ def get_initial_state_and_post_processed_outputs(
 
 
 def _get_initial_state(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
@@ -70,7 +67,6 @@ def _get_initial_state(
   """Returns the initial state to be used by run_simulation()."""
   physics_models = step_fn.solver.physics_models
   initial_core_profiles = initialization.initial_core_profiles(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       source_models=physics_models.source_models,
@@ -80,7 +76,6 @@ def _get_initial_state(
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
   initial_core_sources = source_profile_builders.get_all_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=initial_core_profiles,
@@ -121,7 +116,6 @@ def _get_initial_state(
 def get_initial_state_and_post_processed_outputs_from_file(
     t_initial: float,
     file_restart: file_restart_pydantic_model.FileRestart,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
@@ -158,7 +152,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
       )
   )
   initial_state = _get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
       geo=geo_for_init,
       step_fn=step_fn,

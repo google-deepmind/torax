@@ -19,7 +19,6 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 from torax._src import constants
-from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
@@ -112,11 +111,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        references.config
-    )
     initial_core_profiles = initialization.initial_core_profiles(
-        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -124,7 +119,6 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
     # Updates the calculated source profiles with the standard source profiles.
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,

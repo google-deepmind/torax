@@ -80,7 +80,6 @@ class ImpurityRadiationConstantFractionTest(
 
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
-        mock.ANY,
         dynamic_slice,
         geo,
         mock.ANY,
@@ -94,7 +93,6 @@ class ImpurityRadiationConstantFractionTest(
 
     impurity_radiation_heat_sink_power_density = (
         impurity_radiation_sink.get_value(
-            static_runtime_params_slice=mock.ANY,
             dynamic_runtime_params_slice=dynamic_slice,
             geo=geo,
             core_profiles=mock.ANY,

@@ -35,7 +35,6 @@ class SimpleTrigger(trigger_base.TriggerModel):
 
   def __call__(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -43,7 +42,6 @@ class SimpleTrigger(trigger_base.TriggerModel):
     """Checks if the simple critical shear condition for a sawtooth is met.
 
     Args:
-      static_runtime_params_slice: Static runtime parameters.
       dynamic_runtime_params_slice: Dynamic runtime parameters.
       geo: Geometry object.
       core_profiles: Core plasma profiles.

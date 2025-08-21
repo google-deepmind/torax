@@ -234,7 +234,6 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
@@ -263,7 +262,6 @@ def cyclotron_radiation_albajar(
   0<rhonorm<0.9, to avoid pedestal effects.
 
   Args:
-    unused_static_runtime_params_slice: A slice of static runtime parameters.
     dynamic_runtime_params_slice: A slice of dynamic runtime parameters.
     geo: The geometry object.
     source_name: The name of the source.

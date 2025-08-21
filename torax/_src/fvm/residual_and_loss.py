@@ -189,14 +189,12 @@ def theta_method_matrix_equation(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'evolving_names',
     ],
 )
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -212,14 +210,6 @@ def theta_method_block_residual(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
@@ -256,7 +246,6 @@ def theta_method_block_residual(
       evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
@@ -288,14 +277,12 @@ def theta_method_block_residual(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'evolving_names',
     ],
 )
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -311,14 +298,6 @@ def theta_method_block_loss(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
@@ -339,7 +318,6 @@ def theta_method_block_loss(
 
   residual = theta_method_block_residual(
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
@@ -357,13 +335,11 @@ def theta_method_block_loss(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'evolving_names',
     ],
 )
 def jaxopt_solver(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -380,14 +356,6 @@ def jaxopt_solver(
 
   Args:
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object for time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
@@ -415,7 +383,6 @@ def jaxopt_solver(
   loss = functools.partial(
       theta_method_block_loss,
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,

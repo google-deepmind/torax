@@ -63,13 +63,9 @@ class QualikizTransportModelTest(absltest.TestCase):
             t=torax_config.numerics.t_initial,
         )
     )
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,

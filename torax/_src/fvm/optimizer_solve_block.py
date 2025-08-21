@@ -40,7 +40,6 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 @functools.partial(
     xnp.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'coeffs_callback',
         'evolving_names',
         'initial_guess_mode',
@@ -48,7 +47,6 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 )
 def optimizer_solve_block(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
@@ -79,14 +77,6 @@ def optimizer_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
     dynamic_runtime_params_slice_t: Runtime params for time t (the start time of
       the step). These runtime params can change from step to step without
       triggering a recompilation.
@@ -184,7 +174,6 @@ def optimizer_solve_block(
       solver_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,

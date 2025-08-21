@@ -68,14 +68,10 @@ class PostProcessingTest(parameterized.TestCase):
         },
         n_e={},
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,

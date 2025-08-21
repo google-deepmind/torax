@@ -49,16 +49,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
 
-  def test_static_runtime_params_slice_hash_same_for_same_params(self):
-    """Tests that the hash is the same for the same static params."""
-    static_slice1 = build_runtime_params.build_static_params_from_config(
-        self._torax_config
-    )
-    static_slice2 = build_runtime_params.build_static_params_from_config(
-        self._torax_config
-    )
-    self.assertEqual(hash(static_slice1), hash(static_slice2))
-
 
 if __name__ == '__main__':
   absltest.main()

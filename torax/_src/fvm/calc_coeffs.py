@@ -40,25 +40,21 @@ class CoeffsCallback:
 
   def __init__(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
       evolving_names: tuple[str, ...],
   ):
-    self.static_runtime_params_slice = static_runtime_params_slice
     self.physics_models = physics_models
     self.evolving_names = evolving_names
 
   def __hash__(self) -> int:
     return hash((
-        self.static_runtime_params_slice,
         self.physics_models,
         self.evolving_names,
     ))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
     return (
-        self.static_runtime_params_slice == other.static_runtime_params_slice
-        and self.physics_models == other.physics_models
+        self.physics_models == other.physics_models
         and self.evolving_names == other.evolving_names
     )
 
@@ -121,7 +117,6 @@ class CoeffsCallback:
       use_pereverzev = False
 
     return calc_coeffs(
-        self.static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -220,7 +215,6 @@ def _calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -233,8 +227,6 @@ def calc_coeffs(
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    static_runtime_params_slice: General input parameters which are fixed
-      through a simulation run, and if changed, would trigger a recompile.
     dynamic_runtime_params_slice: General input parameters that can change from
       time step to time step or simulation run to run, and do so without
       triggering a recompile.
@@ -274,7 +266,6 @@ def calc_coeffs(
     )
   else:
     return _calc_coeffs_full(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -288,12 +279,10 @@ def calc_coeffs(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'evolving_names',
     ],
 )
 def _calc_coeffs_full(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -332,7 +321,6 @@ def _calc_coeffs_full(
       source_models=physics_models.source_models,
       neoclassical_models=physics_models.neoclassical_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,

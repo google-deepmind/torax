@@ -37,7 +37,6 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 # pylint: disable=invalid-name
 def calc_generic_particle_source(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,

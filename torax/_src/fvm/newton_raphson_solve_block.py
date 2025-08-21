@@ -48,13 +48,11 @@ MIN_DELTA: Final[float] = 1e-7
         'evolving_names',
         'coeffs_callback',
         'initial_guess_mode',
-        'static_runtime_params_slice',
         'log_iterations',
     ],
 )
 def newton_raphson_solve_block(
     dt: chex.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
@@ -106,8 +104,6 @@ def newton_raphson_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation.
     dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
       time of the step). These config params can change from step to step
       without triggering a recompilation.
@@ -213,7 +209,6 @@ def newton_raphson_solve_block(
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,

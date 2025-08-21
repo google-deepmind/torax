@@ -15,7 +15,7 @@
 """Carries out the predictor corrector method for the PDE solution.
 
 Picard iterations to approximate the nonlinear solution. If
-static_runtime_params_slice.solver.use_predictor_corrector is False, reverts to
+runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
 import functools

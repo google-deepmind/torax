@@ -46,7 +46,6 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 # Default formula: exponential
 def calc_puff_source(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,

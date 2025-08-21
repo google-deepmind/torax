@@ -51,7 +51,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calculate_generic_current(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
@@ -115,8 +114,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current in A. Used if
-      use_absolute_current=True.
+    I_generic: total "external" current in A. Used if use_absolute_current=True.
     fraction_of_total_current: total "external" current fraction. Used if
       use_absolute_current=False.
     gaussian_width: width of "external" Gaussian current profile

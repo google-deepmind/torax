@@ -11,13 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from torax._src import jax_utils
-from torax._src.config import runtime_params_slice
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
@@ -54,14 +51,6 @@ class PydanticModelTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     solver = torax_config.solver.build_solver(
-        static_runtime_params_slice=mock.create_autospec(
-            runtime_params_slice.StaticRuntimeParamsSlice,
-            instance=True,
-            evolve_ion_heat=True,
-            evolve_electron_heat=True,
-            evolve_current=True,
-            evolve_density=True,
-        ),
         physics_models=torax_config.build_physics_models(),
     )
     self.assertIsInstance(solver, expected_type)

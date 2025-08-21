@@ -38,12 +38,10 @@ _FINAL_SOURCES = frozenset(
     static_argnames=[
         'source_models',
         'neoclassical_models',
-        'static_runtime_params_slice',
         'explicit',
     ],
 )
 def build_source_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -56,8 +54,6 @@ def build_source_profiles(
   """Builds explicit profiles or the union of explicit and implicit profiles.
 
   Args:
-    static_runtime_params_slice: Input config. Cannot change from time step to
-      time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     geo: Geometry of the torus.
@@ -114,7 +110,6 @@ def build_source_profiles(
   )
   build_standard_source_profiles(
       calculated_source_profiles=profiles,
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
@@ -128,7 +123,6 @@ def build_source_profiles(
 def build_standard_source_profiles(
     *,
     calculated_source_profiles: source_profiles.SourceProfiles,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -148,7 +142,6 @@ def build_standard_source_profiles(
         explicit == dynamic_source_runtime_params.is_explicit
     ) | calculate_anyway:
       value = source.get_value(
-          static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
@@ -232,7 +225,6 @@ def build_all_zero_profiles(
 
 
 def get_all_source_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -245,9 +237,6 @@ def get_all_source_profiles(
   Used e.g. to initialize the source profiles at an initial time step.
 
   Args:
-    static_runtime_params_slice: Runtime parameters which, when they change,
-      trigger recompilations. They should not change within a single run of the
-      sim.
     dynamic_runtime_params_slice: Runtime parameters which may change from time
       step to time step without triggering recompilations.
     geo: The geometry of the torus during this time step of the simulation.
@@ -264,7 +253,6 @@ def get_all_source_profiles(
   # Also add in the explicit sources to the initial sources.
   explicit_source_profiles = build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
@@ -273,7 +261,6 @@ def get_all_source_profiles(
   )
   return build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
