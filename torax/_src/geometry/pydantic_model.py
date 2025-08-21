@@ -14,7 +14,8 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 import functools
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
@@ -303,7 +304,7 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   imas_filepath: str | None = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
-  slice_index: int = 0
+  slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
 
   @pydantic.model_validator(mode='after')
