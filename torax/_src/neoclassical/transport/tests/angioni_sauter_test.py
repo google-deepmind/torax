@@ -55,7 +55,7 @@ class AngioniSauterTest(absltest.TestCase):
     neoclassical_models = torax_config.neoclassical.build_models()
 
     dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )

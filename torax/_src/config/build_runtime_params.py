@@ -44,7 +44,7 @@ import typing_extensions
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParamsSliceProvider:
+class RuntimeParamsProvider:
   """Provides a DynamicRuntimeParamsSlice to use during time t of the sim.
 
   The DynamicRuntimeParamsSlice may change from time step to time step, so this
@@ -122,7 +122,7 @@ class DynamicRuntimeParamsSliceProvider:
 def get_consistent_dynamic_runtime_params_slice_and_geometry(
     *,
     t: chex.Numeric,
-    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Returns the dynamic runtime params and geometry for a given time."""

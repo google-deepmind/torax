@@ -42,7 +42,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.qei_source
     dynamic_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,

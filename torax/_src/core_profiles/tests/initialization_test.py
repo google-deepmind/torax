@@ -88,7 +88,7 @@ class InitializationTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=1.0)
     )
@@ -232,9 +232,7 @@ class InitializationTest(parameterized.TestCase):
   ):
     _CURRENT_PROFILE_NU = 2
     _NRHO = 100
-    # TODO(b/439047730): Investigate whether tolerance can be reduced by doing a
-    # better comparison, e.g. by integrating the j profile.
-    _TOL = 4e-2
+    _TOL = 3e-2
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
     config['geometry']['n_rho'] = _NRHO
@@ -353,7 +351,7 @@ def _calculate_currents(
   dynamic_slice, geo = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=torax_config.numerics.t_initial,
-          dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          dynamic_runtime_params_slice_provider=build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           ),
           geometry_provider=torax_config.geometry.build_provider,

@@ -14,7 +14,7 @@
 
 """Tests torax.sim for handling time dependent input runtime params."""
 import copy
-from typing import Annotated, Literal
+from typing import Literal
 from unittest import mock
 
 from absl.testing import absltest
@@ -37,7 +37,6 @@ from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -103,7 +102,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     def _fake_run_loop(
-        dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+        dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
         initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
@@ -157,8 +156,8 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
   """Fake solver config that allows us to hook into the error logic."""
 
-  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
-  param: Annotated[str, torax_pydantic.JAX_STATIC] = 'T_i_right_bc'
+  solver_type: Literal['fake'] = 'fake'
+  param: str = 'T_i_right_bc'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None
 
@@ -285,7 +284,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
 
-  model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
+  model_name: Literal['fake'] = 'fake'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()

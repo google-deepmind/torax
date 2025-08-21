@@ -93,7 +93,7 @@ class SawtoothModelTest(parameterized.TestCase):
 
     geometry_provider = torax_config.geometry.build_provider
     dynamic_runtime_params_slice_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )

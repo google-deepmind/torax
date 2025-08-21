@@ -138,7 +138,7 @@ def _get_step_fn(torax_config):
 
 def _get_geo_and_runtime_params_providers(torax_config):
   dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+      build_runtime_params.RuntimeParamsProvider.from_config(
           torax_config
       )
   )

@@ -23,8 +23,6 @@ from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
 
-_RTOL = 1e-6
-
 
 class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
 
@@ -62,7 +60,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -111,9 +109,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       )
       expected_n_e_ped *= nGW
 
-    np.testing.assert_allclose(
-        pedestal_model_output.n_e_ped, expected_n_e_ped, rtol=_RTOL
-    )
+    np.testing.assert_allclose(pedestal_model_output.n_e_ped, expected_n_e_ped)
 
 
 if __name__ == '__main__':

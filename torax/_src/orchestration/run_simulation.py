@@ -37,7 +37,7 @@ import xarray as xr
 def prepare_simulation(
     torax_config: model_config.ToraxConfig,
 ) -> tuple[
-    build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    build_runtime_params.RuntimeParamsProvider,
     sim_state.ToraxSimState,
     post_processing.PostProcessedOutputs,
     step_function.SimulationStepFn,
@@ -63,7 +63,7 @@ def prepare_simulation(
   )
 
   dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+      build_runtime_params.RuntimeParamsProvider.from_config(
           torax_config
       )
   )

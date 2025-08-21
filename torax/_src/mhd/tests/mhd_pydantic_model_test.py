@@ -51,7 +51,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -72,7 +72,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
     mhd_models = torax_config.mhd.build_mhd_models()
     self.assertIs(mhd_models.sawtooth_models, None)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -103,7 +103,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
     )
 
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )

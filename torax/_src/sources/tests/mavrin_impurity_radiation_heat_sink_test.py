@@ -40,7 +40,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -105,10 +105,14 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   ):
     """Test with valid ions and within temperature range."""
     T_e = np.array(temperature)
+    ion_mixture = plasma_composition.DynamicIonMixture(
+        fractions=np.array([1.0]),
+        avg_A=2.0,  # unused
+    )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            np.array([1.0]),
+            ion_mixture,
             T_e,
         )
     )
@@ -138,19 +142,21 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def test_temperature_clipping(self, T_e_input, T_e_clipped):
     """Test with valid ions and within temperature range."""
     ion_symbol = ('W',)
-    impurity_fractions = np.array([1.0])
-
+    ion_mixture = plasma_composition.DynamicIonMixture(
+        fractions=np.array([1.0]),
+        avg_A=2.0,  # unused
+    )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            impurity_fractions,
+            ion_mixture,
             T_e_input,
         )
     )
     LZ_expected = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbol,
-            impurity_fractions,
+            ion_mixture,
             T_e_clipped,
         )
     )
@@ -273,12 +279,17 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     """
     T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
+    avg_A = 2.0  # arbitrary, not used.
     ion_symbols = tuple(species.keys())
-    impurity_fractions = np.array(tuple(species.values()))
+    fractions = np.array(tuple(species.values()))
+    ion_mixture = plasma_composition.DynamicIonMixture(
+        fractions=fractions,
+        avg_A=avg_A,
+    )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbols,
-            impurity_fractions,
+            ion_mixture,
             T_e,
         )
     )
