@@ -42,7 +42,7 @@ def geometry_from_IMAS(
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are resacled to match the new Ip.
+      values in the Geometry are rescaled to match the new Ip.
     n_rho: Radial grid points (num cells)
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
@@ -135,7 +135,9 @@ def geometry_from_IMAS(
     )
     flux_surf_avg_1_over_R = 1 / R_major
 
-  # jtor = dI/drhon / (drho/dS) = dI/drhon / spr
+  # jtor in TORAX is defined as the flux surface average equivalent to the
+  # flux-surface current density profile. i.e.
+  # jtor_torax \equiv dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
   # spr = vpr / ( 2 * np.pi * R_major)
   # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
   jtor = -1 * IMAS_data.profiles_1d.j_phi

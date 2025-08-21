@@ -68,7 +68,16 @@ def calc_j_total(
 ) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
-  Calculation based on j_total = dI/dS
+  `j_total` (also referred to `j_tor` in TORAX) is defined as the
+  flux-surface-averaged toroidal current density, i.e:
+
+  j_total = dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
+
+  Note that this relates to the (non-flux-function) toroidal current j_phi as:
+
+  j_total = <j_phi/R> / <1/R>
+
+  See Felici 2011 eq. 6.20 (10.5075/epfl-thesis-5203)
 
   Args:
     geo: Torus geometry.
