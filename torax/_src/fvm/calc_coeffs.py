@@ -60,7 +60,7 @@ class CoeffsCallback:
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
@@ -129,7 +129,7 @@ class CoeffsCallback:
 
 
 def _calculate_pereverzev_flux(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -215,7 +215,7 @@ def _calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -283,7 +283,7 @@ def calc_coeffs(
     ],
 )
 def _calc_coeffs_full(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,

@@ -31,7 +31,7 @@ class TriggerModel(abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:

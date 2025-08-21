@@ -159,7 +159,7 @@ class FakeQualikizBasedTransportModel(
   def _call_implementation(
       self,
       transport_runtime_params: qualikiz_based_transport_model.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

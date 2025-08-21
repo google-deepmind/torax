@@ -273,7 +273,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       # Check to make sure it's a valid object.
       self.assertIsInstance(
           dynamic_runtime_params_slice,
-          runtime_params_slice.DynamicRuntimeParamsSlice,
+          runtime_params_slice.RuntimeParams,
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 

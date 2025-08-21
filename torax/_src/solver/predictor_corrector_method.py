@@ -40,7 +40,7 @@ from torax._src.sources import source_profiles
 )
 def predictor_corrector_method(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],

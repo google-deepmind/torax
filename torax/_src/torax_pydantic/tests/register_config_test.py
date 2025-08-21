@@ -43,7 +43,7 @@ class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
 
 
 def double_gas_puff_source(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,

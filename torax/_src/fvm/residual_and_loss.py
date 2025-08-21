@@ -195,7 +195,7 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -283,7 +283,7 @@ def theta_method_block_residual(
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -340,7 +340,7 @@ def theta_method_block_loss(
 )
 def jaxopt_solver(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,

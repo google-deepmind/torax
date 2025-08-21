@@ -41,7 +41,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -211,7 +211,7 @@ def update_psi_from_j(
 
 
 def _init_psi_and_psi_derived(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -414,7 +414,7 @@ def _init_psi_and_psi_derived(
 
 
 def _get_j_total_hires(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_profile: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,

@@ -37,7 +37,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 # pylint: disable=invalid-name
 def calc_pellet_source(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
