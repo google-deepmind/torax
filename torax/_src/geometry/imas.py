@@ -79,15 +79,18 @@ def geometry_from_IMAS(
     )
   # TODO(b/431977390): Currently only a single time slice is used, extend to
   # support multiple time slices.
+  # Convert time to index
   if slice_time is not None:
-    if slice_time in equilibrium.time:
-      slice_index = np.nonzero(equilibrium.time == slice_time)[0]
-    else:
-      slice_index = np.searchsorted(equilibrium.time, slice_time)
-      logging.warning(
-          f"t={slice_time} not in equilibrium.time."
-          f"Using t={equilibrium.time[slice_index]} instead."
+    # Find the closest time in the IDS that is <= slice_time
+    slice_index = (
+        np.searchsorted(equilibrium.time, slice_time, side="right") - 1
+    )
+    if not np.allclose(equilibrium.time[slice_index], slice_time, atol=1e-3):
+      logging.warn(
+          f"Requested t={slice_time} not in IDS; "
+          f"using t={equilibrium.time[slice_index]})"
       )
+
   if slice_index > len(equilibrium.time_slice):
     raise IndexError(
         f"slice_index={slice_index} out of range for IDS with "
