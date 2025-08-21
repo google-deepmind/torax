@@ -13,12 +13,10 @@
 # limitations under the License.
 """Methods for building simulation parameters.
 
-For the dynamic_runtime_params_slice this is a class
-`DynamicRuntimeParamsSliceProvider` which provides a slice of the
-DynamicRuntimeParamsSlice to use during time t of the sim.
-This module also provides a method
-`get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
-DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
+ - `DynamicRuntimeParamsSliceProvider` which provides a the `RuntimeParams` to
+  use during time t of the sim.
+ - `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
+`RuntimeParams` and a corresponding `Geometry` with consistent `Ip`.
 """
 import dataclasses
 
@@ -45,24 +43,17 @@ import typing_extensions
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParamsSliceProvider:
-  """Provides a DynamicRuntimeParamsSlice to use during time t of the sim.
+  """Provides a RuntimeParamsSlice to use during time t of the sim.
 
-  The DynamicRuntimeParamsSlice may change from time step to time step, so this
+  The RuntimeParams may change from time step to time step, so this
   class interpolates any time-dependent params in the input config to the values
   they should be at time t.
 
-  NOTE: In order to maintain consistency between the DynamicRuntimeParamsSlice
+  NOTE: In order to maintain consistency between the RuntimeParams
   and the geometry,
   `sim.get_consistent_dynamic_runtime_params_slice_and_geometry`
-  should be used to get a slice of the DynamicRuntimeParamsSlice and a
-  corresponding geometry.
-
-  See `run_simulation()` for how this callable is used.
-
-  After this object has been constructed changes any runtime params may not
-  be picked up if they are updated and it is safest to construct a new provider
-  object (if for example updating the simulation).
-  ```
+  should be used to get a slice of the RuntimeParams and a
+  corresponding geometry. See `run_simulation()` for how this callable is used.
   """
 
   sources: sources_pydantic_model.Sources
@@ -99,9 +90,9 @@ class DynamicRuntimeParamsSliceProvider:
   def __call__(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_slice.DynamicRuntimeParamsSlice:
-    """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
-    return runtime_params_slice.DynamicRuntimeParamsSlice(
+  ) -> runtime_params_slice.RuntimeParams:
+    """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
+    return runtime_params_slice.RuntimeParams(
         transport=self.transport_model.build_dynamic_params(t),
         solver=self.solver.build_dynamic_params,
         sources={
@@ -124,7 +115,7 @@ def get_consistent_dynamic_runtime_params_slice_and_geometry(
     t: chex.Numeric,
     dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Returns the dynamic runtime params and geometry for a given time."""
   geo = geometry_provider(t)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(

@@ -170,7 +170,7 @@ def run_loop(
   Unlike the `run_loop` function, This does not support logging or progress bar.
 
   Args:
-    dynamic_runtime_params_slice_provider: Provides a DynamicRuntimeParamsSlice
+    dynamic_runtime_params_slice_provider: Provides a RuntimeParams
       to use as input for each time step.
     initial_state: The starting state of the simulation. This includes both the
       state variables which the solver.Solver will evolve (like ion temp, psi,

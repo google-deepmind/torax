@@ -102,7 +102,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),
@@ -158,7 +158,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
                 prescribed_values=(
@@ -244,7 +244,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources={
             'foo': source_runtime_params.DynamicRuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),

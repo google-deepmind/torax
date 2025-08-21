@@ -96,7 +96,7 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     # Create the dynamic runtime params slice mock with nested mocks.
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         instance=True,
         transport=transport_mock,
         plasma_composition=plasma_composition_mock,

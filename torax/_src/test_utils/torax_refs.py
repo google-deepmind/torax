@@ -45,7 +45,7 @@ class References:
 
   def get_dynamic_slice_and_geo(
       self,
-  ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+  ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
     t = self.config.numerics.t_initial
     dynamic_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(

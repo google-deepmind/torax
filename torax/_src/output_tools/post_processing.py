@@ -377,7 +377,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -498,7 +498,7 @@ def _calculate_integrated_sources(
 @jax_utils.jit
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs | None = None,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
