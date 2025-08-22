@@ -81,7 +81,12 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         rtol: Optional[float] = None,
         atol: Optional[float] = None,
     ):
-      """Test to compare initialized profiles in TORAX with the initial core_profiles used to check consistency."""
+      """Test to compare initialized profiles in TORAX with the initial
+         core_profiles used to check consistency.
+         The IMAS netCDF file comes from a METIS ITER baseline scenario time
+         slice taken on the flat top. It is useful to have such file with
+         profiles having more radial resolution. The IDS grid is made of 21
+         points."""
 
       if rtol is None:
           rtol = self.rtol
