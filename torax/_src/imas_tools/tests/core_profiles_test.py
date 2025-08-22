@@ -35,13 +35,19 @@ from torax._src.imas_tools.core_profiles import core_profiles_to_IMAS
 from torax._src.imas_tools.core_profiles import update_dict
 
 
-class Core_profilesTest(sim_test_case.SimTestCase):
-    """Integration Run with core_profiles from a reference run. To be integrated in sim_test_case probably."""
+class CoreProfilesTest(sim_test_case.SimTestCase):
+    """Integration Run with core_profiles from a reference run. To be
+      integrated in sim_test_case probably."""
 
     def test_run_with_core_profiles_to_IMAS(
         self,
     ):
-        """Test that TORAX simulation example can run with input core_profiles ids profiles, without raising error."""
+        """Test that TORAX simulation example can run with input core_profiles
+          ids profiles, without raising error. 
+          The IMAS netCDF file was generated manually filling the core_profiles
+          IDS based on the profile_conditions contained in the 
+          iterhybrid_rampup.py example config (after unit conversions). 
+        """
 
         # Input core_profiles reading and config loading
         config = self._get_config_dict("test_iterhybrid_rampup_short.py")
