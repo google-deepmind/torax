@@ -760,7 +760,12 @@ class StandardGeometryIntermediates:
             Possible reason is too many surfaces requested.
             Try reducing n_surfaces from the current value of {n_surfaces}.
             """)
-      x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
+      c_idx = 0
+      for vv in range(len(vertices)):
+        if Polygon(vertices[vv]).contains(Point(eqfile['xmag'], eqfile['zmag'])):
+          c_idx = vv
+          break
+      x_surface, z_surface = vertices[c_idx].T[0], vertices[c_idx].T[1]
       surfaces.append((x_surface, z_surface))
 
     # -----------------------------------------------------------
