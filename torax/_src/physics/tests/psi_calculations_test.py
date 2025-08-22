@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import torax
 from torax._src import constants
 from torax._src.core_profiles import initialization
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -29,6 +30,8 @@ from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import torax_refs
 
 _trapz = jax.scipy.integrate.trapezoid
+
+torax.set_jax_precision()
 
 
 class PsiCalculationsTest(parameterized.TestCase):
