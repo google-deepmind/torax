@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Unit tests for torax.torax_imastools.core_profiles.py"""
-
+import os
 from typing import Any, Optional
 
 from absl.testing import absltest
@@ -30,9 +30,9 @@ from torax._src.orchestration import run_loop
 from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-from torax.imas_tools.core_profiles import core_profiles_from_IMAS
-from torax.imas_tools.core_profiles import core_profiles_to_IMAS
-from torax.imas_tools.core_profiles import update_dict
+from torax._src.imas_tools.core_profiles import core_profiles_from_IMAS
+from torax._src.imas_tools.core_profiles import core_profiles_to_IMAS
+from torax._src.imas_tools.core_profiles import update_dict
 
 
 class Core_profilesTest(sim_test_case.SimTestCase):
@@ -47,7 +47,8 @@ class Core_profilesTest(sim_test_case.SimTestCase):
         config = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
         path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
-        core_profiles_in = _load_imas_data(path, "core_profiles")
+        dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+        core_profiles_in = _load_imas_data(path, "core_profiles", geometry_directory=dir)
 
         # Modifying the input config profiles_conditions class
         core_profiles_conditions = core_profiles_from_IMAS(core_profiles_in, read_psi_from_geo=True)
@@ -84,7 +85,8 @@ class Core_profilesTest(sim_test_case.SimTestCase):
       config = self._get_config_dict(config_name)
       # path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
       path = 'core_profiles_15MA_DT_50_50_flat_top_slice.nc' #Using this as input instead of rampup_conditions because it has more radial resolution.
-      core_profiles_in = _load_imas_data(path, "core_profiles")
+      dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+      core_profiles_in = _load_imas_data(path, "core_profiles", geometry_directory=dir)
       rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
       # Modifying the input config profiles_conditions class
@@ -144,7 +146,8 @@ class Core_profilesTest(sim_test_case.SimTestCase):
       # Input core_profiles reading and config loading
       config = self._get_config_dict("test_iterhybrid_rampup_short.py")
       path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
-      core_profiles_in = _load_imas_data(path, "core_profiles")
+      dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+      core_profiles_in = _load_imas_data(path, "core_profiles", geometry_directory=dir)
 
       # Modifying the input config profiles_conditions class
       core_profiles_conditions = core_profiles_from_IMAS(core_profiles_in, read_psi_from_geo = False)
