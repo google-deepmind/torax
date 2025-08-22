@@ -32,34 +32,6 @@ from torax._src.output_tools import post_processing
 from torax._src.torax_pydantic import model_config
 
 
-def update_dict(old_dict: dict, updates: dict) -> dict:
-  """Recursively modify the fields from the original dict old_dict using the values contained in updates dict.
-  Used to update config dict fields more easily. Use case is to update config dict with output from core_profiles.core_profiles_from_IMAS().
-  Args:
-    old_dict: The current dict that needs to be updated.
-    updates: Dict containing the values of the keys that need to be updated in old_dict.
-
-  Returns:
-    New updated copy of the dict.
-  """
-  new_dict = old_dict.copy()
-  for key, value in updates.items():
-    if (
-        isinstance(value, dict)
-        and key in new_dict
-        and isinstance(new_dict[key], dict)
-    ):
-      if all(isinstance(k, float) for k in value.keys()):
-        new_dict[key] = (
-            value  # Needed to replace completely the time slices profiles, instead of keeping the initial ones.
-        )
-      else:
-        new_dict[key] = update_dict(new_dict[key], value)
-    else:
-      new_dict[key] = value
-  return new_dict
-
-
 def core_profiles_from_IMAS(
     ids: IDSToplevel,
     read_psi_from_geo: bool = True,
@@ -165,28 +137,22 @@ def core_profiles_from_IMAS(
     v_loop_lcfs = [0.0]
 
   return {
-      "plasma_composition": {
-          "Z_eff": Z_eff,
-      },
-      "profile_conditions": {
-          "Ip": Ip,
-          "psi": psi,
-          "T_i": T_i,
-          "T_i_right_bc": None,
-          "T_e": T_e,
-          "T_e_right_bc": None,
-          "n_e_right_bc_is_fGW": False,
-          "n_e_right_bc": None,
-          "n_e_nbar_is_fGW": False,
-          "nbar": None,
-          "n_e": n_e,
-          "normalize_n_e_to_nbar": False,
-          "v_loop_lcfs": v_loop_lcfs,
-      },
-      "numerics": {
-          "t_initial": t_initial,
-          "t_final": t_initial + 80.0,  # How to define it ? Somewhere else ?
-      },
+      'plasma_composition.Z_eff': Z_eff,
+      'profile_conditions.Ip': Ip,
+      'profile_conditions.psi': psi,
+      'profile_conditions.T_i': T_i,
+      'profile_conditions.T_i_right_bc': None,
+      'profile_conditions.T_e': T_e,
+      'profile_conditions.T_e_right_bc': None,
+      'profile_conditions.n_e_right_bc_is_fGW': False,
+      'profile_conditions.n_e_right_bc': None,
+      'profile_conditions.n_e_nbar_is_fGW': False,
+      'profile_conditions.nbar': None,
+      'profile_conditions.n_e': n_e,
+      'profile_conditions.normalize_n_e_to_nbar': False,
+      'profile_conditions.v_loop_lcfs': v_loop_lcfs,
+      'numerics.t_initial': t_initial,
+      'numerics.t_final': t_initial + 80.0,  # How to define it ? Somewhere else ?
   }
 
 

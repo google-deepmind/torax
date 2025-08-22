@@ -32,7 +32,6 @@ from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 from torax._src.imas_tools.core_profiles import core_profiles_from_IMAS
 from torax._src.imas_tools.core_profiles import core_profiles_to_IMAS
-from torax._src.imas_tools.core_profiles import update_dict
 
 
 class CoreProfilesTest(sim_test_case.SimTestCase):
@@ -58,9 +57,8 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
         # Modifying the input config profiles_conditions class
         core_profiles_conditions = core_profiles_from_IMAS(core_profiles_in, read_psi_from_geo=True)
-        config_with_IMAS_profiles = update_dict(config, core_profiles_conditions) #Is it better to do like this, or first convert to ToraxConfig and use config.config_args.recursive_replace or maybe another function that does the same instead ?
-        # Or use ToraxConfig.update_fields ?
-        torax_config = model_config.ToraxConfig.from_dict(config_with_IMAS_profiles)
+        torax_config = model_config.ToraxConfig.from_dict(config)
+        torax_config.update_fields(core_profiles_conditions)
 
         #Run Sim
         _, results = torax.run_simulation(torax_config)
@@ -101,9 +99,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
       # Modifying the input config profiles_conditions class
       core_profiles_conditions = core_profiles_from_IMAS(core_profiles_in, read_psi_from_geo= False)
-      config_with_IMAS_profiles = update_dict(config, core_profiles_conditions) #Is it better to do like this, or first convert to ToraxConfig and use config.config_args.recursive_replace or maybe another function that does the same instead ?
-      config_with_IMAS_profiles['geometry']['n_rho']=200 #With less resolution we loose some accuracy doing two interpolations
-      torax_config = model_config.ToraxConfig.from_dict(config_with_IMAS_profiles)
+      config['geometry']['n_rho']=200
+      torax_config = model_config.ToraxConfig.from_dict(config)
+      torax_config.update_fields(core_profiles_conditions)
+      
 
       #Init sim from config
       _, sim_state, _, _ = prepare_simulation(torax_config)
@@ -161,10 +160,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
       # Modifying the input config profiles_conditions class
       core_profiles_conditions = core_profiles_from_IMAS(core_profiles_in, read_psi_from_geo = False)
-      config_with_IMAS_profiles = update_dict(config, core_profiles_conditions)
-      config_with_IMAS_profiles['geometry']['n_rho']=20
-      torax_config = model_config.ToraxConfig.from_dict(config_with_IMAS_profiles)
-
+      config['geometry']['n_rho']=20
+      torax_config = model_config.ToraxConfig.from_dict(config)
+      torax_config.update_fields(core_profiles_conditions)
+      
       #Init sim from config
       (
       dynamic_runtime_params_slice_provider,
