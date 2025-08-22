@@ -72,7 +72,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     @parameterized.parameters(
         [
-            dict(config_name="test_iterhybrid_rampup_short.py", rtol=0.02, atol=1e-8),
+            dict(config_name="test_iterhybrid_rampup_short.py", rtol=1e-6, atol=1e-8),
         ]
     )
     def test_init_profiles_from_IMAS(
@@ -89,7 +89,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
           atol = self.atol
       # Input core_profiles reading and config loading
       config = self._get_config_dict(config_name)
-      # path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
       path = 'core_profiles_15MA_DT_50_50_flat_top_slice.nc' #Using this as input instead of rampup_conditions because it has more radial resolution.
       dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
       core_profiles_in = _load_imas_data(path, "core_profiles", geometry_directory=dir)
@@ -106,33 +105,33 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
       #Read output values
       torax_mesh=torax_config.geometry.build_provider.torax_mesh
-      face_centers = torax_mesh.face_centers
+      cell_centers = torax_mesh.cell_centers
       #Compare the initial core_profiles with the ids profiles
       init_core_profiles = sim_state.core_profiles
       np.testing.assert_allclose(
-            np.interp(rhon_in, face_centers, init_core_profiles.T_e.face_value())*1e3,
-            core_profiles_in.profiles_1d[0].electrons.temperature,
+            init_core_profiles.T_e.value*1e3,
+            np.interp(cell_centers, rhon_in, core_profiles_in.profiles_1d[0].electrons.temperature),
             rtol=rtol,
             atol=atol,
             err_msg="Te profile failed",
         )
       np.testing.assert_allclose(
-            np.interp(rhon_in, face_centers, init_core_profiles.T_i.face_value()),
-            core_profiles_in.profiles_1d[0].t_i_average/1e3,
+            init_core_profiles.T_i.value*1e3,
+            np.interp(cell_centers, rhon_in, core_profiles_in.profiles_1d[0].t_i_average),
             rtol=rtol,
             atol=atol,
             err_msg="Ti profile failed",
         )
       np.testing.assert_allclose(
-            np.interp(rhon_in, face_centers, init_core_profiles.n_e.face_value()),
-            core_profiles_in.profiles_1d[0].electrons.density,
+            init_core_profiles.n_e.value,
+            np.interp(cell_centers, rhon_in, core_profiles_in.profiles_1d[0].electrons.density),
             rtol=rtol,
             atol=atol,
             err_msg="ne profile failed",
         )
       np.testing.assert_allclose(
-            np.interp(rhon_in, face_centers, init_core_profiles.psi.face_value()),
-            core_profiles_in.profiles_1d[0].grid.psi,
+            init_core_profiles.psi.value,
+            np.interp(cell_centers, rhon_in, core_profiles_in.profiles_1d[0].grid.psi),
             rtol=rtol,
             atol=atol,
             err_msg="psi profile failed",
