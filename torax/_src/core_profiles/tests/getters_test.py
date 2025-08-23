@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -649,18 +648,6 @@ class GettersTest(parameterized.TestCase):
     ions_ne_ratios_zeff = _run_get_updated_ions(torax_config_ne_ratios_zeff)
 
     # 6. Assertions
-
-    # Reshape the impurity_fractions from the n_e_ratios mode to match the
-    # shape from the n_e_ratios_Z_eff mode (n_species, n_grid).
-    fractions_2d = np.broadcast_to(
-        ions_ne_ratios.impurity_fractions[:, np.newaxis],
-        ions_ne_ratios_zeff.impurity_fractions.shape,
-    )
-    ions_ne_ratios = dataclasses.replace(
-        ions_ne_ratios,
-        impurity_fractions=fractions_2d,
-    )
-
     chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
 
   @parameterized.parameters(

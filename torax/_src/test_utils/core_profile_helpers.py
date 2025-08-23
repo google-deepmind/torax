@@ -28,7 +28,7 @@ def make_zero_core_profiles(
     T_e: cell_variable.CellVariable | None = None,
     Z_impurity: jax.Array | None = None,
     Z_impurity_face: jax.Array | None = None,
-    num_impurities: int = 1,
+    impurity_names: tuple[str, ...] = ("dummy_impurity",),
 ) -> state.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
@@ -37,6 +37,9 @@ def make_zero_core_profiles(
       right_face_constraint=jnp.ones(()),
       right_face_grad_constraint=None,
   )
+  impurity_fractions_dict = {
+      name: jnp.zeros_like(geo.rho) for name in impurity_names
+  }
   return state.CoreProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -45,7 +48,7 @@ def make_zero_core_profiles(
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
-      impurity_fractions=jnp.zeros(num_impurities),
+      impurity_fractions=impurity_fractions_dict,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       v_loop_lcfs=jnp.array(0.0),

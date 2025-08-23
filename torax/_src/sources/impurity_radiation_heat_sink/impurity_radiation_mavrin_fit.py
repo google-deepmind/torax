@@ -177,6 +177,7 @@ def calculate_total_impurity_radiation(
   Args:
     ion_symbols: Ion symbols of the impurity species.
     impurity_fractions: Impurity fractions corresponding to the ion symbols.
+      Input shape is (n_species, n_grid)
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 
@@ -187,7 +188,8 @@ def calculate_total_impurity_radiation(
   """
 
   effective_LZ = jnp.zeros_like(T_e)
-  for ion_symbol, fraction in zip(ion_symbols, impurity_fractions):
+  for i, ion_symbol in enumerate(ion_symbols):
+    fraction = impurity_fractions[i]
     effective_LZ += fraction * _calculate_impurity_radiation_single_species(
         T_e, ion_symbol
     )
@@ -204,13 +206,18 @@ def impurity_radiation_mavrin_fit(
 ) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
 
+  # Reconstruct array from mapping for DynamicIonMixture and effective LZ
+  # calculations.
+  ion_symbols = dynamic_runtime_params_slice.plasma_composition.impurity_names
+  impurity_fractions_arr = jnp.stack(
+      [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
+  )
   # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=dynamic_runtime_params_slice.plasma_composition.impurity_names,
-      impurity_fractions=core_profiles.impurity_fractions,
+      impurity_fractions=impurity_fractions_arr,
       T_e=core_profiles.T_e.value,
   )
-
   # The impurity density must be scaled to account for the true total impurity
   # density. This is because in an IonMixture, the impurity density is an
   # effective density as follows:
@@ -224,7 +231,7 @@ def impurity_radiation_mavrin_fit(
   # impurity density, not the effective one.
 
   ion_mixture = plasma_composition.DynamicIonMixture(
-      fractions=core_profiles.impurity_fractions,
+      fractions=impurity_fractions_arr,
       A_avg=core_profiles.A_impurity,
       Z_override=dynamic_runtime_params_slice.plasma_composition.impurity.Z_override,
   )

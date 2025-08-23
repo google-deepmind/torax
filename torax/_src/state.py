@@ -15,6 +15,7 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
+from typing import Mapping
 
 from absl import logging
 import jax
@@ -76,7 +77,7 @@ class CoreProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  impurity_fractions: array_typing.FloatVector
+  impurity_fractions: Mapping[str, array_typing.FloatVector]
   q_face: array_typing.FloatVectorFace
   s_face: array_typing.FloatVectorFace
   v_loop_lcfs: array_typing.FloatScalar
@@ -128,9 +129,9 @@ class CoreProfiles:
         T_e={self.T_e},
         psi={self.psi},
         n_e={self.n_e},
+        n_i={self.n_i},
         n_impurity={self.n_impurity},
         impurity_fractions={self.impurity_fractions},
-        n_i={self.n_i},
       )
     """
 

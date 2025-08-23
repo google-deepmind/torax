@@ -15,6 +15,7 @@
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import dataclasses
 
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -40,7 +41,7 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  impurity_fractions: array_typing.FloatVector
+  impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
@@ -600,10 +601,23 @@ def get_updated_ions(
       n_e.face_value(),
   )
 
+  # Convert array of fractions to a mapping from symbol to fraction profile.
+  # Ensure that output is always a full radial profile for consistency across
+  # all impurity modes.
+  impurity_fractions_dict = {}
+  for i, symbol in enumerate(
+      dynamic_runtime_params_slice.plasma_composition.impurity_names
+  ):
+    fraction = ion_properties.impurity_fractions[i]
+    if fraction.ndim == 0:
+      impurity_fractions_dict[symbol] = jnp.full_like(n_e.value, fraction)
+    else:
+      impurity_fractions_dict[symbol] = fraction
+
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
-      impurity_fractions=ion_properties.impurity_fractions,
+      impurity_fractions=impurity_fractions_dict,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
       Z_impurity=ion_properties.Z_impurity,

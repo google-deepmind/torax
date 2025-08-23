@@ -156,8 +156,8 @@ class ImpurityFractionsTest(parameterized.TestCase):
             'impurity_mode': 'fractions',
             'species': {
                 'Ar': {0.0: 0.1, 5.0: 0.3},
-                'C': {0.0: 0.1, 5.0: 0.5},
                 'Ne': {0.0: 0.8, 5.0: 0.2},
+                'C': {0.0: 0.1, 5.0: 0.5},
             },
         },
         'Z_eff': 2.0,
@@ -170,22 +170,32 @@ class ImpurityFractionsTest(parameterized.TestCase):
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
+      geo = torax_config.geometry.build_provider(t)
       assert isinstance(
           impurity_config, plasma_composition.ImpurityFractionsModel
       )
-      expected_ar = impurity_config.species['Ar'].get_value(t)
-      expected_c = impurity_config.species['C'].get_value(t)
-      expected_ne = impurity_config.species['Ne'].get_value(t)
-      expected_fractions = np.array([expected_ar, expected_c, expected_ne])
-      np.testing.assert_allclose(
-          fractions,
-          expected_fractions,
-          rtol=1e-5,
-          err_msg=(
-              f'Mismatch in impurity fractions at time t={t}.\n'
-              f'Got: {fractions}, Expected: {expected_fractions}'
+      expected_fractions = {
+          'Ar': jnp.full_like(
+              geo.rho_norm, impurity_config.species['Ar'].get_value(t)
           ),
-      )
+          'C': jnp.full_like(
+              geo.rho_norm, impurity_config.species['C'].get_value(t)
+          ),
+          'Ne': jnp.full_like(
+              geo.rho_norm, impurity_config.species['Ne'].get_value(t)
+          ),
+      }
+      self.assertEqual(fractions.keys(), expected_fractions.keys())
+      for key in fractions:
+        np.testing.assert_allclose(
+            fractions[key],
+            expected_fractions[key],
+            rtol=1e-5,
+            err_msg=(
+                f'Mismatch in impurity fraction for {key} at time t={t}.\n'
+                f'Got: {fractions[key]}, Expected: {expected_fractions[key]}'
+            ),
+        )
 
   def test_impurity_fractions_output_ne_ratios_mode(self):
     config_dict = copy.deepcopy(self.base_config_dict)
@@ -194,8 +204,8 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': {
-                'Ar': {0.0: 0.005, 5.0: 0.01},
                 'Ne': {0.0: 0.01, 5.0: 0.005},
+                'Ar': {0.0: 0.005, 5.0: 0.01},
                 'W': {0.0: 1e-4, 5.0: 1e-5},
             },
         },
@@ -205,29 +215,31 @@ class ImpurityFractionsTest(parameterized.TestCase):
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
-    self.assertEqual(
-        torax_config.plasma_composition.get_impurity_names(),
-        ('Ar', 'Ne', 'W'),
-    )
-
     for i, t in enumerate(state_history.times):
       fractions = state_history.core_profiles[i].impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
+      geo = torax_config.geometry.build_provider(t)
       assert isinstance(impurity_config, plasma_composition.NeRatiosModel)
       ar_ratio = impurity_config.species['Ar'].get_value(t)
       ne_ratio = impurity_config.species['Ne'].get_value(t)
       w_ratio = impurity_config.species['W'].get_value(t)
       total_ratio = ne_ratio + ar_ratio + w_ratio
-      expected_fractions = np.array([ar_ratio, ne_ratio, w_ratio]) / total_ratio
-      np.testing.assert_allclose(
-          fractions,
-          expected_fractions,
-          rtol=1e-5,
-          err_msg=(
-              f'Mismatch in impurity fractions at time t={t}.\n'
-              f'Got: {fractions}, Expected: {expected_fractions}'
-          ),
-      )
+      expected_fractions = {
+          'Ar': jnp.full_like(geo.rho_norm, ar_ratio / total_ratio),
+          'Ne': jnp.full_like(geo.rho_norm, ne_ratio / total_ratio),
+          'W': jnp.full_like(geo.rho_norm, w_ratio / total_ratio),
+      }
+      self.assertEqual(fractions.keys(), expected_fractions.keys())
+      for key in fractions:
+        np.testing.assert_allclose(
+            fractions[key],
+            expected_fractions[key],
+            rtol=1e-5,
+            err_msg=(
+                f'Mismatch in impurity fraction for {key} at time t={t}.\n'
+                f'Got: {fractions[key]}, Expected: {expected_fractions[key]}'
+            ),
+        )
 
   def test_negative_impurity_triggers_error(self):
     """Tests that an unphysical config leading to negative impurity fraction is caught."""

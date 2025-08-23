@@ -274,7 +274,9 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
     ion_symbols = tuple(species.keys())
-    impurity_fractions = np.array(tuple(species.values()))
+    impurity_fractions = np.stack([
+        np.full_like(T_e, fraction) for fraction in species.values()
+    ])
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbols,
