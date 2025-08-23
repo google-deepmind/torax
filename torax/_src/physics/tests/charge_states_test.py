@@ -34,7 +34,7 @@ class ChargeStatesTest(parameterized.TestCase):
           'Xe',
           'W',
       ],
-      temperature=[0.1, 1.0, [10.0, 20.0], 90.0],
+      temperature=[[0.1], [1.0], [10.0, 20.0], [90.0]],
   )
   def test_calculate_average_charge_state_with_impurity(
       self, ion_symbol, temperature
@@ -88,7 +88,7 @@ class ChargeStatesTest(parameterized.TestCase):
       self, ion_symbol, temperature
   ):
     """Test with valid ions and within temperature range."""
-    T_e = np.array(temperature)
+    T_e = np.array([temperature])
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
         T_e, ion_symbol
     )
@@ -111,10 +111,10 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test with valid ions and within temperature range."""
     ion_symbol = 'W'
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
-        T_e_input, ion_symbol
+        np.array([T_e_input]), ion_symbol
     )
     Z_expected = charge_states.calculate_average_charge_state_single_species(
-        T_e_clipped,
+        np.array([T_e_clipped]),
         ion_symbol,
     )
 

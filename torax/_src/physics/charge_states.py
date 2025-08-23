@@ -136,6 +136,12 @@ def calculate_average_charge_state_single_species(
     Z: Average charge state [amu].
   """
 
+  # Assert array input. Runtime typechecking not always on, add explicit check.
+  if T_e.ndim == 0:
+    raise ValueError(
+        'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
+    )
+
   if ion_symbol not in constants.ION_SYMBOLS:
     raise ValueError(
         f'Invalid ion symbol: {ion_symbol}. Allowed symbols are :'
@@ -204,6 +210,11 @@ def get_average_charge_state(
   Returns:
     AverageChargeState: dataclass with average charge state info.
   """
+  # Assert array input. Runtime typechecking not always on, add explicit check.
+  if T_e.ndim == 0:
+    raise ValueError(
+        'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
+    )
 
   if ion_mixture.Z_override is not None:
     override_val = jnp.ones_like(T_e) * ion_mixture.Z_override
@@ -221,22 +232,11 @@ def get_average_charge_state(
   # Handle both radially constant (1D) and radially varying (2D) fractions.
   # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
   # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
-  # Furthermore, Z_per_species has shape (n_species,) if T_e is a scalar, or
-  # (n_species, n_grid) if T_e is an array. The code below handles all cases.
   fractions = ion_mixture.fractions
-  if fractions.ndim == 1:
-    # Radially constant fractions: reshape for broadcasting
-    fractions_reshaped = jnp.reshape(
-        fractions,
-        fractions.shape + (1,) * (Z_per_species.ndim - 1),
-    )
-  else:
-    # Radially varying fractions: shapes are already compatible for
-    # element-wise ops.
-    fractions_reshaped = fractions
+  fractions = fractions if fractions.ndim == 2 else fractions[:, jnp.newaxis]
 
-  Z_avg = jnp.sum(fractions_reshaped * Z_per_species, axis=0)
-  Z2_avg = jnp.sum(fractions_reshaped * Z_per_species**2, axis=0)
+  Z_avg = jnp.sum(fractions * Z_per_species, axis=0)
+  Z2_avg = jnp.sum(fractions * Z_per_species**2, axis=0)
 
   return ChargeStateInfo(
       Z_avg=Z_avg,

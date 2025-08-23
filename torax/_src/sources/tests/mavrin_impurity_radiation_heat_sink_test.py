@@ -316,13 +316,13 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     # Calculate Z and LZ for each individual impurity species
     impurities_z = {
         symbol: charge_states.calculate_average_charge_state_single_species(
-            np.array(t_e_keV), symbol
+            np.array([t_e_keV]), symbol
         )
         for symbol in impurity_ratios
     }
     impurities_lz = {
         symbol: impurity_radiation_mavrin_fit._calculate_impurity_radiation_single_species(
-            np.array(t_e_keV), symbol
+            np.array([t_e_keV]), symbol
         )
         for symbol in impurity_ratios
     }
@@ -380,12 +380,12 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     # --- 3. Call the function under test ---
-    calculated_radiation = self._run_source_model(torax_config)
+    calculated_radiation = np.array(self._run_source_model(torax_config))
 
     # --- 4. Assertions ---
     np.testing.assert_allclose(
         calculated_radiation,
-        radiation_ref,
+        np.broadcast_to(radiation_ref, calculated_radiation.shape),
         rtol=1e-6,
         err_msg=(
             'Radiation from mixture does not match sum of individual'
@@ -407,8 +407,8 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     z_main = constants.ION_PROPERTIES_DICT[main_ion_symbol].Z
     z_impurities = {
         symbol: charge_states.calculate_average_charge_state_single_species(
-            np.array(t_e_keV), symbol
-        )
+            np.array([t_e_keV]), symbol
+        )[0]
         for symbol in impurity_symbols
     }
 

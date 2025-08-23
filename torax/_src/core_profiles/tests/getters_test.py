@@ -363,12 +363,14 @@ class GettersTest(parameterized.TestCase):
     z_d = constants.ION_PROPERTIES_DICT['D'].Z
     z_he3 = constants.ION_PROPERTIES_DICT['He3'].Z
     z_w = charge_states.calculate_average_charge_state_single_species(
-        jnp.array(T_e), 'W'
+        jnp.array([T_e]), 'W'
     )
     # Calculate the dilution factor for the ground truth plasma.
-    n_d = n_e * (1 - z_w * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
+    n_d = n_e * (1 - z_w[0] * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
     zeff = float((
-        (n_d / n_e) * z_d**2 + n_e_ratio_w * z_w**2 + n_e_ratio_he3 * z_he3**2
+        (n_d / n_e) * z_d**2
+        + n_e_ratio_w * z_w[0] ** 2
+        + n_e_ratio_he3 * z_he3**2
     ))
     dilution = n_d / n_e
 
@@ -428,9 +430,11 @@ class GettersTest(parameterized.TestCase):
 
     # 4. Assertions
     # Check that the effective impurity charge is calculated as <Z^2>/<Z>.
-    expected_Z_avg = impurity_fraction_w * z_w + impurity_fraction_he3 * z_he3
+    expected_Z_avg = (
+        impurity_fraction_w * z_w[0] + impurity_fraction_he3 * z_he3
+    )
     expected_Z2_avg = (
-        impurity_fraction_w * z_w**2 + impurity_fraction_he3 * z_he3**2
+        impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
     expected_Z_impurity = expected_Z2_avg / expected_Z_avg
     np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
@@ -460,15 +464,15 @@ class GettersTest(parameterized.TestCase):
     z_main = constants.ION_PROPERTIES_DICT['D'].Z
     z_impurities = {
         symbol: charge_states.calculate_average_charge_state_single_species(
-            jnp.array(t_e_keV), symbol
+            jnp.array([t_e_keV]), symbol
         )
         for symbol in impurity_symbols
     }
 
-    # Calculate Z_eff
+    # Calculate scalar Z_eff
     zeff = (
-        1 - sum(r * z_impurities[s] for s, r in n_e_ratios.items())
-    ) * z_main + sum(r * z_impurities[s] ** 2 for s, r in n_e_ratios.items())
+        1 - sum(r * z_impurities[s][0] for s, r in n_e_ratios.items())
+    ) * z_main + sum(r * z_impurities[s][0] ** 2 for s, r in n_e_ratios.items())
 
     # Calculate impurity fractions
     total_impurity_ratio = sum(n_e_ratios.values())
