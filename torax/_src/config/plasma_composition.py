@@ -308,6 +308,7 @@ class DynamicPlasmaComposition:
   Z_eff_face: array_typing.FloatVectorFace
 
 
+# TODO(b/440667088): Consider validation against duplicate species.
 @jax.tree_util.register_pytree_node_class
 class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """Configuration for the plasma composition.

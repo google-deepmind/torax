@@ -251,15 +251,9 @@ def _get_ion_properties_from_n_e_ratios(
   Z_impurity = average_charge_state.Z_mixture
   Z_impurity_face = average_charge_state_face.Z_mixture
   # impurity_mixture.n_e_ratios has shape (n_species,).
-  # Z_per_species has shape (n_species,) if T_e.value is a scalar, or
-  # (n_species, n_grid) if T_e.value is an array.
-  # We need to broadcast n_e_ratios for element-wise multiplication.
-  # Reshape fractions to be broadcastable with Z_per_species.
-  n_e_ratios_reshaped = jnp.reshape(
-      impurity_dynamic_params.n_e_ratios,
-      impurity_dynamic_params.fractions.shape
-      + (1,) * (average_charge_state.Z_per_species.ndim - 1),
-  )
+  # Extend for the summations with Z_per_species which has shape
+  # (n_species, n_grid).
+  n_e_ratios_reshaped = impurity_dynamic_params.n_e_ratios[:, jnp.newaxis]
   dilution_factor = (
       1
       - jnp.sum(
@@ -294,8 +288,9 @@ def _get_ion_properties_from_n_e_ratios(
   )
 
 
+# TODO(b/440666091): Refactor this function by breaking it down to several
+# smaller helper functions
 def _get_ion_properties_from_n_e_ratios_Z_eff(
-    impurity_symbols: tuple[str, ...],
     impurity_dynamic_params: plasma_composition.DynamicNeRatiosZeff,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
@@ -306,7 +301,6 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   """Calculates ion properties when one impurity is constrained by Z_eff.
 
   We solve for the unknown impurity species n_e_ratio and the main ion
-
   n_e_ratio (dilution factor) from quasi-neutrality and Z_eff equations:
 
   ne = Z_i * n_i + sum(Z_impurity * n_impurity)
@@ -321,7 +315,6 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   and "unknown" to refer to impurity species with known and unknown densities.
 
   Args:
-    impurity_symbols: Tuple of impurity symbols.
     impurity_dynamic_params: Dynamic impurity parameters.
     T_e: Electron temperature profile.
     Z_i: Average charge state of main ion on cell grid.
@@ -332,47 +325,45 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   Returns:
     _IonProperties container with calculated ion properties.
   """
-
-  # Calculate charge states for each species
-  Z_per_species = {
-      impurity_symbol: (
-          charge_states.calculate_average_charge_state_single_species(
-              T_e.value, impurity_symbol
-          )
+  # --- Vectorized charge state calculation ---
+  # This is JIT-compatible because impurity_symbols is a static tuple, so the
+  # list comprehension is unrolled during compilation.
+  impurity_symbols = tuple(impurity_dynamic_params.n_e_ratios.keys())
+  Z_per_species = jnp.stack([
+      charge_states.calculate_average_charge_state_single_species(
+          T_e.value, symbol
       )
-      for impurity_symbol in impurity_symbols
-  }
-  Z_per_species_face = {
-      impurity_symbol: (
-          charge_states.calculate_average_charge_state_single_species(
-              T_e.face_value(), impurity_symbol
-          )
+      for symbol in impurity_symbols
+  ])
+  Z_per_species_face = jnp.stack([
+      charge_states.calculate_average_charge_state_single_species(
+          T_e.face_value(), symbol
       )
-      for impurity_symbol in impurity_symbols
-  }
-  Z_unknown = Z_per_species[impurity_dynamic_params.unknown_species]
-  Z_unknown_face = Z_per_species_face[impurity_dynamic_params.unknown_species]
+      for symbol in impurity_symbols
+  ])
 
-  # Sum contributions from known impurity species
-  sum_Z_n_ratio = sum(
-      ratio * Z_per_species[s]
-      for s, ratio in impurity_dynamic_params.n_e_ratios.items()
-      if ratio is not None
+  unknown_species_index = impurity_symbols.index(
+      impurity_dynamic_params.unknown_species
   )
-  sum_Z2_n_ratio = sum(
-      ratio * Z_per_species[s] ** 2
-      for s, ratio in impurity_dynamic_params.n_e_ratios.items()
-      if ratio is not None
+  Z_unknown = Z_per_species[unknown_species_index]
+  Z_unknown_face = Z_per_species_face[unknown_species_index]
+
+  # --- Vectorized summation of known impurity contributions ---
+  # Create arrays of known ratios, with 0 for the unknown species.
+  n_e_ratios_known = jnp.array([
+      ratio if ratio is not None else 0.0
+      for ratio in impurity_dynamic_params.n_e_ratios.values()
+  ])
+  # Reshape for broadcasting with Z_per_species.
+  n_e_ratios_known_reshaped = n_e_ratios_known[:, jnp.newaxis]
+
+  sum_Z_n_ratio = jnp.sum(n_e_ratios_known_reshaped * Z_per_species, axis=0)
+  sum_Z2_n_ratio = jnp.sum(n_e_ratios_known_reshaped * Z_per_species**2, axis=0)
+  sum_Z_n_ratio_face = jnp.sum(
+      n_e_ratios_known_reshaped * Z_per_species_face, axis=0
   )
-  sum_Z_n_ratio_face = sum(
-      ratio * Z_per_species_face[s]
-      for s, ratio in impurity_dynamic_params.n_e_ratios.items()
-      if ratio is not None
-  )
-  sum_Z2_n_ratio_face = sum(
-      ratio * Z_per_species_face[s] ** 2
-      for s, ratio in impurity_dynamic_params.n_e_ratios.items()
-      if ratio is not None
+  sum_Z2_n_ratio_face = jnp.sum(
+      n_e_ratios_known_reshaped * Z_per_species_face**2, axis=0
   )
 
   # Solve the 2x2 system for dilution and the unknown n_e_ratio on both grids
@@ -397,7 +388,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       b1=Z_unknown,
       a2=Z_i**2,
       b2=Z_unknown**2,
-      c1=1 - sum_Z_n_ratio,
+      c1=1.0 - sum_Z_n_ratio,
       c2=Z_eff_from_config - sum_Z2_n_ratio,
   )
   dilution_factor_face, r_unknown_face = _solve_system(
@@ -405,27 +396,26 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       b1=Z_unknown_face,
       a2=Z_i_face**2,
       b2=Z_unknown_face**2,
-      c1=1 - sum_Z_n_ratio_face,
+      c1=1.0 - sum_Z_n_ratio_face,
       c2=Z_eff_face_from_config - sum_Z2_n_ratio_face,
   )
 
-  # Reconstruct the full n_e_ratios and fractions
-  full_n_e_ratios = {}
-  full_n_e_ratios_face = {}
-  for s, ratio in impurity_dynamic_params.n_e_ratios.items():
-    if ratio is not None:
-      # Broadcast the scalar ratio to match the grid shape
-      full_n_e_ratios[s] = jnp.full_like(r_unknown, ratio)
-      full_n_e_ratios_face[s] = jnp.full_like(r_unknown_face, ratio)
-    else:
-      full_n_e_ratios[s] = r_unknown
-      full_n_e_ratios_face[s] = r_unknown_face
-  n_e_ratios_all_species = jnp.array(
-      [full_n_e_ratios[s] for s in impurity_symbols]
+  # --- Reconstruct full ratios and fractions ---
+  # Broadcast the known ratios to the full (n_species, n_grid) shape
+  n_grid = Z_per_species.shape[-1]
+  n_e_ratios_all_species = jnp.broadcast_to(
+      n_e_ratios_known_reshaped, (len(impurity_symbols), n_grid)
   )
-  n_e_ratios_all_species_face = jnp.array(
-      [full_n_e_ratios_face[s] for s in impurity_symbols]
+  n_e_ratios_all_species_face = jnp.broadcast_to(
+      n_e_ratios_known_reshaped, (len(impurity_symbols), n_grid + 1)
   )
+  # Now update the row for the unknown species with its calculated profile
+  n_e_ratios_all_species = n_e_ratios_all_species.at[
+      unknown_species_index, :
+  ].set(r_unknown)
+  n_e_ratios_all_species_face = n_e_ratios_all_species_face.at[
+      unknown_species_index, :
+  ].set(r_unknown_face)
 
   fractions = plasma_composition.calculate_fractions_from_ratios(
       n_e_ratios_all_species
@@ -559,7 +549,6 @@ def get_updated_ions(
       )
     case plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF:
       ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
-          dynamic_runtime_params_slice.plasma_composition.impurity_names,
           impurity_dynamic_params,
           T_e,
           Z_i,
