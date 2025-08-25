@@ -218,7 +218,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         final_sim_state,
         ids_out,
     )
-    # filled_ids.validate()  : can be done once we fix the grid dimension for j_ohmic and j_external.
+    filled_ids.validate() #: can be done once we fix the grid dimension for j_ohmic and j_external.
 
 
 if __name__ == '__main__':

@@ -235,6 +235,13 @@ def core_profiles_to_IMAS(
   ids.profiles_1d[0].grid.psi = cp_state.psi.cell_plus_boundaries()
   ids.profiles_1d[0].grid.psi_magnetic_axis = cp_state.psi._left_face_value()[0]
   ids.profiles_1d[0].grid.psi_boundary = cp_state.psi._right_face_value()[0]
+  ids.profiles_1d[0].grid.rho_pol_norm = np.sqrt(
+      (cp_state.psi.cell_plus_boundaries() - cp_state.psi._left_face_value()[0])
+      / (
+          cp_state.psi._right_face_value()[0]
+          - cp_state.psi._left_face_value()[0]
+      )
+  )
   volume = np.concatenate(
       [[geometry.volume_face[0]], geometry.volume, [geometry.volume_face[-1]]]
   )
@@ -355,7 +362,8 @@ def core_profiles_to_IMAS(
     # ids.profiles_1d[0].ion[num_of_main_ions+iion].z_ion_1d = Z_impurity
     if (
         ids.metadata.name == 'core_profiles'
-    ):  # Temporary if, will be removed in future versions where the path will be name for both core and plasma_profiles.
+    ):  # Temporary if, will be removed in future versions where the path will
+      # be name for both core and plasma_profiles. Should be fixed for DD versions >4.1
       ids.profiles_1d[0].ion[num_of_main_ions + iion].name = symbol
     else:
       ids.profiles_1d[0].ion[num_of_main_ions + iion].label = symbol
