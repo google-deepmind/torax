@@ -14,7 +14,8 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 import functools
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
@@ -290,6 +291,9 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
       the with running TORAX using the provided APIs. To use this option you
       must implement a custom run loop. Only one of imas_filepath, imas_uri or
       equilibrium_object can be set.
+    slice_time: Time of slice to load from IMAS IDS. If given, overrides
+      slice_index.
+    slice_index: Index of slice to load from IMAS IDS (default 0).
   """
 
   geometry_type: Annotated[Literal['imas'], TIME_INVARIANT] = 'imas'
@@ -300,6 +304,8 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   imas_filepath: str | None = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
+  slice_index: pydantic.NonNegativeInt = 0
+  slice_time: float | None = None
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
@@ -317,6 +323,11 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
           'IMAS geometry builder needs exactly one of `equilibrium_object`, '
           '`imas_uri` or `imas_filepath` to be a valid input. Inputs provided: '
           f'{specified_inputs}.'
+      )
+    if self.slice_time is not None and self.slice_index != 0:
+      raise ValueError(
+          'IMAS geometry needs exactly one of `slice_time` and `slice_index`.'
+          f'Got: slice_time={self.slice_time}, slice_index={self.slice_index}.'
       )
     return self
 
