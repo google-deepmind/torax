@@ -57,8 +57,8 @@ class InitializationTest(parameterized.TestCase):
         unused_calculated_source_profiles=mock.ANY,
         unused_conductivity=mock.ANY,
     )[0]
-    j_total_hires = initialization._get_j_total_hires(
-        bootstrap_profile=bootstrap,
+    j_total_hires = initialization._get_j_total_hires_with_external_sources(
+        bootstrap_current=bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
