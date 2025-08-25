@@ -23,6 +23,7 @@ import scipy
 from torax._src.geometry import geometry_loader
 from torax._src.imas_tools.imas_utils import load_imas_data
 
+
 # pylint: disable=invalid-name
 def geometry_from_IMAS(
     geometry_directory: str | None = None,

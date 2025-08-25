@@ -16,8 +16,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.imas_tools import equilibrium as imas_geometry
-from torax._src.orchestration import run_simulation
 from torax._src.imas_tools.equilibrium_output import torax_state_to_imas_equilibrium
+from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 

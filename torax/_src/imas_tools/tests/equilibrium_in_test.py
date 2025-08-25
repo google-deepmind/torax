@@ -19,8 +19,8 @@ from absl.testing import parameterized
 import imas
 import numpy as np
 from torax._src.geometry import geometry_loader
-from torax._src.imas_tools import equilibrium as imas_geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.imas_tools import equilibrium as imas_geometry
 
 
 # pylint: disable=invalid-name

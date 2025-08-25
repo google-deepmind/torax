@@ -16,6 +16,7 @@
 import imas
 from imas import ids_toplevel
 
+
 def load_imas_data(
     uri: str,
     ids_name: str,
