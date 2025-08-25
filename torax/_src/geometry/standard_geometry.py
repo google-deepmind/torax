@@ -33,7 +33,7 @@ from torax._src import interpolated_param
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
-from torax._src.geometry import imas as imas_geometry
+from torax._src.imas_tools import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 

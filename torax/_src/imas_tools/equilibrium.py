@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Useful functions for handling of IMAS IDSs."""
+"""Input and output mapping functions for use of IMAS equilibrium IDSs with TORAX."""
 import logging
 import os
 from typing import Any
 
-import imas
 from imas import ids_toplevel
 import numpy as np
 import scipy
 from torax._src.geometry import geometry_loader
-
+from torax._src.imas_tools.imas_utils import load_imas_data
 
 # pylint: disable=invalid-name
 def geometry_from_IMAS(
@@ -59,12 +58,12 @@ def geometry_from_IMAS(
   if equilibrium_object is not None:
     equilibrium = equilibrium_object
   elif imas_uri is not None:
-    equilibrium = _load_imas_data(
+    equilibrium = _load_geo_data(
         imas_uri,
         geometry_directory,
     )
   elif imas_filepath is not None:
-    equilibrium = _load_imas_data(
+    equilibrium = _load_geo_data(
         imas_filepath,
         geometry_directory,
     )
@@ -193,13 +192,12 @@ def geometry_from_IMAS(
   }
 
 
-def _load_imas_data(
+def _load_geo_data(
     uri: str,
     geometry_directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
-  """Loads a full IDS for a given uri or path_name and a given ids_name."""
+  """Loads a full equilibrium IDS for a given uri or path_name and a given ids_name."""
   geometry_directory = geometry_loader.get_geometry_dir(geometry_directory)
   uri = os.path.join(geometry_directory, uri)
-  with imas.DBEntry(uri=uri, mode="r") as db:
-    ids = db.get(ids_name="equilibrium")
+  ids = load_imas_data(uri, "equilibrium")
   return ids
