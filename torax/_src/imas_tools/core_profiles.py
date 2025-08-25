@@ -69,7 +69,7 @@ def core_profiles_from_IMAS(
             rhon_array[0][rj]: profiles_1d[0].grid.psi[rj]
             for rj in range(len(rhon_array[0]))
         }
-    } 
+    }
   else:
     psi = None
   # Will be overwritten if Ip_from_parameters = False, when Ip is given by the equilibrium.
@@ -77,7 +77,7 @@ def core_profiles_from_IMAS(
       time_array[ti]: -1 * ids.global_quantities.ip[ti]
       for ti in range(len(time_array))
   }
-  #It is assumed the temperatures and density profiles are defined until rhon=1. Validator will raise an error if rhon[-1]!= 1.
+  # It is assumed the temperatures and density profiles are defined until rhon=1. Validator will raise an error if rhon[-1]!= 1.
   T_e = {
       time_array[ti]: {
           rhon_array[ti][rj]: profiles_1d[ti].electrons.temperature[rj] / 1e3
@@ -85,7 +85,7 @@ def core_profiles_from_IMAS(
       }
       for ti in range(len(time_array))
   }
-  
+
   if len(profiles_1d[0].t_i_average > 0):
     T_i = {
         time_array[ti]: {
@@ -127,7 +127,7 @@ def core_profiles_from_IMAS(
     v_loop_lcfs = {
         time_array[ti]: ids.global_quantities.v_loop[ti]
         for ti in range(len(time_array))
-    }  #TODO: Check the sign for v_loop when it will be used.
+    }  # TODO: Check the sign for v_loop when it will be used.
   else:
     v_loop_lcfs = [0.0]
 
@@ -147,7 +147,9 @@ def core_profiles_from_IMAS(
       'profile_conditions.normalize_n_e_to_nbar': False,
       'profile_conditions.v_loop_lcfs': v_loop_lcfs,
       'numerics.t_initial': t_initial,
-      'numerics.t_final': t_initial + 80.0,  # How to define it ? Somewhere else ?
+      'numerics.t_final': (
+          t_initial + 80.0
+      ),  # How to define it ? Somewhere else ?
   }
 
 
@@ -175,19 +177,19 @@ def core_profiles_to_IMAS(
   cs_state = state.core_sources
   geometry = state.geometry
   ids.ids_properties.comment = (
-      "IDS built from TORAX sim output. Grid based on torax cell grid +"
-      " boundaries."
+      'IDS built from TORAX sim output. Grid based on torax cell grid +'
+      ' boundaries.'
   )
   ids.ids_properties.homogeneous_time = 1
   ids.ids_properties.creation_date = datetime.date.today().isoformat()
   ids.time = [t]
-  ids.code.name = "TORAX"
+  ids.code.name = 'TORAX'
   ids.code.description = (
-      "TORAX is a differentiable tokamak core transport simulator aimed for"
-      " fast and accurate forward modelling, pulse-design, trajectory"
-      " optimization, and controller design workflows."
+      'TORAX is a differentiable tokamak core transport simulator aimed for'
+      ' fast and accurate forward modelling, pulse-design, trajectory'
+      ' optimization, and controller design workflows.'
   )
-  ids.code.repository = "https://github.com/google-deepmind/torax"
+  ids.code.repository = 'https://github.com/google-deepmind/torax'
   ids.vacuum_toroidal_field.b0.resize(1)
   ids.global_quantities.current_bootstrap.resize(1)
   ids.global_quantities.ip.resize(1)
@@ -203,7 +205,9 @@ def core_profiles_to_IMAS(
   ids.profiles_1d[0].time = t
 
   ids.vacuum_toroidal_field.r0 = geometry.R_major
-  ids.vacuum_toroidal_field.b0[0] = geometry.B_0  #TODO: Check sign(s) once TORAX COCOS will be defined. 
+  ids.vacuum_toroidal_field.b0[0] = (
+      geometry.B_0
+  )  # TODO: Check sign(s) once TORAX COCOS will be defined.
 
   ids.global_quantities.ip[0] = -1 * cp_state.Ip_profile_face[-1]
   ids.global_quantities.current_bootstrap[0] = (
@@ -225,7 +229,9 @@ def core_profiles_to_IMAS(
   ids.profiles_1d[0].grid.rho_tor_norm = np.concatenate(
       [[0.0], geometry.rho_norm, [1.0]]
   )
-  ids.profiles_1d[0].grid.rho_tor = np.concatenate([[0.], geometry.rho, [geometry.rho_b]])
+  ids.profiles_1d[0].grid.rho_tor = np.concatenate(
+      [[0.0], geometry.rho, [geometry.rho_b]]
+  )
   ids.profiles_1d[0].grid.psi = cp_state.psi.cell_plus_boundaries()
   ids.profiles_1d[0].grid.psi_magnetic_axis = cp_state.psi._left_face_value()[0]
   ids.profiles_1d[0].grid.psi_boundary = cp_state.psi._right_face_value()[0]
@@ -293,7 +299,7 @@ def core_profiles_to_IMAS(
     # ids.profiles_1d[0].ion[iion].z_ion = np.mean(cp_state.Z_i)  # Change to make it correspond to volume average over plasma radius
     # ids.profiles_1d[0].ion[iion].z_ion_1d = Z_i
     if (
-        ids.metadata.name == "core_profiles"
+        ids.metadata.name == 'core_profiles'
     ):  # Temporary if, will be removed in future versions where the path should be the same for both core and plasma_profiles.
       ids.profiles_1d[0].ion[iion].name = symbol
     else:
@@ -306,7 +312,7 @@ def core_profiles_to_IMAS(
     )
     ids.profiles_1d[0].ion[iion].density_thermal = (
         cp_state.n_i.cell_plus_boundaries() * frac
-    ) 
+    )
     ids.profiles_1d[0].ion[iion].density_fast = np.zeros(
         len(ids.profiles_1d[0].grid.rho_tor_norm)
     )
@@ -348,7 +354,7 @@ def core_profiles_to_IMAS(
     # ids.profiles_1d[0].ion[num_of_main_ions+iion].z_ion = np.mean(cp_state.Z_impurity_face) # Change to make it correspond to volume average over plasma radius
     # ids.profiles_1d[0].ion[num_of_main_ions+iion].z_ion_1d = Z_impurity
     if (
-        ids.metadata.name == "core_profiles"
+        ids.metadata.name == 'core_profiles'
     ):  # Temporary if, will be removed in future versions where the path will be name for both core and plasma_profiles.
       ids.profiles_1d[0].ion[num_of_main_ions + iion].name = symbol
     else:
@@ -415,15 +421,19 @@ def core_profiles_to_IMAS(
       [cs_state.bootstrap_current.j_bootstrap_face[-1]],
   ])
   ids.profiles_1d[0].j_total = -1 * j_total
-  #TODO: Add consistent boundary values. They are not available for the moment for j_ohmic and jni so copied the neighbouring points values. 
+  # TODO: Add consistent boundary values. They are not available for the moment for j_ohmic and jni so copied the neighbouring points values.
   j_ohmic = -1 * post_processed_outputs.j_ohmic
-  ids.profiles_1d[0].j_ohmic = (
-      np.concatenate([[j_ohmic[0]], j_ohmic, [j_ohmic[-1]]])
+  ids.profiles_1d[0].j_ohmic = np.concatenate(
+      [[j_ohmic[0]], j_ohmic, [j_ohmic[-1]]]
   )
-  j_non_inductive = -1 * sum(cs_state.psi.values()) + cs_state.bootstrap_current.j_bootstrap
-  ids.profiles_1d[0].j_non_inductive = - (
-      np.concatenate([[j_non_inductive[0]], j_non_inductive, [j_non_inductive[1]]])
-  ) 
+  j_non_inductive = (
+      -1 * sum(cs_state.psi.values()) + cs_state.bootstrap_current.j_bootstrap
+  )
+  ids.profiles_1d[0].j_non_inductive = -(
+      np.concatenate(
+          [[j_non_inductive[0]], j_non_inductive, [j_non_inductive[1]]]
+      )
+  )
   ids.profiles_1d[0].j_bootstrap = -1 * j_bootstrap
   sigma = np.concatenate(
       [[cp_state.sigma_face[0]], cp_state.sigma, [cp_state.sigma_face[-1]]]
