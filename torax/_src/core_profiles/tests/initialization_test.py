@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
@@ -25,17 +26,26 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
-from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
+
+
+@dataclasses.dataclass
+class _Currents:
+  """Container for the various currents used in tests."""
+
+  j_total: jax.Array
+  j_total_face: jax.Array
+  j_external: jax.Array
+  j_bootstrap: jax.Array
+  j_ohmic: jax.Array
 
 
 class InitializationTest(parameterized.TestCase):
@@ -87,7 +97,7 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
     torax_config = model_config.ToraxConfig.from_dict(config)
-    core_profiles, _ = _get_initial_core_profiles_and_geo(torax_config)
+    core_profiles, _, _ = _get_initial_state(torax_config)
 
     np.testing.assert_allclose(
         core_profiles.psi.value, expected_psi, atol=1e-6, rtol=1e-6
@@ -100,7 +110,7 @@ class InitializationTest(parameterized.TestCase):
     config['profile_conditions']['initial_psi_from_j'] = False
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    core_profiles, geo = _get_initial_core_profiles_and_geo(torax_config)
+    core_profiles, geo, _ = _get_initial_state(torax_config)
 
     # The `psi_from_Ip` attribute of the geometry is the ground truth here.
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
@@ -122,7 +132,7 @@ class InitializationTest(parameterized.TestCase):
     config['profile_conditions']['psi'] = psi_profile
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    core_profiles, geo = _get_initial_core_profiles_and_geo(torax_config)
+    core_profiles, geo, _ = _get_initial_state(torax_config)
 
     # Check that the final psi matches the one provided in the config.
     expected_psi = np.interp(
@@ -163,23 +173,12 @@ class InitializationTest(parameterized.TestCase):
         initial_psi_from_j=True,
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
 
     torax_config.update_fields({'profile_conditions': profile_conditions1})
-    (
-        j_total1,
-        j_total_face1,
-        j_external1,
-        j_ohmic1,
-        _,
-        _,
-    ) = _calculate_currents(torax_config, source_models, neoclassical_models)
+    _, _, currents1 = _get_initial_state(torax_config)
 
     torax_config.update_fields({'profile_conditions': profile_conditions2})
-    j_total2, j_total_face2, _, j_ohmic2, _, geo = _calculate_currents(
-        torax_config, source_models, neoclassical_models
-    )
+    _, geo, currents2 = _get_initial_state(torax_config)
 
     # calculate total and Ohmic current profile references
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
@@ -197,14 +196,14 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(j_total1),
-        np.mean(j_total2),
+        np.mean(currents1.j_total),
+        np.mean(currents2.j_total),
         rtol=_TOL,
     )
 
     # Check that the total current agrees with the expected reference formula.
     np.testing.assert_allclose(
-        np.mean(j_total1),
+        np.mean(currents1.j_total),
         np.mean(j_total1_expected),
         rtol=_TOL,
     )
@@ -212,8 +211,8 @@ class InitializationTest(parameterized.TestCase):
     # The only non-inductive current is the external current. Therefore the
     # sum of Ohmic + external current should be equal to the total current.
     np.testing.assert_allclose(
-        np.mean(j_external1 + j_ohmic1),
-        np.mean(j_total1),
+        np.mean(currents1.j_external + currents1.j_ohmic),
+        np.mean(currents1.j_total),
         rtol=_TOL,
     )
 
@@ -221,14 +220,14 @@ class InitializationTest(parameterized.TestCase):
     # initial_j_is_total_current=False as in Case 2. It is the "nu" formula
     # scaled down to compensate for the external current.
     np.testing.assert_allclose(
-        np.mean(j_ohmic2),
+        np.mean(currents2.j_ohmic),
         np.mean(j_ohmic2_expected),
         rtol=_TOL,
     )
 
     # Check that the face conversions agree with the expected reference.
     np.testing.assert_allclose(
-        np.mean(j_total_face1),
+        np.mean(currents1.j_total_face),
         np.mean(
             math_utils.cell_to_face(
                 j_total1_expected,
@@ -242,7 +241,7 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(j_total_face2),
+        np.mean(currents2.j_total_face),
         np.mean(
             math_utils.cell_to_face(
                 j_total1_expected,
@@ -287,11 +286,7 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources1,
         'neoclassical': neoclassical_1,
     })
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
-    j_total1, _, _, j_ohmic1, _, _ = _calculate_currents(
-        torax_config, source_models, neoclassical_models
-    )
+    _, _, currents1 = _get_initial_state(torax_config)
 
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
@@ -315,16 +310,12 @@ class InitializationTest(parameterized.TestCase):
         'sources': sources2,
         'neoclassical': neoclassical_2,
     })
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
-    _, _, _, j_ohmic2, j_bootstrap2, _ = _calculate_currents(
-        torax_config, source_models, neoclassical_models
-    )
+    _, _, currents2 = _get_initial_state(torax_config)
 
     # In Case 1, all the current should be Ohmic current.
     np.testing.assert_allclose(
-        np.mean(j_ohmic1),
-        np.mean(j_total1),
+        np.mean(currents1.j_ohmic),
+        np.mean(currents1.j_total),
         rtol=_TOL,
     )
 
@@ -333,8 +324,8 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(j_ohmic1),
-        np.mean(j_ohmic2),
+        np.mean(currents1.j_ohmic),
+        np.mean(currents2.j_ohmic),
         rtol=_TOL,
     )
 
@@ -342,8 +333,8 @@ class InitializationTest(parameterized.TestCase):
     # Thus, the sum of Ohmic and booststrap currents should be equal to the
     # total (ohmic) current in Case 1.
     np.testing.assert_allclose(
-        np.mean(j_total1),
-        np.mean(j_ohmic2 + j_bootstrap2),
+        np.mean(currents1.j_total),
+        np.mean(currents2.j_ohmic + currents2.j_bootstrap),
         rtol=_TOL,
     )
 
@@ -354,28 +345,26 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
-    jtotal1, _, _, _, _, _ = _calculate_currents(
-        torax_config, source_models, neoclassical_models
-    )
+    _, _, currents1 = _get_initial_state(torax_config)
+    jtotal1 = currents1.j_total
 
     torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
-    jtotal2, _, _, _, _, _ = _calculate_currents(
-        torax_config, source_models, neoclassical_models
-    )
+    _, _, currents2 = _get_initial_state(torax_config)
+    jtotal2 = currents2.j_total
 
     np.testing.assert_allclose(jtotal1, jtotal2)
 
 
-def _calculate_currents(
+def _get_initial_state(
     torax_config: model_config.ToraxConfig,
-    source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
 ) -> tuple[
-    jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, geometry.Geometry
+    state.CoreProfiles,
+    geometry.Geometry,
+    _Currents,
 ]:
-  """Calculates j_total, j_external, and j_ohmic currents."""
+  """Returns initial core profiles, sources, geometry and currents for a config."""
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_slice, geo = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=torax_config.numerics.t_initial,
@@ -385,7 +374,6 @@ def _calculate_currents(
           geometry_provider=torax_config.geometry.build_provider,
       )
   )
-
   core_profiles = initialization.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_slice,
       geo=geo,
@@ -408,27 +396,14 @@ def _calculate_currents(
   j_external = sum(core_sources.psi.values())
   j_bootstrap = core_sources.bootstrap_current.j_bootstrap
   j_ohmic = j_total - j_external - j_bootstrap
-  return j_total, j_total_face, j_external, j_ohmic, j_bootstrap, geo
-
-
-def _get_initial_core_profiles_and_geo(
-    torax_config: model_config.ToraxConfig,
-) -> tuple[state.CoreProfiles, geometry.Geometry]:
-  source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
-  dynamic_runtime_params_slice = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-          torax_config
-      )(t=1.0)
+  currents = _Currents(
+      j_total=j_total,
+      j_total_face=j_total_face,
+      j_external=j_external,
+      j_bootstrap=j_bootstrap,
+      j_ohmic=j_ohmic,
   )
-  geo = torax_config.geometry.build_provider(t=0.0)
-  core_profiles = initialization.initial_core_profiles(
-      dynamic_runtime_params_slice,
-      geo,
-      source_models,
-      neoclassical_models,
-  )
-  return core_profiles, geo
+  return core_profiles, geo, currents
 
 
 if __name__ == '__main__':
