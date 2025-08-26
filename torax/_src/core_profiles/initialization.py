@@ -34,6 +34,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
+from torax._src.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -236,21 +237,12 @@ def _init_psi_and_psi_derived(
   Returns:
     Refined core profiles.
   """
-  use_v_loop_bc = (
-      dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
-  )
 
+  # Flag to track if sources have been calculated during psi initialization.
+  sources_are_calculated = False
+
+  # Initialize psi source profiles and bootstrap current to all zeros.
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
-  # Updates the calculated source profiles with the standard source profiles.
-  source_profile_builders.build_standard_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      psi_only=True,
-      calculate_anyway=True,
-      calculated_source_profiles=source_profiles,
-  )
 
   # Case 1: retrieving psi from the profile conditions, using the prescribed
   # profile and Ip
@@ -262,7 +254,9 @@ def _init_psi_and_psi_derived(
     )
 
     # Set the BCs to ensure the correct Ip
-    if use_v_loop_bc:
+    if (
+        dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+    ):
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
       # to achieve the desired Ip
       right_face_grad_constraint = None
@@ -288,70 +282,97 @@ def _init_psi_and_psi_derived(
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from a numerical equilibrium, so no need to
-    # first calculate currents. However, non-inductive currents are still
-    # calculated and used in current diffusion equation.
-
-    # Calculate the dpsi/drho necessary to achieve the given Ip
+    # first calculate currents.
     dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
     )
-
     # Use the psi from the equilibrium as the right face constraint
     # This has already been made consistent with the desired Ip
     # by make_ip_consistent
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,  # Use psi from equilibrium
         right_face_grad_constraint=None
-        if use_v_loop_bc
+        if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
         else dpsi_drhonorm_edge,
         right_face_constraint=geo.psi_from_Ip_face[-1]
-        if use_v_loop_bc
+        if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
         else None,
         dr=geo.drho_norm,
     )
 
   # Case 3: calculating j according to nu formula and psi from j.
   else:
-    # First calculate currents without bootstrap.
-    external_current = sum(source_profiles.psi.values())
-    j_total_hires = _get_j_total_hires(
-        bootstrap_profile=source_profiles.bootstrap_current,
-        external_current=external_current,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
+    # calculate j and psi from the nu formula
+    j_total_hires = _get_j_total_hires_with_no_external_sources(
+        dynamic_runtime_params_slice, geo
     )
     psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip,
         geo,
         j_total_hires,
-        use_v_loop_lcfs_boundary_condition=use_v_loop_bc,
+        use_v_loop_lcfs_boundary_condition=dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition,
     )
-    core_profiles = dataclasses.replace(
-        core_profiles,
-        psi=psi,
-        q_face=psi_calculations.calc_q_face(geo, psi),
-        s_face=psi_calculations.calc_s_face(geo, psi),
-    )
-    # Now calculate currents with bootstrap.
-    bootstrap_profile = (
-        neoclassical_models.bootstrap_current.calculate_bootstrap_current(
-            dynamic_runtime_params_slice, geo, core_profiles
-        )
-    )
-    j_total_hires = _get_j_total_hires(
-        bootstrap_profile=bootstrap_profile,
-        external_current=external_current,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-    )
-    psi = update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
-        geo,
-        j_total_hires,
-        use_v_loop_lcfs_boundary_condition=use_v_loop_bc,
-    )
+    if not (
+        dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current
+    ):
+      # In this branch we require non-inductive currents to determine j_total.
+      # The nu formula only provides the Ohmic component of the current.
+      # However calculating non-inductive currents requires a non-zero psi.
+      # We thus iterate between psi and source calculations, using j_total
+      # and psi calculated purely with the nu formula as an initial guess.
 
+      # Initialize iterations
+      core_profiles_initial = dataclasses.replace(
+          core_profiles,
+          psi=psi,
+          q_face=psi_calculations.calc_q_face(geo, psi),
+          s_face=psi_calculations.calc_s_face(geo, psi),
+      )
+
+      # TODO(b/440385263): add tunable iteration number or convergence criteria,
+      # and modify python for loop to jax fori loop for the general case.
+
+      # Iterate with non-inductive current source calculations. Stop after 2.
+      psi, source_profiles = _iterate_psi_and_sources(
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          geo=geo,
+          core_profiles=core_profiles_initial,
+          neoclassical_models=neoclassical_models,
+          source_models=source_models,
+          source_profiles=source_profiles,
+          iterations=2,
+      )
+
+      # Mark that sources have been calculated to avoid redundant work.
+      sources_are_calculated = True
+
+  # Conclude with completing core_profiles with all psi-dependent profiles.
+  core_profiles = _calculate_all_psi_dependent_profiles(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      psi=psi,
+      core_profiles=core_profiles,
+      source_profiles=source_profiles,
+      source_models=source_models,
+      neoclassical_models=neoclassical_models,
+      sources_are_calculated=sources_are_calculated,
+  )
+
+  return core_profiles
+
+
+def _calculate_all_psi_dependent_profiles(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    psi: cell_variable.CellVariable,
+    core_profiles: state.CoreProfiles,
+    source_profiles: source_profiles_lib.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    sources_are_calculated: bool,
+) -> state.CoreProfiles:
+  """Supplements core profiles with all other profiles that depend on psi."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo, psi
   )
@@ -365,21 +386,27 @@ def _init_psi_and_psi_derived(
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
   )
-  bootstrap_profile = (
-      neoclassical_models.bootstrap_current.calculate_bootstrap_current(
-          dynamic_runtime_params_slice, geo, core_profiles
-      )
-  )
+  # Calculate conductivity once we have a consistent set of core profiles
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo,
       core_profiles,
   )
-  source_profiles = dataclasses.replace(
-      source_profiles, bootstrap_current=bootstrap_profile
-  )
+
+  # Calculate sources if they have not already been calculated.
+  if not sources_are_calculated:
+    source_profiles = _get_bootstrap_and_standard_source_profiles(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        neoclassical_models,
+        source_models,
+        source_profiles,
+    )
+
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
+
   psi_sources = source_profiles.total_psi_sources(geo)
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
@@ -394,7 +421,7 @@ def _init_psi_and_psi_derived(
   # other information.
   v_loop_lcfs = (
       dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs
-      if use_v_loop_bc
+      if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
       else psidot[-1]
   )
   psidot = dataclasses.replace(
@@ -409,22 +436,106 @@ def _init_psi_and_psi_derived(
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
   )
-
   return core_profiles
 
 
-def _get_j_total_hires(
+def _get_bootstrap_and_standard_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    bootstrap_profile: bootstrap_current_base.BootstrapCurrent,
+    core_profiles: state.CoreProfiles,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
+) -> source_profiles_lib.SourceProfiles:
+  """Calculates bootstrap current and updates source profiles."""
+  source_profile_builders.build_standard_source_profiles(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      psi_only=True,
+      calculate_anyway=True,
+      calculated_source_profiles=source_profiles,
+  )
+  bootstrap_current = (
+      neoclassical_models.bootstrap_current.calculate_bootstrap_current(
+          dynamic_runtime_params_slice, geo, core_profiles
+      )
+  )
+  source_profiles = dataclasses.replace(
+      source_profiles, bootstrap_current=bootstrap_current
+  )
+  return source_profiles
+
+
+def _iterate_psi_and_sources(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
+    iterations: int,
+) -> tuple[cell_variable.CellVariable, source_profiles_lib.SourceProfiles]:
+  """Iterates psi and sources to converge to a consistent state."""
+
+  for _ in range(iterations):
+    source_profiles = _get_bootstrap_and_standard_source_profiles(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        neoclassical_models,
+        source_models,
+        source_profiles,
+    )
+    j_total_hires = _get_j_total_hires_with_external_sources(
+        dynamic_runtime_params_slice,
+        geo,
+        source_profiles.bootstrap_current,
+        sum(source_profiles.psi.values()),
+    )
+    psi = update_psi_from_j(
+        dynamic_runtime_params_slice.profile_conditions.Ip,
+        geo,
+        j_total_hires,
+        use_v_loop_lcfs_boundary_condition=dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        psi=psi,
+        q_face=psi_calculations.calc_q_face(geo, psi),
+        s_face=psi_calculations.calc_s_face(geo, psi),
+    )
+  return core_profiles.psi, source_profiles
+
+
+def _get_j_total_hires_with_no_external_sources(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+) -> jax.Array:
+  """Calculates j_total hires when the total current is given by a formula."""
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+  jformula_hires = (
+      1 - geo.rho_hires_norm**2
+  ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
+  denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
+  Ctot_hires = Ip / denom
+  j_total_hires = jformula_hires * Ctot_hires
+  return j_total_hires
+
+
+def _get_j_total_hires_with_external_sources(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,
 ) -> jax.Array:
-  """Calculates j_total hires."""
+  """Calculates j_total hires when the Ohmic current is given by a formula."""
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
-  psi_current = external_current + bootstrap_profile.j_bootstrap
+  psi_current = external_current + bootstrap_current.j_bootstrap
 
   j_bootstrap_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, bootstrap_profile.j_bootstrap_face
+      geo.rho_hires, geo.rho_face, bootstrap_current.j_bootstrap_face
   )
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
@@ -442,13 +553,9 @@ def _get_j_total_hires(
       1 - geo.rho_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
-  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
-    Ctot_hires = Ip / denom
-    j_total_hires = jformula_hires * Ctot_hires
-  else:
-    I_non_inductive = math_utils.area_integration(psi_current, geo)
-    Iohm = Ip - I_non_inductive
-    Cohm_hires = Iohm / denom
-    j_ohmic_hires = jformula_hires * Cohm_hires
-    j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
+  I_non_inductive = math_utils.area_integration(psi_current, geo)
+  Iohm = Ip - I_non_inductive
+  Cohm_hires = Iohm / denom
+  j_ohmic_hires = jformula_hires * Cohm_hires
+  j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
   return j_total_hires

@@ -20,9 +20,11 @@ import jax
 import numpy as np
 from torax._src import jax_utils
 from torax._src import math_utils
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.geometry import standard_geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import generic_current_source
@@ -57,8 +59,8 @@ class InitializationTest(parameterized.TestCase):
         unused_calculated_source_profiles=mock.ANY,
         unused_conductivity=mock.ANY,
     )[0]
-    j_total_hires = initialization._get_j_total_hires(
-        bootstrap_profile=bootstrap,
+    j_total_hires = initialization._get_j_total_hires_with_external_sources(
+        bootstrap_current=bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
@@ -85,24 +87,48 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(t=1.0)
-    )
-    geo = torax_config.geometry.build_provider(t=1.0)
-    core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
-        geo,
-        source_models,
-        neoclassical_models,
-    )
+    core_profiles, _ = _get_initial_core_profiles_and_geo(torax_config)
 
     np.testing.assert_allclose(
         core_profiles.psi.value, expected_psi, atol=1e-6, rtol=1e-6
     )
+
+  def test_initial_psi_from_geo(self):
+    """Tests that psi is correctly loaded from a CHEASE file (Case 2)."""
+    config = default_configs.get_default_config_dict()
+    config['geometry']['geometry_type'] = 'chease'
+    config['profile_conditions']['initial_psi_from_j'] = False
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    core_profiles, geo = _get_initial_core_profiles_and_geo(torax_config)
+
+    # The `psi_from_Ip` attribute of the geometry is the ground truth here.
+    self.assertIsInstance(geo, standard_geometry.StandardGeometry)
+    np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_Ip)
+
+  @parameterized.parameters([
+      dict(initial_psi_from_j=False),
+      dict(initial_psi_from_j=True),
+  ])
+  def test_initial_psi_from_config_overrides_initial_psi_from_j(
+      self, initial_psi_from_j: bool
+  ):
+    """Tests that providing psi directly in config takes precedence."""
+    config = default_configs.get_default_config_dict()
+    config['geometry']['geometry_type'] = 'chease'
+    # Set both flags that would normally trigger Case 3
+    psi_profile = {0: {0: 42.0, 1: 43.0}}
+    config['profile_conditions']['initial_psi_from_j'] = initial_psi_from_j
+    config['profile_conditions']['psi'] = psi_profile
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    core_profiles, geo = _get_initial_core_profiles_and_geo(torax_config)
+
+    # Check that the final psi matches the one provided in the config.
+    expected_psi = np.interp(
+        geo.rho_norm, np.array([0.0, 1.0]), np.array([42.0, 43.0])
+    )
+    np.testing.assert_allclose(core_profiles.psi.value, expected_psi)
 
   @parameterized.parameters([
       dict(geometry_name='circular'),
@@ -383,6 +409,26 @@ def _calculate_currents(
   j_bootstrap = core_sources.bootstrap_current.j_bootstrap
   j_ohmic = j_total - j_external - j_bootstrap
   return j_total, j_total_face, j_external, j_ohmic, j_bootstrap, geo
+
+
+def _get_initial_core_profiles_and_geo(
+    torax_config: model_config.ToraxConfig,
+) -> tuple[state.CoreProfiles, geometry.Geometry]:
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
+  dynamic_runtime_params_slice = (
+      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          torax_config
+      )(t=1.0)
+  )
+  geo = torax_config.geometry.build_provider(t=0.0)
+  core_profiles = initialization.initial_core_profiles(
+      dynamic_runtime_params_slice,
+      geo,
+      source_models,
+      neoclassical_models,
+  )
+  return core_profiles, geo
 
 
 if __name__ == '__main__':
