@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "TORAX Debugger: Run TORAX with the active config",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "torax.run_simulation_main",
+            "args": [
+                "--config",
+                "${file}"
+            ],
+            "env": {
+                "TORAX_COMPILATION_ENABLED": "0"
+            },
+            "console": "integratedTerminal",
+        }
+    ]
+}
