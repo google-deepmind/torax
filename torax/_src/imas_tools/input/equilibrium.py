@@ -17,11 +17,11 @@ import logging
 import os
 from typing import Any
 
+import imas
 from imas import ids_toplevel
 import numpy as np
 import scipy
 from torax._src.geometry import geometry_loader
-from torax._src.imas_tools.imas_utils import load_imas_data
 
 
 # pylint: disable=invalid-name
@@ -200,5 +200,6 @@ def _load_geo_data(
   """Loads a full equilibrium IDS for a given uri or path_name and a given ids_name."""
   geometry_directory = geometry_loader.get_geometry_dir(geometry_directory)
   uri = os.path.join(geometry_directory, uri)
-  ids = load_imas_data(uri, "equilibrium")
+  with imas.DBEntry(uri=uri, mode="r") as db:
+    ids = db.get(ids_name="equilibrium")
   return ids
