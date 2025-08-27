@@ -145,9 +145,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_nbar_is_fGW: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False
-  set_pedestal: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(True)
-  )
   current_profile_nu: float = 1.0
   initial_j_is_total_current: bool = False
   initial_psi_from_j: bool = False
