@@ -149,11 +149,11 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         path=self.model_path, name=self.qlknn_model_name
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> qlknn_transport_model.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return qlknn_transport_model.DynamicRuntimeParams(
+  ) -> qlknn_transport_model.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return qlknn_transport_model.RuntimeParams(
         include_ITG=self.include_ITG,
         include_TEM=self.include_TEM,
         include_ETG=self.include_ETG,
@@ -199,11 +199,11 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> constant.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return constant.DynamicRuntimeParams(
+  ) -> constant.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return constant.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
         chi_e=self.chi_e.get_value(t, 'face'),
         D_e=self.D_e.get_value(t, 'face'),
@@ -245,11 +245,11 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   ) -> critical_gradient.CriticalGradientTransportModel:
     return critical_gradient.CriticalGradientTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> critical_gradient.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return critical_gradient.DynamicRuntimeParams(
+  ) -> critical_gradient.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return critical_gradient.RuntimeParams(
         alpha=self.alpha,
         chi_stiff=self.chi_stiff,
         chi_e_i_ratio=self.chi_e_i_ratio.get_value(t),
@@ -324,11 +324,11 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   ) -> bohm_gyrobohm.BohmGyroBohmTransportModel:
     return bohm_gyrobohm.BohmGyroBohmTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> bohm_gyrobohm.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return bohm_gyrobohm.DynamicRuntimeParams(
+  ) -> bohm_gyrobohm.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return bohm_gyrobohm.RuntimeParams(
         chi_e_bohm_coeff=self.chi_e_bohm_coeff.get_value(t),
         chi_e_gyrobohm_coeff=self.chi_e_gyrobohm_coeff.get_value(t),
         chi_i_bohm_coeff=self.chi_i_bohm_coeff.get_value(t),
@@ -405,19 +405,19 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         pedestal_transport_models=pedestal_transport_models,
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> combined.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+  ) -> combined.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     transport_model_params = [
-        model.build_dynamic_params(t) for model in self.transport_models
+        model.build_runtime_params(t) for model in self.transport_models
     ]
     pedestal_transport_model_params = [
-        model.build_dynamic_params(t)
+        model.build_runtime_params(t)
         for model in self.pedestal_transport_models
     ]
 
-    return combined.DynamicRuntimeParams(
+    return combined.RuntimeParams(
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         **base_kwargs,

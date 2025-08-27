@@ -42,21 +42,19 @@ def _get_config_and_model_inputs(
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
-  dynamic_runtime_params_slice = (
-      build_runtime_params.RuntimeParamsProvider.from_config(
-          torax_config
-      )(
-          t=torax_config.numerics.t_initial,
-      )
+  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+      torax_config
+  )(
+      t=torax_config.numerics.t_initial,
   )
   geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
   core_profiles = initialization.initial_core_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,
   )
-  return torax_config, (dynamic_runtime_params_slice, geo, core_profiles)
+  return torax_config, (runtime_params, geo, core_profiles)
 
 
 class QualikizTransportModelTest(parameterized.TestCase):
@@ -98,13 +96,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'smag_alpha_correction': True,
     })
     transport_model = torax_config.transport.build_transport_model()
-    dynamic_runtime_params_slice, geo, core_profiles = model_inputs
+    runtime_params, geo, core_profiles = model_inputs
     assert isinstance(
-        dynamic_runtime_params_slice.transport,
-        qualikiz_based_transport_model.DynamicRuntimeParams,
+        runtime_params.transport,
+        qualikiz_based_transport_model.RuntimeParams,
     )
     qualikiz_inputs = transport_model.prepare_qualikiz_inputs(
-        transport=dynamic_runtime_params_slice.transport,
+        transport=runtime_params.transport,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -147,7 +145,7 @@ class FakeQualikizBasedTransportModel(
   # pylint: disable=invalid-name
   def prepare_qualikiz_inputs(
       self,
-      transport: qualikiz_based_transport_model.DynamicRuntimeParams,
+      transport: qualikiz_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> qualikiz_based_transport_model.QualikizInputs:
@@ -158,8 +156,8 @@ class FakeQualikizBasedTransportModel(
 
   def _call_implementation(
       self,
-      transport_runtime_params: qualikiz_based_transport_model.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: qualikiz_based_transport_model.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -167,7 +165,7 @@ class FakeQualikizBasedTransportModel(
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
-        qualikiz_based_transport_model.DynamicRuntimeParams,
+        qualikiz_based_transport_model.RuntimeParams,
     )
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
@@ -230,9 +228,9 @@ class QualikizBasedTransportModelConfig(
   ) -> FakeQualikizBasedTransportModel:
     return FakeQualikizBasedTransportModel()
 
-  def build_dynamic_params(self, t: chex.Numeric):
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return qualikiz_based_transport_model.DynamicRuntimeParams(
+  def build_runtime_params(self, t: chex.Numeric):
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return qualikiz_based_transport_model.RuntimeParams(
         collisionality_multiplier=self.collisionality_multiplier,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,

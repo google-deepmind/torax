@@ -26,7 +26,7 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
-from torax._src.transport_model import runtime_params
+from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -35,29 +35,31 @@ class PydanticModelTest(parameterized.TestCase):
   @parameterized.parameters(
       dict(
           pydantic_model=transport_pydantic_model.QLKNNTransportModel,
-          expected_dynamic_params=qlknn_transport_model.DynamicRuntimeParams,
+          expected_runtime_params=qlknn_transport_model.RuntimeParams,
           expected_transport_model=qlknn_transport_model.QLKNNTransportModel,
       ),
       dict(
           pydantic_model=transport_pydantic_model.ConstantTransportModel,
-          expected_dynamic_params=constant.DynamicRuntimeParams,
+          expected_runtime_params=constant.RuntimeParams,
           expected_transport_model=constant.ConstantTransportModel,
       ),
       dict(
           pydantic_model=transport_pydantic_model.CriticalGradientTransportModel,
-          expected_dynamic_params=critical_gradient.DynamicRuntimeParams,
+          expected_runtime_params=critical_gradient.RuntimeParams,
           expected_transport_model=critical_gradient.CriticalGradientTransportModel,
       ),
       dict(
           pydantic_model=transport_pydantic_model.BohmGyroBohmTransportModel,
-          expected_dynamic_params=bohm_gyrobohm.DynamicRuntimeParams,
+          expected_runtime_params=bohm_gyrobohm.RuntimeParams,
           expected_transport_model=bohm_gyrobohm.BohmGyroBohmTransportModel,
       ),
   )
   def test_build_transport_model(
       self,
       pydantic_model: type[transport_pydantic_model.TransportConfig],
-      expected_dynamic_params: type[runtime_params.DynamicRuntimeParams],
+      expected_runtime_params: type[
+          transport_model_runtime_params.RuntimeParams
+      ],
       expected_transport_model: type[transport_model_lib.TransportModel],
   ):
     transport = pydantic_model()
@@ -67,8 +69,8 @@ class PydanticModelTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(transport, geo.torax_mesh)
 
-    dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
-    self.assertIsInstance(dynamic_runtime_params, expected_dynamic_params)
+    runtime_params = transport.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, expected_runtime_params)
     transport_model = transport.build_transport_model()
     self.assertIsInstance(transport_model, expected_transport_model)
 
@@ -79,9 +81,9 @@ class PydanticModelTest(parameterized.TestCase):
       self.skipTest('Qualikiz transport model is not available.')
 
     transport = qualikiz_transport_model.QualikizTransportModelConfig()
-    dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
+    runtime_params = transport.build_runtime_params(t=0.0)
     self.assertIsInstance(
-        dynamic_runtime_params, qualikiz_transport_model.DynamicRuntimeParams
+        runtime_params, qualikiz_transport_model.RuntimeParams
     )
     transport_model = transport.build_transport_model()
     self.assertIsInstance(
@@ -226,7 +228,7 @@ class PydanticModelTest(parameterized.TestCase):
           param_to_update='collisionality_multiplier',
           initial_value=1.0,
           updated_value=2.0,
-          dynamic_param_name='collisionality_multiplier',
+          param_name='collisionality_multiplier',
       ),
       dict(
           testcase_name='constant',
@@ -234,7 +236,7 @@ class PydanticModelTest(parameterized.TestCase):
           param_to_update='chi_i',
           initial_value=1.0,
           updated_value=2.0,
-          dynamic_param_name='chi_i',
+          param_name='chi_i',
       ),
       dict(
           testcase_name='cgm',
@@ -242,7 +244,7 @@ class PydanticModelTest(parameterized.TestCase):
           param_to_update='alpha',
           initial_value=2.0,
           updated_value=3.0,
-          dynamic_param_name='alpha',
+          param_name='alpha',
       ),
       dict(
           testcase_name='bohm_gyrobohm',
@@ -250,7 +252,7 @@ class PydanticModelTest(parameterized.TestCase):
           param_to_update='D_face_c1',
           initial_value=1.0,
           updated_value=2.0,
-          dynamic_param_name='D_face_c1',
+          param_name='D_face_c1',
       ),
   )
   def test_transport_model_under_jit(
@@ -259,7 +261,7 @@ class PydanticModelTest(parameterized.TestCase):
       param_to_update,
       initial_value,
       updated_value,
-      dynamic_param_name,
+      param_name,
   ):
     transport = pydantic_model(**{param_to_update: initial_value})
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
@@ -269,11 +271,11 @@ class PydanticModelTest(parameterized.TestCase):
     def f(
         transport_model: transport_pydantic_model.CombinedCompatibleTransportModel,
     ):
-      return transport_model.build_dynamic_params(t=0.0)
+      return transport_model.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(transport)
-      val = getattr(output, dynamic_param_name)
+      val = getattr(output, param_name)
       chex.assert_trees_all_equal(val, initial_value)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
@@ -282,7 +284,7 @@ class PydanticModelTest(parameterized.TestCase):
       # Update the grid for any recreated TimeVaryingArrays.
       torax_pydantic.set_grid(transport, geo.torax_mesh, mode='relaxed')
       output = f(transport)
-      val = getattr(output, dynamic_param_name)
+      val = getattr(output, param_name)
       chex.assert_trees_all_equal(val, updated_value)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 

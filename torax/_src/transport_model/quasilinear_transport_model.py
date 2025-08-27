@@ -151,7 +151,7 @@ def calculate_alpha(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Shared parameters for Quasilinear models."""
 
   DV_effective: bool
@@ -208,7 +208,7 @@ class QuasilinearTransportModel(transport_model_lib.TransportModel):
       qe: jax.Array,
       pfe: jax.Array,
       quasilinear_inputs: QuasilinearInputs,
-      transport: DynamicRuntimeParams,
+      transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       gradient_reference_length: chex.Numeric,

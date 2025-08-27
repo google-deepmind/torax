@@ -30,25 +30,23 @@ def calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-    geo_t: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
+    runtime_params: runtime_params_slice.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients."""
-  pedestal_model_output = pedestal_model(
-      dynamic_runtime_params_slice_t, geo_t, core_profiles_t
-  )
+  pedestal_model_output = pedestal_model(runtime_params, geo, core_profiles)
   turbulent_transport = transport_model(
-      dynamic_runtime_params_slice_t,
-      geo_t,
-      core_profiles_t,
-      pedestal_model_output,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_model_output=pedestal_model_output,
   )
   neoclassical_transport_coeffs = (
       neoclassical_models.transport.calculate_neoclassical_transport(
-          dynamic_runtime_params_slice_t,
-          geo_t,
-          core_profiles_t,
+          runtime_params,
+          geo,
+          core_profiles,
       )
   )
 

@@ -38,17 +38,15 @@ class BohmGyroBohmTest(absltest.TestCase):
     self.geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
-    dynamic_runtime_params_slice = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         self.geo,
         source_models,
         neoclassical_models,
@@ -56,7 +54,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     # pedestal_model_outputs is not used in the transport model; we can mock it.
     self.pedestal_outputs = mock.create_autospec(object)
 
-  def _create_dynamic_params_slice(
+  def _create_runtime_params(
       self,
       chi_e_bohm_coeff,
       chi_e_gyrobohm_coeff,
@@ -67,9 +65,9 @@ class BohmGyroBohmTest(absltest.TestCase):
       chi_i_bohm_multiplier,
       chi_i_gyrobohm_multiplier,
   ):
-    """Creates a mock dynamic runtime params slice for the BohmGyroBohm model."""
+    """Creates a mock runtime params for the BohmGyroBohm model."""
     transport_mock = mock.create_autospec(
-        bohm_gyrobohm.DynamicRuntimeParams,
+        bohm_gyrobohm.RuntimeParams,
         instance=True,
         chi_e_bohm_coeff=chi_e_bohm_coeff,
         chi_e_gyrobohm_coeff=chi_e_gyrobohm_coeff,
@@ -94,14 +92,13 @@ class BohmGyroBohmTest(absltest.TestCase):
         ),
     )
 
-    # Create the dynamic runtime params slice mock with nested mocks.
-    dynamic_params = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         instance=True,
         transport=transport_mock,
         plasma_composition=plasma_composition_mock,
     )
-    return dynamic_params
+    return runtime_params
 
   def test_coeff_multiplier_feature(self):
     """Test that modifying coefficients or multipliers equivalently affects outputs.
@@ -112,7 +109,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     transport coefficients (chi_face_ion and chi_face_el) remain identical.
     """
     # Configuration A: Set non-default coefficients with all multipliers = 1.
-    dyn_params_A = self._create_dynamic_params_slice(
+    dyn_params_A = self._create_runtime_params(
         chi_e_bohm_coeff=2.0,
         chi_e_gyrobohm_coeff=3.0,
         chi_i_bohm_coeff=4.0,
@@ -125,7 +122,7 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     # Configuration B: Set coefficients = 1 and adjust multipliers so that the
     # effective products are the same as in configuration A.
-    dyn_params_B = self._create_dynamic_params_slice(
+    dyn_params_B = self._create_runtime_params(
         chi_e_bohm_coeff=1.0,
         chi_e_gyrobohm_coeff=1.0,
         chi_i_bohm_coeff=1.0,
@@ -157,7 +154,7 @@ class BohmGyroBohmTest(absltest.TestCase):
   def test_raw_bohm_and_gyrobohm_fields(self):
     """Test that the raw Bohm and gyro-Bohm fields are computed consistently."""
     # Configuration A: Non-default coefficients with multipliers set to 1.
-    dyn_params_A = self._create_dynamic_params_slice(
+    dyn_params_A = self._create_runtime_params(
         chi_e_bohm_coeff=2.0,
         chi_e_gyrobohm_coeff=3.0,
         chi_i_bohm_coeff=4.0,
@@ -170,7 +167,7 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     # Configuration B: Coefficients set to 1 and multipliers adjusted so that
     # the effective products remain the same as in configuration A.
-    dyn_params_B = self._create_dynamic_params_slice(
+    dyn_params_B = self._create_runtime_params(
         chi_e_bohm_coeff=1.0,
         chi_e_gyrobohm_coeff=1.0,
         chi_i_bohm_coeff=1.0,

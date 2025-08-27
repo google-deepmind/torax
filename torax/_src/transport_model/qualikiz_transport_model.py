@@ -46,7 +46,7 @@ from torax._src.transport_model import transport_model
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   n_max_runs: int
   n_processes: int
 
@@ -75,8 +75,8 @@ class QualikizTransportModel(
 
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -84,11 +84,10 @@ class QualikizTransportModel(
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_dynamic_runtime_params: Input runtime parameters for this
-        transport model. Can change without triggering a JAX recompilation.
-      dynamic_runtime_params_slice: Input runtime parameters for all components
-        of the simulation that can change without triggering a JAX
-        recompilation.
+      transport_runtime_params: Input runtime parameters for this
+        transport model.
+      runtime_params: Input runtime parameters for all components
+        of the simulation at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
@@ -99,7 +98,7 @@ class QualikizTransportModel(
     Raises:
       EnvironmentError: if TORAX_COMPILATION_ENABLED is set to True.
     """
-    del pedestal_model_output  # Unused.
+    del pedestal_model_output, runtime_params  # Unused.
 
     if jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True):
       raise EnvironmentError(
@@ -108,10 +107,10 @@ class QualikizTransportModel(
       )
 
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
-        transport=transport_dynamic_runtime_params,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -119,17 +118,16 @@ class QualikizTransportModel(
     # QuaLiKiz json file
     qualikiz_plan = _extract_qualikiz_plan(
         qualikiz_inputs=qualikiz_inputs,
-        transport=transport_dynamic_runtime_params,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
     self._run_qualikiz(
-        qualikiz_plan, transport_dynamic_runtime_params.n_processes
+        qualikiz_plan, transport_runtime_params.n_processes
     )
     core_transport = self._extract_run_data(
         qualikiz_inputs=qualikiz_inputs,
-        transport=transport_dynamic_runtime_params,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -193,7 +191,7 @@ class QualikizTransportModel(
   def _extract_run_data(
       self,
       qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
-      transport: DynamicRuntimeParams,
+      transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> transport_model.TurbulentTransport:
@@ -228,8 +226,7 @@ class QualikizTransportModel(
 
 def _extract_qualikiz_plan(
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
-    transport: DynamicRuntimeParams,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    transport: RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ):
@@ -237,8 +234,7 @@ def _extract_qualikiz_plan(
 
   Args:
       qualikiz_inputs: Precomputed physics data.
-      transport: transport_model DynamicRuntimeParams,
-      dynamic_runtime_params_slice: Runtime params at time t.
+      transport: Runtime parameters for the qualikiz transport model.
       geo: TORAX geometry object.
       core_profiles: TORAX CoreProfiles object, containing time-evolvable
         quantities like q
@@ -247,11 +243,6 @@ def _extract_qualikiz_plan(
       A qualikiz_tools.qualikiz_io.inputfiles.QuaLiKizPlan
   """
   # Generate QuaLiKizXPoint, changing object defaults
-
-  # Required for pytype
-  assert isinstance(
-      dynamic_runtime_params_slice.transport, DynamicRuntimeParams
-  )
 
   # numerical parameters
   meta = qualikiz_inputtools.QuaLiKizXpoint.Meta(
@@ -426,9 +417,9 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   def build_transport_model(self) -> QualikizTransportModel:
     return QualikizTransportModel()
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return DynamicRuntimeParams(
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return RuntimeParams(
         n_max_runs=self.n_max_runs,
         n_processes=self.n_processes,
         collisionality_multiplier=self.collisionality_multiplier,

@@ -27,7 +27,7 @@ from torax._src.transport_model import quasilinear_transport_model
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
+class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for Qualikiz-based models."""
 
   collisionality_multiplier: float
@@ -81,7 +81,7 @@ class QualikizBasedTransportModel(
 
   def _prepare_qualikiz_inputs(
       self,
-      transport: DynamicRuntimeParams,
+      transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> QualikizInputs:

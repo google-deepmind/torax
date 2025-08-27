@@ -267,8 +267,8 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 
   def _call_implementation(
       self,
-      transport_runtime_params: transport_model_runtime_params.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: transport_model_runtime_params.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

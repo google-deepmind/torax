@@ -148,10 +148,10 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       raise ValueError('rho_max must be greater than rho_min for all time.')
     return self
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
+  ) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
         chi_min=self.chi_min,
         chi_max=self.chi_max,
         D_e_min=self.D_e_min,

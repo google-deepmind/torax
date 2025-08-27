@@ -30,8 +30,8 @@ from torax._src.transport_model import transport_model
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime params for the CGM transport model."""
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for the CGM transport model."""
 
   alpha: float
   chi_stiff: float
@@ -51,8 +51,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -67,11 +67,9 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     :math:`H` is the Heaviside function.
 
     Args:
-      transport_dynamic_runtime_params: Input runtime parameters for this
-        transport model. Can change without triggering a JAX recompilation.
-      dynamic_runtime_params_slice: Input runtime parameters for all components
-        of the simulation that can change without triggering a JAX
-        recompilation.
+      transport_runtime_params: Input runtime parameters for this
+        transport model at the current time.
+      runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
@@ -85,7 +83,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     constants = constants_module.CONSTANTS
 
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     s = core_profiles.s_face
     q = core_profiles.q_face
@@ -109,11 +107,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
     # gyrobohm diffusivity
     chiGB = (
-        (
-            dynamic_runtime_params_slice.plasma_composition.main_ion.A_avg
-            * constants.mp
-        )
-        ** 0.5
+        (runtime_params.plasma_composition.main_ion.A_avg * constants.mp) ** 0.5
         / (constants.qe * geo.B_0) ** 2
         * (T_i_face * constants.keV2J) ** 1.5
         / geo.R_major
@@ -126,22 +120,22 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     chi_face_ion = jnp.where(
         rlti >= rlti_crit,
         chiGB
-        * transport_dynamic_runtime_params.chi_stiff
-        * (rlti - rlti_crit) ** transport_dynamic_runtime_params.alpha,
+        * transport_runtime_params.chi_stiff
+        * (rlti - rlti_crit) ** transport_runtime_params.alpha,
         0.0,
     )
 
     # set electron heat transport coefficient to user-defined ratio of ion heat
     # transport coefficient
-    chi_face_el = chi_face_ion / transport_dynamic_runtime_params.chi_e_i_ratio
+    chi_face_el = chi_face_ion / transport_runtime_params.chi_e_i_ratio
 
     # set electron particle transport coefficient to user-defined ratio of ion
     # heat transport coefficient
-    d_face_el = chi_face_ion / transport_dynamic_runtime_params.chi_D_ratio
+    d_face_el = chi_face_ion / transport_runtime_params.chi_D_ratio
 
     # User-provided convection coefficient
     v_face_el = (
-        d_face_el * transport_dynamic_runtime_params.VR_D_ratio / geo.R_major
+        d_face_el * transport_runtime_params.VR_D_ratio / geo.R_major
     )
 
     return transport_model.TurbulentTransport(

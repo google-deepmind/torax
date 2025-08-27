@@ -37,7 +37,7 @@ import typing_extensions
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
@@ -87,24 +87,24 @@ class QLKNNRuntimeConfigInputs:
   """
 
   # pylint: disable=invalid-name
-  transport: DynamicRuntimeParams
+  transport: RuntimeParams
   Ped_top: float
   set_pedestal: bool
   # pylint: enable=invalid-name
 
   @staticmethod
   def from_runtime_params_slice(
-      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     return QLKNNRuntimeConfigInputs(
-        transport=transport_dynamic_runtime_params,
+        transport=transport_runtime_params,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
-        set_pedestal=dynamic_runtime_params_slice.pedestal.set_pedestal,
+        set_pedestal=runtime_params.pedestal.set_pedestal,
     )
 
 
@@ -188,8 +188,8 @@ class QLKNNTransportModel(
 
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -197,9 +197,9 @@ class QLKNNTransportModel(
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_dynamic_runtime_params: Input runtime parameters for this
+      transport_runtime_params: Input runtime parameters for this
         transport model. Can change without triggering a JAX recompilation.
-      dynamic_runtime_params_slice: Input runtime parameters for all components
+      runtime_params: Input runtime parameters for all components
         of the simulation that can change without triggering a JAX
         recompilation.
       geo: Geometry of the torus.
@@ -210,11 +210,11 @@ class QLKNNTransportModel(
       coeffs: transport coefficients
     """
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
-        transport_dynamic_runtime_params,
-        dynamic_runtime_params_slice,
+        transport_runtime_params,
+        runtime_params,
         pedestal_model_output,
     )
     return self._combined(runtime_config_inputs, geo, core_profiles)

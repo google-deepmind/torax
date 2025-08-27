@@ -93,7 +93,7 @@ class RuntimeParamsProvider:
   ) -> runtime_params_slice.RuntimeParams:
     """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
     return runtime_params_slice.RuntimeParams(
-        transport=self.transport_model.build_dynamic_params(t),
+        transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_dynamic_params,
         sources={
             source_name: source_config.build_dynamic_params(t)

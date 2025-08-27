@@ -56,16 +56,14 @@ class QualikizTransportModelTest(absltest.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -87,7 +85,7 @@ class QualikizTransportModelTest(absltest.TestCase):
         # Calling the model
         test_model = qualikiz_transport_model.QualikizTransportModel()
         test_model(
-            dynamic_runtime_params_slice,
+            runtime_params,
             geo,
             core_profiles,
             pedestal_model.PedestalModelOutput(
