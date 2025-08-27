@@ -366,9 +366,9 @@ def _get_initial_state(
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_slice, geo = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
-          dynamic_runtime_params_slice_provider=build_runtime_params.RuntimeParamsProvider.from_config(
+          runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           ),
           geometry_provider=torax_config.geometry.build_provider,

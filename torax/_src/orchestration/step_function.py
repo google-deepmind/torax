@@ -191,9 +191,9 @@ class SimulationStepFn:
       SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t,
-            dynamic_runtime_params_slice_provider=self._dynamic_runtime_params_slice_provider,
+            runtime_params_provider=self._dynamic_runtime_params_slice_provider,
             geometry_provider=self._geometry_provider,
         )
     )
@@ -817,9 +817,9 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       - The geometry of the torus during the next time step of the simulation.
   """
   dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t + dt,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+          runtime_params_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,
       )
   )

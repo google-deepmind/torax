@@ -41,9 +41,9 @@ def get_initial_state_and_post_processed_outputs(
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
   dynamic_runtime_params_slice_for_init, geo_for_init = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+          runtime_params_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,
       )
   )
@@ -137,9 +137,9 @@ def get_initial_state_and_post_processed_outputs_from_file(
     )
 
   dynamic_runtime_params_slice_for_init, geo_for_init = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t_initial,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+          runtime_params_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,
       )
   )

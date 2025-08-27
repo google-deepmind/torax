@@ -65,9 +65,9 @@ class FormulasTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_provider,
+            runtime_params_provider=dynamic_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )

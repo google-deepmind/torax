@@ -15,7 +15,7 @@
 
  - `RuntimeParamsProvider` which provides a the `RuntimeParams` to
   use during time t of the sim.
- - `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
+ - `get_consistent_params_and_geometry` which returns a
 `RuntimeParams` and a corresponding `Geometry` with consistent `Ip`.
 """
 import dataclasses
@@ -110,18 +110,13 @@ class RuntimeParamsProvider:
     )
 
 
-def get_consistent_dynamic_runtime_params_slice_and_geometry(
+def get_consistent_runtime_params_and_geometry(
     *,
     t: chex.Numeric,
-    dynamic_runtime_params_slice_provider: RuntimeParamsProvider,
+    runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
-  """Returns the dynamic runtime params and geometry for a given time."""
+  """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=t,
-  )
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
-  )
-  return dynamic_runtime_params_slice, geo
+  runtime_params = runtime_params_provider(t=t)
+  return runtime_params_slice.make_ip_consistent(runtime_params, geo)

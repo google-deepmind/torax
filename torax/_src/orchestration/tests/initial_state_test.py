@@ -153,9 +153,9 @@ def _get_geo_and_runtime_params_slice(torax_config):
       _get_geo_and_runtime_params_providers(torax_config)
   )
   dynamic_runtime_params_slice_for_init, geo_for_init = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
-          dynamic_runtime_params_slice_provider=dynamic_provider,
+          runtime_params_provider=dynamic_provider,
           geometry_provider=geo_provider,
       )
   )

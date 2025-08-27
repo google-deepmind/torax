@@ -142,9 +142,9 @@ class PydanticModelTest(parameterized.TestCase):
         )
     )
     dynamic_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0,
-            dynamic_runtime_params_slice_provider=runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )

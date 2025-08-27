@@ -52,9 +52,9 @@ class References:
             self.config
         )
     )
-    return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    return build_runtime_params.get_consistent_runtime_params_and_geometry(
         t=t,
-        dynamic_runtime_params_slice_provider=dynamic_provider,
+        runtime_params_provider=dynamic_provider,
         geometry_provider=self.config.geometry.build_provider,
     )
 
