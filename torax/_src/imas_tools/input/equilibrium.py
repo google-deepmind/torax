@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Input and output mapping functions for use of IMAS equilibrium IDSs with TORAX."""
+"""Input mapping functions for use of IMAS equilibrium IDSs with TORAX."""
 import logging
 import os
 from typing import Any
