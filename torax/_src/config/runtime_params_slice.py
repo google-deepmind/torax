@@ -81,7 +81,7 @@ class RuntimeParams:
   solver: solver_params.DynamicRuntimeParams
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
   transport: transport_model_params.RuntimeParams
-  time_step_calculator: time_step_calculator_runtime_params.DynamicRuntimeParams
+  time_step_calculator: time_step_calculator_runtime_params.RuntimeParams
 
 
 def make_ip_consistent(

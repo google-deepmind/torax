@@ -68,7 +68,7 @@ class PydanticModelTest(parameterized.TestCase):
 
     @jax.jit
     def f(time_stepper: time_step_pydantic_model.TimeStepCalculator):
-      return time_stepper.build_dynamic_params()
+      return time_stepper.build_runtime_params()
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(x)
