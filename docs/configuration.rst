@@ -282,6 +282,16 @@ time-dependence of temperature, density, and current.
   the geometry or the "current_profile_nu formula" dependant on the
   ``initial_psi_from_j`` field.
 
+``psidot`` (**time-varying-array** | None [default = None])
+  Prescribed values for the time derivative of poloidal flux (loop voltage).
+  If provided, and if ``evolve_current`` is False, this prescribed ``psidot``
+  will be used instead of the internally calculated one. The motivation for
+  this feature is that sometimes the initial ``psi`` condition leads to
+  unphysical transient ``psidot`` and thus transiently unphysical
+  (e.g. too high) ohmic power. For such cases, it is useful to override a static
+  non-physical ``psidot`` with a more physical value, e.g., one obtained from
+  another similar simulation with current evolution enabled.
+
 ``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
   Prescribed or evolving values for electron density at different times.
 

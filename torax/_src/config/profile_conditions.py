@@ -48,6 +48,7 @@ class DynamicProfileConditions:
   T_i: array_typing.FloatVector
   # If provided as array, Psi profile defined on the cell grid.
   psi: array_typing.FloatVector | None
+  psidot: array_typing.FloatVector | None
   # Electron density profile on the cell grid.
   n_e: array_typing.FloatVector
   nbar: array_typing.FloatScalar
@@ -92,6 +93,11 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       here. Otherwise, the initial psi will be calculated from either the
       geometry or the "current_profile_nu formula" dependant on the
       `initial_psi_from_j` field.
+    psidot: Prescribed values for the time derivative of poloidal flux (loop
+      voltage). If provided, and if `evolve_current` is False, this prescribed
+      `psidot` will be used instead of the internally calculated one. This is
+      useful for cases where an unphysical transient `psidot` from the initial
+      `psi` condition needs to be overridden.
     n_e: Prescribed or evolving values for electron density at different times.
     normalize_n_e_to_nbar: Whether to renormalize the density profile to have
       the desired line averaged density `nbar`.
@@ -135,6 +141,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault({0: {0: 15.0, 1: 1.0}})
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
+  psidot: torax_pydantic.TimeVaryingArray | None = None
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
