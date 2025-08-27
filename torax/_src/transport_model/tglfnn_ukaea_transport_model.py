@@ -64,7 +64,9 @@ class TGLFNNukaeaTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[tglf_based_transport_model.TGLFInputs, jax.Array]:
-    tglf_inputs = self._prepare_tglf_inputs(transport, geo, core_profiles)
+    tglf_inputs = tglf_based_transport_model._prepare_tglf_inputs(
+        transport, geo, core_profiles
+    )
 
     # TODO: double check jax compatability, as these input tensors are different
     # shapes
@@ -75,6 +77,7 @@ class TGLFNNukaeaTransportModel(
         tglfnn_inputs = self._make_input_tensor_multimachine(tglf_inputs)
       case _:
         raise ValueError(f"Unrecognised machine {self.machine}")
+
     return tglf_inputs, tglfnn_inputs
 
   def _make_input_tensor_step(
