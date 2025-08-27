@@ -59,7 +59,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,
@@ -231,7 +231,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=torax_config.numerics.t_initial)
     )

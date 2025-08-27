@@ -49,7 +49,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,
@@ -103,7 +103,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial
     )
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,

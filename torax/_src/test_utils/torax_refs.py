@@ -48,7 +48,7 @@ class References:
   ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
     t = self.config.numerics.t_initial
     dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             self.config
         )
     )

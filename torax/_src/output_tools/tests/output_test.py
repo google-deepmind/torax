@@ -66,7 +66,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             self.torax_config
         )(t=0.0)
     )

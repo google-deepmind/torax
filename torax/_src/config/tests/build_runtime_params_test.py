@@ -41,7 +41,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     config['profile_conditions'] = {'T_i_right_bc': {0.0: 2.0, 4.0: 4.0}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -231,7 +231,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     dynamic_profile_conditions = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=0.0).profile_conditions
     )
@@ -256,14 +256,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         'tests/test_data/test_iterhybrid_rampup.py'
     )
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
 
     @jax.jit
     def f(
-        provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+        provider: build_runtime_params.RuntimeParamsProvider,
         t: float,
     ):
       return provider(t)
@@ -280,7 +280,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     with self.subTest('jit_updates_value_without_recompile'):
       torax_config.update_fields({'profile_conditions.T_i_right_bc': 0.77})
       provider = (
-          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           )
       )

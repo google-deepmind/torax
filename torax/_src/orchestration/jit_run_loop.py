@@ -153,7 +153,7 @@ def _unstack_pytree_history(
 
 
 def run_loop(
-    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,

@@ -40,7 +40,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     dynamic_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             self._torax_config
         )(
             t=self._torax_config.numerics.t_initial,

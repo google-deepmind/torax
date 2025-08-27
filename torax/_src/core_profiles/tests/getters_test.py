@@ -234,7 +234,7 @@ class GettersTest(parameterized.TestCase):
     config['plasma_composition']['Z_eff'] = 2.0
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -282,7 +282,7 @@ class GettersTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -403,7 +403,7 @@ class GettersTest(parameterized.TestCase):
 
     # 3. Call the function under test.
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
@@ -528,7 +528,7 @@ class GettersTest(parameterized.TestCase):
     # 4. Run get_updated_ions for both and compare
     def _run_get_updated_ions(torax_config):
       provider = (
-          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           )
       )
@@ -601,7 +601,7 @@ class GettersTest(parameterized.TestCase):
     # Z_eff
     def _run_get_updated_ions(torax_config):
       provider = (
-          build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+          build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           )
       )
@@ -695,7 +695,7 @@ class GettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )

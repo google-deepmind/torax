@@ -80,7 +80,7 @@ class SimulationStepFn:
       self,
       solver: solver_lib.Solver,
       time_step_calculator: ts.TimeStepCalculator,
-      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ):
     """Initializes the SimulationStepFn.
@@ -117,7 +117,7 @@ class SimulationStepFn:
   @property
   def dynamic_runtime_params_slice_provider(
       self,
-  ) -> build_runtime_params.DynamicRuntimeParamsSliceProvider:
+  ) -> build_runtime_params.RuntimeParamsProvider:
     return self._dynamic_runtime_params_slice_provider
 
   def tree_flatten(self):
@@ -789,7 +789,7 @@ def _sawtooth_step(
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     t: jax.Array,
     dt: jax.Array,
-    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[

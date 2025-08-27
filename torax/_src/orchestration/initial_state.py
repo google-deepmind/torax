@@ -35,7 +35,7 @@ import xarray as xr
 
 def get_initial_state_and_post_processed_outputs(
     t: float,
-    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
@@ -116,7 +116,7 @@ def _get_initial_state(
 def get_initial_state_and_post_processed_outputs_from_file(
     t_initial: float,
     file_restart: file_restart_pydantic_model.FileRestart,
-    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:

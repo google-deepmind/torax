@@ -43,7 +43,7 @@ def _get_config_and_model_inputs(
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
   dynamic_runtime_params_slice = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+      build_runtime_params.RuntimeParamsProvider.from_config(
           torax_config
       )(
           t=torax_config.numerics.t_initial,

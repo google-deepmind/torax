@@ -110,7 +110,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,
@@ -171,7 +171,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,
