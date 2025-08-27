@@ -14,7 +14,7 @@
 
 """Identical to test_iterhybrid_predictor_corrector but with TGLFNNukaea
 transport"""
-import copy
+from copy import deepcopy
 from pathlib import Path
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
@@ -23,7 +23,7 @@ base_path = Path(
     '/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25'
 )
 
-CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
+CONFIG = deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['transport'] = {
     'model_name': 'tglfnn-ukaea',
@@ -50,6 +50,9 @@ CONFIG['transport'] = {
     'chi_min': 0.05,
     'chi_max': 100,
     'D_e_min': 0.05,
+    # Quasilinear settings
+    'DV_effective': True,
+    'An_min': 0.05,
 }
 
 # Disable all but electron heat for the time being
