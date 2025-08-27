@@ -156,7 +156,7 @@ def core_profiles_from_IMAS(
 # TODO: Add option to save entire state history in one core_profiles output.
 def core_profiles_to_IMAS(
     config: model_config.ToraxConfig,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     state: ToraxSimState,
     ids: IDSToplevel = imas.IDSFactory().core_profiles,
