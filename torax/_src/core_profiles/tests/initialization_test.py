@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import torax
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
@@ -35,6 +36,8 @@ from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
+
+torax.set_jax_precision()
 
 
 @dataclasses.dataclass
