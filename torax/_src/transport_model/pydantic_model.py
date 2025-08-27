@@ -172,7 +172,6 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     )
 
 
-# pylint: disable=invalid-name
 class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   """Model for the TGLFNN-ukaea transport model.
 
@@ -184,12 +183,12 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
       'tglfnn-ukaea'
   )
-  machine: Literal['step', 'multimachine']
-  config_path: pydantic.FilePath
-  stats_path: pydantic.FilePath
-  efe_gb_pt: pydantic.FilePath
-  efi_gb_pt: pydantic.FilePath
-  pfi_gb_pt: pydantic.FilePath
+  machine: Annotated[Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC]
+  config_path: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
+  stats_path: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
+  efe_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
+  efi_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
+  pfi_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
   # Quasilinear transport options
   DV_effective: bool
   An_min: float
