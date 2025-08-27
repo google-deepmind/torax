@@ -67,7 +67,7 @@ class ImpurityRadiationConstantFractionTest(
     )
 
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources={
             heat_name: heat_dynamic,
             impurity_name: impurity_radiation_dynamic,

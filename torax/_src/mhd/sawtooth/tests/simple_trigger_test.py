@@ -117,7 +117,7 @@ class SimpleTriggerTest(parameterized.TestCase):
     mock_core_profiles = self._get_mock_core_profiles(q_profile, s_profile)
 
     mock_dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         instance=True,
         mhd=mhd_runtime_params.DynamicMHDParams(
             sawtooth=mock.create_autospec(

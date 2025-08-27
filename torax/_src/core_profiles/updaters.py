@@ -68,7 +68,7 @@ def _calculate_psi_value_constraint_from_v_loop(
 
 @jax_utils.jit
 def get_prescribed_core_profile_values(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> dict[str, array_typing.FloatVector]:
@@ -140,7 +140,7 @@ def get_prescribed_core_profile_values(
 @functools.partial(jax_utils.jit, static_argnames=['evolving_names'])
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
@@ -193,7 +193,7 @@ def update_core_profiles_during_step(
 def update_core_and_source_profiles_after_step(
     dt: array_typing.FloatScalar,
     x_new: tuple[cell_variable.CellVariable, ...],
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -328,8 +328,8 @@ def update_core_and_source_profiles_after_step(
 
 def compute_boundary_conditions_for_t_plus_dt(
     dt: array_typing.FloatScalar,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> dict[str, dict[str, jax.Array | None]]:
@@ -446,8 +446,8 @@ def compute_boundary_conditions_for_t_plus_dt(
 
 def provide_core_profiles_t_plus_dt(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:

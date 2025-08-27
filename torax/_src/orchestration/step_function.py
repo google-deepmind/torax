@@ -263,7 +263,7 @@ class SimulationStepFn:
 
   def _sawtooth_step(
       self,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
@@ -306,8 +306,8 @@ class SimulationStepFn:
   def step(
       self,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       input_state: sim_state.ToraxSimState,
@@ -369,7 +369,7 @@ class SimulationStepFn:
 
   def _adaptive_step(
       self,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
@@ -394,7 +394,7 @@ class SimulationStepFn:
         tuple[cell_variable.CellVariable, ...],
         jax.Array,  # dt
         state.SolverNumericOutputs,
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         geometry.Geometry,
         state.CoreProfiles,
     ]
@@ -537,7 +537,7 @@ class SimulationStepFn:
 
   def _fixed_step(
       self,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
@@ -616,7 +616,7 @@ def _finalize_outputs(
     x_new: tuple[cell_variable.CellVariable, ...],
     solver_numeric_outputs: state.SolverNumericOutputs,
     geometry_t_plus_dt: geometry.Geometry,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -676,8 +676,8 @@ def _finalize_outputs(
 def _sawtooth_step(
     *,
     sawtooth_solver: sawtooth_solver_lib.SawtoothSolver | None,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
+    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_crash_dt: geometry.Geometry,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -793,7 +793,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[
-    runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params_slice.RuntimeParams,
     geometry.Geometry,
     geometry.Geometry,
 ]:
@@ -839,7 +839,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
 
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
-    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
     core_profiles_redistributed: state.CoreProfiles,
     geo_t_plus_crash_dt: geometry.Geometry,
     previous_post_processed_outputs: post_processing.PostProcessedOutputs,

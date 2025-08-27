@@ -58,27 +58,18 @@ from torax._src.transport_model import runtime_params as transport_model_params
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParamsSlice:
-  """Input params that are ok to use as inputs to a JAX-compiled function.
+class RuntimeParams:
+  """A slice of the parameters at a specific time t.
 
-  This PyTree of params is input to the sim.SimulationStepFn, which updates
-  the joint state and evolves the mesh state. This config includes various
-  "dynamic" parameters which can change from step to step, or from
-  simulation run to simulation run, without requiring components in the
-  SimulationStepFn to recompile.
+  This PyTree is a slice of the overall TORAX config at a specific time t
+  excluding the geometry, grouping the parameters for ease of passing into
+  various downstream functions. It includes both parameters which are
+  time-dependent and parameters which are not.
 
-  Note that "dynamic" does NOT mean time dependent necessarily (though these
-  params can be time dependent). Here "dynamic" means these params can change
-  without triggering or requiring a recompile.
-
-  While the parameters are not necessarily time-dependent, that is how the class
-  gets its name: a config "slice" refers to a subset of the overall TORAX config
-  at a specific time t.
-
-  This class contains "slices" of various RuntimeParams attributes defined
-  throughout TORAX.
-  This class packages all these together for convenience, as it simplifies many
-  of the internal APIs within TORAX.
+  The parameters which are not time-dependent are marked as static in their
+  definition, this means that they are marked as static when input to JAX,
+  which means that they are compile-time constants. This means that they cannot
+  be changed without recompilation.
   """
 
   mhd: mhd_runtime_params.DynamicMHDParams
@@ -94,9 +85,9 @@ class DynamicRuntimeParamsSlice:
 
 
 def make_ip_consistent(
-    dynamic_runtime_params_slice: DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: RuntimeParams,
     geo: geometry.Geometry,
-) -> tuple[DynamicRuntimeParamsSlice, geometry.Geometry]:
+) -> tuple[RuntimeParams, geometry.Geometry]:
   """Fixes Ip to be the same across dynamic_runtime_params_slice and geo."""
   if isinstance(geo, standard_geometry.StandardGeometry):
     if geo.Ip_from_parameters:

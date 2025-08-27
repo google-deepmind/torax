@@ -28,7 +28,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
 
   def calculate_neoclassical_transport(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:

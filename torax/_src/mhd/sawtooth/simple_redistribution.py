@@ -39,7 +39,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
   def __call__(
       self,
       rho_norm_q1: array_typing.FloatScalar,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
   ) -> state.CoreProfiles:

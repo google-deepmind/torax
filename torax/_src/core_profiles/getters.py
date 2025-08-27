@@ -473,7 +473,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
 # jitted since also used outside the solver
 @jax_utils.jit
 def get_updated_ions(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,

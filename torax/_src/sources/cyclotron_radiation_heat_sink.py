@@ -234,7 +234,7 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,

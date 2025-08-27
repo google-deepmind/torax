@@ -80,7 +80,7 @@ def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
 class QLKNNRuntimeConfigInputs:
   """Runtime config inputs for QLKNN.
 
-  The runtime DynamicRuntimeParamsSlice contains global runtime parameters, not
+  The runtime RuntimeParams contains global runtime parameters, not
   all of which are cacheable. This set of inputs IS cacheable, and using this
   added layer allows the global config to change without affecting how
   QLKNNTransportModel works.
@@ -95,7 +95,7 @@ class QLKNNRuntimeConfigInputs:
   @staticmethod
   def from_runtime_params_slice(
       transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':
     # Required for pytype
@@ -189,7 +189,7 @@ class QLKNNTransportModel(
   def _call_implementation(
       self,
       transport_dynamic_runtime_params: DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

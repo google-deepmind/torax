@@ -60,7 +60,7 @@ def get_initial_state_and_post_processed_outputs(
 
 
 def _get_initial_state(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
 ) -> sim_state.ToraxSimState:
@@ -195,11 +195,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
 
 
 def _override_initial_runtime_params_from_file(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     t_restart: float,
     profiles_ds: xr.Dataset,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart

@@ -37,7 +37,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
     dynamic_runtime_params_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         instance=True,
         sources={
             self._source_name: source_config.build_dynamic_params(t=0.0)
@@ -64,7 +64,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
     dynamic_runtime_params_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         instance=True,
         sources={
             self._source_name: source_config.build_dynamic_params(t=0.0)

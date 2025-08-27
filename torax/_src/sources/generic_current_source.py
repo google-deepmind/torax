@@ -51,7 +51,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calculate_generic_current(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -80,7 +80,7 @@ def calculate_generic_current(
 
 
 def _calculate_I_generic(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     dynamic_source_runtime_params: DynamicRuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""

@@ -41,7 +41,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'bosch_hale'
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes DT fusion power with the Bosch-Hale parameterization NF 1992.
 
@@ -143,7 +143,7 @@ def calc_fusion(
 
 
 def fusion_heat_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     unused_source_name: str,
     core_profiles: state.CoreProfiles,

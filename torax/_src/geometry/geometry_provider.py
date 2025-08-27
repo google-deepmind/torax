@@ -59,11 +59,11 @@ class GeometryProvider(Protocol):
 
     func_expecting_geo_provider(constant_geo_provider)  # this works.
 
-  NOTE: In order to maintain consistency between the DynamicRuntimeParamsSlice
+  NOTE: In order to maintain consistency between the RuntimeParams
   and the geometry,
   `build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry`
   should be used to get a Geometry and a corresponding
-  DynamicRuntimeParamsSlice.
+  RuntimeParams.
   """
 
   def __call__(

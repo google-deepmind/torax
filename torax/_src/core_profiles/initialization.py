@@ -42,7 +42,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -212,7 +212,7 @@ def update_psi_from_j(
 
 
 def _init_psi_and_psi_derived(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -363,7 +363,7 @@ def _init_psi_and_psi_derived(
 
 
 def _calculate_all_psi_dependent_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     core_profiles: state.CoreProfiles,
@@ -440,7 +440,7 @@ def _calculate_all_psi_dependent_profiles(
 
 
 def _get_bootstrap_and_standard_source_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -469,7 +469,7 @@ def _get_bootstrap_and_standard_source_profiles(
 
 
 def _iterate_psi_and_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -510,7 +510,7 @@ def _iterate_psi_and_sources(
 
 
 def _get_j_total_hires_with_no_external_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates j_total hires when the total current is given by a formula."""
@@ -525,7 +525,7 @@ def _get_j_total_hires_with_no_external_sources(
 
 
 def _get_j_total_hires_with_external_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,

@@ -42,7 +42,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
@@ -80,7 +80,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources=dynamic_source_params,
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
@@ -113,7 +113,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
@@ -149,7 +149,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         sources=dynamic_source_params,
     )
     with self.assertRaisesRegex(

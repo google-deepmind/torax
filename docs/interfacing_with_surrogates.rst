@@ -18,7 +18,7 @@ tensors for the neural network.
       ...
       def _call_implementation(
           self,
-          dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+          dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
           geo: geometry.Geometry,
           core_profiles: state.CoreProfiles,
       ) -> TurbulentTransport:

@@ -30,7 +30,7 @@ def calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
     geo_t: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreTransport:

@@ -32,7 +32,7 @@ class SauterTest(absltest.TestCase):
         bootstrap_multiplier=1.0
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_slice.RuntimeParams,
         instance=True,
         neoclassical=mock.create_autospec(
             neoclassical_runtime_params.DynamicRuntimeParams,

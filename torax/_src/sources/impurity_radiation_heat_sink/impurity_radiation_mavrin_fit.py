@@ -197,7 +197,7 @@ def calculate_total_impurity_radiation(
 
 
 def impurity_radiation_mavrin_fit(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     unused_geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,

@@ -41,8 +41,8 @@ class LinearThetaMethod(solver_lib.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,

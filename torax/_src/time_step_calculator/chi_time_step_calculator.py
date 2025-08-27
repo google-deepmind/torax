@@ -33,7 +33,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
 
   def _next_dt(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       core_transport: state_module.CoreTransport,

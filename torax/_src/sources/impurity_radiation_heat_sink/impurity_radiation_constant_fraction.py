@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 def radially_constant_fraction_of_Pin(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_core_profiles: state.CoreProfiles,

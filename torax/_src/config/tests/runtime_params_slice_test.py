@@ -34,7 +34,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the slice can be input to a jitted function."""
 
     def foo(
-        runtime_params_slice: runtime_params_slice_lib.DynamicRuntimeParamsSlice,
+        runtime_params_slice: runtime_params_slice_lib.RuntimeParams,
     ):
       _ = runtime_params_slice  # do nothing.
 
