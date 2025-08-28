@@ -151,8 +151,8 @@ class GeometryTest(parameterized.TestCase):
   def test_update_phibdot(self):
     """Test update_phibdot for circular geometries."""
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    geo0 = dataclasses.replace(geo, Phi_face=np.array([1.0]))
-    geo1 = dataclasses.replace(geo, Phi_face=np.array([2.0]))
+    geo0 = dataclasses.replace(geo, Phi_face=np.ones_like(geo.Phi_face))
+    geo1 = dataclasses.replace(geo, Phi_face=np.full_like(geo.Phi_face, 2.0))
     geo0_updated, geo1_updated = geometry.update_geometries_with_Phibdot(
         dt=0.1, geo_t=geo0, geo_t_plus_dt=geo1
     )
@@ -166,7 +166,9 @@ class GeometryTest(parameterized.TestCase):
       self.assertEqual(geo1, geo2)
 
     with self.subTest('different_geometries_are_not_equal'):
-      geo3 = dataclasses.replace(geo1, Phi_face=np.array([2.0]))
+      geo3 = dataclasses.replace(
+          geo1, Phi_face=np.full_like(geo1.Phi_face, 2.0)
+      )
       self.assertNotEqual(geo1, geo3)
 
 
