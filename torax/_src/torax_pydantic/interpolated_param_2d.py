@@ -17,10 +17,11 @@
 from collections.abc import Mapping
 import functools
 from typing import Any, Literal, TypeAlias
-
 import chex
+import jaxtyping as jt
 import numpy as np
 import pydantic
+from torax._src import array_typing as at
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
@@ -48,12 +49,13 @@ class Grid1D(model_base.BaseModelFrozen):
     return 1 / self.nx
 
   @property
-  def face_centers(self) -> np.ndarray:
+  def face_centers(self) -> jt.Float[np.ndarray, 'rhon+1']:
     """Coordinates of face centers."""
     return _get_face_centers(nx=self.nx, dx=self.dx)
 
+  @at.jaxtyped
   @property
-  def cell_centers(self) -> np.ndarray:
+  def cell_centers(self) -> jt.Float[np.ndarray, 'rhon']:
     """Coordinates of cell centers."""
     return _get_cell_centers(nx=self.nx, dx=self.dx)
 
@@ -141,7 +143,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       self,
       t: chex.Numeric,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
-  ) -> chex.Array:
+  ) -> at.Array:
     """Returns the value of this parameter interpolated at x=time.
 
     Args:
@@ -243,14 +245,15 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     elif isinstance(data, tuple):
       values = []
       for v in data:
-        if isinstance(v, chex.Array):
+        if isinstance(v, at.Array):
           values.append(v)
         elif isinstance(v, list):
           values.append(np.asarray(v))
         else:
           raise ValueError(
               'Input to TimeVaryingArray unsupported. Input was of type:'
-              f' {type(v)}. Expected chex.Array or list of floats/ints/bools.'
+              f' {type(v)}. Expected array_typing.Array or list of'
+              ' floats/ints/bools.'
           )
       value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
@@ -327,7 +330,7 @@ def _load_from_primitives(
         Mapping[float, interpolated_param.InterpolatedVarSingleAxisInput]
         | float
     ),
-) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+) -> Mapping[float, tuple[at.Array, at.Array]]:
   """Loads the data from primitives.
 
   Three cases are supported:
@@ -367,7 +370,7 @@ def _load_from_primitives(
 
 
 def _load_from_arrays(
-    arrays: tuple[chex.Array, ...] | xr.DataArray,
+    arrays: tuple[at.Array, ...] | xr.DataArray,
 ) -> Mapping[float, tuple[np.ndarray, np.ndarray]]:
   """Loads the data from numpy arrays.
 

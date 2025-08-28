@@ -14,10 +14,10 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
@@ -36,7 +36,9 @@ class FlattenProfileTest(parameterized.TestCase):
         n_rho=_NRHO
     ).build_geometry()
 
-  def _create_profile(self, values: chex.Array) -> cell_variable.CellVariable:
+  def _create_profile(
+      self, values: array_typing.Array
+  ) -> cell_variable.CellVariable:
     """Helper to create a CellVariable for testing."""
     return cell_variable.CellVariable(
         value=jnp.array(values),
@@ -47,7 +49,9 @@ class FlattenProfileTest(parameterized.TestCase):
         right_face_constraint=jnp.array(values[-1]),
     )
 
-  def _get_redistribution_mask(self, rho_norm_mixing: float) -> chex.Array:
+  def _get_redistribution_mask(
+      self, rho_norm_mixing: float
+  ) -> array_typing.Array:
     """Helper to create a redistribution mask for testing."""
     idx_mixing = np.searchsorted(
         self.geo.rho_norm, rho_norm_mixing, side='left'
@@ -58,8 +62,8 @@ class FlattenProfileTest(parameterized.TestCase):
   # pylint: disable=g-unreachable-test-method
   def _check_conservation_within_mixing_radius(
       self,
-      profile_before: chex.Array,
-      profile_after: chex.Array,
+      profile_before: array_typing.Array,
+      profile_after: array_typing.Array,
       rho_norm_mixing: float,
       rtol: float = 1e-6,
   ):
@@ -89,8 +93,8 @@ class FlattenProfileTest(parameterized.TestCase):
 
   def _check_total_conservation(
       self,
-      profile_before: chex.Array,
-      profile_after: chex.Array,
+      profile_before: array_typing.Array,
+      profile_after: array_typing.Array,
       rtol: float = 1e-6,
   ):
     """Checks total volume integral conservation."""
