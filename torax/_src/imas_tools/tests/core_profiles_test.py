@@ -32,6 +32,9 @@ from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 from torax._src.imas_tools.core_profiles import core_profiles_from_IMAS
 from torax._src.imas_tools.core_profiles import core_profiles_to_IMAS
+from torax._src.config import build_runtime_params
+from torax._src import state
+from torax.tests.sim_test import _ALL_PROFILES
 
 
 class CoreProfilesTest(sim_test_case.SimTestCase):
@@ -218,7 +221,78 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         final_sim_state,
         ids_out,
     )
-    filled_ids.validate() #: can be done once we fix the grid dimension for j_ohmic and j_external.
+    filled_ids.validate()
+
+  def test_round_trip_with_IMAS_profiles(
+    self,
+  ):
+    """Test that TORAX simulation can run from a standard config, write into
+    IMAS and load the profiles back and run the simulation without changes.
+    The test: 
+        -Run once with test_iterhybrid_predictor_corrector config,
+        -Output the initial time slice into a core_profiles IDS, 
+        -Update the initial config loading the profiles contained into the IDS, 
+        -Run the simulation again with these new profiles and compare the 2 runs.
+    """
+    rtol = 1e-10
+    atol = 0
+    # Input core_profiles reading and config loading
+    config = self._get_config_dict('test_iterhybrid_predictor_corrector.py')
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    # Run Sim
+    (
+      dynamic_runtime_params_slice_provider,
+      initial_state,
+      post_processed_outputs,
+      step_fn,
+    ) = prepare_simulation(torax_config)
+
+    state_history, post_processed_outputs_history, _ = (
+        run_loop.run_loop(
+            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            initial_state=initial_state,
+            initial_post_processed_outputs=post_processed_outputs,
+            step_fn=step_fn,
+            log_timestep_info=False,
+            progress_bar=False,
+        )
+    )
+    #Fill an IDS with the output of the simulation, from the initial time step.
+    sim_state = state_history[0]
+    post_processed_outputs = post_processed_outputs_history[0]
+    filled_ids = core_profiles_to_IMAS(
+        torax_config,
+        dynamic_runtime_params_slice_provider(0),
+        post_processed_outputs,
+        sim_state,
+    )
+    # Modifying the input config profiles_conditions class with the IDS filled
+    # from the previous simulation.
+    core_profiles_conditions = core_profiles_from_IMAS(
+        filled_ids, read_psi_from_geo=False
+    )
+    core_profiles_conditions['numerics.t_final'] = 5 #Cheating for now until we
+    # decide if the function should map time or not.
+    torax_config.update_fields(core_profiles_conditions)
+    #Running simulation again with the new config
+    imas_xr, imas_results = torax.run_simulation(torax_config, progress_bar=False)
+
+    self.assertEqual(imas_results.sim_error, state.SimError.NO_ERROR)
+
+    ref_profiles, ref_time = self._get_refs('test_iterhybrid_predictor_corrector.nc', _ALL_PROFILES)
+
+    self._check_profiles_vs_expected(
+        t=imas_xr.time.values,
+        ref_time=ref_time,
+        ref_profiles=ref_profiles,
+        rtol=rtol,
+        atol=atol,
+        output_file=None,
+        ds=imas_xr,
+        write_output=False,
+    )
+
+
 
 
 if __name__ == '__main__':

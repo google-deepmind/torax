@@ -159,7 +159,7 @@ def core_profiles_to_IMAS(
     dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     state: ToraxSimState,
-    ids: IDSToplevel = imas.IDSFactory().core_profiles,
+    ids: IDSToplevel = imas.IDSFactory().core_profiles(),
 ) -> IDSToplevel:
   """Converts torax core_profiles to IMAS IDS.
   Takes the cell grid as a basis and converts values on face grid to cell.
