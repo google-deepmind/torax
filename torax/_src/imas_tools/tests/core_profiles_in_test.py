@@ -20,10 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 
-try:
-  import imas
-except ImportError:
-  IDSToplevel = Any
+
 import torax
 from torax._src.imas_tools.input.core_profiles import load_profiles_data
 from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
@@ -103,7 +100,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
-        core_profiles_in, read_psi_from_geo=False
+        core_profiles_in, read_psi_from_geo=False, t_initial=0.,
     )
     config['geometry']['n_rho'] = 200
     torax_config = model_config.ToraxConfig.from_dict(config)

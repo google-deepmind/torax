@@ -28,17 +28,27 @@ import torax
 def core_profiles_from_IMAS(
     ids: IDSToplevel,
     read_psi_from_geo: bool = True,
+    t_initial: float | None = None,
 ) -> dict:
   """Converts core_profiles IDS to a dict with the input profiles for the config.
   Args:
-  ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can contain several time slices.
-  read_psi_from_geo: Decides either to read psi from the geometry or from the input core/plasma_profiles IDS. Default value is True meaning that psi is taken from the geometry.
+  ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
+      contain several time slices.
+  read_psi_from_geo: Decides either to read psi from the geometry or from the
+      input core/plasma_profiles IDS. Default value is True meaning that psi is
+      taken from the geometry.
+  t_initial: Initial time used to map the profiles in the dicts. If None the
+      initial time will be the time of the first time slice of the ids. Else 
+      all time slices will be shifted by t_initial.
 
   Returns:
-  Dict containing the updated fields read from the IDS that need to be replaced in the input config.
+  Dict containing the updated fields read from the IDS that need to be replaced
+  in the input config using ToraxConfig.update_fields method.
   """
   profiles_1d = ids.profiles_1d
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
+  if t_initial:
+    time_array = [ti-time_array[0]+t_initial for ti in time_array]
   rhon_array = [
       profiles_1d[i].grid.rho_tor_norm for i in range(len(profiles_1d))
   ]
@@ -139,10 +149,6 @@ def core_profiles_from_IMAS(
       'profile_conditions.n_e': n_e,
       'profile_conditions.normalize_n_e_to_nbar': False,
       'profile_conditions.v_loop_lcfs': v_loop_lcfs,
-      'numerics.t_initial': t_initial,
-      'numerics.t_final': (
-          t_initial + 80.0
-      ),  # How to define it ? Somewhere else ?
   }
 
 

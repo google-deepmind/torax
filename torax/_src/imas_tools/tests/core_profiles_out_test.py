@@ -143,10 +143,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     core_profiles_conditions = core_profiles_from_IMAS(
         filled_ids, read_psi_from_geo=False
     )
-    core_profiles_conditions['numerics.t_final'] = (
-        5  # Cheating for now until we
-    )
-    # decide if the function should map time or not.
+    core_profiles_conditions['numerics.t_final'] = 5
     torax_config.update_fields(core_profiles_conditions)
     # Running simulation again with the new config
     imas_xr, imas_results = torax.run_simulation(
