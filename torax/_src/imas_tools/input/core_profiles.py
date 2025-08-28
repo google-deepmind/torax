@@ -15,14 +15,14 @@
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs and
 converts them into TORAX objects.
 """
+import os
 from typing import Any
 
 import numpy as np
-
-try:
-  from imas.ids_toplevel import IDSToplevel
-except ImportError:
-  IDSToplevel = Any
+import imas
+from imas import ids_toplevel
+from imas.ids_toplevel import IDSToplevel
+import torax
 
 
 def core_profiles_from_IMAS(
@@ -144,3 +144,17 @@ def core_profiles_from_IMAS(
           t_initial + 80.0
       ),  # How to define it ? Somewhere else ?
   }
+
+
+def load_profiles_data(
+    uri: str,
+    ids_name: str,
+    directory: str | None = None,
+) -> ids_toplevel.IDSToplevel:
+  """Loads a full IDS for a given uri or path_name and a given ids_name."""
+  if directory is None:
+    directory = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+  uri = os.path.join(directory, uri)
+  with imas.DBEntry(uri=uri, mode="r") as db:
+    ids = db.get(ids_name=ids_name)
+  return ids
