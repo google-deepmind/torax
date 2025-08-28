@@ -74,11 +74,11 @@ class PydanticModelTest(parameterized.TestCase):
 
     @jax.jit
     def f(x: pydantic_model.Neoclassical):
-      return x.build_dynamic_params()
+      return x.build_runtime_params()
 
     output = f(neoclassical_model)
     self.assertIsInstance(
-        output, pydantic_model.runtime_params.DynamicRuntimeParams
+        output, pydantic_model.runtime_params.RuntimeParams
     )
 
 
