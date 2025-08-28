@@ -173,12 +173,12 @@ class UpdatersTest(parameterized.TestCase):
             torax_config
         )
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+        runtime_params_t=runtime_params,
+        runtime_params_t_plus_dt=runtime_params,
         geo_t_plus_dt=self.geo,
         core_profiles_t=self.core_profiles_t,
     )
@@ -209,12 +209,12 @@ class UpdatersTest(parameterized.TestCase):
             torax_config
         )
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+        runtime_params_t=runtime_params,
+        runtime_params_t_plus_dt=runtime_params,
         geo_t_plus_dt=self.geo,
         core_profiles_t=self.core_profiles_t,
     )
@@ -244,12 +244,12 @@ class UpdatersTest(parameterized.TestCase):
             torax_config
         )
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
 
     boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+        runtime_params_t=runtime_params,
+        runtime_params_t_plus_dt=runtime_params,
         geo_t_plus_dt=self.geo,
         core_profiles_t=self.core_profiles_t,
     )

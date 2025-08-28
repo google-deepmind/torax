@@ -59,10 +59,10 @@ class InitializationTest(parameterized.TestCase):
     references = torax_refs.circular_references()
 
     # Turn on the external current source.
-    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    runtime_params, geo = references.get_dynamic_slice_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=runtime_params,
         geo=geo,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
         unused_state=mock.ANY,
@@ -72,11 +72,11 @@ class InitializationTest(parameterized.TestCase):
     j_total_hires = initialization._get_j_total_hires_with_external_sources(
         bootstrap_current=bootstrap,
         external_current=external_current,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
     )
     psi = initialization.update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
+        runtime_params.profile_conditions.Ip,
         geo,
         j_total_hires,
     ).value
@@ -365,7 +365,7 @@ def _get_initial_state(
   """Returns initial core profiles, sources, geometry and currents for a config."""
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
-  dynamic_slice, geo = (
+  runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
           runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
@@ -375,7 +375,7 @@ def _get_initial_state(
       )
   )
   core_profiles = initialization.initial_core_profiles(
-      dynamic_runtime_params_slice=dynamic_slice,
+      runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,
@@ -384,7 +384,7 @@ def _get_initial_state(
       geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
-      dynamic_runtime_params_slice=dynamic_slice,
+      dynamic_runtime_params_slice=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,

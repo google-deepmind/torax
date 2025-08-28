@@ -42,7 +42,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -50,46 +50,35 @@ def initial_core_profiles(
   """Calculates the initial core profiles.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
-    geo: Torus geometry.
+    runtime_params: Runtime parameters at t=t_initial.
+    geo: Torus geometry at t=t_initial.
     source_models: All models for TORAX sources/sinks.
     neoclassical_models: All models for neoclassical calculations.
 
   Returns:
     Initial core profiles.
   """
-
-  # To set initial values and compute the boundary conditions, we need to handle
-  # potentially time-varying inputs from the users.
-  # The default time in build_dynamic_runtime_params_slice is t_initial
   T_i = getters.get_updated_ion_temperature(
-      dynamic_runtime_params_slice.profile_conditions, geo
+      runtime_params.profile_conditions, geo
   )
   T_e = getters.get_updated_electron_temperature(
-      dynamic_runtime_params_slice.profile_conditions, geo
+      runtime_params.profile_conditions, geo
   )
   n_e = getters.get_updated_electron_density(
-      dynamic_runtime_params_slice.profile_conditions,
-      geo,
+      runtime_params.profile_conditions, geo
   )
+  ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
 
-  ions = getters.get_updated_ions(
-      dynamic_runtime_params_slice,
-      geo,
-      n_e,
-      T_e,
-  )
   # Set v_loop_lcfs. Two branches:
   # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
   # 2. Initialize v_loop_lcfs to 0 if using the Ip boundary condition for psi.
   # In case 2, v_loop_lcfs will be updated every timestep based on the psi_lcfs
   # values across the time interval. Since there is is one more time value than
   # time intervals, the v_loop_lcfs time-series is underconstrained. Therefore,
-  # after the first timestep we reset v_loop_lcfs[0] to v_loop_lcfs[1].
-
+  # we set v_loop_lcfs[0] to v_loop_lcfs[1] when creating the outputs.
   v_loop_lcfs = (
-      np.array(dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs)
-      if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+      np.array(runtime_params.profile_conditions.v_loop_lcfs)
+      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
       else np.array(0.0, dtype=jax_utils.get_dtype())
   )
 
@@ -131,7 +120,7 @@ def initial_core_profiles(
   )
 
   return _init_psi_and_psi_derived(
-      dynamic_runtime_params_slice,
+      runtime_params,
       geo,
       core_profiles,
       source_models,
@@ -212,7 +201,7 @@ def update_psi_from_j(
 
 
 def _init_psi_and_psi_derived(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -228,7 +217,7 @@ def _init_psi_and_psi_derived(
     this method is iterated to converge to the true psi.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
+    runtime_params: Runtime parameters.
     geo: Torus geometry.
     core_profiles: Core profiles.
     source_models: All TORAX source/sink functions.
@@ -246,22 +235,20 @@ def _init_psi_and_psi_derived(
 
   # Case 1: retrieving psi from the profile conditions, using the prescribed
   # profile and Ip
-  if dynamic_runtime_params_slice.profile_conditions.psi is not None:
+  if runtime_params.profile_conditions.psi is not None:
     # Calculate the dpsi/drho necessary to achieve the given Ip
     dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
+        runtime_params.profile_conditions.Ip,
         geo,
     )
 
     # Set the BCs to ensure the correct Ip
-    if (
-        dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
-    ):
+    if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
       # to achieve the desired Ip
       right_face_grad_constraint = None
       right_face_constraint = (
-          dynamic_runtime_params_slice.profile_conditions.psi[-1]
+          runtime_params.profile_conditions.psi[-1]
           + dpsi_drhonorm_edge * geo.drho_norm / 2
       )
     else:
@@ -270,7 +257,7 @@ def _init_psi_and_psi_derived(
       right_face_constraint = None
 
     psi = cell_variable.CellVariable(
-        value=dynamic_runtime_params_slice.profile_conditions.psi,
+        value=runtime_params.profile_conditions.psi,
         right_face_grad_constraint=right_face_grad_constraint,
         right_face_constraint=right_face_constraint,
         dr=geo.drho_norm,
@@ -279,12 +266,12 @@ def _init_psi_and_psi_derived(
   # Case 2: retrieving psi from the standard geometry input.
   elif (
       isinstance(geo, standard_geometry.StandardGeometry)
-      and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
+      and not runtime_params.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from a numerical equilibrium, so no need to
     # first calculate currents.
     dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
+        runtime_params.profile_conditions.Ip,
         geo,
     )
     # Use the psi from the equilibrium as the right face constraint
@@ -293,10 +280,10 @@ def _init_psi_and_psi_derived(
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,  # Use psi from equilibrium
         right_face_grad_constraint=None
-        if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+        if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
         else dpsi_drhonorm_edge,
         right_face_constraint=geo.psi_from_Ip_face[-1]
-        if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+        if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
         else None,
         dr=geo.drho_norm,
     )
@@ -305,17 +292,15 @@ def _init_psi_and_psi_derived(
   else:
     # calculate j and psi from the nu formula
     j_total_hires = _get_j_total_hires_with_no_external_sources(
-        dynamic_runtime_params_slice, geo
+        runtime_params, geo
     )
     psi = update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
+        runtime_params.profile_conditions.Ip,
         geo,
         j_total_hires,
-        use_v_loop_lcfs_boundary_condition=dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition,
+        use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
     )
-    if not (
-        dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current
-    ):
+    if not (runtime_params.profile_conditions.initial_j_is_total_current):
       # In this branch we require non-inductive currents to determine j_total.
       # The nu formula only provides the Ohmic component of the current.
       # However calculating non-inductive currents requires a non-zero psi.
@@ -335,7 +320,7 @@ def _init_psi_and_psi_derived(
 
       # Iterate with non-inductive current source calculations. Stop after 2.
       psi, source_profiles = _iterate_psi_and_sources(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles_initial,
           neoclassical_models=neoclassical_models,
@@ -349,7 +334,7 @@ def _init_psi_and_psi_derived(
 
   # Conclude with completing core_profiles with all psi-dependent profiles.
   core_profiles = _calculate_all_psi_dependent_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      runtime_params=runtime_params,
       geo=geo,
       psi=psi,
       core_profiles=core_profiles,
@@ -363,7 +348,7 @@ def _init_psi_and_psi_derived(
 
 
 def _calculate_all_psi_dependent_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     core_profiles: state.CoreProfiles,
@@ -395,7 +380,7 @@ def _calculate_all_psi_dependent_profiles(
   # Calculate sources if they have not already been calculated.
   if not sources_are_calculated:
     source_profiles = _get_bootstrap_and_standard_source_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         neoclassical_models,
@@ -411,7 +396,7 @@ def _calculate_all_psi_dependent_profiles(
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
       sigma=conductivity.sigma,
-      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
+      resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
       psi=psi,
       geo=geo,
   )
@@ -420,8 +405,8 @@ def _calculate_all_psi_dependent_profiles(
   # to the last calculated psidot for the initialisation since we have no
   # other information.
   v_loop_lcfs = (
-      dynamic_runtime_params_slice.profile_conditions.v_loop_lcfs
-      if dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition
+      runtime_params.profile_conditions.v_loop_lcfs
+      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
       else psidot[-1]
   )
   psidot = dataclasses.replace(
@@ -440,7 +425,7 @@ def _calculate_all_psi_dependent_profiles(
 
 
 def _get_bootstrap_and_standard_source_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -449,7 +434,7 @@ def _get_bootstrap_and_standard_source_profiles(
 ) -> source_profiles_lib.SourceProfiles:
   """Calculates bootstrap current and updates source profiles."""
   source_profile_builders.build_standard_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
@@ -459,7 +444,7 @@ def _get_bootstrap_and_standard_source_profiles(
   )
   bootstrap_current = (
       neoclassical_models.bootstrap_current.calculate_bootstrap_current(
-          dynamic_runtime_params_slice, geo, core_profiles
+          runtime_params, geo, core_profiles
       )
   )
   source_profiles = dataclasses.replace(
@@ -469,7 +454,7 @@ def _get_bootstrap_and_standard_source_profiles(
 
 
 def _iterate_psi_and_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -481,7 +466,7 @@ def _iterate_psi_and_sources(
 
   for _ in range(iterations):
     source_profiles = _get_bootstrap_and_standard_source_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         neoclassical_models,
@@ -489,16 +474,16 @@ def _iterate_psi_and_sources(
         source_profiles,
     )
     j_total_hires = _get_j_total_hires_with_external_sources(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_profiles.bootstrap_current,
         sum(source_profiles.psi.values()),
     )
     psi = update_psi_from_j(
-        dynamic_runtime_params_slice.profile_conditions.Ip,
+        runtime_params.profile_conditions.Ip,
         geo,
         j_total_hires,
-        use_v_loop_lcfs_boundary_condition=dynamic_runtime_params_slice.profile_conditions.use_v_loop_lcfs_boundary_condition,
+        use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
     )
     core_profiles = dataclasses.replace(
         core_profiles,
@@ -510,14 +495,14 @@ def _iterate_psi_and_sources(
 
 
 def _get_j_total_hires_with_no_external_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates j_total hires when the total current is given by a formula."""
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+  Ip = runtime_params.profile_conditions.Ip
   jformula_hires = (
       1 - geo.rho_hires_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
+  ) ** runtime_params.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   Ctot_hires = Ip / denom
   j_total_hires = jformula_hires * Ctot_hires
@@ -525,13 +510,13 @@ def _get_j_total_hires_with_no_external_sources(
 
 
 def _get_j_total_hires_with_external_sources(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,
 ) -> jax.Array:
   """Calculates j_total hires when the Ohmic current is given by a formula."""
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+  Ip = runtime_params.profile_conditions.Ip
   psi_current = external_current + bootstrap_current.j_bootstrap
 
   j_bootstrap_hires = jnp.interp(
@@ -551,7 +536,7 @@ def _get_j_total_hires_with_external_sources(
   # calculate high resolution j_total and Ohmic current profile
   jformula_hires = (
       1 - geo.rho_hires_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.current_profile_nu
+  ) ** runtime_params.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   I_non_inductive = math_utils.area_integration(psi_current, geo)
   Iohm = Ip - I_non_inductive

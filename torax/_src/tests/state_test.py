@@ -61,7 +61,7 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -90,7 +90,7 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,

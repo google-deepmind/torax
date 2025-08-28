@@ -205,8 +205,8 @@ class SimulationStepFn:
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
-        source_models=self.solver.physics_models.source_models,
-        neoclassical_models=self.solver.physics_models.neoclassical_models,
+        source_models=self._solver.physics_models.source_models,
+        neoclassical_models=self._solver.physics_models.neoclassical_models,
         explicit=True,
     )
 
@@ -347,8 +347,8 @@ class SimulationStepFn:
     # PDE system.
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=dynamic_runtime_params_slice_t,
+        runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
     )
@@ -457,8 +457,8 @@ class SimulationStepFn:
 
       core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
           dt=dt,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t=dynamic_runtime_params_slice_t,
+          runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=input_state.core_profiles,
       )
@@ -529,7 +529,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=result[5],
         explicit_source_profiles=explicit_source_profiles,
-        physics_models=self.solver.physics_models,
+        physics_models=self._solver.physics_models,
         evolving_names=evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
@@ -569,8 +569,8 @@ class SimulationStepFn:
     )
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=dynamic_runtime_params_slice_t,
+        runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
     )
@@ -597,7 +597,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
-        physics_models=self.solver.physics_models,
+        physics_models=self._solver.physics_models,
         evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
     )
@@ -629,7 +629,7 @@ def _finalize_outputs(
       updaters.update_core_and_source_profiles_after_step(
           dt=dt,
           x_new=x_new,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -718,8 +718,8 @@ def _sawtooth_step(
   # and prescribed profiles if present.
   core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
       dt=dt_crash,
-      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+      runtime_params_t=dynamic_runtime_params_slice_t,
+      runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
   )

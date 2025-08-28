@@ -494,7 +494,7 @@ class FVMTest(parameterized.TestCase):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_theta05,
+        runtime_params=dynamic_runtime_params_slice_theta05,
         geo=geo,
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,

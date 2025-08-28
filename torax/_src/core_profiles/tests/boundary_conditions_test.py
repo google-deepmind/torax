@@ -74,21 +74,21 @@ class BoundaryConditionsTest(parameterized.TestCase):
             torax_config
         )
     )
-    initial_dynamic_runtime_params_slice = provider(
+    initial_runtime_params = provider(
         t=torax_config.numerics.t_initial
     )
     core_profiles = initialization.initial_core_profiles(
-        initial_dynamic_runtime_params_slice,
+        initial_runtime_params,
         geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
-    dynamic_runtime_params_slice = provider(t=0.5)
+    runtime_params = provider(t=0.5)
 
     bc = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=torax_config.numerics.fixed_dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,  # Not used
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+        runtime_params_t=runtime_params,  # Not used
+        runtime_params_t_plus_dt=runtime_params,
         core_profiles_t=core_profiles,
         geo_t_plus_dt=geo,
     )
@@ -131,7 +131,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
     )
     # pylint: disable=invalid-name
     Z_i_face = core_profiles.Z_i_face
-    Z_eff_face = dynamic_runtime_params_slice.plasma_composition.Z_eff_face
+    Z_eff_face = runtime_params.plasma_composition.Z_eff_face
     Z_impurity_face = core_profiles.Z_impurity_face
     # pylint: enable=invalid-name
     dilution_factor_face = (Z_impurity_face - Z_eff_face) / (

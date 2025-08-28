@@ -56,8 +56,7 @@ class GettersTest(parameterized.TestCase):
         T_i=value,
     )
     result = getters.get_updated_ion_temperature(
-        profile_conditions,
-        self.geo,
+        profile_conditions, self.geo
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
@@ -72,8 +71,7 @@ class GettersTest(parameterized.TestCase):
         T_e=value,
     )
     result = getters.get_updated_electron_temperature(
-        profile_conditions,
-        self.geo,
+        profile_conditions, self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
@@ -233,12 +231,10 @@ class GettersTest(parameterized.TestCase):
     }
     config['plasma_composition']['Z_eff'] = 2.0
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
     geo = torax_config.geometry.build_provider(t=1.0)
 
     T_e = cell_variable.CellVariable(
@@ -249,17 +245,17 @@ class GettersTest(parameterized.TestCase):
         dr=geo.drho_norm,
     )
     n_e = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice.profile_conditions,
+        runtime_params.profile_conditions,
         geo,
     )
     ions = getters.get_updated_ions(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         n_e,
         T_e,
     )
 
-    Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+    Z_eff = runtime_params.plasma_composition.Z_eff
 
     dilution_factor = formulas.calculate_main_ion_dilution_factor(
         ions.Z_i, ions.Z_impurity, Z_eff
@@ -281,36 +277,32 @@ class GettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
-    dynamic_runtime_params_slice, geo = (
+    runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            runtime_params_provider=dynamic_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
 
-    # dynamic_runtime_params_slice.plasma_composition.Z_eff_face is not
+    # runtime_params.plasma_composition.Z_eff_face is not
     # expected to match core_profiles.Z_eff_face, since the main ion dilution
     # does not scale linearly with Z_eff, and thus Z_eff calculated from the
     # face values of the core profiles will not match the interpolated
     # Z_eff_face from plasma_composition. Only the cell grid Z_eff and
     # edge Z_eff should match exactly, since those were actually used to
     # calculate n_i and n_impurity.
-    expected_Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-    expected_Z_eff_edge = (
-        dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
-    )
+    expected_Z_eff = runtime_params.plasma_composition.Z_eff
+    expected_Z_eff_edge = runtime_params.plasma_composition.Z_eff_face[-1]
 
     calculated_Z_eff = getters._calculate_Z_eff(
         core_profiles.Z_i,
@@ -402,12 +394,10 @@ class GettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     # 3. Call the function under test.
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
-    dynamic_runtime_params_slice = provider(t=0.0)
+    runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
@@ -422,7 +412,7 @@ class GettersTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         n_e_cell_variable,
         T_e_cell_variable,
@@ -527,12 +517,10 @@ class GettersTest(parameterized.TestCase):
 
     # 4. Run get_updated_ions for both and compare
     def _run_get_updated_ions(torax_config):
-      provider = (
-          build_runtime_params.RuntimeParamsProvider.from_config(
-              torax_config
-          )
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
       )
-      dynamic_runtime_params_slice = provider(t=0.0)
+      runtime_params = provider(t=0.0)
       geo = torax_config.geometry.build_provider(t=0.0)
 
       t_e_cell_variable = cell_variable.CellVariable(
@@ -548,7 +536,7 @@ class GettersTest(parameterized.TestCase):
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           n_e_cell_variable,
           t_e_cell_variable,
@@ -600,12 +588,10 @@ class GettersTest(parameterized.TestCase):
     # 3. Run get_updated_ions for n_e_ratios to get the ground truth ions and
     # Z_eff
     def _run_get_updated_ions(torax_config):
-      provider = (
-          build_runtime_params.RuntimeParamsProvider.from_config(
-              torax_config
-          )
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
       )
-      dynamic_runtime_params_slice = provider(t=0.0)
+      runtime_params = provider(t=0.0)
       geo = torax_config.geometry.build_provider(t=0.0)
 
       t_e_cell_variable = cell_variable.CellVariable(
@@ -621,7 +607,7 @@ class GettersTest(parameterized.TestCase):
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           n_e_cell_variable,
           t_e_cell_variable,
@@ -694,25 +680,23 @@ class GettersTest(parameterized.TestCase):
       config_dict['plasma_composition']['Z_eff'] = Z_eff
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
-    dynamic_runtime_params_slice = provider(t=0.0)
+    runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
 
     initial_core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
 
     ions = getters.get_updated_ions(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         initial_core_profiles.n_e,
         initial_core_profiles.T_e,

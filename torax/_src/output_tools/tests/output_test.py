@@ -89,7 +89,7 @@ class StateHistoryTest(parameterized.TestCase):
     source_models = self.torax_config.sources.build_models()
     neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=dynamic_runtime_params_slice,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
