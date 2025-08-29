@@ -17,6 +17,7 @@ TORAX objects."""
 import datetime
 from typing import Any
 
+import jax.numpy as jnp
 import numpy as np
 
 try:
@@ -24,18 +25,22 @@ try:
   from imas.ids_toplevel import IDSToplevel
 except ImportError:
   IDSToplevel = Any
+from torax._src import array_typing
 from torax._src import constants
+from torax._src import state
+from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.geometry.geometry import face_to_cell
 from torax._src.orchestration.sim_state import ToraxSimState
 from torax._src.output_tools import post_processing
+from torax._src.physics import charge_states
 from torax._src.torax_pydantic import model_config
 
 
 # TODO: Add option to save entire state history in one core_profiles output.
 def core_profiles_to_IMAS(
     config: model_config.ToraxConfig,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params_slice: runtime_params_slice.RuntimeParams,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     state: ToraxSimState,
     ids: IDSToplevel = imas.IDSFactory().core_profiles(),
@@ -157,20 +162,22 @@ def core_profiles_to_IMAS(
   Z_eff = np.concatenate(
       [[cp_state.Z_eff_face[0]], cp_state.Z_eff, [cp_state.Z_eff_face[-1]]]
   )
-  ids.profiles_1d[0].zeff = (
-      Z_eff  # Keep the formula below instead or keep zeff from cp as source of truth ?
-  )
+  ids.profiles_1d[0].zeff = Z_eff
 
   main_ion = list(
       zip(
           config.plasma_composition.get_main_ion_names(),
-          dynamic_runtime_params_slice.plasma_composition.main_ion.fractions,
+          runtime_params_slice.plasma_composition.main_ion.fractions,
       )
   )
-  impurities = list(
-      zip(
-          config.plasma_composition.get_impurity_names(),
-          dynamic_runtime_params_slice.plasma_composition.impurity.fractions,
+  impurity_symbols = runtime_params_slice.plasma_composition.impurity_names
+  impurity_fractions_arr = jnp.stack(
+      [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
+  )
+  impurities = list(zip(impurity_symbols, impurity_fractions_arr))
+  impurity_density_scaling, Z_avg_per_species = (
+      calculate_impurity_density_scaling_and_charge_states(
+          cp_state, runtime_params_slice
       )
   )
   num_of_main_ions = len(main_ion)
@@ -181,9 +188,6 @@ def core_profiles_to_IMAS(
   for iion in range(len(main_ion)):
     symbol, frac = main_ion[iion]
     ion_properties = constants.ION_PROPERTIES_DICT[symbol]
-    # Should we read z_ion_1d from charge_states.get_average_charge_state().Z_per_species ?
-    # ids.profiles_1d[0].ion[iion].z_ion = np.mean(cp_state.Z_i)  # Change to make it correspond to volume average over plasma radius
-    # ids.profiles_1d[0].ion[iion].z_ion_1d = Z_i
     if (
         ids.metadata.name == 'core_profiles'
     ):  # Temporary if, will be removed in future versions where the path should be the same for both core and plasma_profiles.
@@ -208,6 +212,7 @@ def core_profiles_to_IMAS(
         / (
             cp_state.n_i.cell_plus_boundaries()
             + cp_state.n_impurity.cell_plus_boundaries()
+            * impurity_density_scaling  # Access true total impurity density
         )
     )  # Proportion of this ion among total ions species for pressure ratio computation.
     ids.profiles_1d[0].ion[iion].pressure = (
@@ -231,14 +236,23 @@ def core_profiles_to_IMAS(
         post_processed_outputs.n_i_volume_avg * frac
     )  # Valid to do like this ? Volume average ni only available for main ion.
 
-  # Fill impurity quantities
-  # TODO: Include the impurity_mode from PR #1408 for the fractions calculations etc and impurity fractions stacked into core_profiles.
+  # Fill impurity quantities. Helper function is called when impurities array
+  # is defined to access "true" impurity density and compute average charge
+  # states for each impurity.
   for iion in range(len(impurities)):
-    symbol, frac = impurities[iion]
+    symbol, individual_frac = impurities[iion]
+    frac = (
+        np.concatenate(
+            [[individual_frac[0]], individual_frac, [individual_frac[-1]]]
+        )
+        * impurity_density_scaling
+    )  # Extend to cell_plus_boundaries_grid by copying neighbouring values.
+    # Is there a better way to have it on cell_plus_boundaries grid ?
     ion_properties = constants.ION_PROPERTIES_DICT[symbol]
-    # Should we read z_ion_1d from charge_states.get_average_charge_state().Z_per_species ?
     # ids.profiles_1d[0].ion[num_of_main_ions+iion].z_ion = np.mean(cp_state.Z_impurity_face) # Change to make it correspond to volume average over plasma radius
-    # ids.profiles_1d[0].ion[num_of_main_ions+iion].z_ion_1d = Z_impurity
+    ids.profiles_1d[0].ion[num_of_main_ions + iion].z_ion_1d = (
+        Z_avg_per_species[iion]
+    )
     if (
         ids.metadata.name == 'core_profiles'
     ):  # Temporary if, will be removed in future versions where the path will
@@ -264,6 +278,7 @@ def core_profiles_to_IMAS(
         / (
             cp_state.n_i.cell_plus_boundaries()
             + cp_state.n_impurity.cell_plus_boundaries()
+            * impurity_density_scaling  # Access true total impurity density
         )
     )  # Proportion of this ion among total ions species for pressure ratio computation.
     ids.profiles_1d[0].ion[num_of_main_ions + iion].pressure = (
@@ -327,3 +342,44 @@ def core_profiles_to_IMAS(
   )
   ids.profiles_1d[0].conductivity_parallel = sigma
   return ids
+
+
+def calculate_impurity_density_scaling_and_charge_states(
+    core_profiles: state.CoreProfiles,
+    runtime_params_slice: runtime_params_slice.RuntimeParams,
+) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
+  """Computes the impurity_density_scaling factor to compute "True" impurity density.
+  Reproduces what is done in impurity_radiation_mavrin_fit in
+  sources/impurity_radiation_heat_sink/impurity_radiation_mavrin_fit.py
+  Also outputs Z_per_species to avoid calculating them again.
+  Returns:
+      FloatVector of impurity density scaling Z_imp_eff / <Z> on and
+      FloatVector of avg Z_per_specie for all impurities on
+      cell_plus_boundaries grid."""
+  ion_symbols = runtime_params_slice.plasma_composition.impurity_names
+  impurity_fractions_arr = jnp.stack([
+      np.concatenate([
+          [core_profiles.impurity_fractions[symbol][0]],
+          core_profiles.impurity_fractions[symbol],
+          [core_profiles.impurity_fractions[symbol][-1]],
+      ])
+      for symbol in ion_symbols
+  ])  # Extend fractions to cell_plus_boundaries grid to compute everything on this grid directly
+  ion_mixture = plasma_composition.DynamicIonMixture(
+      fractions=impurity_fractions_arr,
+      A_avg=core_profiles.A_impurity,
+      Z_override=runtime_params_slice.plasma_composition.impurity.Z_override,
+  )
+  charge_state_info = charge_states.get_average_charge_state(
+      ion_symbols=runtime_params_slice.plasma_composition.impurity_names,
+      ion_mixture=ion_mixture,
+      T_e=core_profiles.T_e.cell_plus_boundaries(),
+  )
+  Z_avg = charge_state_info.Z_avg
+  Z_impurity = np.concatenate([
+      [core_profiles.Z_impurity_face[0]],
+      core_profiles.Z_impurity,
+      [core_profiles.Z_impurity_face[-1]],
+  ])
+  impurity_density_scaling = Z_impurity / Z_avg
+  return impurity_density_scaling, charge_state_info.Z_per_species
