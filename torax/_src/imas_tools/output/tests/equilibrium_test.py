@@ -15,9 +15,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.geometry import imas as imas_geometry
+from torax._src.imas_tools.input import equilibrium as input_equilibrium
+from torax._src.imas_tools.output import equilibrium as output_equilibrium
 from torax._src.orchestration import run_simulation
-from torax._src.output_tools import imas as imas_output_tools
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
@@ -41,7 +41,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     """Test the default IMAS geometry can be built and converted back to IDS."""
     # Input equilibrium reading.
     config_dict = self._get_config_dict(config_name)
-    equilibrium_in = imas_geometry._load_imas_data(
+    equilibrium_in = input_equilibrium._load_geo_data(
         config_dict['geometry']['imas_filepath']
     )
     # Build TORAXSimState object and write output to equilibrium IDS.
@@ -61,7 +61,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
         torax_config
     )
 
-    equilibrium_out = imas_output_tools.torax_state_to_imas_equilibrium(
+    equilibrium_out = output_equilibrium.torax_state_to_imas_equilibrium(
         sim_state,
         post_processed_outputs,
         equilibrium_in=equilibrium_in,

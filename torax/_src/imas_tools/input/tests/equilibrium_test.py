@@ -19,8 +19,8 @@ from absl.testing import parameterized
 import imas
 import numpy as np
 from torax._src.geometry import geometry_loader
-from torax._src.geometry import imas as imas_geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.imas_tools.input import equilibrium as imas_geometry
 
 
 # pylint: disable=invalid-name
@@ -91,7 +91,7 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    equilibrium_in = imas_geometry._load_imas_data(filename)
+    equilibrium_in = imas_geometry._load_geo_data(filename)
     config = geometry_pydantic_model.IMASConfig(
         equilibrium_object=equilibrium_in, imas_filepath=None
     )
