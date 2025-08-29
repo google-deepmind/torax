@@ -62,15 +62,14 @@ def main() -> None:
             )
             (
                 dynamic_runtime_params_slice_provider,
-                initial_state,
+                sim_state,
                 post_processed_outputs,
                 step_fn,
             ) = prepare_simulation(torax_config)
 
             time_step_calculator_dynamic_params = dynamic_runtime_params_slice_provider(
-                initial_state.t
+                sim_state.t
             ).time_step_calculator
-            sim_state = initial_state
             extra_var_col = None
             t_next_outer = None
 
@@ -83,6 +82,7 @@ def main() -> None:
                 torax_config,
                 "equilibrium_f_init",
             )
+            sim_state.t = t_cur
         if first_run or instance.is_connected("equilibrium_f_init"):
             static_runtime_params_slice = (
                 build_runtime_params.build_static_params_from_config(torax_config)
@@ -94,16 +94,27 @@ def main() -> None:
                     geometry_provider=step_fn._geometry_provider,
                 )
             )
+            # next function loses sim_state.t information so readd it
+            my_t = sim_state.t
             sim_state, post_processed_outputs = (
                 initial_state_lib.get_initial_state_and_post_processed_outputs(
-                    t=torax_config.numerics.t_initial,
+                    t=sim_state.t,
                     static_runtime_params_slice=static_runtime_params_slice,
                     dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
                     geometry_provider=step_fn._geometry_provider,
                     step_fn=step_fn,
                 )
             )
+            sim_state.t = my_t
+            sim_state.geometry = step_fn._geometry_provider(sim_state.t)
         first_run = False
+
+        # temp
+        sim_state, post_processed_outputs, sim_error = step_fn(
+            sim_state,
+            post_processed_outputs,
+        )
+        # temp
 
         equilibrium_data = torax_state_to_imas_equilibrium(sim_state, post_processed_outputs)
         if extra_var_col is not None:
@@ -112,6 +123,7 @@ def main() -> None:
         if output_all_timeslices:
             db_out.put_slice(equilibrium_data)
 
+        # TODO: Needs proper way to implement stopping condition if used as micro component
         # Advance the simulation until the time_step_calculator tells us we are done.
         while step_fn.time_step_calculator.not_done(
             sim_state.t,

@@ -117,6 +117,7 @@ def receive_equilibrium(
                 "equilibrium_object": my_slice,
                 "imas_uri": None,
                 "imas_filepath": None,
+                "Ip_from_parameters": False,
             }
             imas_cfg = IMASConfig(**config_kwargs)
             cfg = GeometryConfig(config=imas_cfg)
