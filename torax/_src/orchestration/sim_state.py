@@ -16,9 +16,9 @@
 import dataclasses
 
 from absl import logging
-import chex
 import jax
 import numpy as np
+from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
@@ -51,8 +51,8 @@ class ToraxSimState:
     solver_numeric_outputs: Numerical quantities related to the solver.
   """
 
-  t: chex.Array
-  dt: chex.Array
+  t: array_typing.FloatScalar
+  dt: array_typing.FloatScalar
   core_profiles: state.CoreProfiles
   core_transport: state.CoreTransport
   core_sources: source_profiles.SourceProfiles
