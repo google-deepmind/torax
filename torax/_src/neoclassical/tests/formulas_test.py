@@ -59,22 +59,22 @@ class FormulasTest(parameterized.TestCase):
         'sources': {},
     })
 
-    dynamic_provider = (
+    params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
-    dynamic_runtime_params_slice, geo = (
+    runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            runtime_params_provider=dynamic_provider,
+            runtime_params_provider=params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
