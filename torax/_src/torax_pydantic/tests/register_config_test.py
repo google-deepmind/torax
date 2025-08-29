@@ -14,7 +14,6 @@
 import copy
 import dataclasses
 from typing import Literal
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -49,7 +48,7 @@ def double_gas_puff_source(
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.Array, ...]:
   """Calculates external source term for n from puffs."""
   output = gas_puff_source_lib.calc_puff_source(
       dynamic_runtime_params_slice,

@@ -16,10 +16,10 @@
 
 import functools
 from typing import Any, TypeAlias
-
 import chex
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
@@ -53,7 +53,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
-  def get_value(self, t: chex.Numeric) -> chex.Array:
+  def get_value(self, t: chex.Numeric) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time.
 
     Args:
