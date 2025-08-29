@@ -17,14 +17,90 @@
 import time
 
 from absl import logging
+from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_config
+from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
 import numpy as np
+import pandas as pd
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.transport_model import tglf_based_transport_model
 import tqdm
+
+
+def tglfnn_dump_from_sim_state(state):
+  tglf_inputs = tglf_based_transport_model._prepare_tglf_inputs(
+      state.core_transport, state.geometry, state.core_profiles
+  )
+  s_hat = (tglf_inputs.r_minor / tglf_inputs.q) ** 2 * tglf_inputs.q_prime
+
+  tglfnn_inputs = np.stack(
+      [
+          tglf_inputs.RLNS_1,
+          tglf_inputs.RLTS_1,
+          tglf_inputs.RLTS_2,
+          tglf_inputs.TAUS_2,
+          tglf_inputs.RMIN_LOC,
+          tglf_inputs.DRMAJDX_LOC,
+          tglf_inputs.Q_LOC,
+          s_hat,
+          tglf_inputs.XNUE,
+          tglf_inputs.KAPPA_LOC,
+          tglf_inputs.DELTA_LOC,
+          tglf_inputs.ZEFF,
+          tglf_inputs.VEXB_SHEAR,
+      ],
+      axis=-1,
+  )
+
+  inputs = {
+      'RLNS_1': tglf_inputs.RLNS_1,
+      'RLTS_1': tglf_inputs.RLTS_1,
+      'RLTS_2': tglf_inputs.RLTS_2,
+      'TAUS_2': tglf_inputs.TAUS_2,
+      'RMIN_LOC': tglf_inputs.RMIN_LOC,
+      'DRMAJDX_LOC': tglf_inputs.DRMAJDX_LOC,
+      'Q_LOC': tglf_inputs.Q_LOC,
+      's_hat_loc_custom': s_hat,
+      'XNUE': tglf_inputs.XNUE,
+      'KAPPA_LOC': tglf_inputs.KAPPA_LOC,
+      'DELTA_LOC': tglf_inputs.DELTA_LOC,
+      'ZEFF': tglf_inputs.ZEFF,
+      'VEXB_SHEAR': tglf_inputs.VEXB_SHEAR,
+  }
+
+  model = tglfnn_ukaea_model.TGLFNNukaeaModel(
+      config=tglfnn_ukaea_config.TGLFNNukaeaModelConfig.load(
+          machine='multimachine',
+          config_path='/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25/config.yaml',
+      ),
+      stats=tglfnn_ukaea_config.TGLFNNukaeaModelStats.load(
+          machine='multimachine',
+          stats_path='/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25/stats.json',
+      ),
+  )
+  model.load_params(
+      efe_gb_pt='/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25/regressor_efe_gb.pt',
+      efi_gb_pt='/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25/regressor_efi_gb.pt',
+      pfi_gb_pt='/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25/regressor_pfi_gb.pt',
+  )
+  predictions = model.predict(tglfnn_inputs)
+  outputs = {
+      'efi_gb': predictions['efi_gb'][..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX],
+      'efe_gb': predictions['efe_gb'][..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX],
+      'pfi_gb': predictions['pfi_gb'][..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX],
+  }
+
+  return (
+      {
+          't': state.t,
+      }
+      | inputs
+      | outputs
+  )
 
 
 def run_loop(
@@ -96,6 +172,7 @@ def run_loop(
   current_state = initial_state
   state_history = [current_state]
   post_processing_history = [initial_post_processed_outputs]
+  tglfnn_history = [tglfnn_dump_from_sim_state(current_state)]
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
@@ -146,6 +223,7 @@ def run_loop(
         sim_error.log_error()
         break
       else:
+        tglfnn_history.append(tglfnn_dump_from_sim_state(current_state))
         state_history.append(current_state)
         post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
@@ -192,6 +270,9 @@ def run_loop(
       simulation_time,
       wall_clock_time_elapsed,
   )
+
+  pd.DataFrame(tglfnn_inputs_history).to_csv('tglfnn_dump_torax.csv')
+
   return tuple(state_history), tuple(post_processing_history), sim_error
 
 
