@@ -18,10 +18,10 @@ converts them into TORAX objects.
 import os
 from typing import Any
 
-import numpy as np
 import imas
 from imas import ids_toplevel
 from imas.ids_toplevel import IDSToplevel
+import numpy as np
 import torax
 
 
@@ -38,7 +38,7 @@ def core_profiles_from_IMAS(
       input core/plasma_profiles IDS. Default value is True meaning that psi is
       taken from the geometry.
   t_initial: Initial time used to map the profiles in the dicts. If None the
-      initial time will be the time of the first time slice of the ids. Else 
+      initial time will be the time of the first time slice of the ids. Else
       all time slices will be shifted by t_initial.
 
   Returns:
@@ -48,22 +48,11 @@ def core_profiles_from_IMAS(
   profiles_1d = ids.profiles_1d
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
   if t_initial:
-    time_array = [ti-time_array[0]+t_initial for ti in time_array]
+    time_array = [ti - time_array[0] + t_initial for ti in time_array]
   rhon_array = [
       profiles_1d[i].grid.rho_tor_norm for i in range(len(profiles_1d))
   ]
-  # numerics
   t_initial = float(profiles_1d[0].time)
-
-  # plasma_composition
-  # Zeff taken from here or set into config before ?
-  Z_eff = {
-      time_array[ti]: {
-          rhon_array[ti][rj]: profiles_1d[ti].zeff[rj]
-          for rj in range(len(rhon_array[ti]))
-      }
-      for ti in range(len(time_array))
-  }
 
   # profile_conditions
   if not read_psi_from_geo:
@@ -80,7 +69,8 @@ def core_profiles_from_IMAS(
       time_array[ti]: -1 * ids.global_quantities.ip[ti]
       for ti in range(len(time_array))
   }
-  # It is assumed the temperatures and density profiles are defined until rhon=1. Validator will raise an error if rhon[-1]!= 1.
+  # It is assumed the temperatures and density profiles are defined until rhon=1.
+  # Validator will raise an error if rhon[-1]!= 1.
   T_e = {
       time_array[ti]: {
           rhon_array[ti][rj]: profiles_1d[ti].electrons.temperature[rj] / 1e3
@@ -135,7 +125,6 @@ def core_profiles_from_IMAS(
     v_loop_lcfs = [0.0]
 
   return {
-      'plasma_composition.Z_eff': Z_eff,
       'profile_conditions.Ip': Ip,
       'profile_conditions.psi': psi,
       'profile_conditions.T_i': T_i,
@@ -161,6 +150,6 @@ def load_profiles_data(
   if directory is None:
     directory = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
   uri = os.path.join(directory, uri)
-  with imas.DBEntry(uri=uri, mode="r") as db:
+  with imas.DBEntry(uri=uri, mode='r') as db:
     ids = db.get(ids_name=ids_name)
   return ids

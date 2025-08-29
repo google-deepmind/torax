@@ -19,11 +19,9 @@ from typing import Any, Optional
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-
-
 import torax
-from torax._src.imas_tools.input.core_profiles import load_profiles_data
 from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
+from torax._src.imas_tools.input.core_profiles import load_profiles_data
 from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
@@ -48,9 +46,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
     dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    core_profiles_in = load_profiles_data(
-        path, 'core_profiles', dir
-    )
+    core_profiles_in = load_profiles_data(path, 'core_profiles', dir)
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
@@ -93,14 +89,14 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         'core_profiles_15MA_DT_50_50_flat_top_slice.nc'
     )
     dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    core_profiles_in = load_profiles_data(
-        path, 'core_profiles', dir
-    )
+    core_profiles_in = load_profiles_data(path, 'core_profiles', dir)
     rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
-        core_profiles_in, read_psi_from_geo=False, t_initial=0.,
+        core_profiles_in,
+        read_psi_from_geo=False,
+        t_initial=0.0,
     )
     config['geometry']['n_rho'] = 200
     torax_config = model_config.ToraxConfig.from_dict(config)

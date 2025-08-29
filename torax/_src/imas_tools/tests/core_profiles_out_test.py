@@ -24,8 +24,8 @@ except ImportError:
   IDSToplevel = Any
 import torax
 from torax._src import state
-from torax._src.imas_tools.input.core_profiles import load_profiles_data
 from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
+from torax._src.imas_tools.input.core_profiles import load_profiles_data
 from torax._src.imas_tools.output.core_profiles import core_profiles_to_IMAS
 from torax._src.orchestration import run_loop
 from torax._src.orchestration.run_simulation import prepare_simulation
@@ -50,9 +50,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     config = self._get_config_dict('test_iterhybrid_rampup_short.py')
     path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
     dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    core_profiles_in = load_profiles_data(
-        path, 'core_profiles', dir
-    )
+    core_profiles_in = load_profiles_data(path, 'core_profiles', dir)
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
