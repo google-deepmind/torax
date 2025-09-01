@@ -32,7 +32,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
+class RuntimeParams(runtime_params.RuntimeParams):
   """Dynamic runtime params for the Sauter model."""
 
 
@@ -69,8 +69,8 @@ class SauterModelConfig(base.ConductivityModelConfig):
 
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
 
-  def build_dynamic_params(self) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams()
+  def build_runtime_params(self) -> RuntimeParams:
+    return RuntimeParams()
 
   def build_model(self) -> SauterModel:
     return SauterModel()
