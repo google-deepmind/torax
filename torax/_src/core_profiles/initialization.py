@@ -473,7 +473,7 @@ def _iterate_psi_and_sources(
         source_models,
         source_profiles,
     )
-    j_total_hires = _get_j_total_hires_with_external_sources(
+    j_total_hires = get_j_total_hires_with_external_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
@@ -509,7 +509,7 @@ def _get_j_total_hires_with_no_external_sources(
   return j_total_hires
 
 
-def _get_j_total_hires_with_external_sources(
+def get_j_total_hires_with_external_sources(
     runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,

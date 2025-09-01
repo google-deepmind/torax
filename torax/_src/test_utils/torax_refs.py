@@ -14,7 +14,9 @@
 
 """Shared setup code for unit tests using reference values."""
 import dataclasses
+from typing import Callable, Final, Mapping
 
+import immutabledict
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -80,7 +82,7 @@ def circular_references() -> References:
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {},
+      'sources': {'generic_current': {}},
   })
 
   # ground truth values copied from example executions using
@@ -287,7 +289,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {},
+      'sources': {'generic_current': {}},
   })
   psi = fvm.cell_variable.CellVariable(
       value=jnp.array(
@@ -491,7 +493,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       'transport': {},
       'solver': {},
       'pedestal': {},
-      'sources': {},
+      'sources': {'generic_current': {}},
   })
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
@@ -675,3 +677,13 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       q=q,
       s=s,
   )
+
+REFERENCES_REGISTRY: Final[Mapping[str, Callable[[], References]]] = (
+    immutabledict.immutabledict({
+        'circular_references': circular_references,
+        'chease_references_Ip_from_chease': chease_references_Ip_from_chease,
+        'chease_references_Ip_from_runtime_params': (
+            chease_references_Ip_from_runtime_params
+        ),
+    })
+)
