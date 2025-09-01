@@ -43,7 +43,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
+  """Runtime parameters for the electron-cyclotron source for a given time and
+  geometry."""
 
   current_drive_efficiency: array_typing.FloatVector
   extra_prescribed_power_density: array_typing.FloatVector
@@ -122,12 +123,7 @@ def calc_heating_and_current(
   fsa_j_dot_B = (
       geo.F
       * geo.gm9
-      * (
-          1
-          + geo.g2
-          * geo.g3
-          / (16 * jnp.pi**4 * q_cell**2 + constants.CONSTANTS.eps)
-      )
+      * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
       * j_tor_ec
   )
 
@@ -151,7 +147,7 @@ class ElectronCyclotronSource(source.Source):
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):
-  """Config for the electron-cyclotron source.
+  r"""Config for the electron-cyclotron source.
 
   Attributes:
     current_drive_efficiency: Dimensionless current drive efficiency profile
