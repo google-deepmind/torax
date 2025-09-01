@@ -86,7 +86,7 @@ class StepFunctionTest(parameterized.TestCase):
     nan_array[-1] = np.nan
     bootstrap_current = dataclasses.replace(
         self.sim_state.core_sources.bootstrap_current,
-        j_bootstrap=nan_array,
+        j_parallel_bootstrap=nan_array,
     )
     new_core_sources = dataclasses.replace(
         self.sim_state.core_sources, bootstrap_current=bootstrap_current
