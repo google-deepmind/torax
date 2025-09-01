@@ -19,5 +19,5 @@ import jax
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams:
-  """Base class for dynamic runtime params."""
+class RuntimeParams:
+  """Base class for runtime params."""

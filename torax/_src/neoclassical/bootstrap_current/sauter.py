@@ -25,7 +25,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.bootstrap_current import base
-from torax._src.neoclassical.bootstrap_current import runtime_params
+from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -34,8 +34,8 @@ from torax._src.torax_pydantic import torax_pydantic
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
-  """Dynamic runtime params for the Sauter model."""
+class RuntimeParams(bootstrap_runtime_params.RuntimeParams):
+  """Runtime params for the Sauter model."""
 
   bootstrap_multiplier: float
 
@@ -45,15 +45,15 @@ class SauterModel(base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
     bootstrap_params = (
-        dynamic_runtime_params_slice.neoclassical.bootstrap_current
+        runtime_params.neoclassical.bootstrap_current
     )
-    assert isinstance(bootstrap_params, DynamicRuntimeParams)
+    assert isinstance(bootstrap_params, RuntimeParams)
     result = _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
         Z_eff_face=core_profiles.Z_eff_face,
@@ -88,8 +88,8 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
   bootstrap_multiplier: float = 1.0
 
-  def build_dynamic_params(self) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(bootstrap_multiplier=self.bootstrap_multiplier)
+  def build_runtime_params(self) -> RuntimeParams:
+    return RuntimeParams(bootstrap_multiplier=self.bootstrap_multiplier)
 
   def build_model(self) -> SauterModel:
     return SauterModel()
