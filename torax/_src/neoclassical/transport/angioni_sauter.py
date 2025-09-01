@@ -31,7 +31,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.transport import base
-from torax._src.neoclassical.transport import runtime_params
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import override
@@ -51,8 +51,8 @@ class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
     return AngioniSauterModel()
 
   @override
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams()
+  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
+    return transport_runtime_params.RuntimeParams()
 
 
 class AngioniSauterModel(base.NeoclassicalTransportModel):
@@ -61,13 +61,13 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
   @override
   def calculate_neoclassical_transport(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients."""
     return _calculate_angioni_sauter_transport(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
     )
@@ -80,14 +80,14 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 
 def _calculate_angioni_sauter_transport(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> base.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
   Args:
-    dynamic_runtime_params_slice: Slice of dynamic runtime parameters.
+    runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
 
@@ -98,7 +98,7 @@ def _calculate_angioni_sauter_transport(
   omitted for brevity.
   """
 
-  del dynamic_runtime_params_slice  # Unused.
+  del runtime_params  # Unused.
 
   # --- Step 1: Calculate intermediate physics quantities ---
 

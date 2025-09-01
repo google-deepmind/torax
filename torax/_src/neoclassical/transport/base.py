@@ -21,7 +21,7 @@ import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical.transport import runtime_params
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -67,7 +67,7 @@ class NeoclassicalTransportModel(abc.ABC):
   @abc.abstractmethod
   def calculate_neoclassical_transport(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalTransport:
@@ -78,8 +78,8 @@ class NeoclassicalTransportModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for neoclassical transport model configs."""
 
   @abc.abstractmethod
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    """Builds dynamic runtime params."""
+  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
+    """Builds runtime params."""
 
   @abc.abstractmethod
   def build_model(self) -> NeoclassicalTransportModel:

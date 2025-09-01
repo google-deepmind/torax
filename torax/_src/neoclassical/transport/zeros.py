@@ -19,7 +19,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.transport import base
-from torax._src.neoclassical.transport import runtime_params
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -28,7 +28,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
 
   def calculate_neoclassical_transport(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:
@@ -53,8 +53,8 @@ class ZerosModelConfig(base.NeoclassicalTransportModelConfig):
 
   model_name: Annotated[Literal['zeros'], torax_pydantic.JAX_STATIC] = 'zeros'
 
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams()
+  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
+    return transport_runtime_params.RuntimeParams()
 
   def build_model(self) -> ZerosModel:
     return ZerosModel()

@@ -62,7 +62,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     return runtime_params.DynamicRuntimeParams(
         bootstrap_current=self.bootstrap_current.build_runtime_params(),
         conductivity=self.conductivity.build_runtime_params(),
-        transport=self.transport.build_dynamic_params(),
+        transport=self.transport.build_runtime_params(),
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:

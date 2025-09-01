@@ -26,4 +26,4 @@ class DynamicRuntimeParams:
 
   bootstrap_current: bootstrap_current_runtime_params.RuntimeParams
   conductivity: conductivity_runtime_params.RuntimeParams
-  transport: transport_runtime_params.DynamicRuntimeParams
+  transport: transport_runtime_params.RuntimeParams
