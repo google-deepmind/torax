@@ -12,20 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared setup code for unit tests using reference values."""
+"""Reference values used throughout TORAX unit tests."""
 import dataclasses
-from typing import Callable, Final, Mapping
+import json
+from typing import Callable, Final, Literal, Mapping
 
 import immutabledict
 import jax
-from jax import numpy as jnp
 import numpy as np
-from torax._src import fvm
+# set_jax_precision() is called in torax __init__.py, needed for tests and
+# reference generation
+import torax  # pylint: disable=unused-import
 from torax._src.config import build_runtime_params
+from torax._src.config import config_loader
 from torax._src.config import runtime_params_slice
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.torax_pydantic import model_config
+
+# pylint: disable=invalid-name
+
+JSON_FILENAME: Literal['references.json'] = 'references.json'
+
+
+def _load_all_references():
+  """Loads all reference data from the JSON file."""
+  json_path = config_loader.torax_path() / '_src' / 'test_utils' / JSON_FILENAME
+  try:
+    with open(json_path, 'r') as f:
+      return json.load(f)
+  except FileNotFoundError:
+    raise FileNotFoundError(
+        f'Reference data file not found at {json_path}.'
+    ) from None
 
 
 @jax.tree_util.register_dataclass
@@ -34,7 +54,7 @@ class References:
   """Collection of reference values useful for unit tests."""
 
   config: model_config.ToraxConfig
-  psi: fvm.cell_variable.CellVariable
+  psi: cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
   j_total: np.ndarray
@@ -49,10 +69,8 @@ class References:
       self,
   ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
     t = self.config.numerics.t_initial
-    dynamic_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            self.config
-        )
+    dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        self.config
     )
     return build_runtime_params.get_consistent_runtime_params_and_geometry(
         t=t,
@@ -61,10 +79,37 @@ class References:
     )
 
 
+def _build_references_from_case_data(
+    case_name: str, torax_config: model_config.ToraxConfig
+) -> References:
+  """Helper function to build a References object from a config and JSON data."""
+  geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+  all_references = _load_all_references()
+  case_data = all_references[case_name]
+
+  psi_value = np.array(case_data['psi'])
+  psi_face_grad = np.array(case_data['psi_face_grad'])
+  psi_grad_bc = psi_face_grad[-1]
+
+  psi = cell_variable.CellVariable(
+      value=psi_value,
+      right_face_grad_constraint=psi_grad_bc,
+      dr=geo.drho_norm,
+  )
+
+  return References(
+      config=torax_config,
+      psi=psi,
+      psi_face_grad=psi_face_grad,
+      psidot=np.array(case_data['psidot']),
+      j_total=np.array(case_data['j_total']),
+      q=np.array(case_data['q']),
+      s=np.array(case_data['s']),
+  )
+
+
 def circular_references() -> References:
   """Reference values for circular geometry."""
-  # Hard-code the parameters relevant to the tests, so the reference values
-  # will stay valid even if we change the Config constructor defaults
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
@@ -84,193 +129,11 @@ def circular_references() -> References:
       'pedestal': {},
       'sources': {'generic_current': {}},
   })
-
-  # ground truth values copied from example executions using
-  # array.astype(str),which allows fully lossless reloading
-  psi = fvm.cell_variable.CellVariable(
-      value=jnp.array(
-          np.array([
-              5.20759356763185e-02,
-              4.61075402494995e-01,
-              1.26170728323729e00,
-              2.43206820843406e00,
-              3.94566757703537e00,
-              5.77213040025801e00,
-              7.88044279922951e00,
-              1.02534529362164e01,
-              1.29215098336351e01,
-              1.59750627929530e01,
-              1.94795940161767e01,
-              2.33541697410208e01,
-              2.73933377711206e01,
-              3.14091156179732e01,
-              3.53034698354459e01,
-              3.90388127442209e01,
-              4.25979583155311e01,
-              4.59694615524991e01,
-              4.91455160851201e01,
-              5.21222016465174e01,
-              5.48997101297067e01,
-              5.74822852044825e01,
-              5.98778595671550e01,
-              6.20973874594807e01,
-              6.41538565179961e01,
-          ]).astype('float64')
-      ),
-      right_face_grad_constraint=jnp.array(47.64848792277505),
-      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
-  )
-  psi_face_grad = np.array([
-      0.0,
-      10.2249866704669,
-      20.01579701855746,
-      29.25902312991926,
-      37.83998421503257,
-      45.66157058056604,
-      52.70780997428761,
-      59.32525342467125,
-      66.70142243546908,
-      76.33882398294575,
-      87.61328058059274,
-      96.86439312110346,
-      100.97920075249486,
-      100.3944461713158,
-      97.3588554368157,
-      93.38357271937525,
-      88.97863928275598,
-      84.28758092420061,
-      79.40136331552488,
-      74.41713903493188,
-      69.43771207973252,
-      64.56437686939474,
-      59.8893590668137,
-      55.48819730814234,
-      51.4117264628835,
-      47.64848792277505,
-  ]).astype('float64')
-  psidot = np.array([
-      6.15796838096829e-02,
-      7.67776861533454e-02,
-      9.14645450891100e-02,
-      1.05826180471346e-01,
-      1.20797043388939e-01,
-      1.51857197587599e-01,
-      3.66055430824331e-01,
-      1.60920226665232e00,
-      5.35622979148619e00,
-      1.01528185911838e01,
-      1.04684759809395e01,
-      5.86884004424684e00,
-      1.87906989052661e00,
-      4.66830085414812e-01,
-      2.15885154977055e-01,
-      1.83861837131887e-01,
-      1.69158928431288e-01,
-      1.51395781445053e-01,
-      1.29766897536285e-01,
-      1.04971917969482e-01,
-      7.82838019851360e-02,
-      5.16475815738970e-02,
-      2.77752500731658e-02,
-      9.90033116980977e-03,
-      -1.40569237592991e-02,
-  ])
-  j_total = np.array([
-      2.68706872988400e06,
-      2.62750394454838e06,
-      2.56793915921276e06,
-      2.49042322276088e06,
-      2.39610280024494e06,
-      2.30492587011602e06,
-      2.27950750341659e06,
-      2.41114151496692e06,
-      2.68609305861153e06,
-      2.86393557512200e06,
-      2.66415023264853e06,
-      2.10979371202918e06,
-      1.50120636612165e06,
-      1.06391996162165e06,
-      7.99571303958327e05,
-      6.22057226335077e05,
-      4.78443548479771e05,
-      3.54513021547000e05,
-      2.49338905818845e05,
-      1.63776158728762e05,
-      9.80765609014896e04,
-      5.15042432166735e04,
-      2.21523673765912e04,
-      5.57375144108907e03,
-      -1.64601168964488e02,
-  ])
-  q = np.array([
-      0.65136284674552,
-      0.65136284674552,
-      0.66549200308491,
-      0.68288435974473,
-      0.70403585664969,
-      0.72929778158408,
-      0.75816199863277,
-      0.78585816811502,
-      0.79880472498816,
-      0.78520449625846,
-      0.76017886574672,
-      0.75633510231278,
-      0.79147108029917,
-      0.86242114812994,
-      0.95771945489906,
-      1.06980964076381,
-      1.19762252680817,
-      1.34329397040352,
-      1.50983774906477,
-      1.70045978288947,
-      1.91831678381418,
-      2.16626740192572,
-      2.44657621398095,
-      2.76066019839069,
-      3.10910068989888,
-      3.49443220339156,
-  ])
-  s = np.array([
-      -0.0,
-      0.01061557184301,
-      0.04716064616925,
-      0.08426669061692,
-      0.13122491602167,
-      0.1848822350657,
-      0.22446393489629,
-      0.18458330229119,
-      -0.0033848034437,
-      -0.22475896767388,
-      -0.18476785956073,
-      0.21635274198114,
-      0.77234423397151,
-      1.22946678897025,
-      1.50693701200676,
-      1.67820617110573,
-      1.82332806784304,
-      1.9714865968474,
-      2.12473729256083,
-      2.27829069028721,
-      2.4257636557766,
-      2.56017437523365,
-      2.67485320711614,
-      2.76515311932521,
-      2.83783799296473,
-      3.09841616536076,
-  ])
-  return References(
-      config=torax_config,
-      psi=psi,
-      psi_face_grad=psi_face_grad,
-      psidot=psidot,
-      j_total=j_total,
-      q=q,
-      s=s,
-  )
+  return _build_references_from_case_data('circular_references', torax_config)
 
 
-def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid-name
-  """Reference values for CHEASE geometry where the Ip comes from the file."""
+def chease_references_Ip_from_chease() -> References:
+  """Reference values for CHEASE geometry where Ip comes from the file."""
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
@@ -291,190 +154,13 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       'pedestal': {},
       'sources': {'generic_current': {}},
   })
-  psi = fvm.cell_variable.CellVariable(
-      value=jnp.array(
-          np.array([
-              2.79878567476793e-02,
-              2.58020531507780e-01,
-              7.51254793237356e-01,
-              1.52870851011455e00,
-              2.61569751529835e00,
-              4.10927946411269e00,
-              6.08313204671932e00,
-              8.54800298159181e00,
-              1.14177972559155e01,
-              1.45445911305095e01,
-              1.78013640614960e01,
-              2.11092326307630e01,
-              2.44256471413481e01,
-              2.77167062705062e01,
-              3.09535311074406e01,
-              3.41118947732652e01,
-              3.71723597785107e01,
-              4.01192676007023e01,
-              4.29379607215431e01,
-              4.56172988445238e01,
-              4.81438191944344e01,
-              5.04923022728033e01,
-              5.26677121865744e01,
-              5.47610742965561e01,
-              5.67941688269600e01,
-          ]).astype('float64')
-      ),
-      right_face_grad_constraint=jnp.array(50.41748508435972),
-      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
-  )
-  psi_face_grad = np.array([
-      0.0,
-      5.75081686900251,
-      12.33085654323941,
-      19.43634292192997,
-      27.17472512959478,
-      37.33954872035865,
-      49.34631456516576,
-      61.62177337181225,
-      71.74485685809184,
-      78.16984686485151,
-      81.41932327466112,
-      82.69671423167608,
-      82.91036276462754,
-      82.27647822895277,
-      80.92062092335794,
-      78.95909164561532,
-      76.51162513113832,
-      73.67269555479083,
-      70.46732802101853,
-      66.98345307451862,
-      63.16300874776513,
-      58.71207695922109,
-      54.38524784427852,
-      52.33405274954155,
-      50.82736326009893,
-      50.41748508435972,
-  ]).astype('float64')
-  psidot = np.array([
-      0.01900599079707,
-      0.02503039063342,
-      0.03137235647001,
-      0.0387226566951,
-      0.053048060709,
-      0.07209653823736,
-      0.12046843563735,
-      0.34031648636174,
-      0.99174937511429,
-      1.82277063670574,
-      1.86313470356712,
-      1.04956201001038,
-      0.35381867065894,
-      0.11195674204597,
-      0.07117013468394,
-      0.06876773590241,
-      0.07024252741463,
-      0.07270482420543,
-      0.07725935134641,
-      0.08187661259014,
-      0.08383698677169,
-      0.11866443718669,
-      0.21390251275039,
-      0.40289033343704,
-      0.61986455206849,
-  ])
-  j_total = np.array([
-      837831.4092102976,
-      894046.1656356762,
-      950260.9220610549,
-      1048551.2471324559,
-      1204039.0934115292,
-      1349116.3367302886,
-      1391803.3259842917,
-      1291345.8500777103,
-      1093047.037357275,
-      891598.5828243578,
-      742160.527775365,
-      639912.7911952632,
-      560870.9899141017,
-      492796.4141096496,
-      433604.77004344005,
-      383512.8672736068,
-      341478.82095819194,
-      305373.4287105645,
-      274958.08096496906,
-      242623.80003829073,
-      234676.09266864517,
-      261965.4448479225,
-      378673.2429058727,
-      443993.53415185254,
-      407972.9752159313,
-  ])
-  q = np.array([
-      1.74773286150815,
-      1.74773286150815,
-      1.63020169559619,
-      1.55135536497416,
-      1.47944703389475,
-      1.34587749007678,
-      1.22208416710003,
-      1.14174321035495,
-      1.12073724167867,
-      1.15719843686832,
-      1.23446022617569,
-      1.33693108455856,
-      1.45471199796885,
-      1.58807953262815,
-      1.73889524213939,
-      1.90938587558384,
-      2.10182786843057,
-      2.31924672085519,
-      2.56737489962035,
-      2.85095694625515,
-      3.18252465224016,
-      3.59497968737314,
-      4.06580137921779,
-      4.41721011791613,
-      4.74589637288309,
-      4.98383229828587,
-  ])
-  s = np.array([
-      -0.0,
-      -0.03604804430932,
-      -0.11807194454358,
-      -0.14545630110878,
-      -0.29119080774594,
-      -0.47895077990128,
-      -0.48703968044757,
-      -0.29569374572964,
-      0.05244002541111,
-      0.42804329193019,
-      0.71706284307315,
-      0.901855584384,
-      1.03247014023767,
-      1.15966789219412,
-      1.28980722144804,
-      1.42203542390471,
-      1.55626269677756,
-      1.70075987549391,
-      1.85810051057455,
-      2.03907899295719,
-      2.31031334507234,
-      2.57670435924637,
-      2.31572983388504,
-      1.79040411178404,
-      1.46582319478398,
-      1.25337716370238,
-  ])
-  return References(
-      config=torax_config,
-      psi=psi,
-      psi_face_grad=psi_face_grad,
-      psidot=psidot,
-      j_total=j_total,
-      q=q,
-      s=s,
+  return _build_references_from_case_data(
+      'chease_references_Ip_from_chease', torax_config
   )
 
 
-def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable=invalid-name
-  """Reference values for CHEASE geometry where the Ip comes from the config."""
+def chease_references_Ip_from_runtime_params() -> References:
+  """Reference values for CHEASE geometry where Ip comes from runtime params."""
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
@@ -495,188 +181,10 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       'pedestal': {},
       'sources': {'generic_current': {}},
   })
-  # ground truth values copied from an example executions using
-  # array.astype(str),which allows fully lossless reloading
-  psi = fvm.cell_variable.CellVariable(
-      value=jnp.array(
-          np.array([
-              3.56692677132407e-02,
-              3.28835590979177e-01,
-              9.57440527955415e-01,
-              1.94827040864095e00,
-              3.33358912656903e00,
-              5.23709230883182e00,
-              7.75267886589485e00,
-              1.08940462827423e01,
-              1.45514703283068e01,
-              1.85364288337938e01,
-              2.26870398149731e01,
-              2.69027698946686e01,
-              3.11293913931492e01,
-              3.53236985956033e01,
-              3.94488866259104e01,
-              4.34740794139010e01,
-              4.73745047513345e01,
-              5.11302065538568e01,
-              5.47225044720272e01,
-              5.81372006977686e01,
-              6.13571375281007e01,
-              6.43501738437272e01,
-              6.71226361762269e01,
-              6.97905322639787e01,
-              7.23816200255422e01,
-          ]).astype('float64')
-      ),
-      right_face_grad_constraint=jnp.array(64.25482269382653),
-      dr=np.asarray(torax_config.geometry.build_provider.torax_mesh.dx),
+  return _build_references_from_case_data(
+      'chease_references_Ip_from_runtime_params', torax_config
   )
-  psi_face_grad = np.array([
-      0.0,
-      7.32915808164841,
-      15.71512342440595,
-      24.77074701713834,
-      34.63296794820205,
-      47.58757955656985,
-      62.88966392657551,
-      78.53418542118544,
-      91.4356011391122,
-      99.6239626371755,
-      103.7652745294829,
-      105.39325199238804,
-      105.66553746201465,
-      104.85768006135325,
-      103.12970075767804,
-      100.62981969976299,
-      97.51063343583776,
-      93.89254506305882,
-      89.80744795425899,
-      85.36740564353558,
-      80.49842075830327,
-      74.82590789066047,
-      69.31155831249463,
-      66.69740219379392,
-      64.77719403908786,
-      64.25482269382653,
-  ]).astype('float64')
-  psidot = np.array([
-      0.02406092179886,
-      0.0316914665914,
-      0.03972012562652,
-      0.04902506508718,
-      0.06716030761049,
-      0.09127410275195,
-      0.1525097323126,
-      0.43082443527646,
-      1.25549386954153,
-      2.30750185159481,
-      2.35859375542245,
-      1.32866921938567,
-      0.44790950845837,
-      0.14172991863921,
-      0.09009734472858,
-      0.08705690757757,
-      0.08892514622479,
-      0.0920440298183,
-      0.09781237082609,
-      0.10366110216501,
-      0.10614720189509,
-      0.15024986030514,
-      0.27085114402406,
-      0.51017615337305,
-      0.78493833987809,
-  ])
-  j_total = np.array([
-      1067778.540640196,
-      1139421.7255560148,
-      1211064.9104718335,
-      1336331.5198517775,
-      1534493.8037695494,
-      1719388.2412996627,
-      1773790.8938964782,
-      1645762.3480091202,
-      1393039.4081316625,
-      1136302.3910770323,
-      945850.2946501538,
-      815540.1418568053,
-      714804.9124375102,
-      628046.9198292411,
-      552609.8251771167,
-      488769.9425354879,
-      435199.4364188046,
-      389184.7339146726,
-      350421.73783701984,
-      309213.1475157471,
-      299084.1510574164,
-      333863.2060375547,
-      482602.0584149615,
-      565849.8389277699,
-      519943.2526731512,
-  ])
-  q = np.array([
-      1.37135691582881,
-      1.37135691582881,
-      1.27913619906565,
-      1.21726950126096,
-      1.16084669815229,
-      1.05604148352651,
-      0.95890717122028,
-      0.89586771645966,
-      0.87938540325705,
-      0.90799464514058,
-      0.9686180341204,
-      1.04902169500537,
-      1.14143837590389,
-      1.24608508423679,
-      1.36442248625569,
-      1.4981977984943,
-      1.64919722386333,
-      1.81979471817765,
-      2.01448825599212,
-      2.23700063727324,
-      2.4971649202036,
-      2.82079736847714,
-      3.1902271580368,
-      3.46595968828217,
-      3.72386304343085,
-      3.91055923940663,
-  ])
-  s = np.array([
-      -0.0,
-      -0.03604804430932,
-      -0.11807194454359,
-      -0.14545630110876,
-      -0.29119080774593,
-      -0.47895077990131,
-      -0.4870396804476,
-      -0.29569374572961,
-      0.05244002541109,
-      0.42804329193025,
-      0.71706284307321,
-      0.90185558438387,
-      1.03247014023775,
-      1.15966789219432,
-      1.28980722144789,
-      1.42203542390438,
-      1.55626269677778,
-      1.70075987549405,
-      1.85810051057447,
-      2.03907899295711,
-      2.31031334507242,
-      2.57670435924641,
-      2.3157298338852,
-      1.79040411178357,
-      1.46582319478384,
-      1.25337716370321,
-  ])
-  return References(
-      config=torax_config,
-      psi=psi,
-      psi_face_grad=psi_face_grad,
-      psidot=psidot,
-      j_total=j_total,
-      q=q,
-      s=s,
-  )
+
 
 REFERENCES_REGISTRY: Final[Mapping[str, Callable[[], References]]] = (
     immutabledict.immutabledict({

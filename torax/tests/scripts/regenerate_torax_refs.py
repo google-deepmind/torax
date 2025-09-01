@@ -15,7 +15,7 @@
 r"""Script to regenerate reference values for unit tests.
 
 This script recalculates the reference values and saves them to a single JSON
-file: `torax/_src/test_utils/test_data/references.json`. The `torax_refs.py`
+file: `torax/_src/test_utils/references.json`. The `torax_refs.py`
 module then loads this file to build the reference objects for tests.
 
 Usage Examples:
@@ -29,13 +29,19 @@ python -m torax.tests.scripts.regenerate_refs
 
 # To regenerate and overwrite the references.json data file, with no summaries:
 python -m torax.tests.scripts.regenerate_refs --write_to_file --no_summary
+
+# By default the script writes to the in-tree references.json file. To write to
+a custom location, use the --output_dir flag:
+python -m torax.tests.scripts.regenerate_refs --write_to_file --no_summary
+--output_dir=/path/to/my/custom/directory
 """
 from collections.abc import Callable, Sequence
 import json
 import logging
 import os
+import pathlib
 import pprint
-from typing import Any, Literal
+from typing import Any
 from absl import app
 from absl import flags
 import numpy as np
@@ -47,6 +53,8 @@ from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import torax_refs
+
+FLAGS = flags.FLAGS
 
 _CASE = flags.DEFINE_multi_string(
     'case',
@@ -61,13 +69,21 @@ _WRITE_TO_FILE = flags.DEFINE_bool(
     'If True, saves the new reference values to references.json, overwriting'
     ' the old file.',
 )
-_NO_SUMMARY = flags.DEFINE_bool(
-    'no_summary',
+_PRINT_SUMMARY = flags.DEFINE_bool(
+    'print_summary',
     False,
-    'If True, suppresses printing the arrays to the console.',
+    'If True, prints the arrays to the console.',
 )
-
-_JSON_FILENAME: Literal['references.json'] = 'references.json'
+# Needed to test-time name collision with the flag in run_simulation_main.py.
+if 'output_dir' not in FLAGS:
+  _OUTPUT_DIR = flags.DEFINE_string(
+      'output_dir',
+      None,
+      'Custom directory to write the references.json file to. If not specified,'
+      ' the default location in the TORAX source tree will be used.',
+  )
+else:
+  _OUTPUT_DIR = None
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -139,12 +155,12 @@ def _calculate_new_references(
 
   j_total, _, _ = psi_calculations.calc_j_total(
       geo,
-      reference.psi,
+      psi,
   )
 
-  q_face = psi_calculations.calc_q_face(geo, reference.psi)
+  q_face = psi_calculations.calc_q_face(geo, psi)
 
-  s_face = psi_calculations.calc_s_face(geo, reference.psi)
+  s_face = psi_calculations.calc_s_face(geo, psi)
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geometry=geo,
@@ -183,9 +199,17 @@ def main(argv: Sequence[str]) -> None:
     raise app.UsageError('Too many command-line arguments.')
 
   cases_to_run = _CASE.value or torax_refs.REFERENCES_REGISTRY.keys()
-  output_path = (
-      config_loader.torax_path() / '_src' / 'test_utils' / _JSON_FILENAME
-  )
+  if _OUTPUT_DIR is not None and _OUTPUT_DIR.value is not None:
+    output_dir = pathlib.Path(_OUTPUT_DIR.value).expanduser()
+    output_path = output_dir / torax_refs.JSON_FILENAME
+  else:
+    # Use the default path inside the torax source tree.
+    output_path = (
+        config_loader.torax_path()
+        / '_src'
+        / 'test_utils'
+        / torax_refs.JSON_FILENAME
+    )
 
   # Read existing data first if it exists, to preserve un-regenerated cases.
   if _WRITE_TO_FILE.value and os.path.exists(output_path):
@@ -212,7 +236,7 @@ def main(argv: Sequence[str]) -> None:
     new_values = _calculate_new_references(config_generator_func)
     all_data[case_name] = new_values
 
-    if not _NO_SUMMARY.value:
+    if _PRINT_SUMMARY.value:
       _print_full_summary(case_name, new_values)
 
   if _WRITE_TO_FILE.value:

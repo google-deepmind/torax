@@ -15,14 +15,17 @@
 import json
 import os
 import pathlib
+import shutil
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
+import numpy as np
 from torax._src.config import config_loader
 from torax._src.test_utils import torax_refs
 from torax.tests.scripts import regenerate_torax_refs
+
+_LEN = 25  # Number of elements in the reference data arrays.
 
 
 class RegenerateRefsTest(parameterized.TestCase):
@@ -30,22 +33,32 @@ class RegenerateRefsTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self.temp_dir = pathlib.Path(self.create_tempdir())
+
+    # Get the original torax_path before mocking
+    original_torax_path = config_loader.torax_path()
+    original_refs_path = (
+        original_torax_path / '_src' / 'test_utils' / torax_refs.JSON_FILENAME
+    )
+
     self.mock_torax_path_patch = mock.patch.object(
         config_loader, 'torax_path', return_value=self.temp_dir
     )
     self.mock_torax_path = self.mock_torax_path_patch.start()
     self.addCleanup(self.mock_torax_path_patch.stop)
+
     self.output_path = (
-        self.temp_dir
-        / '_src'
-        / 'test_utils'
-        / regenerate_torax_refs._JSON_FILENAME
+        self.temp_dir / '_src' / 'test_utils' / torax_refs.JSON_FILENAME
     )
+
+    # Copy the original references.json to the temp directory. This is needed
+    # to ensure that the file exists for all test cases.
+    self.output_path.parent.mkdir(parents=True, exist_ok=True)
+    if original_refs_path.exists():
+      shutil.copyfile(original_refs_path, self.output_path)
 
   @parameterized.named_parameters(
       (case_name, case_name) for case_name in torax_refs.REFERENCES_REGISTRY
   )
-  @flagsaver.flagsaver(no_summary=True)
   def test_smoke_test_all_cases(self, case_name):
     """Smoke test to ensure the script runs for all registered cases."""
     with flagsaver.flagsaver(case=[case_name]):
@@ -79,20 +92,9 @@ class RegenerateRefsTest(parameterized.TestCase):
     ):
       regenerate_torax_refs.main([])
 
-  @flagsaver.flagsaver(case=['circular_references'], no_summary=True)
-  def test_no_summary_flag_suppresses_output(self):
-    """Tests that the --no_summary flag prevents detailed output."""
-    with self.assertLogs(level='INFO') as cm:
-      regenerate_torax_refs.main([])
-      log_output = '\n'.join(cm.output)
-      self.assertIn(
-          'Regenerating references for: circular_references...', log_output
-      )
-      self.assertNotIn('Full data for circular_references', log_output)
-
-  @flagsaver.flagsaver(case=['circular_references'])
-  def test_summary_is_printed_by_default(self):
-    """Tests that detailed output is printed by default."""
+  @flagsaver.flagsaver(case=['circular_references'], print_summary=True)
+  def test_summary_flag_prints_output(self):
+    """Tests that the --print_summary flag prints detailed output."""
     with self.assertLogs(level='INFO') as cm:
       regenerate_torax_refs.main([])
       log_output = '\n'.join(cm.output)
@@ -101,15 +103,43 @@ class RegenerateRefsTest(parameterized.TestCase):
       )
       self.assertIn('Full data for circular_references', log_output)
       self.assertIn('circular_references.psi', log_output)
+      self.assertIn('circular_references.psi_face_grad', log_output)
+      self.assertIn('circular_references.psidot', log_output)
+      self.assertIn('circular_references.j_total', log_output)
+      self.assertIn('circular_references.q', log_output)
+      self.assertIn('circular_references.s', log_output)
 
-  @flagsaver.flagsaver(write_to_file=True, case=['circular_references'])
+  @flagsaver.flagsaver(case=['circular_references'])
+  def test_summary_is_not_printed_by_default(self):
+    """Tests that detailed output is not printed by default."""
+    with self.assertLogs(level='INFO') as cm:
+      regenerate_torax_refs.main([])
+      log_output = '\n'.join(cm.output)
+      self.assertIn(
+          'Regenerating references for: circular_references...', log_output
+      )
+      self.assertNotIn('Full data for circular_references', log_output)
+
+  @flagsaver.flagsaver(case=['circular_references'], write_to_file=True)
   def test_write_to_file_preserves_other_cases(self):
     """Tests that regenerating one case does not delete others in the file."""
     # Create a dummy existing references file
     self.output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    dummy_circular_data = {
+        'psi': np.ones(_LEN).tolist(),
+        'psi_face_grad': np.ones(_LEN + 1).tolist(),
+        'psidot': np.ones(_LEN).tolist(),
+        'j_total': np.ones(_LEN).tolist(),
+        'q': np.ones(_LEN + 1).tolist(),
+        's': np.ones(_LEN + 1).tolist(),
+    }
+
     existing_data = {
         'dummy_case': {'psi': [1, 2, 3]},
-        'circular_references': {'psi': [0, 0, 0]},  # Old data to be overwritten
+        'circular_references': (
+            dummy_circular_data
+        ),  # Old data to be overwritten
     }
     with open(self.output_path, 'w') as f:
       json.dump(existing_data, f)
@@ -125,7 +155,8 @@ class RegenerateRefsTest(parameterized.TestCase):
 
     # Check that the circular_references case has been updated
     self.assertIn('circular_references', final_data)
-    self.assertNotEqual(final_data['circular_references']['psi'], [0, 0, 0])
+    for key, old_value in existing_data['circular_references'].items():
+      self.assertNotEqual(final_data['circular_references'][key], old_value)
 
 
 if __name__ == '__main__':

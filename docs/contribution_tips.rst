@@ -196,6 +196,37 @@ The ``compare_sim_tests.py`` can be used for sanity checking the outputs, and th
 ``--failed_test_output_dir`` flag in the compare and copy scripts needs to be set
 to the same output directory as the ``run_and_save_all_benchmarks.py`` script.
 
+Regenerating Unit Test References
+================================
+
+Some unit tests (particularly for physics and geometry calculations) rely on
+pre-calculated reference values stored in torax/_src/test_utils/references.json.
+If you make a change that intentionally and correctly alters these values, you
+will need to regenerate this reference file.
+To do this, a dedicated script is provided.
+
+Regenerating All Reference Cases
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To regenerate all reference cases and overwrite the existing JSON file, run the
+following command from the TORAX root directory:
+
+.. code-block:: console
+
+  python3 torax/tests/scripts/regenerate_torax_refs.py --write_to_file
+
+For printing a summary of the regenerated values to stdout for quick inspection,
+add a ``--print_summary`` flag. For a dry-run with no write, remove the
+``--write_to_file`` flag.
+
+Regenerating a Specific Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If you only need to update a specific reference case (e.g.,
+circular_references), you can specify it with the --case flag.
+
+.. code-block:: console
+
+  python3 torax/tests/scripts/regenerate_torax_refs.py --case=circular_references --write_to_file
+
 .. important::
   When making changes to the output structure, e.g. adding fields,
   a subset of the sim tests will fail. To pass these specific tests, it is
