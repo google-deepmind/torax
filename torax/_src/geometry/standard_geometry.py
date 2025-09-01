@@ -609,7 +609,7 @@ class StandardGeometryIntermediates:
         R_major=R_major,
         a_minor=a_minor,
         B_0=B_0,
-        psi=psi[0] - psi,
+        psi=psi,
         Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
         R_in=LY['rgeom'] - LY['aminor'],
@@ -931,7 +931,7 @@ class StandardGeometryIntermediates:
         a_minor=a_minor,
         B_0=np.array(B_0),
         # TODO(b/335204606): handle COCOS shenanigans
-        psi=psi_interpolant * 2 * np.pi,
+        psi=(psi_interpolant + eqfile['psimag'])* 2 * np.pi,
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
         R_in=R_inboard,
@@ -1039,8 +1039,10 @@ def build_standard_geometry(
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0
+      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0,
   )
+  # `initial` can only be zero or None, so add psi_axis afterwards.
+  psi_from_Ip += intermediate.psi[0]
 
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
