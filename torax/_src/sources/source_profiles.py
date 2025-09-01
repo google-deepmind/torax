@@ -121,11 +121,21 @@ class SourceProfiles:
     )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
-    total = self.bootstrap_current.j_bootstrap
-    total += sum(self.psi.values())
-    mu0 = constants.CONSTANTS.mu_0
-    prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B_0 * mu0 * geo.Phi_b / geo.F**2
-    return -total * prefactor
+    # All psi sources are assumed to be parallel to the magnetic field, ie
+    # self.psi.values() is <j.B> / B0
+    total_j_dot_B_over_B0 = self.bootstrap_current.j_parallel_bootstrap + sum(
+        self.psi.values()
+    )
+    total_j_dot_B = total_j_dot_B_over_B0 * geo.B_0
+    prefactor = (
+        8
+        * geo.vpr
+        * jnp.pi**2
+        * constants.CONSTANTS.mu_0
+        * geo.Phi_b
+        / geo.F**2
+    )
+    return -total_j_dot_B * prefactor
 
   def total_sources(
       self,

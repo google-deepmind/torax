@@ -78,10 +78,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
         output.IP_PROFILE,
         output.Q,
         output.MAGNETIC_SHEAR,
-        output.J_BOOTSTRAP,
-        output.J_OHMIC,
-        output.J_EXTERNAL,
-        output.J_TOTAL,
+        output.J_TOR_BOOTSTRAP,
+        output.J_TOR_OHMIC,
+        output.J_TOR_EXTERNAL,
+        output.J_TOR_TOTAL,
         output.SIGMA_PARALLEL,
     ]
     index = -1

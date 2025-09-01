@@ -32,15 +32,15 @@ from torax._src.torax_pydantic import torax_pydantic
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
 
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
+  j_parallel_bootstrap: jax.Array
+  j_parallel_bootstrap_face: jax.Array
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
     """Returns a BootstrapCurrent with all values set to zero."""
     return cls(
-        j_bootstrap=jnp.zeros_like(geometry.rho_norm),
-        j_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
+        j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
+        j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
     )
 
 
