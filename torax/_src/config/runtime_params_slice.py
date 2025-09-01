@@ -73,7 +73,7 @@ class RuntimeParams:
   """
 
   mhd: mhd_runtime_params.DynamicMHDParams
-  neoclassical: neoclassical_params.DynamicRuntimeParams
+  neoclassical: neoclassical_params.RuntimeParams
   numerics: numerics.DynamicNumerics
   pedestal: pedestal_model_params.DynamicRuntimeParams
   plasma_composition: plasma_composition.DynamicPlasmaComposition
