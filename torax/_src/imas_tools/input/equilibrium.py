@@ -183,6 +183,8 @@ def geometry_from_IMAS(
       "flux_surf_avg_RBp": flux_surf_avg_RBp,
       "flux_surf_avg_R2Bp2": flux_surf_avg_R2Bp2,
       "flux_surf_avg_Bp2": flux_surf_avg_Bp2,
+      "flux_surf_avg_B2": IMAS_data.profiles_1d.gm5,
+      "flux_surf_avg_1_over_B2": IMAS_data.profiles_1d.gm4,
       "delta_upper_face": IMAS_data.profiles_1d.triangularity_upper,
       "delta_lower_face": IMAS_data.profiles_1d.triangularity_lower,
       "elongation": IMAS_data.profiles_1d.elongation,
