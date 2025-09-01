@@ -26,15 +26,15 @@ Functions:
     - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
+      constraint on the poloidal flux (psi) from Ip.
+    - j_tor_to_j_parallel: Calculates <j.B>/B0 from j_tor = dI/dS.
+    - j_parallel_to_j_tor: Calculates j_tor = dI/dS from <j.B>/B0.
 """
 import jax
 from jax import numpy as jnp
-from torax._src import array_typing
-from torax._src import constants
-from torax._src import jax_utils
-from torax._src.fvm import cell_variable
-from torax._src.fvm import convection_terms
-from torax._src.fvm import diffusion_terms
+
+from torax._src import array_typing, constants, jax_utils, math_utils
+from torax._src.fvm import cell_variable, convection_terms, diffusion_terms
 from torax._src.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -338,3 +338,64 @@ def calculate_psidot_from_psi_sources(
   psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
 
   return psidot
+
+
+def j_toroidal_to_j_parallel(
+    j_toroidal: array_typing.FloatVector, geo: geometry.Geometry
+) -> array_typing.FloatVector:
+  r"""Calculates <j.B>/B0 from j_tor = dI/dS.
+
+  Operates only on the cell grid.
+
+  The relationship is
+
+  .. math::
+
+    \frac{\langle j.B \rangle}{B_0} =
+      \frac{F \langle 1/R^2 \rangle}{2 \pi \rho B_0^2}
+      \left(
+        F \frac{\partial I}{\partial \rho}
+        - \frac{\partial F}{\partial \rho} I
+      \right)
+
+  where :math:`\frac{\partial I}{\partial \rho} =
+    j_{\mathrm{tor}} \frac{\partial S}{\partial \rho}`.
+
+  See Eq 45 in https://users.euro-fusion.org/pages/data-cmg/wiki/files/JETTO_current.pdf
+  """
+  dI_drhon = j_toroidal * geo.spr
+  I = math_utils.cumulative_trapezoid(dI_drhon * geo.drho_norm, initial=0.0)
+  d_drho_I_over_F = jnp.gradient(I / geo.F, geo.rho)
+
+  return (
+      geo.F**3 * geo.g3 / (2 * jnp.pi * geo.rho * geo.B_0**2) * d_drho_I_over_F
+  )
+
+
+def j_parallel_to_j_toroidal(
+    j_parallel: array_typing.FloatVector, geo: geometry.Geometry
+) -> array_typing.FloatVector:
+  r"""Calculates j_toroidal = dI/dS from <j.B>/B0.
+
+  Operates only on the cell grid.
+
+  The relationship is
+
+  .. math::
+    j_\mathrm{tor} = \frac{\partial}{\partial S} \left(\frac{2 \pi B_0^2}{F} \int_{0}^{\rho'}
+    \frac{\langle j.B \rangle}{B_0 F \langle 1/R^2 \rangle} \rho' d\rho'\right)
+
+  See Eq 57 https://users.euro-fusion.org/pages/data-cmg/wiki/files/JETTO_current.pdf
+  """
+  I = (
+      2
+      * jnp.pi
+      * geo.B_0**2
+      * geo.F
+      * math_utils.cumulative_trapezoid(
+          j_parallel * geo.rho / (geo.F**3 * geo.g3) * geo.drho, initial=0.0
+      )
+  )
+  dI_drhon = jnp.gradient(I, geo.rho_norm)
+
+  return dI_drhon / geo.spr

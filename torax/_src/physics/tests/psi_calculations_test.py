@@ -14,14 +14,16 @@
 
 from typing import Callable
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import jax
 import numpy as np
+import pytest
+from absl.testing import absltest, parameterized
+
 from torax._src import constants
 from torax._src.core_profiles import initialization
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.imas_tools.input import loader as imas_loader
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
@@ -189,6 +191,58 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Relatively low tolerance because the analytical formula is not exact for
     # our circular geometry, but approximates it at low inverse aspect ratio.
     np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
+
+  # pylint: enable=invalid-name
+
+  def test_calc_j_tor_from_j_parallel(self, step_geo_and_j_profiles_from_IMAS):
+    # Use a STEP case for the j profiles as the differences between j_tor and
+    # j_parallel are larger in a spherical tokamak
+    geo, j_parallel_truth, j_tor_truth = step_geo_and_j_profiles_from_IMAS
+
+    j_tor_from_j_parallel = psi_calculations.j_parallel_to_j_toroidal(
+        j_parallel_truth, geo
+    )
+    np.testing.assert_allclose(j_tor_from_j_parallel, j_tor_truth, rtol=1e-6)
+    np.testing.assert_allclose(
+        psi_calculations.j_toroidal_to_j_parallel(j_tor_from_j_parallel, geo),
+        j_parallel_truth,
+        rtol=1e-6,
+    )
+
+  def test_calc_j_parallel_from_j_tor(self, step_geo_and_j_profiles_from_IMAS):
+    geo, j_parallel_truth, j_tor_truth = step_geo_and_j_profiles_from_IMAS
+
+    j_parallel_from_j_tor = psi_calculations.j_toroidal_to_j_parallel(
+        j_tor_truth, geo
+    )
+    np.testing.assert_allclose(
+        j_parallel_from_j_tor, j_parallel_truth, rtol=1e-6
+    )
+    np.testing.assert_allclose(
+        psi_calculations.j_parallel_to_j_toroidal(j_parallel_from_j_tor, geo),
+        j_tor_truth,
+        rtol=1e-6,
+    )
+
+
+@pytest.fixture
+def step_geo_and_j_profiles_from_IMAS():
+  # TODO: move to torax_refs
+  imas_filename = 'STEP_SPP_001_ECHD_ftop.nc'
+
+  # Load geo from IMAS
+  config = geometry_pydantic_model.IMASConfig(
+      imas_filepath=imas_filename,
+      n_rho=200,
+  )
+  geo = config.build_geometry()
+
+  # Load profiles from IMAS
+  core_profiles_ids = imas_loader.load_imas_data(imas_filename, 'core_profiles')
+  j_parallel_truth = core_profiles_ids.profiles_1d[0].j_total[:]
+  j_tor_truth = core_profiles_ids.profiles_1d[0].j_phi[:]
+
+  return geo, j_parallel_truth, j_tor_truth
 
 
 if __name__ == '__main__':
