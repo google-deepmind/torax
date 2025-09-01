@@ -21,6 +21,7 @@ CHEASE, FBT, etc.
 from collections.abc import Mapping
 import dataclasses
 import logging
+
 import chex
 import contourpy
 from imas import ids_toplevel
@@ -152,6 +153,10 @@ class StandardGeometryIntermediates:
       T}`].
     flux_surf_avg_R2Bp2: Flux surface average of :math:`R^2 B_p^2`
       [:math:`\mathrm{m^2 T^2}`].
+    flux_surf_avg_B2: Flux surface average of :math:`B^2`
+      [:math:`\mathrm{T}^2`].
+    flux_surf_avg_1_over_B2: Flux surface average of :math:`1/B^2`
+      [:math:`\mathrm{T}^{-2}`].
     delta_upper_face: Upper triangularity [dimensionless]. See `Geometry`
       docstring for definition.
     delta_lower_face: Lower triangularity [dimensionless]. See `Geometry`
@@ -184,6 +189,8 @@ class StandardGeometryIntermediates:
   flux_surf_avg_Bp2: array_typing.Array
   flux_surf_avg_RBp: array_typing.Array
   flux_surf_avg_R2Bp2: array_typing.Array
+  flux_surf_avg_B2: array_typing.Array
+  flux_surf_avg_1_over_B2: array_typing.Array
   delta_upper_face: array_typing.Array
   delta_lower_face: array_typing.Array
   elongation: array_typing.Array
@@ -931,7 +938,7 @@ class StandardGeometryIntermediates:
         a_minor=a_minor,
         B_0=np.array(B_0),
         # TODO(b/335204606): handle COCOS shenanigans
-        psi=(psi_interpolant + eqfile['psimag'])* 2 * np.pi,
+        psi=(psi_interpolant + eqfile['psimag']) * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
         R_in=R_inboard,
@@ -1039,7 +1046,9 @@ def build_standard_geometry(
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0,
+      y=dpsidrhon,
+      x=rho_norm_intermediate,
+      initial=0.0,
   )
   # `initial` can only be zero or None, so add psi_axis afterwards.
   psi_from_Ip += intermediate.psi[0]
@@ -1161,6 +1170,15 @@ def build_standard_geometry(
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
+  gm4 = rhon_interpolation_func(rho_norm, intermediate.flux_surf_avg_1_over_B2)
+  gm4_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.flux_surf_avg_1_over_B2
+  )
+  gm5 = rhon_interpolation_func(rho_norm, intermediate.flux_surf_avg_B2)
+  gm5_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.flux_surf_avg_B2
+  )
+
   volume_face = rhon_interpolation_func(rho_face_norm, volume_intermediate)
   volume = rhon_interpolation_func(rho_norm, volume_intermediate)
 
@@ -1195,6 +1213,10 @@ def build_standard_geometry(
       g2g3_over_rhon=g2g3_over_rhon,
       g2g3_over_rhon_face=g2g3_over_rhon_face,
       g2g3_over_rhon_hires=g2g3_over_rhon_hires,
+      gm4=gm4,
+      gm4_face=gm4_face,
+      gm5=gm5,
+      gm5_face=gm5_face,
       F=F,
       F_face=F_face,
       F_hires=F_hires,
