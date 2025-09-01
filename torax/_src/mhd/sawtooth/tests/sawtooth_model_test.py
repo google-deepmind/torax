@@ -15,10 +15,10 @@
 
 import dataclasses
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import jax
 import numpy as np
+from absl.testing import absltest, parameterized
+
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
@@ -274,15 +274,15 @@ _POST_CRASH_N = np.array([
 ])
 
 _POST_CRASH_PSI = np.array([
-    9.778742,
-    11.342102,
-    14.360384,
-    18.737049,
-    24.378128,
-    31.058185,
-    38.126174,
-    44.844899,
-    50.742815,
+    8.245389,
+    9.864265,
+    12.989683,
+    17.52163,
+    23.362746,
+    30.278108,
+    37.587465, 
+    44.522205,
+    50.597804,
     55.729866,
 ])
 

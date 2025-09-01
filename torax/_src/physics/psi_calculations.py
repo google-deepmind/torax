@@ -26,12 +26,18 @@ Functions:
     - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
     - calc_bpol_squared: Calculates square of poloidal field (Bp).
+    - j_toroidal_to_j_parallel: Calculates <j.B>/B0 from j_toroidal = dI/dS.
+    - j_parallel_to_j_toroidal: Calculates j_toroidal = dI/dS from <j.B>/B0.
 """
+from typing import Final
+
 import jax
 from jax import numpy as jnp
+
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.fvm import convection_terms
 from torax._src.fvm import diffusion_terms
@@ -40,6 +46,63 @@ from torax._src.geometry import geometry
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
+
+_MIN_RHO_NORM: Final[array_typing.FloatScalar] = 0.05
+
+
+def _extrapolate_cell_profile_to_axis(
+    cell_profile: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+    min_rho_norm: array_typing.FloatScalar = _MIN_RHO_NORM,
+) -> array_typing.FloatVectorCell:
+  """Extrapolates the value of a cell profile towards the axis.
+
+  Args:
+      cell_profile: The profile to extrapolate.
+      geo: Tokamak geometry.
+
+  Returns:
+      The cell profile with modified near-axis values.
+  """
+  # TODO: Replace with a more sophisticated extrapolation method (eg splines)
+  # Current method: Extend the value of the first cell where rho_norm >=
+  # min_rho_norm to the axis.
+  mask = geo.rho_norm >= min_rho_norm
+  # In a boolean array, argmax returns the index of the first True and returns 0
+  # if all False
+  i = jnp.argmax(mask)
+  clamp_profile_value = cell_profile[i]
+  return jnp.where(
+    ~mask,
+    jnp.ones_like(cell_profile)*clamp_profile_value,
+    cell_profile,
+  )
+
+
+def _extrapolate_face_profile_to_axis(
+    face_profile: array_typing.FloatVectorFace,
+    cell_profile: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+    min_rho_norm: array_typing.FloatScalar = _MIN_RHO_NORM,
+) -> array_typing.FloatVectorFace:
+  """Extrapolates the value of a face profile towards the axis."""
+  # TODO: Replace with a more sophisticated extrapolation method (eg splines)
+  # Current method: Extend the value of the first cell where rho_norm >=
+  # min_rho_norm to the axis. Note that if there is a face i s.t.
+  # min_rho_norm <= rho_face_norm[i] <= first_cell_greater_than_min_rho_norm,
+  # the value at this face will also be modified.
+  mask = geo.rho_norm >= min_rho_norm
+  i = jnp.argmax(mask)
+  clamp_profile_value = cell_profile[i]
+  # We need to dynamically index here to get a specific value as, because the
+  # mask is on the cell grid, we can't simply do a jnp.where(mask, ...) to get
+  # the face values in the following line.
+  clamp_rho_norm_value = jax.lax.dynamic_index_in_dim(geo.rho_norm, i, axis=-1)
+  return jnp.where(
+    geo.rho_face_norm < clamp_rho_norm_value,
+    clamp_profile_value,
+    face_profile,
+  )
 
 
 def calc_q_face(
@@ -112,16 +175,17 @@ def calc_j_total(
   dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
   dI_drhon = jnp.gradient(Ip_profile, geo.rho_norm)
 
-  j_total_bulk = dI_drhon[1:] / geo.spr[1:]
+  j_total = dI_drhon / geo.spr
+  # Note: On-axis face values will be overwritten by extrapolation below, but we
+  # need to avoid division by zero
   j_total_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
+  j_total_face = jnp.concatenate([jnp.array([j_total[0]]), j_total_face_bulk])
 
-  # Extrapolate the axis term from the bulk term due to strong sensitivities
-  # of near-axis numerical derivatives. Set zero boundary condition on-axis
-  j_total_axis = j_total_bulk[0] - (j_total_bulk[1] - j_total_bulk[0])
-
-  j_total = jnp.concatenate([jnp.array([j_total_axis]), j_total_bulk])
-  j_total_face = jnp.concatenate([jnp.array([j_total_axis]), j_total_face_bulk])
-
+  # Extrapolate the axis values to avoid numerical artifacts
+  j_total = _extrapolate_cell_profile_to_axis(j_total, geo)
+  j_total_face = _extrapolate_face_profile_to_axis(
+    j_total_face, j_total, geo,
+  )
   return j_total, j_total_face, Ip_profile_face
 
 
@@ -338,3 +402,86 @@ def calculate_psidot_from_psi_sources(
   psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
 
   return psidot
+
+
+def j_toroidal_to_j_parallel(
+    j_toroidal: array_typing.FloatVectorCell, geo: geometry.Geometry
+) -> array_typing.FloatVectorCell:
+  r"""Calculates <j.B>/B0 from j_tor = dI/dS.
+
+  Operates only on the cell grid.
+
+  The relationship is
+
+  .. math::
+
+    \frac{\langle j.B \rangle}{B_0} =
+      \frac{F \langle 1/R^2 \rangle}{2 \pi \rho B_0^2}
+      \left(
+        F \frac{\partial I}{\partial \rho}
+        - \frac{\partial F}{\partial \rho} I
+      \right)
+
+  where :math:`\frac{\partial I}{\partial \rho} =
+    j_{\mathrm{tor}} \frac{\partial S}{\partial \rho}`.
+
+  See Eq 45 in https://users.euro-fusion.org/pages/data-cmg/wiki/files/JETTO_current.pdf
+  """
+  # Plasma current on the face grid
+  I_face = jnp.concatenate([
+      jnp.array([0.0]),
+      math_utils.cumulative_area_integration(j_toroidal, geo),
+  ])
+
+  # d/drho (I/F) on the cell grid
+  # First-order finite difference on the face grid gives values at cell centers
+  d_drho_I_over_F = jnp.diff(I_face / geo.F_face) / jnp.diff(geo.rho_face)
+
+  # <j.B>/B0 on the cell grid
+  j_dot_B_over_B0 = (
+      geo.F**3 * geo.g3 / (2 * jnp.pi * geo.rho * geo.B_0**2) * d_drho_I_over_F
+  )
+
+  # Extrapolate to axis to avoid numerical artifacts due to rho -> 0
+  return _extrapolate_cell_profile_to_axis(j_dot_B_over_B0, geo)
+
+
+def j_parallel_to_j_toroidal(
+    j_parallel: array_typing.FloatVectorCell, geo: geometry.Geometry
+) -> array_typing.FloatVectorCell:
+  r"""Calculates j_toroidal = dI/dS from <j.B>/B0.
+
+  Operates only on the cell grid.
+
+  The relationship is
+
+  .. math::
+    j_\mathrm{tor} = \frac{\partial}{\partial S} \left(2 \pi B_0^2 F \int_{0}^{\rho}
+    \frac{\langle j.B \rangle}{B_0 F^3 \langle 1/R^2 \rangle} \rho' d\rho'\right)
+
+  See Eq 57 https://users.euro-fusion.org/pages/data-cmg/wiki/files/JETTO_current.pdf
+  """
+  # Calculate integral term
+  integrand_cell = j_parallel / (geo.F**3 * geo.g3) * geo.rho
+  integral_face = jnp.concatenate([
+      jnp.array([0.0]),
+      # cumulative_cell_integration integrates wrt rho_norm, so we multiply by rho_b
+      # to convert to integration wrt rho
+      math_utils.cumulative_cell_integration(integrand_cell * geo.rho_b, geo),
+  ])
+
+  # Plasma current on the face grid
+  I_face = 2 * jnp.pi * geo.B_0**2 * geo.F_face * integral_face
+
+  # Area on the face grid
+  S_face = jnp.concatenate([
+      jnp.array([0.0]),
+      math_utils.cumulative_area_integration(jnp.ones_like(geo.rho_norm), geo),
+  ])
+
+  # j_toroidal = dI/dS on the cell grid
+  # First-order finite difference on the face grid gives values at cell centers
+  j_tor = jnp.diff(I_face) / jnp.diff(S_face)
+
+  # Extrapolate to axis to avoid numerical artifacts
+  return _extrapolate_cell_profile_to_axis(j_tor, geo)
