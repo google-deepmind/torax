@@ -563,6 +563,85 @@ class SimTest(sim_test_case.SimTestCase):
 
     # pylint: enable=invalid-name
 
+  def test_prescribed_psidot(self):
+    """Tests that a prescribed psidot is used when current is not evolved."""
+    # Base config for a simple run.
+    base_config_dict = {
+        'profile_conditions': {},
+        'plasma_composition': {},
+        'numerics': {
+            't_final': 3.0,
+            'evolve_ion_heat': True,
+            'evolve_electron_heat': True,
+            'evolve_density': False,
+        },
+        'geometry': {
+            'geometry_type': 'circular',
+            'n_rho': 10,
+        },
+        'sources': {
+            'ohmic': {},
+            'generic_current': {},
+        },
+        'transport': {},
+        'pedestal': {},
+        'solver': {},
+    }
+
+    # --- Run 1: Reference run with current evolution to generate psidot ---
+    ref_config_dict = copy.deepcopy(base_config_dict)
+    ref_config_dict['numerics']['evolve_current'] = True
+    ref_torax_config = model_config.ToraxConfig.from_dict(ref_config_dict)
+    ref_output_xr, _ = run_simulation.run_simulation(
+        ref_torax_config, progress_bar=False
+    )
+    # Extract the psidot profile and time array
+    ref_psidot = ref_output_xr.profiles.v_loop.values
+    ref_time = ref_output_xr.time.values
+    ref_rho_norm = ref_output_xr.rho_norm.values
+
+    # --- Run 2: Test run without current evolution ---
+    # We expect this to be different from Run 1.
+    test_config_dict = copy.deepcopy(base_config_dict)
+    test_config_dict['numerics']['evolve_current'] = False
+    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_output_xr_different, _ = run_simulation.run_simulation(
+        test_torax_config, progress_bar=False
+    )
+
+    # --- Run 3: Test run without current evolution, using prescribed psidot ---
+    # We expect this to be identical to Run 1.
+    test_config_dict = copy.deepcopy(base_config_dict)
+    test_config_dict['numerics']['evolve_current'] = False
+    # Provide psidot as a time-varying array
+    test_config_dict['profile_conditions']['psidot'] = (
+        ref_time,
+        ref_rho_norm,
+        ref_psidot,
+    )
+    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_output_xr_same, _ = run_simulation.run_simulation(
+        test_torax_config, progress_bar=False
+    )
+
+    # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
+    # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
+    # and it is correct that v_loop_lcfs is different between psi-evolving and
+    # psi-fixed simulations.
+    np.testing.assert_allclose(
+        ref_output_xr.profiles.v_loop.values[:, :-1],
+        test_output_xr_same.profiles.v_loop.values[:, :-1],
+        rtol=1e-6,
+    )
+
+    # Compare Runs 1 and 2 - v_loop (cell grid) should be different
+    with self.assertRaises(AssertionError):
+      np.testing.assert_allclose(
+          ref_output_xr.profiles.v_loop.values[:, :-1],
+          test_output_xr_different.profiles.v_loop.values[:, :-1],
+          rtol=1e-6,
+      )
+
   def test_nans_trigger_error(self):
     """Verify that NaNs in profile evolution triggers early stopping and an error."""
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')

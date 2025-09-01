@@ -206,6 +206,41 @@ class ConfigTest(parameterized.TestCase):
 
     warning_snippet = "use_pereverzev=False in a configuration where setting"
 
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="psidot_none_evolve_current_true",
+          psidot=None,
+          evolve_current=True,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psidot_set_evolve_current_false",
+          psidot={0: {0: 0.1, 1: 0.2}},
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psidot_set_evolve_current_true",
+          psidot={0: {0: 0.1, 1: 0.2}},
+          evolve_current=True,
+          expect_warning=True,
+      ),
+  )
+  def test_psidot_evolve_current_warning(
+      self, psidot, evolve_current, expect_warning
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["psidot"] = psidot
+    config_dict["numerics"]["evolve_current"] = evolve_current
+
+    warning_snippet = "profile_conditions.psidot input is ignored"
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  def _assert_warning_logged(
+      self, warning_snippet, expect_warning, config_dict
+  ):
     # Avoid assertion failure when no warnings are logged at all.
     try:
       with self.assertLogs(level=logging.WARNING) as cm:

@@ -154,6 +154,21 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
           """)
     return self
 
+  @pydantic.model_validator(mode='after')
+  def _check_psidot_and_evolve_current(self) -> typing_extensions.Self:
+    """Warns if psidot is provided but evolve_current is True."""
+    if (
+        self.profile_conditions.psidot is not None
+        and self.numerics.evolve_current
+    ):
+      logging.warning("""
+          profile_conditions.psidot input is ignored as numerics.evolve_current
+          is True.
+
+          Prescribed psidot is only applied when current diffusion is off.
+          """)
+    return self
+
   def update_fields(self, x: Mapping[str, Any]):
     """Safely update fields in the config.
 
