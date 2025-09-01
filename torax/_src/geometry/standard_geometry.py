@@ -334,6 +334,8 @@ class StandardGeometryIntermediates:
     flux_surf_avg_R2Bp2 = (
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / R_major**2
     )
+    flux_surf_avg_B2 = chease_data['<B**2>'] * B_0**2
+    flux_surf_avg_1_over_B2 = chease_data['<1/B**2>'] / B_0**2
 
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
@@ -356,6 +358,8 @@ class StandardGeometryIntermediates:
         flux_surf_avg_Bp2=flux_surf_avg_Bp2,
         flux_surf_avg_RBp=flux_surf_avg_RBp,
         flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=chease_data['delta_upper'],
         delta_lower_face=chease_data['delta_bottom'],
         elongation=chease_data['elongation'],
