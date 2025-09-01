@@ -614,6 +614,17 @@ class StandardGeometryIntermediates:
     # extrapolation in the post_init.
     LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
 
+    # TODO(b/426291465): Implement a more accurate calculation of <1/B^2>
+    # (either here or upstream in MEQ)
+    # Approximate with analytical expressions for circular geometry.
+    flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
+    flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
+    logging.warning(
+        '<B^2> and <1/B^2> not currently supported by FBT geometry;'
+        ' approximating using analytical expressions for circular geometry.'
+        ' This might cause inaccuracies in neoclassical transport.'
+    )
+
     return cls(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
@@ -632,6 +643,8 @@ class StandardGeometryIntermediates:
         flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
         flux_surf_avg_RBp=np.abs(LY['Q5Q']) / (2 * np.pi),
         flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
         elongation=LY['kappa'],
