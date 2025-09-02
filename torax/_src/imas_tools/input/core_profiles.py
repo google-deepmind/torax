@@ -150,6 +150,9 @@ def core_profiles_from_IMAS(
   else:
     v_loop_lcfs = [0.0]
 
+  #Plasma composition 
+  plasma_composition_dict = _get_plasma_composition_info(ids, time_array, rhon_array)
+
   return {
       "profile_conditions": {
           "Ip": Ip,
@@ -165,9 +168,48 @@ def core_profiles_from_IMAS(
           "n_e": n_e,
           "normalize_n_e_to_nbar": False,
           "v_loop_lcfs": v_loop_lcfs,
-      },
+      }
+      **plasma_composition_dict
   }
 
+def _get_plasma_composition_info(ids, time_array, rhon_array):
+  profiles_1d = ids.profiles_1d
+  Z_eff = {
+    time_array[ti]: {
+        rhon_array[ti][ri]: profiles_1d[ti].zeff[ri]
+        for ri in range(len(rhon_array[ti]))
+    }
+    for ti in range(len(time_array))
+    }
+  species = {} #Mapping Impurity_label: ratio analogous to what it needs to
+  # be in the plasma_composition.impurity.species config
+  ne = {
+    time_array[ti]: {
+        rhon_array[ti][ri]: profiles_1d[ti].electrons.density[ri]
+        for ri in range(len(rhon_array[ti]))
+    }
+    for ti in range(len(time_array))
+    }
+  for iion in range(len(profiles_1d.ion)):
+    try: 
+      symbol = profiles_1d.ion[iion].name
+    except AttributeError: #Case ids is plasma_profiles in early DDv4 releases
+      symbol = profiles_1d.ion[iion].label
+    ne_ratio = {
+    time_array[ti]: {
+        rhon_array[ti][ri]: profiles_1d[ti].ion[iion].density[ri] / profiles_1d[ti].electrons.density[ri]
+        for ri in range(len(rhon_array[ti]))
+    }
+    for ti in range(len(time_array))
+    }
+    species[symbol] = ne_ratio 
+
+  return {
+    Z_eff: Z_eff,
+    species: species 
+      }
+  
+  
 
 def load_core_profiles_data(
     uri: str,
