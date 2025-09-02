@@ -17,10 +17,10 @@
 from collections.abc import Mapping
 import functools
 from typing import Any, Literal, TypeAlias
-
 import chex
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
@@ -141,7 +141,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       self,
       t: chex.Numeric,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time.
 
     Args:
@@ -243,14 +243,15 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     elif isinstance(data, tuple):
       values = []
       for v in data:
-        if isinstance(v, chex.Array):
+        if isinstance(v, array_typing.Array):
           values.append(v)
         elif isinstance(v, list):
           values.append(np.asarray(v))
         else:
           raise ValueError(
               'Input to TimeVaryingArray unsupported. Input was of type:'
-              f' {type(v)}. Expected chex.Array or list of floats/ints/bools.'
+              f' {type(v)}. Expected array_typing.Array or list of'
+              ' floats/ints/bools.'
           )
       value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
@@ -327,7 +328,7 @@ def _load_from_primitives(
         Mapping[float, interpolated_param.InterpolatedVarSingleAxisInput]
         | float
     ),
-) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+) -> Mapping[float, tuple[array_typing.Array, array_typing.Array]]:
   """Loads the data from primitives.
 
   Three cases are supported:
@@ -367,7 +368,7 @@ def _load_from_primitives(
 
 
 def _load_from_arrays(
-    arrays: tuple[chex.Array, ...] | xr.DataArray,
+    arrays: tuple[array_typing.Array, ...] | xr.DataArray,
 ) -> Mapping[float, tuple[np.ndarray, np.ndarray]]:
   """Loads the data from numpy arrays.
 

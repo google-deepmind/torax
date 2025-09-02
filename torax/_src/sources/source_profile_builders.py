@@ -15,7 +15,7 @@
 """Functions for building source profiles in TORAX."""
 import functools
 
-import chex
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -188,7 +188,7 @@ def _update_standard_source_profiles(
     calculated_source_profiles: source_profiles.SourceProfiles,
     source_name: str,
     affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...],
-    profile: tuple[chex.Array, ...],
+    profile: tuple[array_typing.FloatVectorCell, ...],
 ):
   """Updates the standard source profiles in calculated_source_profiles.
 

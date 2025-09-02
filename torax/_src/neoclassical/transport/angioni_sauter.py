@@ -23,8 +23,8 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 
 from typing import Annotated, Literal
 
-import chex
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -298,14 +298,14 @@ def _calculate_angioni_sauter_transport(
 
 
 def _calculate_Kmn(
-    ftrap: chex.Array,
-    ftrap_d: chex.Array,
-    Z_eff: chex.Array,
-    B2_avg_Bm2_avg: chex.Array,
-    nu_e_star: chex.Array,
-    nu_i_star: chex.Array,
-    alpha_I: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    ftrap: array_typing.FloatVectorFace,
+    ftrap_d: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+    B2_avg_Bm2_avg: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+    alpha_I: array_typing.FloatVectorFace,
+) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensionless transport matrices Kmn."""
 
   # F_mn matrix, Eq. (24)
@@ -452,7 +452,9 @@ def _calculate_Kmn(
   return Kmn_e, Kmn_i
 
 
-def _Fmn_X(X: chex.Array, Z_eff: chex.Array) -> chex.Array:
+def _Fmn_X(
+    X: array_typing.FloatVectorFace, Z_eff: array_typing.FloatVectorFace
+) -> array_typing.Array:
   """Calculates the F_mn matrix from Eq. (24) of Angioni & Sauter 2000."""
   F11 = X + X * (0.9 + X * (-1.9 + X * (1.6 - 0.6 * X))) / (Z_eff + 0.5)
   F12 = X + X * (0.6 + X * (-0.95 + X * (0.3 + 0.05 * X))) / (Z_eff + 0.5)
@@ -462,9 +464,16 @@ def _Fmn_X(X: chex.Array, Z_eff: chex.Array) -> chex.Array:
 
 
 def _coeffs_appendix_B(
-    Z_eff: chex.Array,
+    Z_eff: array_typing.Array,
 ) -> tuple[
-    chex.Array, chex.Array, chex.Array, chex.Array, float, float, float, float
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+    float,
+    float,
+    float,
+    float,
 ]:
   """Calculates coefficients from Appendix B of Angioni & Sauter 2000."""
   a11 = (1.0 + 3.0 * Z_eff) / (0.77 + 1.22 * Z_eff)
@@ -493,16 +502,16 @@ def _coeffs_appendix_B(
 
 
 def _calculate_Lmn(
-    Kmn_e: chex.Array,
-    Kmn_i: chex.Array,
+    Kmn_e: array_typing.Array,
+    Kmn_i: array_typing.Array,
     geo: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-    epsilon: chex.Array,
-    nu_e_star: chex.Array,
-    nu_i_star: chex.Array,
-    B2_avg: chex.Array,
-    Bm2_avg: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    epsilon: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+    B2_avg: array_typing.FloatVectorFace,
+    Bm2_avg: array_typing.FloatVectorFace,
+) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensional transport matrices Lmn."""
   # Normalization factors from Eqs. 16, 20, 21
   consts = constants.CONSTANTS

@@ -16,7 +16,6 @@
 import dataclasses
 import functools
 from typing import Annotated, Final, Literal, Mapping, Sequence
-
 import chex
 import immutabledict
 import jax
@@ -203,7 +202,7 @@ def impurity_radiation_mavrin_fit(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Model function for impurity radiation heat sink."""
 
   # Reconstruct array from mapping for DynamicIonMixture and effective LZ

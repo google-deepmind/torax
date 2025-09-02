@@ -27,7 +27,6 @@ Functions:
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
 """
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -46,7 +45,7 @@ _trapz = jax.scipy.integrate.trapezoid
 def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> chex.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
@@ -65,7 +64,11 @@ def calc_q_face(
 def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array, chex.Array]:
+) -> tuple[
+    array_typing.FloatVectorCell,
+    array_typing.FloatVectorFace,
+    array_typing.FloatVectorFace,
+]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
   `j_total` (also referred to `j_tor` in TORAX) is defined as the

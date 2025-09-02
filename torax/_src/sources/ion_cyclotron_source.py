@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Surrogate model for ion-cyclotron resonance heating (ICRH) model."""
+
 import dataclasses
 import functools
 import json
@@ -344,7 +345,7 @@ def icrh_model_func(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
     toric_nn: ToricNNWrapper,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Compute ion/electron heat source terms."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

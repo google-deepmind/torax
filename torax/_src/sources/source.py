@@ -26,8 +26,8 @@ import enum
 import typing
 from typing import ClassVar, Protocol
 
-import chex
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -48,7 +48,7 @@ class SourceProfileFunction(Protocol):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       unused_conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[chex.Array, ...]:
+  ) -> tuple[array_typing.FloatVectorCell, ...]:
     ...
 
 
@@ -87,8 +87,8 @@ class Source(abc.ABC):
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by `output_shape`.
-    model_func: The function used when the runtime type is set to
-      "MODEL_BASED". If not provided, then it defaults to returning zeros.
+    model_func: The function used when the runtime type is set to "MODEL_BASED".
+      If not provided, then it defaults to returning zeros.
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
@@ -113,7 +113,7 @@ class Source(abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[chex.Array, ...]:
+  ) -> tuple[array_typing.FloatVectorCell, ...]:
     """Returns the cell grid profile for this source during one time step.
 
     Args:

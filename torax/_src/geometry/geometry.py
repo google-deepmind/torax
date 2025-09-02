@@ -16,15 +16,17 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
-
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 
 
-def face_to_cell(face: chex.Array) -> chex.Array:
+def face_to_cell(
+    face: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorCell:
   """Infers cell values corresponding to a vector of face values.
 
   Simply a linear interpolation between face values.
@@ -170,45 +172,45 @@ class Geometry:
 
   geometry_type: GeometryType
   torax_mesh: torax_pydantic.Grid1D
-  Phi: chex.Array
-  Phi_face: chex.Array
-  R_major: chex.Array
-  a_minor: chex.Array
-  B_0: chex.Array
-  volume: chex.Array
-  volume_face: chex.Array
-  area: chex.Array
-  area_face: chex.Array
-  vpr: chex.Array
-  vpr_face: chex.Array
-  spr: chex.Array
-  spr_face: chex.Array
-  delta_face: chex.Array
-  elongation: chex.Array
-  elongation_face: chex.Array
-  g0: chex.Array
-  g0_face: chex.Array
-  g1: chex.Array
-  g1_face: chex.Array
-  g2: chex.Array
-  g2_face: chex.Array
-  g3: chex.Array
-  g3_face: chex.Array
-  g2g3_over_rhon: chex.Array
-  g2g3_over_rhon_face: chex.Array
-  g2g3_over_rhon_hires: chex.Array
-  F: chex.Array
-  F_face: chex.Array
-  F_hires: chex.Array
-  R_in: chex.Array
-  R_in_face: chex.Array
-  R_out: chex.Array
-  R_out_face: chex.Array
-  spr_hires: chex.Array
-  rho_hires_norm: chex.Array
-  rho_hires: chex.Array
-  Phi_b_dot: chex.Array
-  _z_magnetic_axis: chex.Array | None
+  Phi: array_typing.Array
+  Phi_face: array_typing.Array
+  R_major: array_typing.FloatScalar
+  a_minor: array_typing.FloatScalar
+  B_0: array_typing.FloatScalar
+  volume: array_typing.Array
+  volume_face: array_typing.Array
+  area: array_typing.Array
+  area_face: array_typing.Array
+  vpr: array_typing.Array
+  vpr_face: array_typing.Array
+  spr: array_typing.Array
+  spr_face: array_typing.Array
+  delta_face: array_typing.Array
+  elongation: array_typing.Array
+  elongation_face: array_typing.Array
+  g0: array_typing.Array
+  g0_face: array_typing.Array
+  g1: array_typing.Array
+  g1_face: array_typing.Array
+  g2: array_typing.Array
+  g2_face: array_typing.Array
+  g3: array_typing.Array
+  g3_face: array_typing.Array
+  g2g3_over_rhon: array_typing.Array
+  g2g3_over_rhon_face: array_typing.Array
+  g2g3_over_rhon_hires: array_typing.Array
+  F: array_typing.Array
+  F_face: array_typing.Array
+  F_hires: array_typing.Array
+  R_in: array_typing.Array
+  R_in_face: array_typing.Array
+  R_out: array_typing.Array
+  R_out_face: array_typing.Array
+  spr_hires: array_typing.Array
+  rho_hires_norm: array_typing.Array
+  rho_hires: array_typing.Array
+  Phi_b_dot: array_typing.FloatScalar
+  _z_magnetic_axis: array_typing.FloatScalar | None
 
   def __eq__(self, other: 'Geometry') -> bool:
     try:
@@ -230,27 +232,27 @@ class Geometry:
     )
 
   @property
-  def rho_norm(self) -> chex.Array:
+  def rho_norm(self) -> array_typing.Array:
     r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
     return self.torax_mesh.cell_centers
 
   @property
-  def rho_face_norm(self) -> chex.Array:
+  def rho_face_norm(self) -> array_typing.Array:
     r"""Normalized toroidal flux coordinate on face grid [dimensionless]."""
     return self.torax_mesh.face_centers
 
   @property
-  def drho_norm(self) -> chex.Array:
+  def drho_norm(self) -> array_typing.Array:
     r"""Grid size for rho_norm [dimensionless]."""
     return jnp.array(self.torax_mesh.dx)
 
   @property
-  def rho_face(self) -> chex.Array:
+  def rho_face(self) -> array_typing.Array:
     r"""Toroidal flux coordinate on face grid :math:`\mathrm{m}`."""
     return self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
-  def rho(self) -> chex.Array:
+  def rho(self) -> array_typing.Array:
     r"""Toroidal flux coordinate on cell grid :math:`\mathrm{m}`.
 
     The toroidal flux coordinate is defined as
@@ -261,49 +263,49 @@ class Geometry:
     return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
-  def r_mid(self) -> chex.Array:
+  def r_mid(self) -> array_typing.Array:
     """Midplane radius of the plasma [m], defined as (Rout-Rin)/2."""
     return (self.R_out - self.R_in) / 2
 
   @property
-  def r_mid_face(self) -> chex.Array:
+  def r_mid_face(self) -> array_typing.Array:
     """Midplane radius of the plasma on the face grid [m]."""
     return (self.R_out_face - self.R_in_face) / 2
 
   @property
-  def epsilon(self) -> chex.Array:
+  def epsilon(self) -> array_typing.Array:
     """Local midplane inverse aspect ratio [dimensionless]."""
     return (self.R_out - self.R_in) / (self.R_out + self.R_in)
 
   @property
-  def epsilon_face(self) -> chex.Array:
+  def epsilon_face(self) -> array_typing.Array:
     """Local midplane inverse aspect ratio on the face grid [dimensionless]."""
     return (self.R_out_face - self.R_in_face) / (
         self.R_out_face + self.R_in_face
     )
 
   @property
-  def drho(self) -> chex.Array:
+  def drho(self) -> array_typing.Array:
     """Grid size for rho [m]."""
     return self.drho_norm * self.rho_b
 
   @property
-  def rho_b(self) -> chex.Array:
+  def rho_b(self) -> array_typing.FloatScalar:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
     return jnp.sqrt(self.Phi_b / np.pi / self.B_0)
 
   @property
-  def Phi_b(self) -> chex.Array:
+  def Phi_b(self) -> array_typing.FloatScalar:
     r"""Toroidal flux at boundary (LCFS) :math:`\mathrm{Wb}`."""
     return self.Phi_face[..., -1]
 
   @property
-  def g1_over_vpr(self) -> chex.Array:
+  def g1_over_vpr(self) -> array_typing.Array:
     r"""g1/vpr [:math:`\mathrm{m}`]."""
     return self.g1 / self.vpr
 
   @property
-  def g1_over_vpr2(self) -> chex.Array:
+  def g1_over_vpr2(self) -> array_typing.Array:
     r"""g1/vpr**2 [:math:`\mathrm{m}^{-2}`]."""
     return self.g1 / self.vpr**2
 
@@ -389,7 +391,7 @@ def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
     field_name = field.name
     field_value = getattr(first_geo, field_name)
     # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, chex.Array) or isinstance(field_value, float):
+    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):
       field_values = [getattr(geo, field_name) for geo in geometries]
       stacked_data[field_name] = np.stack(field_values)
     else:

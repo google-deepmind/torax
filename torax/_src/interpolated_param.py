@@ -18,11 +18,11 @@ import abc
 from collections.abc import Mapping
 import enum
 from typing import Final, Literal, TypeAlias
-
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import jax_utils
 import xarray as xr
 
@@ -33,7 +33,9 @@ _interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
 @jax_utils.jit
-def _step_interpolation(xs: chex.Array, x: chex.Numeric) -> chex.Array:
+def _step_interpolation(
+    xs: array_typing.Array, x: chex.Numeric
+) -> array_typing.Array:
   """Find the indices for step interpolation."""
   # For a given x, we want to find k such that self.xs[k] <= x < self.xs[k+1]
   # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'
@@ -70,7 +72,7 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
-_ArrayOrListOfFloats: TypeAlias = chex.Array | list[float]
+_ArrayOrListOfFloats: TypeAlias = array_typing.Array | list[float]
 
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
@@ -121,14 +123,14 @@ class InterpolatedParamBase(abc.ABC):
   """
 
   @abc.abstractmethod
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns a value for this parameter interpolated at the given input."""
 
 
 class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
-  def __init__(self, xs: chex.Array, ys: chex.Array):
+  def __init__(self, xs: array_typing.Array, ys: array_typing.Array):
     """Initialises a piecewise-linear interpolated param, xs must be sorted."""
 
     if not np.issubdtype(xs.dtype, np.floating):
@@ -149,17 +151,17 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
   @property
-  def xs(self) -> chex.Array:
+  def xs(self) -> array_typing.Array:
     return self._xs
 
   @property
-  def ys(self) -> chex.Array:
+  def ys(self) -> array_typing.Array:
     return self._ys
 
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     x_shape = getattr(x, 'shape', ())
     is_jax = isinstance(x, jax.Array)
     # This function can be used inside a JITted function, where x are
@@ -194,7 +196,7 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
 class _StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
-  def __init__(self, xs: chex.Array, ys: chex.Array):
+  def __init__(self, xs: array_typing.Array, ys: array_typing.Array):
     """Creates a step interpolated param, xs must be sorted."""
     self._xs = jnp.asarray(xs)
     self._ys = jnp.asarray(ys)
@@ -208,14 +210,14 @@ class _StepInterpolatedParam(InterpolatedParamBase):
       )
 
   @property
-  def xs(self) -> chex.Array:
+  def xs(self) -> array_typing.Array:
     return self._xs
 
   @property
-  def ys(self) -> chex.Array:
+  def ys(self) -> array_typing.Array:
     return self._ys
 
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     indices = _step_interpolation(self.xs, x)
     return self.ys[indices]
@@ -342,7 +344,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 
   def __init__(
       self,
-      value: tuple[chex.Array, chex.Array],
+      value: tuple[array_typing.Array, array_typing.Array],
       interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
@@ -358,6 +360,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       interpolation_mode: Defines how to interpolate between values in `value`.
       is_bool_param: If True, the input value is assumed to be a bool and is
         converted to a float.
+
     Raises:
       RuntimeError: If the input xs is not sorted.
     """
@@ -404,7 +407,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     value = self._param.get_value(x)
     if self._is_bool_param:
@@ -438,8 +441,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 
   def __init__(
       self,
-      values: Mapping[float, tuple[chex.Array, chex.Array]],
-      rho_norm: chex.Array,
+      values: Mapping[float, tuple[array_typing.Array, array_typing.Array]],
+      rho_norm: array_typing.Array,
       time_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
@@ -498,6 +501,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """Returns the rho interpolation mode used by this param."""
     return self._rho_interpolation_mode
 
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time."""
     return self._time_interpolated_var.get_value(x)

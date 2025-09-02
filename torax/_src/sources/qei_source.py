@@ -15,10 +15,10 @@
 """Collisional ion-electron heat source."""
 import dataclasses
 from typing import Annotated, ClassVar
-
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -84,12 +84,12 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[chex.Array, ...]:
+  ) -> tuple[array_typing.FloatVectorCell, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_source_profile_for_affected_core_profile(
       self,
-      profile: tuple[chex.Array, ...],
+      profile: tuple[array_typing.Array, ...],
       affected_mesh_state: int,
       geo: geometry.Geometry,
   ) -> jax.Array:

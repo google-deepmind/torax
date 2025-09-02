@@ -13,10 +13,10 @@
 # limitations under the License.
 """Base class for quasilinear models."""
 import dataclasses
-
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.fvm import cell_variable
@@ -37,11 +37,11 @@ class NormalizedLogarithmicGradients:
   The specific radial coordinate r used for the gradient is a user input.
   """
 
-  lref_over_lti: chex.Array
-  lref_over_lte: chex.Array
-  lref_over_lne: chex.Array
-  lref_over_lni0: chex.Array
-  lref_over_lni1: chex.Array
+  lref_over_lti: array_typing.FloatVectorFace
+  lref_over_lte: array_typing.FloatVectorFace
+  lref_over_lne: array_typing.FloatVectorFace
+  lref_over_lni0: array_typing.FloatVectorFace
+  lref_over_lni1: array_typing.FloatVectorFace
 
   @classmethod
   def from_profiles(
@@ -69,11 +69,11 @@ class NormalizedLogarithmicGradients:
 
 # pylint: disable=invalid-name
 def calculate_chiGB(
-    reference_temperature: chex.Array,
+    reference_temperature: array_typing.Array,
     reference_magnetic_field: chex.Numeric,
     reference_mass: chex.Numeric,
     reference_length: chex.Numeric,
-) -> chex.Array:
+) -> array_typing.Array:
   """Calculates the gyrobohm diffusivity.
 
   Different transport models make different choices for the reference
@@ -86,7 +86,7 @@ def calculate_chiGB(
     reference_length: Reference length for normalization [m].
 
   Returns:
-    Gyrobohm diffusivity as a chex.Array [dimensionless].
+    Gyrobohm diffusivity as a array_typing.Array [dimensionless].
   """
   constants = constants_module.CONSTANTS
   return (
@@ -99,10 +99,10 @@ def calculate_chiGB(
 
 def calculate_alpha(
     core_profiles: state.CoreProfiles,
-    q: chex.Array,
+    q: array_typing.FloatVectorFace,
     reference_magnetic_field: chex.Numeric,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
-) -> chex.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates the alpha_MHD parameter.
 
   alpha_MHD = Lref q^2 beta' , where beta' is the radial gradient of beta, the
@@ -119,7 +119,7 @@ def calculate_alpha(
       profiles.
 
   Returns:
-    Alpha value as a chex.Array.
+    Alpha value as a array_typing.FloatVectorFace.
   """
   constants = constants_module.CONSTANTS
 
@@ -187,16 +187,18 @@ def calculate_normalized_logarithmic_gradient(
 class QuasilinearInputs:
   """Variables required to convert outputs to TORAX CoreTransport outputs."""
 
-  chiGB: chex.Array  # gyrobohm diffusivity used for normalizations [m^2/s].
-  Rmin: chex.Array  # minor radius [m].
-  Rmaj: chex.Array  #  major radius [m].
+  chiGB: (
+      array_typing.FloatVectorFace
+  )  # gyrobohm diffusivity used for normalizations [m^2/s].
+  Rmin: array_typing.FloatScalar  # minor radius [m].
+  Rmaj: array_typing.FloatScalar  #  major radius [m].
   # Normalized logarithmic gradients of the plasma profiles.
   # See NormalizedLogarithmicGradients for details.
-  lref_over_lti: chex.Array
-  lref_over_lte: chex.Array
-  lref_over_lne: chex.Array
-  lref_over_lni0: chex.Array
-  lref_over_lni1: chex.Array
+  lref_over_lti: array_typing.FloatVectorFace
+  lref_over_lte: array_typing.FloatVectorFace
+  lref_over_lne: array_typing.FloatVectorFace
+  lref_over_lni0: array_typing.FloatVectorFace
+  lref_over_lni1: array_typing.FloatVectorFace
 
 
 class QuasilinearTransportModel(transport_model_lib.TransportModel):

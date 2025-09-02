@@ -19,13 +19,14 @@ Builds the diffusion terms of the discrete matrix equation.
 
 import chex
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.fvm import cell_variable
 
 
 def make_diffusion_terms(
-    d_face: chex.Array, var: cell_variable.CellVariable
-) -> tuple[chex.Array, chex.Array]:
+    d_face: array_typing.FloatVectorFace, var: cell_variable.CellVariable
+) -> tuple[array_typing.FloatMatrixCell, array_typing.FloatVectorCell]:
   """Makes the terms of the matrix equation derived from the diffusion term.
 
   The diffusion term is of the form

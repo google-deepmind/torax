@@ -19,7 +19,7 @@ See function docstring for details.
 
 import functools
 from typing import Final
-import chex
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
@@ -52,7 +52,7 @@ MIN_DELTA: Final[float] = 1e-7
     ],
 )
 def newton_raphson_solve_block(
-    dt: chex.Array,
+    dt: array_typing.FloatScalar,
     dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t: geometry.Geometry,

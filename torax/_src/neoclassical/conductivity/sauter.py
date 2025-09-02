@@ -15,9 +15,9 @@
 import dataclasses
 from typing import Annotated, Literal
 
-import chex
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
@@ -79,10 +79,10 @@ class SauterModelConfig(base.ConductivityModelConfig):
 @jax_utils.jit
 def _calculate_conductivity(
     *,
-    Z_eff_face: chex.Array,
+    Z_eff_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-    q_face: chex.Array,
+    q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> base.Conductivity:
   """Calculates sigma and sigma_face using the Sauter model."""

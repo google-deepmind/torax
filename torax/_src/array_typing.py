@@ -32,6 +32,8 @@ IntScalar: TypeAlias = jt.Int[Array | int, ""]
 FloatVector: TypeAlias = jt.Float[Array, "_"]
 BoolVector: TypeAlias = jt.Bool[Array, "_"]
 FloatVectorCell: TypeAlias = jt.Float[Array, "rhon"]
+FloatVectorCellPlusBoundaries: TypeAlias = jt.Float[Array, "rhon+2"]
+FloatMatrixCell: TypeAlias = jt.Float[Array, "rhon rhon"]
 FloatVectorFace: TypeAlias = jt.Float[Array, "rhon+1"]
 
 

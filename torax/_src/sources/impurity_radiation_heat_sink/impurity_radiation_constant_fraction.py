@@ -14,7 +14,6 @@
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 import dataclasses
 from typing import Annotated, Literal
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -40,7 +39,7 @@ def radially_constant_fraction_of_Pin(
     unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Model function for radiation heat sink from impurities."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

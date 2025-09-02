@@ -54,7 +54,7 @@ def calc_generic_heat_source(
     P_total: float,
     electron_heat_fraction: float,
     absorption_fraction: float,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Computes ion/electron heat source terms.
 
   Flexible prescribed heat source term.
@@ -89,7 +89,7 @@ def default_formula(
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

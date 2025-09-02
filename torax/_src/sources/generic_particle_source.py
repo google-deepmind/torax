@@ -43,7 +43,7 @@ def calc_generic_particle_source(
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates external source term for n from SBI."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name

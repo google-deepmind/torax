@@ -15,9 +15,9 @@
 import dataclasses
 from typing import Annotated, Literal
 
-import chex
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -50,9 +50,7 @@ class SauterModel(base.BootstrapCurrentModel):
       core_profiles: state.CoreProfiles,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
-    bootstrap_params = (
-        runtime_params.neoclassical.bootstrap_current
-    )
+    bootstrap_params = runtime_params.neoclassical.bootstrap_current
     assert isinstance(bootstrap_params, RuntimeParams)
     result = _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
@@ -99,14 +97,14 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
 def _calculate_bootstrap_current(
     *,
     bootstrap_multiplier: float,
-    Z_eff_face: chex.Array,
-    Z_i_face: chex.Array,
+    Z_eff_face: array_typing.FloatVectorFace,
+    Z_i_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
-    q_face: chex.Array,
+    q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> base.BootstrapCurrent:
   """Calculates j_bootstrap and j_bootstrap_face using the Sauter model."""
@@ -183,10 +181,10 @@ def _calculate_bootstrap_current(
 
 
 def _calculate_L34(
-    f_trap: chex.Array,
-    nu_e_star: chex.Array,
-    Z_eff: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the L34 coefficient: Sauter PoP 1999 Eqs. 16a+b."""
   ft34 = f_trap / (
       1.0
@@ -202,9 +200,9 @@ def _calculate_L34(
 
 
 def _calculate_alpha(
-    f_trap: chex.Array,
-    nu_i_star: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the alpha coefficient: Sauter PoP 1999 Eqs. 17a+b."""
   alpha0 = -1.17 * (1 - f_trap) / (1 - 0.22 * f_trap - 0.19 * f_trap**2)
   alpha = (

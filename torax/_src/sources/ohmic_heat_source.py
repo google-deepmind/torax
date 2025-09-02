@@ -14,9 +14,9 @@
 """Ohmic heat source."""
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-
 import chex
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -41,7 +41,7 @@ def ohmic_model_func(
     core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Returns the Ohmic source for electron heat equation."""
   if calculated_source_profiles is None:
     raise ValueError(

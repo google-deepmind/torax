@@ -58,7 +58,7 @@ def calc_heating_and_current(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Model function for the electron-cyclotron source.
 
   Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).

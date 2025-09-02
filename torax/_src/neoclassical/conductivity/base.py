@@ -16,8 +16,8 @@
 import abc
 import dataclasses
 
-import chex
 import jax
+from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -28,8 +28,8 @@ from torax._src.torax_pydantic import torax_pydantic
 class Conductivity:
   """Values returned by a conductivity model."""
 
-  sigma: chex.Array
-  sigma_face: chex.Array
+  sigma: array_typing.FloatVectorCell
+  sigma_face: array_typing.FloatVectorFace
 
 
 class ConductivityModel(abc.ABC):

@@ -14,9 +14,9 @@
 """Base class and utils for Qualikiz-based models."""
 import dataclasses
 
-import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.geometry import geometry
@@ -42,35 +42,35 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
 class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   """Inputs to Qualikiz-based models."""
 
-  Z_eff_face: chex.Array
-  q: chex.Array
-  smag: chex.Array
-  x: chex.Array
-  Ti_Te: chex.Array
-  log_nu_star_face: chex.Array
-  normni: chex.Array
-  alpha: chex.Array
-  epsilon_lcfs: chex.Array
+  Z_eff_face: array_typing.FloatVectorFace
+  q: array_typing.FloatVectorFace
+  smag: array_typing.FloatVectorFace
+  x: array_typing.FloatVectorFace
+  Ti_Te: array_typing.FloatVectorFace
+  log_nu_star_face: array_typing.FloatVectorFace
+  normni: array_typing.FloatVectorFace
+  alpha: array_typing.FloatVectorFace
+  epsilon_lcfs: array_typing.FloatScalar
 
   # Also define the logarithmic gradients using standard QuaLiKiz notation.
   @property
-  def Ati(self) -> chex.Array:
+  def Ati(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lti
 
   @property
-  def Ate(self) -> chex.Array:
+  def Ate(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lte
 
   @property
-  def Ane(self) -> chex.Array:
+  def Ane(self) -> array_typing.Array:
     return self.lref_over_lne
 
   @property
-  def Ani0(self) -> chex.Array:
+  def Ani0(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lni0
 
   @property
-  def Ani1(self) -> chex.Array:
+  def Ani1(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lni1
 
 
