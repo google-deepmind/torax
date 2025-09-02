@@ -92,26 +92,21 @@ class SawtoothModelTest(parameterized.TestCase):
     )
 
     geometry_provider = torax_config.geometry.build_provider
-    dynamic_runtime_params_slice_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
-    )
-    self.dynamic_runtime_params_slice_provider = (
-        dynamic_runtime_params_slice_provider
+    self.runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
 
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
         geometry_provider=geometry_provider,
-        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+        dynamic_runtime_params_slice_provider=self.runtime_params_provider,
     )
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            dynamic_runtime_params_slice_provider=self.runtime_params_provider,
             geometry_provider=geometry_provider,
             step_fn=self.step_fn,
         )
@@ -124,7 +119,7 @@ class SawtoothModelTest(parameterized.TestCase):
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
     sim_error = step_function.check_for_errors(
-        self.dynamic_runtime_params_slice_provider.numerics,
+        self.runtime_params_provider.numerics,
         output_state,
         self.initial_post_processed_outputs,
     )
@@ -164,7 +159,7 @@ class SawtoothModelTest(parameterized.TestCase):
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
     sim_error = step_function.check_for_errors(
-        self.dynamic_runtime_params_slice_provider.numerics,
+        self.runtime_params_provider.numerics,
         output_state,
         self.initial_post_processed_outputs,
     )
@@ -211,7 +206,7 @@ class SawtoothModelTest(parameterized.TestCase):
           previous_post_processed_outputs=post_processed_outputs0,
       )
       sim_error = step_function.check_for_errors(
-          self.dynamic_runtime_params_slice_provider.numerics,
+          self.runtime_params_provider.numerics,
           output_state_should_not_crash,
           post_processed_outputs0,
       )

@@ -72,7 +72,7 @@ class RuntimeParams:
   be changed without recompilation.
   """
 
-  mhd: mhd_runtime_params.DynamicMHDParams
+  mhd: mhd_runtime_params.RuntimeParams
   neoclassical: neoclassical_params.RuntimeParams
   numerics: numerics.DynamicNumerics
   pedestal: pedestal_model_params.RuntimeParams

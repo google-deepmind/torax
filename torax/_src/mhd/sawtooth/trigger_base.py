@@ -31,7 +31,7 @@ class TriggerModel(abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:
@@ -60,9 +60,9 @@ class TriggerConfig(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(0.05)
   )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> sawtooth_runtime_params.TriggerDynamicRuntimeParams:
-    return sawtooth_runtime_params.TriggerDynamicRuntimeParams(
+  ) -> sawtooth_runtime_params.TriggerRuntimeParams:
+    return sawtooth_runtime_params.TriggerRuntimeParams(
         minimum_radius=self.minimum_radius.get_value(t),
     )
