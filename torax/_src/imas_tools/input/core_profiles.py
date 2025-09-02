@@ -33,7 +33,7 @@ def core_profiles_from_IMAS(
   """Converts core_profiles IDS to a dict with the input profiles for the config.
   Args:
   ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
-      contain several time slices.
+      contain multiple time slices.
   read_psi_from_geo: Decides either to read psi from the geometry or from the
       input core/plasma_profiles IDS. Default value is True meaning that psi is
       taken from the geometry.
@@ -49,10 +49,11 @@ def core_profiles_from_IMAS(
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
   if t_initial:
     time_array = [ti - time_array[0] + t_initial for ti in time_array]
+  else:
+    t_initial = float(profiles_1d[0].time)
   rhon_array = [
       profiles_1d[i].grid.rho_tor_norm for i in range(len(profiles_1d))
   ]
-  t_initial = float(profiles_1d[0].time)
 
   # profile_conditions
   if not read_psi_from_geo:
@@ -141,7 +142,7 @@ def core_profiles_from_IMAS(
   }
 
 
-def load_profiles_data(
+def load_core_profiles_data(
     uri: str,
     ids_name: str,
     directory: str | None = None,
