@@ -80,7 +80,7 @@ def core_profiles_from_IMAS(
       for ti in range(len(time_array))
   }
 
-  if len(profiles_1d[0].t_i_average > 0):
+  if len(profiles_1d[0].t_i_average) > 0:
     T_i = {
         time_array[ti]: {
             rhon_array[ti][rj]: profiles_1d[ti].t_i_average[rj] / 1e3
