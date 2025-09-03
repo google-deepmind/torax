@@ -54,10 +54,8 @@ class AngioniSauterTest(absltest.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
 
-    params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -74,8 +72,7 @@ class AngioniSauterTest(absltest.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
-    model = angioni_sauter.AngioniSauterModel()
-    result = model.calculate_neoclassical_transport(
+    result = angioni_sauter._calculate_angioni_sauter_transport(
         runtime_params, geo, core_profiles
     )
     np.testing.assert_allclose(
@@ -102,7 +99,7 @@ class AngioniSauterTest(absltest.TestCase):
 # The implementation was independently tested against NEOS up to the
 # generation of the Kmn matrix.
 _EXPECTED_CHI_NEO_I = np.array([
-    -0.0,
+    0.0,
     0.01195613,
     0.02174449,
     0.03062838,

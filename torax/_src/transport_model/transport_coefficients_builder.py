@@ -42,12 +42,10 @@ def calculate_total_transport_coeffs(
       core_profiles=core_profiles,
       pedestal_model_output=pedestal_model_output,
   )
-  neoclassical_transport_coeffs = (
-      neoclassical_models.transport.calculate_neoclassical_transport(
-          runtime_params,
-          geo,
-          core_profiles,
-      )
+  neoclassical_transport_coeffs = neoclassical_models.transport(
+      runtime_params,
+      geo,
+      core_profiles,
   )
 
   return state.CoreTransport(
