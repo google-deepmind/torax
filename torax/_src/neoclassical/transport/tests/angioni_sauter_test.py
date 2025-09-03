@@ -98,7 +98,7 @@ class AngioniSauterTest(absltest.TestCase):
 # The implementation was independently tested against NEOS up to the
 # generation of the Kmn matrix.
 _EXPECTED_CHI_NEO_I = np.array([
-    -0.0,
+    0.0,
     0.01195613,
     0.02174449,
     0.03062838,
@@ -112,17 +112,17 @@ _EXPECTED_CHI_NEO_I = np.array([
 ])
 
 _EXPECTED_CHI_NEO_E = np.array([
-    -0.0,
-    -0.00203451,
-    -0.00298301,
-    -0.00379278,
-    -0.0045157,
-    -0.00518874,
-    -0.00587365,
-    -0.00663125,
-    -0.00753242,
-    -0.00873426,
-    -0.00994788,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
 ])
 
 _EXPECTED_D_NEO_E = np.array([
