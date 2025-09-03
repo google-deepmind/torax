@@ -54,7 +54,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
   def get_value(self, t: chex.Numeric) -> array_typing.Array:
-    """Returns the value of this parameter interpolated at x=time.
+    """Returns the value of this parameter interpolated at time t.
 
     Args:
       t: An array of times to interpolate at.
