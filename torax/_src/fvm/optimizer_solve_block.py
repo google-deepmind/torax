@@ -47,8 +47,8 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 )
 def optimizer_solve_block(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -77,10 +77,10 @@ def optimizer_solve_block(
 
   Args:
     dt: Discrete time step.
-    dynamic_runtime_params_slice_t: Runtime params for time t (the start time of
-      the step). These runtime params can change from step to step without
-      triggering a recompilation.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime params for time t + dt.
+    runtime_params_t: Runtime params for time t (the start time of the step).
+      These runtime params can change from step to step without triggering a
+      recompilation.
+    runtime_params_t_plus_dt: Runtime params for time t + dt.
     geo_t: Geometry object used to initialize auxiliary outputs at time t.
     geo_t_plus_dt: Geometry object used to initialize auxiliary outputs at time
       t + dt.
@@ -117,7 +117,7 @@ def optimizer_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      dynamic_runtime_params_slice_t,
+      runtime_params_t,
       geo_t,
       core_profiles_t,
       x_old,
@@ -134,7 +134,7 @@ def optimizer_solve_block(
       # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          dynamic_runtime_params_slice_t,
+          runtime_params_t,
           geo_t,
           core_profiles_t,
           x_old,
@@ -148,7 +148,7 @@ def optimizer_solve_block(
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
           x_new_guess=x_new_guess,
@@ -174,7 +174,7 @@ def optimizer_solve_block(
       solver_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,

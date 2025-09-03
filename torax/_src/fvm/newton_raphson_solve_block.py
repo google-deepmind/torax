@@ -53,8 +53,8 @@ MIN_DELTA: Final[float] = 1e-7
 )
 def newton_raphson_solve_block(
     dt: array_typing.FloatScalar,
-    dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -104,10 +104,8 @@ def newton_raphson_solve_block(
 
   Args:
     dt: Discrete time step.
-    dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-      time of the step). These config params can change from step to step
-      without triggering a recompilation.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t: Runtime parameters for time t.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t: Geometry at time t.
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
@@ -154,7 +152,7 @@ def newton_raphson_solve_block(
 
   with xnp._jit_context():  # pylint: disable=protected-access
     coeffs_old = coeffs_callback(
-        dynamic_runtime_params_slice_t,
+        runtime_params_t,
         geo_t,
         core_profiles_t,
         x_old,
@@ -170,7 +168,7 @@ def newton_raphson_solve_block(
         # if set by runtime_params, needed if stiff transport models
         # (e.g. qlknn) are used.
         coeffs_exp_linear = coeffs_callback(
-            dynamic_runtime_params_slice_t,
+            runtime_params_t,
             geo_t,
             core_profiles_t,
             x_old,
@@ -185,7 +183,7 @@ def newton_raphson_solve_block(
         )
         init_x_new = predictor_corrector_method.predictor_corrector_method(
             dt=dt,
-            runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+            runtime_params_t_plus_dt=runtime_params_t_plus_dt,
             geo_t_plus_dt=geo_t_plus_dt,
             x_old=x_old,
             x_new_guess=x_new_guess,
@@ -209,7 +207,7 @@ def newton_raphson_solve_block(
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,

@@ -176,8 +176,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         solver_numeric_outputs,
     ) = optimizer_solve_block.optimizer_solve_block(
         dt=dt,
-        dynamic_runtime_params_slice_t=runtime_params_t,
-        dynamic_runtime_params_slice_t_plus_dt=runtime_params_t_plus_dt,
+        runtime_params_t=runtime_params_t,
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=convertors.core_profiles_to_solver_x_tuple(
@@ -229,8 +229,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         solver_numeric_outputs,
     ) = newton_raphson_solve_block.newton_raphson_solve_block(
         dt=dt,
-        dynamic_runtime_params_slice_t=runtime_params_t,
-        dynamic_runtime_params_slice_t_plus_dt=runtime_params_t_plus_dt,
+        runtime_params_t=runtime_params_t,
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=convertors.core_profiles_to_solver_x_tuple(

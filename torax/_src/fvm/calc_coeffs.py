@@ -60,7 +60,7 @@ class CoeffsCallback:
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
@@ -76,9 +76,9 @@ class CoeffsCallback:
     of the PDE system.
 
     Args:
-      dynamic_runtime_params_slice: Runtime configuration parameters. These
-        values are potentially time-dependent and should correspond to the time
-        step of the state x.
+      runtime_params: Runtime configuration parameters. These values are
+        potentially time-dependent and should correspond to the time step of the
+        state x.
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
@@ -106,18 +106,18 @@ class CoeffsCallback:
     # Update core_profiles with the subset of new values of evolving variables
     core_profiles = updaters.update_core_profiles_during_step(
         x,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         self.evolving_names,
     )
     if allow_pereverzev:
-      use_pereverzev = dynamic_runtime_params_slice.solver.use_pereverzev
+      use_pereverzev = runtime_params.solver.use_pereverzev
     else:
       use_pereverzev = False
 
     return calc_coeffs(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         explicit_source_profiles=explicit_source_profiles,
@@ -129,7 +129,7 @@ class CoeffsCallback:
 
 
 def _calculate_pereverzev_flux(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -146,17 +146,17 @@ def _calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV2J
-      * dynamic_runtime_params_slice.solver.chi_pereverzev
+      * runtime_params.solver.chi_pereverzev
   )
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV2J
-      * dynamic_runtime_params_slice.solver.chi_pereverzev
+      * runtime_params.solver.chi_pereverzev
   )
 
-  d_face_per_el = dynamic_runtime_params_slice.solver.D_pereverzev
+  d_face_per_el = runtime_params.solver.D_pereverzev
   v_face_per_el = (
       core_profiles.n_e.face_grad()
       / core_profiles.n_e.face_value()
@@ -215,7 +215,7 @@ def _calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -227,9 +227,9 @@ def calc_coeffs(
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    dynamic_runtime_params_slice: General input parameters that can change from
-      time step to time step or simulation run to run, and do so without
-      triggering a recompile.
+    runtime_params: General input parameters that can change from time step to
+      time step or simulation run to run, and do so without triggering a
+      recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
       of the solver. Depending on the type of solver being used, this may or may
@@ -255,10 +255,7 @@ def calc_coeffs(
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
-  if (
-      explicit_call
-      and dynamic_runtime_params_slice.solver.theta_implicit == 1.0
-  ):
+  if explicit_call and runtime_params.solver.theta_implicit == 1.0:
     return _calc_coeffs_reduced(
         geo,
         core_profiles,
@@ -266,7 +263,7 @@ def calc_coeffs(
     )
   else:
     return _calc_coeffs_full(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         explicit_source_profiles=explicit_source_profiles,
@@ -283,7 +280,7 @@ def calc_coeffs(
     ],
 )
 def _calc_coeffs_full(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -296,7 +293,7 @@ def _calc_coeffs_full(
   consts = constants.CONSTANTS
 
   pedestal_model_output = physics_models.pedestal_model(
-      dynamic_runtime_params_slice, geo, core_profiles
+      runtime_params, geo, core_profiles
   )
 
   # Boolean mask for enforcing internal temperature boundary conditions to
@@ -320,7 +317,7 @@ def _calc_coeffs_full(
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=physics_models.source_models,
       neoclassical_models=physics_models.neoclassical_models,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
@@ -341,7 +338,7 @@ def _calc_coeffs_full(
   tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
-      / dynamic_runtime_params_slice.numerics.resistivity_multiplier
+      / runtime_params.numerics.resistivity_multiplier
       * geo.rho_norm
       * conductivity.sigma
       * consts.mu0
@@ -356,12 +353,10 @@ def _calc_coeffs_full(
 
   # Diffusion term coefficients
   turbulent_transport = physics_models.transport_model(
-      dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_output
+      runtime_params, geo, core_profiles, pedestal_model_output
   )
-  neoclassical_transport = (
-      physics_models.neoclassical_models.transport.calculate_neoclassical_transport(
-          dynamic_runtime_params_slice, geo, core_profiles
-      )
+  neoclassical_transport = physics_models.neoclassical_models.transport.calculate_neoclassical_transport(
+      runtime_params, geo, core_profiles
   )
 
   chi_face_ion_total = (
@@ -408,12 +403,10 @@ def _calc_coeffs_full(
 
   source_n_e += (
       mask
-      * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
+      * runtime_params.numerics.adaptive_n_source_prefactor
       * pedestal_model_output.n_e_ped
   )
-  source_mat_nn += -(
-      mask * dynamic_runtime_params_slice.numerics.adaptive_n_source_prefactor
-  )
+  source_mat_nn += -(mask * runtime_params.numerics.adaptive_n_source_prefactor)
 
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
@@ -430,7 +423,7 @@ def _calc_coeffs_full(
   ) = jax.lax.cond(
       use_pereverzev,
       lambda: _calculate_pereverzev_flux(
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           core_profiles,
           pedestal_model_output,
@@ -488,22 +481,18 @@ def _calc_coeffs_full(
   # Pedestal
   source_i += (
       mask
-      * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
+      * runtime_params.numerics.adaptive_T_source_prefactor
       * pedestal_model_output.T_i_ped
   )
   source_e += (
       mask
-      * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
+      * runtime_params.numerics.adaptive_T_source_prefactor
       * pedestal_model_output.T_e_ped
   )
 
-  source_mat_ii -= (
-      mask * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
-  )
+  source_mat_ii -= mask * runtime_params.numerics.adaptive_T_source_prefactor
 
-  source_mat_ee -= (
-      mask * dynamic_runtime_params_slice.numerics.adaptive_T_source_prefactor
-  )
+  source_mat_ee -= mask * runtime_params.numerics.adaptive_T_source_prefactor
 
   # Add effective Phi_b_dot heat source terms
 

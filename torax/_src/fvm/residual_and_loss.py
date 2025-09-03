@@ -195,7 +195,7 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -210,7 +210,7 @@ def theta_method_block_residual(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -240,13 +240,13 @@ def theta_method_block_residual(
   )
   core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
       x_new_guess,
-      dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
       evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params=runtime_params_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
@@ -255,7 +255,7 @@ def theta_method_block_residual(
       use_pereverzev=False,
   )
 
-  solver_params = dynamic_runtime_params_slice_t_plus_dt.solver
+  solver_params = runtime_params_t_plus_dt.solver
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
       dt=dt,
       x_old=x_old,
@@ -283,7 +283,7 @@ def theta_method_block_residual(
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -298,7 +298,7 @@ def theta_method_block_loss(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -318,7 +318,7 @@ def theta_method_block_loss(
 
   residual = theta_method_block_residual(
       dt=dt,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
@@ -340,7 +340,7 @@ def theta_method_block_loss(
 )
 def jaxopt_solver(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
@@ -356,7 +356,7 @@ def jaxopt_solver(
 
   Args:
     dt: Time step duration.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object for time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
@@ -383,7 +383,7 @@ def jaxopt_solver(
   loss = functools.partial(
       theta_method_block_loss,
       dt=dt,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
