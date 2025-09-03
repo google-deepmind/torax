@@ -54,10 +54,8 @@ class AngioniSauterTest(absltest.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
 
-    params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -75,9 +73,7 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     model = angioni_sauter.AngioniSauterModel()
-    result = model.calculate_neoclassical_transport(
-        runtime_params, geo, core_profiles
-    )
+    result = model(runtime_params, geo, core_profiles)
     np.testing.assert_allclose(
         result.chi_neo_i, _EXPECTED_CHI_NEO_I, atol=_A_TOL, rtol=_R_TOL
     )

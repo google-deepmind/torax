@@ -52,14 +52,14 @@ class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
 
   @override
   def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
-    return transport_runtime_params.RuntimeParams()
+    return super().build_runtime_params()
 
 
 class AngioniSauterModel(base.NeoclassicalTransportModel):
   """Implements the Angioni-Sauter neoclassical transport model."""
 
   @override
-  def calculate_neoclassical_transport(
+  def _call_implementation(
       self,
       runtime_params: runtime_params_slice.RuntimeParams,
       geometry: geometry_lib.Geometry,
