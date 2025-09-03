@@ -212,8 +212,8 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       self,
       t: jax.Array,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -224,10 +224,8 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       state.SolverNumericOutputs,
   ]:
     combined = getattr(
-        dynamic_runtime_params_slice_t.profile_conditions, self._param
-    ) + getattr(
-        dynamic_runtime_params_slice_t_plus_dt.profile_conditions, self._param
-    )
+        runtime_params_t.profile_conditions, self._param
+    ) + getattr(runtime_params_t_plus_dt.profile_conditions, self._param)
     # Use x_new as a hacky way to extract what the combined value was.
     # Ti values will be the `combined` value in the output state.
     x_new = cell_variable.CellVariable(

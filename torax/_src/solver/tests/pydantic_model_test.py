@@ -69,12 +69,12 @@ class PydanticModelTest(parameterized.TestCase):
 
     @jax.jit
     def f(solver: solver_pydantic_model.SolverConfig):
-      return solver.build_dynamic_params
+      return solver.build_runtime_params
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(solver)
       self.assertIsInstance(
-          output, solver_pydantic_model.runtime_params.DynamicRuntimeParams
+          output, solver_pydantic_model.runtime_params.RuntimeParams
       )
       self.assertEqual(output.D_pereverzev, 0.5)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)

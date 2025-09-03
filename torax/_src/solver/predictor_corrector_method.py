@@ -40,7 +40,7 @@ from torax._src.sources import source_profiles
 )
 def predictor_corrector_method(
     dt: jax.Array,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],
@@ -53,9 +53,8 @@ def predictor_corrector_method(
 
   Args:
     dt: current timestep
-    dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters
-      corresponding to the next time step, needed for the implicit PDE
-      coefficients.
+    runtime_params_t_plus_dt: Runtime parameters corresponding to the next time
+      step, needed for the implicit PDE coefficients.
     geo_t_plus_dt: Geometry at the next time step.
     x_old: Tuple of CellVariables correspond to the evolving core profiles at
       time t.
@@ -64,23 +63,23 @@ def predictor_corrector_method(
     core_profiles_t_plus_dt: Core profiles at the next time step.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep.
     explicit_source_profiles: Precomputed explicit source profiles. These
-        profiles were configured to always depend on state and parameters at
-        time t during the solver step. They can thus be inputs, since they are
-        not recalculated at time t+plus_dt with updated state during the solver
-        iterations. For sources that are implicit, their explicit profiles are
-        set to all zeros.
+      profiles were configured to always depend on state and parameters at time
+      t during the solver step. They can thus be inputs, since they are not
+      recalculated at time t+plus_dt with updated state during the solver
+      iterations. For sources that are implicit, their explicit profiles are set
+      to all zeros.
     coeffs_callback: coefficient callback function.
 
   Returns:
     x_new: Solution of evolving core profile state variables
   """
-  solver_params = dynamic_runtime_params_slice_t_plus_dt.solver
+  solver_params = runtime_params_t_plus_dt.solver
 
   # predictor-corrector loop. Will only be traversed once if not in
   # predictor-corrector mode
   def loop_body(i, x_new_guess):  # pylint: disable=unused-argument
     coeffs_new = coeffs_callback(
-        dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t_plus_dt,
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
         x_new_guess,
@@ -95,18 +94,14 @@ def predictor_corrector_method(
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
         theta_implicit=solver_params.theta_implicit,
-        convection_dirichlet_mode=(
-            solver_params.convection_dirichlet_mode
-        ),
-        convection_neumann_mode=(
-            solver_params.convection_neumann_mode
-        ),
+        convection_dirichlet_mode=(solver_params.convection_dirichlet_mode),
+        convection_neumann_mode=(solver_params.convection_neumann_mode),
     )
 
   if solver_params.use_predictor_corrector:
     x_new = xnp.fori_loop(
         0,
-        dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps + 1,
+        runtime_params_t_plus_dt.solver.n_corrector_steps + 1,
         loop_body,
         x_new_guess,
     )

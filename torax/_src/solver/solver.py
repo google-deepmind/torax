@@ -60,8 +60,8 @@ class Solver(abc.ABC):
       self,
       t: jax.Array,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -76,11 +76,11 @@ class Solver(abc.ABC):
     Args:
       t: Time.
       dt: Time step duration.
-      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-        time of the step). These runtime params can change from step to step
-        without triggering a recompilation.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
-        dt, used for implicit calculations in the solver.
+      runtime_params_t: Runtime parameters for time t (the start time of the
+        step). These runtime params can change from step to step without
+        triggering a recompilation.
+      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
+        implicit calculations in the solver.
       geo_t: Geometry of the torus at time t.
       geo_t_plus_dt: Geometry of the torus at time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
@@ -105,20 +105,20 @@ class Solver(abc.ABC):
     # most can make use of the boilerplate here and just implement `_x_new`.
 
     # Don't call solver functions on an empty list
-    if dynamic_runtime_params_slice_t.numerics.evolving_names:
+    if runtime_params_t.numerics.evolving_names:
       (
           x_new,
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t=runtime_params_t,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
+          evolving_names=runtime_params_t.numerics.evolving_names,
       )
     else:
       x_new = tuple()
@@ -132,8 +132,8 @@ class Solver(abc.ABC):
   def _x_new(
       self,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -151,11 +151,11 @@ class Solver(abc.ABC):
 
     Args:
       dt: Time step duration.
-      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-        time of the step). These runtime params can change from step to step
-        without triggering a recompilation.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
-        dt, used for implicit calculations in the solver.
+      runtime_params_t: Runtime parameters for time t (the start time of the
+        step). These runtime params can change from step to step without
+        triggering a recompilation.
+      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
+        implicit calculations in the solver.
       geo_t: Geometry of the torus for time t.
       geo_t_plus_dt: Geometry of the torus for time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.

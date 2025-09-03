@@ -37,8 +37,8 @@ class SawtoothSolver(solver.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -60,9 +60,8 @@ class SawtoothSolver(solver.Solver):
 
     Args:
       dt: Sawtooth step duration.
-      dynamic_runtime_params_slice_t: Dynamic runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters at time
-        t + crash_dt.
+      runtime_params_t: Runtime parameters at time t.
+      runtime_params_t_plus_dt: Runtime parameters at time t + crash_dt.
       geo_t: Geometry at time t.
       geo_t_plus_dt: Geometry at time t + crash_dt.
       core_profiles_t: Core profiles at time t.
@@ -80,7 +79,7 @@ class SawtoothSolver(solver.Solver):
       raise ValueError('Sawtooth model is None.')
 
     trigger_sawtooth, rho_norm_q1 = sawtooth_models.trigger_model(
-        dynamic_runtime_params_slice_t,
+        runtime_params_t,
         geo_t,
         core_profiles_t,
     )
@@ -92,7 +91,7 @@ class SawtoothSolver(solver.Solver):
 
       redistributed_core_profiles = sawtooth_models.redistribution_model(
           rho_norm_q1,
-          dynamic_runtime_params_slice_t,
+          runtime_params_t,
           geo_t,
           core_profiles_t,
       )

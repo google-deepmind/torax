@@ -41,8 +41,8 @@ class LinearThetaMethod(solver_lib.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.RuntimeParams,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -70,7 +70,7 @@ class LinearThetaMethod(solver_lib.Solver):
     # Compute the explicit coeffs based on the core profiles at time t and all
     # runtime parameters at time t.
     coeffs_exp = coeffs_callback(
-        dynamic_runtime_params_slice_t,
+        runtime_params_t,
         geo_t,
         core_profiles_t,
         x_old,
@@ -85,9 +85,7 @@ class LinearThetaMethod(solver_lib.Solver):
     # init_val is the initialization for the predictor_corrector loop.
     x_new = predictor_corrector_method.predictor_corrector_method(
         dt=dt,
-        dynamic_runtime_params_slice_t_plus_dt=(
-            dynamic_runtime_params_slice_t_plus_dt
-        ),
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=x_old,
         x_new_guess=x_new_guess,
@@ -97,9 +95,9 @@ class LinearThetaMethod(solver_lib.Solver):
         explicit_source_profiles=explicit_source_profiles,
     )
 
-    if dynamic_runtime_params_slice_t_plus_dt.solver.use_predictor_corrector:
+    if runtime_params_t_plus_dt.solver.use_predictor_corrector:
       inner_solver_iterations = (
-          1 + dynamic_runtime_params_slice_t_plus_dt.solver.n_corrector_steps
+          1 + runtime_params_t_plus_dt.solver.n_corrector_steps
       )
     else:
       inner_solver_iterations = 1

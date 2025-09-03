@@ -358,8 +358,8 @@ class SimulationStepFn:
     return self._solver(
         t=input_state.t,
         dt=dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=dynamic_runtime_params_slice_t,
+        runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
@@ -467,8 +467,8 @@ class SimulationStepFn:
       x_new, solver_numeric_outputs = self._solver(
           t=input_state.t,
           dt=dt,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t=dynamic_runtime_params_slice_t,
+          runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t=geo_t_with_phibdot,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=input_state.core_profiles,
@@ -579,8 +579,8 @@ class SimulationStepFn:
     x_new, solver_numeric_outputs = self._solver(
         t=input_state.t,
         dt=dt,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=dynamic_runtime_params_slice_t,
+        runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
@@ -730,8 +730,8 @@ def _sawtooth_step(
   ) = sawtooth_solver(
       t=input_state.t,
       dt=dt_crash,
-      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
+      runtime_params_t=dynamic_runtime_params_slice_t,
+      runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_crash_dt,
       geo_t=geo_t,
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,

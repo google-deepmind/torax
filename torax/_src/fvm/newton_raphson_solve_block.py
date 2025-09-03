@@ -185,7 +185,7 @@ def newton_raphson_solve_block(
         )
         init_x_new = predictor_corrector_method.predictor_corrector_method(
             dt=dt,
-            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+            runtime_params_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             geo_t_plus_dt=geo_t_plus_dt,
             x_old=x_old,
             x_new_guess=x_new_guess,

@@ -68,8 +68,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @property
   @abc.abstractmethod
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    """Builds dynamic runtime params from the config."""
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    """Builds runtime params from the config."""
 
   @abc.abstractmethod
   def build_solver(
@@ -91,8 +91,8 @@ class LinearThetaMethod(BaseSolver):
   )
 
   @functools.cached_property
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
         theta_implicit=self.theta_implicit,
         convection_dirichlet_mode=self.convection_dirichlet_mode,
         convection_neumann_mode=self.convection_neumann_mode,
@@ -142,10 +142,10 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   tau_min: float = 0.01
 
   @functools.cached_property
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
-  ) -> nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams:
-    return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
+  ) -> nonlinear_theta_method.NewtonRaphsonRuntimeParams:
+    return nonlinear_theta_method.NewtonRaphsonRuntimeParams(
         theta_implicit=self.theta_implicit,
         convection_dirichlet_mode=self.convection_dirichlet_mode,
         convection_neumann_mode=self.convection_neumann_mode,
@@ -192,10 +192,10 @@ class OptimizerThetaMethod(BaseSolver):
   loss_tol: float = 1e-10
 
   @functools.cached_property
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
-  ) -> nonlinear_theta_method.DynamicOptimizerRuntimeParams:
-    return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
+  ) -> nonlinear_theta_method.OptimizerRuntimeParams:
+    return nonlinear_theta_method.OptimizerRuntimeParams(
         theta_implicit=self.theta_implicit,
         convection_dirichlet_mode=self.convection_dirichlet_mode,
         convection_neumann_mode=self.convection_neumann_mode,
