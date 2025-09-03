@@ -69,7 +69,7 @@ class PedestalModel(abc.ABC):
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
@@ -80,10 +80,8 @@ class PedestalModel(abc.ABC):
       )
 
     return jax.lax.cond(
-        dynamic_runtime_params_slice.pedestal.set_pedestal,
-        lambda: self._call_implementation(
-            dynamic_runtime_params_slice, geo, core_profiles
-        ),
+        runtime_params.pedestal.set_pedestal,
+        lambda: self._call_implementation(runtime_params, geo, core_profiles),
         # Set the pedestal location to infinite to indicate that the pedestal is
         # not present.
         # Set the index to outside of bounds of the mesh to indicate that the
@@ -100,7 +98,7 @@ class PedestalModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:

@@ -61,24 +61,22 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         'n_e_ped_is_fGW': n_e_ped_is_fGW,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     geo = torax_config.geometry.build_provider(time)
-    dynamic_runtime_params_slice = provider(t=time)
+    runtime_params = provider(t=time)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     pedestal_model_output = pedestal_model(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -104,7 +102,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       expected_n_e_ped = n_e_ped[time]
     if n_e_ped_is_fGW:
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip
+          runtime_params.profile_conditions.Ip
           / 1e6  # Convert to MA.
           / (jnp.pi * geo.a_minor**2)
           * 1e20

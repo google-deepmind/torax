@@ -30,8 +30,8 @@ from typing_extensions import override
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime params for the BgB transport model."""
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for the SetPressureTemperatureRatioAndDensityPedestalModel."""
 
   P_ped: array_typing.FloatScalar
   n_e_ped: array_typing.FloatScalar
@@ -52,33 +52,31 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
   @override
   def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
-    assert isinstance(
-        dynamic_runtime_params_slice.pedestal, DynamicRuntimeParams
-    )
+    assert isinstance(runtime_params.pedestal, RuntimeParams)
     # Convert n_e_ped to reference units.
     # Ip in MA. a_minor in m. nGW in m^-3.
     nGW = (
-        dynamic_runtime_params_slice.profile_conditions.Ip
+        runtime_params.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
     )
     n_e_ped = jnp.where(
-        dynamic_runtime_params_slice.pedestal.n_e_ped_is_fGW,
-        dynamic_runtime_params_slice.pedestal.n_e_ped * nGW,
-        dynamic_runtime_params_slice.pedestal.n_e_ped,
+        runtime_params.pedestal.n_e_ped_is_fGW,
+        runtime_params.pedestal.n_e_ped * nGW,
+        runtime_params.pedestal.n_e_ped,
     )
 
     # Calculate T_e_ped.
-    temperature_ratio = dynamic_runtime_params_slice.pedestal.T_i_T_e_ratio
+    temperature_ratio = runtime_params.pedestal.T_i_T_e_ratio
     Z_impurity = core_profiles.Z_impurity
     Z_i = core_profiles.Z_i
     # Find the value of Z_eff at the pedestal top.
-    rho_norm_ped_top = dynamic_runtime_params_slice.pedestal.rho_norm_ped_top
+    rho_norm_ped_top = runtime_params.pedestal.rho_norm_ped_top
     Z_eff = core_profiles.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
@@ -95,7 +93,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
     T_e_ped = (
-        dynamic_runtime_params_slice.pedestal.P_ped
+        runtime_params.pedestal.P_ped
         / (
             n_e_ped  # Electron pressure contribution.
             + temperature_ratio * n_i_ped  # Ion pressure contribution.
@@ -112,7 +110,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
-        rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
+        rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
         rho_norm_ped_top_idx=ped_idx,
     )
 

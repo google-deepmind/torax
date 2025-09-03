@@ -32,13 +32,11 @@ class NoPedestalTest(parameterized.TestCase):
 
     @jax.jit
     def f(x: pydantic_model.BasePedestal):
-      return x.build_dynamic_params(t=0.0)
+      return x.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(pedestal_model)
-      self.assertIsInstance(
-          output, pydantic_model.runtime_params.DynamicRuntimeParams
-      )
+      self.assertIsInstance(output, pydantic_model.runtime_params.RuntimeParams)
       self.assertFalse(output.set_pedestal)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 

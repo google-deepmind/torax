@@ -70,15 +70,15 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     jitted_pedestal_model = jax_utils.jit(pedestal_model)
 
     geo = torax_config.geometry.build_provider(time)
-    dynamic_runtime_params_slice = provider(t=time)
+    runtime_params = provider(t=time)
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     pedestal_model_output = jitted_pedestal_model(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -96,7 +96,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       expected_n_e_ped = n_e_ped[time]
     if n_e_ped_is_fGW:
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip
+          runtime_params.profile_conditions.Ip
           / 1e6  # Convert to MA.
           / (jnp.pi * geo.a_minor**2)
           * 1e20

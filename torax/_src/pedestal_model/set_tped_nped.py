@@ -28,8 +28,8 @@ from typing_extensions import override
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime params for the BgB transport model."""
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for the SetTemperatureDensityPedestalModel."""
 
   n_e_ped: array_typing.FloatScalar
   T_i_ped: array_typing.FloatScalar
@@ -50,14 +50,14 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   @override
   def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
-    pedestal_params = dynamic_runtime_params_slice.pedestal
-    assert isinstance(pedestal_params, DynamicRuntimeParams)
+    pedestal_params = runtime_params.pedestal
+    assert isinstance(pedestal_params, RuntimeParams)
     nGW = (
-        dynamic_runtime_params_slice.profile_conditions.Ip
+        runtime_params.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20

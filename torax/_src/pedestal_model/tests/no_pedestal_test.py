@@ -24,9 +24,9 @@ class NoPedestalTest(absltest.TestCase):
     no_pedestal_model = no_pedestal.NoPedestal()
     geo = mock.Mock()
     geo.torax_mesh.nx = 10
-    dynamic_runtime_params_slice = mock.Mock()
-    dynamic_runtime_params_slice.pedestal.set_pedestal = True
-    result = no_pedestal_model(dynamic_runtime_params_slice, geo, mock.Mock())
+    runtime_params = mock.Mock()
+    runtime_params.pedestal.set_pedestal = True
+    result = no_pedestal_model(runtime_params, geo, mock.Mock())
     self.assertEqual(result.rho_norm_ped_top, jnp.inf)
     self.assertEqual(result.rho_norm_ped_top_idx, 10)
 

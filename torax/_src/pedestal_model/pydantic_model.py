@@ -44,10 +44,10 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Builds the pedestal model."""
 
   @abc.abstractmethod
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    """Builds the dynamic params."""
+  ) -> runtime_params.RuntimeParams:
+    """Builds the runtime params."""
 
 
 class SetPpedTpedRatioNped(BasePedestal):
@@ -87,10 +87,10 @@ class SetPpedTpedRatioNped(BasePedestal):
         set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_pped_tpedratio_nped.DynamicRuntimeParams:
-    return set_pped_tpedratio_nped.DynamicRuntimeParams(
+  ) -> set_pped_tpedratio_nped.RuntimeParams:
+    return set_pped_tpedratio_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
@@ -134,10 +134,10 @@ class SetTpedNped(BasePedestal):
   ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
     return set_tped_nped.SetTemperatureDensityPedestalModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_tped_nped.DynamicRuntimeParams:
-    return set_tped_nped.DynamicRuntimeParams(
+  ) -> set_tped_nped.RuntimeParams:
+    return set_tped_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -168,10 +168,10 @@ class NoPedestal(BasePedestal):
   ) -> no_pedestal.NoPedestal:
     return no_pedestal.NoPedestal()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
+  ) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
     )
 
