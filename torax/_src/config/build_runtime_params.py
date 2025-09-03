@@ -105,7 +105,7 @@ class RuntimeParamsProvider:
         numerics=self.numerics.build_dynamic_params(t),
         neoclassical=self.neoclassical.build_runtime_params(),
         pedestal=self.pedestal.build_runtime_params(t),
-        mhd=self.mhd.build_dynamic_params(t),
+        mhd=self.mhd.build_runtime_params(t),
         time_step_calculator=self.time_step_calculator.build_runtime_params(),
     )
 

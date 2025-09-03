@@ -116,14 +116,14 @@ class SimpleTriggerTest(parameterized.TestCase):
   ):
     mock_core_profiles = self._get_mock_core_profiles(q_profile, s_profile)
 
-    mock_dynamic_params = mock.create_autospec(
+    mock_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         instance=True,
-        mhd=mhd_runtime_params.DynamicMHDParams(
+        mhd=mhd_runtime_params.RuntimeParams(
             sawtooth=mock.create_autospec(
-                sawtooth_runtime_params.DynamicRuntimeParams,
+                sawtooth_runtime_params.RuntimeParams,
                 instance=True,
-                trigger_params=simple_trigger.DynamicRuntimeParams(
+                trigger_params=simple_trigger.RuntimeParams(
                     s_critical=s_critical,
                     minimum_radius=minimum_radius,
                 ),
@@ -132,7 +132,7 @@ class SimpleTriggerTest(parameterized.TestCase):
     )
 
     trigger_result, _ = self.trigger(
-        mock_dynamic_params,
+        mock_params,
         self.geo,
         mock_core_profiles,
     )

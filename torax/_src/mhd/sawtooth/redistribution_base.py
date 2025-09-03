@@ -32,7 +32,7 @@ class RedistributionModel(abc.ABC):
   def __call__(
       self,
       rho_norm_q1: array_typing.FloatScalar,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
   ) -> state.CoreProfiles:
@@ -62,9 +62,9 @@ class RedistributionConfig(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(1.01)
   )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> sawtooth_runtime_params.RedistributionDynamicRuntimeParams:
-    return sawtooth_runtime_params.RedistributionDynamicRuntimeParams(
+  ) -> sawtooth_runtime_params.RedistributionRuntimeParams:
+    return sawtooth_runtime_params.RedistributionRuntimeParams(
         flattening_factor=self.flattening_factor.get_value(t),
     )
