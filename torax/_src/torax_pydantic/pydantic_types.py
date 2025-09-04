@@ -14,7 +14,7 @@
 
 """Pydantic custom types."""
 
-from typing import Annotated, TypeAlias
+from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 import pydantic
@@ -96,3 +96,5 @@ NumpyArray1DUnitInterval = Annotated[
     NumpyArray1D,
     pydantic.AfterValidator(_array_is_unit_interval),
 ]
+
+COCOSInt = Literal[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18]
