@@ -197,7 +197,7 @@ The ``compare_sim_tests.py`` can be used for sanity checking the outputs, and th
 to the same output directory as the ``run_and_save_all_benchmarks.py`` script.
 
 Regenerating Unit Test References
-================================
+=================================
 
 Some unit tests (particularly for physics and geometry calculations) rely on
 pre-calculated reference values stored in torax/_src/test_utils/references.json.
