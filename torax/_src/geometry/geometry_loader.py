@@ -15,14 +15,16 @@
 """File I/O for loading geometry files."""
 
 import enum
-import logging
 import os
 from typing import IO
+from typing import Literal
 
 import eqdsk
 import numpy as np
 import scipy
 import torax
+
+COCOSInt = Literal[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18]
 
 
 @enum.unique
@@ -79,17 +81,26 @@ def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
     return LY_bundle_dict
 
 
-def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
-  eqdsk_data = eqdsk.EQDSKInterface.from_file(file_path, no_cocos=True)
-  # TODO(b/335204606): handle COCOS shenanigans
-  logging.warning(
-      """
-               WARNING: Using EQDSK geometry.
-               The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
-               The converter is not guaranteed to work as expected with arbitrary EQDSK input. Please verify carefully.
-               Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value."""
+def _load_eqdsk_data(file_path: str, cocos: COCOSInt) -> dict[str, np.ndarray]:
+  eqdsk_data = eqdsk.EQDSKInterface.from_file(
+      file_path, from_cocos=cocos, to_cocos=11
   )
-  return eqdsk_data.__dict__  # dict(eqdsk_data)
+  eqdsk_dict = eqdsk_data.__dict__  # dict(eqdsk_data) is broken
+
+  # Set Ip and B0 positive
+  # This is a choice not necessarily governed by COCOS (see Table Ib in COCOS
+  # paper). TODO: The logic here may need to change when rotation is added.
+  # https://doi.org/10.1016/j.cpc.2012.09.010)
+  eqdsk_dict["cplasma"] = np.abs(eqdsk_dict["cplasma"])
+  eqdsk_dict["bcentre"] = np.abs(eqdsk_dict["bcentre"])
+  if eqdsk_dict["psimag"] > eqdsk_dict["psibdry"]:
+    eqdsk_dict["psi"] = -eqdsk_dict["psi"]
+    eqdsk_dict["psimag"] = -eqdsk_dict["psimag"]
+    eqdsk_dict["psibdry"] = -eqdsk_dict["psibdry"]
+  if np.mean(eqdsk_dict["pprime"]) > 0:
+    eqdsk_dict["pprime"] = -eqdsk_dict["pprime"]
+    eqdsk_dict["ffprime"] = -eqdsk_dict["ffprime"]
+  return eqdsk_dict
 
 
 def get_geometry_dir(geometry_dir: str | None = None) -> str:
@@ -103,8 +114,11 @@ def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
     geometry_source: GeometrySource,
+    cocos: COCOSInt | None = None,
 ) -> dict[str, np.ndarray]:
-  """Loads the data from a geometry file into a dictionary."""
+  """Loads the data from a geometry file into a dictionary.
+
+  If geometry_source=EQDSK, cocos must be provided."""
   geometry_dir = get_geometry_dir(geometry_dir)
   filepath = os.path.join(geometry_dir, geometry_file)
 
@@ -115,6 +129,6 @@ def load_geo_data(
     case GeometrySource.FBT:
       return _load_fbt_data(file_path=filepath)
     case GeometrySource.EQDSK:
-      return _load_eqdsk_data(file_path=filepath)
+      return _load_eqdsk_data(file_path=filepath, cocos=cocos)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

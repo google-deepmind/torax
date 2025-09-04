@@ -14,7 +14,7 @@
 
 """Pydantic custom types."""
 
-from typing import Annotated, TypeAlias
+from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 import pydantic
