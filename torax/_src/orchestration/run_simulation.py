@@ -50,7 +50,7 @@ def prepare_simulation(
   Returns:
     A tuple containing:
 
-      - The dynamic runtime parameters slice provider.
+      - The runtime parameters slice provider.
       - The initial state.
       - The initial post processed outputs.
       - The simulation step function.
@@ -62,17 +62,15 @@ def prepare_simulation(
       physics_models=physics_models,
   )
 
-  dynamic_runtime_params_slice_provider = (
-      build_runtime_params.RuntimeParamsProvider.from_config(
-          torax_config
-      )
+  runtime_params_provider = (
+      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
   )
 
   step_fn = step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       geometry_provider=geometry_provider,
-      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+      runtime_params_provider=runtime_params_provider,
   )
 
   if torax_config.restart and torax_config.restart.do_restart:
@@ -80,7 +78,7 @@ def prepare_simulation(
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
             t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=geometry_provider,
             step_fn=step_fn,
         )
@@ -89,14 +87,14 @@ def prepare_simulation(
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=geometry_provider,
             step_fn=step_fn,
         )
     )
 
   return (
-      dynamic_runtime_params_slice_provider,
+      runtime_params_provider,
       initial_state,
       post_processed_outputs,
       step_fn,
@@ -122,14 +120,14 @@ def run_simulation(
     `PostProcessedOutputs` dataclasses for each step of the simulation.
   """
   (
-      dynamic_runtime_params_slice_provider,
+      runtime_params_provider,
       initial_state,
       post_processed_outputs,
       step_fn,
   ) = prepare_simulation(torax_config)
 
   state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
-      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+      runtime_params_provider=runtime_params_provider,
       initial_state=initial_state,
       initial_post_processed_outputs=post_processed_outputs,
       step_fn=step_fn,

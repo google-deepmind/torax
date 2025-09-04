@@ -100,13 +100,13 @@ class SawtoothModelTest(parameterized.TestCase):
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
         geometry_provider=geometry_provider,
-        dynamic_runtime_params_slice_provider=self.runtime_params_provider,
+        runtime_params_provider=self.runtime_params_provider,
     )
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=self.runtime_params_provider,
+            runtime_params_provider=self.runtime_params_provider,
             geometry_provider=geometry_provider,
             step_fn=self.step_fn,
         )

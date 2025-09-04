@@ -28,7 +28,7 @@ import tqdm
 
 
 def run_loop(
-    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,
@@ -47,8 +47,8 @@ def run_loop(
   Performs logging and updates the progress bar if requested.
 
   Args:
-    dynamic_runtime_params_slice_provider: Provides a RuntimeParams
-      to use as input for each time step.
+    runtime_params_provider: Provides a RuntimeParams to use as input for each
+      time step.
     initial_state: The starting state of the simulation. This includes both the
       state variables which the solver.Solver will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
@@ -101,14 +101,10 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # Some of the dynamic params are not time-dependent, so we can get them once
+  # Some of the runtime params are not time-dependent, so we can get them once
   # before the loop.
-  initial_dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      initial_state.t
-  )
-  time_step_calculator_dynamic_params = (
-      initial_dynamic_runtime_params_slice.time_step_calculator
-  )
+  initial_runtime_params = runtime_params_provider(initial_state.t)
+  time_step_calculator_params = initial_runtime_params.time_step_calculator
 
   with tqdm.tqdm(
       total=100,  # This makes it so that the progress bar measures a percentage
@@ -119,8 +115,8 @@ def run_loop(
     # Advance the simulation until the time_step_calculator tells us we are done
     while step_fn.time_step_calculator.not_done(
         current_state.t,
-        dynamic_runtime_params_slice_provider.numerics.t_final,
-        time_step_calculator_dynamic_params,
+        runtime_params_provider.numerics.t_final,
+        time_step_calculator_params,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
@@ -132,7 +128,7 @@ def run_loop(
           post_processing_history[-1],
       )
       sim_error = step_function.check_for_errors(
-          dynamic_runtime_params_slice_provider.numerics,
+          runtime_params_provider.numerics,
           current_state,
           post_processed_outputs,
       )
@@ -150,11 +146,10 @@ def run_loop(
         post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
-            float(current_state.t)
-            - dynamic_runtime_params_slice_provider.numerics.t_initial
+            float(current_state.t) - runtime_params_provider.numerics.t_initial
         ) / (
-            dynamic_runtime_params_slice_provider.numerics.t_final
-            - dynamic_runtime_params_slice_provider.numerics.t_initial
+            runtime_params_provider.numerics.t_final
+            - runtime_params_provider.numerics.t_initial
         )
         pbar.n = int(progress_ratio * pbar.total)
         pbar.set_description(f'Simulating (t={current_state.t:.5f})')

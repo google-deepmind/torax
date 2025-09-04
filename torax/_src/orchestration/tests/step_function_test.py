@@ -32,16 +32,16 @@ class StepFunctionTest(absltest.TestCase):
         default_configs.get_default_config_dict()
     )
     (
-        self.dynamic_provider,
+        self.params_provider,
         self.sim_state,
         self.post_processed_outputs,
         _,
     ) = run_simulation.prepare_simulation(torax_config)
-    self.dynamic_slice = self.dynamic_provider(torax_config.numerics.t_initial)
+    self.runtime_params = self.params_provider(torax_config.numerics.t_initial)
 
   def test_no_error(self):
     error = step_function.check_for_errors(
-        self.dynamic_provider.numerics,
+        self.params_provider.numerics,
         self.sim_state,
         self.post_processed_outputs,
     )
@@ -59,7 +59,7 @@ class StepFunctionTest(absltest.TestCase):
         self.sim_state, core_profiles=core_profiles
     )
     error = step_function.check_for_errors(
-        self.dynamic_provider.numerics,
+        self.params_provider.numerics,
         new_sim_state_core_profiles,
         self.post_processed_outputs,
     )
@@ -71,7 +71,7 @@ class StepFunctionTest(absltest.TestCase):
         P_aux_total=jnp.array(jnp.nan),
     )
     error = step_function.check_for_errors(
-        self.dynamic_provider.numerics,
+        self.params_provider.numerics,
         self.sim_state,
         new_post_processed_outputs,
     )
@@ -91,14 +91,14 @@ class StepFunctionTest(absltest.TestCase):
         self.sim_state, core_sources=new_core_sources
     )
     error = step_function.check_for_errors(
-        self.dynamic_provider.numerics,
+        self.params_provider.numerics,
         new_sim_state_sources,
         self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_below_min_dt(self):
-    numerics = copy.deepcopy(self.dynamic_provider.numerics)
+    numerics = copy.deepcopy(self.params_provider.numerics)
     numerics._update_fields({'min_dt': 2.0, 'dt_reduction_factor': 2.0})
 
     new_sim_state = dataclasses.replace(
@@ -116,7 +116,7 @@ class StepFunctionTest(absltest.TestCase):
     self.assertEqual(error, state.SimError.REACHED_MIN_DT)
 
   def test_no_error_when_below_min_dt_but_solver_converged(self):
-    numerics = copy.deepcopy(self.dynamic_provider.numerics)
+    numerics = copy.deepcopy(self.params_provider.numerics)
     numerics._update_fields({
         't_final': 5.0,
         'exact_t_final': True,

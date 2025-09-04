@@ -103,7 +103,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     def _fake_run_loop(
-        dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
+        runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
         initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
@@ -138,7 +138,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           output_state.core_profiles.T_i.value[0], expected_combined_value
       )
       sim_error = step_function.check_for_errors(
-          dynamic_runtime_params_slice_provider.numerics,
+          runtime_params_provider.numerics,
           output_state,
           post_processed_outputs,
       )

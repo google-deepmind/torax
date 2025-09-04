@@ -35,39 +35,38 @@ import xarray as xr
 
 def get_initial_state_and_post_processed_outputs(
     t: float,
-    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
-  dynamic_runtime_params_slice_for_init, geo_for_init = (
+  runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
-          runtime_params_provider=dynamic_runtime_params_slice_provider,
+          runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
       )
   )
   initial_state = _get_initial_state(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+      runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
-      initial_state,
-      dynamic_runtime_params_slice_for_init,
+      initial_state, runtime_params_for_init
   )
   return initial_state, post_processed_outputs
 
 
 def _get_initial_state(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
 ) -> sim_state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   physics_models = step_fn.solver.physics_models
   initial_core_profiles = initialization.initial_core_profiles(
-      dynamic_runtime_params_slice,
+      runtime_params,
       geo,
       source_models=physics_models.source_models,
       neoclassical_models=physics_models.neoclassical_models,
@@ -76,7 +75,7 @@ def _get_initial_state(
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
   initial_core_sources = source_profile_builders.get_all_source_profiles(
-      runtime_params=dynamic_runtime_params_slice,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=physics_models.source_models,
@@ -92,14 +91,14 @@ def _get_initial_state(
           physics_models.pedestal_model,
           physics_models.transport_model,
           physics_models.neoclassical_models,
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           initial_core_profiles,
       )
   )
 
   return sim_state.ToraxSimState(
-      t=np.array(dynamic_runtime_params_slice.numerics.t_initial),
+      t=np.array(runtime_params.numerics.t_initial),
       dt=np.zeros(()),
       core_profiles=initial_core_profiles,
       core_sources=initial_core_sources,
@@ -116,7 +115,7 @@ def _get_initial_state(
 def get_initial_state_and_post_processed_outputs_from_file(
     t_initial: float,
     file_restart: file_restart_pydantic_model.FileRestart,
-    dynamic_runtime_params_slice_provider: build_runtime_params.RuntimeParamsProvider,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
@@ -136,23 +135,23 @@ def get_initial_state_and_post_processed_outputs_from_file(
         t_restart,
     )
 
-  dynamic_runtime_params_slice_for_init, geo_for_init = (
+  runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t_initial,
-          runtime_params_provider=dynamic_runtime_params_slice_provider,
+          runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
       )
   )
-  dynamic_runtime_params_slice_for_init, geo_for_init = (
+  runtime_params_for_init, geo_for_init = (
       _override_initial_runtime_params_from_file(
-          dynamic_runtime_params_slice_for_init,
+          runtime_params_for_init,
           geo_for_init,
           t_restart,
           profiles_dataset,
       )
   )
   initial_state = _get_initial_state(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+      runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
   )
@@ -160,7 +159,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = post_processing.make_post_processed_outputs(
       initial_state,
-      dynamic_runtime_params_slice_for_init,
+      runtime_params_for_init,
   )
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
@@ -195,49 +194,49 @@ def get_initial_state_and_post_processed_outputs_from_file(
 
 
 def _override_initial_runtime_params_from_file(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     t_restart: float,
     profiles_ds: xr.Dataset,
 ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
-  dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip = profiles_ds.data_vars[
+  runtime_params.numerics.t_initial = t_restart
+  runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
       output.IP_PROFILE
   ].to_numpy()[-1]
-  dynamic_runtime_params_slice.profile_conditions.T_e = (
+  runtime_params.profile_conditions.T_e = (
       profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = (
+  runtime_params.profile_conditions.T_e_right_bc = (
       profiles_ds.data_vars[output.T_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.T_i = (
+  runtime_params.profile_conditions.T_i = (
       profiles_ds.data_vars[output.T_I]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = (
+  runtime_params.profile_conditions.T_i_right_bc = (
       profiles_ds.data_vars[output.T_I]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
   # Density in output is in m^-3.
-  dynamic_runtime_params_slice.profile_conditions.n_e = (
+  runtime_params.profile_conditions.n_e = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
+  runtime_params.profile_conditions.n_e_right_bc = (
       profiles_ds.data_vars[output.N_E]
       .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
       .to_numpy()
   )
-  dynamic_runtime_params_slice.profile_conditions.psi = (
+  runtime_params.profile_conditions.psi = (
       profiles_ds.data_vars[output.PSI]
       .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
       .to_numpy()
@@ -245,11 +244,9 @@ def _override_initial_runtime_params_from_file(
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not fGW).
   # Additionally we want to avoid normalizing to nbar.
-  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
-  dynamic_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar = False
-  dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute = (
-      True
-  )
+  runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
+  runtime_params.profile_conditions.n_e_nbar_is_fGW = False
+  runtime_params.profile_conditions.normalize_n_e_to_nbar = False
+  runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
-  return dynamic_runtime_params_slice, geo
+  return runtime_params, geo

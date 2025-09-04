@@ -407,7 +407,7 @@ class SimTest(sim_test_case.SimTestCase):
     In this test we:
     - Load up a reference file and build a sim from its config.
     - Get profile values from either halfway or final time of the sim.
-    - Override the dynamic runtime params slice with values from the reference.
+    - Override the runtime params with values from the reference.
     - Run the sim to the end and check core profiles against reference.
 
     Args:
@@ -439,11 +439,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     original_get_initial_state = initial_state._get_initial_state
 
-    def wrapped_get_initial_state(
-        dynamic_runtime_params_slice,
-        geo,
-        step_fn,
-    ):
+    def wrapped_get_initial_state(runtime_params, geo, step_fn):
       # Load in the reference core profiles.
       Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
       # All profiles are on a grid with [left_face, cell_grid, right_face]
@@ -455,33 +451,25 @@ class SimTest(sim_test_case.SimTestCase):
       n_e_right_bc = ref_profiles[output.N_E][index, -1]
       psi = ref_profiles[output.PSI][index, 1:-1]
 
-      # Override the dynamic runtime params with the loaded values.
-      dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
-      dynamic_runtime_params_slice.profile_conditions.T_e = T_e
-      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = T_e_bc
-      dynamic_runtime_params_slice.profile_conditions.T_i = T_i
-      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = T_i_bc
-      dynamic_runtime_params_slice.profile_conditions.n_e = n_e
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
-          n_e_right_bc
-      )
-      dynamic_runtime_params_slice.profile_conditions.psi = psi
+      # Override the runtime params with the loaded values.
+      runtime_params.profile_conditions.Ip = Ip_total
+      runtime_params.profile_conditions.T_e = T_e
+      runtime_params.profile_conditions.T_e_right_bc = T_e_bc
+      runtime_params.profile_conditions.T_i = T_i
+      runtime_params.profile_conditions.T_i_right_bc = T_i_bc
+      runtime_params.profile_conditions.n_e = n_e
+      runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
+      runtime_params.profile_conditions.psi = psi
       # When loading from file we want n_e not to have transformations.
       # Both n_e and the boundary condition are given in absolute values
       # (not fGW).
       # Additionally we want to avoid normalizing to nbar.
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = (
-          False
-      )
-      dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
-      dynamic_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar = (
-          False
-      )
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute = (
-          True
-      )
+      runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
+      runtime_params.profile_conditions.n_e_nbar_is_fGW = False
+      runtime_params.profile_conditions.normalize_n_e_to_nbar = False
+      runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
       return original_get_initial_state(
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           step_fn,
       )

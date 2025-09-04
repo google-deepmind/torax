@@ -34,11 +34,11 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     step_fn = _get_step_fn(torax_config)
 
-    dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
+    runtime_params, geo = _get_geo_and_runtime_params_providers(torax_config)
 
     non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
         t=torax_config.numerics.t_initial,
-        dynamic_runtime_params_slice_provider=dynamic,
+        runtime_params_provider=runtime_params,
         geometry_provider=geo,
         step_fn=step_fn,
     )
@@ -47,7 +47,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
             t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            dynamic_runtime_params_slice_provider=dynamic,
+            runtime_params_provider=runtime_params,
             geometry_provider=geo,
             step_fn=step_fn,
         )
@@ -93,7 +93,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     config['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
+    runtime_params, geo = _get_geo_and_runtime_params(torax_config)
     step_fn = _get_step_fn(torax_config)
 
     # Load in the reference core profiles.
@@ -107,24 +107,24 @@ class InitialStateTest(sim_test_case.SimTestCase):
     n_e_right_bc = ref_profiles[output.N_E][index, -1]
     psi = ref_profiles[output.PSI][index, 1:-1]
 
-    # Override the dynamic runtime params with the loaded values.
-    dynamic.profile_conditions.Ip = Ip_total
-    dynamic.profile_conditions.T_e = T_e
-    dynamic.profile_conditions.T_e_right_bc = T_e_bc
-    dynamic.profile_conditions.T_i = T_i
-    dynamic.profile_conditions.T_i_right_bc = T_i_bc
-    dynamic.profile_conditions.n_e = n_e
-    dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
-    dynamic.profile_conditions.psi = psi
+    # Override the runtime params with the loaded values.
+    runtime_params.profile_conditions.Ip = Ip_total
+    runtime_params.profile_conditions.T_e = T_e
+    runtime_params.profile_conditions.T_e_right_bc = T_e_bc
+    runtime_params.profile_conditions.T_i = T_i
+    runtime_params.profile_conditions.T_i_right_bc = T_i_bc
+    runtime_params.profile_conditions.n_e = n_e
+    runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
+    runtime_params.profile_conditions.psi = psi
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
     # Additionally we want to avoid normalizing to nbar.
-    dynamic.profile_conditions.n_e_right_bc_is_fGW = False
-    dynamic.profile_conditions.n_e_nbar_is_fGW = False
-    dynamic.profile_conditions.normalize_n_e_to_nbar = False
-    dynamic.profile_conditions.n_e_right_bc_is_absolute = True
+    runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
+    runtime_params.profile_conditions.n_e_nbar_is_fGW = False
+    runtime_params.profile_conditions.normalize_n_e_to_nbar = False
+    runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
-    result = initial_state._get_initial_state(dynamic, geo, step_fn)
+    result = initial_state._get_initial_state(runtime_params, geo, step_fn)
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
@@ -137,32 +137,27 @@ def _get_step_fn(torax_config):
 
 
 def _get_geo_and_runtime_params_providers(torax_config):
-  dynamic_runtime_params_slice_provider = (
-      build_runtime_params.RuntimeParamsProvider.from_config(
-          torax_config
-      )
+  runtime_params_provider = (
+      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
   )
   return (
-      dynamic_runtime_params_slice_provider,
+      runtime_params_provider,
       torax_config.geometry.build_provider,
   )
 
 
-def _get_geo_and_runtime_params_slice(torax_config):
-  dynamic_provider, geo_provider = (
-      _get_geo_and_runtime_params_providers(torax_config)
+def _get_geo_and_runtime_params(torax_config):
+  params_provider, geo_provider = _get_geo_and_runtime_params_providers(
+      torax_config
   )
-  dynamic_runtime_params_slice_for_init, geo_for_init = (
+  runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
-          runtime_params_provider=dynamic_provider,
+          runtime_params_provider=params_provider,
           geometry_provider=geo_provider,
       )
   )
-  return (
-      dynamic_runtime_params_slice_for_init,
-      geo_for_init,
-  )
+  return runtime_params_for_init, geo_for_init
 
 
 if __name__ == '__main__':
