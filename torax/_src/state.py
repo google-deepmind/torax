@@ -263,7 +263,7 @@ class SimError(enum.Enum):
             """)
       case SimError.NAN_DETECTED:
         logging.error("""
-            Simulation stopped due to NaNs in state.
+            Simulation stopped due to NaNs in state and/or post processed outputs.
             Output file contains all profiles up to the last valid step.
             """)
       case SimError.QUASINEUTRALITY_BROKEN:

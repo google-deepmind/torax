@@ -85,7 +85,7 @@ def _log_nans(
   nan_count = 0
   for path, value in path_vals:
     if np.any(np.isnan(value)):
-      logging.info("Found NaNs in %s", jax.tree_util.keystr(path))
+      logging.info("Found NaNs in sim_state%s", jax.tree_util.keystr(path))
       nan_count += 1
   if nan_count >= 10:
     logging.info("""\nA common cause of widespread NaNs is negative densities or

@@ -16,6 +16,7 @@
 import dataclasses
 from typing import Callable
 
+from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -324,6 +325,13 @@ class PostProcessedOutputs:
 
   def check_for_errors(self):
     if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
+      path_vals, _ = jax.tree.flatten_with_path(self)
+      for path, value in path_vals:
+        if np.any(np.isnan(value)):
+          logging.info(
+              'Found NaNs in post_processed_outputs%s',
+              jax.tree_util.keystr(path),
+          )
       return state.SimError.NAN_DETECTED
     else:
       return state.SimError.NO_ERROR
