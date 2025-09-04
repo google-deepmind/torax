@@ -33,7 +33,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 def radially_constant_fraction_of_Pin(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
@@ -41,10 +41,8 @@ def radially_constant_fraction_of_Pin(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Model function for radiation heat sink from impurities."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   if calculated_source_profiles is None:
     raise ValueError(
@@ -72,11 +70,17 @@ def radially_constant_fraction_of_Pin(
 
   # Calculate the heat sink as a fraction of the total power input
   return (
-      -dynamic_source_runtime_params.fraction_P_heating
+      -source_params.fraction_P_heating
       * P_total_in
       / geo.volume_face[-1]
       * jnp.ones_like(geo.rho),
   )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  fraction_P_heating: array_typing.FloatScalar
 
 
 class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
@@ -97,11 +101,11 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
       runtime_params_lib.Mode.MODEL_BASED
   )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
@@ -120,9 +124,3 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
     return radially_constant_fraction_of_Pin
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  fraction_P_heating: array_typing.FloatScalar

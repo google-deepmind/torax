@@ -34,7 +34,7 @@ class SourceTest(parameterized.TestCase):
     )
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.DynamicRuntimeParams(
+            runtime_params_lib.RuntimeParams(
                 prescribed_values=np.zeros_like(geo.rho_norm),
                 mode=runtime_params_lib.Mode.ZERO,
                 is_explicit=False,
@@ -46,7 +46,7 @@ class SourceTest(parameterized.TestCase):
         sources=dynamic_source_params,
     )
     profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_slice,
+        runtime_params=dynamic_slice,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -72,7 +72,7 @@ class SourceTest(parameterized.TestCase):
     source = generic_current_source.GenericCurrentSource(model_func=model_func)
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.DynamicRuntimeParams(
+            runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
                 mode=mode,
                 is_explicit=False,
@@ -88,7 +88,7 @@ class SourceTest(parameterized.TestCase):
         geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
     )
     profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_slice,
+        runtime_params=dynamic_slice,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -105,7 +105,7 @@ class SourceTest(parameterized.TestCase):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.DynamicRuntimeParams(
+            runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
                 mode=runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
@@ -117,7 +117,7 @@ class SourceTest(parameterized.TestCase):
         sources=dynamic_source_params,
     )
     profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_slice,
+        runtime_params=dynamic_slice,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
@@ -141,7 +141,7 @@ class SourceTest(parameterized.TestCase):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.DynamicRuntimeParams(
+            runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
                 mode=runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
@@ -157,7 +157,7 @@ class SourceTest(parameterized.TestCase):
         'the number of prescribed values must match the number of affected',
     ):
       source.get_value(
-          dynamic_runtime_params_slice=dynamic_slice,
+          runtime_params=dynamic_slice,
           geo=mock.ANY,
           core_profiles=mock.ANY,
           calculated_source_profiles=None,

@@ -39,7 +39,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   gaussian_width: array_typing.FloatScalar
   gaussian_location: array_typing.FloatScalar
   P_total: array_typing.FloatScalar
@@ -83,7 +83,7 @@ def calc_generic_heat_source(
 
 
 def default_formula(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
@@ -91,17 +91,15 @@ def default_formula(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
-      dynamic_source_runtime_params.gaussian_location,
-      dynamic_source_runtime_params.gaussian_width,
-      dynamic_source_runtime_params.P_total,
-      dynamic_source_runtime_params.electron_heat_fraction,
-      dynamic_source_runtime_params.absorption_fraction,
+      source_params.gaussian_location,
+      source_params.gaussian_width,
+      source_params.P_total,
+      source_params.electron_heat_fraction,
+      source_params.absorption_fraction,
   )
   return (ion, el)
 
@@ -162,11 +160,11 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return default_formula
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

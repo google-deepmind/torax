@@ -96,7 +96,7 @@ class RuntimeParamsProvider:
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
         sources={
-            source_name: source_config.build_dynamic_params(t)
+            source_name: source_config.build_runtime_params(t)
             for source_name, source_config in dict(self.sources).items()
             if source_config is not None
         },

@@ -26,7 +26,7 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base_pydantic_model
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
-from torax._src.sources import runtime_params
+from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
@@ -36,13 +36,13 @@ from torax._src.torax_pydantic import torax_pydantic
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
+class RuntimeParams(source_runtime_params.RuntimeParams):
   a: array_typing.FloatScalar
   b: bool
 
 
 def double_gas_puff_source(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -51,7 +51,7 @@ def double_gas_puff_source(
 ) -> tuple[array_typing.Array, ...]:
   """Calculates external source term for n from puffs."""
   output = gas_puff_source_lib.calc_puff_source(
-      dynamic_runtime_params_slice,
+      runtime_params,
       geo,
       source_name,
       unused_state,
@@ -75,11 +75,11 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
   def build_source(self) -> source_lib.Source:
     return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         a=self.a.get_value(t),
         b=self.b,
         prescribed_values=tuple(
@@ -105,11 +105,11 @@ class DuplicateGasPuffSourceModelConfig(
   def build_source(self) -> source_lib.Source:
     return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         a=self.a.get_value(t),
         b=self.b,
         prescribed_values=tuple(
@@ -140,10 +140,8 @@ class RegisterConfigTest(parameterized.TestCase):
     )
     gas_puff = gas_puff_config.build_source()
     self.assertIsInstance(gas_puff, gas_puff_source_lib.GasPuffSource)
-    dynamic_params = gas_puff_config.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, gas_puff_source_lib.DynamicGasPuffRuntimeParams
-    )
+    runtime_params = gas_puff_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, gas_puff_source_lib.RuntimeParams)
 
     # Now modify the original config to use the new config.
     del config['sources']['gas_puff']
@@ -155,11 +153,11 @@ class RegisterConfigTest(parameterized.TestCase):
     # Check we build the correct config.
     new_gas_puff_config = config_pydantic.sources.gas_puff
     self.assertIsInstance(new_gas_puff_config, NewGasPuffSourceModelConfig)
-    # Check the dynamic params are built correctly.
-    new_dynamic_params = new_gas_puff_config.build_dynamic_params(t=0.0)
-    self.assertIsInstance(new_dynamic_params, DynamicRuntimeParams)
-    self.assertEqual(new_dynamic_params.a, 2.0)
-    self.assertEqual(new_dynamic_params.b, False)
+    # Check the runtime params are built correctly.
+    new_runtime_params = new_gas_puff_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(new_runtime_params, RuntimeParams)
+    self.assertEqual(new_runtime_params.a, 2.0)
+    self.assertEqual(new_runtime_params.b, False)
 
   def test_error_thrown_if_model_name_is_already_registered(self):
     with self.assertRaises(ValueError):

@@ -35,7 +35,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'standard'
 
 
 def ohmic_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
@@ -64,7 +64,7 @@ def ohmic_model_func(
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=psi_sources,
       sigma=conductivity.sigma,
-      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
+      resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
       psi=core_profiles.psi,
       geo=geo,
   )
@@ -110,11 +110,11 @@ class OhmicHeatSourceConfig(base.SourceModelBase):
   def model_func(self) -> source_lib.SourceProfileFunction:
     return ohmic_model_func
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_lib.DynamicRuntimeParams:
-    return runtime_params_lib.DynamicRuntimeParams(
+  ) -> runtime_params_lib.RuntimeParams:
+    return runtime_params_lib.RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

@@ -41,15 +41,15 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'bosch_hale'
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes DT fusion power with the Bosch-Hale parameterization NF 1992.
 
   Args:
     geo: Magnetic geometry.
     core_profiles: Core plasma profiles.
-    dynamic_runtime_params_slice: Dynamic runtime params, used to extract the D
-      and T densities.
+    runtime_params: Dynamic runtime params, used to extract the D and T
+      densities.
 
   Returns:
     Tuple of P_total, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
@@ -58,9 +58,7 @@ def calc_fusion(
 
   # If both D and T not present in the main ion mixture, return zero fusion.
   # Otherwise, calculate the fusion power.
-  if not {'D', 'T'}.issubset(
-      dynamic_runtime_params_slice.plasma_composition.main_ion_names
-  ):
+  if not {'D', 'T'}.issubset(runtime_params.plasma_composition.main_ion_names):
     return (
         jnp.array(0.0, dtype=jax_utils.get_dtype()),
         jnp.zeros_like(core_profiles.T_i.value),
@@ -69,8 +67,8 @@ def calc_fusion(
   else:
     product = 1.0
     for fraction, symbol in zip(
-        dynamic_runtime_params_slice.plasma_composition.main_ion.fractions,
-        dynamic_runtime_params_slice.plasma_composition.main_ion_names,
+        runtime_params.plasma_composition.main_ion.fractions,
+        runtime_params.plasma_composition.main_ion_names,
     ):
       if symbol == 'D' or symbol == 'T':
         product *= fraction
@@ -143,7 +141,7 @@ def calc_fusion(
 
 
 def fusion_heat_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
@@ -155,7 +153,7 @@ def fusion_heat_model_func(
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,
       core_profiles,
-      dynamic_runtime_params_slice,
+      runtime_params,
   )
   return (Pfus_i, Pfus_e)
   # pylint: enable=invalid-name
@@ -194,11 +192,11 @@ class FusionHeatSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return fusion_heat_model_func
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_lib.DynamicRuntimeParams:
-    return runtime_params_lib.DynamicRuntimeParams(
+  ) -> runtime_params_lib.RuntimeParams:
+    return runtime_params_lib.RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

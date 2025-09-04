@@ -44,11 +44,11 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   ):
     references = references_getter()
 
-    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    runtime_params, geo = references.get_dynamic_slice_and_geo()
     source_models = references.config.sources.build_models()
     neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,

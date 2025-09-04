@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   Qei_multiplier: float
 
 
@@ -61,16 +61,16 @@ class QeiSource(source.Source):
 
   def get_qei(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
-        dynamic_runtime_params_slice.sources[self.source_name].mode
+        runtime_params.sources[self.source_name].mode
         == runtime_params_lib.Mode.MODEL_BASED,
         lambda: _model_based_qei(
-            dynamic_runtime_params_slice,
+            runtime_params,
             geo,
             core_profiles,
         ),
@@ -79,7 +79,7 @@ class QeiSource(source.Source):
 
   def get_value(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
@@ -97,19 +97,17 @@ class QeiSource(source.Source):
 
 
 def _model_based_qei(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      QeiSource.SOURCE_NAME
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[QeiSource.SOURCE_NAME]
+  assert isinstance(source_params, RuntimeParams)
   zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = collisions.coll_exchange(
       core_profiles=core_profiles,
-      Qei_multiplier=dynamic_source_runtime_params.Qei_multiplier,
+      Qei_multiplier=source_params.Qei_multiplier,
   )
   implicit_ii = -qei_coef
   implicit_ee = -qei_coef
@@ -117,12 +115,12 @@ def _model_based_qei(
   if (
       # if only a single heat equation is being evolved
       (
-          dynamic_runtime_params_slice.numerics.evolve_ion_heat
-          and not dynamic_runtime_params_slice.numerics.evolve_electron_heat
+          runtime_params.numerics.evolve_ion_heat
+          and not runtime_params.numerics.evolve_electron_heat
       )
       or (
-          dynamic_runtime_params_slice.numerics.evolve_electron_heat
-          and not dynamic_runtime_params_slice.numerics.evolve_ion_heat
+          runtime_params.numerics.evolve_electron_heat
+          and not runtime_params.numerics.evolve_ion_heat
       )
   ):
     explicit_i = qei_coef * core_profiles.T_e.value
@@ -162,11 +160,11 @@ class QeiSourceConfig(base.SourceModelBase):
   def model_func(self) -> None:
     return None
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

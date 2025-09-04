@@ -40,8 +40,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime parameters for the external current source."""
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime parameters for the external current source."""
 
   I_generic: array_typing.FloatScalar
   fraction_of_total_current: array_typing.FloatScalar
@@ -51,7 +51,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calculate_generic_current(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -59,19 +59,17 @@ def calculate_generic_current(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates the external current density profiles on the cell grid."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
+  source_params = runtime_params.sources[source_name]
   # pytype: enable=name-error
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  assert isinstance(source_params, RuntimeParams)
   I_generic = _calculate_I_generic(
-      dynamic_runtime_params_slice,
-      dynamic_source_runtime_params,
+      runtime_params,
+      source_params,
   )
   # form of external current on cell grid
   generic_current_form = jnp.exp(
-      -((geo.rho_norm - dynamic_source_runtime_params.gaussian_location) ** 2)
-      / (2 * dynamic_source_runtime_params.gaussian_width**2)
+      -((geo.rho_norm - source_params.gaussian_location) ** 2)
+      / (2 * source_params.gaussian_width**2)
   )
 
   Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
@@ -80,16 +78,16 @@ def calculate_generic_current(
 
 
 def _calculate_I_generic(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
+    source_params: RuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
   return jnp.where(
-      dynamic_source_runtime_params.use_absolute_current,
-      dynamic_source_runtime_params.I_generic,
+      source_params.use_absolute_current,
+      source_params.I_generic,
       (
-          dynamic_runtime_params_slice.profile_conditions.Ip
-          * dynamic_source_runtime_params.fraction_of_total_current
+          runtime_params.profile_conditions.Ip
+          * source_params.fraction_of_total_current
       ),
   )
 
@@ -147,11 +145,11 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return calculate_generic_current
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

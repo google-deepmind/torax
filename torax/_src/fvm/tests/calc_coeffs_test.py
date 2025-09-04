@@ -73,7 +73,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=physics_models.source_models,
-        dynamic_runtime_params_slice=runtime_params,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         neoclassical_models=physics_models.neoclassical_models,

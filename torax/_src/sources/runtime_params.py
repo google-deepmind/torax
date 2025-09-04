@@ -42,7 +42,7 @@ class Mode(enum.Enum):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams:
+class RuntimeParams:
   """Dynamic params for a single TORAX source.
 
   These params can be changed without triggering a recompile. TORAX sources are

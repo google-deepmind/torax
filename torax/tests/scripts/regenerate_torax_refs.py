@@ -116,7 +116,7 @@ def _calculate_new_references(
   )
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
   source_profile_builders.build_standard_source_profiles(
-      dynamic_runtime_params_slice=runtime_params,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=source_models,

@@ -44,7 +44,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   wall_reflection_coeff: array_typing.FloatScalar
   beta_min: array_typing.FloatScalar
   beta_max: array_typing.FloatScalar
@@ -234,7 +234,7 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -262,7 +262,7 @@ def cyclotron_radiation_albajar(
   0<rhonorm<0.9, to avoid pedestal effects.
 
   Args:
-    dynamic_runtime_params_slice: A slice of dynamic runtime parameters.
+    runtime_params: A slice of dynamic runtime parameters.
     geo: The geometry object.
     source_name: The name of the source.
     core_profiles: The core profiles object.
@@ -272,10 +272,8 @@ def cyclotron_radiation_albajar(
     The cyclotron radiation heat sink contribution to the electron heat
     equation.
   """
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
@@ -299,9 +297,9 @@ def cyclotron_radiation_albajar(
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
-      dynamic_source_runtime_params.beta_min,
-      dynamic_source_runtime_params.beta_max,
-      dynamic_source_runtime_params.beta_grid_size,
+      source_params.beta_min,
+      source_params.beta_max,
+      source_params.beta_grid_size,
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=geo.rho_face_norm,
@@ -320,7 +318,7 @@ def cyclotron_radiation_albajar(
   # Calculate power loss in [W]
   P_cycl_total = (
       3.84e-2
-      * jnp.sqrt(1 - dynamic_source_runtime_params.wall_reflection_coeff)
+      * jnp.sqrt(1 - source_params.wall_reflection_coeff)
       * geo.R_major
       * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
@@ -406,11 +404,11 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return cyclotron_radiation_albajar
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> 'RuntimeParams':
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

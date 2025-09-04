@@ -47,7 +47,7 @@ class ImpurityRadiationConstantFractionTest(
     )
 
     impurity_radiation_dynamic = (
-        impurity_radiation_constant_fraction.DynamicRuntimeParams(
+        impurity_radiation_constant_fraction.RuntimeParams(
             prescribed_values=mock.ANY,
             mode=runtime_params_lib.Mode.MODEL_BASED,
             is_explicit=False,
@@ -55,7 +55,7 @@ class ImpurityRadiationConstantFractionTest(
         )
     )
 
-    heat_dynamic = generic_ion_el_heat_source.DynamicRuntimeParams(
+    heat_dynamic = generic_ion_el_heat_source.RuntimeParams(
         prescribed_values=mock.ANY,
         gaussian_location=0.0,
         gaussian_width=0.25,
@@ -93,7 +93,7 @@ class ImpurityRadiationConstantFractionTest(
 
     impurity_radiation_heat_sink_power_density = (
         impurity_radiation_sink.get_value(
-            dynamic_runtime_params_slice=dynamic_slice,
+            runtime_params=dynamic_slice,
             geo=geo,
             core_profiles=mock.ANY,
             calculated_source_profiles=source_profiles.SourceProfiles(

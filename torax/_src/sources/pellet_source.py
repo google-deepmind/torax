@@ -36,7 +36,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 # pylint: disable=invalid-name
 def calc_pellet_source(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -44,15 +44,13 @@ def calc_pellet_source(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates external source term for n from pellets."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=dynamic_source_runtime_params.pellet_deposition_location,
-          width=dynamic_source_runtime_params.pellet_width,
-          total=dynamic_source_runtime_params.S_total,
+          center=source_params.pellet_deposition_location,
+          width=source_params.pellet_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -76,7 +74,7 @@ class PelletSource(source.Source):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   pellet_width: array_typing.FloatScalar
   pellet_deposition_location: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
@@ -114,11 +112,11 @@ class PelletSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return calc_pellet_source
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicPelletRuntimeParams:
-    return DynamicPelletRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

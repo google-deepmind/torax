@@ -65,8 +65,7 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Returns the model function for the source."""
 
   @abc.abstractmethod
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> runtime_params.DynamicRuntimeParams:
-    """Builds dynamic runtime parameters for the source."""
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.RuntimeParams:
+    """Builds runtime parameters for the source."""

@@ -295,7 +295,7 @@ def update_core_and_source_profiles_after_step(
 
   # build_source_profiles calculates the union with explicit + implicit
   total_source_profiles = source_profile_builders.build_source_profiles(
-      dynamic_runtime_params_slice=runtime_params_t_plus_dt,
+      runtime_params=runtime_params_t_plus_dt,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,

@@ -41,7 +41,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
   current_drive_efficiency: array_typing.FloatVector
@@ -52,7 +52,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calc_heating_and_current(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -65,7 +65,7 @@ def calc_heating_and_current(
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
 
   Args:
-    dynamic_runtime_params_slice: Global runtime parameters
+    runtime_params: Global runtime parameters
     geo: Magnetic geometry.
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
@@ -74,18 +74,16 @@ def calc_heating_and_current(
   Returns:
     2D array of electron cyclotron heating power density and current density.
   """
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  # Helps linter understand the type of dynamic_source_runtime_params.
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  # Helps linter understand the type of source_params.
+  assert isinstance(source_params, RuntimeParams)
   # Construct the profile
   ec_power_density = (
-      dynamic_source_runtime_params.extra_prescribed_power_density
+      source_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
-          center=dynamic_source_runtime_params.gaussian_location,
-          width=dynamic_source_runtime_params.gaussian_width,
-          total=dynamic_source_runtime_params.P_total,
+          center=source_params.gaussian_location,
+          width=source_params.gaussian_width,
+          total=source_params.P_total,
           geo=geo,
       )
   )
@@ -109,7 +107,7 @@ def calc_heating_and_current(
       + jnp.log(core_profiles.T_e.value)
       + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
       - jnp.log(core_profiles.n_e.value)
-      + jnp.log(dynamic_source_runtime_params.current_drive_efficiency)
+      + jnp.log(source_params.current_drive_efficiency)
       + jnp.log(ec_power_density)
   )
   j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
@@ -173,11 +171,11 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return calc_heating_and_current
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

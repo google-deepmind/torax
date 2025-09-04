@@ -119,7 +119,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
     # Updates the calculated source profiles with the standard source profiles.
     source_profile_builders.build_standard_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,

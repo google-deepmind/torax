@@ -105,7 +105,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
           {"model_path": "/tmp/non_existent_file.json"}
       )
 
-  def test_build_dynamic_params(self):
+  def test_build_runtime_params(self):
     source = self._source_config_class.from_dict(
         {"model_path": _DUMMY_MODEL_PATH}
     )
@@ -114,10 +114,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source,
         torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, runtime_params_lib.DynamicRuntimeParams
-    )
+    dynamic_params = source.build_runtime_params(t=0.0)
+    self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)
 
   @parameterized.product(
       mode=(
@@ -139,9 +137,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_config,
         torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source_config.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, runtime_params_lib.DynamicRuntimeParams)
+    dynamic_params = source_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)
     self.assertEqual(dynamic_params.mode, mode)
     self.assertEqual(dynamic_params.is_explicit, is_explicit)
 
@@ -178,22 +175,20 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ]
     self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     ion_and_el = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,

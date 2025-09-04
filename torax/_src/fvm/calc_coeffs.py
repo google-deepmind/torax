@@ -317,7 +317,7 @@ def _calc_coeffs_full(
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=physics_models.source_models,
       neoclassical_models=physics_models.neoclassical_models,
-      dynamic_runtime_params_slice=runtime_params,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,

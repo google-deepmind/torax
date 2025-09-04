@@ -42,7 +42,7 @@ _FINAL_SOURCES = frozenset(
     ],
 )
 def build_source_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -54,8 +54,8 @@ def build_source_profiles(
   """Builds explicit profiles or the union of explicit and implicit profiles.
 
   Args:
-    dynamic_runtime_params_slice: Input config for this time step. Can change
-      from time step to time step.
+    runtime_params: Input config for this time step. Can change from time step
+      to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -91,13 +91,13 @@ def build_source_profiles(
     bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
   else:
     qei = source_models.qei_source.get_qei(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
     bootstrap_current = (
         neoclassical_models.bootstrap_current.calculate_bootstrap_current(
-            dynamic_runtime_params_slice, geo, core_profiles
+            runtime_params, geo, core_profiles
         )
     )
   profiles = source_profiles.SourceProfiles(
@@ -110,7 +110,7 @@ def build_source_profiles(
   )
   build_standard_source_profiles(
       calculated_source_profiles=profiles,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
@@ -123,7 +123,7 @@ def build_source_profiles(
 def build_standard_source_profiles(
     *,
     calculated_source_profiles: source_profiles.SourceProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -135,14 +135,10 @@ def build_standard_source_profiles(
   """Updates calculated_source_profiles with standard source profiles."""
 
   def calculate_source(source_name, source):
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        source_name
-    ]
-    if (
-        explicit == dynamic_source_runtime_params.is_explicit
-    ) | calculate_anyway:
+    source_params = runtime_params.sources[source_name]
+    if (explicit == source_params.is_explicit) | calculate_anyway:
       value = source.get_value(
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           core_profiles,
           calculated_source_profiles,
@@ -225,7 +221,7 @@ def build_all_zero_profiles(
 
 
 def get_all_source_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -237,8 +233,8 @@ def get_all_source_profiles(
   Used e.g. to initialize the source profiles at an initial time step.
 
   Args:
-    dynamic_runtime_params_slice: Runtime parameters which may change from time
-      step to time step without triggering recompilations.
+    runtime_params: Runtime parameters which may change from time step to time
+      step without triggering recompilations.
     geo: The geometry of the torus during this time step of the simulation.
     core_profiles: Core profiles that may evolve throughout the course of a
       simulation. These values here are, of course, only the original states.
@@ -252,7 +248,7 @@ def get_all_source_profiles(
   """
   # Also add in the explicit sources to the initial sources.
   explicit_source_profiles = build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
@@ -260,7 +256,7 @@ def get_all_source_profiles(
       explicit=True,
   )
   return build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,

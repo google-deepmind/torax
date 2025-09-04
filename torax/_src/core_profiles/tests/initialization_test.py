@@ -62,7 +62,7 @@ class InitializationTest(parameterized.TestCase):
     runtime_params, geo = references.get_dynamic_slice_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
-        dynamic_runtime_params_slice=runtime_params,
+        runtime_params=runtime_params,
         geo=geo,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
         unused_state=mock.ANY,
@@ -384,7 +384,7 @@ def _get_initial_state(
       geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
-      dynamic_runtime_params_slice=runtime_params,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,

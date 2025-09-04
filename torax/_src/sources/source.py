@@ -42,7 +42,7 @@ class SourceProfileFunction(Protocol):
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       source_name: str,
       core_profiles: state.CoreProfiles,
@@ -108,7 +108,7 @@ class Source(abc.ABC):
 
   def get_value(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
@@ -117,8 +117,8 @@ class Source(abc.ABC):
     """Returns the cell grid profile for this source during one time step.
 
     Args:
-      dynamic_runtime_params_slice: Slice of the general TORAX config that can
-        be used as input for this time step.
+      runtime_params: Slice of the general TORAX config that can be used as
+        input for this time step.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles. May be the profiles at the start of
         the time step or a "live" set of core profiles being actively updated
@@ -141,11 +141,9 @@ class Source(abc.ABC):
       A tuple of arrays of shape (cell grid length,) with one array per affected
       core profile.
     """
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        self.source_name
-    ]
+    source_params = runtime_params.sources[self.source_name]
 
-    mode = dynamic_source_runtime_params.mode
+    mode = source_params.mode
     match mode:
       case runtime_params_lib.Mode.MODEL_BASED:
         if self.model_func is None:
@@ -153,7 +151,7 @@ class Source(abc.ABC):
               'Source is in MODEL_BASED mode but has no model function.'
           )
         return self.model_func(
-            dynamic_runtime_params_slice,
+            runtime_params,
             geo,
             self.source_name,
             core_profiles,
@@ -162,15 +160,15 @@ class Source(abc.ABC):
         )
       case runtime_params_lib.Mode.PRESCRIBED:
         if len(self.affected_core_profiles) != len(
-            dynamic_source_runtime_params.prescribed_values
+            source_params.prescribed_values
         ):
           raise ValueError(
               'When using PRESCRIBED mode, the number of prescribed values must'
               ' match the number of affected core profiles. Was: '
-              f'{len(dynamic_source_runtime_params.prescribed_values)} '
+              f'{len(source_params.prescribed_values)} '
               f' Expected: {len(self.affected_core_profiles)}.'
           )
-        return dynamic_source_runtime_params.prescribed_values
+        return source_params.prescribed_values
       case runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
         return (zeros,) * len(self.affected_core_profiles)

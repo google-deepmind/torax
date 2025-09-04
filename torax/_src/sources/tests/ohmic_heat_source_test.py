@@ -36,12 +36,10 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
-    dynamic_runtime_params_slice = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         instance=True,
-        sources={
-            self._source_name: source_config.build_dynamic_params(t=0.0)
-        },
+        sources={self._source_name: source_config.build_runtime_params(t=0.0)},
     )
     with self.assertRaisesRegex(
         ValueError,
@@ -50,7 +48,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         ' an explicit source.',
     ):
       source.get_value(
-          dynamic_runtime_params_slice,
+          runtime_params,
           mock.ANY,
           mock.ANY,
           calculated_source_profiles=None,
@@ -63,12 +61,10 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
-    dynamic_runtime_params_slice = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         instance=True,
-        sources={
-            self._source_name: source_config.build_dynamic_params(t=0.0)
-        },
+        sources={self._source_name: source_config.build_runtime_params(t=0.0)},
     )
     with self.assertRaisesRegex(
         ValueError,
@@ -77,7 +73,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         ' an explicit source.',
     ):
       source.get_value(
-          dynamic_runtime_params_slice,
+          runtime_params,
           mock.ANY,
           mock.ANY,
           calculated_source_profiles=mock.ANY,

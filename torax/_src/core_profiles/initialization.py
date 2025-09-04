@@ -442,7 +442,7 @@ def _get_bootstrap_and_standard_source_profiles(
 ) -> source_profiles_lib.SourceProfiles:
   """Calculates bootstrap current and updates source profiles."""
   source_profile_builders.build_standard_source_profiles(
-      dynamic_runtime_params_slice=runtime_params,
+      runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,

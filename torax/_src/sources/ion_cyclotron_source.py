@@ -305,7 +305,7 @@ def _toric_nn_predict(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   frequency: array_typing.FloatScalar
   minority_concentration: array_typing.FloatScalar
   P_total: array_typing.FloatScalar
@@ -338,7 +338,7 @@ def _helium3_tail_temperature(
 
 
 def icrh_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -347,10 +347,8 @@ def icrh_model_func(
     toric_nn: ToricNNWrapper,
 ) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Compute ion/electron heat source terms."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
@@ -370,14 +368,14 @@ def icrh_model_func(
   # Assumption: inner and outer gaps are not functions of z0.
   # This is a good assumption for the inner gap but perhaps less good for the
   # outer gap where there is significant curvature to the outer limiter.
-  gap_inner = Rinner - dynamic_source_runtime_params.wall_inner
-  gap_outer = dynamic_source_runtime_params.wall_outer - Router
+  gap_inner = Rinner - source_params.wall_inner
+  gap_outer = source_params.wall_outer - Router
   toric_inputs = ToricNNInputs(
-      frequency=dynamic_source_runtime_params.frequency,
+      frequency=source_params.frequency,
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=dynamic_source_runtime_params.minority_concentration
+      minority_concentration=source_params.minority_concentration
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
@@ -421,8 +419,8 @@ def icrh_model_func(
   helium3_birth_energy = _helium3_tail_temperature(
       power_deposition_he3,
       core_profiles,
-      dynamic_source_runtime_params.minority_concentration,
-      dynamic_source_runtime_params.P_total / 1e6,  # required in MW.
+      source_params.minority_concentration,
+      source_params.P_total / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
@@ -430,10 +428,7 @@ def icrh_model_func(
       core_profiles.T_e.value,
       helium3_mass,
   )
-  absorbed_power = (
-      dynamic_source_runtime_params.P_total
-      * dynamic_source_runtime_params.absorption_fraction
-  )
+  absorbed_power = source_params.P_total * source_params.absorption_fraction
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
   source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
 
@@ -523,11 +518,11 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return _icrh_model_func_with_toric_nn(self.model_path)
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

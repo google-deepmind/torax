@@ -40,7 +40,7 @@ DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool
 
 
@@ -98,7 +98,7 @@ def calc_bremsstrahlung(
 
 
 def bremsstrahlung_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -106,14 +106,12 @@ def bremsstrahlung_model_func(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[jt.Float[jax.Array, ''], ...]:
   """Model function for the Bremsstrahlung heat sink."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       geo,
-      use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
+      use_relativistic_correction=source_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.
   return (-1.0 * P_brem_profile,)
@@ -152,11 +150,11 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return bremsstrahlung_model_func
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> 'RuntimeParams':
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

@@ -242,7 +242,7 @@ class FVMTest(parameterized.TestCase):
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
-        dynamic_runtime_params_slice=runtime_params,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         explicit=True,
@@ -342,7 +342,7 @@ class FVMTest(parameterized.TestCase):
         neoclassical_models=physics_models.neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice=runtime_params,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=physics_models.source_models,
@@ -459,7 +459,7 @@ class FVMTest(parameterized.TestCase):
         neoclassical_models=physics_models.neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice=runtime_params_theta0,
+        runtime_params=runtime_params_theta0,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=physics_models.source_models,

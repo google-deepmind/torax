@@ -39,14 +39,14 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(runtime_params_lib.RuntimeParams):
   puff_decay_length: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
 
 
 # Default formula: exponential
 def calc_puff_source(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -54,15 +54,13 @@ def calc_puff_source(
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates external source term for n from puffs."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=dynamic_source_runtime_params.puff_decay_length,
-          total=dynamic_source_runtime_params.S_total,
+          width=source_params.puff_decay_length,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -110,11 +108,11 @@ class GasPuffSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return calc_puff_source
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicGasPuffRuntimeParams:
-    return DynamicGasPuffRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),

@@ -44,18 +44,18 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             torax_config
         )
     )
-    dynamic_runtime_params_slice = provider(t=0.0)
+    runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         unused_geo=geo,
         source_name=self._source_name,
         core_profiles=core_profiles,
@@ -71,7 +71,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
     torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4,))
-    runtime_params = getattr(sources, self._source_name).build_dynamic_params(
+    runtime_params = getattr(sources, self._source_name).build_runtime_params(
         t=0.0
     )
 
@@ -83,7 +83,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
     assert isinstance(
         runtime_params,
-        impurity_radiation_mavrin_fit.DynamicRuntimeParams,
+        impurity_radiation_mavrin_fit.RuntimeParams,
     )
 
   # pylint: disable=invalid-name

@@ -196,7 +196,7 @@ def calculate_total_impurity_radiation(
 
 
 def impurity_radiation_mavrin_fit(
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     unused_geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -207,13 +207,13 @@ def impurity_radiation_mavrin_fit(
 
   # Reconstruct array from mapping for DynamicIonMixture and effective LZ
   # calculations.
-  ion_symbols = dynamic_runtime_params_slice.plasma_composition.impurity_names
+  ion_symbols = runtime_params.plasma_composition.impurity_names
   impurity_fractions_arr = jnp.stack(
       [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
   )
   # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
-      ion_symbols=dynamic_runtime_params_slice.plasma_composition.impurity_names,
+      ion_symbols=runtime_params.plasma_composition.impurity_names,
       impurity_fractions=impurity_fractions_arr,
       T_e=core_profiles.T_e.value,
   )
@@ -232,31 +232,35 @@ def impurity_radiation_mavrin_fit(
   ion_mixture = plasma_composition.DynamicIonMixture(
       fractions=impurity_fractions_arr,
       A_avg=core_profiles.A_impurity,
-      Z_override=dynamic_runtime_params_slice.plasma_composition.impurity.Z_override,
+      Z_override=runtime_params.plasma_composition.impurity.Z_override,
   )
   charge_state_info = charge_states.get_average_charge_state(
-      ion_symbols=dynamic_runtime_params_slice.plasma_composition.impurity_names,
+      ion_symbols=runtime_params.plasma_composition.impurity_names,
       ion_mixture=ion_mixture,
       T_e=core_profiles.T_e.value,
   )
   Z_avg = charge_state_info.Z_avg
   impurity_density_scaling = core_profiles.Z_impurity / Z_avg
 
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   radiation_profile = (
       effective_LZ
       * core_profiles.n_e.value
       * core_profiles.n_impurity.value
       * impurity_density_scaling
-      * dynamic_source_runtime_params.radiation_multiplier
+      * source_params.radiation_multiplier
   )
 
   # The impurity radiation heat sink is a negative source, so we return a
   # negative profile.
   return (-radiation_profile,)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  radiation_multiplier: array_typing.FloatScalar
 
 
 class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
@@ -278,11 +282,11 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
   def model_func(self) -> source_lib.SourceProfileFunction:
     return impurity_radiation_mavrin_fit
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
@@ -297,9 +301,3 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     return impurity_radiation_heat_sink.ImpurityRadiationHeatSink(
         model_func=self.model_func
     )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  radiation_multiplier: array_typing.FloatScalar

@@ -45,22 +45,20 @@ class SourceModelsTest(parameterized.TestCase):
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         source_models,
@@ -68,7 +66,7 @@ class SourceModelsTest(parameterized.TestCase):
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         source_models,
@@ -104,7 +102,7 @@ class SourceModelsTest(parameterized.TestCase):
     dynamic_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
+            'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),
                 mode=source_runtime_params.Mode.MODEL_BASED,
                 is_explicit=True,
@@ -118,7 +116,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
@@ -160,7 +158,7 @@ class SourceModelsTest(parameterized.TestCase):
     dynamic_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
+            'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(
                     jnp.ones(self.geo.rho.shape),
                     jnp.ones(self.geo.rho.shape),
@@ -177,7 +175,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
@@ -246,7 +244,7 @@ class SourceModelsTest(parameterized.TestCase):
     dynamic_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
+            'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),
                 mode=source_runtime_params.Mode.MODEL_BASED,
                 is_explicit=True,  # Set the source to be explicit.
@@ -260,7 +258,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,

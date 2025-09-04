@@ -199,10 +199,10 @@ class SimulationStepFn:
     )
 
     # This only computes sources set to explicit in the
-    # DynamicSourceConfigSlice. All implicit sources will have their profiles
+    # SourceConfig. All implicit sources will have their profiles
     # set to 0.
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
+        runtime_params=dynamic_runtime_params_slice_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self._solver.physics_models.source_models,

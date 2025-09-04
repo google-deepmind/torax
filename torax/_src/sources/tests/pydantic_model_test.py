@@ -346,7 +346,7 @@ class PydanticModelTest(parameterized.TestCase):
     @jax.jit
     def f(sources: pydantic_model.Sources):
       source = sources.source_model_config[source_name]
-      return source.build_dynamic_params(t=0.0)
+      return source.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(sm)
