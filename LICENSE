@@ -209,8 +209,8 @@ Data files from PINT use the MIT license. Packaged with TORAX to help users run
 TORAX out of the box with realistic geometries.
 
 Files:
-  torax/data/third_party/geo/ITER_hybrid_citrin_equil_cheasedata.mat2cols
-  torax/data/third_party/geo/eqdsk_cocos02.eqdsk
+  torax/data/third_party/geo/iterhybrid.mat2cols
+  torax/data/third_party/geo/iterhybrid_cocos*.eqdsk
 
 MIT License
 
@@ -242,6 +242,7 @@ users run TORAX out of the box with realistic geometries.
 
 Files:
   torax/data/third_party/geo/STEP_SPP_001_ECHD_ftop.eqdsk
+  torax/data/third_party/imas/STEP_SPP_001_ECHD_ftop.nc
 
 Attribution 4.0 International
 
