@@ -150,11 +150,6 @@ class SetTpedNped(BasePedestal):
 class NoPedestal(BasePedestal):
   """A pedestal model for when there is no pedestal.
 
-  This is needed as under jax compilation we have to have a valid value for
-  both branches of the jax.lax.cond. This provides that value whilst being very
-  explicit about the fact that there is no pedestal and simple so minimal
-  compilation time.
-
   Note that setting `set_pedestal` to True with a NoPedestal model is the
   equivalent of setting it to False.
   """
