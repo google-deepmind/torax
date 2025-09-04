@@ -66,10 +66,10 @@ def calc_fusion(
     )
   else:
     product = 1.0
-    for fraction, symbol in zip(
-        runtime_params.plasma_composition.main_ion.fractions,
-        runtime_params.plasma_composition.main_ion_names,
-    ):
+    for (
+        symbol,
+        fraction,
+    ) in runtime_params.plasma_composition.main_ion.fractions.items():
       if symbol == 'D' or symbol == 'T':
         product *= fraction
     DT_fraction_product = product  # pylint: disable=invalid-name

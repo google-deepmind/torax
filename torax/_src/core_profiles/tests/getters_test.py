@@ -493,7 +493,7 @@ class GettersTest(parameterized.TestCase):
     config_dict_ne_ratios['plasma_composition'] = {
         'main_ion': 'D',
         'impurity': {
-            'impurity_mode': plasma_composition_lib.IMPURITY_MODE_NE_RATIOS,
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios,
         },
     }
@@ -506,7 +506,7 @@ class GettersTest(parameterized.TestCase):
     config_dict_fractions['plasma_composition'] = {
         'main_ion': 'D',
         'impurity': {
-            'impurity_mode': plasma_composition_lib.IMPURITY_MODE_FRACTIONS,
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
             'species': impurity_fractions,
         },
         'Z_eff': float(zeff),
@@ -622,7 +622,7 @@ class GettersTest(parameterized.TestCase):
         'main_ion': 'D',
         'impurity': {
             'impurity_mode': (
-                plasma_composition_lib.IMPURITY_MODE_NE_RATIOS_ZEFF
+                plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF
             ),
             'species': {'C': 0.01, 'Ne': None, 'Ar': 0.001},
         },
@@ -642,17 +642,17 @@ class GettersTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (
-          plasma_composition_lib.IMPURITY_MODE_FRACTIONS,
+          plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
           {'Ne': 0.5, 'W': 0.5},
           1.0,
       ),
       (
-          plasma_composition_lib.IMPURITY_MODE_NE_RATIOS,
+          plasma_composition_lib._IMPURITY_MODE_NE_RATIOS,
           {'Ne': 0.0, 'W': 0.0},
           None,
       ),
       (
-          plasma_composition_lib.IMPURITY_MODE_NE_RATIOS_ZEFF,
+          plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF,
           {'Ne': 0.0, 'W': None},
           1.0,
       ),

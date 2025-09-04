@@ -172,9 +172,9 @@ class ChargeStatesTest(parameterized.TestCase):
     expected_Z = np.array(expected_Z)
     A_avg = np.nan  # not used.
     ion_symbols = tuple(species.keys())
-    fractions = np.array(tuple(species.values()))
+    species = {i: np.array(v) for i, v in species.items()}
     ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=fractions,
+        fractions=species,
         A_avg=A_avg,
     )
     Z_calculated = charge_states.get_average_charge_state(
@@ -185,12 +185,12 @@ class ChargeStatesTest(parameterized.TestCase):
 
   def test_Z_override_in_get_average_charge_state(self):
     """Test Z_override logic."""
-    species = {'W': 1.0}
+    species = {'W': np.array(1.0)}
     T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
     ion_symbols = tuple(species.keys())
     ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=np.array(tuple(species.values())),
+        fractions=species,
         A_avg=2.0,  # arbitrary, not used.
         Z_override=np.array([50.0, 50.0, 50.0]),
     )

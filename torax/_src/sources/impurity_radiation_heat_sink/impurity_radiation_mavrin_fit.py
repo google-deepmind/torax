@@ -230,7 +230,7 @@ def impurity_radiation_mavrin_fit(
   # impurity density, not the effective one.
 
   ion_mixture = plasma_composition.DynamicIonMixture(
-      fractions=impurity_fractions_arr,
+      fractions=core_profiles.impurity_fractions,
       A_avg=core_profiles.A_impurity,
       Z_override=runtime_params.plasma_composition.impurity.Z_override,
   )

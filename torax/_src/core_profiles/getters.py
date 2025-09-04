@@ -14,6 +14,7 @@
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import dataclasses
+import functools
 from typing import Mapping
 import jax
 from jax import numpy as jnp
@@ -171,12 +172,12 @@ class _IonProperties:
   Z_eff: array_typing.FloatVectorCell
   dilution_factor: array_typing.FloatVectorCell
   dilution_factor_edge: array_typing.FloatScalar
-  impurity_fractions: array_typing.FloatVector
+  impurity_fractions: Mapping[str, jax.Array]
 
 
 def _get_ion_properties_from_fractions(
     impurity_symbols: tuple[str, ...],
-    impurity_params: plasma_composition.DynamicImpurityFractions,
+    impurity_params: plasma_composition.DynamicIonMixture,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -251,27 +252,26 @@ def _get_ion_properties_from_n_e_ratios(
   # impurity_mixture.n_e_ratios has shape (n_species,).
   # Extend for the summations with Z_per_species which has shape
   # (n_species, n_grid).
-  n_e_ratios_reshaped = impurity_params.n_e_ratios[:, jnp.newaxis]
-  dilution_factor = (
-      1
-      - jnp.sum(
-          average_charge_state.Z_per_species * n_e_ratios_reshaped,
-          axis=0,
-      )
-      / Z_i
-  )
-  dilution_factor_edge = (
-      1
-      - jnp.sum(
-          average_charge_state_face.Z_per_species[:, -1]
-          * impurity_params.n_e_ratios,
-      )
-      / Z_i_face[-1]
-  )
-  Z_eff = dilution_factor * Z_i**2 + jnp.sum(
-      average_charge_state.Z_per_species**2 * n_e_ratios_reshaped,
-      axis=0,
-  )
+  charge_ratio_sum = 0.0
+  edge_charge_ratio_sum = 0.0
+  charge_squared_ratio_sum = 0.0
+  for symbol in impurity_symbols:
+    charge_ratio_sum += (
+        average_charge_state.Z_per_species[symbol]
+        * impurity_params.n_e_ratios[symbol]
+    )
+    edge_charge_ratio_sum += (
+        average_charge_state_face.Z_per_species[symbol][-1]
+        * impurity_params.n_e_ratios[symbol]
+    )
+    charge_squared_ratio_sum += (
+        average_charge_state.Z_per_species[symbol] ** 2
+        * impurity_params.n_e_ratios[symbol]
+    )
+
+  dilution_factor = 1 - charge_ratio_sum / Z_i
+  dilution_factor_edge = 1 - edge_charge_ratio_sum / Z_i_face[-1]
+  Z_eff = dilution_factor * Z_i**2 + charge_squared_ratio_sum
   return _IonProperties(
       A_impurity=jnp.full_like(Z_impurity, impurity_params.A_avg),
       A_impurity_face=jnp.full_like(Z_impurity_face, impurity_params.A_avg),
@@ -399,35 +399,35 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   # --- Reconstruct full ratios and fractions ---
   # Broadcast the known ratios to the full (n_species, n_grid) shape
   n_grid = Z_per_species.shape[-1]
-  n_e_ratios_all_species = jnp.broadcast_to(
-      n_e_ratios_known_reshaped, (len(impurity_symbols), n_grid)
+  ratios = jax.tree.map(
+      functools.partial(jnp.repeat, repeats=n_grid),
+      impurity_params.n_e_ratios,
   )
-  n_e_ratios_all_species_face = jnp.broadcast_to(
-      n_e_ratios_known_reshaped, (len(impurity_symbols), n_grid + 1)
+  ratios[impurity_params.unknown_species] = r_unknown
+  ratios_face = jax.tree.map(
+      functools.partial(jnp.repeat, repeats=n_grid + 1),
+      impurity_params.n_e_ratios,
   )
-  # Now update the row for the unknown species with its calculated profile
-  n_e_ratios_all_species = n_e_ratios_all_species.at[
-      unknown_species_index, :
-  ].set(r_unknown)
-  n_e_ratios_all_species_face = n_e_ratios_all_species_face.at[
-      unknown_species_index, :
-  ].set(r_unknown_face)
+  ratios_face[impurity_params.unknown_species] = r_unknown_face
 
   fractions = plasma_composition.calculate_fractions_from_ratios(
-      n_e_ratios_all_species
+      ratios
   )
   fractions_face = plasma_composition.calculate_fractions_from_ratios(
-      n_e_ratios_all_species_face
+      ratios_face
   )
 
   # Build the final ion mixture and calculate properties
 
   if not impurity_params.A_override:
-    As = jnp.array(
-        [constants.ION_PROPERTIES_DICT[s].A for s in impurity_symbols]
-    )
-    A_avg = jnp.einsum("i,i...->...", As, fractions)
-    A_avg_face = jnp.einsum("i,i...->...", As, fractions_face)
+    A_avg = jnp.array([
+        fractions[s] * constants.ION_PROPERTIES_DICT[s].A
+        for s in impurity_symbols
+    ])
+    A_avg_face = jnp.array([
+        fractions_face[s] * constants.ION_PROPERTIES_DICT[s].A
+        for s in impurity_symbols
+    ])
   else:
     A_avg = jnp.full_like(Z_i, impurity_params.A_override)
     A_avg_face = jnp.full_like(Z_i_face, impurity_params.A_override)
@@ -519,10 +519,9 @@ def get_updated_ions(
   ).Z_mixture
 
   impurity_params = runtime_params.plasma_composition.impurity
-  impurity_mode = impurity_params.impurity_mode
 
-  match impurity_mode:
-    case plasma_composition.IMPURITY_MODE_FRACTIONS:
+  match impurity_params:
+    case plasma_composition.DynamicIonMixture():
       ion_properties = _get_ion_properties_from_fractions(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
@@ -533,7 +532,7 @@ def get_updated_ions(
           runtime_params.plasma_composition.Z_eff_face,
       )
 
-    case plasma_composition.IMPURITY_MODE_NE_RATIOS:
+    case plasma_composition.DynamicNeRatios():
       ion_properties = _get_ion_properties_from_n_e_ratios(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
@@ -541,7 +540,7 @@ def get_updated_ions(
           Z_i,
           Z_i_face,
       )
-    case plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF:
+    case plasma_composition.DynamicNeRatiosZeff():
       ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
           impurity_params,
           T_e,
@@ -552,7 +551,7 @@ def get_updated_ions(
       )
     case _:
       # Not expected to be reached but needed to avoid linter errors.
-      raise ValueError(f"Unknown impurity mode: {impurity_mode}")
+      raise ValueError("Unknown impurity mode.")
 
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,
@@ -598,8 +597,7 @@ def get_updated_ions(
   # Ensure that output is always a full radial profile for consistency across
   # all impurity modes.
   impurity_fractions_dict = {}
-  for i, symbol in enumerate(runtime_params.plasma_composition.impurity_names):
-    fraction = ion_properties.impurity_fractions[i]
+  for symbol, fraction in ion_properties.impurity_fractions.items():
     if fraction.ndim == 0:
       impurity_fractions_dict[symbol] = jnp.full_like(n_e.value, fraction)
     else:
