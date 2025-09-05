@@ -30,24 +30,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
 
-  def test_dynamic_slice_can_be_input_to_jitted_function(self):
-    """Tests that the slice can be input to a jitted function."""
+  def test_runtime_params_can_be_input_to_jitted_function(self):
+    """Tests that the params can be input to a jitted function."""
 
-    def foo(
-        runtime_params_slice: runtime_params_slice_lib.RuntimeParams,
-    ):
-      _ = runtime_params_slice  # do nothing.
+    def foo(params: runtime_params_slice_lib.RuntimeParams):
+      _ = params  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    dynamic_slice = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            self._torax_config
-        )(
-            t=self._torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self._torax_config
+    )(
+        t=self._torax_config.numerics.t_initial,
     )
-    # Make sure you can call the function with dynamic_slice as an arg.
-    foo_jitted(dynamic_slice)
+    # Make sure you can call the function with runtime_params as an arg.
+    foo_jitted(runtime_params)
 
 
 if __name__ == '__main__':

@@ -21,8 +21,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import plasma_composition
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import core_profile_helpers
