@@ -245,17 +245,14 @@ def _get_ion_properties_from_n_e_ratios(
       ion_symbols=impurity_symbols,
       ion_mixture=impurity_mixture,
       T_e=T_e.face_value(),
+      fractions_override=impurity_params.fractions_face,
   )
   Z_impurity = average_charge_state.Z_mixture
   Z_impurity_face = average_charge_state_face.Z_mixture
-  # impurity_mixture.n_e_ratios has shape (n_species,).
-  # Extend for the summations with Z_per_species which has shape
-  # (n_species, n_grid).
-  n_e_ratios_reshaped = impurity_params.n_e_ratios[:, jnp.newaxis]
   dilution_factor = (
       1
       - jnp.sum(
-          average_charge_state.Z_per_species * n_e_ratios_reshaped,
+          average_charge_state.Z_per_species * impurity_params.n_e_ratios,
           axis=0,
       )
       / Z_i
@@ -264,17 +261,17 @@ def _get_ion_properties_from_n_e_ratios(
       1
       - jnp.sum(
           average_charge_state_face.Z_per_species[:, -1]
-          * impurity_params.n_e_ratios,
+          * impurity_params.n_e_ratios_face[:, -1],
       )
       / Z_i_face[-1]
   )
   Z_eff = dilution_factor * Z_i**2 + jnp.sum(
-      average_charge_state.Z_per_species**2 * n_e_ratios_reshaped,
+      average_charge_state.Z_per_species**2 * impurity_params.n_e_ratios,
       axis=0,
   )
   return _IonProperties(
-      A_impurity=jnp.full_like(Z_impurity, impurity_params.A_avg),
-      A_impurity_face=jnp.full_like(Z_impurity_face, impurity_params.A_avg),
+      A_impurity=impurity_params.A_avg,
+      A_impurity_face=impurity_params.A_avg_face,
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
       Z_eff=Z_eff,
