@@ -36,7 +36,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    pc.build_dynamic_params(t=0.0)
+    pc.build_runtime_params(t=0.0)
 
   def test_profile_conditions_under_jit(self):
     initial_ip = 1e6
@@ -47,7 +47,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
     @jax.jit
     def f(pc_model: profile_conditions.ProfileConditions):
-      return pc_model.build_dynamic_params(t=0.0)
+      return pc_model.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(pc)
@@ -74,9 +74,9 @@ class ProfileConditionsTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dcs = pc.build_dynamic_params(t=0.0)
+    dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_e_right_bc, expected_initial_value)
-    dcs = pc.build_dynamic_params(t=1.5)
+    dcs = pc.build_runtime_params(t=1.5)
     self.assertEqual(dcs.T_e_right_bc, expected_second_value)
 
   @parameterized.named_parameters(
@@ -93,9 +93,9 @@ class ProfileConditionsTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dcs = pc.build_dynamic_params(t=0.0)
+    dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_i_right_bc, expected_initial_value)
-    dcs = pc.build_dynamic_params(t=1.5)
+    dcs = pc.build_runtime_params(t=1.5)
     self.assertEqual(dcs.T_i_right_bc, expected_second_value)
 
   @parameterized.named_parameters(
@@ -163,12 +163,12 @@ class ProfileConditionsTest(parameterized.TestCase):
         psi=psi,
     )
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dcs = pc.build_dynamic_params(t=0.0)
+    dcs = pc.build_runtime_params(t=0.0)
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:
       np.testing.assert_allclose(dcs.psi, expected_initial_value)
-    dcs = pc.build_dynamic_params(t=1.5)
+    dcs = pc.build_runtime_params(t=1.5)
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:

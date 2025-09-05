@@ -36,7 +36,7 @@ _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
-class DynamicProfileConditions:
+class RuntimeParams:
   """Prescribed values and boundary conditions for the core profiles."""
 
   Ip: array_typing.FloatScalar
@@ -353,15 +353,12 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     return self
 
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicProfileConditions:
-    """Builds a DynamicProfileConditions."""
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    """Builds a RuntimeParams object for time t."""
 
     dynamic_params = {
         x.name: getattr(self, x.name)
-        for x in dataclasses.fields(DynamicProfileConditions)
+        for x in dataclasses.fields(RuntimeParams)
         if x.name != 'n_e_right_bc_is_absolute'
     }
 
@@ -393,7 +390,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         return x
 
     dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
-    return DynamicProfileConditions(**dynamic_params)
+    return RuntimeParams(**dynamic_params)
 
 
 def _get_first_failing_value_and_time_or_rho(

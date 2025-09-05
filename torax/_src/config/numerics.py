@@ -30,7 +30,7 @@ from typing_extensions import Self
 # TODO(b/326578331): remove density reference from DynamicNumerics entirely.
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
-class DynamicNumerics:
+class RuntimeParams:
   """Generic numeric parameters for the simulation.
 
   For definitions see `Numerics`.
@@ -158,12 +158,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicNumerics:
-    """Builds a DynamicNumerics object for time t."""
-    return DynamicNumerics(
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    """Builds a RuntimeParams object for time t."""
+    return RuntimeParams(
         t_initial=self.t_initial,
         t_final=self.t_final,
         max_dt=self.max_dt,
