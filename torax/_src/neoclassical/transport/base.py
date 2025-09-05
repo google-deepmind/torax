@@ -72,7 +72,7 @@ class NeoclassicalTransportModel(abc.ABC):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalTransport:
-    """Calculates neoclassical transport."""
+    """Calculates neoclassical transport and applies clipping."""
     neoclassical_transport = self._call_implementation(
         runtime_params,
         geometry,
@@ -114,8 +114,7 @@ class NeoclassicalTransportModel(abc.ABC):
         runtime_params.neoclassical.transport.V_e_min,
         runtime_params.neoclassical.transport.V_e_max,
     )
-    return dataclasses.replace(
-        neoclassical_transport,
+    return NeoclassicalTransport(
         chi_neo_i=chi_neo_i,
         chi_neo_e=chi_neo_e,
         D_neo_e=D_neo_e,
@@ -130,6 +129,7 @@ class NeoclassicalTransportModel(abc.ABC):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalTransport:
+    """Computes raw neoclassical transport coefficients."""
     pass
 
 
@@ -156,7 +156,7 @@ class NeoclassicalTransportModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if not self.chi_max > self.chi_min:
+    if not self.chi_min < self.chi_max:
       raise ValueError('chi_min must be less than chi_max.')
     if not self.D_e_min < self.D_e_max:
       raise ValueError('D_e_min must be less than D_e_max.')

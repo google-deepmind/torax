@@ -72,8 +72,9 @@ class AngioniSauterTest(absltest.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
-    model = angioni_sauter.AngioniSauterModel()
-    result = model(runtime_params, geo, core_profiles)
+    result = angioni_sauter._calculate_angioni_sauter_transport(
+        runtime_params, geo, core_profiles
+    )
     np.testing.assert_allclose(
         result.chi_neo_i, _EXPECTED_CHI_NEO_I, atol=_A_TOL, rtol=_R_TOL
     )
@@ -112,17 +113,17 @@ _EXPECTED_CHI_NEO_I = np.array([
 ])
 
 _EXPECTED_CHI_NEO_E = np.array([
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
+    -0.0,
+    -0.00203451,
+    -0.00298301,
+    -0.00379278,
+    -0.0045157,
+    -0.00518874,
+    -0.00587365,
+    -0.00663125,
+    -0.00753242,
+    -0.00873426,
+    -0.00994788,
 ])
 
 _EXPECTED_D_NEO_E = np.array([
