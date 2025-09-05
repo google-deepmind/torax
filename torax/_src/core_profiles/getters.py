@@ -176,7 +176,7 @@ class _IonProperties:
 
 def _get_ion_properties_from_fractions(
     impurity_symbols: tuple[str, ...],
-    impurity_params: plasma_composition.DynamicImpurityFractions,
+    impurity_params: plasma_composition.DynamicIonMixture,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -519,10 +519,9 @@ def get_updated_ions(
   ).Z_mixture
 
   impurity_params = runtime_params.plasma_composition.impurity
-  impurity_mode = impurity_params.impurity_mode
 
-  match impurity_mode:
-    case plasma_composition.IMPURITY_MODE_FRACTIONS:
+  match impurity_params:
+    case plasma_composition.DynamicIonMixture():
       ion_properties = _get_ion_properties_from_fractions(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
@@ -533,7 +532,7 @@ def get_updated_ions(
           runtime_params.plasma_composition.Z_eff_face,
       )
 
-    case plasma_composition.IMPURITY_MODE_NE_RATIOS:
+    case plasma_composition.DynamicNeRatios():
       ion_properties = _get_ion_properties_from_n_e_ratios(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
@@ -541,7 +540,7 @@ def get_updated_ions(
           Z_i,
           Z_i_face,
       )
-    case plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF:
+    case plasma_composition.DynamicNeRatiosZeff():
       ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
           impurity_params,
           T_e,
@@ -552,7 +551,7 @@ def get_updated_ions(
       )
     case _:
       # Not expected to be reached but needed to avoid linter errors.
-      raise ValueError(f"Unknown impurity mode: {impurity_mode}")
+      raise ValueError("Unknown impurity mode.")
 
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,

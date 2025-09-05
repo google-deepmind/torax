@@ -32,9 +32,9 @@ from typing_extensions import Final
 # pylint: disable=invalid-name
 
 # Constants for impurity modes.
-IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
-IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
-IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
+_IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
+_IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
+_IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
 def calculate_fractions_from_ratios(
@@ -90,25 +90,12 @@ class DynamicIonMixture:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicImpurityFractions(DynamicIonMixture):
-  """Extends DynamicIonMixture to include (static) impurity_mode."""
-
-  impurity_mode: str = dataclasses.field(
-      default=IMPURITY_MODE_FRACTIONS, metadata={'static': True}
-  )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
 class DynamicNeRatios:
   """Analogous to DynamicImpurityFractions but for n_e_ratio inputs."""
 
   n_e_ratios: array_typing.FloatVector
   A_avg: array_typing.FloatScalar
   Z_override: array_typing.FloatScalar | None = None
-  impurity_mode: str = dataclasses.field(
-      default=IMPURITY_MODE_NE_RATIOS, metadata={'static': True}
-  )
 
   @property
   def fractions(self) -> array_typing.FloatVector:
@@ -124,9 +111,6 @@ class DynamicNeRatiosZeff:
   unknown_species: str = dataclasses.field(metadata={'static': True})
   Z_override: array_typing.FloatScalar | None = None
   A_override: array_typing.FloatScalar | None = None
-  impurity_mode: str = dataclasses.field(
-      default=IMPURITY_MODE_NE_RATIOS_ZEFF, metadata={'static': True}
-  )
 
 
 class IonMixture(torax_pydantic.BaseModelFrozen):
@@ -192,11 +176,11 @@ class ImpurityFractionsModel(IonMixture):
       torax_pydantic.ValidatedDefault({'Ne': 1.0})
   )
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicImpurityFractions:
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicIonMixture:
     # Call the parent IonMixture's builder
     dynamic_impurity_mixture = super().build_dynamic_params(t)
     # Use the result to construct the specialized DynamicFractions dataclass
-    return DynamicImpurityFractions(
+    return DynamicIonMixture(
         fractions=dynamic_impurity_mixture.fractions,
         A_avg=dynamic_impurity_mixture.A_avg,
         Z_override=dynamic_impurity_mixture.Z_override,
@@ -210,7 +194,7 @@ class ImpurityFractionsModel(IonMixture):
     # Maps legacy inputs to the new API format.
     # TODO(b/434175938): Remove this once V1 API is deprecated.
     if 'species' not in data and 'impurity_mode' not in data:
-      return {'species': data, 'impurity_mode': IMPURITY_MODE_FRACTIONS}
+      return {'species': data, 'impurity_mode': _IMPURITY_MODE_FRACTIONS}
     return data
 
 
@@ -249,7 +233,6 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
       A_avg = self.A_override.get_value(t)
 
     return DynamicNeRatios(
-        impurity_mode=self.impurity_mode,
         n_e_ratios=n_e_ratios_arr,
         A_avg=A_avg,
         Z_override=Z_override,
@@ -303,7 +286,7 @@ class DynamicPlasmaComposition:
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   main_ion: DynamicIonMixture
-  impurity: DynamicImpurityFractions | DynamicNeRatios | DynamicNeRatiosZeff
+  impurity: DynamicIonMixture | DynamicNeRatios | DynamicNeRatiosZeff
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
 
@@ -392,7 +375,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # overrides are removed, and set default directly in class attribute.
     if 'impurity' not in configurable_data:
       configurable_data['impurity'] = {
-          'impurity_mode': IMPURITY_MODE_FRACTIONS,
+          'impurity_mode': _IMPURITY_MODE_FRACTIONS,
           'Z_override': Z_impurity_override,
           'A_override': A_impurity_override,
       }
@@ -417,7 +400,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     # Non-conformant inputs are caught by ImpurityFractionsModel validation.
     # TODO(b/434175938): Remove this once V1 API is deprecated.
     configurable_data['impurity'] = {
-        'impurity_mode': IMPURITY_MODE_FRACTIONS,
+        'impurity_mode': _IMPURITY_MODE_FRACTIONS,
         'species': impurity_data,
         'Z_override': Z_impurity_override,
         'A_override': A_impurity_override,
@@ -434,7 +417,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
       logging.warning(
           "Z_eff is provided but impurity_mode is '%s'. Z_eff will be an"
           ' emergent quantity and the input value will be ignored.',
-          IMPURITY_MODE_NE_RATIOS,
+          _IMPURITY_MODE_NE_RATIOS,
       )
     return self
 
