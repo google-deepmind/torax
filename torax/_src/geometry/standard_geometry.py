@@ -21,6 +21,7 @@ CHEASE, FBT, etc.
 from collections.abc import Mapping
 import dataclasses
 import logging
+
 import chex
 import contourpy
 from imas import ids_toplevel
@@ -34,6 +35,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
 from torax._src.imas_tools.input import equilibrium as imas_geometry
+from torax._src.torax_pydantic import pydantic_types
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -640,6 +642,7 @@ class StandardGeometryIntermediates:
       n_rho: int,
       n_surfaces: int,
       last_surface_factor: float,
+      cocos: pydantic_types.COCOSInt,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -662,6 +665,8 @@ class StandardGeometryIntermediates:
       last_surface_factor: Multiplication factor of the boundary poloidal flux,
         used for the contour defining geometry terms at the LCFS on the TORAX
         grid. Needed to avoid divergent integrations in diverted geometries.
+      cocos: COCOS convention of the EQDSK file, specified as an integer between
+        1-8 or 11-18 inclusive.
 
     Returns:
       A StandardGeometryIntermediates instance based on the input file. This
@@ -680,9 +685,43 @@ class StandardGeometryIntermediates:
       area = abs(area) / 2.0
       return area
 
+    # --------------------------- #
+    # ---- 1. Load the eqdsk ---- #
+    # --------------------------- #
+    if cocos in [2, 4, 6, 8, 12, 14, 16, 18]:
+      logging.warning(
+          f'Requested COCOS {cocos} has a (R, Z, phi) coordinate system'
+          ' (sigma_RphiZ = -1), but the EQDSK format specifies a (R, phi, Z)'
+          ' coordinate system (sigma_RphiZ = +1). This may result in'
+          ' unexpected behaviour.'
+      )
     eqfile = geometry_loader.load_geo_data(
-        geometry_directory, geometry_file, geometry_loader.GeometrySource.EQDSK
+        geometry_directory,
+        geometry_file,
+        geometry_loader.GeometrySource.EQDSK,
+        cocos,
     )
+    COCOS_violations = ''
+    if eqfile['bcentre'] < 0:
+      COCOS_violations += '- B_0 is negative\n'
+    if eqfile['psibdry'] < eqfile['psimag']:
+      COCOS_violations += '- psi at the boundary is less than psi on the axis\n'
+    if np.any(eqfile['fpol']) < 0:
+      COCOS_violations += '- F=RB_phi has negative values\n'
+    if np.any(eqfile['fpol']) < 0:
+      COCOS_violations += '- F=RB_phi has negative values\n'
+    if np.any(eqfile['qpsi']) < 0:
+      COCOS_violations += '- q has negative values\n'
+    if eqfile['cplasma'] < 0:
+      COCOS_violations += '- Ip is negative'
+    if COCOS_violations:
+      raise ValueError(
+          'The following violate the COCOS11 coordinate system:\n'
+          + COCOS_violations
+          + 'Check that the COCOS of the input EQDSK was set correctly.'
+      )
+
+    # Reference geometry terms
     # TODO(b/375696414): deal with updown asymmetric cases.
     # R_major taken as Rgeo (LCFS R_major)
     R_major = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
@@ -930,8 +969,7 @@ class StandardGeometryIntermediates:
         R_major=R_major,
         a_minor=a_minor,
         B_0=np.array(B_0),
-        # TODO(b/335204606): handle COCOS shenanigans
-        psi=(psi_interpolant + eqfile['psimag'])* 2 * np.pi,
+        psi=psi_interpolant + eqfile['psimag'],
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
         R_in=R_inboard,
@@ -1039,7 +1077,9 @@ def build_standard_geometry(
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0,
+      y=dpsidrhon,
+      x=rho_norm_intermediate,
+      initial=0.0,
   )
   # `initial` can only be zero or None, so add psi_axis afterwards.
   psi_from_Ip += intermediate.psi[0]

@@ -71,12 +71,15 @@ class GeometryTest(parameterized.TestCase):
     geometry_pydantic_model.CheaseConfig().build_geometry()
 
   @parameterized.parameters([
-      dict(geometry_file='eqdsk_cocos02.eqdsk'),
-      dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
+      dict(geometry_file='eqdsk_cocos01.eqdsk', cocos=1),
+      dict(geometry_file='eqdsk_cocos17.eqdsk', cocos=17),
+      dict(geometry_file='EQDSK_ITERhybrid_COCOS01.eqdsk', cocos=1),
   ])
-  def test_build_geometry_from_eqdsk(self, geometry_file):
+  def test_build_geometry_from_eqdsk(self, geometry_file, cocos):
     """Test that EQDSK geometries can be built."""
-    config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config = geometry_pydantic_model.EQDSKConfig(
+        geometry_file=geometry_file, cocos=cocos
+    )
     config.build_geometry()
 
   def test_build_standard_geometry_from_IMAS(self):
