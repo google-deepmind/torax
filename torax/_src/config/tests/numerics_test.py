@@ -24,11 +24,11 @@ from torax._src.torax_pydantic import torax_pydantic
 
 class NumericsTest(parameterized.TestCase):
 
-  def test_numerics_build_dynamic_params(self):
+  def test_numerics_build_runtime_params(self):
     nums = numerics.Numerics()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(nums, geo.torax_mesh)
-    nums.build_dynamic_params(t=0.0)
+    nums.build_runtime_params(t=0.0)
 
   def test_numerics_under_jit(self):
     initial_resistivity_multiplier = 1.0
@@ -41,7 +41,7 @@ class NumericsTest(parameterized.TestCase):
 
     @jax.jit
     def f(numerics_model: numerics.Numerics):
-      return numerics_model.build_dynamic_params(t=0.0)
+      return numerics_model.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(nums)
