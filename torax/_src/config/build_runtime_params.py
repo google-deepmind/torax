@@ -25,8 +25,8 @@ import jax
 from torax._src import jax_utils
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
-from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
@@ -101,8 +101,8 @@ class RuntimeParamsProvider:
             if source_config is not None
         },
         plasma_composition=self.plasma_composition.build_dynamic_params(t),
-        profile_conditions=self.profile_conditions.build_dynamic_params(t),
-        numerics=self.numerics.build_dynamic_params(t),
+        profile_conditions=self.profile_conditions.build_runtime_params(t),
+        numerics=self.numerics.build_runtime_params(t),
         neoclassical=self.neoclassical.build_runtime_params(),
         pedestal=self.pedestal.build_runtime_params(t),
         mhd=self.mhd.build_runtime_params(t),
