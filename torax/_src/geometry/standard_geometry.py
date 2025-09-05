@@ -1259,6 +1259,7 @@ def _validate_fbt_data(
       'TQ': psi_and_time_shape,
       'FB': time_only_shape,
       'FA': time_only_shape,
+      'Q0Q': psi_and_time_shape,
       'Q1Q': psi_and_time_shape,
       'Q2Q': psi_and_time_shape,
       'Q3Q': psi_and_time_shape,
