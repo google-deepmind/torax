@@ -94,13 +94,20 @@ class DynamicNeRatios:
   """Analogous to DynamicImpurityFractions but for n_e_ratio inputs."""
 
   n_e_ratios: array_typing.FloatVector
-  A_avg: array_typing.FloatScalar
+  n_e_ratios_face: array_typing.FloatVectorFace
+  A_avg: array_typing.FloatVector
+  A_avg_face: array_typing.FloatVectorFace
   Z_override: array_typing.FloatScalar | None = None
 
   @property
   def fractions(self) -> array_typing.FloatVector:
     """Returns the impurity fractions calculated from the n_e_ratios."""
     return calculate_fractions_from_ratios(self.n_e_ratios)
+
+  @property
+  def fractions_face(self) -> array_typing.FloatVectorFace:
+    """Returns the impurity fractions calculated from the n_e_ratios."""
+    return calculate_fractions_from_ratios(self.n_e_ratios_face)
 
 
 @jax.tree_util.register_dataclass
@@ -201,9 +208,9 @@ class ImpurityFractionsModel(IonMixture):
 class NeRatiosModel(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios of impurity to electron density."""
 
-  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
+  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
-  A_override: torax_pydantic.TimeVaryingScalar | None = None
+  A_override: torax_pydantic.TimeVaryingArray | None = None
   impurity_mode: Annotated[
       Literal['n_e_ratios'], torax_pydantic.JAX_STATIC
   ] = 'n_e_ratios'
@@ -223,19 +230,27 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
     n_e_ratios_arr = jnp.array(
         [ratio.get_value(t) for ratio in self.species.values()]
     )
+    n_e_ratios_face_arr = jnp.array([
+        ratio.get_value(t, grid_type='face') for ratio in self.species.values()
+    ])
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
     fractions = calculate_fractions_from_ratios(n_e_ratios_arr)
+    fractions_face = calculate_fractions_from_ratios(n_e_ratios_face_arr)
 
     if not self.A_override:
       As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As * fractions)
+      A_avg = jnp.sum(As[..., jnp.newaxis] * fractions, axis=0)
+      A_avg_face = jnp.sum(As[..., jnp.newaxis] * fractions_face, axis=0)
     else:
       A_avg = self.A_override.get_value(t)
+      A_avg_face = self.A_override.get_value(t, grid_type='face')
 
     return DynamicNeRatios(
         n_e_ratios=n_e_ratios_arr,
+        n_e_ratios_face=n_e_ratios_face_arr,
         A_avg=A_avg,
         Z_override=Z_override,
+        A_avg_face=A_avg_face,
     )
 
 
