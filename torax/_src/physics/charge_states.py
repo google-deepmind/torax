@@ -17,6 +17,7 @@
 import dataclasses
 from typing import Final, Mapping, Sequence
 
+import chex
 import immutabledict
 import jax
 from jax import numpy as jnp
@@ -110,7 +111,7 @@ class ChargeStateInfo:
 
   Z_avg: array_typing.FloatVector
   Z2_avg: array_typing.FloatVector
-  Z_per_species: array_typing.FloatVector
+  Z_per_species: Mapping[str, chex.Array]
 
   @property
   def Z_mixture(self) -> array_typing.FloatVector:
@@ -221,22 +222,27 @@ def get_average_charge_state(
     return ChargeStateInfo(
         Z_avg=override_val,
         Z2_avg=override_val**2,
-        Z_per_species=jnp.stack([override_val for _ in ion_symbols]),
+        Z_per_species={symbol: override_val for symbol in ion_symbols},
     )
 
+  fractions = ion_mixture.fractions
   Z_per_species = jnp.stack([
       calculate_average_charge_state_single_species(T_e, ion_symbol)
+      * fractions[ion_symbol]
+      for ion_symbol in ion_symbols
+  ])
+  Z_per_species_squared = jnp.stack([
+      calculate_average_charge_state_single_species(T_e, ion_symbol) ** 2
+      * fractions[ion_symbol]
       for ion_symbol in ion_symbols
   ])
 
-  # Handle both radially constant (1D) and radially varying (2D) fractions.
-  # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
-  # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
-  fractions = ion_mixture.fractions
-  fractions = fractions if fractions.ndim == 2 else fractions[:, jnp.newaxis]
+  Z_avg = jnp.sum(Z_per_species, axis=0)
+  Z2_avg = jnp.sum(Z_per_species_squared, axis=0)
 
-  Z_avg = jnp.sum(fractions * Z_per_species, axis=0)
-  Z2_avg = jnp.sum(fractions * Z_per_species**2, axis=0)
+  Z_per_species = {
+      ion_symbol: Z_per_species[i] for i, ion_symbol in enumerate(ion_symbols)
+  }
 
   return ChargeStateInfo(
       Z_avg=Z_avg,

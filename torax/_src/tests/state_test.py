@@ -247,7 +247,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     config_dict['plasma_composition'] = {
         'main_ion': 'D',
         'impurity': {
-            'impurity_mode': plasma_composition.IMPURITY_MODE_NE_RATIOS_ZEFF,
+            'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS_ZEFF,
             'species': {
                 'C': 0.02,  # Carbon ratio is fixed and too high for Z_eff
                 'W': None,  # Tungsten is constrained by Z_eff

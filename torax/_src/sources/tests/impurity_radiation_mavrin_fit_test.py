@@ -449,7 +449,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': (
-                plasma_composition.IMPURITY_MODE_NE_RATIOS
+                plasma_composition._IMPURITY_MODE_NE_RATIOS
             ),
             'species': n_e_ratios,
         },
@@ -464,7 +464,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': (
-                plasma_composition.IMPURITY_MODE_FRACTIONS
+                plasma_composition._IMPURITY_MODE_FRACTIONS
             ),
             'species': impurity_fractions,
         },
