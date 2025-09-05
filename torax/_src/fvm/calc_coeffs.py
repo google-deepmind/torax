@@ -355,7 +355,7 @@ def _calc_coeffs_full(
   turbulent_transport = physics_models.transport_model(
       runtime_params, geo, core_profiles, pedestal_model_output
   )
-  neoclassical_transport = physics_models.neoclassical_models.transport.calculate_neoclassical_transport(
+  neoclassical_transport = physics_models.neoclassical_models.transport(
       runtime_params, geo, core_profiles
   )
 
