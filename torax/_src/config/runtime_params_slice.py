@@ -40,7 +40,7 @@ import dataclasses
 import jax
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
-from torax._src.config import profile_conditions
+from torax._src.core_profiles import profile_conditions
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
@@ -74,10 +74,10 @@ class RuntimeParams:
 
   mhd: mhd_runtime_params.RuntimeParams
   neoclassical: neoclassical_params.RuntimeParams
-  numerics: numerics.DynamicNumerics
+  numerics: numerics.RuntimeParams
   pedestal: pedestal_model_params.RuntimeParams
   plasma_composition: plasma_composition.DynamicPlasmaComposition
-  profile_conditions: profile_conditions.DynamicProfileConditions
+  profile_conditions: profile_conditions.RuntimeParams
   solver: solver_params.RuntimeParams
   sources: Mapping[str, sources_params.RuntimeParams]
   transport: transport_model_params.RuntimeParams

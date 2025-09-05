@@ -19,8 +19,8 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
-from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
@@ -65,19 +65,19 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     torax_pydantic.set_grid(profile_conditions, self._torax_mesh)
     np.testing.assert_allclose(
-        profile_conditions.build_dynamic_params(
+        profile_conditions.build_runtime_params(
             t=2.0,
         ).T_i_right_bc,
         3.0,
     )
     np.testing.assert_allclose(
-        profile_conditions.build_dynamic_params(
+        profile_conditions.build_runtime_params(
             t=4.0,
         ).T_e_right_bc,
         4.5,
     )
     np.testing.assert_allclose(
-        profile_conditions.build_dynamic_params(
+        profile_conditions.build_runtime_params(
             t=6.0,
         ).n_e_right_bc,
         6.0e20,
@@ -177,7 +177,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
-    dynamic_profile_conditions = profile_conditions.build_dynamic_params(
+    dynamic_profile_conditions = profile_conditions.build_runtime_params(
         t=0.0,
     )
     np.testing.assert_allclose(
