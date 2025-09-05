@@ -20,9 +20,10 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
-from torax._src.config import plasma_composition
-from torax._src.config import profile_conditions
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles.plasma_composition import n_e_ratios
+from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
@@ -53,7 +54,7 @@ class Ions:
 
 
 def get_updated_ion_temperature(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed ion temperature profiles."""
@@ -68,7 +69,7 @@ def get_updated_ion_temperature(
 
 
 def get_updated_electron_temperature(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron temperature profiles."""
@@ -83,7 +84,7 @@ def get_updated_electron_temperature(
 
 
 def get_updated_electron_density(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""
@@ -225,7 +226,7 @@ def _get_ion_properties_from_fractions(
 
 def _get_ion_properties_from_n_e_ratios(
     impurity_symbols: tuple[str, ...],
-    impurity_params: plasma_composition.DynamicNeRatios,
+    impurity_params: n_e_ratios.DynamicNeRatios,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -413,10 +414,10 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       unknown_species_index, :
   ].set(r_unknown_face)
 
-  fractions = plasma_composition.calculate_fractions_from_ratios(
+  fractions = n_e_ratios.calculate_fractions_from_ratios(
       n_e_ratios_all_species
   )
-  fractions_face = plasma_composition.calculate_fractions_from_ratios(
+  fractions_face = n_e_ratios.calculate_fractions_from_ratios(
       n_e_ratios_all_species_face
   )
 
@@ -532,7 +533,7 @@ def get_updated_ions(
           runtime_params.plasma_composition.Z_eff_face,
       )
 
-    case plasma_composition.DynamicNeRatios():
+    case n_e_ratios.DynamicNeRatios():
       ion_properties = _get_ion_properties_from_n_e_ratios(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
