@@ -50,7 +50,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
+        profile_conditions_lib.RuntimeParams,
         instance=True,
         T_i_right_bc=bound,
         T_i=value,
@@ -65,7 +65,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
+        profile_conditions_lib.RuntimeParams,
         instance=True,
         T_e_right_bc=bound,
         T_e=value,
@@ -92,7 +92,7 @@ class GettersTest(parameterized.TestCase):
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -131,7 +131,7 @@ class GettersTest(parameterized.TestCase):
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -157,7 +157,7 @@ class GettersTest(parameterized.TestCase):
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e_normalized = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
@@ -165,7 +165,7 @@ class GettersTest(parameterized.TestCase):
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
     n_e_unnormalized = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
@@ -193,7 +193,7 @@ class GettersTest(parameterized.TestCase):
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e_fGW = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     profile_conditions._update_fields(
@@ -211,7 +211,7 @@ class GettersTest(parameterized.TestCase):
     )
 
     n_e = getters.get_updated_electron_density(
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
