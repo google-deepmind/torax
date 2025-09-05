@@ -113,7 +113,7 @@ def calc_heating_and_current(
   j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
   # pylint: enable=invalid-name
 
-  return ec_power_density, j_ec_dot_B
+  return ec_power_density, j_ec_dot_B / geo.B_0
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
