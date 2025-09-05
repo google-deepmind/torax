@@ -643,7 +643,7 @@ def _finalize_outputs(
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
-      dynamic_runtime_params_slice=runtime_params_t_plus_dt,
+      runtime_params=runtime_params_t_plus_dt,
       previous_post_processed_outputs=input_post_processed_outputs,
   )
   return output_state, post_processed_outputs

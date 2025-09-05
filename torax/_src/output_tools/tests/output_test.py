@@ -65,7 +65,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
-    dynamic_runtime_params_slice = (
+    runtime_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(
             self.torax_config
         )(t=0.0)
@@ -89,7 +89,7 @@ class StateHistoryTest(parameterized.TestCase):
     source_models = self.torax_config.sources.build_models()
     neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,

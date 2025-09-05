@@ -38,7 +38,7 @@ class PostProcessingTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['sources'] = default_sources.get_default_source_config()
     torax_config = model_config.ToraxConfig.from_dict(config)
-    self.dynamic_runtime_params_slice = (
+    self.runtime_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=0.0)
@@ -71,7 +71,7 @@ class PostProcessingTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        runtime_params=self.dynamic_runtime_params_slice,
+        runtime_params=self.runtime_params,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -84,7 +84,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
-        self.dynamic_runtime_params_slice,
+        self.runtime_params,
     )
     # pylint: enable=protected-access
 
@@ -206,7 +206,7 @@ class PostProcessingTest(parameterized.TestCase):
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+        runtime_params=self.runtime_params,
     )
     self.assertEqual(
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR

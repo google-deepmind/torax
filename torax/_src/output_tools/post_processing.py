@@ -377,7 +377,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -385,7 +385,7 @@ def _calculate_integrated_sources(
     geo: Magnetic geometry
     core_profiles: Kinetic profiles such as temperature and density
     core_sources: Internal and external sources
-    dynamic_runtime_params_slice: Runtime parameters slice for current time step
+    runtime_params: Runtime parameters slice for the current time step
 
   Returns:
     Dictionary with integrated quantities for all existing sources.
@@ -453,7 +453,7 @@ def _calculate_integrated_sources(
       # Track injected power for heating sources that have absorption_fraction
       # These are only for sources like ICRH or NBI that are
       # ion_el_heat_sources.
-      source_params = dynamic_runtime_params_slice.sources.get(key)
+      source_params = runtime_params.sources.get(key)
       if source_params is not None and hasattr(
           source_params, 'absorption_fraction'
       ):
@@ -498,22 +498,21 @@ def _calculate_integrated_sources(
 @jax_utils.jit
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
-    dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_slice.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs | None = None,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
 
-  Called at the beginning and end of each `sim.run_simulation` step.
   Args:
     sim_state: The state to add outputs to.
-    dynamic_runtime_params_slice: Runtime parameters slice for the current time
-      step, needed for calculating integrated power.
+    runtime_params: Runtime parameters slice for the current time step, needed
+      for calculating integrated power.
     previous_post_processed_outputs: The previous outputs, used to calculate
-      cumulative quantities. Optional input. If None, then cumulative quantities
-      are set at the initialized values in sim_state itself. This is used for
-      the first time step of a the simulation. The initialized values are zero
-      for a clean simulation, or the last value of the previous simulation for a
-      restarted simulation.
+      cumulative quantities. If None, then cumulative quantities are set at the
+      initialized values in sim_state itself. This is used for the first time
+      step of a the simulation. The initialized values are zero for a clean
+      simulation, or the last value of the previous simulation for a restarted
+      simulation.
 
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
@@ -544,7 +543,7 @@ def make_post_processed_outputs(
       sim_state.geometry,
       sim_state.core_profiles,
       sim_state.core_sources,
-      dynamic_runtime_params_slice,
+      runtime_params,
   )
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
