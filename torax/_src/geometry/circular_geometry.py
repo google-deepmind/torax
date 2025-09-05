@@ -150,11 +150,11 @@ def build_circular_geometry(
   rho_hires_norm = np.linspace(0, 1, n_rho * hires_factor)
   rho_hires = rho_hires_norm * rho_b
 
-  Rout = R_major + rho
-  Rout_face = R_major + rho_face
+  R_out = R_major + rho
+  R_out_face = R_major + rho_face
 
-  Rin = R_major - rho
-  Rin_face = R_major - rho_face
+  R_in = R_major - rho
+  R_in_face = R_major - rho_face
 
   # assumed elongation profile on hires grid
   elongation_hires = 1 + rho_hires_norm * (elongation_LCFS - 1)
@@ -172,6 +172,14 @@ def build_circular_geometry(
       2 * np.pi * rho_hires * elongation_hires * rho_b
       + area_hires / elongation_hires * (elongation_LCFS - 1)
   )
+
+  # Analytical expressions for  <1/B^2> (gm4) and <B^2> (gm5)
+  epsilon = (R_out - R_in) / (R_out + R_in)
+  epsilon_face = (R_out_face - R_in_face) / (R_out_face + R_in_face)
+  gm4 = B_0**-2 * (1.0 + 1.5 * epsilon**2)
+  gm4_face = B_0**-2 * (1.0 + 1.5 * epsilon_face**2)
+  gm5 = B_0**2 / np.sqrt(1.0 - epsilon**2)
+  gm5_face = B_0**2 / np.sqrt(1.0 - epsilon_face**2)
 
   g3_hires = 1 / (R_major**2 * (1 - (rho_hires / R_major) ** 2) ** (3.0 / 2.0))
   F_hires = np.ones(len(rho_hires)) * B_0 * R_major
@@ -203,16 +211,20 @@ def build_circular_geometry(
       g2_face=g2_face,
       g3=g3,
       g3_face=g3_face,
+      gm4=gm4,
+      gm4_face=gm4_face,
+      gm5=gm5,
+      gm5_face=gm5_face,
       g2g3_over_rhon=g2g3_over_rhon,
       g2g3_over_rhon_face=g2g3_over_rhon_face,
       g2g3_over_rhon_hires=g2g3_over_rhon_hires,
       F=F,
       F_face=F_face,
       F_hires=F_hires,
-      R_in=Rin,
-      R_in_face=Rin_face,
-      R_out=Rout,
-      R_out_face=Rout_face,
+      R_in=R_in,
+      R_in_face=R_in_face,
+      R_out=R_out,
+      R_out_face=R_out_face,
       # Set the circular geometry-specific params.
       elongation=elongation,
       elongation_face=elongation_face,
