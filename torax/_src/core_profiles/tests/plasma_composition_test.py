@@ -18,7 +18,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import jax_utils
-from torax._src.config import plasma_composition
+from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
 from torax._src.torax_pydantic import model_config
