@@ -146,39 +146,6 @@ def root_newton_raphson(
   return x_out, RootMetadata(**metadata, error=error)
 
 
-def _solver_body_logger(
-    residual: jax.Array,
-    iterations: jax.Array,
-    delta_reduction: jax.Array | None = None,
-    dt: jax.Array | None = None,
-) -> None:
-  """Logs info on internal Newton-Raphson iterations.
-
-  Args:
-    residual: Scalar residual.
-    iterations: Number of iterations taken so far in the solve block.
-    delta_reduction: Current tau used in this iteration.
-    dt: Current dt used in this iteration.
-  """
-  if dt is not None:
-    jax.debug.print(
-        'Iteration: %d. Residual: %.16f. dt = %.6f',
-        iterations,
-        residual,
-        dt,
-    )
-
-  elif delta_reduction is not None:
-    jax.debug.print(
-        'Iteration: %d. Residual: %.16f. tau = %.6f',
-        iterations,
-        residual,
-        delta_reduction,
-    )
-  else:
-    jax.debug.print('Iteration: %d. Residual: %.16f', iterations, residual)
-
-
 def _error_cond(residual: jax.Array, coarse_tol: float, tol: float):
   return jax.lax.cond(
       _residual_scalar(residual) < tol,
@@ -248,10 +215,11 @@ def _body(
       'last_tau': output_delta_state['tau'],
   }
   if log_iterations:
-    _solver_body_logger(
+    jax.debug.print(
+        'Iteration: {iteration:d}. Residual: {residual:.16f}. tau = {tau:.6f}',
+        iteration=output_state['iterations'].astype(jax_utils.get_int_dtype()),
         residual=_residual_scalar(output_state['residual']),
-        iterations=output_state['iterations'],
-        delta_reduction=output_delta_state['tau'],
+        tau=output_delta_state['tau'],
     )
 
   return output_state
