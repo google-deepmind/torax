@@ -172,6 +172,7 @@ def get_average_charge_state(
     ion_symbols: Sequence[str],
     ion_mixture: plasma_composition.DynamicIonMixture,
     T_e: array_typing.FloatVector,
+    fractions_override: array_typing.FloatVector | None = None,
 ) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
@@ -206,6 +207,9 @@ def get_average_charge_state(
       ion_symbols array.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
+    fractions_override: Optional override for the ion mixture fractions. If not
+      provided, the fractions from the ion_mixture are used. Temporary argument
+      used for refactoring.
 
   Returns:
     AverageChargeState: dataclass with average charge state info.
@@ -232,7 +236,11 @@ def get_average_charge_state(
   # Handle both radially constant (1D) and radially varying (2D) fractions.
   # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
   # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
-  fractions = ion_mixture.fractions
+  fractions = (
+      ion_mixture.fractions
+      if fractions_override is None
+      else fractions_override
+  )
   fractions = fractions if fractions.ndim == 2 else fractions[:, jnp.newaxis]
 
   Z_avg = jnp.sum(fractions * Z_per_species, axis=0)

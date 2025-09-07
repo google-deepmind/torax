@@ -249,6 +249,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
       expected_impurity_model_type,
   ):
     pc = plasma_composition.PlasmaComposition(**config)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
     self.assertIsInstance(pc.impurity, expected_impurity_model_type)
     self.assertEqual(pc.get_impurity_names(), expected_impurity_names)
     if pc.impurity.Z_override is not None:
@@ -258,7 +260,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     else:
       self.assertIsNone(expected_Z_override)
     if pc.impurity.A_override is not None:
-      self.assertEqual(
+      np.testing.assert_allclose(
           pc.impurity.A_override.get_value(0.0), expected_A_override
       )
     else:
@@ -371,13 +373,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     n_e_ratios_species = {'C': 0.01, 'N': 0.02}
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
     t = 0.0
-
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
+    torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
     dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
     assert isinstance(
         dynamic_impurity_ne_ratios, plasma_composition.DynamicNeRatios
