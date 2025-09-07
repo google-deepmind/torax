@@ -23,8 +23,6 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.config import plasma_composition
-
 # pylint: disable=invalid-name
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
@@ -170,8 +168,9 @@ def calculate_average_charge_state_single_species(
 
 def get_average_charge_state(
     ion_symbols: Sequence[str],
-    ion_mixture: plasma_composition.DynamicIonMixture,
     T_e: array_typing.FloatVector,
+    fractions: array_typing.FloatVector,
+    Z_override: array_typing.FloatScalar | None = None,
 ) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
@@ -201,11 +200,10 @@ def get_average_charge_state(
 
   Args:
     ion_symbols: Species to calculate average charge state for.
-    ion_mixture: DynamicIonMixture object containing impurity information. The
-      index of the ion_mixture.fractions array corresponds to the index of the
-      ion_symbols array.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
+    fractions: Array of impurity fractions.
+    Z_override: If not None, use this value for the average charge state.
 
   Returns:
     AverageChargeState: dataclass with average charge state info.
@@ -216,8 +214,8 @@ def get_average_charge_state(
         'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
     )
 
-  if ion_mixture.Z_override is not None:
-    override_val = jnp.ones_like(T_e) * ion_mixture.Z_override
+  if Z_override is not None:
+    override_val = jnp.ones_like(T_e) * Z_override
     return ChargeStateInfo(
         Z_avg=override_val,
         Z2_avg=override_val**2,
@@ -232,7 +230,6 @@ def get_average_charge_state(
   # Handle both radially constant (1D) and radially varying (2D) fractions.
   # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
   # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
-  fractions = ion_mixture.fractions
   fractions = fractions if fractions.ndim == 2 else fractions[:, jnp.newaxis]
 
   Z_avg = jnp.sum(fractions * Z_per_species, axis=0)
