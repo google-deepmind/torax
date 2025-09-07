@@ -155,9 +155,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'impurity': {
             'impurity_mode': 'fractions',
             'species': {
-                'Ar': {0.0: 0.1, 5.0: 0.3},
-                'Ne': {0.0: 0.8, 5.0: 0.2},
-                'C': {0.0: 0.1, 5.0: 0.5},
+                'Ar': {0.0: {0.0: 0.1}, 5.0: {0.0: 0.3}},
+                'Ne': {0.0: {0.0: 0.8}, 5.0: {0.0: 0.2}},
+                'C': {0.0: {0.0: 0.1}, 5.0: {0.0: 0.5}},
             },
         },
         'Z_eff': 2.0,
@@ -204,9 +204,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': {
-                'Ne': {0.0: 0.01, 5.0: 0.005},
-                'Ar': {0.0: 0.005, 5.0: 0.01},
-                'W': {0.0: 1e-4, 5.0: 1e-5},
+                'Ne': {0.0: {0: 0.01}, 5.0: {0: 0.005}},
+                'Ar': {0.0: {0: 0.005}, 5.0: {0: 0.01}},
+                'W': {0.0: {0: 1e-4}, 5.0: {0: 1e-5}},
             },
         },
     }

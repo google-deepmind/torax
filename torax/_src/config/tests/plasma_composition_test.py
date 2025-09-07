@@ -249,6 +249,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
       expected_impurity_model_type,
   ):
     pc = plasma_composition.PlasmaComposition(**config)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
     self.assertIsInstance(pc.impurity, expected_impurity_model_type)
     self.assertEqual(pc.get_impurity_names(), expected_impurity_names)
     if pc.impurity.Z_override is not None:
@@ -258,7 +260,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     else:
       self.assertIsNone(expected_Z_override)
     if pc.impurity.A_override is not None:
-      self.assertEqual(
+      np.testing.assert_allclose(
           pc.impurity.A_override.get_value(0.0), expected_A_override
       )
     else:
@@ -371,13 +373,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     n_e_ratios_species = {'C': 0.01, 'N': 0.02}
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
     t = 0.0
-
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
+    torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
     dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
     assert isinstance(
         dynamic_impurity_ne_ratios, plasma_composition.DynamicNeRatios
@@ -389,9 +392,10 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': fractions_species,
         }
     )
+    torax_pydantic.set_grid(pc_fractions, geo.torax_mesh)
     dynamic_impurity_fractions = pc_fractions.impurity.build_dynamic_params(t)
     assert isinstance(
-        dynamic_impurity_fractions, plasma_composition.DynamicIonMixture
+        dynamic_impurity_fractions, plasma_composition.DynamicImpurityFractions
     )
 
     np.testing.assert_allclose(
@@ -470,11 +474,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     assert torax_config.plasma_composition.impurity.species['Ne'] is not None
     assert torax_config.plasma_composition.impurity.species['W'] is not None
-    self.assertEqual(
+    np.testing.assert_allclose(
         torax_config.plasma_composition.impurity.species['Ne'].get_value(0.0),
         0.99,
     )
-    self.assertEqual(
+    np.testing.assert_allclose(
         torax_config.plasma_composition.impurity.species['W'].get_value(0.0),
         0.01,
     )
@@ -482,11 +486,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
     self.assertEqual(
         torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
     )
-    self.assertEqual(
+    np.testing.assert_allclose(
         torax_config.plasma_composition.impurity.species['Ne'].get_value(0.0),
         0.98,
     )
-    self.assertEqual(
+    np.testing.assert_allclose(
         torax_config.plasma_composition.impurity.species['W'].get_value(0.0),
         0.02,
     )
@@ -562,8 +566,9 @@ class IonMixtureTest(parameterized.TestCase):
     dynamic_mixture = mixture.build_dynamic_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
-        ion_mixture=dynamic_mixture,
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
+        fractions=dynamic_mixture.fractions,
+        Z_override=dynamic_mixture.Z_override,
     ).Z_mixture
     np.testing.assert_allclose(calculated_Z, expected_Z)
     np.testing.assert_allclose(dynamic_mixture.A_avg, expected_A)
@@ -587,8 +592,9 @@ class IonMixtureTest(parameterized.TestCase):
     dynamic_mixture = mixture.build_dynamic_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(mixture.species.keys()),
-        ion_mixture=dynamic_mixture,
         T_e=np.array([1.0]),  # arbitrary temperature, won't be used for D
+        fractions=dynamic_mixture.fractions,
+        Z_override=dynamic_mixture.Z_override,
     ).Z_mixture
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override

@@ -113,3 +113,78 @@ IonMapping: TypeAlias = Annotated[
     pydantic.BeforeValidator(_ion_mixture_before_validator),
     pydantic.AfterValidator(_ion_mixture_after_validator),
 ]
+
+
+def _impurity_after_validator(
+    value: Mapping[str, torax_pydantic.TimeVaryingArray],
+) -> Mapping[str, torax_pydantic.TimeVaryingArray]:
+  """Validates a dictionary of TimeVaryingArray objects that form a composition.
+
+  This validator checks for three conditions:
+  1. All TimeVaryingArray objects have the same time points.
+  2. For each time point, all TimeVaryingArray objects have the same `rho_norm`
+     array.
+  3. For each time point, the `values` arrays across all TimeVaryingArray
+     objects have the same shape and sum to 1.0 along the axis of the dictionary
+     keys. This is useful for ensuring that fractions of a quantity sum to 1.
+
+  Args:
+    value: The dictionary of TimeVaryingArray objects to validate.
+
+  Returns:
+    The validated dictionary.
+
+  Raises:
+    ValueError: If any of the validation checks fail.
+  """
+  if not value:
+    raise ValueError('The species dictionary cannot be empty.')
+
+  first_key = next(iter(value))
+  first_tva = value[first_key]
+  reference_times = first_tva.value.keys()
+
+  # 1. Check that all TimeVaryingArray objects have the same time points.
+  for species_key, tva in value.items():
+    if tva.value.keys() != reference_times:
+      raise ValueError(
+          f'Inconsistent times for key "{species_key}". Expected'
+          f' {sorted(list(reference_times))}, got'
+          f' {sorted(list(tva.value.keys()))}'
+      )
+
+  for t in reference_times:
+    # 2. Check that for each time point, all TimeVaryingArray objects have the
+    # same `rho_norm` array.
+    reference_rho_norm, _ = first_tva.value[t]
+    for species_key, tva in value.items():
+      current_rho_norm, _ = tva.value[t]
+      if not np.array_equal(current_rho_norm, reference_rho_norm):
+        raise ValueError(
+            f'Inconsistent rho_norm for key "{species_key}" at time {t}.'
+        )
+
+    # 3. Check that for each time point, the `values` arrays across all
+    # TimeVaryingArray objects have the same shape and sum to 1.0.
+    values_at_t = [tva.value[t][1] for tva in value.values()]
+    reference_shape = values_at_t[0].shape
+    for i, v_arr in enumerate(values_at_t):
+      if v_arr.shape != reference_shape:
+        species_key = list(value.keys())[i]
+        raise ValueError(
+            f'Inconsistent value shape for key "{species_key}" at time {t}.'
+            f' Expected {reference_shape}, got {v_arr.shape}.'
+        )
+    sum_of_values = np.sum(np.stack(values_at_t, axis=0), axis=0)
+    if not np.allclose(sum_of_values, 1.0):
+      raise ValueError(
+          f'Values do not sum to 1 at time {t}. Sum is {sum_of_values}.'
+      )
+  return value
+
+ImpurityMapping: TypeAlias = Annotated[
+    Mapping[str, torax_pydantic.TimeVaryingArray],
+    pydantic.BeforeValidator(_ion_mixture_before_validator),
+    pydantic.AfterValidator(_impurity_after_validator),
+]
+

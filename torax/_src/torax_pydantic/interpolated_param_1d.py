@@ -16,11 +16,13 @@
 
 import functools
 from typing import Any, TypeAlias
+
 import chex
 import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import interpolated_param
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 import typing_extensions
@@ -63,6 +65,22 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       An array of interpolated values.
     """
     return self._get_cached_interpolated_param.get_value(t)
+
+  def to_time_varying_array(self) -> interpolated_param_2d.TimeVaryingArray:
+    """Converts this scalar to a TimeVaryingArray."""
+    time_varying_array_values = {}
+    for time, value in zip(self.time, self.value, strict=True):
+      time_varying_array_values[float(time)] = (
+          np.array([0.0]),
+          np.array([value]),
+      )
+
+    return interpolated_param_2d.TimeVaryingArray.model_validate(
+        dict(
+            value=time_varying_array_values,
+            time_interpolation_mode=self.interpolation_mode,
+        )
+    )
 
   def __eq__(self, other):
     return (
