@@ -87,7 +87,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         instance=True,
         Z_eff_face=jnp.ones_like(self.geo.rho_face),
         main_ion=mock.create_autospec(
-            ion_mixture.DynamicIonMixture,
+            ion_mixture.RuntimeParams,
             instance=True,
             A_avg=2.0,
         ),

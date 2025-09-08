@@ -161,7 +161,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ne',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='legacy_impurity_string',
@@ -169,7 +169,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='legacy_impurity_dict_single_species',
@@ -177,7 +177,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Be',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='legacy_impurity_dict_multiple_species',
@@ -185,7 +185,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar', 'Ne'),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='legacy_with_overrides',
@@ -193,7 +193,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar',),
           expected_Z_override=8.0,
           expected_A_override=None,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='new_api_explicit',
@@ -208,7 +208,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractions,
       ),
       dict(
           testcase_name='new_api_n_e_ratios',
@@ -394,7 +394,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     dynamic_impurity_fractions = pc_fractions.impurity.build_dynamic_params(t)
     assert isinstance(
-        dynamic_impurity_fractions, ion_mixture.DynamicIonMixture
+        dynamic_impurity_fractions, ion_mixture.RuntimeParams
     )
 
     np.testing.assert_allclose(

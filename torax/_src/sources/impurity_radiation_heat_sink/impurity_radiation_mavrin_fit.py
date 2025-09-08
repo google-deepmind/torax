@@ -229,7 +229,7 @@ def impurity_radiation_mavrin_fit(
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
 
-  ion_mixture = ion_mixture_lib.DynamicIonMixture(
+  ion_mixture = ion_mixture_lib.RuntimeParams(
       fractions=impurity_fractions_arr,
       A_avg=core_profiles.A_impurity,
       Z_override=runtime_params.plasma_composition.impurity.Z_override,

@@ -31,12 +31,12 @@ _IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicIonMixture:
+class RuntimeParams:
   """Represents a fixed mixture of ion species at a specific time.
 
-  Information on ion names are not stored here, but rather in
-  StaticRuntimeParamsSlice, to simplify JAX logic and performance in source
-  functions for fusion power and radiation which are species-dependent.
+  Information on ion names are not stored here, but rather as static attributes,
+  to simplify JAX logic and performance in source functions for fusion power and
+  radiation which are species-dependent.
 
   Attributes:
     fractions: Ion fractions for a time slice. Can be 1D (n_species,) for
@@ -75,8 +75,8 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicIonMixture:
-    """Builds a DynamicIonMixture object at a given time."""
+  def build_dynamic_params(self, t: chex.Numeric) -> RuntimeParams:
+    """Builds a RuntimeParams object at a given time."""
     ions = self.species.keys()
     fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
@@ -87,14 +87,14 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
     else:
       A_avg = self.A_override.get_value(t)
 
-    return DynamicIonMixture(
+    return RuntimeParams(
         fractions=fractions,
         A_avg=A_avg,
         Z_override=Z_override,
     )
 
 
-class ImpurityFractionsModel(IonMixture):
+class ImpurityFractions(IonMixture):
   """Impurity content defined by fractional abundances."""
 
   impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (

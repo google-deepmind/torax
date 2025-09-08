@@ -43,9 +43,9 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 class DynamicPlasmaComposition:
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
-  main_ion: ion_mixture.DynamicIonMixture
+  main_ion: ion_mixture.RuntimeParams
   impurity: (
-      ion_mixture.DynamicIonMixture
+      ion_mixture.RuntimeParams
       | electron_density_ratios.RuntimeParams
       | electron_density_ratios_zeff.RuntimeParams
   )
@@ -98,7 +98,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """
 
   impurity: Annotated[
-      ion_mixture.ImpurityFractionsModel
+      ion_mixture.ImpurityFractions
       | electron_density_ratios.ELectronDensityRatios
       | electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       pydantic.Field(discriminator='impurity_mode'),

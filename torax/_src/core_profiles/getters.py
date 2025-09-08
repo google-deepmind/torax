@@ -178,7 +178,7 @@ class _IonProperties:
 
 def _get_ion_properties_from_fractions(
     impurity_symbols: tuple[str, ...],
-    impurity_params: ion_mixture_lib.DynamicIonMixture,
+    impurity_params: ion_mixture_lib.RuntimeParams,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -233,7 +233,7 @@ def _get_ion_properties_from_n_e_ratios(
     Z_i_face: array_typing.FloatVectorFace,
 ) -> _IonProperties:
   """Calculates ion properties when impurity content is defined by n_e ratios."""
-  impurity_mixture = ion_mixture_lib.DynamicIonMixture(
+  impurity_mixture = ion_mixture_lib.RuntimeParams(
       fractions=impurity_params.fractions,
       A_avg=impurity_params.A_avg,
       Z_override=impurity_params.Z_override,
@@ -434,12 +434,12 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
     A_avg = jnp.full_like(Z_i, impurity_params.A_override)
     A_avg_face = jnp.full_like(Z_i_face, impurity_params.A_override)
 
-  ion_mixture = ion_mixture_lib.DynamicIonMixture(
+  ion_mixture = ion_mixture_lib.RuntimeParams(
       fractions=fractions,
       A_avg=A_avg,
       Z_override=impurity_params.Z_override,
   )
-  ion_mixture_face = ion_mixture_lib.DynamicIonMixture(
+  ion_mixture_face = ion_mixture_lib.RuntimeParams(
       fractions=fractions_face,
       A_avg=A_avg_face,
       Z_override=impurity_params.Z_override,
@@ -523,7 +523,7 @@ def get_updated_ions(
   impurity_params = runtime_params.plasma_composition.impurity
 
   match impurity_params:
-    case ion_mixture_lib.DynamicIonMixture():
+    case ion_mixture_lib.RuntimeParams():
       ion_properties = _get_ion_properties_from_fractions(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,

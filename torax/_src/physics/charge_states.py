@@ -170,7 +170,7 @@ def calculate_average_charge_state_single_species(
 
 def get_average_charge_state(
     ion_symbols: Sequence[str],
-    ion_mixture: ion_mixture_lib.DynamicIonMixture,
+    ion_mixture: ion_mixture_lib.RuntimeParams,
     T_e: array_typing.FloatVector,
 ) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).

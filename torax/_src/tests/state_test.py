@@ -170,7 +170,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
       impurity_config = torax_config.plasma_composition.impurity
       geo = torax_config.geometry.build_provider(t)
       assert isinstance(
-          impurity_config, ion_mixture.ImpurityFractionsModel
+          impurity_config, ion_mixture.ImpurityFractions
       )
       expected_fractions = {
           'Ar': jnp.full_like(
