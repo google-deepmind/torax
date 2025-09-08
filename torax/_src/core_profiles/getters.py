@@ -53,7 +53,7 @@ class Ions:
 
 
 def get_updated_ion_temperature(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed ion temperature profiles."""
@@ -68,7 +68,7 @@ def get_updated_ion_temperature(
 
 
 def get_updated_electron_temperature(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron temperature profiles."""
@@ -83,7 +83,7 @@ def get_updated_electron_temperature(
 
 
 def get_updated_electron_density(
-    profile_conditions_params: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""

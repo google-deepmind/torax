@@ -77,7 +77,7 @@ class RuntimeParams:
   numerics: numerics.RuntimeParams
   pedestal: pedestal_model_params.RuntimeParams
   plasma_composition: plasma_composition.DynamicPlasmaComposition
-  profile_conditions: profile_conditions.DynamicProfileConditions
+  profile_conditions: profile_conditions.RuntimeParams
   solver: solver_params.RuntimeParams
   sources: Mapping[str, sources_params.RuntimeParams]
   transport: transport_model_params.RuntimeParams
