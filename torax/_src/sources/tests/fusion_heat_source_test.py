@@ -50,7 +50,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
             'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
         }
     })
-    runtime_params, geo = references.get_dynamic_slice_and_geo()
+    runtime_params, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
     neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
@@ -91,7 +91,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         },
     })
 
-    runtime_params_t, geo = references.get_dynamic_slice_and_geo()
+    runtime_params_t, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
     neoclassical_models = references.config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(

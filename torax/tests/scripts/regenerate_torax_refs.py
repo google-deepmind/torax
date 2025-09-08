@@ -107,7 +107,7 @@ def _calculate_new_references(
   torax_config = reference.config
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
-  runtime_params, geo = reference.get_dynamic_slice_and_geo()
+  runtime_params, geo = reference.get_runtime_params_and_geo()
   initial_core_profiles = initialization.initial_core_profiles(
       runtime_params,
       geo,

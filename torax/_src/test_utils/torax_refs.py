@@ -65,16 +65,16 @@ class References:
   def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
     return self.config.geometry.build_provider
 
-  def get_dynamic_slice_and_geo(
+  def get_runtime_params_and_geo(
       self,
   ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
     t = self.config.numerics.t_initial
-    dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.config
     )
     return build_runtime_params.get_consistent_runtime_params_and_geometry(
         t=t,
-        runtime_params_provider=dynamic_provider,
+        runtime_params_provider=params,
         geometry_provider=self.config.geometry.build_provider,
     )
 

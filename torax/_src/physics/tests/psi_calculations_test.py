@@ -43,7 +43,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   def test_calc_q(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
 
-    _, geo = references.get_dynamic_slice_and_geo()
+    _, geo = references.get_runtime_params_and_geo()
 
     q_face_calculated = psi_calculations.calc_q_face(geo, references.psi)
     np.testing.assert_allclose(q_face_calculated, references.q, rtol=1e-5)
@@ -106,7 +106,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
     source_models = references.config.sources.build_models()
     neoclassical_models = references.config.neoclassical.build_models()
-    dynamic_runtime_params_slice, geo = references.get_dynamic_slice_and_geo()
+    dynamic_runtime_params_slice, geo = references.get_runtime_params_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),

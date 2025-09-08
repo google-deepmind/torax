@@ -59,7 +59,7 @@ class InitializationTest(parameterized.TestCase):
     references = torax_refs.circular_references()
 
     # Turn on the external current source.
-    runtime_params, geo = references.get_dynamic_slice_and_geo()
+    runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     external_current = generic_current_source.calculate_generic_current(
         runtime_params=runtime_params,
