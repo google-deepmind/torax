@@ -18,6 +18,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import jax_utils
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
@@ -220,7 +221,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=plasma_composition.NeRatiosModel,
+          expected_impurity_model_type=electron_density_ratios.NeRatiosModel,
       ),
       dict(
           testcase_name='new_api_n_e_ratios_Z_eff',
@@ -380,7 +381,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
     assert isinstance(
-        dynamic_impurity_ne_ratios, plasma_composition.DynamicNeRatios
+        dynamic_impurity_ne_ratios, electron_density_ratios.DynamicNeRatios
     )
 
     pc_fractions = plasma_composition.PlasmaComposition(
@@ -417,7 +418,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
-    self.assertIsInstance(output.impurity, plasma_composition.DynamicNeRatios)
+    self.assertIsInstance(
+        output.impurity, electron_density_ratios.DynamicNeRatios
+    )
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
     # run again to check for re-compilation
     f(pc, 0.0)
