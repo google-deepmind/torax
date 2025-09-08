@@ -50,10 +50,9 @@ class RuntimeParamsProvider:
   they should be at time t.
 
   NOTE: In order to maintain consistency between the RuntimeParams
-  and the geometry,
-  `sim.get_consistent_dynamic_runtime_params_slice_and_geometry`
+  and the geometry, `get_consistent_runtime_params_and_geometry`
   should be used to get a slice of the RuntimeParams and a
-  corresponding geometry. See `run_simulation()` for how this callable is used.
+  corresponding geometry.
   """
 
   sources: sources_pydantic_model.Sources
@@ -72,7 +71,7 @@ class RuntimeParamsProvider:
       cls,
       config: model_config.ToraxConfig,
   ) -> typing_extensions.Self:
-    """Constructs a DynamicRuntimeParamsSliceProvider from a ToraxConfig."""
+    """Constructs a RuntimeParamsProvider from a ToraxConfig."""
     return cls(
         sources=config.sources,
         numerics=config.numerics,

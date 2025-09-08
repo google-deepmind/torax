@@ -27,7 +27,6 @@ from typing_extensions import Self
 
 
 # pylint: disable=invalid-name
-# TODO(b/326578331): remove density reference from DynamicNumerics entirely.
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class RuntimeParams:

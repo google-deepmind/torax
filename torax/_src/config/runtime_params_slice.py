@@ -85,16 +85,15 @@ class RuntimeParams:
 
 
 def make_ip_consistent(
-    dynamic_runtime_params_slice: RuntimeParams,
+    runtime_params: RuntimeParams,
     geo: geometry.Geometry,
 ) -> tuple[RuntimeParams, geometry.Geometry]:
-  """Fixes Ip to be the same across dynamic_runtime_params_slice and geo."""
+  """Fixes Ip to be the same across runtime_params and geo."""
   if isinstance(geo, standard_geometry.StandardGeometry):
     if geo.Ip_from_parameters:
       # If Ip is from parameters, renormalise psi etc to match the Ip in the
       # parameters.
-      # pylint: disable=invalid-name
-      param_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+      param_Ip = runtime_params.profile_conditions.Ip
       Ip_scale_factor = param_Ip / geo.Ip_profile_face[-1]
       geo = dataclasses.replace(
           geo,
@@ -104,14 +103,13 @@ def make_ip_consistent(
           j_total=geo.j_total * Ip_scale_factor,
           j_total_face=geo.j_total_face * Ip_scale_factor,
       )
-      # pylint: enable=invalid-name
     else:
       # If Ip is from the geometry, update the parameters to match.
-      dynamic_runtime_params_slice = dataclasses.replace(
-          dynamic_runtime_params_slice,
+      runtime_params = dataclasses.replace(
+          runtime_params,
           profile_conditions=dataclasses.replace(
-              dynamic_runtime_params_slice.profile_conditions,
+              runtime_params.profile_conditions,
               Ip=geo.Ip_profile_face[-1],
           ),
       )
-  return dynamic_runtime_params_slice, geo
+  return runtime_params, geo

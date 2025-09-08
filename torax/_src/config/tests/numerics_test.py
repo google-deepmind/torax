@@ -24,7 +24,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 class NumericsTest(parameterized.TestCase):
 
-  def test_numerics_build_dynamic_params(self):
+  def test_numerics_build_runtime_params(self):
     nums = numerics.Numerics()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(nums, geo.torax_mesh)

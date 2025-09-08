@@ -33,25 +33,25 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._torax_mesh = torax_pydantic.Grid1D(nx=4,)
+    self._torax_mesh = torax_pydantic.Grid1D(
+        nx=4,
+    )
 
   def test_time_dependent_provider_is_time_dependent(self):
-    """Tests that the runtime_params slice provider is time dependent."""
+    """Tests that the runtime_params provider is time dependent."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {'T_i_right_bc': {0.0: 2.0, 4.0: 4.0}}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
     np.testing.assert_allclose(
-        dynamic_runtime_params_slice.profile_conditions.T_i_right_bc, 2.5
+        runtime_params.profile_conditions.T_i_right_bc, 2.5
     )
-    dynamic_runtime_params_slice = provider(t=2.0)
+    runtime_params = provider(t=2.0)
     np.testing.assert_allclose(
-        dynamic_runtime_params_slice.profile_conditions.T_i_right_bc, 3.0
+        runtime_params.profile_conditions.T_i_right_bc, 3.0
     )
 
   def test_boundary_conditions_are_time_dependent(self):
@@ -177,14 +177,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
-    dynamic_profile_conditions = profile_conditions.build_runtime_params(
-        t=0.0,
-    )
+    profile_condition_params = profile_conditions.build_runtime_params(t=0.0)
+
     np.testing.assert_allclose(
-        getattr(dynamic_profile_conditions, var_name), expected_var
+        getattr(profile_condition_params, var_name), expected_var
     )
     self.assertEqual(
-        getattr(dynamic_profile_conditions, boundary_var_name),
+        getattr(profile_condition_params, boundary_var_name),
         expected_var_boundary_condition,
     )
 
@@ -230,35 +229,33 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         'n_e': n_e,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    dynamic_profile_conditions = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(t=0.0).profile_conditions
+    profile_condition_params = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=0.0
+        ).profile_conditions
     )
 
     if n_e_right_bc is None:
       # If the boundary condition was not set, it should inherit the fGW flag.
       self.assertEqual(
-          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          profile_condition_params.n_e_right_bc_is_fGW,
           n_e_nbar_is_fGW,
       )
       # If the boundary condition was set check it is not absolute.
-      self.assertFalse(dynamic_profile_conditions.n_e_right_bc_is_absolute)
+      self.assertFalse(profile_condition_params.n_e_right_bc_is_absolute)
     else:
       self.assertEqual(
-          dynamic_profile_conditions.n_e_right_bc_is_fGW,
+          profile_condition_params.n_e_right_bc_is_fGW,
           n_e_right_bc_is_fGW,
       )
-      self.assertTrue(dynamic_profile_conditions.n_e_right_bc_is_absolute)
+      self.assertTrue(profile_condition_params.n_e_right_bc_is_absolute)
 
-  def test_dynamic_provider_works_under_jit(self):
+  def test_runtime_params_provider_works_under_jit(self):
     torax_config = config_loader.build_torax_config_from_file(
         'tests/test_data/test_iterhybrid_rampup.py'
     )
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
 
     @jax.jit
@@ -269,25 +266,21 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       return provider(t)
 
     with self.subTest('jit_compiles_and_returns_expected_value'):
-      dynamic_runtime_params_slice = f(provider, t=0.1)
+      runtime_params = f(provider, t=0.1)
       # Check to make sure it's a valid object.
       self.assertIsInstance(
-          dynamic_runtime_params_slice,
+          runtime_params,
           runtime_params_slice.RuntimeParams,
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('jit_updates_value_without_recompile'):
       torax_config.update_fields({'profile_conditions.T_i_right_bc': 0.77})
-      provider = (
-          build_runtime_params.RuntimeParamsProvider.from_config(
-              torax_config
-          )
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
       )
-      dynamic_runtime_params_slice = f(provider, t=0.1)
-      self.assertEqual(
-          dynamic_runtime_params_slice.profile_conditions.T_i_right_bc, 0.77
-      )
+      runtime_params = f(provider, t=0.1)
+      self.assertEqual(runtime_params.profile_conditions.T_i_right_bc, 0.77)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
