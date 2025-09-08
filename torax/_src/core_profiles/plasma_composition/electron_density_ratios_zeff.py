@@ -27,8 +27,8 @@ import typing_extensions
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicNeRatiosZeff:
-  """Analogous to DynamicImpurityFractions but for n_e_ratio_Z_eff inputs."""
+class RuntimeParams:
+  """Runtime parameters for ElectronDensityRatiosZeff."""
 
   n_e_ratios: Mapping[str, array_typing.FloatScalar | None]
   unknown_species: str = dataclasses.field(metadata={'static': True})
@@ -36,7 +36,7 @@ class DynamicNeRatiosZeff:
   A_override: array_typing.FloatScalar | None = None
 
 
-class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
+class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios, with one species constrained by Z_eff."""
 
   # Exactly one species must have a None ratio to be constrained by Z_eff.
@@ -47,14 +47,14 @@ class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
       Literal['n_e_ratios_Z_eff'], torax_pydantic.JAX_STATIC
   ] = 'n_e_ratios_Z_eff'
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicNeRatiosZeff:
+  def build_dynamic_params(self, t: chex.Numeric) -> RuntimeParams:
     unknown_species = next(
         (symbol for symbol, ratio in self.species.items() if ratio is None),
         None,
     )
     # The validator ensures unknown_species is not None but add an extra check.
     assert unknown_species is not None
-    return DynamicNeRatiosZeff(
+    return RuntimeParams(
         n_e_ratios={
             symbol: ratio.get_value(t) if ratio is not None else None
             for symbol, ratio in self.species.items()

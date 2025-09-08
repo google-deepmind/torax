@@ -289,7 +289,7 @@ def _get_ion_properties_from_n_e_ratios(
 # TODO(b/440666091): Refactor this function by breaking it down to several
 # smaller helper functions
 def _get_ion_properties_from_n_e_ratios_Z_eff(
-    impurity_params: electron_density_ratios_zeff.DynamicNeRatiosZeff,
+    impurity_params: electron_density_ratios_zeff.RuntimeParams,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -542,7 +542,7 @@ def get_updated_ions(
           Z_i,
           Z_i_face,
       )
-    case electron_density_ratios_zeff.DynamicNeRatiosZeff():
+    case electron_density_ratios_zeff.RuntimeParams():
       ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
           impurity_params,
           T_e,
