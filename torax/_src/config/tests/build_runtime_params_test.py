@@ -19,8 +19,8 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
-from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped

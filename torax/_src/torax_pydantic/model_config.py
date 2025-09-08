@@ -23,7 +23,7 @@ from torax._src import physics_models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
-from torax._src.config import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.fvm import enums
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model

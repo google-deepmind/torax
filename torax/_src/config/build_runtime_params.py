@@ -25,8 +25,8 @@ import jax
 from torax._src import jax_utils
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import plasma_composition as plasma_composition_lib
-from torax._src.config import profile_conditions as profile_conditions_lib
 from torax._src.config import runtime_params_slice
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model

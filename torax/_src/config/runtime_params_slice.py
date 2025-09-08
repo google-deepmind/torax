@@ -40,7 +40,7 @@ import dataclasses
 import jax
 from torax._src.config import numerics
 from torax._src.config import plasma_composition
-from torax._src.config import profile_conditions
+from torax._src.core_profiles import profile_conditions
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
