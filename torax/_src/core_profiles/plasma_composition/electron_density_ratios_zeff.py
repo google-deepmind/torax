@@ -32,7 +32,6 @@ class RuntimeParams:
 
   n_e_ratios: Mapping[str, array_typing.FloatScalar | None]
   unknown_species: str = dataclasses.field(metadata={'static': True})
-  Z_override: array_typing.FloatScalar | None = None
   A_override: array_typing.FloatScalar | None = None
 
 
@@ -41,7 +40,6 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
 
   # Exactly one species must have a None ratio to be constrained by Z_eff.
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar | None]
-  Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
   impurity_mode: Annotated[
       Literal['n_e_ratios_Z_eff'], torax_pydantic.JAX_STATIC
@@ -60,7 +58,6 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
             for symbol, ratio in self.species.items()
         },
         unknown_species=unknown_species,
-        Z_override=self.Z_override.get_value(t) if self.Z_override else None,
         A_override=self.A_override.get_value(t) if self.A_override else None,
     )
 

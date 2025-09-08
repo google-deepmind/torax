@@ -16,7 +16,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
-from torax._src.core_profiles.plasma_composition import ion_mixture as ion_mixture_lib
 from torax._src.physics import charge_states
 
 
@@ -170,15 +169,13 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
     T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
-    A_avg = np.nan  # not used.
     ion_symbols = tuple(species.keys())
     fractions = np.array(tuple(species.values()))
-    ion_mixture = ion_mixture_lib.RuntimeParams(
-        fractions=fractions,
-        A_avg=A_avg,
-    )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, T_e
+        ion_symbols,
+        T_e,
+        fractions,
+        Z_override=None,
     ).Z_mixture
 
     np.testing.assert_allclose(Z_calculated, expected_Z, rtol=1e-5)
@@ -189,13 +186,11 @@ class ChargeStatesTest(parameterized.TestCase):
     T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
     ion_symbols = tuple(species.keys())
-    ion_mixture = ion_mixture_lib.RuntimeParams(
-        fractions=np.array(tuple(species.values())),
-        A_avg=2.0,  # arbitrary, not used.
-        Z_override=np.array([50.0, 50.0, 50.0]),
-    )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, T_e
+        ion_symbols,
+        T_e,
+        np.array(tuple(species.values())),
+        np.array([50.0, 50.0, 50.0]),
     ).Z_mixture
     np.testing.assert_allclose(Z_calculated, Z_override)
 

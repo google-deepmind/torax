@@ -60,7 +60,6 @@ class RuntimeParams:
 
   n_e_ratios: array_typing.FloatVector
   A_avg: array_typing.FloatScalar
-  Z_override: array_typing.FloatScalar | None = None
 
   @property
   def fractions(self) -> array_typing.FloatVector:
@@ -72,7 +71,6 @@ class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios of impurity to electron density."""
 
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
-  Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
   impurity_mode: Annotated[Literal['n_e_ratios'], torax_pydantic.JAX_STATIC] = (
       'n_e_ratios'
@@ -90,7 +88,6 @@ class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
     n_e_ratios_arr = jnp.array(
         [ratio.get_value(t) for ratio in self.species.values()]
     )
-    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
     fractions = calculate_fractions_from_ratios(n_e_ratios_arr)
 
     if not self.A_override:
@@ -102,5 +99,4 @@ class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
     return RuntimeParams(
         n_e_ratios=n_e_ratios_arr,
         A_avg=A_avg,
-        Z_override=Z_override,
     )
