@@ -55,7 +55,7 @@ def calculate_fractions_from_ratios(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicNeRatios:
+class RuntimeParams:
   """Analogous to IonMixture but for n_e_ratio inputs."""
 
   n_e_ratios: array_typing.FloatVector
@@ -68,7 +68,7 @@ class DynamicNeRatios:
     return calculate_fractions_from_ratios(self.n_e_ratios)
 
 
-class NeRatiosModel(torax_pydantic.BaseModelFrozen):
+class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios of impurity to electron density."""
 
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
@@ -87,7 +87,7 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicNeRatios:
+  ) -> RuntimeParams:
     """Creates a DynamicNeRatios object at a given time."""
     ions = self.species.keys()
     n_e_ratios_arr = jnp.array(
@@ -102,7 +102,7 @@ class NeRatiosModel(torax_pydantic.BaseModelFrozen):
     else:
       A_avg = self.A_override.get_value(t)
 
-    return DynamicNeRatios(
+    return RuntimeParams(
         n_e_ratios=n_e_ratios_arr,
         A_avg=A_avg,
         Z_override=Z_override,

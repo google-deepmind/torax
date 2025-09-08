@@ -221,7 +221,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=electron_density_ratios.NeRatiosModel,
+          expected_impurity_model_type=electron_density_ratios.ELectronDensityRatios,
       ),
       dict(
           testcase_name='new_api_n_e_ratios_Z_eff',
@@ -381,7 +381,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
     assert isinstance(
-        dynamic_impurity_ne_ratios, electron_density_ratios.DynamicNeRatios
+        dynamic_impurity_ne_ratios, electron_density_ratios.RuntimeParams
     )
 
     pc_fractions = plasma_composition.PlasmaComposition(
@@ -419,7 +419,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
     self.assertIsInstance(
-        output.impurity, electron_density_ratios.DynamicNeRatios
+        output.impurity, electron_density_ratios.RuntimeParams
     )
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
     # run again to check for re-compilation

@@ -208,7 +208,7 @@ class DynamicPlasmaComposition:
   main_ion: DynamicIonMixture
   impurity: (
       DynamicIonMixture
-      | electron_density_ratios.DynamicNeRatios
+      | electron_density_ratios.RuntimeParams
       | DynamicNeRatiosZeff
   )
   Z_eff: array_typing.FloatVectorCell
@@ -261,7 +261,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
 
   impurity: Annotated[
       ImpurityFractionsModel
-      | electron_density_ratios.NeRatiosModel
+      | electron_density_ratios.ELectronDensityRatios
       | NeRatiosZeffModel,
       pydantic.Field(discriminator='impurity_mode'),
   ]
@@ -335,7 +335,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   def _check_zeff_usage(self) -> typing_extensions.Self:
     """Warns user if Z_eff is provided but will be ignored."""
     if (
-        isinstance(self.impurity, electron_density_ratios.NeRatiosModel)
+        isinstance(self.impurity, electron_density_ratios.ELectronDensityRatios)
         and self.Z_eff.value != 1.0  # default value if input Z_eff is None
     ):
       logging.warning(

@@ -49,10 +49,8 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     dynamic_runtime_params_slice, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -79,9 +77,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
     dynamic_runtime_params_slice, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -220,7 +216,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
       fractions = state_history.core_profiles[i].impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
       geo = torax_config.geometry.build_provider(t)
-      assert isinstance(impurity_config, electron_density_ratios.NeRatiosModel)
+      assert isinstance(
+          impurity_config, electron_density_ratios.ELectronDensityRatios
+      )
       ar_ratio = impurity_config.species['Ar'].get_value(t)
       ne_ratio = impurity_config.species['Ne'].get_value(t)
       w_ratio = impurity_config.species['W'].get_value(t)

@@ -226,7 +226,7 @@ def _get_ion_properties_from_fractions(
 
 def _get_ion_properties_from_n_e_ratios(
     impurity_symbols: tuple[str, ...],
-    impurity_params: electron_density_ratios.DynamicNeRatios,
+    impurity_params: electron_density_ratios.RuntimeParams,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -533,7 +533,7 @@ def get_updated_ions(
           runtime_params.plasma_composition.Z_eff_face,
       )
 
-    case electron_density_ratios.DynamicNeRatios():
+    case electron_density_ratios.RuntimeParams():
       ion_properties = _get_ion_properties_from_n_e_ratios(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
