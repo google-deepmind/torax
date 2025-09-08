@@ -22,6 +22,7 @@ arrays, scalars, or standard (possibly nested) Python containers. See the JAX
 docs for more info on allowed types. They cannot influence the logical branches
 the SimulationStepFn may take (again, see the sharp bits in the JAX docs to
 learn more about the how these "dynamic" args can be used within the function).
+By default all the arguments in runtime_params are assumed to be dynamic.
 
 Note that the "dynamic" arguments are NOT necessarily time-dependent. They do
 not need to vary from time step to time step (though they can). They can change
@@ -32,7 +33,8 @@ solver is the defining quality of the dynamic arguments.
 The "static" arguments are compile-time constant. Any changes to them would
 trigger a recompilation of the solver. These arguments don't have the same
 restrictions as the dynamic arguments both in terms of types and how they are
-used.
+used. They are marked as static in their definition and are marked as such when
+input to JAX.
 """
 from collections.abc import Mapping
 import dataclasses

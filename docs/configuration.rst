@@ -1933,7 +1933,7 @@ state at ``t=10`` by adding the following to the config:
 
 The resulting simulation will recreate the state from ``t=10`` in the
 previous simulation, and then run forwards from that point in time. For
-all subsequent steps the dynamic runtime parameters will be constructed using
+all subsequent steps the runtime parameters will be constructed using
 the runtime parameter configuration provided in the new config (from ``t=10``
 onwards).
 
