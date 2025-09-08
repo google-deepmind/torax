@@ -99,7 +99,7 @@ class RuntimeParamsProvider:
             for source_name, source_config in dict(self.sources).items()
             if source_config is not None
         },
-        plasma_composition=self.plasma_composition.build_dynamic_params(t),
+        plasma_composition=self.plasma_composition.build_runtime_params(t),
         profile_conditions=self.profile_conditions.build_runtime_params(t),
         numerics=self.numerics.build_runtime_params(t),
         neoclassical=self.neoclassical.build_runtime_params(),

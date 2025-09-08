@@ -201,9 +201,9 @@ def get_average_charge_state(
 
   Args:
     ion_symbols: Species to calculate average charge state for.
-    ion_mixture: DynamicIonMixture object containing impurity information. The
-      index of the ion_mixture.fractions array corresponds to the index of the
-      ion_symbols array.
+    ion_mixture: Object containing impurity information. The index of the
+      ion_mixture.fractions array corresponds to the index of the ion_symbols
+      array.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 

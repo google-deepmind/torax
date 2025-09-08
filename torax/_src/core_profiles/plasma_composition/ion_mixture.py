@@ -75,7 +75,7 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
-  def build_dynamic_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
     ions = self.species.keys()
     fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])

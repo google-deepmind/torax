@@ -47,7 +47,7 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
       Literal['n_e_ratios_Z_eff'], torax_pydantic.JAX_STATIC
   ] = 'n_e_ratios_Z_eff'
 
-  def build_dynamic_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     unknown_species = next(
         (symbol for symbol, ratio in self.species.items() if ratio is None),
         None,

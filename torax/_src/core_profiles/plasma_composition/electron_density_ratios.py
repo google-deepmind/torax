@@ -74,9 +74,9 @@ class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
-  impurity_mode: Annotated[
-      Literal['n_e_ratios'], torax_pydantic.JAX_STATIC
-  ] = 'n_e_ratios'
+  impurity_mode: Annotated[Literal['n_e_ratios'], torax_pydantic.JAX_STATIC] = (
+      'n_e_ratios'
+  )
 
   @pydantic.model_validator(mode='after')
   def _validate_species_not_empty(self) -> typing_extensions.Self:
@@ -84,11 +84,8 @@ class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
       raise ValueError('The species dictionary cannot be empty.')
     return self
 
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> RuntimeParams:
-    """Creates a DynamicNeRatios object at a given time."""
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    """Creates a RuntimeParams object at a given time."""
     ions = self.species.keys()
     n_e_ratios_arr = jnp.array(
         [ratio.get_value(t) for ratio in self.species.values()]

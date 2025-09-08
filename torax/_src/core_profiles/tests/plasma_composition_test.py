@@ -43,7 +43,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     pc = plasma_composition.PlasmaComposition()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    pc.build_dynamic_params(t=0.0)
+    pc.build_runtime_params(t=0.0)
 
   @parameterized.parameters(
       (1.0,),
@@ -55,7 +55,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dynamic_pc = pc.build_dynamic_params(t=0.0)
+    dynamic_pc = pc.build_runtime_params(t=0.0)
     # Check that the values in both Z_eff and Z_eff_face are the same
     # and consistent with the zeff float input
     np.testing.assert_allclose(
@@ -80,7 +80,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
-    dynamic_pc = pc.build_dynamic_params(t=0.0)
+    dynamic_pc = pc.build_runtime_params(t=0.0)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array(list(zeff_profile[0.0])),
@@ -95,7 +95,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     np.testing.assert_allclose(dynamic_pc.Z_eff_face, expected_zeff_face)
 
     # Check values at t=0.5 (interpolated in time)
-    dynamic_pc = pc.build_dynamic_params(t=0.5)
+    dynamic_pc = pc.build_runtime_params(t=0.5)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array([0.0, 0.5, 1.0]),
@@ -135,7 +135,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
-      return pc_model.build_dynamic_params(t=t)
+      return pc_model.build_runtime_params(t=t)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(pc, t)
@@ -381,7 +381,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': n_e_ratios_species,
         }
     )
-    dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_dynamic_params(t)
+    dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_runtime_params(t)
     assert isinstance(
         dynamic_impurity_ne_ratios, electron_density_ratios.RuntimeParams
     )
@@ -392,7 +392,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': fractions_species,
         }
     )
-    dynamic_impurity_fractions = pc_fractions.impurity.build_dynamic_params(t)
+    dynamic_impurity_fractions = pc_fractions.impurity.build_runtime_params(t)
     assert isinstance(
         dynamic_impurity_fractions, ion_mixture.RuntimeParams
     )
@@ -416,7 +416,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
-      return pc_model.build_dynamic_params(t=t)
+      return pc_model.build_runtime_params(t=t)
 
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
@@ -442,7 +442,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     @jax.jit
     def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
-      return pc_model.build_dynamic_params(t=t)
+      return pc_model.build_runtime_params(t=t)
 
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
@@ -564,7 +564,7 @@ class IonMixtureTest(parameterized.TestCase):
     mixture = ion_mixture.IonMixture.model_validate(
         dict(species=species)
     )
-    dynamic_mixture = mixture.build_dynamic_params(time)
+    dynamic_mixture = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
         ion_mixture=dynamic_mixture,
@@ -589,7 +589,7 @@ class IonMixtureTest(parameterized.TestCase):
             A_override=A_override,
         )
     )
-    dynamic_mixture = mixture.build_dynamic_params(t=0.0)
+    dynamic_mixture = mixture.build_runtime_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(mixture.species.keys()),
         ion_mixture=dynamic_mixture,
