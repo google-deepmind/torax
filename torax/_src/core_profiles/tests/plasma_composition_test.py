@@ -19,6 +19,7 @@ import numpy as np
 import pydantic
 from torax._src import jax_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
@@ -238,7 +239,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=plasma_composition.NeRatiosZeffModel,
+          expected_impurity_model_type=electron_density_ratios_zeff.NeRatiosZeffModel,
       ),
   )
   def test_impurity_api(
@@ -445,7 +446,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
     self.assertIsInstance(
-        output.impurity, plasma_composition.DynamicNeRatiosZeff
+        output.impurity, electron_density_ratios_zeff.DynamicNeRatiosZeff
     )
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
     # run again to check for re-compilation

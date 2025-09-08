@@ -17,7 +17,7 @@ import copy
 import dataclasses
 import functools
 import logging
-from typing import Annotated, Any, Literal, Mapping
+from typing import Annotated, Any, Literal
 import chex
 import jax
 from jax import numpy as jnp
@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 from typing_extensions import Final
@@ -61,17 +62,6 @@ class DynamicIonMixture:
   fractions: array_typing.FloatVector
   A_avg: array_typing.FloatScalar | array_typing.FloatVectorCell
   Z_override: array_typing.FloatScalar | None = None
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicNeRatiosZeff:
-  """Analogous to DynamicImpurityFractions but for n_e_ratio_Z_eff inputs."""
-
-  n_e_ratios: Mapping[str, array_typing.FloatScalar | None]
-  unknown_species: str = dataclasses.field(metadata={'static': True})
-  Z_override: array_typing.FloatScalar | None = None
-  A_override: array_typing.FloatScalar | None = None
 
 
 class IonMixture(torax_pydantic.BaseModelFrozen):
@@ -159,47 +149,6 @@ class ImpurityFractionsModel(IonMixture):
     return data
 
 
-class NeRatiosZeffModel(torax_pydantic.BaseModelFrozen):
-  """Impurity content defined by ratios, with one species constrained by Z_eff."""
-
-  # Exactly one species must have a None ratio to be constrained by Z_eff.
-  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar | None]
-  Z_override: torax_pydantic.TimeVaryingScalar | None = None
-  A_override: torax_pydantic.TimeVaryingScalar | None = None
-  impurity_mode: Annotated[
-      Literal['n_e_ratios_Z_eff'], torax_pydantic.JAX_STATIC
-  ] = 'n_e_ratios_Z_eff'
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicNeRatiosZeff:
-    unknown_species = next(
-        (symbol for symbol, ratio in self.species.items() if ratio is None),
-        None,
-    )
-    # The validator ensures unknown_species is not None but add an extra check.
-    assert unknown_species is not None
-    return DynamicNeRatiosZeff(
-        n_e_ratios={
-            symbol: ratio.get_value(t) if ratio is not None else None
-            for symbol, ratio in self.species.items()
-        },
-        unknown_species=unknown_species,
-        Z_override=self.Z_override.get_value(t) if self.Z_override else None,
-        A_override=self.A_override.get_value(t) if self.A_override else None,
-    )
-
-  @pydantic.model_validator(mode='after')
-  def _validate_one_none(self) -> typing_extensions.Self:
-    if not self.species:
-      raise ValueError('The species dictionary cannot be empty.')
-    none_count = sum(v is None for v in self.species.values())
-    if none_count != 1:
-      raise ValueError(
-          'Exactly one impurity must have a `None` ratio to be'
-          ' constrained by Z_eff.'
-      )
-    return self
-
-
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class DynamicPlasmaComposition:
@@ -209,7 +158,7 @@ class DynamicPlasmaComposition:
   impurity: (
       DynamicIonMixture
       | electron_density_ratios.RuntimeParams
-      | DynamicNeRatiosZeff
+      | electron_density_ratios_zeff.DynamicNeRatiosZeff
   )
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
@@ -262,7 +211,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   impurity: Annotated[
       ImpurityFractionsModel
       | electron_density_ratios.ELectronDensityRatios
-      | NeRatiosZeffModel,
+      | electron_density_ratios_zeff.NeRatiosZeffModel,
       pydantic.Field(discriminator='impurity_mode'),
   ]
   main_ion: runtime_validation_utils.IonMapping = (

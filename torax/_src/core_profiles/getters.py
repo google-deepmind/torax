@@ -23,6 +23,7 @@ from torax._src import jax_utils
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -288,7 +289,7 @@ def _get_ion_properties_from_n_e_ratios(
 # TODO(b/440666091): Refactor this function by breaking it down to several
 # smaller helper functions
 def _get_ion_properties_from_n_e_ratios_Z_eff(
-    impurity_params: plasma_composition.DynamicNeRatiosZeff,
+    impurity_params: electron_density_ratios_zeff.DynamicNeRatiosZeff,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -541,7 +542,7 @@ def get_updated_ions(
           Z_i,
           Z_i_face,
       )
-    case plasma_composition.DynamicNeRatiosZeff():
+    case electron_density_ratios_zeff.DynamicNeRatiosZeff():
       ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
           impurity_params,
           T_e,
