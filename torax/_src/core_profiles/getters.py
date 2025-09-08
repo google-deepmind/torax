@@ -189,13 +189,15 @@ def _get_ion_properties_from_fractions(
 
   Z_impurity = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=impurity_params,
       T_e=T_e.value,
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
   ).Z_mixture
   Z_impurity_face = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=impurity_params,
       T_e=T_e.face_value(),
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
   ).Z_mixture
 
   Z_eff = Z_eff_from_config
@@ -233,20 +235,17 @@ def _get_ion_properties_from_n_e_ratios(
     Z_i_face: array_typing.FloatVectorFace,
 ) -> _IonProperties:
   """Calculates ion properties when impurity content is defined by n_e ratios."""
-  impurity_mixture = ion_mixture_lib.RuntimeParams(
-      fractions=impurity_params.fractions,
-      A_avg=impurity_params.A_avg,
-      Z_override=impurity_params.Z_override,
-  )
   average_charge_state = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=impurity_mixture,
       T_e=T_e.value,
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
   )
   average_charge_state_face = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=impurity_mixture,
       T_e=T_e.face_value(),
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
   )
   Z_impurity = average_charge_state.Z_mixture
   Z_impurity_face = average_charge_state_face.Z_mixture
@@ -282,7 +281,7 @@ def _get_ion_properties_from_n_e_ratios(
       Z_eff=Z_eff,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
-      impurity_fractions=impurity_mixture.fractions,
+      impurity_fractions=impurity_params.fractions,
   )
 
 
@@ -434,25 +433,17 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
     A_avg = jnp.full_like(Z_i, impurity_params.A_override)
     A_avg_face = jnp.full_like(Z_i_face, impurity_params.A_override)
 
-  ion_mixture = ion_mixture_lib.RuntimeParams(
-      fractions=fractions,
-      A_avg=A_avg,
-      Z_override=impurity_params.Z_override,
-  )
-  ion_mixture_face = ion_mixture_lib.RuntimeParams(
-      fractions=fractions_face,
-      A_avg=A_avg_face,
-      Z_override=impurity_params.Z_override,
-  )
   Z_impurity = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=ion_mixture,
       T_e=T_e.value,
+      fractions=fractions,
+      Z_override=impurity_params.Z_override,
   ).Z_mixture
   Z_impurity_face = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
-      ion_mixture=ion_mixture_face,
       T_e=T_e.face_value(),
+      fractions=fractions_face,
+      Z_override=impurity_params.Z_override,
   ).Z_mixture
 
   return _IonProperties(
@@ -463,7 +454,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       Z_eff=Z_eff_from_config,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_face[-1],
-      impurity_fractions=ion_mixture.fractions,
+      impurity_fractions=fractions,
   )
 
 
@@ -511,13 +502,15 @@ def get_updated_ions(
 
   Z_i = charge_states.get_average_charge_state(
       ion_symbols=runtime_params.plasma_composition.main_ion_names,
-      ion_mixture=runtime_params.plasma_composition.main_ion,
       T_e=T_e.value,
+      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      Z_override=runtime_params.plasma_composition.main_ion.Z_override,
   ).Z_mixture
   Z_i_face = charge_states.get_average_charge_state(
       ion_symbols=runtime_params.plasma_composition.main_ion_names,
-      ion_mixture=runtime_params.plasma_composition.main_ion,
       T_e=T_e.face_value(),
+      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      Z_override=runtime_params.plasma_composition.main_ion.Z_override,
   ).Z_mixture
 
   impurity_params = runtime_params.plasma_composition.impurity
