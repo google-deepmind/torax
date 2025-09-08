@@ -102,7 +102,7 @@ class RuntimeParamsProvider:
         },
         plasma_composition=self.plasma_composition.build_dynamic_params(t),
         profile_conditions=self.profile_conditions.build_dynamic_params(t),
-        numerics=self.numerics.build_dynamic_params(t),
+        numerics=self.numerics.build_runtime_params(t),
         neoclassical=self.neoclassical.build_runtime_params(),
         pedestal=self.pedestal.build_runtime_params(t),
         mhd=self.mhd.build_runtime_params(t),
