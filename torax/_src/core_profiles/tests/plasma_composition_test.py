@@ -239,7 +239,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=electron_density_ratios_zeff.NeRatiosZeffModel,
+          expected_impurity_model_type=electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       ),
   )
   def test_impurity_api(
@@ -446,7 +446,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     # Just a smoke test to ensure it jits and runs.
     output = f(pc, 0.0)
     self.assertIsInstance(
-        output.impurity, electron_density_ratios_zeff.DynamicNeRatiosZeff
+        output.impurity, electron_density_ratios_zeff.RuntimeParams
     )
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
     # run again to check for re-compilation
