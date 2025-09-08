@@ -158,7 +158,7 @@ class DynamicPlasmaComposition:
   impurity: (
       DynamicIonMixture
       | electron_density_ratios.RuntimeParams
-      | electron_density_ratios_zeff.DynamicNeRatiosZeff
+      | electron_density_ratios_zeff.RuntimeParams
   )
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
@@ -211,7 +211,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   impurity: Annotated[
       ImpurityFractionsModel
       | electron_density_ratios.ELectronDensityRatios
-      | electron_density_ratios_zeff.NeRatiosZeffModel,
+      | electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       pydantic.Field(discriminator='impurity_mode'),
   ]
   main_ion: runtime_validation_utils.IonMapping = (
