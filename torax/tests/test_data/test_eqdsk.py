@@ -51,8 +51,8 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'EQDSK',
         # Demonstration eqdsk file
-        'geometry_file': 'eqdsk_cocos01.eqdsk',
-        'cocos': 1,
+        'geometry_file': 'eqdsk_cocos11.eqdsk',
+        'cocos': 11,
         'Ip_from_parameters': False,
     },
     'neoclassical': {'bootstrap_current': {'bootstrap_multiplier': 0.5}},
