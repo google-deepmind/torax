@@ -26,7 +26,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
-from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.core_profiles.plasma_composition import ion_mixture as ion_mixture_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import charge_states
@@ -229,7 +229,7 @@ def impurity_radiation_mavrin_fit(
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
 
-  ion_mixture = plasma_composition.DynamicIonMixture(
+  ion_mixture = ion_mixture_lib.DynamicIonMixture(
       fractions=impurity_fractions_arr,
       A_avg=core_profiles.A_impurity,
       Z_override=runtime_params.plasma_composition.impurity.Z_override,

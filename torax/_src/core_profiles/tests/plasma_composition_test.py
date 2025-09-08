@@ -20,6 +20,7 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
+from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.physics import charge_states
@@ -160,7 +161,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ne',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='legacy_impurity_string',
@@ -168,7 +169,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='legacy_impurity_dict_single_species',
@@ -176,7 +177,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Be',),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='legacy_impurity_dict_multiple_species',
@@ -184,7 +185,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar', 'Ne'),
           expected_Z_override=None,
           expected_A_override=None,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='legacy_with_overrides',
@@ -192,7 +193,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('Ar',),
           expected_Z_override=8.0,
           expected_A_override=None,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='new_api_explicit',
@@ -207,7 +208,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=plasma_composition.ImpurityFractionsModel,
+          expected_impurity_model_type=ion_mixture.ImpurityFractionsModel,
       ),
       dict(
           testcase_name='new_api_n_e_ratios',
@@ -393,7 +394,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     dynamic_impurity_fractions = pc_fractions.impurity.build_dynamic_params(t)
     assert isinstance(
-        dynamic_impurity_fractions, plasma_composition.DynamicIonMixture
+        dynamic_impurity_fractions, ion_mixture.DynamicIonMixture
     )
 
     np.testing.assert_allclose(
@@ -532,9 +533,9 @@ class IonMixtureTest(parameterized.TestCase):
 
     if should_raise:
       with self.assertRaises(pydantic.ValidationError):
-        plasma_composition.IonMixture.model_validate({'species': input_species})
+        ion_mixture.IonMixture.model_validate({'species': input_species})
     else:
-      plasma_composition.IonMixture.model_validate({'species': input_species})
+      ion_mixture.IonMixture.model_validate({'species': input_species})
 
   # pylint: disable = invalid-name
 
@@ -560,7 +561,7 @@ class IonMixtureTest(parameterized.TestCase):
   )
   def test_ion_mixture_averaging(self, species, time, expected_Z, expected_A):
     """Tests the averaging of Z and A for different mixtures."""
-    mixture = plasma_composition.IonMixture.model_validate(
+    mixture = ion_mixture.IonMixture.model_validate(
         dict(species=species)
     )
     dynamic_mixture = mixture.build_dynamic_params(time)
@@ -581,7 +582,7 @@ class IonMixtureTest(parameterized.TestCase):
   def test_ion_mixture_override(self, Z_override, A_override, Z, A):
     """Tests overriding the automatic Z/A averaging."""
 
-    mixture = plasma_composition.IonMixture.model_validate(
+    mixture = ion_mixture.IonMixture.model_validate(
         dict(
             species={'D': {0: 1.0}},
             Z_override=Z_override,
@@ -602,14 +603,14 @@ class IonMixtureTest(parameterized.TestCase):
   def test_model_validate(self):
     """Test that IonMixture.from_config behaves as expected."""
     # Single ion.
-    mixture = plasma_composition.IonMixture.model_validate({'species': 'D'})
+    mixture = ion_mixture.IonMixture.model_validate({'species': 'D'})
     self.assertEqual(
         mixture.species,
         {'D': torax_pydantic.TimeVaryingScalar.model_validate(1.0)},
     )
 
     # Multiple ions.
-    mixture = plasma_composition.IonMixture.model_validate(
+    mixture = ion_mixture.IonMixture.model_validate(
         dict(species={'D': 0.6, 'T': 0.4})
     )
     self.assertEqual(set(mixture.species.keys()), {'D', 'T'})
@@ -617,7 +618,7 @@ class IonMixtureTest(parameterized.TestCase):
     # Check overrides.
     z = torax_pydantic.TimeVaryingScalar.model_validate(1.2)
     a = torax_pydantic.TimeVaryingScalar.model_validate(2.4)
-    mixture = plasma_composition.IonMixture.model_validate(
+    mixture = ion_mixture.IonMixture.model_validate(
         dict(species='D', Z_override=1.2, A_override=2.4)
     )
     self.assertEqual(mixture.Z_override, z)

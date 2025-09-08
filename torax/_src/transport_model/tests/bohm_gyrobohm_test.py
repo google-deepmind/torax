@@ -20,6 +20,7 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -86,7 +87,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         instance=True,
         Z_eff_face=jnp.ones_like(self.geo.rho_face),
         main_ion=mock.create_autospec(
-            plasma_composition.DynamicIonMixture,
+            ion_mixture.DynamicIonMixture,
             instance=True,
             A_avg=2.0,
         ),

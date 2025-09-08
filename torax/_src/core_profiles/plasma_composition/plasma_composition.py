@@ -17,16 +17,15 @@ import copy
 import dataclasses
 import functools
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 import chex
 import jax
-from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
-from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
+from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 from typing_extensions import Final
@@ -40,123 +39,13 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicIonMixture:
-  """Represents a fixed mixture of ion species at a specific time.
-
-  Information on ion names are not stored here, but rather in
-  StaticRuntimeParamsSlice, to simplify JAX logic and performance in source
-  functions for fusion power and radiation which are species-dependent.
-
-  Attributes:
-    fractions: Ion fractions for a time slice. Can be 1D (n_species,) for
-      radially constant fractions, or 2D (n_species, n_grid) for radially
-      varying fractions.
-    A_avg: Average A of the mixture. Can be a scalar or 1D array (n_grid,).
-    Z_override: Typically, the average Z is calculated according to the
-      temperature dependent charge-state-distribution, or for low-Z cases by the
-      atomic numbers of the ions assuming full ionization. If Z_override is
-      provided, it is used instead for the average Z.
-  """
-
-  fractions: array_typing.FloatVector
-  A_avg: array_typing.FloatScalar | array_typing.FloatVectorCell
-  Z_override: array_typing.FloatScalar | None = None
-
-
-class IonMixture(torax_pydantic.BaseModelFrozen):
-  """Represents a mixture of ion species. The mixture can depend on time.
-
-  Main use cases:
-  1. Represent a bundled mixture of hydrogenic main ions (e.g. D and T)
-  2. Represent a bundled impurity species where the avg charge state, mass,
-    and radiation is consistent with each fractional concentration, and these
-    quantities are then averaged over the mixture to represent a single impurity
-    species in the transport equations for efficiency.
-
-  Attributes:
-    species: A dict mapping ion symbols (from ION_SYMBOLS) to their fractional
-      concentration in the mixture. The fractions must sum to 1.
-    Z_override: An optional override for the average charge (Z) of the mixture.
-    A_override: An optional override for the average mass (A) of the mixture.
-  """
-
-  species: runtime_validation_utils.IonMapping
-  Z_override: torax_pydantic.TimeVaryingScalar | None = None
-  A_override: torax_pydantic.TimeVaryingScalar | None = None
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicIonMixture:
-    """Creates a DynamicIonMixture object at a given time.
-
-    Optional overrides for Z and A can be provided.
-
-    Args:
-      t: The time at which to build the DynamicIonMixture.
-
-    Returns:
-      A DynamicIonMixture object.
-    """
-    ions = self.species.keys()
-    fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
-    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
-
-    if not self.A_override:
-      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As * fractions)
-    else:
-      A_avg = self.A_override.get_value(t)
-
-    return DynamicIonMixture(
-        fractions=fractions,
-        A_avg=A_avg,
-        Z_override=Z_override,
-    )
-
-
-class ImpurityFractionsModel(IonMixture):
-  """Impurity content defined by fractional abundances."""
-
-  impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
-      'fractions'
-  )
-  # Default impurity setting. Parent class has species without a default.
-  species: runtime_validation_utils.IonMapping = (
-      torax_pydantic.ValidatedDefault({'Ne': 1.0})
-  )
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicIonMixture:
-    # Call the parent IonMixture's builder
-    dynamic_impurity_mixture = super().build_dynamic_params(t)
-    # Use the result to construct the specialized DynamicFractions dataclass
-    return DynamicIonMixture(
-        fractions=dynamic_impurity_mixture.fractions,
-        A_avg=dynamic_impurity_mixture.A_avg,
-        Z_override=dynamic_impurity_mixture.Z_override,
-    )
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_impurity_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    """Ensures backward compatibility if infered that data in legacy format."""
-
-    # Maps legacy inputs to the new API format.
-    # TODO(b/434175938): Remove this once V1 API is deprecated.
-    if 'species' not in data and 'impurity_mode' not in data:
-      return {'species': data, 'impurity_mode': _IMPURITY_MODE_FRACTIONS}
-    return data
-
-
-@jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class DynamicPlasmaComposition:
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
-  main_ion: DynamicIonMixture
+  main_ion: ion_mixture.DynamicIonMixture
   impurity: (
-      DynamicIonMixture
+      ion_mixture.DynamicIonMixture
       | electron_density_ratios.RuntimeParams
       | electron_density_ratios_zeff.RuntimeParams
   )
@@ -209,7 +98,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """
 
   impurity: Annotated[
-      ImpurityFractionsModel
+      ion_mixture.ImpurityFractionsModel
       | electron_density_ratios.ELectronDensityRatios
       | electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       pydantic.Field(discriminator='impurity_mode'),
@@ -325,10 +214,10 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     return obj
 
   @functools.cached_property
-  def _main_ion_mixture(self) -> IonMixture:
+  def _main_ion_mixture(self) -> ion_mixture.IonMixture:
     """Returns the IonMixture object for the main ions."""
     # Use `model_construct` as no validation required.
-    return IonMixture.model_construct(
+    return ion_mixture.IonMixture.model_construct(
         species=self.main_ion,
         Z_override=self.Z_i_override,
         A_override=self.A_i_override,

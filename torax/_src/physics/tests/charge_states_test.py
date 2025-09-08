@@ -16,7 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
-from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.core_profiles.plasma_composition import ion_mixture as ion_mixture_lib
 from torax._src.physics import charge_states
 
 
@@ -173,7 +173,7 @@ class ChargeStatesTest(parameterized.TestCase):
     A_avg = np.nan  # not used.
     ion_symbols = tuple(species.keys())
     fractions = np.array(tuple(species.values()))
-    ion_mixture = plasma_composition.DynamicIonMixture(
+    ion_mixture = ion_mixture_lib.DynamicIonMixture(
         fractions=fractions,
         A_avg=A_avg,
     )
@@ -189,7 +189,7 @@ class ChargeStatesTest(parameterized.TestCase):
     T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
     ion_symbols = tuple(species.keys())
-    ion_mixture = plasma_composition.DynamicIonMixture(
+    ion_mixture = ion_mixture_lib.DynamicIonMixture(
         fractions=np.array(tuple(species.values())),
         A_avg=2.0,  # arbitrary, not used.
         Z_override=np.array([50.0, 50.0, 50.0]),

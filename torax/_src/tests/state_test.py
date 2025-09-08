@@ -23,6 +23,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
@@ -169,7 +170,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
       impurity_config = torax_config.plasma_composition.impurity
       geo = torax_config.geometry.build_provider(t)
       assert isinstance(
-          impurity_config, plasma_composition.ImpurityFractionsModel
+          impurity_config, ion_mixture.ImpurityFractionsModel
       )
       expected_fractions = {
           'Ar': jnp.full_like(
