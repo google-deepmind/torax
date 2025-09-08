@@ -18,9 +18,9 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import plasma_composition
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import bohm_gyrobohm

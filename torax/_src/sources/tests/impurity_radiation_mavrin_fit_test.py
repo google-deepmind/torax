@@ -16,8 +16,8 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
 from torax._src.config import build_runtime_params
-from torax._src.config import plasma_composition
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.physics import charge_states
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib

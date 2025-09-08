@@ -23,7 +23,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.config import plasma_composition
+from torax._src.core_profiles.plasma_composition import plasma_composition
 
 # pylint: disable=invalid-name
 
