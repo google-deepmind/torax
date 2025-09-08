@@ -356,30 +356,30 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object for time t."""
 
-    dynamic_params = {
+    runtime_params = {
         x.name: getattr(self, x.name)
         for x in dataclasses.fields(RuntimeParams)
         if x.name != 'n_e_right_bc_is_absolute'
     }
 
     if self.T_e_right_bc is None:
-      dynamic_params['T_e_right_bc'] = self.T_e.get_value(
+      runtime_params['T_e_right_bc'] = self.T_e.get_value(
           t, grid_type='face_right'
       )
 
     if self.T_i_right_bc is None:
-      dynamic_params['T_i_right_bc'] = self.T_i.get_value(
+      runtime_params['T_i_right_bc'] = self.T_i.get_value(
           t, grid_type='face_right'
       )
 
     if self.n_e_right_bc is None:
-      dynamic_params['n_e_right_bc'] = self.n_e.get_value(
+      runtime_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )
-      dynamic_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
-      dynamic_params['n_e_right_bc_is_absolute'] = False
+      runtime_params['n_e_right_bc_is_fGW'] = self.n_e_nbar_is_fGW
+      runtime_params['n_e_right_bc_is_absolute'] = False
     else:
-      dynamic_params['n_e_right_bc_is_absolute'] = True
+      runtime_params['n_e_right_bc_is_absolute'] = True
 
     def _get_value(x):
       if isinstance(
@@ -389,8 +389,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       else:
         return x
 
-    dynamic_params = {k: _get_value(v) for k, v in dynamic_params.items()}
-    return RuntimeParams(**dynamic_params)
+    runtime_params = {k: _get_value(v) for k, v in runtime_params.items()}
+    return RuntimeParams(**runtime_params)
 
 
 def _get_first_failing_value_and_time_or_rho(

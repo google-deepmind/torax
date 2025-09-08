@@ -32,7 +32,7 @@ import xarray as xr
 # pylint: disable=invalid-name
 class ProfileConditionsTest(parameterized.TestCase):
 
-  def test_profile_conditions_build_dynamic_params(self):
+  def test_profile_conditions_build_runtime_params_smoke_test(self):
     pc = profile_conditions.ProfileConditions()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)

@@ -355,7 +355,7 @@ def compute_boundary_conditions_for_t_plus_dt(
     runtime_params_t_plus_dt: Runtime parameters for the next timestep
     geo_t_plus_dt: Geometry object for the next timestep
     core_profiles_t: Core profiles at the current timestep. Will not be used if
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.v_loop_lcfs is
+      runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs is
       None, i.e. if the dirichlet psi boundary condition based on Ip is used
 
   Returns:

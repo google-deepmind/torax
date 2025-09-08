@@ -38,8 +38,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       plasma_composition.PlasmaComposition(Z_eff=Z_eff)
 
-  def test_plasma_composition_build_dynamic_params(self):
-    """Checks provider construction with no issues."""
+  def test_plasma_composition_build_runtime_params_smoke_test(self):
     pc = plasma_composition.PlasmaComposition()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -50,25 +49,23 @@ class PlasmaCompositionTest(parameterized.TestCase):
       (1.6,),
       (2.5,),
   )
-  def test_zeff_accepts_float_inputs(self, Z_eff: float):
-    """Tests that zeff accepts a single float input."""
+  def test_zeff_accepts_float_input(self, Z_eff: float):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
-    dynamic_pc = pc.build_runtime_params(t=0.0)
+    runtime_params = pc.build_runtime_params(t=0.0)
     # Check that the values in both Z_eff and Z_eff_face are the same
     # and consistent with the zeff float input
     np.testing.assert_allclose(
-        dynamic_pc.Z_eff,
+        runtime_params.Z_eff,
         Z_eff,
     )
     np.testing.assert_allclose(
-        dynamic_pc.Z_eff_face,
+        runtime_params.Z_eff_face,
         Z_eff,
     )
 
   def test_zeff_and_zeff_face_match_expected(self):
-    """Checks that Z_eff and Z_eff_face are calculated as expected."""
     # Define an arbitrary Z_eff profile
     zeff_profile = {
         0.0: {0.0: 1.0, 0.5: 1.3, 1.0: 1.6},
@@ -80,7 +77,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
-    dynamic_pc = pc.build_runtime_params(t=0.0)
+    runtime_params = pc.build_runtime_params(t=0.0)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array(list(zeff_profile[0.0])),
@@ -91,11 +88,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
         np.array(list(zeff_profile[0.0])),
         np.array(list(zeff_profile[0.0].values())),
     )
-    np.testing.assert_allclose(dynamic_pc.Z_eff, expected_zeff)
-    np.testing.assert_allclose(dynamic_pc.Z_eff_face, expected_zeff_face)
+    np.testing.assert_allclose(runtime_params.Z_eff, expected_zeff)
+    np.testing.assert_allclose(runtime_params.Z_eff_face, expected_zeff_face)
 
     # Check values at t=0.5 (interpolated in time)
-    dynamic_pc = pc.build_runtime_params(t=0.5)
+    runtime_params = pc.build_runtime_params(t=0.5)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array([0.0, 0.5, 1.0]),
@@ -106,8 +103,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
         np.array([0.0, 0.5, 1.0]),
         np.array([1.4, 1.7, 2.0]),
     )
-    np.testing.assert_allclose(dynamic_pc.Z_eff, expected_zeff)
-    np.testing.assert_allclose(dynamic_pc.Z_eff_face, expected_zeff_face)
+    np.testing.assert_allclose(runtime_params.Z_eff, expected_zeff)
+    np.testing.assert_allclose(runtime_params.Z_eff_face, expected_zeff_face)
 
   def test_get_ion_names(self):
     # Test the get_ion_names method
@@ -369,7 +366,6 @@ class PlasmaCompositionTest(parameterized.TestCase):
       )
 
   def test_ne_ratios_avg_a_calculation(self):
-    """Tests that A_avg is calculated correctly for NeRatiosModel."""
     # These n_e_ratios correspond to 1/3 C and 2/3 N fractions.
     n_e_ratios_species = {'C': 0.01, 'N': 0.02}
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
@@ -381,9 +377,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': n_e_ratios_species,
         }
     )
-    dynamic_impurity_ne_ratios = pc_ne_ratios.impurity.build_runtime_params(t)
+    ne_params = pc_ne_ratios.impurity.build_runtime_params(t)
     assert isinstance(
-        dynamic_impurity_ne_ratios, electron_density_ratios.RuntimeParams
+        ne_params, electron_density_ratios.RuntimeParams
     )
 
     pc_fractions = plasma_composition.PlasmaComposition(
@@ -392,19 +388,18 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': fractions_species,
         }
     )
-    dynamic_impurity_fractions = pc_fractions.impurity.build_runtime_params(t)
+    fractions_params = pc_fractions.impurity.build_runtime_params(t)
     assert isinstance(
-        dynamic_impurity_fractions, ion_mixture.RuntimeParams
+        fractions_params, ion_mixture.RuntimeParams
     )
 
     np.testing.assert_allclose(
-        dynamic_impurity_ne_ratios.A_avg,
-        dynamic_impurity_fractions.A_avg,
+        ne_params.A_avg,
+        fractions_params.A_avg,
         rtol=1e-5,
     )
 
-  def test_ne_ratios_model_under_jit(self):
-    """Smoke test for JIT compilation of NeRatiosModel."""
+  def test_ne_ratios_model_under_jit_smoke_test(self):
     pc = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
@@ -564,14 +559,14 @@ class IonMixtureTest(parameterized.TestCase):
     mixture = ion_mixture.IonMixture.model_validate(
         dict(species=species)
     )
-    dynamic_mixture = mixture.build_runtime_params(time)
+    mixture_params = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
-        ion_mixture=dynamic_mixture,
+        ion_mixture=mixture_params,
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
     ).Z_mixture
     np.testing.assert_allclose(calculated_Z, expected_Z)
-    np.testing.assert_allclose(dynamic_mixture.A_avg, expected_A)
+    np.testing.assert_allclose(mixture_params.A_avg, expected_A)
 
   @parameterized.named_parameters(
       ('no_override', None, None, 1.0, 2.0141),
@@ -589,16 +584,16 @@ class IonMixtureTest(parameterized.TestCase):
             A_override=A_override,
         )
     )
-    dynamic_mixture = mixture.build_runtime_params(t=0.0)
+    mixture_params = mixture.build_runtime_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(mixture.species.keys()),
-        ion_mixture=dynamic_mixture,
+        ion_mixture=mixture_params,
         T_e=np.array([1.0]),  # arbitrary temperature, won't be used for D
     ).Z_mixture
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override
     np.testing.assert_allclose(calculated_Z, Z_expected)
-    np.testing.assert_allclose(dynamic_mixture.A_avg, A_expected)
+    np.testing.assert_allclose(mixture_params.A_avg, A_expected)
 
   def test_model_validate(self):
     """Test that IonMixture.from_config behaves as expected."""
