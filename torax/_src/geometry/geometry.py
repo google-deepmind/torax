@@ -16,6 +16,7 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -123,6 +124,14 @@ class Geometry:
       [:math:`\mathrm{m}^{-2}`].
     g3_face: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on the faces
       [:math:`\mathrm{m}^{-2}`].
+    gm4: Flux surface averaged :math:`\langle 1 / B^2 \rangle` on the cell grid
+      [:math:`\mathrm{T}^{-2}`].
+    gm4_face: Flux surface averaged :math:`\langle 1 / B^2 \rangle` on the face
+      grid [:math:`\mathrm{T}^{-2}`].
+    gm5: Flux surface averaged :math:`\langle B^2 \rangle` on the cell grid
+      [:math:`\mathrm{T}^{2}`].
+    gm5_face: Flux surface averaged :math:`\langle B^2 \rangle` on the face grid
+      [:math:`\mathrm{T}^{2}`].
     gm9: Flux surface averaged :math:`\langle 1 / R \rangle` on cell grid
       [:math:`\mathrm{m}^{-1}`].
     gm9_face: Flux surface averaged :math:`\langle 1 / R \rangle` on face grid
@@ -196,6 +205,10 @@ class Geometry:
   g2_face: array_typing.Array
   g3: array_typing.Array
   g3_face: array_typing.Array
+  gm4: array_typing.Array
+  gm4_face: array_typing.Array
+  gm5: array_typing.Array
+  gm5_face: array_typing.Array
   g2g3_over_rhon: array_typing.Array
   g2g3_over_rhon_face: array_typing.Array
   g2g3_over_rhon_hires: array_typing.Array

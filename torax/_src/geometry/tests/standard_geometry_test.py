@@ -57,6 +57,8 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_B2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_1_over_B2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
         elongation=np.arange(0, 1.0, 0.01),
@@ -86,6 +88,25 @@ class GeometryTest(parameterized.TestCase):
     )
     config.build_geometry()
 
+  def test_gm4_gm5_terms(self):
+    """Test that gm4 and gm5 are correctly computed."""
+    eqdsk_geo = geometry_pydantic_model.EQDSKConfig(
+        geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'
+    ).build_geometry()
+
+    imas_geo = geometry_pydantic_model.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'
+    ).build_geometry()
+
+    chease_geo = geometry_pydantic_model.CheaseConfig(
+        geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols'
+    ).build_geometry()
+
+    np.testing.assert_allclose(eqdsk_geo.gm4, chease_geo.gm4, rtol=0.01)
+    np.testing.assert_allclose(imas_geo.gm4, chease_geo.gm4, rtol=0.01)
+    np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.02)
+    np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.02)
+
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
     geo = geometry_pydantic_model.CheaseConfig().build_geometry()
@@ -96,6 +117,7 @@ class GeometryTest(parameterized.TestCase):
       dict(invalid_key='rBt', invalid_shape=(2,)),
       dict(invalid_key='aminor', invalid_shape=(10, 3)),
       dict(invalid_key='rgeom', invalid_shape=(10, 2)),
+      dict(invalid_key='epsilon', invalid_shape=(20, 2)),
       dict(invalid_key='TQ', invalid_shape=(20, 2)),
       dict(invalid_key='FB', invalid_shape=(2,)),
       dict(invalid_key='FA', invalid_shape=(2,)),
@@ -128,6 +150,7 @@ class GeometryTest(parameterized.TestCase):
       'rBt',
       'aminor',
       'rgeom',
+      'epsilon',
       'TQ',
       'FB',
       'FA',
@@ -266,6 +289,7 @@ def _get_example_L_LY_data(
       'deltau': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'deltal': np.full((len_psinorm, len_times), prefactor).squeeze(),
       'kappa': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'epsilon': np.full((len_psinorm, len_times), prefactor).squeeze(),
       # When prefactor != 0 (i.e. intended to generate a standard geometry),
       # needs to be linspace to avoid drho_norm = 0.
       'FtPQ': np.array(
