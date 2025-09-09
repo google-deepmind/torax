@@ -114,8 +114,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source,
         torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source.build_runtime_params(t=0.0)
-    self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)
+    runtime_params = source.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
 
   @parameterized.product(
       mode=(

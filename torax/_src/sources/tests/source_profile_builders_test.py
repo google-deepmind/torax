@@ -99,7 +99,7 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    dynamic_params = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
@@ -116,7 +116,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        runtime_params=dynamic_params,
+        runtime_params=runtime_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,

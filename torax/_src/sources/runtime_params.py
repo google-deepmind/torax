@@ -43,12 +43,7 @@ class Mode(enum.Enum):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
-  """Dynamic params for a single TORAX source.
-
-  These params can be changed without triggering a recompile. TORAX sources are
-  stateless, so these params are their inputs to determine their output
-  profiles.
-  """
+  """Runtime params for a single TORAX source."""
 
   prescribed_values: tuple[array_typing.FloatVector, ...]
   mode: Mode = dataclasses.field(metadata={"static": True})

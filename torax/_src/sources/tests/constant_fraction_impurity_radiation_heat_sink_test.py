@@ -46,7 +46,7 @@ class ImpurityRadiationConstantFractionTest(
         impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
     )
 
-    impurity_radiation_dynamic = (
+    impurity_radiation_params = (
         impurity_radiation_constant_fraction.RuntimeParams(
             prescribed_values=mock.ANY,
             mode=runtime_params_lib.Mode.MODEL_BASED,
@@ -55,7 +55,7 @@ class ImpurityRadiationConstantFractionTest(
         )
     )
 
-    heat_dynamic = generic_ion_el_heat_source.RuntimeParams(
+    heat_params = generic_ion_el_heat_source.RuntimeParams(
         prescribed_values=mock.ANY,
         gaussian_location=0.0,
         gaussian_width=0.25,
@@ -66,11 +66,11 @@ class ImpurityRadiationConstantFractionTest(
         is_explicit=False,
     )
 
-    dynamic_slice = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
         sources={
-            heat_name: heat_dynamic,
-            impurity_name: impurity_radiation_dynamic,
+            heat_name: heat_params,
+            impurity_name: impurity_radiation_params,
         },
     )
 
@@ -80,7 +80,7 @@ class ImpurityRadiationConstantFractionTest(
 
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
-        dynamic_slice,
+        runtime_params,
         geo,
         mock.ANY,
         None,
@@ -93,7 +93,7 @@ class ImpurityRadiationConstantFractionTest(
 
     impurity_radiation_heat_sink_power_density = (
         impurity_radiation_sink.get_value(
-            runtime_params=dynamic_slice,
+            runtime_params=runtime_params,
             geo=geo,
             core_profiles=mock.ANY,
             calculated_source_profiles=source_profiles.SourceProfiles(
@@ -118,7 +118,7 @@ class ImpurityRadiationConstantFractionTest(
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,
-        heat_dynamic.P_total * -impurity_radiation_dynamic.fraction_P_heating,
+        heat_params.P_total * -impurity_radiation_params.fraction_P_heating,
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
     )
 

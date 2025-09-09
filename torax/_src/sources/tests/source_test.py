@@ -32,7 +32,7 @@ class SourceTest(parameterized.TestCase):
     geo = mock.create_autospec(
         geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
     )
-    dynamic_source_params = {
+    source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
             runtime_params_lib.RuntimeParams(
                 prescribed_values=np.zeros_like(geo.rho_norm),
@@ -41,12 +41,12 @@ class SourceTest(parameterized.TestCase):
             )
         )
     }
-    dynamic_slice = mock.create_autospec(
+    runtime_params = mock.create_autospec(
         runtime_params_slice.RuntimeParams,
-        sources=dynamic_source_params,
+        sources=source_params,
     )
     profile = source.get_value(
-        runtime_params=dynamic_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,

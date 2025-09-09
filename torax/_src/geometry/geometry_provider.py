@@ -61,7 +61,7 @@ class GeometryProvider(Protocol):
 
   NOTE: In order to maintain consistency between the RuntimeParams
   and the geometry,
-  `build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry`
+  `build_runtime_params.get_consistent_runtime_params_and_geometry`
   should be used to get a Geometry and a corresponding
   RuntimeParams.
   """

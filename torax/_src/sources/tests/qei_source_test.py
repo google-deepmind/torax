@@ -41,7 +41,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.qei_source
-    dynamic_slice = (
+    runtime_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
@@ -50,13 +50,13 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     qei = source.get_qei(
-        dynamic_slice,
+        runtime_params,
         geo,
         core_profiles,
     )

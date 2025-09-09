@@ -61,8 +61,8 @@ class SourceTestCase(parameterized.TestCase):
         source,
         torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source.build_runtime_params(t=0.0)
-    self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)
+    runtime_params = source.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
 
   @parameterized.product(
       mode=(
@@ -72,10 +72,10 @@ class SourceTestCase(parameterized.TestCase):
       ),
       is_explicit=(True, False),
   )
-  def test_runtime_params_builds_dynamic_params(
+  def test_runtime_params_builds_runtime_params(
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
-    """Tests that the runtime params builds dynamic params."""
+    """Tests that the runtime params builds runtime params."""
     source_config = self._source_config_class.from_dict(
         {'mode': mode, 'is_explicit': is_explicit}
     )
@@ -83,10 +83,10 @@ class SourceTestCase(parameterized.TestCase):
         source_config,
         torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source_config.build_runtime_params(t=0.0)
-    self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)
-    self.assertEqual(dynamic_params.mode, mode)
-    self.assertEqual(dynamic_params.is_explicit, is_explicit)
+    runtime_params = source_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+    self.assertEqual(runtime_params.mode, mode)
+    self.assertEqual(runtime_params.is_explicit, is_explicit)
 
 
 class SingleProfileSourceTestCase(SourceTestCase):

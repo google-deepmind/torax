@@ -141,7 +141,7 @@ class PydanticModelTest(parameterized.TestCase):
             torax_config
         )
     )
-    dynamic_slice, geo = (
+    runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0,
             runtime_params_provider=runtime_params_provider,
@@ -150,9 +150,9 @@ class PydanticModelTest(parameterized.TestCase):
     )
     original_Ip = torax_config.profile_conditions.Ip
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    self.assertIsNotNone(dynamic_slice)
+    self.assertIsNotNone(runtime_params)
     self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip, original_Ip.value[0]
+        runtime_params.profile_conditions.Ip, original_Ip.value[0]
     )
     # pylint: enable=invalid-name
 

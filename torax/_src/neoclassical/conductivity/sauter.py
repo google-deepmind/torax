@@ -33,7 +33,7 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(runtime_params.RuntimeParams):
-  """Dynamic runtime params for the Sauter model."""
+  """Runtime params for the Sauter model."""
 
 
 class SauterModel(base.ConductivityModel):

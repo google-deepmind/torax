@@ -262,7 +262,7 @@ def cyclotron_radiation_albajar(
   0<rhonorm<0.9, to avoid pedestal effects.
 
   Args:
-    runtime_params: A slice of dynamic runtime parameters.
+    runtime_params: A slice of runtime parameters.
     geo: The geometry object.
     source_name: The name of the source.
     core_profiles: The core profiles object.

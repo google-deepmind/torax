@@ -48,8 +48,7 @@ def calc_fusion(
   Args:
     geo: Magnetic geometry.
     core_profiles: Core plasma profiles.
-    runtime_params: Dynamic runtime params, used to extract the D and T
-      densities.
+    runtime_params: Runtime params, used to extract the D and T densities.
 
   Returns:
     Tuple of P_total, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
