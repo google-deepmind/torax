@@ -66,7 +66,6 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:
-    """Builds and returns a container with instantiated neoclassical model objects."""
     return neoclassical_models.NeoclassicalModels(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),

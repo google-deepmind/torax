@@ -1891,6 +1891,35 @@ transport
     This is the default model. This model does not have any additional
     configurable parameters.
 
+
+``chi_min`` (float [default = 0.0])
+  Lower allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``chi_max`` (float [default = 100.0])
+  Upper allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``D_e_min`` (float [default = 0.0])
+  Lower allowed bound for neoclassical particle diffusivity :math:`D_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``D_e_max`` (float [default = 100.0])
+  Upper allowed bound for neoclassical particle conductivity :math:`D_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``V_e_min`` (float [default = -50.0])
+  Lower allowed bound for neoclassical particle convection terms
+  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
+  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
+  and :math:`V_\mathrm{neo, ware}` separately.
+
+``V_e_max`` (float [default = 50.0])
+  Upper allowed bound for neoclassical particle convection terms
+  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
+  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
+  and :math:`V_\mathrm{neo, ware}` separately.
+
 restart
 -------
 
