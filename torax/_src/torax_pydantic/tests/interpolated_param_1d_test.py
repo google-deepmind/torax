@@ -20,8 +20,10 @@ import numpy as np
 import pydantic
 from torax._src import interpolated_param
 from torax._src import jax_utils
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
+
 
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
@@ -75,6 +77,35 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       a_time = np.copy(a_expected.time) * 2.0
       a_expected._update_fields({'time': a_time})
       self.assertIs(a_expected.time, a_time)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='linear',
+          mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      dict(
+          testcase_name='step',
+          mode=interpolated_param.InterpolationMode.STEP,
+      ),
+  )
+  def test_to_time_varying_array(self, mode):
+    """Tests that to_time_varying_array produces a consistent array."""
+    scalar = torax_pydantic.TimeVaryingScalar(
+        time=np.array([0.0, 1.0, 2.0]),
+        value=np.array([10.0, 20.0, 30.0]),
+        interpolation_mode=mode,
+    )
+    tva = scalar.to_time_varying_array()
+    self.assertIsInstance(tva, torax_pydantic.TimeVaryingArray)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(tva, geo.torax_mesh)
+
+    self.assertEqual(tva.time_interpolation_mode, scalar.interpolation_mode)
+
+    # Check that the values are consistent with the scalar.
+    test_times = np.array([-0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
+    for t in test_times:
+      np.testing.assert_allclose(tva.get_value(t=t), scalar.get_value(t=t))
 
   def test_bool_single_value_param_always_return_constant(self):
     """Tests that when passed a single value this is always returned."""
