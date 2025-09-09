@@ -465,6 +465,15 @@ def set_grid(
       _update_rule(submodel)
 
 
+def _is_non_negative(
+    time_varying_array: TimeVaryingArray,
+) -> TimeVaryingArray:
+  for _, value in time_varying_array.value.values():
+    if not np.all(value >= 0.0):
+      raise ValueError('All values must be non-negative.')
+  return time_varying_array
+
+
 # The Torax mesh objects will generally have the same grid parameters. Thus
 # a global cache prevents recomputing the same linspaces for each mesh.
 @functools.cache
@@ -475,3 +484,7 @@ def _get_face_centers(nx: int, dx: float) -> np.ndarray:
 @functools.cache
 def _get_cell_centers(nx: int, dx: float) -> np.ndarray:
   return np.linspace(dx * 0.5, (nx - 0.5) * dx, nx)
+
+NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingArray, pydantic.AfterValidator(_is_non_negative)
+]
