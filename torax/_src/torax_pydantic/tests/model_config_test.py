@@ -181,9 +181,23 @@ class ConfigTest(parameterized.TestCase):
       ("cgm_lin_no_per", "CGM", "linear", None, False, True),
       ("qlknn_lin_per", "qlknn", "linear", None, True, False),
       ("qualikiz_lin_per", "qualikiz", "linear", None, True, False),
-      ("qlknn_newton_no_per_0", "qlknn", "newton_raphson", 0, False, False),
-      ("qlknn_newton_no_per_1", "qlknn", "newton_raphson", 1, False, True),
-      ("qlknn_newton_per_1", "qlknn", "newton_raphson", 1, True, False),
+      (
+          "qlknn_newton_no_per_x_old",
+          "qlknn",
+          "newton_raphson",
+          "x_old",
+          False,
+          False,
+      ),
+      (
+          "qlknn_newton_no_per_linear",
+          "qlknn",
+          "newton_raphson",
+          "linear",
+          False,
+          True,
+      ),
+      ("qlknn_newton_per_1", "qlknn", "newton_raphson", "linear", True, False),
   )
   def test_pereverzev_warning(
       self,
