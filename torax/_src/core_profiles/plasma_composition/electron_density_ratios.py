@@ -56,7 +56,7 @@ def calculate_fractions_from_ratios(
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
-  """Analogous to IonMixture but for n_e_ratio inputs."""
+  """Analogous to ion_mixture.RuntimeParams but for n_e_ratio inputs."""
 
   n_e_ratios: array_typing.FloatVector
   A_avg: array_typing.FloatScalar
@@ -68,7 +68,7 @@ class RuntimeParams:
     return calculate_fractions_from_ratios(self.n_e_ratios)
 
 
-class ELectronDensityRatios(torax_pydantic.BaseModelFrozen):
+class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios of impurity to electron density."""
 
   species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]

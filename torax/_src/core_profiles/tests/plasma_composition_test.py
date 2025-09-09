@@ -220,7 +220,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_names=('C', 'N'),
           expected_Z_override=6.5,
           expected_A_override=13.0,
-          expected_impurity_model_type=electron_density_ratios.ELectronDensityRatios,
+          expected_impurity_model_type=electron_density_ratios.ElectronDensityRatios,
       ),
       dict(
           testcase_name='new_api_n_e_ratios_Z_eff',

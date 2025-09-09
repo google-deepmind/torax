@@ -99,7 +99,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
 
   impurity: Annotated[
       ion_mixture.ImpurityFractions
-      | electron_density_ratios.ELectronDensityRatios
+      | electron_density_ratios.ElectronDensityRatios
       | electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       pydantic.Field(discriminator='impurity_mode'),
   ]
@@ -173,7 +173,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   def _check_zeff_usage(self) -> typing_extensions.Self:
     """Warns user if Z_eff is provided but will be ignored."""
     if (
-        isinstance(self.impurity, electron_density_ratios.ELectronDensityRatios)
+        isinstance(self.impurity, electron_density_ratios.ElectronDensityRatios)
         and self.Z_eff.value != 1.0  # default value if input Z_eff is None
     ):
       logging.warning(

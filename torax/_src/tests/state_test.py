@@ -218,7 +218,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
       impurity_config = torax_config.plasma_composition.impurity
       geo = torax_config.geometry.build_provider(t)
       assert isinstance(
-          impurity_config, electron_density_ratios.ELectronDensityRatios
+          impurity_config, electron_density_ratios.ElectronDensityRatios
       )
       ar_ratio = impurity_config.species['Ar'].get_value(t)
       ne_ratio = impurity_config.species['Ne'].get_value(t)
