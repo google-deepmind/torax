@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Collisional radiative model for charge states and cooling curves.
+"""Collisional radiative model for charge states and cooling rates.
 
 From A. A. Mavrin (2017):
 Radiative Cooling Rates for Low-Z Impurities in Non-coronal Equilibrium State.
@@ -24,6 +24,7 @@ import enum
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge import mavrin_2017_charge_states_data
+from torax._src.edge import mavrin_2017_cooling_rate_data
 
 # pylint: disable=invalid-name
 
@@ -62,12 +63,9 @@ def calculate_mavrin_2017(
 
   match variable:
     case MavrinVariable.Z:
-      coeffs = mavrin_2017_charge_states_data.MAVRIN_2017_Z_COEFFS
-      temperature_intervals = (
-          mavrin_2017_charge_states_data.TEMPERATURE_INTERVALS_Z
-      )
+      cr_module = mavrin_2017_charge_states_data
     case MavrinVariable.LZ:
-      raise NotImplementedError('LZ fit not yet implemented.')
+      cr_module = mavrin_2017_cooling_rate_data
     case _:
       allowed_variables = ', '.join([v.name for v in MavrinVariable])
       raise ValueError(
@@ -75,25 +73,29 @@ def calculate_mavrin_2017(
           f' {allowed_variables}'
       )
 
-  if ion_symbol not in coeffs.keys():
+  if ion_symbol not in cr_module.COEFFS.keys():
     raise ValueError(
         f'Invalid ion symbol: {ion_symbol}. Allowed symbols are:'
-        f' {coeffs.keys()}'
+        f' {cr_module.COEFFS.keys()}'
     )
 
   # Mavrin 2017 formulas are constructed for [eV] temperature input
   T_e_ev = T_e * 1e3
 
   # Avoid extrapolating fitted polynomial out of bounds.
-  min_temp = mavrin_2017_charge_states_data.MIN_TEMPERATURES[ion_symbol]
-  max_temp = mavrin_2017_charge_states_data.MAX_TEMPERATURES[ion_symbol]
+  min_temp = cr_module.MIN_TEMPERATURES[ion_symbol]
+  max_temp = cr_module.MAX_TEMPERATURES[ion_symbol]
   T_e_ev = jnp.clip(T_e_ev, min_temp, max_temp)
   # Residence parameter capped at 10^19, which is the coronal limit.
   ne_tau = jnp.clip(ne_tau, a_max=_NE_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
-  interval_indices = jnp.searchsorted(temperature_intervals[ion_symbol], T_e_ev)
-  coeffs_in_range = jnp.take(coeffs[ion_symbol], interval_indices, axis=1)
+  interval_indices = jnp.searchsorted(
+      cr_module.TEMPERATURE_INTERVALS[ion_symbol], T_e_ev
+  )
+  coeffs_in_range = jnp.take(
+      cr_module.COEFFS[ion_symbol], interval_indices, axis=1
+  )
 
   X = jnp.log10(T_e_ev)
   Y = jnp.log10(ne_tau / _NE_TAU_CORONAL_LIMIT)

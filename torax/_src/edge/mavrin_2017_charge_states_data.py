@@ -29,7 +29,7 @@ from torax._src import array_typing
 # Tables 2, 4, 7, 9, 10, 12, 14, 16
 # Disable line-too-long check for the coefficients table for readability.
 # pylint: disable=line-too-long
-MAVRIN_2017_Z_COEFFS: Final[Mapping[str, array_typing.Array]] = (
+COEFFS: Final[Mapping[str, array_typing.Array]] = (
     immutabledict.immutabledict({
         'He': np.array([
             [-5.3229e00, 2.9480e-01, -7.5801e-01, 1.2390e-01, 2.8742e-01, 3.0230e-01],
@@ -132,7 +132,7 @@ MAVRIN_2017_Z_COEFFS: Final[Mapping[str, array_typing.Array]] = (
 # pylint: enable=line-too-long
 
 # All temperatures are in eV
-TEMPERATURE_INTERVALS_Z: Final[Mapping[str, array_typing.Array]] = (
+TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.Array]] = (
     immutabledict.immutabledict({
         'He': np.array([3.0, 10.0, 30.0, 100.0, 1000.0]),
         'Li': np.array([7.0, 30.0, 60.0, 100.0, 1000.0]),
