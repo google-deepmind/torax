@@ -559,7 +559,7 @@ class StandardGeometryIntermediates:
       LY_single_slice['FtPVQ'] = LY_bundle['FtPVQ'][..., idx]
     else:
       # TODO(b/412965439) remove support for LY files that don't contain FtPVQ.
-      logging.warning(
+      logging.warning_once(
           'FtPVQ not found in LY bundle, using FtPQ instead. Please upgrade to'
           ' a newer version of MEQ as the source of the LY data. This will'
           ' throw an error in a future version.'
@@ -601,7 +601,7 @@ class StandardGeometryIntermediates:
       Phi = LY['FtPVQ']
     else:
       # TODO(b/412965439)
-      logging.warning(
+      logging.warning_once(
           'FtPVQ not found in LY, using FtPQ instead. Please upgrade to'
           ' a newer version of MEQ as the source of the LY data. This will'
           ' throw an error in a future version.'
@@ -620,7 +620,7 @@ class StandardGeometryIntermediates:
     # Approximate with analytical expressions for circular geometry.
     flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
     flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
-    logging.warning(
+    logging.warning_once(
         '<B^2> and <1/B^2> not currently supported by FBT geometry;'
         ' approximating using analytical expressions for circular geometry.'
         ' This might cause inaccuracies in neoclassical transport.'
