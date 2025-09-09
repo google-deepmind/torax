@@ -103,12 +103,7 @@ def _calculate_angioni_sauter_transport(
   # --- Step 1: Calculate intermediate physics quantities ---
 
   # Calculate trapped fractions ft and ftd from paper Eq. (17)
-  # TODO(b/426291465): Implement a more accurate calculation of <1/B^2>.
-  # Analytical expressions for circular geometry.
-  B2_avg = geometry.B_0**2 / jnp.sqrt(1.0 - geometry.epsilon_face**2)
-  Bm2_avg = geometry.B_0**-2 * (1.0 + 1.5 * geometry.epsilon_face**2)
-
-  B2_avg_Bm2_avg = B2_avg * Bm2_avg
+  B2_avg_Bm2_avg = geometry.gm5_face * geometry.gm4_face
 
   # Use the Sauter model's effective trapped fraction logic
   aa = (1.0 - geometry.epsilon_face) / (1.0 + geometry.epsilon_face)
@@ -179,8 +174,6 @@ def _calculate_angioni_sauter_transport(
       epsilon=geometry.epsilon_face,
       nu_e_star=nu_e_star,
       nu_i_star=nu_i_star,
-      B2_avg=B2_avg,
-      Bm2_avg=Bm2_avg,
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
@@ -509,8 +502,6 @@ def _calculate_Lmn(
     epsilon: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,
-    B2_avg: array_typing.FloatVectorFace,
-    Bm2_avg: array_typing.FloatVectorFace,
 ) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensional transport matrices Lmn."""
   # Normalization factors from Eqs. 16, 20, 21
@@ -572,15 +563,15 @@ def _calculate_Lmn(
   # Calculate electron matrix (Eq. 20)
   Lmn_e = jnp.zeros((nu_e_star.shape[0], 4, 4))
 
-  Lmn_e = Lmn_e.at[:, 0, 0].set(Kmn_e[:, 0, 0] * Ld * Bm2_avg * geo.B_0**2)
-  Lmn_e = Lmn_e.at[:, 0, 1].set(Kmn_e[:, 0, 1] * Ld * Bm2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 0].set(Kmn_e[:, 0, 0] * Ld * geo.gm4_face * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 1].set(Kmn_e[:, 0, 1] * Ld * geo.gm4_face * geo.B_0**2)
   Lmn_e = Lmn_e.at[:, 0, 2].set(Kmn_e[:, 0, 2] * Lb)
-  Lmn_e = Lmn_e.at[:, 0, 3].set(Kmn_e[:, 0, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 3].set(Kmn_e[:, 0, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   Lmn_e = Lmn_e.at[:, 1, 0].set(Lmn_e[:, 0, 1])
-  Lmn_e = Lmn_e.at[:, 1, 1].set(Kmn_e[:, 1, 1] * Ld * Bm2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 1, 1].set(Kmn_e[:, 1, 1] * Ld * geo.gm4_face * geo.B_0**2)
   Lmn_e = Lmn_e.at[:, 1, 2].set(Kmn_e[:, 1, 2] * Lb)
-  Lmn_e = Lmn_e.at[:, 1, 3].set(Kmn_e[:, 1, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 1, 3].set(Kmn_e[:, 1, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   Lmn_e = Lmn_e.at[:, 2, 0].set(Lmn_e[:, 0, 2])
   Lmn_e = Lmn_e.at[:, 2, 1].set(Lmn_e[:, 1, 2])
@@ -590,13 +581,17 @@ def _calculate_Lmn(
   Lmn_e = Lmn_e.at[:, 3, 0].set(Lmn_e[:, 0, 3])
   Lmn_e = Lmn_e.at[:, 3, 1].set(Lmn_e[:, 1, 3])
   Lmn_e = Lmn_e.at[:, 3, 2].set(Lmn_e[:, 2, 3])
-  Lmn_e = Lmn_e.at[:, 3, 3].set(Kmn_e[:, 3, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 3, 3].set(Kmn_e[:, 3, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   # Calculate ion matrix
   Lmn_i = jnp.zeros((nu_i_star.shape[0], 2, 2))
-  Lmn_i = Lmn_i.at[:, 0, 0].set(Kmn_i[:, 0, 0] * Lsi * B2_avg / geo.B_0**2)
+  Lmn_i = Lmn_i.at[:, 0, 0].set(
+      Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
+  )
   Lmn_i = Lmn_i.at[:, 0, 1].set(Kmn_i[:, 0, 1] * Lbi)
   Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 1, 0])
-  Lmn_i = Lmn_i.at[:, 1, 1].set(Kmn_i[:, 1, 1] * Ldi * Bm2_avg * geo.B_0**2)
+  Lmn_i = Lmn_i.at[:, 1, 1].set(
+      Kmn_i[:, 1, 1] * Ldi * geo.gm4_face * geo.B_0**2
+  )
 
   return Lmn_e, Lmn_i
