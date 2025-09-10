@@ -350,7 +350,7 @@ rst_epilog = f"""
 .. |neoclassical| replace:: `neoclassical <torax_src_neoclassical_target_>`_
 .. _torax_src_neoclassical_target: {github_base_url}/torax/_src/neoclassical
 
-.. |core_profiles_imas| replace:: `core_profiles_imas <torax_src_core_profiles_imas_target_>`_
-.. _torax_src_core_profiles_imas_target: {github_base_url}/torax/_src/imas_tools/core_profiles.py
+.. |core_profiles_input_imas| replace:: `input/core_profiles <torax_src_core_profiles_imas_target_>`_
+.. _torax_src_core_profiles_imas_target: {github_base_url}/torax/_src/imas_tools/input/core_profiles.py
 
 """

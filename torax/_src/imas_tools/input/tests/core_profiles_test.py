@@ -30,40 +30,54 @@ from torax._src.torax_pydantic import model_config
 
 class CoreProfilesTest(sim_test_case.SimTestCase):
   """Unit tests for torax.torax_imastools.input.core_profiles.py"""
-  
-  def test_update_dict(self,):
+
+  def test_update_dict(
+      self,
+  ):
     """Unit tests for the update_dict method."""
-    old_dict = {"str_key": 3, "nested": {"x1":5, "x2":3}, "profiles": {0.0: "old", 1.0: "old"}}
+    old_dict = {
+        "str_key": 3,
+        "nested": {"x1": 5, "x2": 3},
+        "profiles": {0.0: "old", 1.0: "old"},
+    }
     simple_update = {"str_key": 5}
-    nested_update = {"nested": {"x1":0, "x2":1}}
+    nested_update = {"nested": {"x1": 0, "x2": 1}}
     profiles_update = {"profiles": {0.0: "new", 1.0: "new"}}
-    with self.subTest('Test simple update of a str key.'):
+    with self.subTest("Test simple update of a str key."):
       new_dict = update_dict(old_dict, simple_update)
       assert new_dict["str_key"] == simple_update["str_key"]
       assert new_dict["str_key"] is not old_dict["str_key"]
-    with self.subTest('Test update of a nested dict with str keys.'):
-        new_dict = update_dict(old_dict, nested_update)
-        assert new_dict["nested"] == nested_update["nested"]
-        assert new_dict["nested"] is not old_dict["nested"]
-    with self.subTest('Test simple update of a profiles type dict with floats as keys.'):
-        new_dict = update_dict(old_dict, profiles_update)
-        assert new_dict["profiles"] == profiles_update["profiles"]
-        assert new_dict["profiles"] is not old_dict["profiles"]
+    with self.subTest("Test update of a nested dict with str keys."):
+      new_dict = update_dict(old_dict, nested_update)
+      assert new_dict["nested"] == nested_update["nested"]
+      assert new_dict["nested"] is not old_dict["nested"]
+    with self.subTest(
+        "Test simple update of a profiles type dict with floats as keys."
+    ):
+      new_dict = update_dict(old_dict, profiles_update)
+      assert new_dict["profiles"] == profiles_update["profiles"]
+      assert new_dict["profiles"] is not old_dict["profiles"]
 
-  def test_offset_time(self,):
+  def test_offset_time(
+      self,
+  ):
     """Unit tests to check the t_initial optional args offset correctly the time array."""
-    offset = 100.
-    path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
-    dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    ids_in = load_core_profiles_data(path, 'core_profiles', dir)
+    offset = 100.0
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
+    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
+    ids_in = load_core_profiles_data(path, "core_profiles", dir)
     core_profiles_conditions = core_profiles_from_IMAS(
         ids_in,
-        t_initial= offset,
+        t_initial=offset,
     )
-    t_in =np.array([float(ids_in.profiles_1d[i].time) for i in range(len(ids_in.profiles_1d))])
-    t_out = np.array(list(core_profiles_conditions["profile_conditions"]["Ip"].keys()))
-    np.testing.assert_equal(t_out, t_in + 100.)
-
+    t_in = np.array([
+        float(ids_in.profiles_1d[i].time)
+        for i in range(len(ids_in.profiles_1d))
+    ])
+    t_out = np.array(
+        list(core_profiles_conditions["profile_conditions"]["Ip"].keys())
+    )
+    np.testing.assert_equal(t_out, t_in + 100.0)
 
   def test_run_with_core_profiles_to_IMAS(
       self,
@@ -77,11 +91,11 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     """
 
     # Input core_profiles reading and config loading
-    config = self._get_config_dict('test_iterhybrid_rampup_short.py')
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
-    path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
-    dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    core_profiles_in = load_core_profiles_data(path, 'core_profiles', dir)
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
+    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
+    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
@@ -95,11 +109,11 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Check that the simulation completed successfully.
     if results.sim_error != torax.SimError.NO_ERROR:
       raise ValueError(
-          f'TORAX failed to run the simulation with error: {results.sim_error}.'
+          f"TORAX failed to run the simulation with error: {results.sim_error}."
       )
 
   @parameterized.parameters([
-      dict(config_name='test_iterhybrid_rampup_short.py', rtol=1e-6, atol=1e-8),
+      dict(config_name="test_iterhybrid_rampup_short.py", rtol=1e-6, atol=1e-8),
   ])
   def test_init_profiles_from_IMAS(
       self,
@@ -121,10 +135,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Input core_profiles reading and config loading
     config = self._get_config_dict(config_name)
     path = (  # Using this as input instead of rampup_conditions because it has more radial resolution.
-        'core_profiles_15MA_DT_50_50_flat_top_slice.nc'
+        "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
     )
-    dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-    core_profiles_in = load_core_profiles_data(path, 'core_profiles', dir)
+    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
+    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
     rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
@@ -132,7 +146,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles_in,
         t_initial=0.0,
     )
-    config['geometry']['n_rho'] = 200
+    config["geometry"]["n_rho"] = 200
     config = update_dict(config, core_profiles_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -153,7 +167,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ),
         rtol=rtol,
         atol=atol,
-        err_msg='Te profile failed',
+        err_msg="Te profile failed",
     )
     np.testing.assert_allclose(
         init_core_profiles.T_i.value * 1e3,
@@ -162,7 +176,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ),
         rtol=rtol,
         atol=atol,
-        err_msg='Ti profile failed',
+        err_msg="Ti profile failed",
     )
     np.testing.assert_allclose(
         init_core_profiles.n_e.value,
@@ -173,7 +187,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ),
         rtol=rtol,
         atol=atol,
-        err_msg='ne profile failed',
+        err_msg="ne profile failed",
     )
     np.testing.assert_allclose(
         init_core_profiles.psi.value,
@@ -182,9 +196,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ),
         rtol=rtol,
         atol=atol,
-        err_msg='psi profile failed',
+        err_msg="psi profile failed",
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()
