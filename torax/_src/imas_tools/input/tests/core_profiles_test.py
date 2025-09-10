@@ -22,6 +22,7 @@ import numpy as np
 import torax
 from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
 from torax._src.imas_tools.input.core_profiles import load_core_profiles_data
+from torax._src.imas_tools.input.core_profiles import update_dict
 from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
@@ -50,10 +51,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
-        core_profiles_in, read_psi_from_geo=True
+        core_profiles_in,
     )
+    config = update_dict(config, core_profiles_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
-    torax_config.update_fields(core_profiles_conditions)
 
     # Run Sim
     _, results = torax.run_simulation(torax_config)
@@ -95,12 +96,11 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles_from_IMAS(
         core_profiles_in,
-        read_psi_from_geo=False,
         t_initial=0.0,
     )
     config['geometry']['n_rho'] = 200
+    config = update_dict(config, core_profiles_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
-    torax_config.update_fields(core_profiles_conditions)
 
     # Init sim from config
     _, sim_state, _, _ = prepare_simulation(torax_config)

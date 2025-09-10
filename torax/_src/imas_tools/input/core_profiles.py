@@ -52,7 +52,6 @@ def update_dict(old_dict: dict, updates: dict) -> dict:
 
 def core_profiles_from_IMAS(
     ids: IDSToplevel,
-    read_psi_from_geo: bool = True,
     t_initial: float | None = None,
 ) -> dict:
   """Converts core_profiles IDS to a dict with the input profiles for the config.
@@ -81,15 +80,12 @@ def core_profiles_from_IMAS(
   ]
 
   # profile_conditions
-  if not read_psi_from_geo:
-    psi = {
-        t_initial: {
-            rhon_array[0][rj]: profiles_1d[0].grid.psi[rj]
-            for rj in range(len(rhon_array[0]))
+  psi = {
+      t_initial: {
+          rhon_array[0][rj]: profiles_1d[0].grid.psi[rj]
+         for rj in range(len(rhon_array[0]))
         }
-    }
-  else:
-    psi = None
+  }
   # Will be overwritten if Ip_from_parameters = False, when Ip is given by the equilibrium.
   Ip = {
       time_array[ti]: -1 * ids.global_quantities.ip[ti]
