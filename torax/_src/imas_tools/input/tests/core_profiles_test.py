@@ -50,6 +50,21 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         assert new_dict["profiles"] == profiles_update["profiles"]
         assert new_dict["profiles"] is not old_dict["profiles"]
 
+  def test_offset_time(self,):
+    """Unit tests to check the t_initial optional args offset correctly the time array."""
+    offset = 100.
+    path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
+    dir = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+    ids_in = load_core_profiles_data(path, 'core_profiles', dir)
+    core_profiles_conditions = core_profiles_from_IMAS(
+        ids_in,
+        t_initial= offset,
+    )
+    t_in =np.array([float(ids_in.profiles_1d[i].time) for i in range(len(ids_in.profiles_1d))])
+    t_out = np.array(list(core_profiles_conditions["profile_conditions"]["Ip"].keys()))
+    np.testing.assert_equal(t_out, t_in + 100.)
+
+
   def test_run_with_core_profiles_to_IMAS(
       self,
   ):
