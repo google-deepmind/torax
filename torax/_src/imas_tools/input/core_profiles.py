@@ -16,7 +16,7 @@
 converts them into TORAX objects.
 """
 import os
-from typing import Any
+from typing import Any, Mapping
 
 import imas
 from imas import ids_toplevel
@@ -53,7 +53,7 @@ def update_dict(old_dict: dict, updates: dict) -> dict:
 def core_profiles_from_IMAS(
     ids: IDSToplevel,
     t_initial: float | None = None,
-) -> dict:
+) ->  Mapping[str, Mapping[str, Any]]:
   """Converts core_profiles IDS to a dict with the input profiles for the config.
   Args:
   ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
@@ -170,10 +170,18 @@ def load_core_profiles_data(
     ids_name: str,
     directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
-  """Loads a full IDS for a given uri or path_name and a given ids_name."""
-  if directory is None:
-    directory = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
-  uri = os.path.join(directory, uri)
+  """Loads a full IDS for a given uri or path_name and a given ids_name which 
+     should be either core_profiles or plasma_profiles. It can load either an
+     IMAS netCDF file with filename as uri and given directory or from an IMASdb
+     by giving the full uri of the IDS and the directory arg will be ignored.
+     The loaded IDS can then be used as input to core_profiles_from_IMAS().
+  """
+  # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
+  # filepath is already provided in the uri.
+  if uri[-3:] == ".nc": 
+    if directory is None: 
+        directory = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+    uri = os.path.join(directory, uri)
   with imas.DBEntry(uri=uri, mode='r') as db:
     ids = db.get(ids_name=ids_name)
   return ids
