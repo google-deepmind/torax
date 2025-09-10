@@ -13,12 +13,11 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
+from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any, Literal
 import chex
 import jax
 from jax import numpy as jnp
-import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
@@ -49,7 +48,7 @@ class RuntimeParams:
       provided, it is used instead for the average Z.
   """
 
-  fractions: array_typing.FloatVector
+  fractions: Mapping[str, array_typing.FloatScalar]
   A_avg: array_typing.FloatScalar | array_typing.FloatVectorCell
   Z_override: array_typing.FloatScalar | None = None
 
@@ -77,13 +76,16 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
-    ions = self.species.keys()
-    fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
+    fractions = {ion: x.get_value(t) for ion, x in self.species.items()}
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
 
     if not self.A_override:
-      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As * fractions)
+      A_avg = jnp.sum(
+          jnp.array([
+              constants.ION_PROPERTIES_DICT[ion].A * fraction
+              for ion, fraction in fractions.items()
+          ])
+      )
     else:
       A_avg = self.A_override.get_value(t)
 
@@ -92,26 +94,3 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
         A_avg=A_avg,
         Z_override=Z_override,
     )
-
-
-class ImpurityFractions(IonMixture):
-  """Impurity content defined by fractional abundances."""
-
-  impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
-      'fractions'
-  )
-  # Default impurity setting. Parent class has species without a default.
-  species: runtime_validation_utils.IonMapping = (
-      torax_pydantic.ValidatedDefault({'Ne': 1.0})
-  )
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_impurity_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    """Ensures backward compatibility if infered that data in legacy format."""
-
-    # Maps legacy inputs to the new API format.
-    # TODO(b/434175938): Remove this once V1 API is deprecated.
-    if 'species' not in data and 'impurity_mode' not in data:
-      return {'species': data, 'impurity_mode': _IMPURITY_MODE_FRACTIONS}
-    return data

@@ -25,6 +25,7 @@ from torax._src import array_typing
 from torax._src.config import runtime_validation_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
+from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
@@ -98,7 +99,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """
 
   impurity: Annotated[
-      ion_mixture.ImpurityFractions
+      impurity_fractions.ImpurityFractions
       | electron_density_ratios.ElectronDensityRatios
       | electron_density_ratios_zeff.ElectronDensityRatiosZeff,
       pydantic.Field(discriminator='impurity_mode'),
@@ -140,6 +141,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
           'impurity_mode': _IMPURITY_MODE_FRACTIONS,
           'Z_override': Z_impurity_override,
           'A_override': A_impurity_override,
+          'legacy': True,
       }
       return configurable_data
 
@@ -166,6 +168,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         'species': impurity_data,
         'Z_override': Z_impurity_override,
         'A_override': A_impurity_override,
+        'legacy': True,
     }
     return configurable_data
 
