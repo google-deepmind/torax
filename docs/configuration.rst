@@ -2039,22 +2039,21 @@ There are three main methods to load IMAS equilibrium:
 Loading Profiles
 ^^^^^^^^^^^^^^^^
 
-The initial and optionally prescribed time-dependence of the temperature,
-density and current profiles given in the config can be loaded from any IMAS
-core_profiles or plasma_profiles IDS.
-The IDSs needs to be in Data Dictionary version 4.0.0 or newer.
-The mapping function ``core_profiles_from_imas`` in |core_profiles_imas|
-returns a dictionary with the data from core_profiles to load into the config.
-The IDS needs to be provided on the fly as it can be done for the geometry, 
-i.e. pre-loaded in Python from an IMAS netCDF file or another method and
-directly fed to the function. A more user friendly API will come in a follow-up
-PR with updated doc.
-The IDS object can be loaded from an IMAS netCDF file using the 
-`IMAS-Python library <https://imas-python.readthedocs.io/en/latest/netcdf.html>`_ .
+Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
+saved in Data Dictionary version 4.0.0 or newer.
+If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using the
+loader function ``load_core_profiles_data`` from |core_profiles_input_imas|.
+It can then be loaded programatically in the CONFIG by constructing a nested
+dictionary with the ``core_profiles_from_imas`` function. The function returns 
+a dictionary whose structure fits the schema of profile_conditions and can be 
+programatically loaded into a CONFIG with standard dictionary manipulation
+or using ``update_dict`` function.
+It is possible to directly input all of profile_conditions from an IDS into the
+config, or to only load specific values of it. It is also possible to combine 
+profiles from different IDSs and their time slices can be shifted to correct 
+offsets between different IDSs or to match the config t_initial.
+Examples for how to set a config file using these methods will be added.
 
-It is then possible to start a simulation by loading a pre-existing config and
-then update it with the dictionary containing the IMAS profiles using the
-function ``update_dict`` from |core_profiles_imas|.
 
 
 

@@ -24,6 +24,7 @@ from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import torax
 
+
 def update_dict(old_dict: dict, updates: dict) -> dict:
   """Recursively modify the fields from the original dict old_dict using the values contained in updates dict.
   Used to update config dict fields more easily. Use case is to update config dict with output from core_profiles.core_profiles_from_IMAS().
@@ -50,10 +51,11 @@ def update_dict(old_dict: dict, updates: dict) -> dict:
       new_dict[key] = value
   return new_dict
 
+
 def core_profiles_from_IMAS(
     ids: IDSToplevel,
     t_initial: float | None = None,
-) ->  Mapping[str, Mapping[str, Any]]:
+) -> Mapping[str, Mapping[str, Any]]:
   """Converts core_profiles IDS to a dict with the input profiles for the config.
   Args:
   ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
@@ -83,8 +85,8 @@ def core_profiles_from_IMAS(
   psi = {
       t_initial: {
           rhon_array[0][rj]: profiles_1d[0].grid.psi[rj]
-         for rj in range(len(rhon_array[0]))
-        }
+          for rj in range(len(rhon_array[0]))
+      }
   }
   # Will be overwritten if Ip_from_parameters = False, when Ip is given by the equilibrium.
   Ip = {
@@ -170,18 +172,19 @@ def load_core_profiles_data(
     ids_name: str,
     directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
-  """Loads a full IDS for a given uri or path_name and a given ids_name which 
-     should be either core_profiles or plasma_profiles. It can load either an
-     IMAS netCDF file with filename as uri and given directory or from an IMASdb
-     by giving the full uri of the IDS and the directory arg will be ignored.
-     The loaded IDS can then be used as input to core_profiles_from_IMAS().
+  """Loads a full IDS for a given uri or path_name and a given ids_name which
+  should be either core_profiles or plasma_profiles. It can load either an
+  IMAS netCDF file with filename as uri and given directory or from an IMASdb
+  by giving the full uri of the IDS and the directory arg will be ignored.
+  Note that loading from an IMASdb requires IMAS-core.
+  The loaded IDS can then be used as input to core_profiles_from_IMAS().
   """
   # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
   # filepath is already provided in the uri.
-  if uri[-3:] == ".nc": 
-    if directory is None: 
-        directory = os.path.join(torax.__path__[0], 'data/third_party/imas_data')
+  if uri[-3:] == ".nc":
+    if directory is None:
+      directory = os.path.join(torax.__path__[0], "data/third_party/imas_data")
     uri = os.path.join(directory, uri)
-  with imas.DBEntry(uri=uri, mode='r') as db:
+  with imas.DBEntry(uri=uri, mode="r") as db:
     ids = db.get(ids_name=ids_name)
   return ids
