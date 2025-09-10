@@ -30,6 +30,25 @@ from torax._src.torax_pydantic import model_config
 
 class CoreProfilesTest(sim_test_case.SimTestCase):
   """Unit tests for torax.torax_imastools.input.core_profiles.py"""
+  
+  def test_update_dict(self,):
+    """Unit tests for the update_dict method."""
+    old_dict = {"str_key": 3, "nested": {"x1":5, "x2":3}, "profiles": {0.0: "old", 1.0: "old"}}
+    simple_update = {"str_key": 5}
+    nested_update = {"nested": {"x1":0, "x2":1}}
+    profiles_update = {"profiles": {0.0: "new", 1.0: "new"}}
+    with self.subTest('Test simple update of a str key.'):
+      new_dict = update_dict(old_dict, simple_update)
+      assert new_dict["str_key"] == simple_update["str_key"]
+      assert new_dict["str_key"] is not old_dict["str_key"]
+    with self.subTest('Test update of a nested dict with str keys.'):
+        new_dict = update_dict(old_dict, nested_update)
+        assert new_dict["nested"] == nested_update["nested"]
+        assert new_dict["nested"] is not old_dict["nested"]
+    with self.subTest('Test simple update of a profiles type dict with floats as keys.'):
+        new_dict = update_dict(old_dict, profiles_update)
+        assert new_dict["profiles"] == profiles_update["profiles"]
+        assert new_dict["profiles"] is not old_dict["profiles"]
 
   def test_run_with_core_profiles_to_IMAS(
       self,
