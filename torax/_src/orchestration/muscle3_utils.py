@@ -86,88 +86,6 @@ class ExtraVarCollection:
         return var_dir.ys[idx]
 
 
-def receive_equilibrium(
-    instance: Instance,
-    geometry_provider: GeometryProvider,
-    state: sim_state.ToraxSimState,
-    config: model_config.ToraxConfig,
-    port_name: str,
-) -> Tuple[GeometryProvider, float, Optional[float], ExtraVarCollection]:
-    # TODO: receive all inputs [equilibrium, core_profiles, core_profiles]
-    if not instance.is_connected(port_name):
-        return geometry_provider, state.t, None, ExtraVarCollection()
-    equilibrium_data, t_cur, t_next = receive_ids_through_muscle3(
-        instance, port_name, 'equilibrium'
-    )
-
-    geometry_configs = {}
-    extra_var_col = ExtraVarCollection()
-    torax_config_dict = get_geometry_config_dict(config)
-    torax_config_dict["geometry_type"] = "imas"
-    with DBEntry("imas:memory?path=/", "w") as db:
-        db.put(equilibrium_data)
-        for t in equilibrium_data.time:
-            my_slice = db.get_slice(
-                ids_name="equilibrium",
-                time_requested=t,
-                interpolation_method=CLOSEST_INTERP,
-            )
-            config_kwargs = {
-                **torax_config_dict,
-                "equilibrium_object": my_slice,
-                "imas_uri": None,
-                "imas_filepath": None,
-                "Ip_from_parameters": False,
-            }
-            imas_cfg = IMASConfig(**config_kwargs)
-            cfg = GeometryConfig(config=imas_cfg)
-            geometry_configs[str(t)] = cfg
-            # temp extra vars code
-            extra_var_col.add_val(
-                "z_boundary_outline",
-                t,
-                np.asarray(my_slice.time_slice[0].boundary.outline.z),
-            )
-            extra_var_col.add_val(
-                "r_boundary_outline",
-                t,
-                np.asarray(my_slice.time_slice[0].boundary.outline.r),
-            )
-    geometry_provider = Geometry(
-        geometry_type=geometry.GeometryType.IMAS,
-        geometry_configs=geometry_configs,
-    ).build_provider
-    # temp extra vars code
-    extra_var_col.pad_extra_vars()
-    return geometry_provider, t_cur, t_next, extra_var_col
-
-def receive_ids_through_muscle3(
-    instance: Instance,    
-    port_name: str,
-    ids_name: str,
-) -> Tuple[IDSToplevel, float, Optional[float]]:
-    msg_equilibrium_in = instance.receive(port_name)
-    t_cur = msg_equilibrium_in.timestamp
-    t_next = msg_equilibrium_in.next_timestamp
-    equilibrium_data = getattr(IDSFactory(), "equilibrium")()
-    equilibrium_data.deserialize(msg_equilibrium_in.data)
-    return equilibrium_data, t_cur, t_next
-
-def send_ids_through_muscle3(
-    instance: Instance,
-    equilibrium_data: IDSToplevel,
-    port_name: str,
-    t_cur: float,
-    t_next: Optional[float] = None,
-) -> None:
-    if not instance.is_connected(port_name):
-        return
-    msg_equilibrium_out = Message(
-        t_cur, data=equilibrium_data.serialize(), next_timestamp=t_next
-    )
-    instance.send(port_name, msg_equilibrium_out)
-
-
 def get_geometry_config_dict(config: model_config.ToraxConfig) -> dict:
     # only get overlapping keys from given config and IMASConfig
     imas_config_keys = IMASConfig.__annotations__
@@ -194,32 +112,6 @@ def get_setting_optional(
         setting = default
     return setting
 
-
-def get_t_next(
-    sim_state: sim_state.ToraxSimState,
-    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
-    dynamic_runtime_params_slice: DynamicRuntimeParamsSlice,
-    step_fn: SimulationStepFn,
-    geometry_provider: GeometryProvider,
-) -> float:
-    dynamic_runtime_params_slice_t, geo_t = (
-        get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=sim_state.t,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=geometry_provider,
-        )
-    )
-    dt = step_fn.time_step_calculator.next_dt(
-        sim_state.t,
-        dynamic_runtime_params_slice_t,
-        geo_t,
-        sim_state.core_profiles,
-        sim_state.core_transport
-    )
-    t_next = sim_state.t + dt
-    if t_next > dynamic_runtime_params_slice.numerics.t_final:
-        t_next = None
-    return t_next
 
 def merge_extra_vars(equilibrium_data: IDSToplevel, extra_var_col: ExtraVarCollection):
     equilibrium_data.time_slice[0].boundary.outline.z = extra_var_col.get_val(
