@@ -164,14 +164,6 @@ class CoreTransport:
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
     template = self.chi_face_el
-    if self.chi_face_el_bohm is None:
-      self.chi_face_el_bohm = jnp.zeros_like(template)
-    if self.chi_face_el_gyrobohm is None:
-      self.chi_face_el_gyrobohm = jnp.zeros_like(template)
-    if self.chi_face_ion_bohm is None:
-      self.chi_face_ion_bohm = jnp.zeros_like(template)
-    if self.chi_face_ion_gyrobohm is None:
-      self.chi_face_ion_gyrobohm = jnp.zeros_like(template)
     if self.chi_neo_i is None:
       self.chi_neo_i = jnp.zeros_like(template)
     if self.chi_neo_e is None:
