@@ -441,6 +441,111 @@ class GettersTest(parameterized.TestCase):
     ) * ions.Z_impurity**2
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
+  def test_get_updated_ions_impurity_mixture_radially_dependent(self):
+    """Tests that ion densities are correctly calculated for an impurity mixture."""
+
+    # 1. Define a "ground truth" plasma with individual impurity species.
+    # Assumes a single deuterium main ion
+    T_e = 50.0  # keV
+    n_e = 1e20
+    n_e_ratio_w = np.array([1e-4, 5e-5, 5e-5, 5e-5])  # n_W / n_e
+    n_e_ratio_he3 = np.array([0.03, 0.015, 0.015, 0.015])  # n_He3 / n_e
+    # Calculate ion charges for the ground truth plasma.
+    z_d = constants.ION_PROPERTIES_DICT['D'].Z
+    z_he3 = constants.ION_PROPERTIES_DICT['He3'].Z
+    z_w = charge_states.calculate_average_charge_state_single_species(
+        jnp.array([T_e]), 'W'
+    )
+    # Calculate the dilution factor for the ground truth plasma.
+    n_d = n_e * (1 - z_w[0] * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
+    zeff = (
+        (n_d / n_e) * z_d**2
+        + n_e_ratio_w * z_w[0] ** 2
+        + n_e_ratio_he3 * z_he3**2
+    )
+    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    dilution = n_d / n_e
+
+    # 2. Set up TORAX to use an effective impurity mixture.
+    impurity_fraction_w = n_e_ratio_w / (n_e_ratio_w + n_e_ratio_he3)
+    impurity_fraction_he3 = 1.0 - impurity_fraction_w
+    config_dict = {
+        'profile_conditions': {
+            'n_e': n_e,
+            'T_e': T_e,
+            'T_e_right_bc': T_e,
+            'n_e_right_bc': n_e,
+        },
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': {
+                'species': {
+                    'W': (geo.rho_norm, impurity_fraction_w),
+                    'He3': (geo.rho_norm, impurity_fraction_he3),
+                },
+                'impurity_mode': (
+                    plasma_composition_lib._IMPURITY_MODE_FRACTIONS
+                ),
+            },
+            'Z_eff': (geo.rho_norm, zeff),
+        },
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    # 3. Call the function under test.
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    T_e_cell_variable = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, T_e),
+        dr=geo.drho_norm,
+        right_face_constraint=T_e,
+        right_face_grad_constraint=None,
+    )
+    n_e_cell_variable = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, n_e),
+        dr=geo.drho_norm,
+        right_face_constraint=n_e,
+        right_face_grad_constraint=None,
+    )
+    ions = getters.get_updated_ions(
+        runtime_params,
+        geo,
+        n_e_cell_variable,
+        T_e_cell_variable,
+    )
+
+    # 4. Assertions
+    # Check that the effective impurity charge is calculated as <Z^2>/<Z>.
+    expected_Z_avg = (
+        impurity_fraction_w * z_w[0] + impurity_fraction_he3 * z_he3
+    )
+    expected_Z2_avg = (
+        impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
+    )
+    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+
+    # Check that the calculated dilution factor matches the ground truth.
+    calculated_dilution = ions.n_i.value / n_e_cell_variable.value
+    np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+
+    # Check that Z_eff can be reconstructed correctly.
+    reconstructed_zeff = (
+        ions.n_i.value / n_e_cell_variable.value
+    ) * ions.Z_i**2 + (
+        ions.n_impurity.value / n_e_cell_variable.value
+    ) * ions.Z_impurity**2
+    np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
+
   def test_get_updated_ions_with_n_e_ratios(self):
     """Tests get_updated_ions for n_e_ratios vs fractions mode."""
     # 1. Define ground truth plasma parameters

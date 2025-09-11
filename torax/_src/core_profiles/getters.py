@@ -24,7 +24,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
-from torax._src.core_profiles.plasma_composition import ion_mixture as ion_mixture_lib
+from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
@@ -178,7 +178,7 @@ class _IonProperties:
 
 def _get_ion_properties_from_fractions(
     impurity_symbols: tuple[str, ...],
-    impurity_params: ion_mixture_lib.RuntimeParams,
+    impurity_params: impurity_fractions.RuntimeParams,
     T_e: cell_variable.CellVariable,
     Z_i: array_typing.FloatVectorCell,
     Z_i_face: array_typing.FloatVectorFace,
@@ -196,7 +196,7 @@ def _get_ion_properties_from_fractions(
   Z_impurity_face = charge_states.get_average_charge_state(
       ion_symbols=impurity_symbols,
       T_e=T_e.face_value(),
-      fractions=impurity_params.fractions,
+      fractions=impurity_params.fractions_face,
       Z_override=impurity_params.Z_override,
   ).Z_mixture
 
@@ -216,8 +216,8 @@ def _get_ion_properties_from_fractions(
       ),
   )
   return _IonProperties(
-      A_impurity=jnp.full_like(Z_impurity, impurity_params.A_avg),
-      A_impurity_face=jnp.full_like(Z_impurity_face, impurity_params.A_avg),
+      A_impurity=impurity_params.A_avg,
+      A_impurity_face=impurity_params.A_avg_face,
       Z_impurity=Z_impurity,
       Z_impurity_face=Z_impurity_face,
       Z_eff=Z_eff,
@@ -516,7 +516,7 @@ def get_updated_ions(
   impurity_params = runtime_params.plasma_composition.impurity
 
   match impurity_params:
-    case ion_mixture_lib.RuntimeParams():
+    case impurity_fractions.RuntimeParams():
       ion_properties = _get_ion_properties_from_fractions(
           runtime_params.plasma_composition.impurity_names,
           impurity_params,
