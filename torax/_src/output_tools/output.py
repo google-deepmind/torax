@@ -647,6 +647,8 @@ class StateHistory:
     xr_dict = {}
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
+      if attr_name == "first_step":
+        continue
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
       if hasattr(attr_value, "cell_plus_boundaries"):
         # Handles stacked CellVariable-like objects.

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
-import copy
 from typing import Annotated, Literal
 from unittest import mock
 
@@ -59,8 +58,8 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
-      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [1, 2, 3]),
-      ('without_adaptive_dt', False, 1, 1, 3.0, [4]),
+      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3+3+2),
+      ('without_adaptive_dt', False, 1, 1, 3.0, [0, 4], 4),
   )
   def test_time_dependent_params_update_in_adaptive_dt(
       self,
@@ -69,6 +68,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       expected_error_state: int,
       expected_combined_value: float,
       inner_solver_iterations: list[int],
+      expected_inner_solver_iterations: int,
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
 
@@ -129,7 +129,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       )
       self.assertEqual(
           output_state.solver_numeric_outputs.inner_solver_iterations,
-          np.sum(inner_solver_iterations),
+          expected_inner_solver_iterations,
       )
       self.assertEqual(
           output_state.solver_numeric_outputs.solver_error_state,
@@ -203,11 +203,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     )
     self._param = param
     self._max_value = max_value
-    self._inner_solver_iterations = (
-        copy.deepcopy(inner_solver_iterations)
-        if inner_solver_iterations is not None
-        else []
-    )
+    self._inner_solver_iterations = jnp.array(inner_solver_iterations)
 
   def __call__(
       self,
@@ -236,10 +232,14 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
         right_face_grad_constraint=None,
     )
 
-    current_inner_solver_iterations = (
-        self._inner_solver_iterations.pop(0)
-        if self._inner_solver_iterations
-        else 1
+    # Use the termination condition to determine how many inner solver
+    # iterations to report. This is a bit of a hack but allows us to test
+    # the accumulation of varying number of inner solver iterations for the
+    # adaptive step mode.
+    current_inner_solver_iterations = jnp.where(
+        combined < self._max_value,
+        self._inner_solver_iterations[0],
+        self._inner_solver_iterations[1],
     )
 
     def _get_return_value(error_code: int):

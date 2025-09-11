@@ -48,6 +48,7 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
+    first_step: Whether the outputs are from the first step of the simulation.
     pressure_thermal_i: Ion thermal pressure [Pa]
     pressure_thermal_e: Electron thermal pressure [Pa]
     pressure_thermal_total: Total thermal pressure [Pa]
@@ -145,7 +146,6 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
   """
-
   pressure_thermal_i: cell_variable.CellVariable
   pressure_thermal_e: cell_variable.CellVariable
   pressure_thermal_total: cell_variable.CellVariable
@@ -224,6 +224,9 @@ class PostProcessedOutputs:
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
+  first_step: bool = dataclasses.field(
+      default=False, metadata={'static': True}
+  )
   # pylint: enable=invalid-name
 
   @classmethod
@@ -321,6 +324,7 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        first_step=True,
     )
 
   def check_for_errors(self):
@@ -507,7 +511,7 @@ def _calculate_integrated_sources(
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
     runtime_params: runtime_params_slice.RuntimeParams,
-    previous_post_processed_outputs: PostProcessedOutputs | None = None,
+    previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
 
@@ -585,7 +589,7 @@ def make_post_processed_outputs(
       + constants.CONSTANTS.eps  # Division guard.
   )
 
-  if previous_post_processed_outputs is not None:
+  if not previous_post_processed_outputs.first_step:
     dW_th_dt = (
         W_thermal_tot - previous_post_processed_outputs.W_thermal_total
     ) / sim_state.dt
@@ -614,7 +618,7 @@ def make_post_processed_outputs(
 
   # Calculate total external (injected) and fusion (generated) energies based on
   # interval average.
-  if previous_post_processed_outputs is not None:
+  if not previous_post_processed_outputs.first_step:
     # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
     E_cumulative_fusion = (
         previous_post_processed_outputs.E_fusion
