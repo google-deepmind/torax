@@ -18,7 +18,6 @@ import functools
 import threading
 from typing import Any, Callable, TYPE_CHECKING, TypeVar
 
-from absl import logging as native_logging
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -108,7 +107,7 @@ def while_loop(
     body_fun: Callable[list[T], T],
     init_val: T,
 ):
-  is_jax = getattr(thread_context, 'is_jax', False)
+  is_jax = jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True)
   if is_jax:
     return jax.lax.while_loop(cond_fun, body_fun, init_val)
   else:
@@ -149,7 +148,7 @@ def cond(
     false_fun: Callable[..., Any],  # pytype: disable=invalid-annotation
     *operands,
 ) -> Any:
-  is_jax = getattr(thread_context, 'is_jax', False)
+  is_jax = jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True)
   if is_jax:
     return jax.lax.cond(cond_val, true_fun, false_fun, *operands)
   else:
@@ -190,37 +189,11 @@ def fori_loop(
     body_fun: Callable[..., Any],  # pytype: disable=invalid-annotation
     init_val: Any,
 ):
-  is_jax = getattr(thread_context, 'is_jax', False)
+  is_jax = jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True)
   if is_jax:
     return jax.lax.fori_loop(lower, upper, body_fun, init_val)
   else:
     return py_fori_loop(lower, upper, body_fun, init_val)
-
-
-def logging(msg: Any, *args: Any, **kwargs: Any):
-  """Logging wrapper that works under xnp.jit.
-
-  This function makes use of jax.debug.print when running under xnp.jit,
-  otherwise it uses native logging.
-
-  Note, jax.debug.print makes use of jax.debug.callback behind the scenes which:
-  - does not guarantee execution.
-  https://docs.jax.dev/en/latest/external-callbacks.html#flavors-of-callback
-  - will cause cache misses when using the persistent cache.
-  https://docs.jax.dev/en/latest/persistent_compilation_cache.html#pitfalls
-
-  Therefore advise using for debug logging only if running under xnp.jit.
-
-  Args:
-    msg: message to log.
-    *args: arguments to be passed to the logging function.
-    **kwargs: keyword arguments to be passed to the logging function.
-  """
-  is_jax = getattr(thread_context, 'is_jax', False)
-  if is_jax:
-    jax.debug.print(msg, *args, **kwargs)
-  else:
-    native_logging.info(msg, *args, **kwargs)
 
 
 def _get_current_lib():

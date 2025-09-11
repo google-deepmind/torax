@@ -648,6 +648,8 @@ class StateHistory:
     xr_dict = {}
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
+      if attr_name == "first_step":
+        continue
 
       # The impurity_radiation is structured differently and handled separately.
       if attr_name == "impurity_species":

@@ -18,6 +18,7 @@ import dataclasses
 import functools
 
 import jax
+from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
@@ -148,7 +149,7 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
-  @xnp.jit
+  @jax_utils.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
@@ -398,7 +399,7 @@ class SimulationStepFn:
       solver_outputs = output[2]
 
       # Check for NaN in the next dt to avoid a recursive loop.
-      is_nan_next_dt = xnp.isnan(next_dt)
+      is_nan_next_dt = jnp.isnan(next_dt)
 
       # If the solver did not converge we need to make a new step.
       solver_did_not_converge = solver_outputs.solver_error_state == 1
@@ -406,12 +407,12 @@ class SimulationStepFn:
       # If t + dt  is exactly the final time we may need a smaller step than
       # min_dt to exactly reach the final time.
       if runtime_params_t.numerics.exact_t_final:
-        at_exact_t_final = xnp.allclose(
+        at_exact_t_final = jnp.allclose(
             input_state.t + next_dt,
             runtime_params_t.numerics.t_final,
         )
       else:
-        at_exact_t_final = xnp.array(False)
+        at_exact_t_final = jnp.array(False)
 
       next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
 
@@ -463,7 +464,10 @@ class SimulationStepFn:
           explicit_source_profiles=explicit_source_profiles,
       )
       solver_numeric_outputs = state.SolverNumericOutputs(
-          solver_error_state=solver_numeric_outputs.solver_error_state,
+          solver_error_state=jnp.array(
+              solver_numeric_outputs.solver_error_state,
+              jax_utils.get_int_dtype(),
+          ),
           outer_solver_iterations=old_solver_outputs.outer_solver_iterations
           + 1,
           inner_solver_iterations=old_solver_outputs.inner_solver_iterations
@@ -493,9 +497,13 @@ class SimulationStepFn:
                 state.SolverNumericOutputs(
                     # The solver has not converged yet as we have not performed
                     # any steps yet.
-                    solver_error_state=1,
-                    outer_solver_iterations=0,
-                    inner_solver_iterations=0,
+                    solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
+                    outer_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
+                    inner_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
                     sawtooth_crash=False,
                 ),
                 runtime_params_t,
