@@ -145,13 +145,6 @@ def assert_rank(
     chex.assert_rank(inputs, rank)
 
 
-def jit(*args, **kwargs) -> Callable[..., Any]:
-  """Calls jax.jit if TORAX_COMPILATION_ENABLED is True, otherwise no-op."""
-  if env_bool('TORAX_COMPILATION_ENABLED', True):
-    return jax.jit(*args, **kwargs)
-  return args[0]
-
-
 def get_number_of_compiles(
     jitted_function: Callable[..., Any],
 ) -> int:
@@ -365,7 +358,8 @@ def batched_cond(
 
 
 @functools.partial(
-    jit, static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll']
+    jax.jit,
+    static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
 )
 def while_loop_bounded(
     cond_fun: Callable[[_State], BooleanNumeric],
