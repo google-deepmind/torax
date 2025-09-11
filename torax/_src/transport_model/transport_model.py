@@ -29,7 +29,6 @@ from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-import typing_extensions
 
 
 @jax.tree_util.register_dataclass
@@ -70,17 +69,6 @@ class TurbulentTransport:
       self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
     if self.chi_face_ion_gyrobohm is None:
       self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    """Returns a CoreTransport with all zeros. Useful for initializing."""
-    shape = geo.rho_face.shape
-    return cls(
-        chi_face_ion=jnp.zeros(shape),
-        chi_face_el=jnp.zeros(shape),
-        d_face_el=jnp.zeros(shape),
-        v_face_el=jnp.zeros(shape),
-    )
 
 
 class TransportModel(abc.ABC):
