@@ -487,6 +487,31 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
         rtol=1e-4,
     )
 
+  def test_calculate_L_INT(self):
+    """Tests the calculate_L_INT function against a reference value."""
+    start_temp = 0.01  # keV
+    stop_temp = 0.02  # keV
+    ne_tau = 0.5e17
+    ion_symbol = 'N'
+
+    # Reference value taken from running the same routine in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_L_INT = 2.144797293548036e-30
+
+    calculated_L_INT = collisional_radiative_models.calculate_L_INT(
+        start_temp=start_temp,
+        stop_temp=stop_temp,
+        ne_tau=ne_tau,
+        ion_symbol=ion_symbol,
+    )
+
+    np.testing.assert_allclose(
+        calculated_L_INT,
+        expected_L_INT,
+        rtol=1e-2,
+        err_msg='Lint calculation does not match the reference value.',
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

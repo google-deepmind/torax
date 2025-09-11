@@ -21,6 +21,7 @@ DOI 10.1007/s10894-017-0136-z
 """
 
 import enum
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge import mavrin_2017_charge_states_data
@@ -115,3 +116,55 @@ def calculate_mavrin_2017(
   )
 
   return 10**log10_variable
+
+
+def calculate_L_INT(
+    start_temp: array_typing.FloatScalar,
+    stop_temp: array_typing.FloatScalar,
+    ne_tau: array_typing.FloatScalar,
+    ion_symbol: str,
+    resolution: int = 100,
+) -> array_typing.FloatScalar:
+  """Calculates the integral of Lz * sqrt(Te) from start_temp to stop_temp.
+
+  This is the L_INT term from the extended Lengyel model.
+
+  Equation 34 from T. Body, et al., Nucl. Fusion 65 (2025) 086002
+
+  Args:
+    start_temp: The starting electron temperature for the integration [keV].
+    stop_temp: The stopping electron temperature for the integration [keV].
+    ne_tau: The non-coronal parameter [m^-3 s].
+    ion_symbol: The impurity species.
+    resolution: The number of points to use in the numerical integration.
+
+  Returns:
+    The integrated cooling rate [eV^1.5 * m^3 * W].
+  """
+  # Convert start and stop temperatures to eV for the integration grid
+  start_temp_eV = start_temp * 1e3
+  stop_temp_eV = stop_temp * 1e3
+
+  # Create a logarithmically spaced grid of electron temperatures in eV
+  electron_temp_ev = jnp.logspace(
+      jnp.log10(start_temp_eV), jnp.log10(stop_temp_eV), num=resolution
+  )
+
+  # Convert the grid back to keV to call the existing Mavrin model function
+  electron_temp = electron_temp_ev / 1e3
+
+  # Calculate Lz at each temperature point on the grid
+  Lz_values = calculate_mavrin_2017(
+      T_e=electron_temp,
+      ne_tau=ne_tau,
+      ion_symbol=ion_symbol,
+      variable=MavrinVariable.LZ,
+  )
+
+  # The integrand is Lz * sqrt(Te)
+  Lz_sqrt_Te = Lz_values * jnp.sqrt(electron_temp_ev)
+
+  # Perform trapezoidal integration
+  Lint = jax.scipy.integrate.trapezoid(y=Lz_sqrt_Te, x=electron_temp_ev)
+
+  return Lint
