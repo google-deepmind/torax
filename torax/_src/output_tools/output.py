@@ -562,25 +562,26 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core transport to a dict."""
     xr_dict = {}
+    core_transport = self._stacked_core_transport
 
-    xr_dict[CHI_TURB_I] = self._stacked_core_transport.chi_face_ion
-    xr_dict[CHI_TURB_E] = self._stacked_core_transport.chi_face_el
-    xr_dict[D_TURB_E] = self._stacked_core_transport.d_face_el
-    xr_dict[V_TURB_E] = self._stacked_core_transport.v_face_el
+    xr_dict[CHI_TURB_I] = core_transport.chi_face_ion
+    xr_dict[CHI_TURB_E] = core_transport.chi_face_el
+    xr_dict[D_TURB_E] = core_transport.d_face_el
+    xr_dict[V_TURB_E] = core_transport.v_face_el
 
-    xr_dict[CHI_NEO_I] = self._stacked_core_transport.chi_neo_i
-    xr_dict[CHI_NEO_E] = self._stacked_core_transport.chi_neo_e
-    xr_dict[D_NEO_E] = self._stacked_core_transport.D_neo_e
-    xr_dict[V_NEO_E] = self._stacked_core_transport.V_neo_e
-    xr_dict[V_NEO_WARE_E] = self._stacked_core_transport.V_neo_ware_e
+    xr_dict[CHI_NEO_I] = core_transport.chi_neo_i
+    xr_dict[CHI_NEO_E] = core_transport.chi_neo_e
+    xr_dict[D_NEO_E] = core_transport.D_neo_e
+    xr_dict[V_NEO_E] = core_transport.V_neo_e
+    xr_dict[V_NEO_WARE_E] = core_transport.V_neo_ware_e
 
-    # Save optional BohmGyroBohm attributes if nonzero.
+    # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
     if (
-        np.any(core_transport.chi_face_el_bohm != 0)
-        or np.any(core_transport.chi_face_el_gyrobohm != 0)
-        or np.any(core_transport.chi_face_ion_bohm != 0)
-        or np.any(core_transport.chi_face_ion_gyrobohm != 0)
+        core_transport.chi_face_el_bohm is not None
+        or core_transport.chi_face_el_gyrobohm is not None
+        or core_transport.chi_face_ion_bohm is not None
+        or core_transport.chi_face_ion_gyrobohm is not None
     ):
       xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
       xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm

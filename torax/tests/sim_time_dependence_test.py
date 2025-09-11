@@ -20,6 +20,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
@@ -271,7 +272,12 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
-    return transport_model_lib.TurbulentTransport.zeros(geo)
+    return transport_model_lib.TurbulentTransport(
+        chi_face_ion=jnp.zeros(geo.rho_face.shape),
+        chi_face_el=jnp.zeros(geo.rho_face.shape),
+        d_face_el=jnp.zeros(geo.rho_face.shape),
+        v_face_el=jnp.zeros(geo.rho_face.shape),
+    )
 
   def __hash__(self) -> int:
     return hash(self.__class__.__name__)

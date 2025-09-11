@@ -175,10 +175,17 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     ]
 
     # Combine the transport coefficients from core and pedestal models.
+    def _combine_maybe_none_coeffs(*leaves):
+      non_none_leaves = [leaf for leaf in leaves if leaf is not None]
+      return sum(non_none_leaves) if non_none_leaves else None
+
     combined_transport_coeffs = jax.tree.map(
-        lambda *leaves: sum(leaves),
+        _combine_maybe_none_coeffs,
         *pedestal_coeffs,
         *core_coeffs,
+        # Needed to handle the case where some coefficients are None and others
+        # are not.
+        is_leaf=lambda x: x is None,
     )
 
     return combined_transport_coeffs

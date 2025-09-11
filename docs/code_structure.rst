@@ -61,13 +61,21 @@ model object. This validates the provided config and conforms it into a
 representation that is easy to work with, and has methods for interpolating etc.
 
 Within the simulation we have the concept of a ``runtime parameter``, which is
-the input to the simulation at a specific time step. Currently we have the
-concept of ``static`` and ``dynamic`` runtime parameters. ``Static`` runtime
-parameters are those that do not change during the simulation, such as the main
-ion names and changing these between runs will result in a recompilation of the
-JAX functions. ``Dynamic`` runtime parameters are those that do change during
-the simulation such as Ip. The |config.runtime_params_slice| module contains
-both of these.
+the input to the simulation at a specific time step. These are held in the
+``RuntimeParams`` object and created by the ``RuntimeParamsProvider``.
+These parameters are used to control the simulation and may or may not be
+changed between time steps. The |config.runtime_params_slice| module contains
+the container for these parameters for all the different models.
+
+Because the ``RuntimeParams`` are used across the simulation they have to be
+made to work with JAX compilation. For most parameters this works out the box
+but for some parameters we have marked them as ``static`` according to JAX which
+allows us to use them in standard python control flow. The impacts of this is
+that ``static`` parameters are treated as compile time constants (see
+`jax docs <https://docs.jax.dev/en/latest/jit-compilation.html#marking-arguments-as-static>`_
+for details). These ``static`` parameters cause a recompilation of the JAX
+functions for each new value they are given. An example of a ``static``
+parameter is the ``mode`` of the ``Sources``.
 
 
 orchestration
