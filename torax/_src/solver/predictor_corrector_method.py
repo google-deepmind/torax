@@ -21,6 +21,7 @@ a standard linear solution.
 import functools
 
 import jax
+from torax._src import jax_utils
 from torax._src import state
 from torax._src import xnp
 from torax._src.config import runtime_params_slice
@@ -33,7 +34,7 @@ from torax._src.sources import source_profiles
 
 
 @functools.partial(
-    xnp.jit,
+    jax_utils.jit,
     static_argnames=[
         'coeffs_callback',
     ],

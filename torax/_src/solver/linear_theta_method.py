@@ -16,8 +16,9 @@
 import functools
 
 import jax
+from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
-from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
@@ -32,7 +33,7 @@ class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
   @functools.partial(
-      xnp.jit,
+      jax_utils.jit,
       static_argnames=[
           'self',
           'evolving_names',
@@ -103,9 +104,12 @@ class LinearThetaMethod(solver_lib.Solver):
       inner_solver_iterations = 1
 
     solver_numeric_outputs = state.SolverNumericOutputs(
-        inner_solver_iterations=inner_solver_iterations,
-        outer_solver_iterations=1,
-        solver_error_state=0,  # linear method always works
+        inner_solver_iterations=jnp.array(
+            inner_solver_iterations, jax_utils.get_int_dtype()
+        ),
+        outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
+        # linear method always works
+        solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
     )
 
     return (

@@ -19,6 +19,8 @@ See function docstring for details.
 
 import functools
 from typing import Final
+
+import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
@@ -239,7 +241,7 @@ def newton_raphson_solve_block(
   solver_numeric_outputs = state_module.SolverNumericOutputs(
       inner_solver_iterations=metadata.iterations,
       solver_error_state=metadata.error,
-      outer_solver_iterations=1,
+      outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
   )
 
   return x_new, solver_numeric_outputs
