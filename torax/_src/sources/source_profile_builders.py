@@ -134,7 +134,7 @@ def build_standard_source_profiles(
 ):
   """Updates calculated_source_profiles with standard source profiles."""
 
-  def calculate_source(source_name, source):
+  def calculate_source(source_name: str, source: source_lib.Source):
     source_params = runtime_params.sources[source_name]
     if (explicit == source_params.is_explicit) | calculate_anyway:
       value = source.get_value(

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions for adding post-processed outputs to the simulation state."""
+
 import dataclasses
 from typing import Callable
 
@@ -29,6 +30,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -36,9 +38,8 @@ from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
 
+
 # pylint: disable=invalid-name
-
-
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
 class PostProcessedOutputs:
@@ -144,6 +145,7 @@ class PostProcessedOutputs:
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
+    impurity_species: Dictionary of outputs for each impurity species.
   """
 
   pressure_thermal_i: cell_variable.CellVariable
@@ -224,6 +226,7 @@ class PostProcessedOutputs:
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
+  impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
   # pylint: enable=invalid-name
 
   @classmethod
@@ -321,6 +324,7 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        impurity_species={},
     )
 
   def check_for_errors(self):
@@ -525,6 +529,12 @@ def make_post_processed_outputs(
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
   """
+  # TODO(b/444380540): Remove once aux outputs from sources are exposed.
+  impurity_radiation_outputs = (
+      impurity_radiation.calculate_impurity_species_output(
+          sim_state, runtime_params
+      )
+  )
 
   (
       pressure_thermal_el,
@@ -752,4 +762,5 @@ def make_post_processed_outputs(
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
+      impurity_species=impurity_radiation_outputs,
   )

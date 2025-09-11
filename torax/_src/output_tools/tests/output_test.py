@@ -24,15 +24,19 @@ from jax import tree_util
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
@@ -399,6 +403,42 @@ class StateHistoryTest(parameterized.TestCase):
       data_array_dims = data_array.dims
       if data_array_dims:
         self.assertEqual(data_array_dims[0], output.TIME)
+
+  def test_impurity_radiation_output(self):
+    test_data_dir = paths.test_data_dir()
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(
+            test_data_dir,
+            'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
+        )
+    )
+
+    output_xr, _ = run_simulation.run_simulation(torax_config)
+
+    self.assertIn(
+        impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    self.assertIn(
+        impurity_radiation.DENSITY_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    self.assertIn(
+        impurity_radiation.Z_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    total_impurity_from_species = (
+        output_xr.profiles.radiation_impurity_species.sel(
+            impurity_symbol='Ne'
+        ).values
+        + output_xr.profiles.radiation_impurity_species.sel(
+            impurity_symbol='W'
+        ).values
+    )
+    total_impurity_radiation = np.abs(
+        output_xr.profiles.p_impurity_radiation_e.values
+    )
+    np.testing.assert_allclose(
+        total_impurity_from_species,
+        total_impurity_radiation,
+    )
 
 
 if __name__ == '__main__':
