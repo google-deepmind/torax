@@ -20,14 +20,16 @@ import enum
 import chex
 import jax
 import jax.numpy as jnp
+import jaxtyping as jt
 import numpy as np
-from torax._src import array_typing
+from torax._src import array_typing as at
 from torax._src.torax_pydantic import torax_pydantic
 
 
+@at.jaxtyped
 def face_to_cell(
-    face: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorCell:
+    face: jt.Float[at.Array, 'rhon'],
+) -> jt.Float[at.Array, 'rhon-1']:
   """Infers cell values corresponding to a vector of face values.
 
   Simply a linear interpolation between face values.
@@ -60,6 +62,7 @@ class GeometryType(enum.IntEnum):
 # pylint: disable=invalid-name
 
 
+@at.jaxtyped
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class Geometry:
@@ -179,51 +182,51 @@ class Geometry:
       [:math:`\mathrm{m}`].
   """
 
-  geometry_type: GeometryType
+  geometry_type: GeometryType = dataclasses.field(metadata=dict(static=True))
   torax_mesh: torax_pydantic.Grid1D
-  Phi: array_typing.Array
-  Phi_face: array_typing.Array
-  R_major: array_typing.FloatScalar
-  a_minor: array_typing.FloatScalar
-  B_0: array_typing.FloatScalar
-  volume: array_typing.Array
-  volume_face: array_typing.Array
-  area: array_typing.Array
-  area_face: array_typing.Array
-  vpr: array_typing.Array
-  vpr_face: array_typing.Array
-  spr: array_typing.Array
-  spr_face: array_typing.Array
-  delta_face: array_typing.Array
-  elongation: array_typing.Array
-  elongation_face: array_typing.Array
-  g0: array_typing.Array
-  g0_face: array_typing.Array
-  g1: array_typing.Array
-  g1_face: array_typing.Array
-  g2: array_typing.Array
-  g2_face: array_typing.Array
-  g3: array_typing.Array
-  g3_face: array_typing.Array
-  gm4: array_typing.Array
-  gm4_face: array_typing.Array
-  gm5: array_typing.Array
-  gm5_face: array_typing.Array
-  g2g3_over_rhon: array_typing.Array
-  g2g3_over_rhon_face: array_typing.Array
-  g2g3_over_rhon_hires: array_typing.Array
-  F: array_typing.Array
-  F_face: array_typing.Array
-  F_hires: array_typing.Array
-  R_in: array_typing.Array
-  R_in_face: array_typing.Array
-  R_out: array_typing.Array
-  R_out_face: array_typing.Array
-  spr_hires: array_typing.Array
-  rho_hires_norm: array_typing.Array
-  rho_hires: array_typing.Array
-  Phi_b_dot: array_typing.FloatScalar
-  _z_magnetic_axis: array_typing.FloatScalar | None
+  Phi: jt.Float[at.Array, '*stack rhon']
+  Phi_face: jt.Float[at.Array, '*stack rhon+1']
+  R_major: jt.Float[at.Array | float, '*stack']
+  a_minor: jt.Float[at.Array | float, '*stack']
+  B_0: jt.Float[at.Array, '*stack']
+  volume: jt.Float[at.Array, '*stack rhon']
+  volume_face: jt.Float[at.Array, '*stack rhon+1']
+  area: jt.Float[at.Array, '*stack rhon']
+  area_face: jt.Float[at.Array, '*stack rhon+1']
+  vpr: jt.Float[at.Array, '*stack rhon']
+  vpr_face: jt.Float[at.Array, '*stack rhon+1']
+  spr: jt.Float[at.Array, '*stack rhon']
+  spr_face: jt.Float[at.Array, '*stack rhon+1']
+  delta_face: jt.Float[at.Array, '*stack rhon+1']
+  elongation: jt.Float[at.Array, '*stack rhon']
+  elongation_face: jt.Float[at.Array, '*stack rhon+1']
+  g0: jt.Float[at.Array, '*stack rhon']
+  g0_face: jt.Float[at.Array, '*stack rhon+1']
+  g1: jt.Float[at.Array, '*stack rhon']
+  g1_face: jt.Float[at.Array, '*stack rhon+1']
+  g2: jt.Float[at.Array, '*stack rhon']
+  g2_face: jt.Float[at.Array, '*stack rhon+1']
+  g3: jt.Float[at.Array, '*stack rhon']
+  g3_face: jt.Float[at.Array, '*stack rhon+1']
+  gm4: jt.Float[at.Array, '*stack rhon']
+  gm4_face: jt.Float[at.Array, '*stack rhon+1']
+  gm5: jt.Float[at.Array, '*stack rhon']
+  gm5_face: jt.Float[at.Array, '*stack rhon+1']
+  g2g3_over_rhon: jt.Float[at.Array, '*stack rhon']
+  g2g3_over_rhon_face: jt.Float[at.Array, '*stack rhon+1']
+  g2g3_over_rhon_hires: jt.Float[at.Array, '*stack rhon_hires']
+  F: jt.Float[at.Array, '*stack rhon']
+  F_face: jt.Float[at.Array, '*stack rhon+1']
+  F_hires: jt.Float[at.Array, '*stack rhon_hires']
+  R_in: jt.Float[at.Array, '*stack rhon']
+  R_in_face: jt.Float[at.Array, '*stack rhon+1']
+  R_out: jt.Float[at.Array, '*stack rhon']
+  R_out_face: jt.Float[at.Array, '*stack rhon+1']
+  spr_hires: jt.Float[at.Array, '*stack rhon_hires']
+  rho_hires_norm: jt.Float[at.Array, '*stack rhon_hires']
+  rho_hires: jt.Float[at.Array, '*stack rhon_hires']
+  Phi_b_dot: jt.Float[at.Array | float, '*stack']
+  _z_magnetic_axis: jt.Float[at.Array, '*stack'] | None
 
   def __eq__(self, other: 'Geometry') -> bool:
     try:
@@ -245,27 +248,27 @@ class Geometry:
     )
 
   @property
-  def rho_norm(self) -> array_typing.Array:
+  def rho_norm(self) -> at.Array:
     r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
     return self.torax_mesh.cell_centers
 
   @property
-  def rho_face_norm(self) -> array_typing.Array:
+  def rho_face_norm(self) -> at.Array:
     r"""Normalized toroidal flux coordinate on face grid [dimensionless]."""
     return self.torax_mesh.face_centers
 
   @property
-  def drho_norm(self) -> array_typing.Array:
+  def drho_norm(self) -> jax.Array:
     r"""Grid size for rho_norm [dimensionless]."""
     return jnp.array(self.torax_mesh.dx)
 
   @property
-  def rho_face(self) -> array_typing.Array:
+  def rho_face(self) -> jax.Array:
     r"""Toroidal flux coordinate on face grid :math:`\mathrm{m}`."""
     return self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
-  def rho(self) -> array_typing.Array:
+  def rho(self) -> jax.Array:
     r"""Toroidal flux coordinate on cell grid :math:`\mathrm{m}`.
 
     The toroidal flux coordinate is defined as
@@ -276,49 +279,49 @@ class Geometry:
     return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
-  def r_mid(self) -> array_typing.Array:
+  def r_mid(self) -> at.Array:
     """Midplane radius of the plasma [m], defined as (Rout-Rin)/2."""
     return (self.R_out - self.R_in) / 2
 
   @property
-  def r_mid_face(self) -> array_typing.Array:
+  def r_mid_face(self) -> at.Array:
     """Midplane radius of the plasma on the face grid [m]."""
     return (self.R_out_face - self.R_in_face) / 2
 
   @property
-  def epsilon(self) -> array_typing.Array:
+  def epsilon(self) -> at.Array:
     """Local midplane inverse aspect ratio [dimensionless]."""
     return (self.R_out - self.R_in) / (self.R_out + self.R_in)
 
   @property
-  def epsilon_face(self) -> array_typing.Array:
+  def epsilon_face(self) -> at.Array:
     """Local midplane inverse aspect ratio on the face grid [dimensionless]."""
     return (self.R_out_face - self.R_in_face) / (
         self.R_out_face + self.R_in_face
     )
 
   @property
-  def drho(self) -> array_typing.Array:
+  def drho(self) -> at.Array:
     """Grid size for rho [m]."""
     return self.drho_norm * self.rho_b
 
   @property
-  def rho_b(self) -> array_typing.FloatScalar:
+  def rho_b(self) -> jax.Array:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
     return jnp.sqrt(self.Phi_b / np.pi / self.B_0)
 
   @property
-  def Phi_b(self) -> array_typing.FloatScalar:
+  def Phi_b(self) -> at.Array:
     r"""Toroidal flux at boundary (LCFS) :math:`\mathrm{Wb}`."""
     return self.Phi_face[..., -1]
 
   @property
-  def g1_over_vpr(self) -> array_typing.Array:
+  def g1_over_vpr(self) -> at.Array:
     r"""g1/vpr [:math:`\mathrm{m}`]."""
     return self.g1 / self.vpr
 
   @property
-  def g1_over_vpr2(self) -> array_typing.Array:
+  def g1_over_vpr2(self) -> at.Array:
     r"""g1/vpr**2 [:math:`\mathrm{m}^{-2}`]."""
     return self.g1 / self.vpr**2
 
@@ -366,7 +369,7 @@ class Geometry:
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
     )
 
-  def z_magnetic_axis(self) -> chex.Numeric:
+  def z_magnetic_axis(self) -> at.Array:
     """z position of magnetic axis [m]."""
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
@@ -404,7 +407,7 @@ def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
     field_name = field.name
     field_value = getattr(first_geo, field_name)
     # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):
+    if isinstance(field_value, (at.Array, at.FloatScalar)):
       field_values = [getattr(geo, field_name) for geo in geometries]
       stacked_data[field_name] = np.stack(field_values)
     else:
@@ -416,7 +419,7 @@ def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
 
 def update_geometries_with_Phibdot(
     *,
-    dt: chex.Numeric,
+    dt: at.FloatScalar,
     geo_t: Geometry,
     geo_t_plus_dt: Geometry,
 ) -> tuple[Geometry, Geometry]:
