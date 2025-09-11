@@ -61,7 +61,8 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
   def test_offset_time(
       self,
   ):
-    """Unit tests to check the t_initial optional args offset correctly the time array."""
+    """Unit tests to check the t_initial optional args offset correctly the
+    time array."""
     offset = 100.0
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
@@ -89,7 +90,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     IDS based on the profile_conditions contained in the
     iterhybrid_rampup.py example config (after unit conversions).
     """
-
     # Input core_profiles reading and config loading
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
@@ -123,11 +123,12 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
   ):
     """Test to compare initialized profiles in TORAX with the initial
     core_profiles used to check consistency.
+
     The IMAS netCDF file comes from a METIS ITER baseline scenario time
     slice taken on the flat top. It is useful to have such file with
     profiles having more radial resolution. The IDS grid is made of 21
-    points."""
-
+    points.
+    """
     if rtol is None:
       rtol = self.rtol
     if atol is None:

@@ -26,13 +26,24 @@ import torax
 
 
 def update_dict(old_dict: dict, updates: dict) -> dict:
-  """Recursively modify the fields from the original dict old_dict using the values contained in updates dict.
-  Used to update config dict fields more easily. Use case is to update config dict with output from core_profiles.core_profiles_from_IMAS().
+  """Recursively modify the fields from the original dict old_dict using the
+     values contained in updates dict.
+
+  Used to update config dict fields more easily. Use case is to update
+  config dict with output from core_profiles.core_profiles_from_IMAS().
+  The function will read the keys of the old dict and replace the keys
+  existing in updates. To handle nested dicts, if the value of a key is a
+  dict it will either replace the whole dict if the keys of the dict are
+  floats (profiles type dicts) or recursively call the function with the
+  value dict as old_dict arg if the key is a string.
+
   Args:
-    old_dict: The current dict that needs to be updated.
-    updates: Dict containing the values of the keys that need to be updated in old_dict.
+     old_dict: The current dict that needs to be updated.
+     updates: Dict containing the values of the keys that need to be updated in
+     old_dict.
+
   Returns:
-    New updated copy of the dict.
+      New updated copy of the dict.
   """
   new_dict = old_dict.copy()
   for key, value in updates.items():
@@ -42,9 +53,8 @@ def update_dict(old_dict: dict, updates: dict) -> dict:
         and isinstance(new_dict[key], dict)
     ):
       if all(isinstance(k, float) for k in value.keys()):
-        new_dict[key] = (
-            value  # Needed to replace completely the time slices profiles, instead of keeping the initial ones.
-        )
+        # Replace completely if keys of the dict are numeric
+        new_dict[key] = value
       else:
         new_dict[key] = update_dict(new_dict[key], value)
     else:
@@ -57,19 +67,18 @@ def core_profiles_from_IMAS(
     t_initial: float | None = None,
 ) -> Mapping[str, Mapping[str, Any]]:
   """Converts core_profiles IDS to a dict with the input profiles for the config.
+
   Args:
-  ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
-      contain multiple time slices.
-  read_psi_from_geo: Decides either to read psi from the geometry or from the
-      input core/plasma_profiles IDS. Default value is True meaning that psi is
-      taken from the geometry.
-  t_initial: Initial time used to map the profiles in the dicts. If None the
-      initial time will be the time of the first time slice of the ids. Else
-      all time slices will be shifted by t_initial.
+     ids: IDS object. Can be either core_profiles or plasma_profiles. The IDS can
+        contain multiple time slices.
+     t_initial: Initial time used to map the profiles in the dicts. If None the
+        initial time will be the time of the first time slice of the ids. Else
+        all time slices will be shifted such that the first time slice has
+        time = t_initial.
 
   Returns:
-  Dict containing the updated fields read from the IDS that need to be replaced
-  in the input config using ToraxConfig.update_fields method.
+     Dict containing the updated fields read from the IDS that need to be replaced
+     in the input config using ToraxConfig.update_fields method.
   """
   profiles_1d = ids.profiles_1d
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
@@ -88,7 +97,6 @@ def core_profiles_from_IMAS(
           for rj in range(len(rhon_array[0]))
       }
   }
-  # Will be overwritten if Ip_from_parameters = False, when Ip is given by the equilibrium.
   Ip = {
       time_array[ti]: -1 * ids.global_quantities.ip[ti]
       for ti in range(len(time_array))
@@ -173,11 +181,13 @@ def load_core_profiles_data(
     directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
   """Loads a full IDS for a given uri or path_name and a given ids_name which
-  should be either core_profiles or plasma_profiles. It can load either an
-  IMAS netCDF file with filename as uri and given directory or from an IMASdb
-  by giving the full uri of the IDS and the directory arg will be ignored.
-  Note that loading from an IMASdb requires IMAS-core.
-  The loaded IDS can then be used as input to core_profiles_from_IMAS().
+  should be either core_profiles or plasma_profiles.
+
+  It can load either an IMAS netCDF file with filename as uri and given
+  directory or from an IMASdb by giving the full uri of the IDS and the
+  directory arg will be ignored. Note that loading from an IMASdb requires
+  IMAS-core. The loaded IDS can then be used as input to
+  core_profiles_from_IMAS().
   """
   # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
   # filepath is already provided in the uri.
