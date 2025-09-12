@@ -106,7 +106,7 @@ def _impurity_after_validator(
 
 
 ImpurityMapping: TypeAlias = Annotated[
-    Mapping[str, torax_pydantic.TimeVaryingArray],
+    Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
     pydantic.BeforeValidator(_impurity_before_validator),
     pydantic.AfterValidator(_impurity_after_validator),
 ]

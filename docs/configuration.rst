@@ -525,9 +525,11 @@ effective impurity species. ``Z_eff`` is a required input to constrain the
 total impurity density. Attributes in the ``impurity`` dict are as follows:
 
 *   ``impurity_mode`` (str): Must be ``'fractions'``.
-*   ``species`` (dict[str, **time-varying-scalar**] | str): A single impurity
+*   ``species`` (dict[str, **time-varying-array**] | str): A single impurity
     string (e.g., ``'Ne'``) or a dict of impurities and their fractional
     abundances within the impurity mix (e.g., ``{'Ne': 0.8, 'Ar': 0.2}``).
+    The time-varying-array values must be defined on the same grid and their
+    values across all species must sum to 1.
 *   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
     impurity's average charge (Z).
 *   ``A_override`` (**time-varying-scalar** | None): Optional override for the
@@ -560,8 +562,8 @@ flat and constant Z_eff, and time varying fractional abundances.
         'impurity': {
             'impurity_mode': 'fractions',
             'species': {
-                'Ne': {0.0: 0.1, 5.0: 0.9},
-                'Ar': {0.0: 0.9, 5.0: 0.1},
+                'Ne': {0.0: {0.0: 0.1, 5.0: 0.9}},
+                'Ar': {0.0: {0.0: 0.9, 5.0: 0.1}},
             },
         },
         'Z_eff': 2.0,
@@ -575,7 +577,7 @@ by TORAX, and any user-provided ``Z_eff`` will be ignored (a warning will be
 issued).
 
 *   ``impurity_mode`` (str): Must be ``'n_e_ratios'``.
-*   ``species`` (dict[str, **time-varying-scalar**]): A dict mapping each
+*   ``species`` (dict[str, **time-varying-array**]): A dict mapping each
     impurity symbol to its density ratio with n_e. The values must be
     non-negative.
 *   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
@@ -592,7 +594,7 @@ Example: A plasma with a time-varying Tungsten concentration and constant Neon.
       'impurity': {
           'impurity_mode': 'n_e_ratios',
           'species': {
-              'W': {0.0: 1e-5, 10.0: 1e-4}, # n_W/n_e ramps from 1e-5 to 1e-4
+              'W': {0.0: {0.0: 1e-5, 10.0: 1e-4}}, # n_W/n_e ramps from 1e-5 to 1e-4
               'Ne': 0.01, # n_Ne/n_e is constant
           },
       },
@@ -611,7 +613,7 @@ with the provided `Z_eff` profile and the densities of the other "known"
 impurities.
 
 *   ``impurity_mode`` (str): Must be ``'n_e_ratios_Z_eff'``.
-*   ``species`` (dict[str, **time-varying-scalar** | None]): A dict mapping each
+*   ``species`` (dict[str, **time-varying-array** | None]): A dict mapping each
     impurity symbol to its density ratio with n_e. Exactly one value must be
     `None`. All other values must be non-negative.
 *   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
