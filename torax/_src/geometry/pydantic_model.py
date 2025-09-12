@@ -27,6 +27,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import pydantic_types
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -238,6 +239,8 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    cocos: COCOS coordinate convention of the EQDSK file, specified as an
+      integer in the range 1-8 or 11-18 inclusive.
   """
 
   geometry_type: Annotated[Literal['eqdsk'], TIME_INVARIANT] = 'eqdsk'
@@ -248,6 +251,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  cocos: pydantic_types.COCOSInt
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     return standard_geometry.build_standard_geometry(
