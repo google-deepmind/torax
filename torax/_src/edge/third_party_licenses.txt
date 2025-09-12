@@ -29,3 +29,4 @@ SOFTWARE.
 The relevant content is as follows:
 
 collisional_radiative_models.calculate_L_INT
+extended_lengyel_formulas
