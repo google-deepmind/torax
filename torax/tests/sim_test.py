@@ -124,6 +124,8 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_eqdsk',
           'test_eqdsk.py',
+          _ALL_PROFILES,
+          1e-8,  # due to coincidental near-zero crossing of psi.
       ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE

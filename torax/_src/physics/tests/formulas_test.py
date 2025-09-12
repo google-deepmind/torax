@@ -110,9 +110,9 @@ class FormulasTest(parameterized.TestCase):
     beta_tor, beta_pol, beta_N = formulas.calculate_betas(
         self.core_profiles, self.geo
     )
-    beta_tor_expected = 0.012512999
-    beta_pol_expected = 1.353139877
-    beta_N_expected = 2.110996008
+    beta_tor_expected = 0.012530022
+    beta_pol_expected = 1.3549808
+    beta_N_expected = 2.113868
     np.testing.assert_allclose(beta_tor, beta_tor_expected)
     np.testing.assert_allclose(beta_pol, beta_pol_expected)
     np.testing.assert_allclose(beta_N, beta_N_expected)

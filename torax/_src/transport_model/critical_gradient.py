@@ -67,8 +67,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     :math:`H` is the Heaviside function.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model at the current time.
+      transport_runtime_params: Input runtime parameters for this transport
+        model at the current time.
       runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
@@ -107,7 +107,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
     # gyrobohm diffusivity
     chiGB = (
-        (runtime_params.plasma_composition.main_ion.A_avg * constants.mp) ** 0.5
+        (runtime_params.plasma_composition.main_ion.A_avg * constants.m_amu)
+        ** 0.5
         / (constants.qe * geo.B_0) ** 2
         * (T_i_face * constants.keV2J) ** 1.5
         / geo.R_major
@@ -134,9 +135,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     d_face_el = chi_face_ion / transport_runtime_params.chi_D_ratio
 
     # User-provided convection coefficient
-    v_face_el = (
-        d_face_el * transport_runtime_params.VR_D_ratio / geo.R_major
-    )
+    v_face_el = d_face_el * transport_runtime_params.VR_D_ratio / geo.R_major
 
     return transport_model.TurbulentTransport(
         chi_face_ion=chi_face_ion,

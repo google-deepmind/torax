@@ -72,7 +72,7 @@ def coll_exchange(
 
   log_Qei_coef = (
       jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
+      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.m_amu)
       + jnp.log(2 * constants.CONSTANTS.me)
       + jnp.log(weighted_Z_eff)
       - log_tau_e_Z1

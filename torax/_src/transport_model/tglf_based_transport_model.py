@@ -207,7 +207,7 @@ class TGLFBasedTransportModel(
     # - c_s (ion sound speed)
     #   https://gacode.io/cgyro.html#id10
     m_D_amu = constants.ION_PROPERTIES_DICT['D'].A  # Mass of deuterium [amu]
-    m_D = m_D_amu * constants.CONSTANTS.mp  # Mass of deuterium [kg]
+    m_D = m_D_amu * constants.CONSTANTS.m_amu  # Mass of deuterium [kg]
     c_s = (T_e / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
     r = geo.r_mid_face  # Flux surface centroid minor radius [m]

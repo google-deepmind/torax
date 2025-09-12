@@ -90,7 +90,7 @@ def calculate_chiGB(
   """
   constants = constants_module.CONSTANTS
   return (
-      (reference_mass * constants.mp) ** 0.5
+      (reference_mass * constants.m_amu) ** 0.5
       / (reference_magnetic_field * constants.qe) ** 2
       * (reference_temperature * constants.keV2J) ** 1.5
       / reference_length

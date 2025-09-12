@@ -166,7 +166,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         reference_length=1.0,
     )
     chi_GB_expected = (
-        (1.0 * constants.mp) ** 0.5
+        (1.0 * constants.m_amu) ** 0.5
         / (constants.qe) ** 2
         * (1.0 * constants.keV2J) ** 1.5
     )

@@ -516,7 +516,7 @@ def _calculate_Lmn(
       2
       * core_profiles.T_i.face_value()
       * consts.keV2J
-      / (core_profiles.A_i * consts.mp)
+      / (core_profiles.A_i * consts.m_amu)
   )
   collision_time_i = (core_profiles.q_face * geo.R_major) / (
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
@@ -524,7 +524,7 @@ def _calculate_Lmn(
 
   r_larmor_e = consts.me * thermal_velocity_e / consts.qe
   r_larmor_i = (
-      consts.mp
+      consts.m_amu
       * core_profiles.A_i
       * thermal_velocity_i
       / (consts.qe * core_profiles.Z_i_face)
@@ -553,7 +553,7 @@ def _calculate_Lmn(
       * collision_time_i
       * geo.B_0**2
       / (
-          consts.mp
+          consts.m_amu
           * core_profiles.A_i
           * core_profiles.T_i.face_value()
           * consts.keV2J
