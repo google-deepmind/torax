@@ -30,17 +30,19 @@ import typing_extensions
 class RuntimeParams:
   """Runtime parameters for ElectronDensityRatiosZeff."""
 
-  n_e_ratios: Mapping[str, array_typing.FloatScalar | None]
+  n_e_ratios: Mapping[str, array_typing.FloatVectorCell | None]
+  n_e_ratios_face: Mapping[str, array_typing.FloatVectorFace | None]
   unknown_species: str = dataclasses.field(metadata={'static': True})
   Z_override: array_typing.FloatScalar | None = None
-  A_override: array_typing.FloatScalar | None = None
+  A_override: array_typing.FloatVectorCell | None = None
+  A_override_face: array_typing.FloatVectorFace | None = None
 
 
 class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
   """Impurity content defined by ratios, with one species constrained by Z_eff."""
 
   # Exactly one species must have a None ratio to be constrained by Z_eff.
-  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar | None]
+  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray | None]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
   impurity_mode: Annotated[
@@ -57,6 +59,14 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
     return RuntimeParams(
         n_e_ratios={
             symbol: ratio.get_value(t) if ratio is not None else None
+            for symbol, ratio in self.species.items()
+        },
+        n_e_ratios_face={
+            symbol: (
+                ratio.get_value(t, grid_type='face')
+                if ratio is not None
+                else None
+            )
             for symbol, ratio in self.species.items()
         },
         unknown_species=unknown_species,
