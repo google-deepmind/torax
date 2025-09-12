@@ -56,6 +56,8 @@ class ToraxMuscleRunner:
     t_next_inner = None
     t_next_outer = None
     finished = False
+    equilibrium_interval = None
+    last_equilibrium_call = - np.inf
 
     def __init__(self):
         self.get_instance()
@@ -82,13 +84,16 @@ class ToraxMuscleRunner:
         self.finished = True
 
     def run_prep(self):
+        self.equilibrium_interval = get_setting_optional(
+            self.instance, 'equilibrium_interval', 1e-6
+        )
         self.output_all_timeslices = get_setting_optional(
             self.instance, "output_all_timeslices", False
         )
-        # load config file from path
-        config_module_str = self.instance.get_setting("python_config_module")
         if self.output_all_timeslices:
             self.db_out = DBEntry("imas:memory?path=/db_out/", "w")
+        # load config file from path
+        config_module_str = self.instance.get_setting("python_config_module")
         self.torax_config = build_torax_config_from_file(
             path=config_module_str,
         )
@@ -146,7 +151,8 @@ class ToraxMuscleRunner:
 
     def run_o_i(self):
         self.t_next_inner = self.get_t_next()
-        if self.instance.is_connected("equilibrium_o_i"):
+        if self.instance.is_connected("equilibrium_o_i")
+        and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
             equilibrium_data = torax_state_to_imas_equilibrium(
                 self.sim_state, self.post_processed_outputs
             )
@@ -157,7 +163,8 @@ class ToraxMuscleRunner:
             self.send_ids(equilibrium_data, "equilibrium", "o_i")
 
     def run_s(self):
-        if self.instance.is_connected("equilibrium_s"):
+        if self.instance.is_connected("equilibrium_s")
+        and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
             self.receive_equilibrium(port_name="s")
 
     def run_timestep(self):
@@ -245,6 +252,7 @@ class ToraxMuscleRunner:
         ).build_provider
         # temp extra vars code
         self.extra_var_col.pad_extra_vars()
+        self.last_equilibrium_call = self.t_cur
 
     def receive_ids(self, ids_name, port_name):
         if not self.instance.is_connected(f"{ids_name}_{port_name}"):
