@@ -202,9 +202,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': {
-                'Ne': {0.0: 0.01, 5.0: 0.005},
-                'Ar': {0.0: 0.005, 5.0: 0.01},
-                'W': {0.0: 1e-4, 5.0: 1e-5},
+                'Ne': {0.0: {0: 0.01}, 5.0: {0: 0.005}},
+                'Ar': {0.0: {0: 0.005}, 5.0: {0: 0.01}},
+                'W': {0.0: {0: 1e-4}, 5.0: {0: 1e-5}},
             },
         },
     }

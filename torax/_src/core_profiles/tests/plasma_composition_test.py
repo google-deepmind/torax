@@ -403,12 +403,14 @@ class PlasmaCompositionTest(parameterized.TestCase):
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
     t = 0.0
 
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios_species,
         }
     )
+    torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
     ne_params = pc_ne_ratios.impurity.build_runtime_params(t)
     assert isinstance(
         ne_params, electron_density_ratios.RuntimeParams
