@@ -28,3 +28,9 @@ All associated LICENSE files are also located in this directory.
 
 ITER_hybrid_citrin_equil_cheasedata.mat2cols: LICENSE_PINT
 eqdsk_cocos02.eqdsk: LICENSE_PINT
+
+The IMAS netCDF file ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc was generated
+by extracting p' and ff' profiles for each timeslice from a TORAX simulation with the
+iterhybrid_rampup.py config, and passing the profiles in to CHEASE.
+The LCFS was kept fixed for all timeslices, using the values from
+ITER_hybrid_citrin_equil_cheasedata.mat2cols.
