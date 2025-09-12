@@ -190,6 +190,28 @@ class PsiCalculationsTest(parameterized.TestCase):
     # our circular geometry, but approximates it at low inverse aspect ratio.
     np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
 
+  # pylint: enable=invalid-name
+
+  def test_calc_j_tor_from_j_parallel(self):
+    geo = None
+    j_tor_truth = None
+    j_parallel_truth = None
+    j_tor_from_j_parallel = psi_calculations.j_parallel_to_j_tor(
+        j_parallel_truth, geo
+    )
+    np.testing.assert_allclose(j_tor_from_j_parallel, j_tor_truth, rtol=1e-6)
+
+  def test_calc_j_parallel_from_j_tor(self):
+    geo = None
+    j_tor_truth = None
+    j_parallel_truth = None
+    j_parallel_from_j_tor = psi_calculations.j_tor_to_j_parallel(
+        j_tor_truth, geo
+    )
+    np.testing.assert_allclose(
+        j_parallel_from_j_tor, j_parallel_truth, rtol=1e-6
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -26,6 +26,9 @@ Functions:
     - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
+      constraint on the poloidal flux (psi) from Ip.
+    - j_tor_to_j_parallel: Calculates <j.B>/B0 from j_tor = dI/dS.
+    - j_parallel_to_j_tor: Calculates j_tor = dI/dS from <j.B>/B0.
 """
 import jax
 from jax import numpy as jnp
@@ -338,3 +341,47 @@ def calculate_psidot_from_psi_sources(
   psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
 
   return psidot
+
+
+def j_tor_to_j_parallel(
+    j_tor: array_typing.FloatVector, geo: geometry.Geometry
+) -> array_typing.FloatVector:
+  r"""Calculates <j.B>/B0 from j_tor = dI/dS.
+
+  The relationship is
+
+  .. math::
+
+    \frac{\langle j.B \rangle}{B_0} = \frac{F^2 \langle 1/R^2 \rangle}{B_0^2}
+    \left(\frac{j_{tor}}{2 \pi \rho} \frac{dS}{d\rho} - \frac{1}{2 \pi \rho F}
+    \frac{dF}{d\rho} \int_0^\rho j_{tor} \frac{dS}{d\rho'} d\rho' \right)
+  """
+  dF_drho = jnp.gradient(geo.F, geo.rho)
+  term1 = geo.spr * j_tor / (2 * jnp.pi * geo.rho)
+  term2 = (
+      dF_drho
+      / (2 * jnp.pi * geo.rho * geo.F)
+      * jnp.cumsum(j_tor * geo.spr * geo.drho)
+  )
+  return geo.F**2 * geo.g3 / geo.B_0**2 * (term1 - term2)
+
+
+def j_parallel_to_j_tor(
+    j_parallel: array_typing.FloatVector, geo: geometry.Geometry
+) -> array_typing.FloatVector:
+  r"""Calculates j_tor = dI/dS from <j.B>/B0.
+
+  The relationship is
+
+  .. math::
+    j_\mathrm{tor} = \frac{\partial}{\partial S} (2 \pi B_0^2 F \int_{0}^{\rho'}
+    \frac{\langle j.B \rangle}{B_0 F^3 \langle 1/R^2 \rangle} \rho' d\rho')
+  """
+  I = (
+      2
+      * jnp.pi
+      * geo.B_0**2
+      * geo.F
+      * jnp.cumsum(j_parallel * geo.rho / (geo.F**3 * geo.g3))
+  )
+  return jnp.gradient(I, geo.area)
