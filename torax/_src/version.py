@@ -17,7 +17,7 @@ from typing import Final
 
 # b/404741308: This is currently a closest tag that could be made more
 # fine-grained in the future, eg. based on an actual commit.
-TORAX_VERSION: Final[str] = "1.0.3"
+TORAX_VERSION: Final[str] = "1.1.0"
 
 
 def _version_as_tuple(version_str: str) -> tuple[int, int, int]:
