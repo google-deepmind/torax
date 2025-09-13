@@ -174,14 +174,14 @@ class PsiCalculationsTest(parameterized.TestCase):
 
     # Analytical formula for Bpol in circular geometry (Ampere's law)
     Bpol_bulk = (
-        constants.CONSTANTS.mu0
+        constants.CONSTANTS.mu_0
         * Ip_profile_face[1:]
         / (2 * np.pi * geo.rho_face[1:])
     )
     Bpol = np.concatenate([np.array([0.0]), Bpol_bulk])
 
     expected_Wpol = _trapz(Bpol**2 * geo.vpr_face, geo.rho_face_norm) / (
-        2 * constants.CONSTANTS.mu0
+        2 * constants.CONSTANTS.mu_0
     )
 
     calculated_Wpol = psi_calculations.calc_Wpol(geo, psi_cell_variable)
