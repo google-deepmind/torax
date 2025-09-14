@@ -123,7 +123,7 @@ class SourceProfiles:
   def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
     total = self.bootstrap_current.j_bootstrap
     total += sum(self.psi.values())
-    mu0 = constants.CONSTANTS.mu0
+    mu0 = constants.CONSTANTS.mu_0
     prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B_0 * mu0 * geo.Phi_b / geo.F**2
     return -total * prefactor
 
