@@ -98,7 +98,7 @@ def calc_j_total(
       * geo.g2g3_over_rhon_face
       * geo.F_face
       / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
   Ip_profile = (
@@ -106,7 +106,7 @@ def calc_j_total(
       * geo.g2g3_over_rhon
       * geo.F
       / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
   dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
@@ -219,7 +219,7 @@ def calc_Wpol(
   """Calculates total magnetic energy (Wpol) from poloidal flux (psi)."""
   bpol2 = _calc_bpol2(geo, psi)
   Wpol = _trapz(bpol2 * geo.vpr_face, geo.rho_face_norm) / (
-      2 * constants.CONSTANTS.mu0
+      2 * constants.CONSTANTS.mu_0
   )
   return Wpol
 
@@ -250,7 +250,7 @@ def calc_li3(
   Returns:
     li3: Normalized internal inductance, ITER convention.
   """
-  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * R_major)
+  return 4 * Wpol / (constants.CONSTANTS.mu_0 * Ip_total**2 * R_major)
 
 
 def calc_q95(
@@ -278,7 +278,7 @@ def calculate_psi_grad_constraint_from_Ip(
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
       Ip
-      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
 
@@ -300,7 +300,7 @@ def calculate_psidot_from_psi_sources(
       / resistivity_multiplier
       * geo.rho_norm
       * sigma
-      * consts.mu0
+      * consts.mu_0
       * 16
       * jnp.pi**2
       * geo.Phi_b**2
@@ -314,7 +314,7 @@ def calculate_psidot_from_psi_sources(
   psi_sources += (
       8.0
       * jnp.pi**2
-      * consts.mu0
+      * consts.mu_0
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
