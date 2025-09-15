@@ -103,22 +103,21 @@ def core_profiles_from_IMAS(
   }
   # It is assumed the temperatures and density profiles are defined until rhon=1.
   # Validator will raise an error if rhon[-1]!= 1.
-  T_e = {
-      time_array[ti]: {
-          rhon_array[ti][rj]: profiles_1d[ti].electrons.temperature[rj] / 1e3
-          for rj in range(len(rhon_array[ti]))
-      }
-      for ti in range(len(time_array))
-  }
+  T_e = (
+      time_array,
+      rhon_array,
+      [
+          profiles_1d[ti].electrons.temperature / 1e3
+          for ti in range(len(time_array))
+      ],
+  )
 
   if len(profiles_1d[0].t_i_average) > 0:
-    T_i = {
-        time_array[ti]: {
-            rhon_array[ti][rj]: profiles_1d[ti].t_i_average[rj] / 1e3
-            for rj in range(len(rhon_array[ti]))
-        }
-        for ti in range(len(time_array))
-    }
+    T_i = (
+        time_array,
+        rhon_array,
+        [profiles_1d[ti].t_i_average / 1e3 for ti in range(len(time_array))],
+    )
   else:
     t_i_average = [
         np.mean(
@@ -130,25 +129,20 @@ def core_profiles_from_IMAS(
         )
         for ti in range(len(time_array))
     ]
-    T_i = {
-        time_array[ti]: {
-            rhon_array[ti][rj]: t_i_average[rj] / 1e3
-            for rj in range(len(rhon_array[ti]))
-        }
-        for ti in range(len(time_array))
-    }
+    T_i = (
+        time_array,
+        rhon_array,
+        t_i_average,
+    )
 
-  n_e = {
-      time_array[ti]: {
-          rhon_array[ti][ri]: profiles_1d[ti].electrons.density[ri]
-          for ri in range(len(rhon_array[ti]))
-      }
-      for ti in range(len(time_array))
-  }
+  n_e = (
+      time_array,
+      rhon_array,
+      [profiles_1d[ti].electrons.density for ti in range(len(time_array))],
+  )
 
-  if len(
-      ids.global_quantities.v_loop > 0
-  ):  # Map v_loop_lcfs in case it is used as bc for psi equation.
+  # Map v_loop_lcfs in case it is used as bc for psi equation.
+  if len(ids.global_quantities.v_loop) > 0:  
     v_loop_lcfs = {
         time_array[ti]: ids.global_quantities.v_loop[ti]
         for ti in range(len(time_array))
@@ -180,9 +174,9 @@ def load_core_profiles_data(
     ids_name: str,
     directory: str | None = None,
 ) -> ids_toplevel.IDSToplevel:
-  """Loads a full IDS for a given uri or path_name and a given ids_name which
-  should be either core_profiles or plasma_profiles.
+  """Loads a full IDS for a given uri or path_name and a given ids_name.
 
+  The ids_name should be either core_profiles or plasma_profiles.
   It can load either an IMAS netCDF file with filename as uri and given
   directory or from an IMASdb by giving the full uri of the IDS and the
   directory arg will be ignored. Note that loading from an IMASdb requires
