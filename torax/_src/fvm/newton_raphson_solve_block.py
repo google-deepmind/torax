@@ -23,7 +23,6 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
-from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
@@ -150,56 +149,54 @@ def newton_raphson_solve_block(
   """
   # pyformat: enable
 
-  with xnp._jit_context():  # pylint: disable=protected-access
-    coeffs_old = coeffs_callback(
-        runtime_params_t,
-        geo_t,
-        core_profiles_t,
-        x_old,
-        explicit_source_profiles=explicit_source_profiles,
-        explicit_call=True,
-    )
+  coeffs_old = coeffs_callback(
+      runtime_params_t,
+      geo_t,
+      core_profiles_t,
+      x_old,
+      explicit_source_profiles=explicit_source_profiles,
+      explicit_call=True,
+  )
 
-    match initial_guess_mode:
-      # LINEAR initial guess will provide the initial guess using the predictor-
-      # corrector method if predictor_corrector=True in the solver config
-      case enums.InitialGuessMode.LINEAR:
-        # returns transport coefficients with additional pereverzev terms
-        # if set by runtime_params, needed if stiff transport models
-        # (e.g. qlknn) are used.
-        coeffs_exp_linear = coeffs_callback(
-            runtime_params_t,
-            geo_t,
-            core_profiles_t,
-            x_old,
-            explicit_source_profiles=explicit_source_profiles,
-            allow_pereverzev=True,
-            explicit_call=True,
-        )
+  match initial_guess_mode:
+    # LINEAR initial guess will provide the initial guess using the predictor-
+    # corrector method if predictor_corrector=True in the solver config
+    case enums.InitialGuessMode.LINEAR:
+      # returns transport coefficients with additional pereverzev terms
+      # if set by runtime_params, needed if stiff transport models
+      # (e.g. qlknn) are used.
+      coeffs_exp_linear = coeffs_callback(
+          runtime_params_t,
+          geo_t,
+          core_profiles_t,
+          x_old,
+          explicit_source_profiles=explicit_source_profiles,
+          allow_pereverzev=True,
+          explicit_call=True,
+      )
 
-        # See linear_theta_method.py for comments on the predictor_corrector API
-        x_new_guess = convertors.core_profiles_to_solver_x_tuple(
-            core_profiles_t_plus_dt, evolving_names
-        )
-        init_x_new = predictor_corrector_method.predictor_corrector_method(
-            dt=dt,
-            runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-            geo_t_plus_dt=geo_t_plus_dt,
-            x_old=x_old,
-            x_new_guess=x_new_guess,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            coeffs_exp=coeffs_exp_linear,
-            coeffs_callback=coeffs_callback,
-            explicit_source_profiles=explicit_source_profiles,
-        )
-        init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
-      case enums.InitialGuessMode.X_OLD:
-        init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
-      case _:
-        raise ValueError(
-            'Unknown option for first guess in iterations:'
-            f' {initial_guess_mode}'
-        )
+      # See linear_theta_method.py for comments on the predictor_corrector API
+      x_new_guess = convertors.core_profiles_to_solver_x_tuple(
+          core_profiles_t_plus_dt, evolving_names
+      )
+      init_x_new = predictor_corrector_method.predictor_corrector_method(
+          dt=dt,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+          geo_t_plus_dt=geo_t_plus_dt,
+          x_old=x_old,
+          x_new_guess=x_new_guess,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          coeffs_exp=coeffs_exp_linear,
+          coeffs_callback=coeffs_callback,
+          explicit_source_profiles=explicit_source_profiles,
+      )
+      init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
+    case enums.InitialGuessMode.X_OLD:
+      init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
+    case _:
+      raise ValueError(
+          f'Unknown option for first guess in iterations: {initial_guess_mode}'
+      )
   # Create a residual() function with only one argument: x_new.
   # The other arguments (dt, x_old, etc.) are fixed.
   # Note that core_profiles_t_plus_dt only contains the known quantities at
