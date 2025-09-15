@@ -14,9 +14,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.test_utils import default_configs
@@ -67,7 +67,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    jitted_pedestal_model = jax_utils.jit(pedestal_model)
+    jitted_pedestal_model = jax.jit(pedestal_model)
 
     geo = torax_config.geometry.build_provider(time)
     runtime_params = provider(t=time)
