@@ -145,14 +145,14 @@ def _calculate_pereverzev_flux(
   chi_face_per_ion = (
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
       * runtime_params.solver.chi_pereverzev
   )
 
   chi_face_per_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
       * runtime_params.solver.chi_pereverzev
   )
 
@@ -332,16 +332,16 @@ def _calc_coeffs_full(
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
   # Transient term coefficient vector (has radial dependence through r, n)
-  toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV2J
+  toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
   tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
-  toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV2J
+  toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
   tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / runtime_params.numerics.resistivity_multiplier
       * geo.rho_norm
       * conductivity.sigma
-      * consts.mu0
+      * consts.mu_0
       * 16
       * jnp.pi**2
       * geo.Phi_b**2
@@ -381,13 +381,13 @@ def _calc_coeffs_full(
   full_chi_face_ion = (
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
       * chi_face_ion_total
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
       * chi_face_el_total
   )
 
@@ -445,7 +445,7 @@ def _calc_coeffs_full(
       * geo.rho_face_norm
       * geo.vpr_face
       * core_profiles.n_i.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
   )
 
   v_heat_face_el += (
@@ -456,7 +456,7 @@ def _calc_coeffs_full(
       * geo.rho_face_norm
       * geo.vpr_face
       * core_profiles.n_e.face_value()
-      * consts.keV2J
+      * consts.keV_to_J
   )
 
   # Add Phi_b_dot terms to particle transport convection
@@ -513,7 +513,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * core_profiles.T_i.value
-      * consts.keV2J
+      * consts.keV_to_J
   )
 
   source_e += (
@@ -524,7 +524,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       / geo.Phi_b
       * core_profiles.T_e.value
-      * consts.keV2J
+      * consts.keV_to_J
   )
 
   d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
@@ -543,7 +543,7 @@ def _calc_coeffs_full(
   source_psi += (
       8.0
       * jnp.pi**2
-      * consts.mu0
+      * consts.mu_0
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
