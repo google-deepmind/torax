@@ -167,8 +167,8 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
     chi_GB_expected = (
         (1.0 * constants.m_amu) ** 0.5
-        / (constants.qe) ** 2
-        * (1.0 * constants.keV2J) ** 1.5
+        / (constants.q_e) ** 2
+        * (1.0 * constants.keV_to_J) ** 1.5
     )
     np.testing.assert_allclose(chiGB, chi_GB_expected)
 
@@ -209,7 +209,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
     )
 
-    alpha_expected = np.array([0, 32 * constants.keV2J * 1e20 * constants.mu0])
+    alpha_expected = np.array(
+        [0, 32 * constants.keV_to_J * 1e20 * constants.mu_0]
+    )
     np.testing.assert_allclose(alpha, alpha_expected)
 
   def test_calculate_normalized_logarithmic_gradient(self):
