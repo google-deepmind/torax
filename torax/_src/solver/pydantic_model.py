@@ -15,7 +15,7 @@
 """Pydantic config for Solver."""
 import abc
 import functools
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import pydantic
 from torax._src import physics_models as physics_models_lib
@@ -89,6 +89,15 @@ class LinearThetaMethod(BaseSolver):
   solver_type: Annotated[Literal['linear'], torax_pydantic.JAX_STATIC] = (
       'linear'
   )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def scrub_log_iterations(cls, x: dict[str, Any]) -> dict[str, Any]:
+    # Both of the other solver configs have a `log_iterations` field, to enable
+    # easier switching by users in configs we check for this field and scrub it.
+    if 'log_iterations' in x:
+      del x['log_iterations']
+    return x
 
   @functools.cached_property
   def build_runtime_params(self) -> runtime_params.RuntimeParams:
