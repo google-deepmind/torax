@@ -49,6 +49,7 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
+    first_step: Whether the outputs are from the first step of the simulation.
     pressure_thermal_i: Ion thermal pressure [Pa]
     pressure_thermal_e: Electron thermal pressure [Pa]
     pressure_thermal_total: Total thermal pressure [Pa]
@@ -227,6 +228,7 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
+  first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
   @classmethod
@@ -324,6 +326,7 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        first_step=jnp.array(True),
         impurity_species={},
     )
 
@@ -511,7 +514,7 @@ def _calculate_integrated_sources(
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
     runtime_params: runtime_params_slice.RuntimeParams,
-    previous_post_processed_outputs: PostProcessedOutputs | None = None,
+    previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
 
@@ -520,11 +523,10 @@ def make_post_processed_outputs(
     runtime_params: Runtime parameters slice for the current time step, needed
       for calculating integrated power.
     previous_post_processed_outputs: The previous outputs, used to calculate
-      cumulative quantities. If None, then cumulative quantities are set at the
-      initialized values in sim_state itself. This is used for the first time
-      step of a the simulation. The initialized values are zero for a clean
-      simulation, or the last value of the previous simulation for a restarted
-      simulation.
+      cumulative quantities. If no previous outputs exist, then the
+      `PostProcessedOutputs.zeros()` method can be used to create an object that
+      can be used. In this case cumulative quantities will be set to zero.
+      This is used for the first time step of a simulation.
 
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
@@ -595,36 +597,10 @@ def make_post_processed_outputs(
       + constants.CONSTANTS.eps  # Division guard.
   )
 
-  if previous_post_processed_outputs is not None:
+  def cumulative_values():
     dW_th_dt = (
         W_thermal_tot - previous_post_processed_outputs.W_thermal_total
     ) / sim_state.dt
-  else:
-    dW_th_dt = 0.0
-
-  tauE = W_thermal_tot / Ploss
-
-  tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H89P'
-  )
-  tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H98'
-  )
-  tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H97L'
-  )
-  tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H20'
-  )
-
-  H89P = tauE / tauH89P
-  H98 = tauE / tauH98
-  H97L = tauE / tauH97L
-  H20 = tauE / tauH20
-
-  # Calculate total external (injected) and fusion (generated) energies based on
-  # interval average.
-  if previous_post_processed_outputs is not None:
     # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
     E_cumulative_fusion = (
         previous_post_processed_outputs.E_fusion
@@ -647,11 +623,39 @@ def make_post_processed_outputs(
         )
         / 2.0
     )
-  else:
-    # Used during initiailization. Note for restarted simulations this should
-    # be overwritten by the previous_post_processed_outputs.
+    return dW_th_dt, E_cumulative_fusion, E_cumulative_external
+
+  def first_step_values():
+    dW_th_dt = 0.0
     E_cumulative_fusion = 0.0
     E_cumulative_external = 0.0
+    return dW_th_dt, E_cumulative_fusion, E_cumulative_external
+
+  dW_th_dt, E_cumulative_fusion, E_cumulative_external = jax.lax.cond(
+      previous_post_processed_outputs.first_step,
+      first_step_values,
+      cumulative_values,
+  )
+
+  tauE = W_thermal_tot / Ploss
+
+  tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H89P'
+  )
+  tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H98'
+  )
+  tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H97L'
+  )
+  tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H20'
+  )
+
+  H89P = tauE / tauH89P
+  H98 = tauE / tauH98
+  H97L = tauE / tauH97L
+  H20 = tauE / tauH20
 
   # Calculate q at 95% of the normalized poloidal flux
   q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
@@ -763,4 +767,5 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
+      first_step=jnp.array(False),
   )
