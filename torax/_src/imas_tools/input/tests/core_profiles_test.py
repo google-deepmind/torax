@@ -210,6 +210,53 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         err_msg="psi profile failed",
     )
 
+  def test_imas_plasma_composition(self):
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
+    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
+    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
+    # Indivual ion info empty in the inital IDS so create fake ions data
+    core_profiles_in.profiles_1d[0].ion.resize(3)
+    core_profiles_in.profiles_1d[1].ion.resize(3)
+    core_profiles_in.global_quantities.ion.resize(3)
+    core_profiles_in.profiles_1d[0].ion[0].name = "D"
+    core_profiles_in.profiles_1d[0].ion[0].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[1].ion[0].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[0].ion[1].name = "T"
+    core_profiles_in.profiles_1d[0].ion[1].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[1].ion[1].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[0].ion[2].name = "Ne"
+    core_profiles_in.profiles_1d[1].ion[2].name = "Ne"
+    core_profiles_in.profiles_1d[0].ion[2].density = (
+        core_profiles_in.profiles_1d[0].electrons.density / 100
+    )
+    core_profiles_in.profiles_1d[1].ion[2].density = (
+        core_profiles_in.profiles_1d[1].electrons.density / 100
+    )
+    # Modifying the input config profiles_conditions class
+    core_profiles_data = core_profiles_from_IMAS(
+        core_profiles_in,
+    )
+    config = update_dict(config, core_profiles_data)
+    config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    assert torax_config.plasma_composition.impurity.species["Ne"] is not None
+    np.testing.assert_allclose(
+        torax_config.plasma_composition.impurity.species["Ne"].get_value(0.0),
+        0.01,
+    )
+    np.testing.assert_allclose(
+        torax_config.plasma_composition.main_ion["D"].get_value(0.0), 0.5
+    )
+    np.testing.assert_equal(
+        torax_config.plasma_composition.get_main_ion_names(), ("D", "T")
+    )
+    np.testing.assert_equal(
+        torax_config.plasma_composition.get_impurity_names(), ("Ne",)
+    )
+
 
 if __name__ == "__main__":
   absltest.main()
