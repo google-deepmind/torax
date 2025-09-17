@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ from imas import ids_toplevel
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
 import torax
+from torax._src import constants
 
 
 def update_dict(old_dict: dict, updates: dict) -> dict:
@@ -77,8 +78,9 @@ def core_profiles_from_IMAS(
         time = t_initial.
 
   Returns:
-     Dict containing the updated fields read from the IDS that need to be replaced
-     in the input config using ToraxConfig.update_fields method.
+     Dict containing the updated fields read from the IDS that can be used to
+     replace the ones in the input config using ToraxConfig.update_fields
+     method.
   """
   profiles_1d = ids.profiles_1d
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
@@ -142,7 +144,7 @@ def core_profiles_from_IMAS(
   )
 
   # Map v_loop_lcfs in case it is used as bc for psi equation.
-  if len(ids.global_quantities.v_loop) > 0:  
+  if len(ids.global_quantities.v_loop) > 0:
     v_loop_lcfs = {
         time_array[ti]: ids.global_quantities.v_loop[ti]
         for ti in range(len(time_array))
@@ -150,8 +152,10 @@ def core_profiles_from_IMAS(
   else:
     v_loop_lcfs = [0.0]
 
-  #Plasma composition 
-  plasma_composition_dict = _get_plasma_composition_info(ids, time_array, rhon_array)
+  # Plasma composition
+  plasma_composition_dict = _get_plasma_composition_info(
+      ids, time_array, rhon_array
+  )
 
   return {
       "profile_conditions": {
@@ -168,48 +172,74 @@ def core_profiles_from_IMAS(
           "n_e": n_e,
           "normalize_n_e_to_nbar": False,
           "v_loop_lcfs": v_loop_lcfs,
-      }
-      **plasma_composition_dict
+      },
+      "plasma_composition": {
+          **plasma_composition_dict,
+      },
   }
 
-def _get_plasma_composition_info(ids, time_array, rhon_array):
-  profiles_1d = ids.profiles_1d
-  Z_eff = {
-    time_array[ti]: {
-        rhon_array[ti][ri]: profiles_1d[ti].zeff[ri]
-        for ri in range(len(rhon_array[ti]))
-    }
-    for ti in range(len(time_array))
-    }
-  species = {} #Mapping Impurity_label: ratio analogous to what it needs to
-  # be in the plasma_composition.impurity.species config
-  ne = {
-    time_array[ti]: {
-        rhon_array[ti][ri]: profiles_1d[ti].electrons.density[ri]
-        for ri in range(len(rhon_array[ti]))
-    }
-    for ti in range(len(time_array))
-    }
-  for iion in range(len(profiles_1d.ion)):
-    try: 
-      symbol = profiles_1d.ion[iion].name
-    except AttributeError: #Case ids is plasma_profiles in early DDv4 releases
-      symbol = profiles_1d.ion[iion].label
-    ne_ratio = {
-    time_array[ti]: {
-        rhon_array[ti][ri]: profiles_1d[ti].ion[iion].density[ri] / profiles_1d[ti].electrons.density[ri]
-        for ri in range(len(rhon_array[ti]))
-    }
-    for ti in range(len(time_array))
-    }
-    species[symbol] = ne_ratio 
 
+def _get_plasma_composition_info(
+    ids, time_array, rhon_array
+) -> Mapping[str, Any]:
+  """Returns dict with args for plasma_composition config from a given ids.
+
+  Loading IMAS data for plasma composition should only be used with n_e_ratios
+  and n_e_ratios_Zeff impurity modes, not with fractions mode. The impurity
+  mode needs to be specified explicitly after loading the IMAS data. In case
+  n_e_ratios_Zeff is specified, one impurity ratio must be set to None
+  explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
+  Note that if the ids indivual ions properties are not filled, it will not
+  raise an error and just return an empty dict as main_ion and species.
+  """
+  profiles_1d = ids.profiles_1d
+  Z_eff = (
+      time_array,
+      rhon_array,
+      [profiles_1d[ti].zeff for ti in range(len(time_array))],
+  )
+  species = {}  # Impurity mapping {symbol: n_e_ratio,}.
+  ratios = {}
+  for iion in range(len(profiles_1d[0].ion)):
+    try:
+      symbol = str(profiles_1d[0].ion[iion].name)
+    except (
+        AttributeError
+    ):  # Case ids is plasma_profiles in early DDv4 releases.
+      symbol = str(profiles_1d[0].ion[iion].label)
+    if symbol in constants.ION_PROPERTIES_DICT.keys():
+      # Fill impurities
+      if symbol not in ("D", "T", "H"):
+        n_e_ratio = (
+            time_array,
+            rhon_array,
+            [
+                profiles_1d[ti].ion[iion].density
+                / profiles_1d[ti].electrons.density
+                for ti in range(len(time_array))
+            ],
+        )
+        species[symbol] = n_e_ratio
+      # Fill main ions
+      else:
+        ratios[symbol] = [
+            profiles_1d[ti].ion[iion].density[0]
+            for ti in range(len(time_array))
+        ]
+        # Currently take ratios of central density value, would it be more
+        # accurate to take ratios of volume integrated densities ?
+  total_main_ion_density = np.sum([ratio for ratio in ratios.values()], axis=0)
+  main_ion = {}
+  for symbol, ratio in ratios.items():
+    main_ion[symbol] = (time_array, ratio / total_main_ion_density)
   return {
-    Z_eff: Z_eff,
-    species: species 
-      }
-  
-  
+      "main_ion": main_ion,
+      "Z_eff": Z_eff,
+      "impurity": {
+          "species": species,
+      },
+  }
+
 
 def load_core_profiles_data(
     uri: str,

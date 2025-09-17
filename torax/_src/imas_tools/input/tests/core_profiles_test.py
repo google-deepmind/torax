@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -98,10 +98,15 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
 
     # Modifying the input config profiles_conditions class
-    core_profiles_conditions = core_profiles_from_IMAS(
+    core_profiles_data = core_profiles_from_IMAS(
         core_profiles_in,
     )
-    config = update_dict(config, core_profiles_conditions)
+    imas_profile_conditions = {
+        "profile_conditions": {
+            **core_profiles_data["profile_conditions"],
+        },
+    }
+    config = update_dict(config, imas_profile_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Run Sim
@@ -143,12 +148,17 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
-    core_profiles_conditions = core_profiles_from_IMAS(
+    core_profiles_data = core_profiles_from_IMAS(
         core_profiles_in,
         t_initial=0.0,
     )
+    imas_profile_conditions = {
+        "profile_conditions": {
+            **core_profiles_data["profile_conditions"],
+        },
+    }
     config["geometry"]["n_rho"] = 200
-    config = update_dict(config, core_profiles_conditions)
+    config = update_dict(config, imas_profile_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Init sim from config
