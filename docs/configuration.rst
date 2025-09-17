@@ -2027,8 +2027,7 @@ There are three main methods to load IMAS equilibrium:
 * Using IMAS netCDF file (imas_filepath).
   This is the main method as it does not require the optional dependency to
   imas-core. The path of the file can then be provided in the config to run
-  TORAX with this geometry. An example yaml input file for this function can be
-  found at |example_imas_scenario|.
+  TORAX with this geometry.
 
 * Using IMAS uri (imas_uri).
   This method does require the imas-core dependency. It loads the
@@ -2036,6 +2035,28 @@ There are three main methods to load IMAS equilibrium:
 
 * Providing the equilibium IDS on the fly (equilibrium_object).
   Using this method the IDS can be provided externally or pre-loaded.
+
+Loading Profiles
+^^^^^^^^^^^^^^^^
+
+The initial and optionally prescribed time-dependence of the temperature,
+density and current profiles given in the config can be loaded from any IMAS
+core_profiles or plasma_profiles IDS.
+The IDSs needs to be in Data Dictionary version 4.0.0 or newer.
+The mapping function ``core_profiles_from_imas`` in |core_profiles_imas|
+returns a dictionary with the data from core_profiles to load into the config.
+The IDS needs to be provided on the fly as it can be done for the geometry, 
+i.e. pre-loaded in Python from an IMAS netCDF file or another method and
+directly fed to the function. A more user friendly API will come in a follow-up
+PR with updated doc.
+The IDS object can be loaded from an IMAS netCDF file using the 
+`IMAS-Python library <https://imas-python.readthedocs.io/en/latest/netcdf.html>`_ .
+
+It is then possible to start a simulation by loading a pre-existing config and
+then update it with the dictionary containing the IMAS profiles using the
+function ``update_dict`` from |core_profiles_imas|.
+
+
 
 Config example
 ==============
