@@ -51,30 +51,36 @@ class Constants:
   """Physical constants.
 
   Attributes:
-    keV2J: Conversion factor from keV to J.
+    keV_to_J: Conversion factor from keV to J.
+    eV_to_J: Conversion factor from eV to J.
     m_amu: Atomic mass unit in kg, defined as 1/12 the mass of a C12 nucleus.
-    qe: Elementary charge in Coulombs.
-    me: Electron mass in kg.
-    epsilon0: Vacuum permittivity in Henry per meter (H/m).
-    mu0: Vacuum permeability in N/A^2.
+    q_e: Elementary charge in Coulombs.
+    m_e: Electron mass in kg.
+    epsilon_0: Vacuum permittivity in Henry per meter (H/m).
+    mu_0: Vacuum permeability in N/A^2.
+    k_B: Boltzman constant in J/K.
     eps: A small epsilon value used for numerical stability.
   """
-  keV2J: chex.Numeric
+  keV_to_J: chex.Numeric
+  eV_to_J: chex.Numeric
   m_amu: chex.Numeric
-  qe: chex.Numeric
-  me: chex.Numeric
-  epsilon0: chex.Numeric
-  mu0: chex.Numeric
+  q_e: chex.Numeric
+  m_e: chex.Numeric
+  epsilon_0: chex.Numeric
+  mu_0: chex.Numeric
+  k_B: chex.Numeric
   eps: chex.Numeric
 
 
 CONSTANTS: Final[Constants] = Constants(
-    keV2J=1e3 * 1.602176634e-19,
+    keV_to_J=1e3 * 1.602176634e-19,
+    eV_to_J=1.602176634e-19,
     m_amu=1.6605390666e-27,
-    qe=1.602176634e-19,
-    me=9.1093837e-31,
-    epsilon0=8.85418782e-12,
-    mu0=4 * jnp.pi * 1e-7,
+    q_e=1.602176634e-19,
+    m_e=9.1093837e-31,
+    epsilon_0=8.85418782e-12,
+    mu_0=4 * jnp.pi * 1e-7,
+    k_B=1.380649e-23,
     eps=1e-7,
 )
 
