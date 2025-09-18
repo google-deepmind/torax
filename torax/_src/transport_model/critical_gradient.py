@@ -109,8 +109,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     chiGB = (
         (runtime_params.plasma_composition.main_ion.A_avg * constants.m_amu)
         ** 0.5
-        / (constants.qe * geo.B_0) ** 2
-        * (T_i_face * constants.keV2J) ** 1.5
+        / (constants.q_e * geo.B_0) ** 2
+        * (T_i_face * constants.keV_to_J) ** 1.5
         / geo.R_major
     )
 
