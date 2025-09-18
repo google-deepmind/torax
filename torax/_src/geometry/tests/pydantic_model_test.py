@@ -137,9 +137,7 @@ class PydanticModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -179,6 +177,7 @@ class PydanticModelTest(parameterized.TestCase):
         'Ip_from_parameters': True,
         'last_surface_factor': 0.99,
         'n_surfaces': 100,
+        'cocos': 2,
     }
     pydantic_model.Geometry.from_dict(config)
 
