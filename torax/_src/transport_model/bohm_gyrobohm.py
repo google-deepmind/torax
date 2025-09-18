@@ -92,7 +92,7 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
         geo.r_mid_face
         * core_profiles.q_face**2
         / (
-            constants_module.CONSTANTS.qe
+            constants_module.CONSTANTS.q_e
             * geo.B_0
             * core_profiles.n_e.face_value()
         )
@@ -102,7 +102,7 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
             + jnp.abs(core_profiles.T_e.face_grad())
             * core_profiles.n_e.face_value()
         )
-        * constants_module.CONSTANTS.keV2J
+        * constants_module.CONSTANTS.keV_to_J
         / geo.rho_b
     )
 
