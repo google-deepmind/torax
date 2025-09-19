@@ -188,8 +188,7 @@ class ToraxMuscleRunner:
         if self.output_all_timeslices:
             equilibrium_data = self.db_out.get("equilibrium")
             self.db_out.close()
-
-        self.send_ids(equilibrium_data, "equilibrium", "o_f")
+            self.send_ids(equilibrium_data, "equilibrium", "o_f")
 
     def get_instance(self):
         self.instance = Instance(
