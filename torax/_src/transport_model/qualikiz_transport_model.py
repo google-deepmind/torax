@@ -114,22 +114,48 @@ class QualikizTransportModel(
         geo=geo,
         core_profiles=core_profiles,
     )
-    # Generate nested ordered dict that will correspond to the input
-    # QuaLiKiz json file
-    qualikiz_plan = _extract_qualikiz_plan(
-        qualikiz_inputs=qualikiz_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
+    def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
+      # Generate nested ordered dict that will correspond to the input
+      # QuaLiKiz json file
+      qualikiz_plan = _extract_qualikiz_plan(
+          qualikiz_inputs=qualikiz_inputs,
+          transport=transport_runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      self._run_qualikiz(
+          qualikiz_plan, transport_runtime_params.n_processes
+      )
+      core_transport = self._extract_run_data(
+          qualikiz_inputs=qualikiz_inputs,
+          transport=transport_runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      return core_transport
+
+    face_grid_points = geo.torax_mesh.nx+1
+    result_shape_dtypes = transport_model.TurbulentTransport(
+        chi_face_ion=jax.ShapeDtypeStruct(
+            shape=(face_grid_points,), dtype=jax_utils.get_dtype()
+        ),
+        chi_face_el=jax.ShapeDtypeStruct(
+            shape=(face_grid_points,), dtype=jax_utils.get_dtype()
+        ),
+        d_face_el=jax.ShapeDtypeStruct(
+            shape=(face_grid_points,), dtype=jax_utils.get_dtype()
+        ),
+        v_face_el=jax.ShapeDtypeStruct(
+             shape=(face_grid_points,), dtype=jax_utils.get_dtype()
+        ),
     )
-    self._run_qualikiz(
-        qualikiz_plan, transport_runtime_params.n_processes
-    )
-    core_transport = self._extract_run_data(
-        qualikiz_inputs=qualikiz_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
+    core_transport = jax.pure_callback(
+        callback,
+        result_shape_dtypes,
+        qualikiz_inputs,
+        transport_runtime_params,
+        geo,
+        core_profiles
     )
 
     return core_transport
@@ -229,7 +255,7 @@ def _extract_qualikiz_plan(
     transport: RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-):
+) -> qualikiz_inputtools.QuaLiKizPlan:
   """Converts TORAX parameters to QuaLiKiz input JSON.
 
   Args:
