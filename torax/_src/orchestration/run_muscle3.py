@@ -286,7 +286,7 @@ class ToraxMuscleRunner:
             self.sim_state.core_profiles,
             self.sim_state.core_transport,
         )
-        t_next = sim_state.t + dt
+        t_next = self.sim_state.t + dt
         if t_next > self.t_final:
             t_next = None
         return t_next
