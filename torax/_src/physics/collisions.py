@@ -72,8 +72,8 @@ def coll_exchange(
 
   log_Qei_coef = (
       jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.m_amu)
-      + jnp.log(2 * constants.CONSTANTS.me)
+      + jnp.log(constants.CONSTANTS.keV_to_J / constants.CONSTANTS.m_amu)
+      + jnp.log(2 * constants.CONSTANTS.m_e)
       + jnp.log(weighted_Z_eff)
       - log_tau_e_Z1
   )
@@ -131,8 +131,8 @@ def calc_nu_star(
           epsilon**1.5
           * jnp.sqrt(
               core_profiles.T_e.face_value()
-              * constants.CONSTANTS.keV2J
-              / constants.CONSTANTS.me
+              * constants.CONSTANTS.keV_to_J
+              / constants.CONSTANTS.m_e
           )
       )
   )
@@ -257,8 +257,8 @@ def _calculate_log_tau_e_Z1(
   """
   return (
       jnp.log(12 * jnp.pi**1.5 / (n_e * log_lambda_ei))
-      - 4 * jnp.log(constants.CONSTANTS.qe)
-      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(T_e * constants.CONSTANTS.keV2J)
+      - 4 * jnp.log(constants.CONSTANTS.q_e)
+      + 0.5 * jnp.log(constants.CONSTANTS.m_e / 2.0)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+      + 1.5 * jnp.log(T_e * constants.CONSTANTS.keV_to_J)
   )
