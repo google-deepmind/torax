@@ -80,7 +80,7 @@ def calc_fusion(
   # T is in keV for the formula
 
   # pylint: disable=invalid-name
-  Efus = 17.6 * 1e3 * constants.CONSTANTS.keV2J
+  Efus = 17.6 * 1e3 * constants.CONSTANTS.keV_to_J
   mrc2 = 1124656
   BG = 34.3827
   C1 = 1.17302e-9

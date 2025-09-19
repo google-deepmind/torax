@@ -19,8 +19,8 @@ Radiative Cooling Rates for Low-Z Impurities in Non-coronal Equilibrium State.
 J Fusion Energ (2017) 36:161-172
 DOI 10.1007/s10894-017-0136-z
 """
-
 import enum
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -168,3 +168,40 @@ def calculate_L_INT(
   Lint = jax.scipy.integrate.trapezoid(y=Lz_sqrt_Te, x=electron_temp_ev)
 
   return Lint
+
+
+def calculate_weighted_L_INT(
+    impurity_map: Mapping[str, array_typing.FloatScalar],
+    start_temp: array_typing.FloatScalar,
+    stop_temp: array_typing.FloatScalar,
+    ne_tau: array_typing.FloatScalar,
+    resolution: int = 100,
+) -> array_typing.FloatScalar:
+  """Calculates the weighted integral of Lz * sqrt(Te).
+
+  This function iterates over a dictionary of impurities and their respective
+  weights (or concentrations), calculates the integrated cooling rate (L_INT)
+  for each, and returns the weighted sum.
+
+  Args:
+    impurity_map: A mapping of impurity symbols to their weights/concentrations.
+    start_temp: The starting electron temperature for integration [keV].
+    stop_temp: The stopping electron temperature for integration [keV].
+    ne_tau: The non-coronal parameter [m^-3 s].
+    resolution: The number of points for numerical integration.
+
+  Returns:
+    The total weighted integrated cooling rate [eV^1.5 * m^3 * W].
+  """
+  total_weighted_L_INT = 0.0
+  for ion_symbol, weight in impurity_map.items():
+    L_INT = calculate_L_INT(
+        start_temp=start_temp,
+        stop_temp=stop_temp,
+        ne_tau=ne_tau,
+        ion_symbol=ion_symbol,
+        resolution=resolution,
+    )
+    total_weighted_L_INT += weight * L_INT
+
+  return total_weighted_L_INT
