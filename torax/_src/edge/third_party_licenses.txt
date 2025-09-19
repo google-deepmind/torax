@@ -26,6 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -----------------------------------------------------------------------------
 
-The relevant content is as follows:
+The relevant modules are as follows:
 
-collisional_radiative_models.calculate_L_INT
+collisional_radiative_models
+extended_lengyel_formulas
