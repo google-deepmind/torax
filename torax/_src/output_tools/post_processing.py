@@ -563,17 +563,18 @@ def make_post_processed_outputs(
       sim_state.core_sources,
       runtime_params,
   )
-  # Calculate fusion gain with a zero division guard.
-  # Total energy released per reaction is 5 times the alpha particle energy.
-  Q_fusion = (
-      integrated_sources['P_alpha_total']
-      * 5.0
-      / (
-          integrated_sources['P_external_injected']
-          + integrated_sources['P_ohmic_e']
-          + constants.CONSTANTS.eps
-      )
+  # Total fusion power. Energy released per reaction is 5 times the alpha
+  # particle energy.
+  P_fusion = integrated_sources['P_alpha_total'] * 5
+
+  # Net external power applied to the plasma.
+  P_external_plasma = (
+      integrated_sources['P_external_injected']
+      + integrated_sources['P_ohmic_e']
   )
+
+  # Calculate fusion gain with a zero division guard.
+  Q_fusion = P_fusion / (P_external_plasma + constants.CONSTANTS.eps)
 
   P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
       scaling_laws.calculate_plh_scaling_factor(
@@ -625,16 +626,11 @@ def make_post_processed_outputs(
   # Calculate total external (injected) and fusion (generated) energies based on
   # interval average.
   if previous_post_processed_outputs is not None:
-    # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
+    # See P_fusion comment for factor of 5.
+    P_fusion_previous = 5 * previous_post_processed_outputs.P_fusion
     E_cumulative_fusion = (
         previous_post_processed_outputs.E_fusion
-        + 5.0
-        * sim_state.dt
-        * (
-            integrated_sources['P_alpha_total']
-            + previous_post_processed_outputs.P_alpha_total
-        )
-        / 2.0
+        + sim_state.dt * (P_fusion + P_fusion_previous) / 2.0
     )
     E_cumulative_external = (
         previous_post_processed_outputs.E_aux
