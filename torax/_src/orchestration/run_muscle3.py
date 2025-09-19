@@ -151,8 +151,7 @@ class ToraxMuscleRunner:
 
     def run_o_i(self):
         self.t_next_inner = self.get_t_next()
-        if self.instance.is_connected("equilibrium_o_i")
-        and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
+        if self.instance.is_connected("equilibrium_o_i") and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
             equilibrium_data = torax_state_to_imas_equilibrium(
                 self.sim_state, self.post_processed_outputs
             )
@@ -163,8 +162,7 @@ class ToraxMuscleRunner:
             self.send_ids(equilibrium_data, "equilibrium", "o_i")
 
     def run_s(self):
-        if self.instance.is_connected("equilibrium_s")
-        and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
+        if self.instance.is_connected("equilibrium_s") and (self.t_cur >= self.last_equilibrium_call + self.equilibrium_interval):
             self.receive_equilibrium(port_name="s")
 
     def run_timestep(self):
