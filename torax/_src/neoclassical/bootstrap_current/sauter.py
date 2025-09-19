@@ -18,7 +18,6 @@ from typing import Annotated, Literal
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
@@ -93,7 +92,7 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
     return SauterModel()
 
 
-@jax_utils.jit
+@jax.jit
 def _calculate_bootstrap_current(
     *,
     bootstrap_multiplier: float,

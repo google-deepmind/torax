@@ -22,7 +22,6 @@ import dataclasses
 
 import chex
 import jax
-from torax._src import jax_utils
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
@@ -85,7 +84,7 @@ class RuntimeParamsProvider:
         time_step_calculator=config.time_step_calculator,
     )
 
-  @jax_utils.jit
+  @jax.jit
   def __call__(
       self,
       t: chex.Numeric,
