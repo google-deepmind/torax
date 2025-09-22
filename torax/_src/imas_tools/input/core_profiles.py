@@ -15,15 +15,10 @@
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs and
 converts them into TORAX objects.
 """
-import os
 from typing import Any, Mapping
 
-import imas
-from imas import ids_toplevel
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
-import torax
-from torax._src import constants
 
 
 def update_dict(old_dict: dict, updates: dict) -> dict:
@@ -78,9 +73,8 @@ def core_profiles_from_IMAS(
         time = t_initial.
 
   Returns:
-     Dict containing the updated fields read from the IDS that can be used to
-     replace the ones in the input config using ToraxConfig.update_fields
-     method.
+     Dict containing the updated fields read from the IDS that need to be replaced
+     in the input config using ToraxConfig.update_fields method.
   """
   profiles_1d = ids.profiles_1d
   time_array = [float(profiles_1d[i].time) for i in range(len(profiles_1d))]
@@ -93,16 +87,11 @@ def core_profiles_from_IMAS(
   ]
 
   # profile_conditions
-  psi = {
-      t_initial: {
-          rhon_array[0][rj]: profiles_1d[0].grid.psi[rj]
-          for rj in range(len(rhon_array[0]))
-      }
-  }
-  Ip = {
-      time_array[ti]: -1 * ids.global_quantities.ip[ti]
-      for ti in range(len(time_array))
-  }
+  psi = (np.array(rhon_array[0]), np.array(profiles_1d[0].grid.psi))
+  Ip = (
+      time_array,
+      -1 * ids.global_quantities.ip,
+  )
   # It is assumed the temperatures and density profiles are defined until rhon=1.
   # Validator will raise an error if rhon[-1]!= 1.
   T_e = (
@@ -145,10 +134,10 @@ def core_profiles_from_IMAS(
 
   # Map v_loop_lcfs in case it is used as bc for psi equation.
   if len(ids.global_quantities.v_loop) > 0:
-    v_loop_lcfs = {
-        time_array[ti]: ids.global_quantities.v_loop[ti]
-        for ti in range(len(time_array))
-    }  # TODO: Check the sign for v_loop when it will be used.
+    v_loop_lcfs = (
+        time_array,
+        ids.global_quantities.v_loop,
+    )  # TODO: Check the sign for v_loop when it will be used.
   else:
     v_loop_lcfs = [0.0]
 
@@ -240,27 +229,3 @@ def _get_plasma_composition_info(
       },
   }
 
-
-def load_core_profiles_data(
-    uri: str,
-    ids_name: str,
-    directory: str | None = None,
-) -> ids_toplevel.IDSToplevel:
-  """Loads a full IDS for a given uri or path_name and a given ids_name.
-
-  The ids_name should be either core_profiles or plasma_profiles.
-  It can load either an IMAS netCDF file with filename as uri and given
-  directory or from an IMASdb by giving the full uri of the IDS and the
-  directory arg will be ignored. Note that loading from an IMASdb requires
-  IMAS-core. The loaded IDS can then be used as input to
-  core_profiles_from_IMAS().
-  """
-  # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
-  # filepath is already provided in the uri.
-  if uri[-3:] == ".nc":
-    if directory is None:
-      directory = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    uri = os.path.join(directory, uri)
-  with imas.DBEntry(uri=uri, mode="r") as db:
-    ids = db.get(ids_name=ids_name)
-  return ids

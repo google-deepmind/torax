@@ -14,15 +14,15 @@
 
 
 import os
-from typing import Any, Optional
+from typing import Optional
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import torax
 from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
-from torax._src.imas_tools.input.core_profiles import load_core_profiles_data
 from torax._src.imas_tools.input.core_profiles import update_dict
+from torax._src.imas_tools.input.loader import load_imas_data
 from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
@@ -66,7 +66,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     offset = 100.0
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    ids_in = load_core_profiles_data(path, "core_profiles", dir)
+    ids_in = load_imas_data(path, "core_profiles", dir)
     core_profiles_conditions = core_profiles_from_IMAS(
         ids_in,
         t_initial=offset,
@@ -76,7 +76,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         for i in range(len(ids_in.profiles_1d))
     ])
     t_out = np.array(
-        list(core_profiles_conditions["profile_conditions"]["Ip"].keys())
+        list(core_profiles_conditions["profile_conditions"]["Ip"][0])
     )
     np.testing.assert_equal(t_out, t_in + 100.0)
 
@@ -95,7 +95,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
+    core_profiles_in = load_imas_data(path, "core_profiles", dir)
 
     # Modifying the input config profiles_conditions class
     core_profiles_data = core_profiles_from_IMAS(
@@ -107,6 +107,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         },
     }
     config = update_dict(config, imas_profile_conditions)
+
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Run Sim
@@ -144,7 +145,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
     )
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
+    core_profiles_in = load_imas_data(path, "core_profiles", dir)
     rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
@@ -215,7 +216,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = load_core_profiles_data(path, "core_profiles", dir)
+    core_profiles_in = load_imas_data(path, "core_profiles", dir)
     # Indivual ion info empty in the inital IDS so create fake ions data
     core_profiles_in.profiles_1d[0].ion.resize(3)
     core_profiles_in.profiles_1d[1].ion.resize(3)
