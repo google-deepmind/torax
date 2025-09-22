@@ -19,6 +19,7 @@ from typing import Any, Mapping
 
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
+import torax._src.constants as constants
 
 
 def update_dict(old_dict: dict, updates: dict) -> dict:
@@ -141,6 +142,11 @@ def core_profiles_from_IMAS(
   else:
     v_loop_lcfs = [0.0]
 
+  # Plasma composition
+  plasma_composition_dict = _get_plasma_composition_info(
+      ids, time_array, rhon_array
+  )
+
   return {
       "profile_conditions": {
           "Ip": Ip,
@@ -156,5 +162,70 @@ def core_profiles_from_IMAS(
           "n_e": n_e,
           "normalize_n_e_to_nbar": False,
           "v_loop_lcfs": v_loop_lcfs,
+      },
+      "plasma_composition": {
+          **plasma_composition_dict,
+      },
+  }
+
+
+def _get_plasma_composition_info(
+    ids, time_array, rhon_array
+) -> Mapping[str, Any]:
+  """Returns dict with args for plasma_composition config from a given ids.
+
+  Loading IMAS data for plasma composition should only be used with n_e_ratios
+  and n_e_ratios_Zeff impurity modes, not with fractions mode. The impurity
+  mode needs to be specified explicitly after loading the IMAS data. In case
+  n_e_ratios_Zeff is specified, one impurity ratio must be set to None
+  explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
+  Note that if the ids indivual ions properties are not filled, it will not
+  raise an error and just return an empty dict as main_ion and species.
+  """
+  profiles_1d = ids.profiles_1d
+  Z_eff = (
+      time_array,
+      rhon_array,
+      [profiles_1d[ti].zeff for ti in range(len(time_array))],
+  )
+  species = {}  # Impurity mapping {symbol: n_e_ratio,}.
+  ratios = {}
+  for iion in range(len(profiles_1d[0].ion)):
+    try:
+      symbol = str(profiles_1d[0].ion[iion].name)
+    except (
+        AttributeError
+    ):  # Case ids is plasma_profiles in early DDv4 releases.
+      symbol = str(profiles_1d[0].ion[iion].label)
+    if symbol in constants.ION_PROPERTIES_DICT.keys():
+      # Fill impurities
+      if symbol not in ("D", "T", "H"):
+        n_e_ratio = (
+            time_array,
+            rhon_array,
+            [
+                profiles_1d[ti].ion[iion].density
+                / profiles_1d[ti].electrons.density
+                for ti in range(len(time_array))
+            ],
+        )
+        species[symbol] = n_e_ratio
+      # Fill main ions
+      else:
+        ratios[symbol] = [
+            profiles_1d[ti].ion[iion].density[0]
+            for ti in range(len(time_array))
+        ]
+        # Currently take ratios of central density value, would it be more
+        # accurate to take ratios of volume integrated densities ?
+  total_main_ion_density = np.sum([ratio for ratio in ratios.values()], axis=0)
+  main_ion = {}
+  for symbol, ratio in ratios.items():
+    main_ion[symbol] = (time_array, ratio / total_main_ion_density)
+  return {
+      "main_ion": main_ion,
+      "Z_eff": Z_eff,
+      "impurity": {
+          "species": species,
       },
   }
