@@ -19,6 +19,7 @@ from typing import Any, Mapping
 
 from imas.ids_toplevel import IDSToplevel
 import numpy as np
+import torax._src.constants as constants
 
 
 def update_dict(old_dict: dict, updates: dict) -> dict:
@@ -228,4 +229,3 @@ def _get_plasma_composition_info(
           "species": species,
       },
   }
-
