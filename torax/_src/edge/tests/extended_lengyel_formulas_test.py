@@ -21,6 +21,10 @@ from torax._src.edge import extended_lengyel_formulas
 
 class ExtendedLengyelFormulasTest(absltest.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    self.target_electron_temp = 2.34  # eV
+
   def test_calc_alpha_t(self):
     """Test calc_alpha_t against reference values."""
 
@@ -52,7 +56,51 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         calculated_alpha_t,
         expected_alpha_t,
         rtol=1e-5,
-        err_msg='alpha_t calculation does not match the reference value.',
+    )
+
+  def test_calc_momentum_loss_in_convection_layer(self):
+    # reference value from the first loop of the reference case in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_momentum_loss = 0.5364587873343747
+    calculated_momentum_loss = (
+        extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
+            target_electron_temp=self.target_electron_temp
+        )
+    )
+    np.testing.assert_allclose(
+        calculated_momentum_loss,
+        expected_momentum_loss,
+        rtol=1e-6,
+    )
+
+  def test_calc_density_ratio_in_convection_layer(self):
+    # reference value from the first loop of the reference case in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_density_ratio = 0.6108818435013572
+    calculated_density_ratio = (
+        extended_lengyel_formulas.calc_density_ratio_in_convection_layer(
+            target_electron_temp=self.target_electron_temp
+        )
+    )
+    np.testing.assert_allclose(
+        calculated_density_ratio,
+        expected_density_ratio,
+        rtol=1e-6,
+    )
+
+  def test_calc_power_loss_in_convection_layer(self):
+    # reference value from the first loop of the reference case in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_power_loss = 0.6791789837814304
+    calculated_power_loss = (
+        extended_lengyel_formulas.calc_power_loss_in_convection_layer(
+            target_electron_temp=self.target_electron_temp
+        )
+    )
+    np.testing.assert_allclose(
+        calculated_power_loss,
+        expected_power_loss,
+        rtol=1e-6,
     )
 
 
