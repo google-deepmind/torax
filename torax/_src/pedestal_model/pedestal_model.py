@@ -25,6 +25,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_module
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -47,40 +48,21 @@ class PedestalModelOutput:
   n_e_ped: array_typing.FloatScalar
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class PedestalModel(abc.ABC):
-  """Calculates temperature and density of the pedestal.
-
-  Subclass responsbilities:
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
-
-  def __setattr__(self, attr, value):
-    # pylint: disable=g-doc-args
-    # pylint: disable=g-doc-return-or-yield
-    """Override __setattr__ to make the class (sort of) immutable.
-
-    Note that you can still do obj.field.subfield = x, so it is not true
-    immutability, but this to helps to avoid some careless errors.
-    """
-    if getattr(self, "_frozen", False):
-      raise AttributeError("PedestalModels are immutable.")
-    return super().__setattr__(attr, value)
+  """Calculates temperature and density of the pedestal."""
+  pedestal_policy: pedestal_policy_module.PedestalPolicy
 
   def __call__(
       self,
       runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_policy_state: pedestal_policy_module.PedestalPolicyState,
   ) -> PedestalModelOutput:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
-
     return jax.lax.cond(
-        runtime_params.pedestal.set_pedestal,
+        pedestal_policy_state.use_pedestal,
         lambda: self._call_implementation(runtime_params, geo, core_profiles),
         # Set the pedestal location to infinite to indicate that the pedestal is
         # not present.
@@ -104,15 +86,39 @@ class PedestalModel(abc.ABC):
   ) -> PedestalModelOutput:
     """Calculate the pedestal values."""
 
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Hash function for the pedestal model.
+  def _full_tuple(self):
+    """Returns a description of the object as a tuple including class."""
+    # Create a fully qualified class name string (e.g., 'my_module.MyClass').
+    # This string is stable across interpreter sessions.
+    class_id = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+    return dataclasses.astuple(self) + (class_id,)
 
-    Needed for jax.jit caching to work.
+  def __eq__(self, other):
+    """One __eq__ method for the whole PedestalModel class hierarchy.
+
+    Mostly rely on dataclass behavior for comparison, but also enforce that
+    two objects are not the same if they are not the same class.
+
+    Args:
+      other: The object to compare to.
+
+    Returns:
+      True if the objects are equal, False otherwise.
     """
-    ...
 
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality function for the pedestal model."""
-    ...
+    if not isinstance(other, PedestalModel):
+      return False
+
+    return self._full_tuple() == other._full_tuple()
+
+  def __hash__(self):
+    """One __hash__ method for the whole PedestalModel class hierarchy.
+
+    Mostly rely on dataclass behavior for hashing, but also hash the class
+    id.
+
+    Returns:
+      The hash of the object.
+    """
+
+    return hash(self._full_tuple())
