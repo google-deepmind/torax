@@ -22,16 +22,6 @@ from torax._src.edge import extended_lengyel_formulas
 
 class ExtendedLengyelFormulasTest(absltest.TestCase):
 
-  def setUp(self):
-    super().setUp()
-    self.target_electron_temp = 2.34  # [eV]
-    self.magnetic_field_on_axis = 2.5  # [T]
-    self.plasma_current = 1e6  # [A]
-    self.major_radius = 1.65  # [m]
-    self.minor_radius = 0.5  # [m]
-    self.elongation_psi95 = 1.6  # [dimensionless]
-    self.triangularity_psi95 = 0.3  # [dimensionless]
-
   def test_calc_alpha_t(self):
     """Test calc_alpha_t against reference values."""
 
@@ -40,7 +30,7 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     separatrix_electron_density = 3.3e19  # m^-3
     separatrix_electron_temp = 0.1062293618373  # keV
     cylindrical_safety_factor = 3.7290303009853  # dimensionless
-    major_radius = self.major_radius  # m
+    major_radius = 1.65  # m
     average_ion_mass = 2.0  # [amu]
     Z_eff = 2.329589485913357  # dimensionless
     mean_ion_charge_state = 1.0  # elementary charge
@@ -69,9 +59,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_momentum_loss = 0.5364587873343747
+    target_electron_temp = 2.34  # [eV]
+
     calculated_momentum_loss = (
         extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
-            target_electron_temp=self.target_electron_temp
+            target_electron_temp=target_electron_temp
         )
     )
     np.testing.assert_allclose(
@@ -84,9 +76,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_density_ratio = 0.6108818435013572
+    target_electron_temp = 2.34  # [eV]
+
     calculated_density_ratio = (
         extended_lengyel_formulas.calc_density_ratio_in_convection_layer(
-            target_electron_temp=self.target_electron_temp
+            target_electron_temp=target_electron_temp
         )
     )
     np.testing.assert_allclose(
@@ -99,9 +93,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_power_loss = 0.6791789837814304
+    target_electron_temp = 2.34  # [eV]
+
     calculated_power_loss = (
         extended_lengyel_formulas.calc_power_loss_in_convection_layer(
-            target_electron_temp=self.target_electron_temp
+            target_electron_temp=target_electron_temp
         )
     )
     np.testing.assert_allclose(
@@ -114,9 +110,12 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_value = 1.4031849486079875
+    elongation_psi95 = 1.6  # [dimensionless]
+    triangularity_psi95 = 0.3  # [dimensionless]
+
     calculated_value = extended_lengyel_formulas.calc_shaping_factor(
-        elongation_psi95=self.elongation_psi95,
-        triangularity_psi95=self.triangularity_psi95,
+        elongation_psi95=elongation_psi95,
+        triangularity_psi95=triangularity_psi95,
     )
     np.testing.assert_allclose(
         calculated_value,
@@ -129,11 +128,14 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # https://github.com/cfs-energy/extended-lengyel
     expected_value = 0.2850657717047037
     shaping_factor = 1.4031849486079875
+    minor_radius = 0.5  # [m]
+    plasma_current = 1e6  # [A]
+
     calculated_value = (
         extended_lengyel_formulas.calc_separatrix_average_poloidal_field(
             shaping_factor=shaping_factor,
-            minor_radius=self.minor_radius,
-            plasma_current=self.plasma_current,
+            minor_radius=minor_radius,
+            plasma_current=plasma_current,
         )
     )
     np.testing.assert_allclose(
@@ -148,12 +150,16 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     expected_value = 3.7290303009852943
     shaping_factor = 1.4031849486079875
     separatrix_average_poloidal_field = 0.2850657717047037
+    magnetic_field_on_axis = 2.5  # [T]
+    minor_radius = 0.5  # [m]
+    major_radius = 1.65  # [m]
+
     calculated_value = extended_lengyel_formulas.calc_cylindrical_safety_factor(
-        magnetic_field_on_axis=self.magnetic_field_on_axis,
+        magnetic_field_on_axis=magnetic_field_on_axis,
         separatrix_average_poloidal_field=separatrix_average_poloidal_field,
         shaping_factor=shaping_factor,
-        minor_radius=self.minor_radius,
-        major_radius=self.major_radius,
+        minor_radius=minor_radius,
+        major_radius=major_radius,
     )
     np.testing.assert_allclose(
         calculated_value,
@@ -165,13 +171,20 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_value = 5.14589459864493
+    magnetic_field_on_axis = 2.5  # [T]
+    plasma_current = 1e6  # [A]
+    major_radius = 1.65  # [m]
+    minor_radius = 0.5  # [m]
+    elongation_psi95 = 1.6  # [dimensionless]
+    triangularity_psi95 = 0.3  # [dimensionless]
+
     calculated_value = extended_lengyel_formulas.calc_fieldline_pitch_at_omp(
-        magnetic_field_on_axis=self.magnetic_field_on_axis,
-        plasma_current=self.plasma_current,
-        major_radius=self.major_radius,
-        minor_radius=self.minor_radius,
-        elongation_psi95=self.elongation_psi95,
-        triangularity_psi95=self.triangularity_psi95,
+        magnetic_field_on_axis=magnetic_field_on_axis,
+        plasma_current=plasma_current,
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        elongation_psi95=elongation_psi95,
+        triangularity_psi95=triangularity_psi95,
         ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
     )
     np.testing.assert_allclose(
@@ -184,9 +197,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_value = 6.167578954082415
+    target_electron_temp = 2.34  # [eV]
+
     calculated_value = (
         extended_lengyel_formulas.calc_electron_temp_at_cc_interface(
-            target_electron_temp=self.target_electron_temp
+            target_electron_temp=target_electron_temp
         )
     )
     np.testing.assert_allclose(
@@ -195,6 +210,38 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         rtol=1e-5,
     )
 
+  def test_calculate_q_parallel(self):
+    separatrix_average_poloidal_field = 0.28506577
+    alpha_t = 0.0
+    fieldline_pitch_at_omp = 5.14589459864493
+    separatrix_election_temp = 100.0  # [eV]
+    average_ion_mass = 2.0  # [amu]
+    power_crossing_separatrix = 5.5e6  # [W]
+    major_radius = 1.65  # [m]
+    minor_radius = 0.5  # [m]
+
+    # reference value from the first loop of the reference case in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_q_parallel = 506.193577e6
+
+    calculated_q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+        separatrix_electron_temp=separatrix_election_temp,
+        average_ion_mass=average_ion_mass,
+        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+        alpha_t=alpha_t,
+        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        fraction_of_PSOL_to_divertor=extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR,
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        power_crossing_separatrix=power_crossing_separatrix,
+        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+    )
+
+    np.testing.assert_allclose(
+        calculated_q_parallel,
+        expected_q_parallel,
+        rtol=1e-5,
+    )
 
 if __name__ == '__main__':
   absltest.main()

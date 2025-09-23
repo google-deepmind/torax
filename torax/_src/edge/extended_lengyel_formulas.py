@@ -316,3 +316,91 @@ def calc_alpha_t(
   )
 
   return alpha_t
+
+
+def calculate_q_parallel(
+    *,
+    separatrix_electron_temp: array_typing.FloatScalar,
+    average_ion_mass: array_typing.FloatScalar,
+    separatrix_average_poloidal_field: array_typing.FloatScalar,
+    alpha_t: array_typing.FloatScalar,
+    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
+    fraction_of_PSOL_to_divertor: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    power_crossing_separatrix: array_typing.FloatScalar,
+    fieldline_pitch_at_omp: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the parallel heat flux density.
+
+  For the flux-tube assumed in the extended Lengyel model.
+  See T. Body et al 2025 Nucl. Fusion 65 086002 for details.
+
+
+  Args:
+    separatrix_electron_temp: Electron temperature at the separatrix [eV].
+    average_ion_mass: Average ion mass [amu].
+    separatrix_average_poloidal_field: Average poloidal magnetic field at the
+      separatrix [T].
+    alpha_t: Turbulence broadening parameter alpha_t.
+    ratio_of_upstream_to_average_poloidal_field: Bpol_omp / Bpol_avg.
+    fraction_of_PSOL_to_divertor: Fraction of PSOL to divertor [dimensionless].
+    major_radius: Major radius [m].
+    minor_radius: Minor radius [m].
+    power_crossing_separatrix: Power crossing the separatrix [W].
+    fieldline_pitch_at_omp: Ratio of total to poloidal magnetic field at the
+      outboard midplane.
+
+  Returns:
+    q_parallel: Parallel heat flux density [W/m^2].
+  """
+
+  # Body NF 2025 Eq 53.
+  separatrix_average_rho_s_pol = (
+      jnp.sqrt(
+          separatrix_electron_temp
+          * average_ion_mass
+          * constants.CONSTANTS.m_amu
+          / constants.CONSTANTS.q_e
+      )
+      / separatrix_average_poloidal_field
+  )
+
+  # Body NF 2025 Eq 49.
+  separatrix_average_lambda_q = (
+      0.6 * (1.0 + 2.1 * alpha_t**1.7) * separatrix_average_rho_s_pol
+  )
+
+  # Scaling lambda_q by the scalings of the average and upstream toroidal and
+  # poloidal fields. Body NF 2025 Eq 50.
+  ratio_of_upstream_to_average_lambda_q = (
+      ratio_of_upstream_to_average_poloidal_field
+      * (major_radius + minor_radius)
+      / major_radius
+  )
+  lambda_q_outboard_midplane = (
+      separatrix_average_lambda_q / ratio_of_upstream_to_average_lambda_q
+  )
+
+  # Power reduction for the fraction of power inside one e-folding length
+  # (lambda_q).
+  fraction_of_power_entering_flux_tube = (
+      1.0 - 1.0 / jnp.e
+  ) * fraction_of_PSOL_to_divertor
+
+  # Parallel heat flux at the target.
+  # Body NF 2025 Eq 48.
+
+  q_parallel = (
+      power_crossing_separatrix
+      * fraction_of_power_entering_flux_tube
+      / (
+          2.0
+          * jnp.pi
+          * (major_radius + minor_radius)
+          * lambda_q_outboard_midplane
+      )
+      * fieldline_pitch_at_omp
+  )
+
+  return q_parallel
