@@ -26,7 +26,7 @@ class ExtendedLengyelTest(absltest.TestCase):
   def test_solve_for_c_z(self):
     """Test _solve_for_c_z against reference values."""
 
-    # The plasma state is based on the second inner loop of
+    # The plasma state is based on the second loop of
     # the reference case in https://github.com/cfs-energy/extended-lengyel
 
     sol_state = divertor_sol_1d.DivertorSOL1D(
@@ -50,7 +50,6 @@ class ExtendedLengyelTest(absltest.TestCase):
     )
 
     calculated_c_z, status = extended_lengyel._solve_for_c_z(
-        q_parallel=sol_state.q_parallel,
         divertor_sol_1d=sol_state,
         seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
         fixed_impurity_concentrations={'He': 0.01},
@@ -66,6 +65,86 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=1e-4,
     )
 
+  def test_run_extended_lengyel_model(self):
+    """Integration test for the full extended_lengyel model in inverse mode."""
+    # Input parameters for the test case. Rest are kept as defaults.
+    _RTOL = 5e-4
+    inputs = {
+        'target_electron_temp': 2.34,
+        'power_crossing_separatrix': 5.5e6,
+        'separatrix_electron_density': 3.3e19,
+        'main_ion_charge': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'magnetic_field_on_axis': 2.5,
+        'plasma_current': 1.0e6,
+        'parallel_connection_length': 20.0,
+        'divertor_parallel_length': 5.0,
+        'major_radius': 1.65,
+        'minor_radius': 0.5,
+        'elongation_psi95': 1.6,
+        'triangularity_psi95': 0.3,
+        'average_ion_mass': 2.0,
+    }
+
+    # --- Expected output values ---
+    # Reference values from running the reference case in:
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_outputs = {
+        'neutral_pressure_in_divertor': 1.737773924511501,
+        'alpha_t': 0.35908862950459736,
+        'q_parallel': 3.64822996e8,
+        'heat_flux_perp_to_target': 7.92853e5,
+        'separatrix_electron_temp': 0.1028445648,  # in keV
+        'separatrix_Z_eff': 1.8621973566614212,
+        'impurity_concentrations': {
+            'N': 0.038397305226362526,
+            'Ar': 0.0019198652613181264,
+        },
+    }
+
+    # Run the model
+    outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
+
+    # --- Assertions ---
+    np.testing.assert_allclose(
+        outputs.neutral_pressure_in_divertor,
+        expected_outputs['neutral_pressure_in_divertor'],
+        rtol=_RTOL,
+    )
+    np.testing.assert_allclose(
+        outputs.alpha_t,
+        expected_outputs['alpha_t'],
+        rtol=_RTOL,
+    )
+    np.testing.assert_allclose(
+        outputs.q_parallel,
+        expected_outputs['q_parallel'],
+        rtol=_RTOL,
+    )
+    np.testing.assert_allclose(
+        outputs.heat_flux_perp_to_target,
+        expected_outputs['heat_flux_perp_to_target'],
+        rtol=_RTOL,
+    )
+    np.testing.assert_allclose(
+        outputs.separatrix_electron_temp,
+        expected_outputs['separatrix_electron_temp'],
+        rtol=_RTOL,
+    )
+    np.testing.assert_allclose(
+        outputs.separatrix_Z_eff,
+        expected_outputs['separatrix_Z_eff'],
+        rtol=_RTOL,
+    )
+    for impurity, conc in expected_outputs['impurity_concentrations'].items():
+      self.assertIn(impurity, outputs.impurity_concentrations)
+      np.testing.assert_allclose(
+          outputs.impurity_concentrations[impurity],
+          conc,
+          rtol=_RTOL,
+          err_msg=f'Impurity concentration for {impurity} does not match.',
+      )
 
 if __name__ == '__main__':
   absltest.main()

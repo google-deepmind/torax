@@ -37,8 +37,7 @@ TARGET_RATIO_ION_TO_ELECTRON_TEMP: Final[float] = 1.0
 TARGET_RATIO_ELECTRON_TO_ION_DENSITY: Final[float] = 1.0
 TARGET_MACH_NUMBER: Final[float] = 1.0
 TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
-INNER_LOOP_ITERATIONS: Final[int] = 5
-OUTER_LOOP_ITERATIONS: Final[int] = 5
+ITERATIONS: Final[int] = 25
 
 
 @dataclasses.dataclass(frozen=True)

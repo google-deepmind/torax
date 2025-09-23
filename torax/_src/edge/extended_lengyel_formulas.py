@@ -466,4 +466,4 @@ def calc_Z_eff(
   # Contribution from main ions
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
-  return Z_eff
+  return Z_eff[0]  # Return scalar for extended-lengyel.

@@ -20,13 +20,13 @@ from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
-# pylint: disable=unused-argument
 # pylint: disable=unused-variable
 
 
@@ -64,7 +64,7 @@ class ExtendedLengyelOutputs:
     q_parallel: Parallel heat flux [W/m^2].
     heat_flux_perp_to_target: Heat flux perpendicular to the target [W/m^2].
     separatrix_electron_temp: Electron temperature at the separatrix [keV].
-    separatrix_z_effective: Z_eff at the separatrix.
+    separatrix_Z_eff: Z_eff at the separatrix.
     impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
   """
 
@@ -73,7 +73,7 @@ class ExtendedLengyelOutputs:
   q_parallel: jax.Array
   heat_flux_perp_to_target: jax.Array
   separatrix_electron_temp: jax.Array
-  separatrix_z_effective: jax.Array
+  separatrix_Z_eff: jax.Array
   impurity_concentrations: Mapping[str, jax.Array]
 
 
@@ -88,6 +88,7 @@ def run_extended_lengyel_model(
     separatrix_electron_density: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
+    main_ion_charge: array_typing.FloatScalar,
     magnetic_field_on_axis: array_typing.FloatScalar,
     plasma_current: array_typing.FloatScalar,
     parallel_connection_length: array_typing.FloatScalar,
@@ -127,8 +128,7 @@ def run_extended_lengyel_model(
     ),
     target_mach_number: array_typing.FloatScalar = extended_lengyel_defaults.TARGET_MACH_NUMBER,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    inner_loop_iterations: int = extended_lengyel_defaults.INNER_LOOP_ITERATIONS,
-    outer_loop_iterations: int = extended_lengyel_defaults.OUTER_LOOP_ITERATIONS,
+    iterations: int = extended_lengyel_defaults.ITERATIONS,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -141,6 +141,7 @@ def run_extended_lengyel_model(
       c_z*seed_impurity_weights thus forms an output of the model.
     fixed_impurity_concentrations: Mapping from ion symbol to fixed
       concentrations (n_e_ratio) of background impurities.
+    main_ion_charge: Average main ion charge [dimensionless].
     magnetic_field_on_axis: B-field at magnetic axis [T].
     plasma_current: Plasma current [A].
     parallel_connection_length: From target to outboard midplane [m].
@@ -166,8 +167,7 @@ def run_extended_lengyel_model(
     target_ratio_of_electron_to_ion_density: ne/ni at target.
     target_mach_number: Mach number at target.
     toroidal_flux_expansion: Toroidal flux expansion factor.
-    inner_loop_iterations: Number of iterations for the inner loop.
-    outer_loop_iterations: Number of iterations for the outer loop.
+    iterations: Number of iterations for fixed point solver.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values.
@@ -208,36 +208,183 @@ def run_extended_lengyel_model(
       ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
   )
 
-  # We are considering the flux tube within the extent of the first lambda_q
-  # (e-folding length) into the Scrape Off Layer (SOL) and divertor.
-  fraction_of_power_entering_flux_tube = (
-      1.0 - 1.0 / jnp.e
-  ) * fraction_of_P_SOL_to_divertor
-
   # Initialize values for iterative solver.
-  separatrix_electron_temp = jnp.array(0.1)
-  alpha_t = jnp.array(0.0)
+  alpha_t = 0.0
   divertor_Z_eff = 1.0
+  q_parallel = 1e6  # arbitrary value for initialization.
+  c_z = 0.0
+  separatrix_Z_eff = 1.0
+
+  sol_state = divertor_sol_1d_lib.DivertorSOL1D(
+      q_parallel=q_parallel,
+      divertor_Z_eff=divertor_Z_eff,
+      target_electron_temp=target_electron_temp,
+      SOL_conduction_fraction=SOL_conduction_fraction,
+      divertor_broadening_factor=divertor_broadening_factor,
+      divertor_parallel_length=divertor_parallel_length,
+      parallel_connection_length=parallel_connection_length,
+      separatrix_mach_number=separatrix_mach_number,
+      separatrix_electron_density=separatrix_electron_density,
+      separatrix_ratio_of_ion_to_electron_temp=separatrix_ratio_of_ion_to_electron_temp,
+      separatrix_ratio_of_electron_to_ion_density=separatrix_ratio_of_electron_to_ion_density,
+      average_ion_mass=average_ion_mass,
+      sheath_heat_transmission_factor=sheath_heat_transmission_factor,
+      target_mach_number=target_mach_number,
+      target_ratio_of_ion_to_electron_temp=target_ratio_of_ion_to_electron_temp,
+      target_ratio_of_electron_to_ion_density=target_ratio_of_electron_to_ion_density,
+      toroidal_flux_expansion=toroidal_flux_expansion,
+  )
 
   # --------------------------------------- #
   # -------- 2. Iterative Solver----------- #
   # --------------------------------------- #
 
-  # Not implemented yet.
+  for _ in range(iterations):
+    # Calculate new value of q_parallel modified by alpha_t broadening.
+    q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+        separatrix_electron_temp=sol_state.separatrix_electron_temp,
+        average_ion_mass=average_ion_mass,
+        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+        alpha_t=alpha_t,
+        ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+        fraction_of_PSOL_to_divertor=fraction_of_P_SOL_to_divertor,
+        minor_radius=minor_radius,
+        major_radius=major_radius,
+        power_crossing_separatrix=power_crossing_separatrix,
+        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+    )
+    # Update the DivertorSOL1D state object with the new q_parallel value.
+    sol_state = dataclasses.replace(sol_state, q_parallel=q_parallel)
+
+    # Solve for the impurity concentration required to achieve the target
+    # temperature for a given q_parallel.
+    c_z, _ = _solve_for_c_z(
+        divertor_sol_1d=sol_state,
+        seed_impurity_weights=seed_impurity_weights,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
+        ne_tau=ne_tau,
+    )
+
+    # Update divertor_Z eff with new c_z for the next loop iteration.
+    # Impacts parallel heat conductivity kappa_z.
+    divertor_Z_eff = extended_lengyel_formulas.calc_Z_eff(
+        c_z=c_z,
+        T_e=sol_state.divertor_entrance_electron_temp / 1e3,  # to keV
+        Z_i=main_ion_charge,
+        ne_tau=ne_tau,
+        seed_impurity_weights=seed_impurity_weights,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
+    )
+    sol_state = dataclasses.replace(sol_state, divertor_Z_eff=divertor_Z_eff)
+
+    # Update separatrix_Z eff with new c_z. Impacts alpha_t.
+    separatrix_Z_eff = extended_lengyel_formulas.calc_Z_eff(
+        c_z=c_z,
+        T_e=sol_state.separatrix_electron_temp / 1e3,  # to keV
+        Z_i=main_ion_charge,
+        ne_tau=ne_tau,
+        seed_impurity_weights=seed_impurity_weights,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
+    )
+
+    # Update alpha_t for the next loop iteration. Impacts q_parallel.
+    alpha_t = extended_lengyel_formulas.calc_alpha_t(
+        separatrix_electron_density=separatrix_electron_density,
+        separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+        cylindrical_safety_factor=cylindrical_safety_factor,
+        major_radius=major_radius,
+        average_ion_mass=average_ion_mass,
+        Z_eff=separatrix_Z_eff,
+        mean_ion_charge_state=1.0,
+    )
+
+  # --------------------------------------- #
+  # -------- 3. Post-processing ----------- #
+  # --------------------------------------- #
+
+  impurity_concentrations = {
+      key: value * c_z for key, value in seed_impurity_weights.items()
+  }
+  neutral_pressure_in_divertor, heat_flux_perp_to_target = (
+      _calc_post_processed_outputs(
+          target_electron_temp=target_electron_temp,
+          average_ion_mass=average_ion_mass,
+          parallel_heat_flux_at_target=sol_state.parallel_heat_flux_at_target,
+          sheath_heat_transmission_factor=sheath_heat_transmission_factor,
+          ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
+          wall_temperature=wall_temperature,
+          target_angle_of_incidence=target_angle_of_incidence,
+      )
+  )
 
   return ExtendedLengyelOutputs(
-      neutral_pressure_in_divertor=jnp.array(0.0),
+      neutral_pressure_in_divertor=neutral_pressure_in_divertor,
       alpha_t=alpha_t,
-      q_parallel=jnp.array(0.0),
-      heat_flux_perp_to_target=jnp.array(0.0),
-      separatrix_electron_temp=separatrix_electron_temp,
-      separatrix_z_effective=jnp.array(0.0),
-      impurity_concentrations={},
+      q_parallel=q_parallel,
+      heat_flux_perp_to_target=heat_flux_perp_to_target,
+      separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+      separatrix_Z_eff=separatrix_Z_eff,
+      impurity_concentrations=impurity_concentrations,
   )
+  # pylint: enable=undefined-variable
+
+
+def _calc_post_processed_outputs(
+    target_electron_temp: array_typing.FloatScalar,
+    average_ion_mass: array_typing.FloatScalar,
+    parallel_heat_flux_at_target: array_typing.FloatScalar,
+    sheath_heat_transmission_factor: array_typing.FloatScalar,
+    ratio_of_molecular_to_ion_mass: array_typing.FloatScalar,
+    wall_temperature: array_typing.FloatScalar,
+    target_angle_of_incidence: array_typing.FloatScalar,
+) -> tuple[jax.Array, jax.Array]:
+  """Calculates post-processed outputs for the extended Lengyel model."""
+  sound_speed_at_target = jnp.sqrt(
+      2.0
+      * target_electron_temp
+      * constants.CONSTANTS.eV_to_J
+      / (average_ion_mass * constants.CONSTANTS.m_amu)
+  )
+
+  # From equation 22 of Body NF 2025.
+  electron_density_at_target = parallel_heat_flux_at_target / (
+      sheath_heat_transmission_factor
+      * target_electron_temp
+      * constants.CONSTANTS.eV_to_J
+      * sound_speed_at_target
+  )
+
+  # From equation 57 of Body NF 2025.
+  log_flux_density_to_pascals_factor = 0.5 * (
+      jnp.log(2.0)
+      - jnp.log(jnp.pi)
+      - jnp.log(ratio_of_molecular_to_ion_mass)
+      - jnp.log(average_ion_mass)
+      - jnp.log(constants.CONSTANTS.m_amu)
+      - jnp.log(constants.CONSTANTS.k_B)
+      - jnp.log(wall_temperature)
+  )
+
+  flux_density_to_pascals_factor = jnp.exp(log_flux_density_to_pascals_factor)
+
+  parallel_ion_flux_to_target = (
+      electron_density_at_target * sound_speed_at_target
+  )
+  parallel_to_perp_factor = jnp.sin(jnp.deg2rad(target_angle_of_incidence))
+
+  neutral_pressure_in_divertor = (
+      parallel_ion_flux_to_target
+      * parallel_to_perp_factor
+      / flux_density_to_pascals_factor
+  )
+
+  heat_flux_perp_to_target = (
+      parallel_heat_flux_at_target * parallel_to_perp_factor
+  )
+  return neutral_pressure_in_divertor, heat_flux_perp_to_target
 
 
 def _solve_for_c_z(
-    q_parallel: array_typing.FloatScalar,
     divertor_sol_1d: divertor_sol_1d_lib.DivertorSOL1D,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
@@ -252,7 +399,6 @@ def _solve_for_c_z(
   See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
 
   Args:
-    q_parallel: Upstream parallel heat flux [W/m^2].
     divertor_sol_1d: A DivertorSOL1D object containing the plasma parameters.
     seed_impurity_weights: Mapping from ion symbol to fractional weights of
       seeded impurities.
@@ -316,7 +462,7 @@ def _solve_for_c_z(
   Lf_div_u = Lf_cc_u - Lf_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = q_parallel
+  qu = divertor_sol_1d.q_parallel
   qcc = divertor_sol_1d.parallel_heat_flux_at_cc_interface
   b = divertor_sol_1d.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
