@@ -28,6 +28,8 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_policy import constant
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
@@ -53,6 +55,14 @@ def pre_step(
           edge_outputs=input_state.edge_outputs,
       )
   )
+  if physics_models.pedestal_model:
+    pedestal_policy = physics_models.pedestal_model.pedestal_policy
+  else:
+    # If there's no pedestal, set use_pedestal=False
+    no_pedestal_state = pedestal_policy_lib.PedestalPolicyState(
+        use_pedestal=False
+    )
+    pedestal_policy = constant.Constant(constant_state=no_pedestal_state)
 
   # This only computes sources set to explicit in the
   # SourceConfig.
@@ -117,6 +127,7 @@ def finalize_outputs(
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    pedestal_policy_state: pedestal_policy_lib.PedestalPolicyState,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles, final_source_profiles = (
@@ -141,6 +152,7 @@ def finalize_outputs(
           runtime_params_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,
+          pedestal_policy_state,
       )
   )
 
@@ -149,10 +161,11 @@ def finalize_outputs(
       dt=dt,
       core_profiles=final_core_profiles,
       core_sources=final_source_profiles,
+      edge_outputs=edge_outputs,
       core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
-      edge_outputs=edge_outputs,
+      pedestal_policy_state=pedestal_policy_state,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
