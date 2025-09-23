@@ -65,7 +65,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=1e-4,
     )
 
-  def test_run_extended_lengyel_model(self):
+  def test_run_extended_lengyel_model_inverse_mode(self):
     """Integration test for the full extended_lengyel model in inverse mode."""
     # Input parameters for the test case. Rest are kept as defaults.
     _RTOL = 5e-4
@@ -85,6 +85,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel.ComputationMode.INVERSE,
     }
 
     # --- Expected output values ---
@@ -145,6 +146,60 @@ class ExtendedLengyelTest(absltest.TestCase):
           rtol=_RTOL,
           err_msg=f'Impurity concentration for {impurity} does not match.',
       )
+
+  def test_validate_inputs_for_computation_mode(self):
+    # Test valid FORWARD mode
+    extended_lengyel._validate_inputs_for_computation_mode(
+        computation_mode=extended_lengyel.ComputationMode.FORWARD,
+        target_electron_temp=None,
+        seed_impurity_weights=None,
+    )
+    # Test invalid FORWARD mode
+    with self.assertRaisesRegex(
+        ValueError,
+        'Target electron temperature must not be provided for forward'
+        ' computation.',
+    ):
+      extended_lengyel._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel.ComputationMode.FORWARD,
+          target_electron_temp=10.0,
+          seed_impurity_weights=None,
+      )
+    with self.assertRaisesRegex(
+        ValueError,
+        'Seed impurity weights must not be provided for forward computation.',
+    ):
+      extended_lengyel._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel.ComputationMode.FORWARD,
+          target_electron_temp=None,
+          seed_impurity_weights={'N': 1.0},
+      )
+    # Test valid INVERSE mode
+    extended_lengyel._validate_inputs_for_computation_mode(
+        computation_mode=extended_lengyel.ComputationMode.INVERSE,
+        target_electron_temp=10.0,
+        seed_impurity_weights={'N': 1.0},
+    )
+    # Test invalid INVERSE mode
+    with self.assertRaisesRegex(
+        ValueError,
+        'Target electron temperature must be provided for inverse computation.',
+    ):
+      extended_lengyel._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel.ComputationMode.INVERSE,
+          target_electron_temp=None,
+          seed_impurity_weights={'N': 1.0},
+      )
+    with self.assertRaisesRegex(
+        ValueError,
+        'Seed impurity weights must be provided for inverse computation.',
+    ):
+      extended_lengyel._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel.ComputationMode.INVERSE,
+          target_electron_temp=10.0,
+          seed_impurity_weights=None,
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

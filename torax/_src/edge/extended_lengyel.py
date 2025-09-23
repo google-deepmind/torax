@@ -53,12 +53,25 @@ class SolveCzStatus(enum.IntEnum):
   Q_DIV_SQUARED_NEGATIVE = 1
 
 
+class ComputationMode(enum.StrEnum):
+  """Computation modes for the extended Lengyel model.
+
+  Attributes:
+    FORWARD: Calculate impurity concentrations for a given target temperature.
+    INVERSE: Calculate target temperature for a given impurity concentration.
+  """
+
+  FORWARD = 'forward'
+  INVERSE = 'inverse'
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class ExtendedLengyelOutputs:
   """Outputs from the extended Lengyel model.
 
   Attributes:
+    target_electron_temp: Electron temperature at sheath entrance [eV].
     neutral_pressure_in_divertor: Neutral pressure in the divertor [Pa].
     alpha_t: Turbulence broadenign parameter alpha_t.
     q_parallel: Parallel heat flux [W/m^2].
@@ -68,6 +81,7 @@ class ExtendedLengyelOutputs:
     impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
   """
 
+  target_electron_temp: jax.Array
   neutral_pressure_in_divertor: jax.Array
   alpha_t: jax.Array
   q_parallel: jax.Array
@@ -83,10 +97,8 @@ class ExtendedLengyelOutputs:
 #    better readability.
 def run_extended_lengyel_model(
     *,
-    target_electron_temp: array_typing.FloatScalar,
     power_crossing_separatrix: array_typing.FloatScalar,
     separatrix_electron_density: array_typing.FloatScalar,
-    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
     main_ion_charge: array_typing.FloatScalar,
     magnetic_field_on_axis: array_typing.FloatScalar,
@@ -98,6 +110,9 @@ def run_extended_lengyel_model(
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
     average_ion_mass: array_typing.FloatScalar,
+    target_electron_temp: array_typing.FloatScalar | None = None,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None = None,
+    computation_mode: ComputationMode = ComputationMode.FORWARD,
     divertor_broadening_factor: array_typing.FloatScalar = (
         extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
     ),
@@ -133,12 +148,8 @@ def run_extended_lengyel_model(
   """Calculate the impurity concentration required for detachment.
 
   Args:
-    target_electron_temp: Desired electron temperature at sheath entrance [eV].
     power_crossing_separatrix: Power crossing separatrix [W].
     separatrix_electron_density: Electron density at outboard midplane [m^-3].
-    seed_impurity_weights: Mapping from ion symbol to fractions of seeded
-      impurities. Total impurity n_e_ratio (c_z) is calculated by the model.
-      c_z*seed_impurity_weights thus forms an output of the model.
     fixed_impurity_concentrations: Mapping from ion symbol to fixed
       concentrations (n_e_ratio) of background impurities.
     main_ion_charge: Average main ion charge [dimensionless].
@@ -151,6 +162,14 @@ def run_extended_lengyel_model(
     elongation_psi95: Elongation at psiN=0.95.
     triangularity_psi95: Triangularity at psiN=0.95.
     average_ion_mass: Average main-ion mass [amu].
+    target_electron_temp: For inverse mode, desired electron temperature at
+      sheath entrance [eV].
+    seed_impurity_weights: For inverse mode, Mapping from ion symbol to
+      fractions of seeded impurities. Total impurity n_e_ratio (c_z) is
+      calculated by the model. c_z*seed_impurity_weights thus forms an output of
+      the model.
+    computation_mode: The computation mode for the model. See ComputationMode
+      for details.
     divertor_broadening_factor: lambda_INT / lambda_q.
     ratio_of_upstream_to_average_poloidal_field: Bpol_omp / Bpol_avg.
     ne_tau: Product of electron density and ion residence time [s m^-3].
@@ -177,6 +196,10 @@ def run_extended_lengyel_model(
   # --------------------------------------- #
   # ---------- 1. Pre-processing ---------- #
   # --------------------------------------- #
+
+  _validate_inputs_for_computation_mode(
+      computation_mode, target_electron_temp, seed_impurity_weights
+  )
 
   shaping_factor = extended_lengyel_formulas.calc_shaping_factor(
       elongation_psi95=elongation_psi95,
@@ -302,6 +325,7 @@ def run_extended_lengyel_model(
   # -------- 3. Post-processing ----------- #
   # --------------------------------------- #
 
+  assert(isinstance(seed_impurity_weights, dict))
   impurity_concentrations = {
       key: value * c_z for key, value in seed_impurity_weights.items()
   }
@@ -318,6 +342,7 @@ def run_extended_lengyel_model(
   )
 
   return ExtendedLengyelOutputs(
+      target_electron_temp=target_electron_temp,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
       alpha_t=alpha_t,
       q_parallel=q_parallel,
@@ -327,6 +352,36 @@ def run_extended_lengyel_model(
       impurity_concentrations=impurity_concentrations,
   )
   # pylint: enable=undefined-variable
+
+
+def _validate_inputs_for_computation_mode(
+    computation_mode: ComputationMode,
+    target_electron_temp: array_typing.FloatScalar | None,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None,
+):
+  """Validates inputs based on the specified computation mode."""
+  if computation_mode == ComputationMode.FORWARD:
+    if target_electron_temp is not None:
+      raise ValueError(
+          'Target electron temperature must not be provided for forward'
+          ' computation.'
+      )
+    if seed_impurity_weights is not None:
+      raise ValueError(
+          'Seed impurity weights must not be provided for forward computation.'
+      )
+  elif computation_mode == ComputationMode.INVERSE:
+    if target_electron_temp is None:
+      raise ValueError(
+          'Target electron temperature must be provided for inverse'
+          ' computation.'
+      )
+    if seed_impurity_weights is None:
+      raise ValueError(
+          'Seed impurity weights must be provided for inverse computation.'
+      )
+  else:
+    raise ValueError(f'Unknown computation mode: {computation_mode}')
 
 
 def _calc_post_processed_outputs(
