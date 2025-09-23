@@ -18,6 +18,9 @@ import dataclasses
 from typing import Final, Mapping
 import immutabledict
 
+KAPPA_E_0: Final[float] = (
+    2390.0  # Spitzer parallel conductivity prefactor [W/ m (m * ev**3.5)]
+)
 DIVERTOR_BROADENING_FACTOR: Final[float] = 3.0
 TARGET_ANGLE_OF_INCIDENCE: Final[float] = 3.0
 RATIO_UPSTREAM_TO_AVG_BPOL: Final[float] = 4.0 / 3.0

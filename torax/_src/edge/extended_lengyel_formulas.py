@@ -13,6 +13,7 @@
 
 """Helper physics formulas for the extended Lengyel model."""
 
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -24,7 +25,7 @@ from torax._src.edge import extended_lengyel_defaults
 def _temperature_fit_function(
     target_electron_temp: array_typing.FloatScalar,
     params: extended_lengyel_defaults._FitParams,
-) -> array_typing.FloatScalar:
+) -> jax.Array:
   """A general form for divertor loss functions in terms of target temperature.
 
   Equation 33 from Stangeby, 2018, PPCF 60 044022.
@@ -43,7 +44,7 @@ def _temperature_fit_function(
 
 def calc_momentum_loss_in_convection_layer(
     target_electron_temp: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
+) -> jax.Array:
   """Calculates the momentum loss in the convection layer."""
   return _temperature_fit_function(
       target_electron_temp,
@@ -53,8 +54,8 @@ def calc_momentum_loss_in_convection_layer(
 
 def calc_density_ratio_in_convection_layer(
     target_electron_temp: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
-  """Calculates the density ratio in the convection layer."""
+) -> jax.Array:
+  """Calculates the ratio n_e_target/n_e_cc in the convection layer."""
   return _temperature_fit_function(
       target_electron_temp,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['density_ratio'],
@@ -63,12 +64,172 @@ def calc_density_ratio_in_convection_layer(
 
 def calc_power_loss_in_convection_layer(
     target_electron_temp: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
+) -> jax.Array:
   """Calculates the power loss in the convection layer."""
   return _temperature_fit_function(
       target_electron_temp,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['power_loss'],
   )
+
+
+def calc_shaping_factor(
+    elongation_psi95: array_typing.FloatScalar,
+    triangularity_psi95: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the separatrix flux surface shaping factor.
+
+  Used for calculations related to magnetic geometry at the separatrix.
+
+  See Equation 56 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+
+  Args:
+    elongation_psi95: Elongation at psiN=0.95.
+    triangularity_psi95: Triangularity at psiN=0.95.
+
+  Returns:
+    The flux surface shaping factor.
+  """
+  return jnp.sqrt(
+      (
+          1.0
+          + elongation_psi95**2
+          * (1.0 + 2.0 * triangularity_psi95**2 - 1.2 * triangularity_psi95**3)
+      )
+      / 2.0
+  )
+
+
+def calc_separatrix_average_poloidal_field(
+    plasma_current: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    shaping_factor: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the average poloidal field at the separatrix.
+
+  Used for calculations related to magnetic geometry at the separatrix.
+
+  See equation 52 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+
+  Args:
+    plasma_current: Plasma current [A].
+    minor_radius: Minor radius from magnetic axis to outboard midplane [m].
+    shaping_factor: Flux surface shaping factor.
+
+  Returns:
+    The average poloidal field at the separatrix [T].
+  """
+  poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
+  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference
+
+
+def calc_cylindrical_safety_factor(
+    magnetic_field_on_axis: array_typing.FloatScalar,
+    separatrix_average_poloidal_field: array_typing.FloatScalar,
+    shaping_factor: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the cylindrical safety factor.
+
+  The cylindrical safety factor is a characteristic safety-factor value at the
+  plasma edge, used as part of the determination of turbulence drive for the
+  turbulence broadening parameter alpha_t.
+
+  See equation 55 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+
+  Args:
+    magnetic_field_on_axis: B-field at magnetic axis [T].
+    separatrix_average_poloidal_field: Average poloidal magnetic field at the
+      separatrix [T].
+    shaping_factor: Flux surface shaping factor.
+    minor_radius: Minor radius from magnetic axis to outboard midplane [m].
+    major_radius: Major radius of magnetic axis [m].
+
+  Returns:
+    The cylindrical safety factor.
+  """
+  return jnp.array(
+      magnetic_field_on_axis
+      / separatrix_average_poloidal_field
+      * minor_radius
+      / major_radius
+      * shaping_factor
+  )
+
+
+def calc_fieldline_pitch_at_omp(
+    magnetic_field_on_axis: array_typing.FloatScalar,
+    plasma_current: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    elongation_psi95: array_typing.FloatScalar,
+    triangularity_psi95: array_typing.FloatScalar,
+    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the fieldline pitch at the outboard midplane."""
+  consts = constants.CONSTANTS
+
+  # Calibrated shape factor for calculating flux surface circumference.
+  # Body NF 2025 Eq 56.
+  shaping_factor = jnp.sqrt(
+      (
+          1.0
+          + elongation_psi95**2
+          * (1.0 + 2.0 * triangularity_psi95**2 - 1.2 * triangularity_psi95**3)
+      )
+      / 2.0
+  )
+
+  # Body NF 2025 Eq 52. Note the paper equation has a typo. Using minor radius
+  # is correct.
+  poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
+  separatrix_average_poloidal_field = (
+      consts.mu_0 * plasma_current / poloidal_circumference
+  )
+
+  upstream_poloidal_field = (
+      ratio_of_upstream_to_average_poloidal_field
+      * separatrix_average_poloidal_field
+  )
+
+  # Using 1/R dependence of toroidal field.
+  upstream_toroidal_field = magnetic_field_on_axis * (
+      major_radius / (major_radius + minor_radius)
+  )
+
+  # Calculate pitch at omp as ratio of total to poloidal field.
+  return (
+      jnp.sqrt(upstream_toroidal_field**2 + upstream_poloidal_field**2)
+      / upstream_poloidal_field
+  )
+
+
+def calc_electron_temp_at_cc_interface(
+    target_electron_temp: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the electron temperature at the convection/conduction interface.
+
+  This function determines the electron temperature at the boundary between the
+  convection-dominated sheath/divertor region and the upstream conduction layer.
+  It uses empirical fit functions for momentum and density loss within the
+  convection layer, which depend on the electron temperature at the divertor
+  target. The formula relates the interface temperature to the target
+  temperature modified by these loss factors.
+
+  See section 4 of T. Body et al 2025 Nucl. Fusion 65 086002 for details.
+
+  Args:
+    target_electron_temp: Electron temperature at the divertor target [eV].
+
+  Returns:
+    The electron temperature at the convection/conduction interface [eV].
+  """
+  momentum_loss = calc_momentum_loss_in_convection_layer(target_electron_temp)
+  density_loss = calc_density_ratio_in_convection_layer(target_electron_temp)
+  return target_electron_temp / ((1.0 - momentum_loss) / (2.0 * density_loss))
 
 
 def calc_alpha_t(

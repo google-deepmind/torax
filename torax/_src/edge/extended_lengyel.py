@@ -16,11 +16,15 @@
 
 import dataclasses
 from typing import Mapping
-
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge import extended_lengyel_formulas
+
+# pylint: disable=invalid-name
+# pylint: disable=unused-argument
+# pylint: disable=unused-variable
 
 
 @jax.tree_util.register_dataclass
@@ -33,6 +37,7 @@ class ExtendedLengyelOutputs:
     alpha_t: Turbulence broadenign parameter alpha_t.
     q_parallel: Parallel heat flux [W/m^2].
     heat_flux_perp_to_target: Heat flux perpendicular to the target [W/m^2].
+    separatrix_electron_temp: Electron temperature at the separatrix [keV].
     separatrix_z_effective: Z_eff at the separatrix.
     impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
   """
@@ -41,12 +46,9 @@ class ExtendedLengyelOutputs:
   alpha_t: jax.Array
   q_parallel: jax.Array
   heat_flux_perp_to_target: jax.Array
+  separatrix_electron_temp: jax.Array
   separatrix_z_effective: jax.Array
   impurity_concentrations: Mapping[str, jax.Array]
-
-
-# pylint: disable=invalid-name
-# pylint: disable=unused-argument
 
 
 # TODO(b/446608829)
@@ -144,12 +146,71 @@ def run_extended_lengyel_model(
   Returns:
     An ExtendedLengyelOutputs object with the calculated values.
   """
-  # Function body to be implemented. Dummy return values for now.
+  # WIP function body. Dummy return values for now.
+
+  # --------------------------------------- #
+  # ---------- 1. Pre-processing ---------- #
+  # --------------------------------------- #
+
+  shaping_factor = extended_lengyel_formulas.calc_shaping_factor(
+      elongation_psi95=elongation_psi95,
+      triangularity_psi95=triangularity_psi95,
+  )
+  separatrix_average_poloidal_field = (
+      extended_lengyel_formulas.calc_separatrix_average_poloidal_field(
+          plasma_current=plasma_current,
+          minor_radius=minor_radius,
+          shaping_factor=shaping_factor,
+      )
+  )
+  cylindrical_safety_factor = (
+      extended_lengyel_formulas.calc_cylindrical_safety_factor(
+          magnetic_field_on_axis=magnetic_field_on_axis,
+          separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+          shaping_factor=shaping_factor,
+          minor_radius=minor_radius,
+          major_radius=major_radius,
+      )
+  )
+  fieldline_pitch_at_omp = extended_lengyel_formulas.calc_fieldline_pitch_at_omp(
+      magnetic_field_on_axis=magnetic_field_on_axis,
+      plasma_current=plasma_current,
+      major_radius=major_radius,
+      minor_radius=minor_radius,
+      elongation_psi95=elongation_psi95,
+      triangularity_psi95=triangularity_psi95,
+      ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+  )
+  electron_temp_at_cc_interface = (
+      extended_lengyel_formulas.calc_electron_temp_at_cc_interface(
+          target_electron_temp=target_electron_temp
+      )
+  )
+
+  # We are considering the flux tube within the extent of the first lambda_q
+  # (e-folding length) into the Scrape Off Layer (SOL) and divertor.
+
+  fraction_of_power_entering_flux_tube = (
+      1.0 - 1.0 / jnp.e
+  ) * fraction_of_P_SOL_to_divertor
+
+  # Initialize values for iterative solver.
+  separatrix_electron_temp = jnp.array(0.1)
+  alpha_t = jnp.array(0.0)
+  divertor_Z_eff = 1.0
+
+  # --------------------------------------- #
+  # -------- 2. Iterative Solver----------- #
+  # --------------------------------------- #
+
+  # Not implemented yet.
+
   return ExtendedLengyelOutputs(
       neutral_pressure_in_divertor=jnp.array(0.0),
-      alpha_t=jnp.array(0.0),
+      alpha_t=alpha_t,
       q_parallel=jnp.array(0.0),
       heat_flux_perp_to_target=jnp.array(0.0),
+      separatrix_electron_temp=separatrix_electron_temp,
       separatrix_z_effective=jnp.array(0.0),
       impurity_concentrations={},
   )
