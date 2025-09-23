@@ -14,6 +14,7 @@
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
 
+import dataclasses
 from typing import TypeAlias, TypeVar
 import jax
 import jaxtyping as jt
@@ -50,6 +51,20 @@ def jaxtyped(fn: T) -> T:
     The decorated function.
   """
   runtime_checking = jax_utils.env_bool(name="TORAX_JAXTYPING", default=False)
+  runtime_checking_dataclasses = jax_utils.env_bool(
+      name="TORAX_JAXTYPING_DATACLASSES", default=False
+  )
+
+  # Dataclasses are dangerous to decorate with jaxtyping because the shapes
+  # are checked during __init__, which is called during PyTree unpflattening.
+  # This can cause timeouts in large tests. Allow only specific tests to enable
+  # this behavior.
+  if dataclasses.is_dataclass(fn):
+    if runtime_checking_dataclasses:
+      return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
+    else:
+      return fn
+
   if runtime_checking:
     return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
   else:
