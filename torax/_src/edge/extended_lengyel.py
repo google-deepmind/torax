@@ -15,16 +15,42 @@
 """Implementation of the extended Lengyel model from Body et al. NF 2025."""
 
 import dataclasses
+import enum
 from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src.edge import collisional_radiative_models
+from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
 # pylint: disable=unused-argument
 # pylint: disable=unused-variable
+
+
+# Scale factors for physics calculations to avoid numerical issues in fp32.
+_LINT_SCALE_FACTOR = 1e30
+_DENSITY_SCALE_FACTOR = 1e-20
+
+# _LINT_SCALE_FACTOR * _DENSITY_SCALE_FACTOR**2
+_LINT_K_INVERSE_SCALE_FACTOR = 1e-10
+
+
+class SolveCzStatus(enum.IntEnum):
+  """Status of the _solve_for_c_z calculation.
+
+  Attributes:
+    SUCCESS: The calculation was successful.
+    Q_DIV_SQUARED_NEGATIVE: q_div_squared was negative. This is unphysical and
+      indicates that the required power loss is too high for the given plasma
+      parameters. This can happen, for example, if the target temperature is too
+      low for the given upstream heat flux.
+  """
+
+  SUCCESS = 0
+  Q_DIV_SQUARED_NEGATIVE = 1
 
 
 @jax.tree_util.register_dataclass
@@ -208,3 +234,124 @@ def run_extended_lengyel_model(
       separatrix_z_effective=jnp.array(0.0),
       impurity_concentrations={},
   )
+
+
+def _solve_for_c_z(
+    q_parallel: array_typing.FloatScalar,
+    divertor_sol_1d: divertor_sol_1d_lib.DivertorSOL1D,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
+    fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
+    ne_tau: array_typing.FloatScalar,
+) -> tuple[jax.Array, jax.Array]:
+  """Solves the extended Lengyel model for the required impurity concentration.
+
+  This function implements the extended Lengyel model in inverse mode,
+  calculating the seeded impurity concentration (`c_z`) needed to achieve the
+  an input target temperature consistent with a given set of plasma parameters.
+
+  See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
+
+  Args:
+    q_parallel: Upstream parallel heat flux [W/m^2].
+    divertor_sol_1d: A DivertorSOL1D object containing the plasma parameters.
+    seed_impurity_weights: Mapping from ion symbol to fractional weights of
+      seeded impurities.
+    fixed_impurity_concentrations: Mapping from ion symbol to fixed n_z/n_e
+      concentrations of background impurities.
+    ne_tau: The non-coronal parameter, being the product of electron density and
+      impurity residence time [m^-3 s].
+
+  Returns:
+      c_z: The scaling factor for the seeded impurity concentrations. To be
+        multiplied by seed_impurity_weights to get each seeded impurity
+        concentration.
+      status: A SolveCzStatus enum indicating the outcome of the calculation.
+  """
+  # Temperatures must be in keV for the L_INT calculation.
+  cc_temp_keV = divertor_sol_1d.electron_temp_at_cc_interface / 1000.0
+  div_temp_keV = divertor_sol_1d.divertor_entrance_electron_temp / 1000.0
+  sep_temp_keV = divertor_sol_1d.separatrix_electron_temp / 1000.0
+
+  # Calculate integrated radiation terms (L_INT) for seeded impurities.
+  # See Eq. 34 in Body et al. 2025.
+  Ls_cc_div = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          seed_impurity_weights,
+          start_temp=cc_temp_keV,
+          stop_temp=div_temp_keV,
+          ne_tau=ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Ls_cc_u = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          seed_impurity_weights,
+          start_temp=cc_temp_keV,
+          stop_temp=sep_temp_keV,
+          ne_tau=ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Ls_div_u = Ls_cc_u - Ls_cc_div
+
+  # Calculate integrated radiation terms for fixed background impurities.
+  Lf_cc_div = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          fixed_impurity_concentrations,
+          start_temp=cc_temp_keV,
+          stop_temp=div_temp_keV,
+          ne_tau=ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Lf_cc_u = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          fixed_impurity_concentrations,
+          start_temp=cc_temp_keV,
+          stop_temp=sep_temp_keV,
+          ne_tau=ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Lf_div_u = Lf_cc_u - Lf_cc_div
+
+  # Define shorthand variables for clarity, matching the paper's notation.
+  qu = q_parallel
+  qcc = divertor_sol_1d.parallel_heat_flux_at_cc_interface
+  b = divertor_sol_1d.divertor_broadening_factor
+  # `k` is a lumped parameter from the Lengyel model derivation.
+  # See Eq. 33 in Body et al. 2025.
+  k = (
+      2.0
+      * divertor_sol_1d.kappa_e
+      * (divertor_sol_1d.separatrix_electron_density * _DENSITY_SCALE_FACTOR)
+      ** 2
+      * divertor_sol_1d.separatrix_electron_temp**2
+  )
+
+  # Calculate the squared parallel heat flux at the divertor entrance.
+  # This formula is derived by combining the Lengyel equations for the region
+  # above and below the divertor entrance. See Eq. 40 in Body et al. 2025.
+  q_div_squared = (
+      Ls_div_u
+      / _LINT_SCALE_FACTOR
+      * (qcc**2 + k * Lf_cc_div / _LINT_K_INVERSE_SCALE_FACTOR)
+      + (Ls_cc_div / _LINT_SCALE_FACTOR)
+      * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
+  ) / (Ls_div_u / _LINT_SCALE_FACTOR / b**2 + Ls_cc_div / _LINT_SCALE_FACTOR)
+
+  # Check for unphysical result.
+  status = jnp.where(
+      q_div_squared < 0.0,
+      SolveCzStatus.Q_DIV_SQUARED_NEGATIVE,
+      SolveCzStatus.SUCCESS,
+  )
+
+  # Calculate the required seeded impurity concentration `c_z`.
+  # See Eq. 42 in Body et al. 2025.
+  c_z = (
+      (qu**2 + (1.0 / b**2 - 1.0) * q_div_squared - qcc**2)
+      / (k * Ls_cc_u / _LINT_K_INVERSE_SCALE_FACTOR)
+  ) - (Lf_cc_u / Ls_cc_u)
+
+  return c_z, status
