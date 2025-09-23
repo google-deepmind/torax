@@ -30,3 +30,5 @@ The relevant modules are as follows:
 
 collisional_radiative_models
 extended_lengyel_formulas
+extended_lengyel_defaults
+extended_lengyel

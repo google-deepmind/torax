@@ -13,52 +13,17 @@
 
 """Helper physics formulas for the extended Lengyel model."""
 
-import dataclasses
-from typing import Final, Mapping
-import immutabledict
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.edge import extended_lengyel_defaults
 
 # pylint: disable=invalid-name
 
 
-@dataclasses.dataclass(frozen=True)
-class _FitParams:
-  """Parameters for the temperature fit function."""
-
-  amplitude: float
-  width: float
-  shape: float
-
-
-# See Table 1 in T. Body et al 2025 Nucl. Fusion 65 086002.
-# Exact values taken from
-# https://github.com/cfs-energy/extended-lengyel/blob/5b56194/extended_lengyel/curve_fit.yml
-_TEMPERATURE_FIT_PARAMS: Final[Mapping[str, _FitParams]] = (
-    immutabledict.immutabledict({
-        'momentum_loss': _FitParams(
-            amplitude=0.8858679172531956,
-            width=3.8263045353064467,
-            shape=0.8282347762381935,
-        ),
-        'density_ratio': _FitParams(
-            amplitude=0.5587910467003282,
-            width=2.020427078509838,
-            shape=0.9600157520406738,
-        ),
-        'power_loss': _FitParams(
-            amplitude=0.8532115334413933,
-            width=5.195481324376164,
-            shape=0.9642427916765323,
-        ),
-    })
-)
-
-
 def _temperature_fit_function(
     target_electron_temp: array_typing.FloatScalar,
-    params: _FitParams,
+    params: extended_lengyel_defaults._FitParams,
 ) -> array_typing.FloatScalar:
   """A general form for divertor loss functions in terms of target temperature.
 
@@ -81,7 +46,8 @@ def calc_momentum_loss_in_convection_layer(
 ) -> array_typing.FloatScalar:
   """Calculates the momentum loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp, _TEMPERATURE_FIT_PARAMS['momentum_loss']
+      target_electron_temp,
+      extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['momentum_loss'],
   )
 
 
@@ -90,7 +56,8 @@ def calc_density_ratio_in_convection_layer(
 ) -> array_typing.FloatScalar:
   """Calculates the density ratio in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp, _TEMPERATURE_FIT_PARAMS['density_ratio']
+      target_electron_temp,
+      extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['density_ratio'],
   )
 
 
@@ -99,7 +66,8 @@ def calc_power_loss_in_convection_layer(
 ) -> array_typing.FloatScalar:
   """Calculates the power loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp, _TEMPERATURE_FIT_PARAMS['power_loss']
+      target_electron_temp,
+      extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['power_loss'],
   )
 
 
