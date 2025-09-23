@@ -118,11 +118,19 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
+    pedestal_policy = (
+        torax_config.pedestal.build_pedestal_model().pedestal_policy
+    )
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params.pedestal_policy,
+    )
 
     transport_coeffs = model(
         runtime_params,
         geo,
         core_profiles,
+        pedestal_policy_state,
         mock_pedestal_outputs,
     )
     # Target:

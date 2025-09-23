@@ -247,6 +247,11 @@ class FVMTest(parameterized.TestCase):
         core_profiles=core_profiles,
         explicit=True,
     )
+    pedestal_policy = physics_models.pedestal_model.pedestal_policy
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params.pedestal_policy,
+    )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -254,6 +259,7 @@ class FVMTest(parameterized.TestCase):
         physics_models=physics_models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=False,
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
@@ -287,6 +293,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state,
       )
 
       residual = residual_and_loss.theta_method_block_residual(
@@ -300,6 +307,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -353,6 +361,11 @@ class FVMTest(parameterized.TestCase):
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
 
+    pedestal_policy = physics_models.pedestal_model.pedestal_policy
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params.pedestal_policy,
+    )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -360,6 +373,7 @@ class FVMTest(parameterized.TestCase):
         physics_models=physics_models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=False,
     )
     initial_right_boundary = jnp.array(0.0)
@@ -470,6 +484,11 @@ class FVMTest(parameterized.TestCase):
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
 
+    pedestal_policy = physics_models.pedestal_model.pedestal_policy
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params_theta0.pedestal_policy,
+    )
     coeffs_old = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params_theta05,
         geo=geo,
@@ -477,6 +496,7 @@ class FVMTest(parameterized.TestCase):
         physics_models=physics_models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=False,
     )
 
@@ -513,6 +533,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -536,6 +557,7 @@ class FVMTest(parameterized.TestCase):
           physics_models=physics_models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
@@ -555,6 +577,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

@@ -34,6 +34,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
@@ -217,10 +218,14 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state_t: pedestal_policy.PedestalPolicyState,
+      pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
   ]:
+    del pedestal_policy_state_t
+    del pedestal_policy_state_t_plus_dt
     combined = getattr(
         runtime_params_t.profile_conditions, self._param
     ) + getattr(runtime_params_t_plus_dt.profile_conditions, self._param)

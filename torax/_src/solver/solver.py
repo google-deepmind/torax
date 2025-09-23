@@ -30,6 +30,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.sources import source_profiles
 
 
@@ -60,6 +61,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state_t: pedestal_policy.PedestalPolicyState,
+      pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -88,6 +91,10 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         or were independent of the core profiles. Because they were calculated
         outside the possibly-JAX-jitted solver logic, they can be calculated in
         non-JAX-friendly ways.
+      pedestal_policy_state_t: State variables held by the pedestal policy at
+        time t.
+      pedestal_policy_state_t_plus_dt: State variables held by the pedestal
+        policy at time t + dt.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -96,6 +103,16 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
 
     # This base class method can be completely overridden by a subclass, but
     # most can make use of the boilerplate here and just implement `_x_new`.
+
+    # There are cases where pytype fails to enforce this
+    if not isinstance(
+        pedestal_policy_state_t, pedestal_policy.PedestalPolicyState
+    ):
+      raise TypeError(
+          'Expected `pedestal_policy_state` to be of type '
+          '`pedestal_policy.PedestalPolicyState`',
+          f'got `{type(pedestal_policy_state_t)}`.',
+      )
 
     # Don't call solver functions on an empty list
     if runtime_params_t.numerics.evolving_names:
@@ -111,6 +128,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state_t=pedestal_policy_state_t,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_dt,
           evolving_names=runtime_params_t.numerics.evolving_names,
       )
     else:
@@ -137,6 +156,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state_t: pedestal_policy.PedestalPolicyState,
+      pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -162,6 +183,10 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
       explicit_source_profiles: see the docstring of __call__
+      pedestal_policy_state_t: State variables held by the pedestal policy at
+        time t.
+      pedestal_policy_state_t_plus_dt: State variables held by the pedestal
+        policy at time t + dt.
       evolving_names: The names of core_profiles variables that should evolve.
 
     Returns:

@@ -32,6 +32,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
@@ -57,6 +58,8 @@ def optimizer_solve_block(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    pedestal_policy_state_t: pedestal_policy.PedestalPolicyState,
+    pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
@@ -98,6 +101,9 @@ def optimizer_solve_block(
       being evolved by the PDE system.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
+    pedestal_policy_state_t: State variables held by the pedestal policy.
+    pedestal_policy_state_t_plus_dt: State variables held by the pedestal
+      policy.
     physics_models: Physics models used for the calculations.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
@@ -124,6 +130,7 @@ def optimizer_solve_block(
       core_profiles_t,
       x_old,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=pedestal_policy_state_t,
       explicit_call=True,
   )
 
@@ -141,6 +148,7 @@ def optimizer_solve_block(
           core_profiles_t,
           x_old,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state=pedestal_policy_state_t,
           allow_pereverzev=True,
           explicit_call=True,
       )
@@ -158,6 +166,7 @@ def optimizer_solve_block(
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_dt,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -180,6 +189,7 @@ def optimizer_solve_block(
       init_x_new_vec=init_x_new_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_dt,
       physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,

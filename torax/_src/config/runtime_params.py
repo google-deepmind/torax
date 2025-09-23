@@ -49,6 +49,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
+from torax._src.pedestal_policy import runtime_params as pedestal_policy_runtime_params
 from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
 from torax._src.time_step_calculator import runtime_params as time_step_calculator_runtime_params
@@ -80,6 +81,7 @@ class RuntimeParams:
   neoclassical: neoclassical_params.RuntimeParams
   numerics: numerics.RuntimeParams
   pedestal: pedestal_model_params.RuntimeParams
+  pedestal_policy: pedestal_policy_runtime_params.PedestalPolicyRuntimeParams
   plasma_composition: plasma_composition.RuntimeParams
   profile_conditions: profile_conditions.RuntimeParams
   solver: solver_params.RuntimeParams

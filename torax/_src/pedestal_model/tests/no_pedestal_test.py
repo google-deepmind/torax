@@ -15,18 +15,40 @@ from unittest import mock
 
 from absl.testing import absltest
 import jax.numpy as jnp
+from torax._src.config import build_runtime_params
 from torax._src.pedestal_model import no_pedestal
+from torax._src.torax_pydantic import model_config
 
 
 class NoPedestalTest(absltest.TestCase):
 
   def test_build_and_call_model(self):
-    no_pedestal_model = no_pedestal.NoPedestal()
+    torax_config = model_config.ToraxConfig.from_dict({
+        'pedestal': {},
+        'transport': {},
+        'solver': {},
+        'profile_conditions': {},
+        'numerics': {},
+        'sources': {},
+        'geometry': {'geometry_type': 'circular'},
+        'plasma_composition': {},
+    })
+    pedestal_policy = torax_config.pedestal.set_pedestal.build_pedestal_policy()
+    no_pedestal_model = no_pedestal.NoPedestal(pedestal_policy=pedestal_policy)
     geo = mock.Mock()
     geo.torax_mesh.nx = 10
-    runtime_params = mock.Mock()
-    runtime_params.pedestal.set_pedestal = True
-    result = no_pedestal_model(runtime_params, geo, mock.Mock())
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
+    )
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params.pedestal_policy,
+    )
+    result = no_pedestal_model(
+        runtime_params, geo, mock.Mock(), pedestal_policy_state
+    )
     self.assertEqual(result.rho_norm_ped_top, jnp.inf)
     self.assertEqual(result.rho_norm_ped_top_idx, 10)
 

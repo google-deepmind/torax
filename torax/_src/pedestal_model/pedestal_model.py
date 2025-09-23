@@ -26,6 +26,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_module
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -52,14 +53,28 @@ class PedestalModelOutput:
 class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates temperature and density of the pedestal."""
 
+  pedestal_policy: pedestal_policy_module.PedestalPolicy
+
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_policy_state: pedestal_policy_module.PedestalPolicyState,
   ) -> PedestalModelOutput:
+
+    # There are cases where pytype fails to enforce this
+    if not isinstance(
+        pedestal_policy_state, pedestal_policy_module.PedestalPolicyState
+    ):
+      raise TypeError(
+          "Expected `pedestal_policy_state` to be of type "
+          "`pedestal_policy.PedestalPolicyState`",
+          f"got `{type(pedestal_policy_state)}`.",
+      )
+
     return jax.lax.cond(
-        runtime_params.pedestal.set_pedestal,
+        pedestal_policy_state.use_pedestal,
         lambda: self._call_implementation(runtime_params, geo, core_profiles),
         # Set the pedestal location to infinite to indicate that the pedestal is
         # not present.
