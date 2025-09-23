@@ -79,6 +79,12 @@ class CoreProfileSettersTest(parameterized.TestCase):
         neoclassical_models=physics_models.neoclassical_models,
         explicit=True,
     )
+    pedestal_policy_state = (
+        physics_models.pedestal_model.pedestal_policy.initial_state(
+            t=torax_config.numerics.t_initial,
+            runtime_params=runtime_params.pedestal_policy,
+        )
+    )
     calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -86,6 +92,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         physics_models=physics_models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=False,
     )
 

@@ -26,8 +26,8 @@ class NoPedestal(pedestal_model.PedestalModel):
 
   This is a placeholder pedestal model that is used when there is no pedestal.
   It returns infinite pedestal location and zero temperature and density.
-  Assuming set_pedestal is set to False properly this will not be used, but
-  this is a safe fallback in case set_pedestal is not set properly and is needed
+  Assuming use_pedestal is set to False properly this will not be used, but
+  this is a safe fallback in case use_pedestal is not set properly and is needed
   for the jax cond to work.
   """
 
