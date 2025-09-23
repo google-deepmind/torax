@@ -13,10 +13,12 @@
 
 """Helper physics formulas for the extended Lengyel model."""
 
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.edge import collisional_radiative_models
 from torax._src.edge import extended_lengyel_defaults
 
 # pylint: disable=invalid-name
@@ -404,3 +406,64 @@ def calculate_q_parallel(
   )
 
   return q_parallel
+
+
+def calc_Z_eff(
+    *,
+    c_z: array_typing.FloatScalar,
+    T_e: array_typing.FloatScalar,
+    Z_i: array_typing.FloatScalar,
+    ne_tau: array_typing.FloatScalar,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
+    fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
+) -> jax.Array:
+  """Helper function to calculate Z_eff in the extended Lengyel model.
+
+  Z_eff is the effective ion charge, defined as sum(n_i * Z_i^2) / n_e.
+  This function calculates Z_eff based on contributions from a background plasma
+  (with Z=Zi) and specified seeded and fixed impurities, using the Mavrin 2017
+  collisional-radiative model to determine the mean charge state of each
+  impurity species. Quasineutrality is also used as a constraint, where
+  sum(n_i * Z_i)/n_e = 1.
+
+  Args:
+    c_z: Concentration of the total seeded impurity species.
+    T_e: Electron temperature [keV].
+    Z_i: Main ion charge.
+    ne_tau: The non-coronal parameter, being the product of electron density and
+      impurity residence time [m^-3 s].
+    seed_impurity_weights: Mapping from ion symbol (e.g., 'C') to its relative
+      weight within the seeded impurity mix.
+    fixed_impurity_concentrations: Mapping from ion symbol to its absolute
+      concentration (n_z / n_e).
+
+  Returns:
+    The effective ion charge Z_eff [dimensionless].
+  """
+  # Initializations
+  Z_eff = 0.0
+  dilution_factor = 0.0
+  # Contribution from seeded impurities, with n_e_ratio = c_z*weight.
+  for key, weight in seed_impurity_weights.items():
+    Z_impurity_per_species = collisional_radiative_models.calculate_mavrin_2017(
+        T_e=jnp.array([T_e]),
+        ne_tau=ne_tau,
+        ion_symbol=key,
+        variable=collisional_radiative_models.MavrinVariable.Z,
+    )
+    Z_eff += Z_impurity_per_species**2 * c_z * weight
+    dilution_factor += Z_impurity_per_species * c_z * weight
+  # Contribution from fixed impurities, with n_e_ratio=concentration
+  for key, concentration in fixed_impurity_concentrations.items():
+    Z_impurity_per_species = collisional_radiative_models.calculate_mavrin_2017(
+        T_e=jnp.array([T_e]),
+        ne_tau=ne_tau,
+        ion_symbol=key,
+        variable=collisional_radiative_models.MavrinVariable.Z,
+    )
+    Z_eff += Z_impurity_per_species**2 * concentration
+    dilution_factor += Z_impurity_per_species * concentration
+  # Contribution from main ions
+  n_i = (1 - dilution_factor) / Z_i
+  Z_eff += n_i * Z_i**2
+  return Z_eff

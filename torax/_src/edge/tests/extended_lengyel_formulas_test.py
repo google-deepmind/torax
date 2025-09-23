@@ -243,5 +243,32 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         rtol=1e-5,
     )
 
+  def test_calc_Z_eff(self):
+
+    c_z = 0.059314229517142054
+    T_e = 0.05502789988290978
+    Z_i = 1.0
+    seed_impurity_weights = {'N': 1.0, 'Ar': 0.05}
+    fixed_impurity_concentrations = {'He': 0.01}
+
+    # reference value from the first loop of the reference case in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_Z_eff = 2.291360670810858
+
+    calculated_Z_eff = extended_lengyel_formulas.calc_Z_eff(
+        c_z=c_z,
+        T_e=T_e,
+        Z_i=Z_i,
+        ne_tau=extended_lengyel_defaults.NE_TAU,
+        seed_impurity_weights=seed_impurity_weights,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
+    )
+
+    np.testing.assert_allclose(
+        calculated_Z_eff,
+        expected_Z_eff,
+        rtol=1e-5,
+    )
+
 if __name__ == '__main__':
   absltest.main()
