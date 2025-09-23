@@ -181,15 +181,9 @@ def run_extended_lengyel_model(
       triangularity_psi95=triangularity_psi95,
       ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
   )
-  electron_temp_at_cc_interface = (
-      extended_lengyel_formulas.calc_electron_temp_at_cc_interface(
-          target_electron_temp=target_electron_temp
-      )
-  )
 
   # We are considering the flux tube within the extent of the first lambda_q
   # (e-folding length) into the Scrape Off Layer (SOL) and divertor.
-
   fraction_of_power_entering_flux_tube = (
       1.0 - 1.0 / jnp.e
   ) * fraction_of_P_SOL_to_divertor

@@ -193,23 +193,6 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         rtol=1e-5,
     )
 
-  def test_calc_electron_temp_at_cc_interface(self):
-    # reference value from the first loop of the reference case in
-    # https://github.com/cfs-energy/extended-lengyel
-    expected_value = 6.167578954082415
-    target_electron_temp = 2.34  # [eV]
-
-    calculated_value = (
-        extended_lengyel_formulas.calc_electron_temp_at_cc_interface(
-            target_electron_temp=target_electron_temp
-        )
-    )
-    np.testing.assert_allclose(
-        calculated_value,
-        expected_value,
-        rtol=1e-5,
-    )
-
   def test_calculate_q_parallel(self):
     separatrix_average_poloidal_field = 0.28506577
     alpha_t = 0.0
