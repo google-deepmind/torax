@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A pedestal model for when there is no pedestal."""
+import dataclasses
 from jax import numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -19,19 +20,16 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class NoPedestal(pedestal_model.PedestalModel):
   """A pedestal model for when there is no pedestal.
 
   This is a placeholder pedestal model that is used when there is no pedestal.
   It returns infinite pedestal location and zero temperature and density.
-  Assuming set_pedestal is set to False properly this will not be used, but
-  this is a safe fallback in case set_pedestal is not set properly and is needed
+  Assuming use_pedestal is set to False properly this will not be used, but
+  this is a safe fallback in case use_pedestal is not set properly and is needed
   for the jax cond to work.
   """
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -46,9 +44,3 @@ class NoPedestal(pedestal_model.PedestalModel):
         n_e_ped=0.0,
         rho_norm_ped_top_idx=geo.torax_mesh.nx,
     )
-
-  def __hash__(self):
-    return hash('NoPedestal')
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, NoPedestal)

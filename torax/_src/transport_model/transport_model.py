@@ -28,6 +28,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
 
@@ -88,6 +89,7 @@ class TransportModel(abc.ABC):
       runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     if not getattr(self, "_frozen", False):
@@ -124,17 +126,17 @@ class TransportModel(abc.ABC):
     # Apply inner and outer transport patch
     transport_coeffs = self._apply_transport_patches(
         transport_runtime_params,
-        runtime_params,
         geo,
         transport_coeffs,
+        pedestal_policy_state,
     )
 
     # Return smoothed coefficients if smoothing is enabled
     return self._smooth_coeffs(
         transport_runtime_params,
-        runtime_params,
         geo,
         transport_coeffs,
+        pedestal_policy_state,
         pedestal_model_output,
     )
 
@@ -240,9 +242,9 @@ class TransportModel(abc.ABC):
   def _apply_transport_patches(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
   ) -> TurbulentTransport:
     """Applies inner and outer transport patches to transport coefficients."""
     consts = constants.CONSTANTS
@@ -290,9 +292,7 @@ class TransportModel(abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(pedestal_policy_state.use_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -303,9 +303,7 @@ class TransportModel(abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(pedestal_policy_state.use_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -316,9 +314,7 @@ class TransportModel(abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(pedestal_policy_state.use_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -329,9 +325,7 @@ class TransportModel(abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(pedestal_policy_state.use_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -350,16 +344,16 @@ class TransportModel(abc.ABC):
   def _smooth_coeffs(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
         transport_runtime_params,
-        runtime_params,
         geo,
+        pedestal_policy_state,
         pedestal_model_output,
     )
 
@@ -377,8 +371,8 @@ class TransportModel(abc.ABC):
 
 def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-    runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the turbulent transport model.
@@ -387,8 +381,8 @@ def _build_smoothing_matrix(
 
   Args:
     transport_runtime_params: Runtime parameters for this transport model.
-    runtime_params: Input runtime parameters of the simulation.
     geo: Geometry of the torus.
+    pedestal_policy_state: State for the pedestal policy.
     pedestal_model_output: Output of the pedestal model.
 
   Returns:
@@ -415,12 +409,12 @@ def _build_smoothing_matrix(
 
   # If set pedestal is False and apply_outer_patch is True, we want to mask
   # according to rho_outer, otherwise we want to mask according to
-  # rho_norm_ped_top. In the case where set_pedestal is False this is inf
+  # rho_norm_ped_top. In the case where use_pedestal is False this is inf
   # which when we use to make the mask means that we will not mask anything.
-  # If set pedestal is True, we want to mask according to rho_norm_ped_top.
+  # If use_pedestal is True, we want to mask according to rho_norm_ped_top.
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
-          jnp.logical_not(runtime_params.pedestal.set_pedestal),
+          jnp.logical_not(pedestal_policy_state.use_pedestal),
           transport_runtime_params.apply_outer_patch,
       ),
       lambda: transport_runtime_params.rho_outer - consts.eps,

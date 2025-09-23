@@ -38,6 +38,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.sources import source_profiles
 
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
@@ -201,6 +202,7 @@ def theta_method_block_residual(
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
@@ -220,6 +222,7 @@ def theta_method_block_residual(
       being evolved by the PDE system.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
+    pedestal_policy_state: State variables held by the pedestal policy.
     physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
@@ -252,6 +255,7 @@ def theta_method_block_residual(
       core_profiles=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
       physics_models=physics_models,
+      pedestal_policy_state=pedestal_policy_state,
       evolving_names=evolving_names,
       use_pereverzev=False,
   )
@@ -290,6 +294,7 @@ def theta_method_block_loss(
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
@@ -309,6 +314,7 @@ def theta_method_block_loss(
       being evolved by the PDE system.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
+    pedestal_policy_state: State variables held by the pedestal policy.
     physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
@@ -326,6 +332,7 @@ def theta_method_block_loss(
       x_new_guess_vec=x_new_guess_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=pedestal_policy_state,
       physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
@@ -349,6 +356,7 @@ def jaxopt_solver(
     init_x_new_vec: jax.Array,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    pedestal_policy_state: pedestal_policy.PedestalPolicy,
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
@@ -370,6 +378,7 @@ def jaxopt_solver(
       being evolved by the PDE system.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE.
+    pedestal_policy_state: State variables held by the pedestal policy.
     physics_models: Physics models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
@@ -394,6 +403,7 @@ def jaxopt_solver(
       physics_models=physics_models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
+      pedestal_policy_state=pedestal_policy_state,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
   solver_output = solver.run(init_x_new_vec)
