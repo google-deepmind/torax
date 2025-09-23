@@ -198,6 +198,10 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
     )
+    config = default_configs.get_default_config_dict()
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    pedestal_policy = torax_config.pedestal.set_pedestal.build_pedestal_policy()
+    pedestal_policy_state = pedestal_policy.initial_state(t=jnp.array(0.0))
     input_state = sim_state.ToraxSimState(
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
@@ -211,6 +215,7 @@ class PostProcessingTest(parameterized.TestCase):
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             sawtooth_crash=False,
         ),
+        pedestal_policy_state=pedestal_policy_state,
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,

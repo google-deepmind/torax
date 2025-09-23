@@ -71,6 +71,7 @@ def prepare_simulation(
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       geometry_provider=geometry_provider,
       runtime_params_provider=runtime_params_provider,
+      pedestal_policy=physics_models.pedestal_model.pedestal_policy,
   )
 
   if torax_config.restart and torax_config.restart.do_restart:

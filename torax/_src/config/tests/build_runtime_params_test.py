@@ -95,11 +95,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             set_pedestal={0.0: True, 1.0: False},
         )
     )
+    pedestal_policy = pedestal.build_pedestal_model().pedestal_policy
     # Check at time 0.
 
     pedestal_params = pedestal.build_runtime_params(t=0.0)
     assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
-    np.testing.assert_allclose(pedestal_params.set_pedestal, True)
+    np.testing.assert_allclose(
+        pedestal_policy.initial_state(t=0.0).use_pedestal, True
+    )
     np.testing.assert_allclose(pedestal_params.T_i_ped, 0.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0e20)
@@ -107,7 +110,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.0)
     assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
-    np.testing.assert_allclose(pedestal_params.set_pedestal, False)
+    np.testing.assert_allclose(
+        pedestal_policy.initial_state(t=1.0).use_pedestal, False
+    )
     np.testing.assert_allclose(pedestal_params.T_i_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0e20)

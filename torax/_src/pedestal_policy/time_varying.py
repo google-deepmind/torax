@@ -1,0 +1,81 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""The PedestalPolicy abstract base class.
+
+Determines potentially changing pedestal settings during simulation.
+"""
+import jax
+from torax._src.pedestal_policy import pedestal_policy
+from torax._src.torax_pydantic import interpolated_param_1d
+
+# pylint: disable=invalid-name
+# Using physics notation naming convention
+
+
+@jax.tree_util.register_pytree_node_class
+class TimeVarying(pedestal_policy.PedestalPolicy):
+  """Set `use_pedestal` following a TimeVaryingScalar."""
+
+  def __init__(self, value: interpolated_param_1d.TimeVaryingScalar):
+    self.value = value
+    self._frozen = True
+
+  def initial_state(self, t) -> pedestal_policy.PedestalPolicyState:
+    """Creates the initial state for policy-related variables.
+
+    Args:
+      t: Time.
+
+    Returns:
+      initial_state: A PedestalPolicyState.
+    """
+
+    use_pedestal = self.value.get_value(t)
+
+    return pedestal_policy.PedestalPolicyState(use_pedestal=use_pedestal)
+
+  def update(self, t: float) -> pedestal_policy.PedestalPolicyState:
+    """Calculate updated pedestal policy state.
+
+    Args:
+      t: Time.
+
+    Returns:
+      state: Updated PedestalPolicyState.
+    """
+
+    use_pedestal = self.value.get_value(t)
+
+    return pedestal_policy.PedestalPolicyState(use_pedestal=use_pedestal)
+
+  def __hash__(self) -> int:
+    """Hash function, needed for jax.jit caching to work."""
+    return hash(("TimeVarying", self.value))
+
+  def __eq__(self, other) -> bool:
+    """Equality function for the pedestal model."""
+    return isinstance(other, TimeVarying) and other.value == self.value
+
+  def tree_flatten(self):
+    """Flattens the TimeVarying object for JAX."""
+    children = (self.value,)
+    aux_data = None
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    """Unflattens the TimeVarying object for JAX."""
+    del aux_data
+    return cls(children[0])

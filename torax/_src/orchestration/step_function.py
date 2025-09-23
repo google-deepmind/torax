@@ -34,6 +34,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_lib
 from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profile_builders
@@ -82,6 +83,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
+      pedestal_policy: pedestal_policy_lib.PedestalPolicy,
   ):
     """Initializes the SimulationStepFn.
 
@@ -98,6 +100,7 @@ class SimulationStepFn:
         start of a time step and returns the Geometry for that time step. For
         most use cases, only the time will be relevant from the ToraxSimState
         (in order to support time-dependent geometries).
+      pedestal_policy: The PedestalPolicy used to update pedestal state
     """
     self._solver = solver
     if self._solver.physics_models.mhd_models.sawtooth_models is not None:
@@ -109,6 +112,7 @@ class SimulationStepFn:
     self._time_step_calculator = time_step_calculator
     self._geometry_provider = geometry_provider
     self._runtime_params_provider = runtime_params_provider
+    self._pedestal_policy = pedestal_policy
 
   @property
   def runtime_params_provider(
@@ -120,6 +124,7 @@ class SimulationStepFn:
     children = (
         self._runtime_params_provider,
         self._geometry_provider,
+        self._pedestal_policy,
     )
     aux_data = (
         self._solver,
@@ -134,6 +139,7 @@ class SimulationStepFn:
         time_step_calculator=aux_data[1],
         runtime_params_provider=children[0],
         geometry_provider=children[1],
+        pedestal_policy=children[2],
     )
 
   @property
@@ -359,6 +365,7 @@ class SimulationStepFn:
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=input_state.pedestal_policy_state,
     )
 
   def _adaptive_step(
@@ -391,6 +398,7 @@ class SimulationStepFn:
         runtime_params_slice.RuntimeParams,
         geometry.Geometry,
         state.CoreProfiles,
+        pedestal_policy_lib.PedestalPolicyState,
     ]
 
     def cond_fun(inputs: tuple[input_type, output_type]):
@@ -449,6 +457,9 @@ class SimulationStepFn:
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=input_state.core_profiles,
       )
+      pedestal_policy_state_t_plus_dt = self._pedestal_policy.update(
+          t=input_state.t + dt
+      )
       # The solver returned state is still "intermediate" since the CoreProfiles
       # need to be updated by the evolved CellVariables in x_new
       x_new, solver_numeric_outputs = self._solver(
@@ -461,6 +472,7 @@ class SimulationStepFn:
           core_profiles_t=input_state.core_profiles,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state=pedestal_policy_state_t_plus_dt,
       )
       solver_numeric_outputs = state.SolverNumericOutputs(
           solver_error_state=solver_numeric_outputs.solver_error_state,
@@ -478,6 +490,7 @@ class SimulationStepFn:
           runtime_params_t_plus_dt,
           geo_t_plus_dt,
           core_profiles_t_plus_dt,
+          pedestal_policy_state_t_plus_dt,
       )
 
     _, result = jax.lax.while_loop(
@@ -505,6 +518,7 @@ class SimulationStepFn:
                 runtime_params_t,
                 geo_t,
                 input_state.core_profiles,
+                input_state.pedestal_policy_state,
             ),
         ),
     )
@@ -518,6 +532,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=result[5],
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=result[6],
         physics_models=self._solver.physics_models,
         evolving_names=evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
@@ -553,12 +568,16 @@ class SimulationStepFn:
             self._geometry_provider,
         )
     )
+
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
         runtime_params_t=runtime_params_t,
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
+    )
+    pedestal_policy_state_t_plus_dt = self._pedestal_policy.update(
+        t=input_state.t + dt
     )
     # The solver returned state is still "intermediate" since the CoreProfiles
     # need to be updated by the evolved CellVariables in x_new
@@ -572,6 +591,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state_t_plus_dt,
     )
     output_state, post_processed_outputs = _finalize_outputs(
         t=input_state.t,
@@ -583,6 +603,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state_t_plus_dt,
         physics_models=self._solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=previous_post_processed_outputs,
@@ -609,6 +630,7 @@ def _finalize_outputs(
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    pedestal_policy_state: pedestal_policy_lib.PedestalPolicyState,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles, final_source_profiles = (
@@ -633,6 +655,7 @@ def _finalize_outputs(
           runtime_params_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,
+          pedestal_policy_state,
       )
   )
 
@@ -644,6 +667,7 @@ def _finalize_outputs(
       core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
+      pedestal_policy_state=pedestal_policy_state,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
@@ -722,6 +746,7 @@ def _sawtooth_step(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=input_state.pedestal_policy_state,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
@@ -756,6 +781,7 @@ def _sawtooth_step(
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=input_state.pedestal_policy_state,
         physics_models=sawtooth_solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
