@@ -24,6 +24,7 @@ from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import predictor_corrector_method
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles
@@ -49,6 +50,7 @@ class LinearThetaMethod(solver_lib.Solver):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -76,6 +78,7 @@ class LinearThetaMethod(solver_lib.Solver):
         core_profiles_t,
         x_old,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state,
         allow_pereverzev=True,
         explicit_call=True,
     )
@@ -94,6 +97,7 @@ class LinearThetaMethod(solver_lib.Solver):
         coeffs_exp=coeffs_exp,
         coeffs_callback=coeffs_callback,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state,
     )
 
     if runtime_params_t_plus_dt.solver.use_predictor_corrector:

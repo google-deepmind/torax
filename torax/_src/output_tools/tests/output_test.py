@@ -102,6 +102,12 @@ class StateHistoryTest(parameterized.TestCase):
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
+    pedestal_policy = (
+        self.torax_config.pedestal.set_pedestal.build_pedestal_policy()
+    )
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=float(t), runtime_params=runtime_params.pedestal_policy
+    )
     self.sim_state = sim_state.ToraxSimState(
         core_profiles=self.core_profiles,
         core_transport=self.core_transport,
@@ -116,6 +122,7 @@ class StateHistoryTest(parameterized.TestCase):
         ),
         geometry=self.geo,
         edge_outputs=None,
+        pedestal_policy_state=pedestal_policy_state,
     )
     sim_error = state.SimError.NO_ERROR
     self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)

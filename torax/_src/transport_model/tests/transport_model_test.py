@@ -59,13 +59,10 @@ class TransportSmoothingTest(parameterized.TestCase):
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
-    )
+    t = torax_config.numerics.t_initial
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=t)
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
@@ -78,14 +75,19 @@ class TransportSmoothingTest(parameterized.TestCase):
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
+    pedestal_policy = pedestal_model.pedestal_policy
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=t, runtime_params=runtime_params.pedestal_policy
+    )
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles
+        runtime_params, geo, core_profiles, pedestal_policy_state
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
         geo,
         core_profiles,
+        pedestal_policy_state,
         pedestal_model_outputs,
     )
     inner_patch_idx = np.searchsorted(
@@ -248,14 +250,21 @@ class TransportSmoothingTest(parameterized.TestCase):
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
+    pedestal_policy_state = pedestal_model.pedestal_policy.initial_state(
+        t=0.0, runtime_params=runtime_params.pedestal_policy
+    )
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_policy_state,
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
         geo,
         core_profiles,
+        pedestal_policy_state,
         pedestal_model_outputs,
     )
     inner_patch_idx = np.searchsorted(

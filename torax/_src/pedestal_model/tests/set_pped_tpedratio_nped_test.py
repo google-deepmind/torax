@@ -77,10 +77,14 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         source_models,
         neoclassical_models,
     )
+    pedestal_policy_state = pedestal_model.pedestal_policy.initial_state(
+        t=time, runtime_params=runtime_params.pedestal_policy
+    )
     pedestal_model_output = jitted_pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        pedestal_policy_state=pedestal_policy_state,
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):
