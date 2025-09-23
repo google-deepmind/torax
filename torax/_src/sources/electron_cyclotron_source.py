@@ -101,11 +101,11 @@ def calc_heating_and_current(
   # pylint: disable=invalid-name
   log_j_ec_dot_B = (
       jnp.log(2 * jnp.pi / geo.R_major)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      - 3 * jnp.log(constants.CONSTANTS.qe)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+      - 3 * jnp.log(constants.CONSTANTS.q_e)
       + jnp.log(geo.F)
       + jnp.log(core_profiles.T_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
+      + jnp.log(constants.CONSTANTS.keV_to_J)  # Convert T_e to J
       - jnp.log(core_profiles.n_e.value)
       + jnp.log(source_params.current_drive_efficiency)
       + jnp.log(ec_power_density)

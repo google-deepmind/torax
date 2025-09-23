@@ -100,7 +100,6 @@ def calc_alpha_t(
   Returns:
     alpha_t: the turbulence parameter alpha_t.
   """
-  eV_to_J = constants.CONSTANTS.keV2J / 1000.0
   separatrix_electron_temp_ev = separatrix_electron_temp * 1e3
   average_ion_mass_kg = average_ion_mass * constants.CONSTANTS.m_amu
 
@@ -117,7 +116,7 @@ def calc_alpha_t(
   ion_sound_speed = jnp.sqrt(
       mean_ion_charge_state
       * separatrix_electron_temp_ev
-      * eV_to_J
+      * constants.CONSTANTS.eV_to_J
       / average_ion_mass_kg
   )
 
@@ -126,11 +125,11 @@ def calc_alpha_t(
       jnp.log(4.0 / 3.0)
       + 0.5 * jnp.log(2.0 * jnp.pi)
       + jnp.log(separatrix_electron_density)
-      + 4 * jnp.log(constants.CONSTANTS.qe)
+      + 4 * jnp.log(constants.CONSTANTS.q_e)
       + jnp.log(coulomb_logarithm)
-      - 2 * jnp.log(4.0 * jnp.pi * constants.CONSTANTS.epsilon0)
-      - 0.5 * jnp.log(constants.CONSTANTS.me)
-      - 1.5 * jnp.log(separatrix_electron_temp_ev * eV_to_J)
+      - 2 * jnp.log(4.0 * jnp.pi * constants.CONSTANTS.epsilon_0)
+      - 0.5 * jnp.log(constants.CONSTANTS.m_e)
+      - 1.5 * jnp.log(separatrix_electron_temp_ev * constants.CONSTANTS.eV_to_J)
   )
 
   nu_ee = jnp.exp(log_nu_ee)
@@ -149,7 +148,7 @@ def calc_alpha_t(
       1.02
       * nu_ei
       / ion_sound_speed
-      * (1.0 * constants.CONSTANTS.me / average_ion_mass_kg)
+      * (1.0 * constants.CONSTANTS.m_e / average_ion_mass_kg)
       * cylindrical_safety_factor**2
       * major_radius
       * (1.0 + ion_to_electron_temp_ratio / mean_ion_charge_state)

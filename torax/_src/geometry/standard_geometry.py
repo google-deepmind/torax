@@ -312,7 +312,7 @@ class StandardGeometryIntermediates:
     # set psi in TORAX units with 2*pi factor
     psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
     Ip_chease = (
-        chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * R_major * B_0
+        chease_data['Ipprofile'] / constants.CONSTANTS.mu_0 * R_major * B_0
     )
 
     # toroidal flux
@@ -919,7 +919,7 @@ class StandardGeometryIntermediates:
       flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
       flux_surf_avg_B2_eqdsk[n + 1] = surface_FSA_B2
       flux_surf_avg_1_over_B2_eqdsk[n + 1] = surface_FSA_1_over_B2
-      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
       delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
       delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
       elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (
@@ -1092,7 +1092,7 @@ def build_standard_geometry(
   # Ip profile. Needed since input psi profile may have noisy second derivatives
   dpsidrhon = (
       intermediate.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1])
+      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1])
       / (g2g3_over_rhon[1:] * intermediate.F[1:])
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
@@ -1107,7 +1107,7 @@ def build_standard_geometry(
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1]
+      16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1]
   ) * intermediate.Ip_profile[-1] / (
       g2g3_over_rhon[-1] * intermediate.F[-1]
   ) * (
