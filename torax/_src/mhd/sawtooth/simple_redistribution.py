@@ -124,6 +124,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       ions_redistributed = getters.Ions(
           n_i=core_profiles_t.n_i,
           n_impurity=core_profiles_t.n_impurity,
+          impurity_fractions=core_profiles_t.impurity_fractions,
           Z_i=core_profiles_t.Z_i,
           Z_i_face=core_profiles_t.Z_i_face,
           Z_impurity=core_profiles_t.Z_impurity,
