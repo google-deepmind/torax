@@ -107,13 +107,13 @@ class PostProcessedOutputs:
       [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
-    E_aux_total: Total auxiliary heating energy (time integral of
-      P_aux_total) [J].
+    E_aux_total: Total auxiliary heating energy absorbed by the plasma (
+      time integral of P_aux_total) [J].
     E_ohmic_e: Total Ohmic heating energy to electrons (time integral of
       P_ohmic_e) [J].
     E_external_injected: Total external injected energy before absorption (
       time integral of P_external_injected) [J].
-    E_external_total: Total external energy before absorption (
+    E_external_total: Total external energy absorbed by the plasma (
       time integral of P_external_total) [J].
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
