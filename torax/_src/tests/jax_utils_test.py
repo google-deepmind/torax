@@ -150,6 +150,41 @@ class JaxUtilsTest(parameterized.TestCase):
     x = {'temp1': jnp.array(1.3), 'temp2': jnp.array(2.6)}
     chex.assert_trees_all_close(f_non_inlined(x, z='left'), f(x, z='left'))
 
+  @parameterized.parameters(['map', 'vectorize'])
+  def test_batched_cond(self, implementation):
+    pred = jnp.array([True, False])
+    x = jnp.array([[2, 3.0, 4.0], [5.0, 6.0, 7.0]])
+    out = jax_utils.batched_cond(
+        pred=pred,
+        true_fun=lambda x, y: x * y,
+        false_fun=lambda x, y: x * y**2,
+        operands=(x, x),
+        implementation=implementation,
+    )
+    out_gt = jnp.array(
+        [[4.0, 9.0, 16.0], [125.0, 216.0, 343.0]], dtype=jnp.float32
+    )
+    chex.assert_trees_all_equal(out, out_gt)
+
+  @parameterized.parameters(['map', 'vectorize'])
+  def test_batched_cond_concrete_special(self, implementation):
+    pred = jnp.array([True])
+    x = jnp.array([[2, 3.0, 4.0]])
+
+    @jax.jit
+    def f(x):
+      return jax_utils.batched_cond(
+          pred=pred,
+          true_fun=lambda x, y: x * y,
+          false_fun=lambda x, y: x * y**2,
+          operands=(x, x),
+          implementation=implementation,
+      )
+
+    out = f(x)
+    out_gt = jnp.array([[4.0, 9.0, 16.0]], dtype=jnp.float32)
+    chex.assert_trees_all_equal(out, out_gt)
+
   def test_max_steps_while_loop(self):
     terminating_step = 4
 

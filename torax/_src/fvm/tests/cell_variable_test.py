@@ -584,6 +584,44 @@ class CellVariableTest(parameterized.TestCase):
       with self.assertRaises(AssertionError):
         chex.assert_trees_all_close(var1, var2, atol=atol)
 
+  def test_construct_batched_cell_variable(self):
+    var_1 = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=jnp.array(3.0),
+        left_face_grad_constraint=None,
+    )
+    var_2 = cell_variable.CellVariable(
+        value=jnp.array([5.0, 6.0]),
+        dr=jnp.array(0.2),
+        right_face_constraint=jnp.array(5.0),
+        right_face_grad_constraint=None,
+    )
+    with self.subTest('from_tuple'):
+      var = cell_variable.BatchedCellVariable.construct((var_1, var_2))
+      chex.assert_trees_all_equal(
+          var.value, jnp.array([[1.0, 2.0], [5.0, 6.0]])
+      )
+      chex.assert_trees_all_equal(var.dr, jnp.array([0.1, 0.2]))
+
+      chex.assert_trees_all_equal(
+          var.left_face_constraint, jnp.array([3.0, jnp.nan])
+      )
+      chex.assert_trees_all_equal(
+          var.right_face_constraint, jnp.array([jnp.nan, 5.0])
+      )
+      chex.assert_trees_all_equal(
+          var.left_face_grad_constraint, jnp.array([jnp.nan, 0.0])
+      )
+      chex.assert_trees_all_equal(
+          var.right_face_grad_constraint, jnp.array([0.0, jnp.nan])
+      )
+
+    with self.subTest('from_single_var'):
+      var = cell_variable.BatchedCellVariable.construct(var_1)
+      chex.assert_trees_all_equal(var.value, jnp.array([[1.0, 2.0]]))
+      chex.assert_trees_all_equal(var.dr, jnp.array([0.1]))
+
 
 if __name__ == '__main__':
   absltest.main()
