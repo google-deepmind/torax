@@ -248,7 +248,11 @@ These are called out in the list of profiles below, and generate relate to:
   Main ion density [:math:`m^{-3}`].
 
 ``n_impurity`` (time, rho_norm)
-  Impurity density [:math:`m^{-3}`].
+  Impurity density for a single effective bundled impurity species
+  [:math:`m^{-3}`].
+
+``n_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  True impurity density per species [:math:`m^{-3}`].
 
 ``p_alpha_e`` (time, rho_cell_norm)
   Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output
@@ -257,6 +261,10 @@ These are called out in the list of profiles below, and generate relate to:
 ``p_alpha_i`` (time, rho_cell_norm)
   Fusion alpha heating power density to ions [:math:`W/m^3`]. Only output if
   ``fusion`` source is active.
+
+``p_bremsstrahlung_e`` (time, rho_cell_norm) [:math:`W/m^3`]
+  Bremsstrahlung heat sink density (only relevant for electrons). Only
+  output if ``bremsstrahlung`` source is active.
 
 ``p_cyclotron_radiation_e`` (time, rho_cell_norm) [:math:`W/m^3`]
   Cyclotron radiation heat sink density (only relevant for electrons). Only
@@ -323,6 +331,12 @@ These are called out in the list of profiles below, and generate relate to:
 ``q`` (time, rho_face_norm)
   Safety factor profile on the face grid [dimensionless].
 
+``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  Impurity radiation power density per species [:math:`W/m^3`]. Only output
+  if the ``mavrin_fit`` model is active for ``impurity_radiation``. In this
+  case, the radiation corresonds to combined line radiation and Bremsstrahlung,
+  and both ``p_bremsstrahlung_e`` and ``P_bremsstrahlung_e`` will be zero.
+
 ``R_in`` (time, rho_norm)
   Inner (minimum) radius of each flux surface [:math:`m`].
 
@@ -387,7 +401,11 @@ These are called out in the list of profiles below, and generate relate to:
   Averaged main ion charge profile [dimensionless].
 
 ``Z_impurity`` (time, rho_norm)
-  Averaged impurity charge profile [dimensionless].
+  Averaged bundled impurity charge profile corresponding to <Z^2>/<Z> where
+  < > is a weighted average by fractional impurity abundance [dimensionless].
+
+``Z_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  True averaged impurity charge state per species [dimensionless].
 
 scalars
 -------
