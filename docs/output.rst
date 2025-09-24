@@ -451,12 +451,18 @@ properties and characteristics.
 ``drho_norm`` ()
   Radial grid spacing in the normalized rho coordinate [dimensionless].
 
-``E_aux`` (time)
-  Total cumulative auxiliary injected energy (Ohmic + auxiliary heating)
+``E_aux_total`` (time)
+  Total cumulative auxiliary injected energy
   [:math:`J`].
+
+``E_external_injected`` (time)
+  Total cumulative injected energy before absorption [:math:`J`].
 
 ``E_fusion`` (time)
   Total cumulative fusion energy produced [:math:`J`].
+
+``E_ohmic_e`` (time)
+  Total cumulative ohmic heating to electrons [:math:`J`].
 
 ``fgw_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
@@ -560,6 +566,9 @@ properties and characteristics.
   Total externally injected power into the plasma [:math:`W`]. This will be
   larger than ``P_external_tot`` if any source has a value of
   ``absorption_fraction`` less than 1.
+
+``P_fusion`` (time)
+  Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
 
 ``P_icrh_e`` (time)
   Total ion cyclotron resonance heating power to electrons [:math:`W`].
