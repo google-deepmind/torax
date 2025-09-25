@@ -21,7 +21,6 @@ import functools
 
 import jax
 from jax import numpy as jnp
-from torax._src import jax_utils
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import fvm_conversions
@@ -29,7 +28,7 @@ from torax._src.fvm import residual_and_loss
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
