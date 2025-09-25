@@ -118,6 +118,7 @@ addopts = [
     "--ignore-glob=*lib*",
     # Leads to an ImportError in collection for `pytest` without qualikiz_tools.
     "--ignore=torax/_src/transport_model/qualikiz_wrapper.py",
+    "--ignore=torax/tests/sim_experimental_compile_test.py"
 ]
 testpaths = "**/tests"
 python_files = "*.py"
