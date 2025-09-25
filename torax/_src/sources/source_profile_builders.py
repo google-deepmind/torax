@@ -15,8 +15,8 @@
 """Functions for building source profiles in TORAX."""
 import functools
 
+import jax
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -34,7 +34,7 @@ _FINAL_SOURCES = frozenset(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'source_models',
         'neoclassical_models',
