@@ -16,7 +16,6 @@
 import functools
 
 import jax
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -32,7 +31,7 @@ class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
   @functools.partial(
-      jax_utils.jit,
+      jax.jit,
       static_argnames=[
           'self',
           'evolving_names',

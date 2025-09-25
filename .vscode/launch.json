@@ -11,7 +11,7 @@
                 "${file}"
             ],
             "env": {
-                "TORAX_COMPILATION_ENABLED": "0"
+                "JAX_DISABLE_JIT": "True"
             },
             "console": "integratedTerminal"
         }

@@ -21,7 +21,6 @@ import abc
 import functools
 
 import jax
-from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -51,7 +50,7 @@ class Solver(abc.ABC):
     return self.physics_models == other.physics_models
 
   @functools.partial(
-      jax_utils.jit,
+      jax.jit,
       static_argnames=[
           'self',
       ],

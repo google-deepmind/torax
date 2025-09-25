@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import os
 import subprocess
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -34,17 +34,13 @@ except ImportError:
 # pylint: enable=g-import-not-at-top
 
 
-class QualikizTransportModelTest(absltest.TestCase):
+class QualikizTransportModelTest(parameterized.TestCase):
 
-  def setUp(self):
-    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
-    super().setUp()
-
-  def tearDown(self):
-    os.environ['TORAX_COMPILATION_ENABLED'] = '1'
-    super().tearDown()
-
-  def test_call(self):
+  @parameterized.named_parameters(
+      ('with_jit', True),
+      ('without_jit', False),
+  )
+  def test_call(self, jit: bool):
     """Tests that the model can be called."""
     # Test prerequisites
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
@@ -84,7 +80,10 @@ class QualikizTransportModelTest(absltest.TestCase):
 
         # Calling the model
         test_model = qualikiz_transport_model.QualikizTransportModel()
-        test_model(
+        model_call = (
+            jax.jit(test_model.__call__) if jit else test_model.__call__
+        )
+        model_call(
             runtime_params,
             geo,
             core_profiles,
