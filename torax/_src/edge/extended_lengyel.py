@@ -232,18 +232,16 @@ def run_extended_lengyel_model(
   )
 
   # Initialize values for iterative solver.
-  alpha_t = 0.0
-  c_z_prefactor = 0.0
-  kappa_e = extended_lengyel_defaults.KAPPA_E_0
-  q_parallel = 1e6  # arbitrary value for initialization.
-  c_z = 0.0
-  separatrix_Z_eff = 1.0
+  alpha_t_init = 0.0
+  c_z_prefactor_init = 0.0
+  kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
+  q_parallel_init = 1e6  # arbitrary value for initialization.
 
-  sol_state = divertor_sol_1d_lib.DivertorSOL1D(
-      q_parallel=q_parallel,
-      alpha_t=alpha_t,
-      c_z_prefactor=c_z_prefactor,
-      kappa_e=kappa_e,
+  sol_state_init = divertor_sol_1d_lib.DivertorSOL1D(
+      q_parallel=q_parallel_init,
+      alpha_t=alpha_t_init,
+      c_z_prefactor=c_z_prefactor_init,
+      kappa_e=kappa_e_init,
       seed_impurity_weights=seed_impurity_weights,
       fixed_impurity_concentrations=fixed_impurity_concentrations,
       ne_tau=ne_tau,
@@ -269,6 +267,60 @@ def run_extended_lengyel_model(
   # -------- 2. Iterative Solver----------- #
   # --------------------------------------- #
 
+  sol_state = _inverse_mode_fixed_step_solver(
+      sol_state=sol_state_init,
+      iterations=iterations,
+      power_crossing_separatrix=power_crossing_separatrix,
+      separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+      ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+      fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
+      minor_radius=minor_radius,
+      major_radius=major_radius,
+      fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+      cylindrical_safety_factor=cylindrical_safety_factor,
+  )
+
+  # --------------------------------------- #
+  # -------- 3. Post-processing ----------- #
+  # --------------------------------------- #
+
+  neutral_pressure_in_divertor, heat_flux_perp_to_target = (
+      _calc_post_processed_outputs(
+          target_electron_temp=sol_state.target_electron_temp,
+          average_ion_mass=sol_state.average_ion_mass,
+          parallel_heat_flux_at_target=sol_state.parallel_heat_flux_at_target,
+          sheath_heat_transmission_factor=sheath_heat_transmission_factor,
+          ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
+          wall_temperature=wall_temperature,
+          target_angle_of_incidence=target_angle_of_incidence,
+      )
+  )
+
+  return ExtendedLengyelOutputs(
+      target_electron_temp=sol_state.target_electron_temp,
+      neutral_pressure_in_divertor=neutral_pressure_in_divertor,
+      alpha_t=sol_state.alpha_t,
+      q_parallel=sol_state.q_parallel,
+      heat_flux_perp_to_target=heat_flux_perp_to_target,
+      separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+      separatrix_Z_eff=sol_state.separatrix_Z_eff,
+      impurity_concentrations=sol_state.impurity_concentrations,
+  )
+
+
+def _inverse_mode_fixed_step_solver(
+    sol_state: divertor_sol_1d_lib.DivertorSOL1D,
+    iterations: int,
+    power_crossing_separatrix: array_typing.FloatScalar,
+    separatrix_average_poloidal_field: array_typing.FloatScalar,
+    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
+    fraction_of_P_SOL_to_divertor: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+    fieldline_pitch_at_omp: array_typing.FloatScalar,
+    cylindrical_safety_factor: array_typing.FloatScalar,
+) -> divertor_sol_1d_lib.DivertorSOL1D:
+  """Runs the fixed-step iterative solver for the inverse mode."""
   for _ in range(iterations):
     # Calculate new value of q_parallel modified by alpha_t broadening.
     sol_state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
@@ -305,33 +357,7 @@ def run_extended_lengyel_model(
     sol_state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
         sol_state.divertor_Z_eff
     )
-
-  # --------------------------------------- #
-  # -------- 3. Post-processing ----------- #
-  # --------------------------------------- #
-
-  neutral_pressure_in_divertor, heat_flux_perp_to_target = (
-      _calc_post_processed_outputs(
-          target_electron_temp=sol_state.target_electron_temp,
-          average_ion_mass=sol_state.average_ion_mass,
-          parallel_heat_flux_at_target=sol_state.parallel_heat_flux_at_target,
-          sheath_heat_transmission_factor=sheath_heat_transmission_factor,
-          ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
-          wall_temperature=wall_temperature,
-          target_angle_of_incidence=target_angle_of_incidence,
-      )
-  )
-
-  return ExtendedLengyelOutputs(
-      target_electron_temp=sol_state.target_electron_temp,
-      neutral_pressure_in_divertor=neutral_pressure_in_divertor,
-      alpha_t=sol_state.alpha_t,
-      q_parallel=sol_state.q_parallel,
-      heat_flux_perp_to_target=heat_flux_perp_to_target,
-      separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
-      separatrix_Z_eff=sol_state.separatrix_Z_eff,
-      impurity_concentrations=sol_state.impurity_concentrations,
-  )
+  return sol_state
 
 
 def _validate_inputs_for_computation_mode(
