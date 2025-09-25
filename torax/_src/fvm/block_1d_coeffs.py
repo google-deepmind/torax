@@ -83,9 +83,6 @@ class Block1DCoeffs:
     source_cell: Additional source terms on the cell grid for each channel.
       Depending on the source runtime_params, may be constant values for a
       timestep, or updated iteratively with new states in a nonlinear solver
-    auxiliary_outputs: Optional extra output which can include auxiliary state
-      or information useful for inspecting the computation inside the callback
-      which calculated these coeffs.
   """
   transient_in_cell: tuple[jax.Array, ...]
   transient_out_cell: tuple[jax.Array, ...] | None = None
@@ -93,4 +90,3 @@ class Block1DCoeffs:
   v_face: tuple[jax.Array, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: tuple[jax.Array | None, ...] | None = None
-  auxiliary_outputs: AuxiliaryOutput | None = None

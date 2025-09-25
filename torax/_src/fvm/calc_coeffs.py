@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Calculates Block1DCoeffs for a time step."""
-import dataclasses
 import functools
 
 import jax
@@ -617,14 +616,6 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
-      auxiliary_outputs=(
-          merged_source_profiles,
-          conductivity,
-          state.CoreTransport(
-              **dataclasses.asdict(turbulent_transport),
-              **dataclasses.asdict(neoclassical_transport)
-          ),
-      ),
   )
 
   return coeffs
