@@ -33,7 +33,6 @@ import functools
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -66,7 +65,7 @@ def _calculate_psi_value_constraint_from_v_loop(
   return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
 
 
-@jax_utils.jit
+@jax.jit
 def get_prescribed_core_profile_values(
     runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
@@ -136,7 +135,7 @@ def get_prescribed_core_profile_values(
   }
 
 
-@functools.partial(jax_utils.jit, static_argnames=['evolving_names'])
+@functools.partial(jax.jit, static_argnames=['evolving_names'])
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     runtime_params: runtime_params_slice.RuntimeParams,

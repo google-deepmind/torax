@@ -17,6 +17,8 @@
 import dataclasses
 
 import jax
+from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -121,7 +123,10 @@ class SawtoothSolver(solver.Solver):
       )
 
       solver_numeric_outputs_post_step = state.SolverNumericOutputs(
-          sawtooth_crash=True
+          sawtooth_crash=True,
+          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       )
 
       return (
@@ -136,6 +141,11 @@ class SawtoothSolver(solver.Solver):
         _redistribute_state,
         lambda: (
             tuple([getattr(core_profiles_t, name) for name in evolving_names]),
-            state.SolverNumericOutputs(),
+            state.SolverNumericOutputs(
+                sawtooth_crash=False,
+                solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+                inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+                outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+            ),
         ),
     )
