@@ -467,3 +467,19 @@ def calc_Z_eff(
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
   return Z_eff[0]  # Return scalar for extended-lengyel.
+
+
+def calc_kappa_e(Z_eff: array_typing.FloatScalar) -> jax.Array:
+  """Corrected parallel electron heat conductivity prefactor.
+
+  Eq 9, Body NF 2025.
+  Eq 10, A.P. Brown A.O. and R.J. Goldston 2021 Nucl. Mater. Energy 27 101002
+
+  Args:
+    Z_eff: Effective ion charge.
+
+  Returns:
+    Corrected parallel electron heat conductivity prefactor [W/(m*eV^3.5)].
+  """
+  kappa_z = 0.672 + 0.076 * jnp.sqrt(Z_eff) + 0.252 * Z_eff
+  return extended_lengyel_defaults.KAPPA_E_0 / kappa_z

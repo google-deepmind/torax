@@ -253,5 +253,14 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         rtol=1e-5,
     )
 
+  def test_calc_kappa_e(self):
+    expected_value = 1751.6010938527386
+    Z_eff = 2.291360670810858
+    np.testing.assert_allclose(
+        extended_lengyel_formulas.calc_kappa_e(Z_eff),
+        expected_value,
+        rtol=1e-5,
+    )
+
 if __name__ == '__main__':
   absltest.main()

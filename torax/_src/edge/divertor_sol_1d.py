@@ -15,11 +15,11 @@
 """State object for the extended Lengyel model inner loop calculations."""
 
 import dataclasses
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
@@ -28,7 +28,7 @@ from torax._src.edge import extended_lengyel_formulas
 # TODO(b/446608829) - investigate separating the structure to dataclasses with
 # fixed variables and variables that are modified during the workflows.
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class DivertorSOL1D:
   """Represents the state of a 1D divertor scrape-off layer (SOL) model.
 
@@ -39,13 +39,19 @@ class DivertorSOL1D:
   See T. Body et al 2025 Nucl. Fusion 65 086002 for further details.
   """
 
-  # Inputs which may vary from the outer loop or previous iteration, depending
-  # on if extended-lengyel is being run in inverse or forward mode.
+  # Inputs which may vary within extended-lengyel model iterations, depending on
+  # whether the model is being run in inverse or forward mode.
   q_parallel: array_typing.FloatScalar
-  divertor_Z_eff: array_typing.FloatScalar
+  alpha_t: array_typing.FloatScalar
   target_electron_temp: array_typing.FloatScalar
+  c_z_prefactor: array_typing.FloatScalar
+  kappa_e: array_typing.FloatScalar
 
   # Input physics parameters which are fixed for a given run of the model.
+  main_ion_charge: array_typing.FloatScalar
+  seed_impurity_weights: Mapping[str, array_typing.FloatScalar]
+  fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
+  ne_tau: array_typing.FloatScalar
   SOL_conduction_fraction: array_typing.FloatScalar
   divertor_broadening_factor: array_typing.FloatScalar
   divertor_parallel_length: array_typing.FloatScalar
@@ -60,20 +66,6 @@ class DivertorSOL1D:
   target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
   target_ratio_of_electron_to_ion_density: array_typing.FloatScalar
   toroidal_flux_expansion: array_typing.FloatScalar
-
-  @property
-  def kappa_e(self) -> array_typing.jax.Array:
-    """Corrected parallel electron heat conductivity.
-
-    Eq 9, Body NF 2025.
-    Eq 10, A.P. Brown A.O. and R.J. Goldston 2021 Nucl. Mater. Energy 27 101002
-    """
-    kappa_z = (
-        0.672
-        + 0.076 * jnp.sqrt(self.divertor_Z_eff)
-        + 0.252 * self.divertor_Z_eff
-    )
-    return extended_lengyel_defaults.KAPPA_E_0 / kappa_z
 
   @property
   def electron_temp_at_cc_interface(self) -> jax.Array:
@@ -218,3 +210,32 @@ class DivertorSOL1D:
         )
     )
     return self.parallel_heat_flux_at_target / (1.0 - power_loss_conv_layer)
+
+  @property
+  def divertor_Z_eff(self) -> array_typing.FloatScalar:
+    return extended_lengyel_formulas.calc_Z_eff(
+        c_z=self.c_z_prefactor,
+        T_e=self.divertor_entrance_electron_temp / 1e3,  # to keV
+        Z_i=self.main_ion_charge,
+        ne_tau=self.ne_tau,
+        seed_impurity_weights=self.seed_impurity_weights,
+        fixed_impurity_concentrations=self.fixed_impurity_concentrations,
+    )
+
+  @property
+  def separatrix_Z_eff(self) -> array_typing.FloatScalar:
+    return extended_lengyel_formulas.calc_Z_eff(
+        c_z=self.c_z_prefactor,
+        T_e=self.separatrix_electron_temp / 1e3,  # to keV
+        Z_i=self.main_ion_charge,
+        ne_tau=self.ne_tau,
+        seed_impurity_weights=self.seed_impurity_weights,
+        fixed_impurity_concentrations=self.fixed_impurity_concentrations,
+    )
+
+  @property
+  def impurity_concentrations(self) -> Mapping[str, array_typing.FloatScalar]:
+    return {
+        key: value * self.c_z_prefactor
+        for key, value in self.seed_impurity_weights.items()
+    }

@@ -40,15 +40,21 @@ _RTOL = 1e-6
 class DivertorSOL1DTest(parameterized.TestCase):
   """Testing the DivertorSOL1D class properties.
 
-  All reference values taken from the second inner loop of the reference case in
+  All reference values taken from the second loop of the reference case in
   https://github.com/cfs-energy/extended-lengyel
   """
 
   def setUp(self):
     super().setUp()
     self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=5.06193577e8,
-        divertor_Z_eff=2.291360670810858,
+        q_parallel=3.39611623e8,
+        c_z_prefactor=0.059314229517142096,
+        kappa_e=1751.6010938527386,
+        alpha_t=0.0,
+        main_ion_charge=1.0,
+        seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
+        fixed_impurity_concentrations={'He': 0.01},
+        ne_tau=extended_lengyel_defaults.NE_TAU,
         target_electron_temp=2.34,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
@@ -66,14 +72,6 @@ class DivertorSOL1DTest(parameterized.TestCase):
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
 
-  def test_kappa_e(self):
-    expected_value = 1751.6010938527386
-    np.testing.assert_allclose(
-        self.divertor_sol_1d.kappa_e,
-        expected_value,
-        rtol=_RTOL,
-    )
-
   def test_electron_temp_at_cc_interface(self):
     expected_value = 6.167578954082415
     np.testing.assert_allclose(
@@ -83,7 +81,7 @@ class DivertorSOL1DTest(parameterized.TestCase):
     )
 
   def test_divertor_entrance_electron_temp(self):
-    expected_value = 60.13510639676952
+    expected_value = 53.65683926205252
     np.testing.assert_allclose(
         self.divertor_sol_1d.divertor_entrance_electron_temp,
         expected_value,
@@ -91,7 +89,7 @@ class DivertorSOL1DTest(parameterized.TestCase):
     )
 
   def test_separatrix_electron_temp(self):
-    expected_value = 116.09239718114556
+    expected_value = 103.58141942945846
     np.testing.assert_allclose(
         self.divertor_sol_1d.separatrix_electron_temp,
         expected_value,
@@ -99,9 +97,17 @@ class DivertorSOL1DTest(parameterized.TestCase):
     )
 
   def test_required_power_loss(self):
-    expected_value = 0.9662169852278072
+    expected_value = 0.9550726743297632
     np.testing.assert_allclose(
         self.divertor_sol_1d.required_power_loss,
+        expected_value,
+        rtol=_RTOL,
+    )
+
+  def test_divertor_Z_eff(self):
+    expected_value = 2.2881883214145797
+    np.testing.assert_allclose(
+        self.divertor_sol_1d.divertor_Z_eff,
         expected_value,
         rtol=_RTOL,
     )

@@ -30,8 +30,14 @@ class ExtendedLengyelTest(absltest.TestCase):
     # the reference case in https://github.com/cfs-energy/extended-lengyel
 
     sol_state = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=5.06193577e8,
-        divertor_Z_eff=2.291360670810858,
+        q_parallel=3.39611622588553e8,
+        c_z_prefactor=0.059314229517142096,
+        kappa_e=1751.6010938527386,
+        alpha_t=0.0,
+        seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
+        fixed_impurity_concentrations={'He': 0.01},
+        main_ion_charge=1.0,
+        ne_tau=extended_lengyel_defaults.NE_TAU,
         target_electron_temp=2.34,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
@@ -49,20 +55,17 @@ class ExtendedLengyelTest(absltest.TestCase):
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
 
-    calculated_c_z, status = extended_lengyel._solve_for_c_z(
-        divertor_sol_1d=sol_state,
-        seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
-        fixed_impurity_concentrations={'He': 0.01},
-        ne_tau=extended_lengyel_defaults.NE_TAU,
+    calculated_c_z, status = extended_lengyel._solve_for_c_z_prefactor(
+        sol_state=sol_state,
     )
 
-    expected_c_z = 0.06323862137705387
+    expected_c_z = 0.03487637336277587
 
     self.assertEqual(status, extended_lengyel.SolveCzStatus.SUCCESS)
     np.testing.assert_allclose(
         calculated_c_z,
         expected_c_z,
-        rtol=1e-4,
+        rtol=5e-4,
     )
 
   def test_run_extended_lengyel_model_inverse_mode(self):

@@ -39,7 +39,7 @@ _LINT_K_INVERSE_SCALE_FACTOR = 1e-10
 
 
 class SolveCzStatus(enum.IntEnum):
-  """Status of the _solve_for_c_z calculation.
+  """Status of the _solve_for_c_z_prefactor calculation.
 
   Attributes:
     SUCCESS: The calculation was successful.
@@ -73,7 +73,7 @@ class ExtendedLengyelOutputs:
   Attributes:
     target_electron_temp: Electron temperature at sheath entrance [eV].
     neutral_pressure_in_divertor: Neutral pressure in the divertor [Pa].
-    alpha_t: Turbulence broadenign parameter alpha_t.
+    alpha_t: Turbulence broadening factor alpha_t.
     q_parallel: Parallel heat flux [W/m^2].
     heat_flux_perp_to_target: Heat flux perpendicular to the target [W/m^2].
     separatrix_electron_temp: Electron temperature at the separatrix [keV].
@@ -166,8 +166,8 @@ def run_extended_lengyel_model(
       sheath entrance [eV].
     seed_impurity_weights: For inverse mode, Mapping from ion symbol to
       fractions of seeded impurities. Total impurity n_e_ratio (c_z) is
-      calculated by the model. c_z*seed_impurity_weights thus forms an output of
-      the model.
+      calculated by the model. c_z_prefactor*seed_impurity_weights thus forms an
+      output of the model.
     computation_mode: The computation mode for the model. See ComputationMode
       for details.
     divertor_broadening_factor: lambda_INT / lambda_q.
@@ -233,14 +233,21 @@ def run_extended_lengyel_model(
 
   # Initialize values for iterative solver.
   alpha_t = 0.0
-  divertor_Z_eff = 1.0
+  c_z_prefactor = 0.0
+  kappa_e = extended_lengyel_defaults.KAPPA_E_0
   q_parallel = 1e6  # arbitrary value for initialization.
   c_z = 0.0
   separatrix_Z_eff = 1.0
 
   sol_state = divertor_sol_1d_lib.DivertorSOL1D(
       q_parallel=q_parallel,
-      divertor_Z_eff=divertor_Z_eff,
+      alpha_t=alpha_t,
+      c_z_prefactor=c_z_prefactor,
+      kappa_e=kappa_e,
+      seed_impurity_weights=seed_impurity_weights,
+      fixed_impurity_concentrations=fixed_impurity_concentrations,
+      ne_tau=ne_tau,
+      main_ion_charge=main_ion_charge,
       target_electron_temp=target_electron_temp,
       SOL_conduction_fraction=SOL_conduction_fraction,
       divertor_broadening_factor=divertor_broadening_factor,
@@ -264,11 +271,11 @@ def run_extended_lengyel_model(
 
   for _ in range(iterations):
     # Calculate new value of q_parallel modified by alpha_t broadening.
-    q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+    sol_state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
         separatrix_electron_temp=sol_state.separatrix_electron_temp,
-        average_ion_mass=average_ion_mass,
+        average_ion_mass=sol_state.average_ion_mass,
         separatrix_average_poloidal_field=separatrix_average_poloidal_field,
-        alpha_t=alpha_t,
+        alpha_t=sol_state.alpha_t,
         ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
         fraction_of_PSOL_to_divertor=fraction_of_P_SOL_to_divertor,
         minor_radius=minor_radius,
@@ -276,63 +283,37 @@ def run_extended_lengyel_model(
         power_crossing_separatrix=power_crossing_separatrix,
         fieldline_pitch_at_omp=fieldline_pitch_at_omp,
     )
-    # Update the DivertorSOL1D state object with the new q_parallel value.
-    sol_state = dataclasses.replace(sol_state, q_parallel=q_parallel)
 
     # Solve for the impurity concentration required to achieve the target
-    # temperature for a given q_parallel.
-    c_z, _ = _solve_for_c_z(
-        divertor_sol_1d=sol_state,
-        seed_impurity_weights=seed_impurity_weights,
-        fixed_impurity_concentrations=fixed_impurity_concentrations,
-        ne_tau=ne_tau,
-    )
-
-    # Update divertor_Z eff with new c_z for the next loop iteration.
-    # Impacts parallel heat conductivity kappa_z.
-    divertor_Z_eff = extended_lengyel_formulas.calc_Z_eff(
-        c_z=c_z,
-        T_e=sol_state.divertor_entrance_electron_temp / 1e3,  # to keV
-        Z_i=main_ion_charge,
-        ne_tau=ne_tau,
-        seed_impurity_weights=seed_impurity_weights,
-        fixed_impurity_concentrations=fixed_impurity_concentrations,
-    )
-    sol_state = dataclasses.replace(sol_state, divertor_Z_eff=divertor_Z_eff)
-
-    # Update separatrix_Z eff with new c_z. Impacts alpha_t.
-    separatrix_Z_eff = extended_lengyel_formulas.calc_Z_eff(
-        c_z=c_z,
-        T_e=sol_state.separatrix_electron_temp / 1e3,  # to keV
-        Z_i=main_ion_charge,
-        ne_tau=ne_tau,
-        seed_impurity_weights=seed_impurity_weights,
-        fixed_impurity_concentrations=fixed_impurity_concentrations,
-    )
+    # temperature for a given q_parallel. This also updates the divertor and
+    # separatrix Z_eff values in sol_state, used downstream.
+    sol_state.c_z_prefactor, _ = _solve_for_c_z_prefactor(sol_state=sol_state)
 
     # Update alpha_t for the next loop iteration. Impacts q_parallel.
-    alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=separatrix_electron_density,
+    sol_state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
+        separatrix_electron_density=sol_state.separatrix_electron_density,
         separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
         cylindrical_safety_factor=cylindrical_safety_factor,
         major_radius=major_radius,
-        average_ion_mass=average_ion_mass,
-        Z_eff=separatrix_Z_eff,
+        average_ion_mass=sol_state.average_ion_mass,
+        Z_eff=sol_state.separatrix_Z_eff,
         mean_ion_charge_state=1.0,
+    )
+
+    # Update kappa_e for the next loop iteration. Impacts q_parallel and
+    # temperatures upstream from target.
+    sol_state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
+        sol_state.divertor_Z_eff
     )
 
   # --------------------------------------- #
   # -------- 3. Post-processing ----------- #
   # --------------------------------------- #
 
-  assert(isinstance(seed_impurity_weights, dict))
-  impurity_concentrations = {
-      key: value * c_z for key, value in seed_impurity_weights.items()
-  }
   neutral_pressure_in_divertor, heat_flux_perp_to_target = (
       _calc_post_processed_outputs(
-          target_electron_temp=target_electron_temp,
-          average_ion_mass=average_ion_mass,
+          target_electron_temp=sol_state.target_electron_temp,
+          average_ion_mass=sol_state.average_ion_mass,
           parallel_heat_flux_at_target=sol_state.parallel_heat_flux_at_target,
           sheath_heat_transmission_factor=sheath_heat_transmission_factor,
           ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
@@ -342,16 +323,15 @@ def run_extended_lengyel_model(
   )
 
   return ExtendedLengyelOutputs(
-      target_electron_temp=target_electron_temp,
+      target_electron_temp=sol_state.target_electron_temp,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
-      alpha_t=alpha_t,
-      q_parallel=q_parallel,
+      alpha_t=sol_state.alpha_t,
+      q_parallel=sol_state.q_parallel,
       heat_flux_perp_to_target=heat_flux_perp_to_target,
       separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
-      separatrix_Z_eff=separatrix_Z_eff,
-      impurity_concentrations=impurity_concentrations,
+      separatrix_Z_eff=sol_state.separatrix_Z_eff,
+      impurity_concentrations=sol_state.impurity_concentrations,
   )
-  # pylint: enable=undefined-variable
 
 
 def _validate_inputs_for_computation_mode(
@@ -439,11 +419,8 @@ def _calc_post_processed_outputs(
   return neutral_pressure_in_divertor, heat_flux_perp_to_target
 
 
-def _solve_for_c_z(
-    divertor_sol_1d: divertor_sol_1d_lib.DivertorSOL1D,
-    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
-    fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
-    ne_tau: array_typing.FloatScalar,
+def _solve_for_c_z_prefactor(
+    sol_state: divertor_sol_1d_lib.DivertorSOL1D,
 ) -> tuple[jax.Array, jax.Array]:
   """Solves the extended Lengyel model for the required impurity concentration.
 
@@ -454,42 +431,36 @@ def _solve_for_c_z(
   See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
 
   Args:
-    divertor_sol_1d: A DivertorSOL1D object containing the plasma parameters.
-    seed_impurity_weights: Mapping from ion symbol to fractional weights of
-      seeded impurities.
-    fixed_impurity_concentrations: Mapping from ion symbol to fixed n_z/n_e
-      concentrations of background impurities.
-    ne_tau: The non-coronal parameter, being the product of electron density and
-      impurity residence time [m^-3 s].
+    sol_state: A DivertorSOL1D object containing the plasma parameters.
 
   Returns:
-      c_z: The scaling factor for the seeded impurity concentrations. To be
-        multiplied by seed_impurity_weights to get each seeded impurity
+      c_z_prefactor: The scaling factor for the seeded impurity concentrations.
+        To be multiplied by seed_impurity_weights to get each seeded impurity
         concentration.
       status: A SolveCzStatus enum indicating the outcome of the calculation.
   """
   # Temperatures must be in keV for the L_INT calculation.
-  cc_temp_keV = divertor_sol_1d.electron_temp_at_cc_interface / 1000.0
-  div_temp_keV = divertor_sol_1d.divertor_entrance_electron_temp / 1000.0
-  sep_temp_keV = divertor_sol_1d.separatrix_electron_temp / 1000.0
+  cc_temp_keV = sol_state.electron_temp_at_cc_interface / 1000.0
+  div_temp_keV = sol_state.divertor_entrance_electron_temp / 1000.0
+  sep_temp_keV = sol_state.separatrix_electron_temp / 1000.0
 
   # Calculate integrated radiation terms (L_INT) for seeded impurities.
   # See Eq. 34 in Body et al. 2025.
   Ls_cc_div = (
       collisional_radiative_models.calculate_weighted_L_INT(
-          seed_impurity_weights,
+          sol_state.seed_impurity_weights,
           start_temp=cc_temp_keV,
           stop_temp=div_temp_keV,
-          ne_tau=ne_tau,
+          ne_tau=sol_state.ne_tau,
       )
       * _LINT_SCALE_FACTOR
   )
   Ls_cc_u = (
       collisional_radiative_models.calculate_weighted_L_INT(
-          seed_impurity_weights,
+          sol_state.seed_impurity_weights,
           start_temp=cc_temp_keV,
           stop_temp=sep_temp_keV,
-          ne_tau=ne_tau,
+          ne_tau=sol_state.ne_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -498,36 +469,35 @@ def _solve_for_c_z(
   # Calculate integrated radiation terms for fixed background impurities.
   Lf_cc_div = (
       collisional_radiative_models.calculate_weighted_L_INT(
-          fixed_impurity_concentrations,
+          sol_state.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=div_temp_keV,
-          ne_tau=ne_tau,
+          ne_tau=sol_state.ne_tau,
       )
       * _LINT_SCALE_FACTOR
   )
   Lf_cc_u = (
       collisional_radiative_models.calculate_weighted_L_INT(
-          fixed_impurity_concentrations,
+          sol_state.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=sep_temp_keV,
-          ne_tau=ne_tau,
+          ne_tau=sol_state.ne_tau,
       )
       * _LINT_SCALE_FACTOR
   )
   Lf_div_u = Lf_cc_u - Lf_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = divertor_sol_1d.q_parallel
-  qcc = divertor_sol_1d.parallel_heat_flux_at_cc_interface
-  b = divertor_sol_1d.divertor_broadening_factor
+  qu = sol_state.q_parallel
+  qcc = sol_state.parallel_heat_flux_at_cc_interface
+  b = sol_state.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
   k = (
       2.0
-      * divertor_sol_1d.kappa_e
-      * (divertor_sol_1d.separatrix_electron_density * _DENSITY_SCALE_FACTOR)
-      ** 2
-      * divertor_sol_1d.separatrix_electron_temp**2
+      * sol_state.kappa_e
+      * (sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR) ** 2
+      * sol_state.separatrix_electron_temp**2
   )
 
   # Calculate the squared parallel heat flux at the divertor entrance.
@@ -550,9 +520,9 @@ def _solve_for_c_z(
 
   # Calculate the required seeded impurity concentration `c_z`.
   # See Eq. 42 in Body et al. 2025.
-  c_z = (
+  c_z_prefactor = (
       (qu**2 + (1.0 / b**2 - 1.0) * q_div_squared - qcc**2)
       / (k * Ls_cc_u / _LINT_K_INVERSE_SCALE_FACTOR)
   ) - (Lf_cc_u / Ls_cc_u)
 
-  return c_z, status
+  return c_z_prefactor, status
