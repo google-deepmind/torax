@@ -17,7 +17,7 @@ converts them into TORAX objects.
 """
 from typing import Any, Mapping
 
-from imas.ids_toplevel import IDSToplevel
+from imas import ids_toplevel
 import numpy as np
 
 
@@ -59,7 +59,7 @@ def update_dict(old_dict: dict, updates: dict) -> dict:
 
 
 def core_profiles_from_IMAS(
-    ids: IDSToplevel,
+    ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
 ) -> Mapping[str, Mapping[str, Any]]:
   """Converts core_profiles IDS to a dict with the input profiles for the config.

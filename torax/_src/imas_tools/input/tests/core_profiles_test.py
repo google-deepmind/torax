@@ -20,10 +20,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import torax
-from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
-from torax._src.imas_tools.input.core_profiles import update_dict
-from torax._src.imas_tools.input.loader import load_imas_data
-from torax._src.orchestration.run_simulation import prepare_simulation
+from torax._src.imas_tools.input import core_profiles
+from torax._src.imas_tools.input import loader
+from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
@@ -44,17 +43,17 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     nested_update = {"nested": {"x1": 0, "x2": 1}}
     profiles_update = {"profiles": {0.0: "new", 1.0: "new"}}
     with self.subTest("Test simple update of a str key."):
-      new_dict = update_dict(old_dict, simple_update)
+      new_dict = core_profiles.update_dict(old_dict, simple_update)
       assert new_dict["str_key"] == simple_update["str_key"]
       assert new_dict["str_key"] is not old_dict["str_key"]
     with self.subTest("Test update of a nested dict with str keys."):
-      new_dict = update_dict(old_dict, nested_update)
+      new_dict = core_profiles.update_dict(old_dict, nested_update)
       assert new_dict["nested"] == nested_update["nested"]
       assert new_dict["nested"] is not old_dict["nested"]
     with self.subTest(
         "Test simple update of a profiles type dict with floats as keys."
     ):
-      new_dict = update_dict(old_dict, profiles_update)
+      new_dict = core_profiles.update_dict(old_dict, profiles_update)
       assert new_dict["profiles"] == profiles_update["profiles"]
       assert new_dict["profiles"] is not old_dict["profiles"]
 
@@ -66,8 +65,8 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     offset = 100.0
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    ids_in = load_imas_data(path, "core_profiles", dir)
-    core_profiles_conditions = core_profiles_from_IMAS(
+    ids_in = loader.load_imas_data(path, "core_profiles", dir)
+    core_profiles_conditions = core_profiles.core_profiles_from_IMAS(
         ids_in,
         t_initial=offset,
     )
@@ -95,13 +94,13 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = load_imas_data(path, "core_profiles", dir)
+    core_profiles_in = loader.load_imas_data(path, "core_profiles", dir)
 
     # Modifying the input config profiles_conditions class
-    core_profiles_conditions = core_profiles_from_IMAS(
+    core_profiles_conditions = core_profiles.core_profiles_from_IMAS(
         core_profiles_in,
     )
-    config = update_dict(config, core_profiles_conditions)
+    config = core_profiles.update_dict(config, core_profiles_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Run Sim
@@ -139,20 +138,20 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
     )
     dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = load_imas_data(path, "core_profiles", dir)
+    core_profiles_in = loader.load_imas_data(path, "core_profiles", dir)
     rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
-    core_profiles_conditions = core_profiles_from_IMAS(
+    core_profiles_conditions = core_profiles.core_profiles_from_IMAS(
         core_profiles_in,
         t_initial=0.0,
     )
     config["geometry"]["n_rho"] = 200
-    config = update_dict(config, core_profiles_conditions)
+    config = core_profiles.update_dict(config, core_profiles_conditions)
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Init sim from config
-    _, sim_state, _, _ = prepare_simulation(torax_config)
+    _, sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
 
     # Read output values
     torax_mesh = torax_config.geometry.build_provider.torax_mesh
