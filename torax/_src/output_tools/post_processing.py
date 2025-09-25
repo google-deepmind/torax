@@ -531,7 +531,7 @@ def _calculate_integrated_sources(
   return integrated
 
 
-@jax_utils.jit
+@jax.jit
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
     runtime_params: runtime_params_slice.RuntimeParams,
