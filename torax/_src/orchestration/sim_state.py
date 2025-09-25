@@ -21,6 +21,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.sources import source_profiles
 
 
@@ -49,6 +50,7 @@ class ToraxSimState:
       the explicit and implicit profiles.
     geometry: Geometry at this time step used for the simulation.
     solver_numeric_outputs: Numerical quantities related to the solver.
+    pedestal_policy_state: State variables held by the pedestal policy.
   """
 
   t: array_typing.FloatScalar
@@ -58,6 +60,7 @@ class ToraxSimState:
   core_sources: source_profiles.SourceProfiles
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs
+  pedestal_policy_state: pedestal_policy.PedestalPolicyState
 
   def check_for_errors(self) -> state.SimError:
     """Checks for errors in the simulation state."""

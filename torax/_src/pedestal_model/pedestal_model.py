@@ -25,6 +25,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_module
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -48,12 +49,11 @@ class PedestalModelOutput:
 
 
 class PedestalModel(abc.ABC):
-  """Calculates temperature and density of the pedestal.
+  """Calculates temperature and density of the pedestal."""
 
-  Subclass responsbilities:
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
+  def __init__(self, pedestal_policy: pedestal_policy_module.PedestalPolicy):
+    self.pedestal_policy = pedestal_policy
+    self._frozen = True
 
   def __setattr__(self, attr, value):
     # pylint: disable=g-doc-args
@@ -72,6 +72,7 @@ class PedestalModel(abc.ABC):
       runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_policy_state: pedestal_policy_module.PedestalPolicyState,
   ) -> PedestalModelOutput:
     if not getattr(self, "_frozen", False):
       raise RuntimeError(
@@ -80,7 +81,7 @@ class PedestalModel(abc.ABC):
       )
 
     return jax.lax.cond(
-        runtime_params.pedestal.set_pedestal,
+        pedestal_policy_state.use_pedestal,
         lambda: self._call_implementation(runtime_params, geo, core_profiles),
         # Set the pedestal location to infinite to indicate that the pedestal is
         # not present.

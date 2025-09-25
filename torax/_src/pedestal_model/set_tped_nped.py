@@ -41,12 +41,6 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   """A basic version of the pedestal model that uses direct specification."""
 
-  def __init__(
-      self,
-  ):
-    super().__init__()
-    self._frozen = True
-
   @override
   def _call_implementation(
       self,

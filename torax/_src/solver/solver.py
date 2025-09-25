@@ -27,6 +27,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.sources import source_profiles
 import typing_extensions
 
@@ -67,6 +68,7 @@ class Solver(abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -95,6 +97,7 @@ class Solver(abc.ABC):
         or were independent of the core profiles. Because they were calculated
         outside the possibly-JAX-jitted solver logic, they can be calculated in
         non-JAX-friendly ways.
+      pedestal_policy_state: State variables held by the pedestal policy.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -118,6 +121,7 @@ class Solver(abc.ABC):
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state=pedestal_policy_state,
           evolving_names=runtime_params_t.numerics.evolving_names,
       )
     else:
@@ -139,6 +143,7 @@ class Solver(abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -164,6 +169,7 @@ class Solver(abc.ABC):
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
       explicit_source_profiles: see the docstring of __call__
+      pedestal_policy_state: State variables held by the pedestal policy.
       evolving_names: The names of core_profiles variables that should evolve.
 
     Returns:
