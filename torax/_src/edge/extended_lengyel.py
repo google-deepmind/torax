@@ -202,6 +202,9 @@ def run_extended_lengyel_model(
   # ---------- 1. Pre-processing ---------- #
   # --------------------------------------- #
 
+  if seed_impurity_weights is None:
+    seed_impurity_weights = {}
+
   _validate_inputs_for_computation_mode(
       computation_mode, target_electron_temp, seed_impurity_weights
   )
@@ -242,6 +245,13 @@ def run_extended_lengyel_model(
   kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
   q_parallel_init = 1e6  # arbitrary value for initialization.
 
+  if computation_mode == ComputationMode.INVERSE:
+    target_electron_temp_init = target_electron_temp  # from input
+  elif computation_mode == ComputationMode.FORWARD:
+    target_electron_temp_init = 2.0  # eV
+  else:
+    raise ValueError(f'Unknown computation mode: {computation_mode}')
+
   sol_state_init = divertor_sol_1d_lib.DivertorSOL1D(
       q_parallel=q_parallel_init,
       alpha_t=alpha_t_init,
@@ -251,7 +261,7 @@ def run_extended_lengyel_model(
       fixed_impurity_concentrations=fixed_impurity_concentrations,
       ne_tau=ne_tau,
       main_ion_charge=main_ion_charge,
-      target_electron_temp=target_electron_temp,
+      target_electron_temp=target_electron_temp_init,
       SOL_conduction_fraction=SOL_conduction_fraction,
       divertor_broadening_factor=divertor_broadening_factor,
       divertor_parallel_length=divertor_parallel_length,
@@ -272,18 +282,35 @@ def run_extended_lengyel_model(
   # -------- 2. Iterative Solver----------- #
   # --------------------------------------- #
 
-  sol_state = _inverse_mode_fixed_step_solver(
-      sol_state=sol_state_init,
-      iterations=iterations,
-      power_crossing_separatrix=power_crossing_separatrix,
-      separatrix_average_poloidal_field=separatrix_average_poloidal_field,
-      ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
-      fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
-      minor_radius=minor_radius,
-      major_radius=major_radius,
-      fieldline_pitch_at_omp=fieldline_pitch_at_omp,
-      cylindrical_safety_factor=cylindrical_safety_factor,
-  )
+  # ComputationMode enum will be a static variable so can use standard flow.
+  if computation_mode == ComputationMode.INVERSE:
+    sol_state = _inverse_mode_fixed_step_solver(
+        sol_state=sol_state_init,
+        iterations=iterations,
+        power_crossing_separatrix=power_crossing_separatrix,
+        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+        ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+        fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
+        minor_radius=minor_radius,
+        major_radius=major_radius,
+        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+        cylindrical_safety_factor=cylindrical_safety_factor,
+    )
+  elif computation_mode == ComputationMode.FORWARD:
+    sol_state = _forward_mode_fixed_step_solver(
+        sol_state=sol_state_init,
+        iterations=iterations,
+        power_crossing_separatrix=power_crossing_separatrix,
+        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+        ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+        fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
+        minor_radius=minor_radius,
+        major_radius=major_radius,
+        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+        cylindrical_safety_factor=cylindrical_safety_factor,
+    )
+  else:
+    raise ValueError(f'Unknown computation mode: {computation_mode}')
 
   # --------------------------------------- #
   # -------- 3. Post-processing ----------- #
@@ -365,10 +392,90 @@ def _inverse_mode_fixed_step_solver(
   return sol_state
 
 
+def _forward_mode_fixed_step_solver(
+    sol_state: divertor_sol_1d_lib.DivertorSOL1D,
+    iterations: int,
+    power_crossing_separatrix: array_typing.FloatScalar,
+    separatrix_average_poloidal_field: array_typing.FloatScalar,
+    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
+    fraction_of_P_SOL_to_divertor: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+    fieldline_pitch_at_omp: array_typing.FloatScalar,
+    cylindrical_safety_factor: array_typing.FloatScalar,
+) -> divertor_sol_1d_lib.DivertorSOL1D:
+  """Runs the fixed-step iterative solver for the forward mode."""
+
+  # Relaxation function needed for fixed point iteration in forward mode for
+  # stability.
+  def _relax(new_value, prev_value, relaxation_factor=0.4):
+    return relaxation_factor * new_value + (1 - relaxation_factor) * prev_value
+
+  for i in range(iterations):
+
+    # Store current values for the next relaxation step
+    prev_sol_state = sol_state
+
+    # Update q_parallel based on the current separatrix temperature and alpha_t.
+    sol_state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+        separatrix_electron_temp=sol_state.separatrix_electron_temp,
+        average_ion_mass=sol_state.average_ion_mass,
+        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
+        alpha_t=sol_state.alpha_t,
+        ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
+        fraction_of_PSOL_to_divertor=fraction_of_P_SOL_to_divertor,
+        minor_radius=minor_radius,
+        major_radius=major_radius,
+        power_crossing_separatrix=power_crossing_separatrix,
+        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
+    )
+
+    # Calculate heat flux at the cc-interface for fixed impurity concentrations.
+    q_cc, _ = _solve_for_qcc(sol_state=sol_state)
+
+    # Calculate new target electron temperature with forward two-point model.
+    sol_state.target_electron_temp = (
+        divertor_sol_1d_lib.calc_target_electron_temp(
+            sol_state=sol_state,
+            parallel_heat_flux_at_cc_interface=q_cc,
+            previous_target_electron_temp=sol_state.target_electron_temp,
+        )
+    )
+
+    # Update kappa_e and alpha_t for the next iteration.
+    sol_state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
+        sol_state.divertor_Z_eff
+    )
+
+    sol_state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
+        separatrix_electron_density=sol_state.separatrix_electron_density,
+        separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+        cylindrical_safety_factor=cylindrical_safety_factor,
+        major_radius=major_radius,
+        average_ion_mass=sol_state.average_ion_mass,
+        Z_eff=sol_state.separatrix_Z_eff,
+        mean_ion_charge_state=1.0,
+    )
+
+    # Relaxation step after the first iteration
+    if i > 0:
+
+      sol_state.target_electron_temp = _relax(
+          sol_state.target_electron_temp,
+          prev_sol_state.target_electron_temp,
+      )
+      sol_state.alpha_t = _relax(
+          sol_state.alpha_t,
+          prev_sol_state.alpha_t,
+      )
+
+  return sol_state
+
+
 def _validate_inputs_for_computation_mode(
     computation_mode: ComputationMode,
-    target_electron_temp: array_typing.FloatScalar | None,
-    seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None,
+    target_electron_temp: array_typing.FloatScalar,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
 ):
   """Validates inputs based on the specified computation mode."""
   if computation_mode == ComputationMode.FORWARD:
@@ -377,7 +484,7 @@ def _validate_inputs_for_computation_mode(
           'Target electron temperature must not be provided for forward'
           ' computation.'
       )
-    if seed_impurity_weights is not None:
+    if seed_impurity_weights:
       raise ValueError(
           'Seed impurity weights must not be provided for forward computation.'
       )
@@ -387,7 +494,7 @@ def _validate_inputs_for_computation_mode(
           'Target electron temperature must be provided for inverse'
           ' computation.'
       )
-    if seed_impurity_weights is None:
+    if not seed_impurity_weights:
       raise ValueError(
           'Seed impurity weights must be provided for inverse computation.'
       )
