@@ -151,6 +151,15 @@ run_torax  --config='examples/iterhybrid_rampup.py' --log_progress
 
 #### Set environment variables
 
+##### Running Tests with Full Assertion Checks
+
+To run the pytest test suite with all assertion checks enabled, set the following environment variables:
+
+```shell
+$ export TORAX_JAXTYPING=True
+$ export TORAX_ERRORS_ENABLED=True
+```
+
 ##### Error checking
 
 If true, error checking is enabled in internal routines. Used for debugging.
