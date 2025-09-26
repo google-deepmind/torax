@@ -51,7 +51,7 @@ the full power of JAX:
     (for an example, see the |QuaLiKiz| transport model implementation) if the
     linear solver is used. However, note that if the model is called within the
     step function, JIT will need to be disabled with
-    ``TORAX_COMPILATION_ENABLED=0``.
+    ``JAX_DISABLE_JIT=True``.
 
 
 Option 1: manually reimplementing the model in JAX

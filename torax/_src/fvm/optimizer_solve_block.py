@@ -19,6 +19,7 @@ import functools
 from typing import TypeAlias
 
 import jax
+import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
@@ -38,7 +39,7 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'coeffs_callback',
         'evolving_names',
@@ -165,7 +166,12 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  solver_numeric_outputs = state.SolverNumericOutputs()
+  solver_numeric_outputs = state.SolverNumericOutputs(
+      inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+      sawtooth_crash=False,
+  )
 
   # Advance jaxopt_solver by one timestep
   (

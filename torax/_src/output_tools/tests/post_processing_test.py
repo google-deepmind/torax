@@ -17,6 +17,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 import scipy
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -204,11 +205,19 @@ class PostProcessingTest(parameterized.TestCase):
         core_transport=state.CoreTransport.zeros(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(),
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
         runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
     )
     self.assertEqual(
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR

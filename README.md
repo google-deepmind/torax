@@ -163,10 +163,10 @@ $ export TORAX_ERRORS_ENABLED=<True/False>
 ##### JAX Compilation and Cache
 
 If false, JAX does not compile internal TORAX functions. Used for debugging.
-Default is true.
+Default is False.
 
 ```shell
-$ export TORAX_COMPILATION_ENABLED=<True/False>
+$ export JAX_DISABLE_JIT=<True/False>
 ```
 
 The following implements the JAX persistent cache and will cause jax to store

@@ -19,7 +19,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 
 
 @jax.tree_util.register_dataclass
@@ -165,7 +164,7 @@ def _root_in_interval(
   return jnp.where(in_interval, root_values, -jnp.inf)
 
 
-@jax_utils.jit
+@jax.jit
 def find_min_q_and_q_surface_intercepts(
     rho_norm: jax.Array, q_face: jax.Array
 ) -> SafetyFactorFit:
