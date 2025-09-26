@@ -22,6 +22,7 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import transport_model as transport_model_lib
 
 
 @jax.tree_util.register_dataclass
@@ -206,7 +207,7 @@ class TGLFBasedTransportModel(
     #   https://gacode.io/cgyro.html#faq
     # - c_s (ion sound speed)
     #   https://gacode.io/cgyro.html#id10
-    m_D_amu = constants.ION_PROPERTIES_DICT['D'].A  # Mass of deuterium [amu]
+    m_D_amu = constants.ION_PROPERTIES_DICT["D"].A  # Mass of deuterium [amu]
     m_D = m_D_amu * constants.CONSTANTS.mp  # Mass of deuterium [kg]
     c_s = (T_e / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
@@ -332,4 +333,83 @@ class TGLFBasedTransportModel(
         delta_shear=delta_shear,
         beta_e=beta_e,
         Zeff=core_profiles.Z_eff_face,
+    )
+
+  def _make_core_transport(
+      self,
+      qi: jax.Array,
+      qe: jax.Array,
+      pfe: jax.Array,
+      quasilinear_inputs: quasilinear_transport_model.QuasilinearInputs,  # Unused
+      transport: RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      gradient_reference_length: jax.Array,  # Unused
+      gyrobohm_flux_reference_length: jax.Array,  # Unused
+  ) -> transport_model_lib.TurbulentTransport:
+    # Define shorthand variables for readability
+    T_e_J = core_profiles.T_e.face_value() * constants.CONSTANTS.keV2J
+    n_e = core_profiles.n_e.face_value()
+    n_i = core_profiles.n_e.face_value()
+    r_mid = geo.r_mid_face
+    a = geo.a_minor
+    q = core_profiles.q_face
+    psi = core_profiles.psi.face_value() / (2 * jnp.pi)
+    m_D = constants.ION_PROPERTIES_DICT["D"].A * constants.CONSTANTS.mp
+    e = constants.CONSTANTS.qe
+    dT_e_drhon = (
+        core_profiles.T_e.face_grad(geo.rho_norm) * constants.CONSTANTS.keV2J
+    )
+    dT_i_drhon = (
+        core_profiles.T_i.face_grad(geo.rho_norm) * constants.CONSTANTS.keV2J
+    )
+    dn_e_drhon = core_profiles.n_e.face_grad(geo.rho_norm)
+    dV_drhon = geo.vpr_face
+    rho_b = geo.rho_b
+    g1_over_vpr = geo.g1_over_vpr_face
+    g0_over_vpr = geo.g0_over_vpr_face
+
+    # Normalisation factors from TGLF
+    dpsi_drmid = jnp.gradient(psi, r_mid)
+    B_unit = q / r_mid * dpsi_drmid
+    c_s = (T_e_J / m_D) ** 0.5
+    rho_s = m_D * c_s / (e * B_unit)
+    Q_GB = n_e * T_e_J * c_s * (rho_s / a) ** 2  # [W/m^2]
+    Gamma_GB = n_e * c_s * (rho_s / a) ** 2
+
+    # Denormalised TGLF output fluxes
+    Q_e = qe * Q_GB  # [W/m^2]
+    Q_i = qi * Q_GB  # [W/m^2]
+    Gamma_e = pfe * Gamma_GB  # [s^-1/m^2]
+
+    # Total thermal power and particle rate
+    P_e = Q_e * dV_drhon / rho_b  # [W]
+    P_i = Q_i * dV_drhon / rho_b  # [W]
+    S_e = Gamma_e * dV_drhon / rho_b  # [s^-1]
+
+    # Convert from power to chi
+    # Note: g1/vpr = ⟨(∇ρₙ)²⟩ ∂V/∂ρₙ, and has units [m]
+    chi_e = -P_e / (n_e * dT_e_drhon * g1_over_vpr)
+    chi_i = -P_i / (n_i * dT_i_drhon * g1_over_vpr)
+
+    # Convert from particle rate to D, V using effective diffusivity/convectivity
+    # method. This sets purely diffusive transport in regions where the flux is
+    # with the temperature gradient, otherwise it sets purely convective transport.
+    D_eff = -S_e / (dn_e_drhon * g1_over_vpr)
+    V_eff = S_e / (n_e * g0_over_vpr)
+    D_eff_mask = ((pfe >= 0) & (dn_e_drhon >= 0)) | (
+        (pfe < 0) & (dn_e_drhon < 0)
+    )
+    # For stability, we also set purely diffusive transport at some minimum
+    # threshold of the temperature gradient
+    # D_eff_mask &= abs(a * dn_e_drhon / n_e) <= transport.An_min
+    # Apply the mask
+    d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
+    v_face_el = jnp.where(D_eff_mask, 0.0, V_eff)
+
+    return transport_model_lib.TurbulentTransport(
+        chi_face_ion=chi_i,
+        chi_face_el=chi_e,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
     )
