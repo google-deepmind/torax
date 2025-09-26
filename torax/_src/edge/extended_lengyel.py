@@ -460,6 +460,7 @@ def _solve_for_c_z_prefactor(
   an input target temperature consistent with a given set of plasma parameters.
 
   See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
+  https://doi.org/10.1088/1741-4326/ade4d9
 
   Args:
     sol_state: A DivertorSOL1D object containing the plasma parameters.
@@ -572,6 +573,7 @@ def _solve_for_qcc(
   See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
   This is equation 38 rearranged for q_cc, and using equation 39 to calculate
   q_div.
+  https://doi.org/10.1088/1741-4326/ade4d9
 
   Args:
     sol_state: A DivertorSOL1D object containing the plasma parameters.

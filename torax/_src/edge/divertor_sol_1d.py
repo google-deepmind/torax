@@ -37,6 +37,7 @@ class DivertorSOL1D:
   derived quantities as properties.
 
   See T. Body et al 2025 Nucl. Fusion 65 086002 for further details.
+  https://doi.org/10.1088/1741-4326/ade4d9
   """
 
   # Inputs which may vary within extended-lengyel model iterations, depending on
@@ -71,7 +72,7 @@ class DivertorSOL1D:
   def electron_temp_at_cc_interface(self) -> jax.Array:
     """Electron temperature at the convection/conduction interface [eV].
 
-    Section 4, Body et al. 2025.
+    Section 4, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
     """
 
     momentum_loss = (
@@ -95,7 +96,7 @@ class DivertorSOL1D:
     This formula is derived from the heat conduction equation integrated
     along the scrape-off layer.
 
-    Eq 44, Body et al. 2025.
+    Eq 44, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
     """
     return (
         self.electron_temp_at_cc_interface**3.5
@@ -114,7 +115,7 @@ class DivertorSOL1D:
     This formula is derived from the heat conduction equation integrated
     along the scrape-off layer.
 
-    Eq 45, Body et al. 2025.
+    Eq 45, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
     """
     return (
         self.divertor_entrance_electron_temp**3.5
@@ -148,7 +149,7 @@ class DivertorSOL1D:
   def required_power_loss(self) -> jax.Array:
     """Required power loss fraction from the two-point model.
 
-    Eq 46, Body et al. 2025.
+    Eq 46, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
     """
     # Calculate momentum loss in the convection layer using an empirical fit.
     # See Section 4 of Body et al. 2025.
@@ -202,7 +203,7 @@ class DivertorSOL1D:
   def parallel_heat_flux_at_cc_interface(self) -> jax.Array:
     """Parallel heat flux at the convection-conduction interface [W/m^2].
 
-    Eq 29, Body et al. 2025.
+    Eq 29, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
     """
     power_loss_conv_layer = (
         extended_lengyel_formulas.calc_power_loss_in_convection_layer(
@@ -212,7 +213,7 @@ class DivertorSOL1D:
     return self.parallel_heat_flux_at_target / (1.0 - power_loss_conv_layer)
 
   @property
-  def divertor_Z_eff(self) -> array_typing.FloatScalar:
+  def divertor_Z_eff(self) -> jax.Array:
     return extended_lengyel_formulas.calc_Z_eff(
         c_z=self.c_z_prefactor,
         T_e=self.divertor_entrance_electron_temp / 1e3,  # to keV
@@ -223,7 +224,7 @@ class DivertorSOL1D:
     )
 
   @property
-  def separatrix_Z_eff(self) -> array_typing.FloatScalar:
+  def separatrix_Z_eff(self) -> jax.Array:
     return extended_lengyel_formulas.calc_Z_eff(
         c_z=self.c_z_prefactor,
         T_e=self.separatrix_electron_temp / 1e3,  # to keV
@@ -239,3 +240,76 @@ class DivertorSOL1D:
         key: value * self.c_z_prefactor
         for key, value in self.seed_impurity_weights.items()
     }
+
+
+def calc_target_electron_temp(
+    sol_state: DivertorSOL1D,
+    parallel_heat_flux_at_cc_interface: array_typing.FloatScalar,
+    previous_target_electron_temp: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculate the target electron temp from the two-point model.
+
+  Args:
+    sol_state: The state object for the extended Lengyel model.
+    parallel_heat_flux_at_cc_interface: The parallel heat flux at the
+      convection-conduction interface pre-calculated with forward model [W/m^2].
+    previous_target_electron_temp: The target electron temperature from the
+      previous iteration [eV].
+
+  Returns:
+    The target electron temperature [eV].
+
+  Eq 46, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
+  """
+  # Calculate momentum loss in the convection layer using an empirical fit.
+  # See Section 4 of Body et al. 2025.
+  momentum_loss = (
+      extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
+          previous_target_electron_temp
+      )
+  )
+
+  # Calculate power loss in the convection layer using an empirical fit.
+  # See Section 4 of Body et al. 2025.
+  power_loss_conv_layer = (
+      extended_lengyel_formulas.calc_power_loss_in_convection_layer(
+          previous_target_electron_temp
+      )
+  )
+
+  # Calculate the basic target electron temperature from the two-point model,
+  # which assumes no power or momentum loss.
+  target_electron_temp_basic = (
+      (
+          8.0
+          * sol_state.average_ion_mass
+          * constants.CONSTANTS.m_amu
+          / sol_state.sheath_heat_transmission_factor**2
+      )
+      * (sol_state.q_parallel**2 / sol_state.separatrix_total_pressure**2)
+  ) / constants.CONSTANTS.q_e
+
+  # Correction factor for additional physics at the target, including
+  # ion temperature, mach number, and flux expansion.
+  f_other_target_electron_temp = (
+      (
+          (1.0 + sol_state.target_ratio_of_ion_to_electron_temp)
+          / (sol_state.target_ratio_of_electron_to_ion_density * 2.0)
+      )
+      * (
+          (1.0 + sol_state.target_mach_number**2) ** 2
+          / (4.0 * sol_state.target_mach_number**2)
+      )
+      * sol_state.toroidal_flux_expansion**-2
+  )
+
+  parallel_heat_flux_at_target = (
+      1.0 - power_loss_conv_layer
+  ) * parallel_heat_flux_at_cc_interface
+  SOL_power_loss_fraction = (
+      1.0 - parallel_heat_flux_at_target / sol_state.q_parallel
+  )
+
+  f_vol_loss = (1.0 - SOL_power_loss_fraction) ** 2 / (1.0 - momentum_loss) ** 2
+
+  return target_electron_temp_basic * f_vol_loss * f_other_target_electron_temp

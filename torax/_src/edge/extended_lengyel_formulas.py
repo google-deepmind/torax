@@ -31,6 +31,7 @@ def _temperature_fit_function(
   """A general form for divertor loss functions in terms of target temperature.
 
   Equation 33 from Stangeby, 2018, PPCF 60 044022.
+  https://doi.org/10.1088/1361-6587/aaacf6
 
   Args:
     target_electron_temp: Electron temperature at the target [eV].
@@ -83,7 +84,10 @@ def calc_shaping_factor(
   Used for calculations related to magnetic geometry at the separatrix.
 
   See Equation 56 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  https://doi.org/10.1088/1741-4326/ade4d9
+
   and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+  https://doi.org/10.1088/1741-4326/ab7a66
 
   Args:
     elongation_psi95: Elongation at psiN=0.95.
@@ -112,7 +116,10 @@ def calc_separatrix_average_poloidal_field(
   Used for calculations related to magnetic geometry at the separatrix.
 
   See equation 52 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  https://doi.org/10.1088/1741-4326/ade4d9
+
   and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+  https://doi.org/10.1088/1741-4326/ab7a66
 
   Args:
     plasma_current: Plasma current [A].
@@ -140,7 +147,10 @@ def calc_cylindrical_safety_factor(
   turbulence broadening parameter alpha_t.
 
   See equation 55 from T. Body et al 2025 Nucl. Fusion 65 086002,
+  https://doi.org/10.1088/1741-4326/ade4d9
+
   and T. Eich et al. Nuclear Fusion 60 056016 (2020) for details.
+  https://doi.org/10.1088/1741-4326/ab7a66
 
   Args:
     magnetic_field_on_axis: B-field at magnetic axis [T].
@@ -222,6 +232,7 @@ def calc_electron_temp_at_cc_interface(
   temperature modified by these loss factors.
 
   See section 4 of T. Body et al 2025 Nucl. Fusion 65 086002 for details.
+  https://doi.org/10.1088/1741-4326/ade4d9
 
   Args:
     target_electron_temp: Electron temperature at the divertor target [eV].
@@ -248,6 +259,7 @@ def calc_alpha_t(
 
   Equation 9 from T. Eich et al. Nuclear Fusion, 60(5), 056016. (2020),
   with an additional factor of an ion_to_electron_temp_ratio.
+  https://doi.org/10.1088/1741-4326/ab7a66
 
   Args:
     separatrix_electron_density: electron density at the separatrix [m^-3].
@@ -337,7 +349,7 @@ def calculate_q_parallel(
 
   For the flux-tube assumed in the extended Lengyel model.
   See T. Body et al 2025 Nucl. Fusion 65 086002 for details.
-
+  https://doi.org/10.1088/1741-4326/ade4d9
 
   Args:
     separatrix_electron_temp: Electron temperature at the separatrix [eV].
@@ -473,7 +485,10 @@ def calc_kappa_e(Z_eff: array_typing.FloatScalar) -> jax.Array:
   """Corrected parallel electron heat conductivity prefactor.
 
   Eq 9, Body NF 2025.
+  https://doi.org/10.1088/1741-4326/ade4d9
+
   Eq 10, A.P. Brown A.O. and R.J. Goldston 2021 Nucl. Mater. Energy 27 101002
+  https://doi.org/10.1016/j.nme.2021.101002
 
   Args:
     Z_eff: Effective ion charge.
