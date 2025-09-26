@@ -61,12 +61,60 @@ class ExtendedLengyelTest(absltest.TestCase):
 
     expected_c_z = 0.03487637336277587
 
-    self.assertEqual(status, extended_lengyel.SolveCzStatus.SUCCESS)
+    self.assertEqual(status, extended_lengyel.SolveStatus.SUCCESS)
     np.testing.assert_allclose(
         calculated_c_z,
         expected_c_z,
         rtol=5e-4,
     )
+
+  def test_solve_for_qcc(self):
+    """Test _solve_for_qcc."""
+
+    # The plasma state is based on the first loop of the forward model reference
+    # case in https://github.com/cfs-energy/extended-lengyel.
+
+    sol_state = divertor_sol_1d.DivertorSOL1D(
+        q_parallel=5.061935771095335e8,
+        c_z_prefactor=0.0,
+        kappa_e=1931.8277173925928,
+        alpha_t=0.0,
+        seed_impurity_weights={},
+        fixed_impurity_concentrations={
+            'He': 0.01,
+            'N': 0.038397305226362526,
+            'Ar': 0.0019198652613181264,
+        },
+        main_ion_charge=1.0,
+        ne_tau=extended_lengyel_defaults.NE_TAU,
+        target_electron_temp=2.34,
+        SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
+        divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
+        divertor_parallel_length=5.0,
+        parallel_connection_length=20.0,
+        separatrix_mach_number=extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
+        separatrix_electron_density=3.3e19,
+        separatrix_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP,
+        separatrix_ratio_of_electron_to_ion_density=extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY,
+        average_ion_mass=2.0,
+        sheath_heat_transmission_factor=extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR,
+        target_mach_number=extended_lengyel_defaults.TARGET_MACH_NUMBER,
+        target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
+        target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
+        toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
+    )
+
+    print(sol_state.electron_temp_at_cc_interface)
+    print(sol_state.divertor_entrance_electron_temp)
+    print(sol_state.separatrix_electron_temp)
+
+    calculated_qcc, status = extended_lengyel._solve_for_qcc(
+        sol_state=sol_state,
+    )
+
+    expected_qcc = 1.11662e+08
+    self.assertEqual(status, extended_lengyel.SolveStatus.SUCCESS)
+    np.testing.assert_allclose(calculated_qcc, expected_qcc, rtol=5e-4)
 
   def test_run_extended_lengyel_model_inverse_mode(self):
     """Integration test for the full extended_lengyel model in inverse mode."""

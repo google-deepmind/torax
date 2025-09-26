@@ -38,19 +38,24 @@ _DENSITY_SCALE_FACTOR = 1e-20
 _LINT_K_INVERSE_SCALE_FACTOR = 1e-10
 
 
-class SolveCzStatus(enum.IntEnum):
-  """Status of the _solve_for_c_z_prefactor calculation.
+class SolveStatus(enum.IntEnum):
+  """Status of the _solve_for_qcc or _solve_for_c_z_prefactor calculations.
 
   Attributes:
     SUCCESS: The calculation was successful.
     Q_DIV_SQUARED_NEGATIVE: q_div_squared was negative. This is unphysical and
-      indicates that the required power loss is too high for the given plasma
-      parameters. This can happen, for example, if the target temperature is too
-      low for the given upstream heat flux.
+      indicates that the required power loss is too low for the given plasma
+      parameters. This can happen if the power lost in the cc region is
+      sufficient to reach detachment even no seeded impurities.
+    QCC_SQUARED_NEGATIVE: qcc_squared was negative. This is unphysical and
+      indicates that so much power has been lost such that the target
+      temperature would be negative according to the formulations used in the
+      model.
   """
 
   SUCCESS = 0
   Q_DIV_SQUARED_NEGATIVE = 1
+  Q_CC_SQUARED_NEGATIVE = 2
 
 
 class ComputationMode(enum.StrEnum):
@@ -540,8 +545,8 @@ def _solve_for_c_z_prefactor(
   # Check for unphysical result.
   status = jnp.where(
       q_div_squared < 0.0,
-      SolveCzStatus.Q_DIV_SQUARED_NEGATIVE,
-      SolveCzStatus.SUCCESS,
+      SolveStatus.Q_DIV_SQUARED_NEGATIVE,
+      SolveStatus.SUCCESS,
   )
 
   # Calculate the required seeded impurity concentration `c_z`.
@@ -552,3 +557,80 @@ def _solve_for_c_z_prefactor(
   ) - (Lf_cc_u / Ls_cc_u)
 
   return c_z_prefactor, status
+
+
+def _solve_for_qcc(
+    sol_state: divertor_sol_1d_lib.DivertorSOL1D,
+) -> tuple[jax.Array, jax.Array]:
+  """Calculates the parallel heat flux at the cc-interface for fixed impurities.
+
+  This function is part of the extended Lengyel model in forward mode,
+  calculating the parallel heat flux at the convective-conductive interface
+  (`q_cc`) which is needed to calculate the target temperature consistent with
+  a given set of plasma parameters.
+
+  See Section 5 of T. Body et al 2025 Nucl. Fusion 65 086002 for the derivation.
+  This is equation 38 rearranged for q_cc, and using equation 39 to calculate
+  q_div.
+
+  Args:
+    sol_state: A DivertorSOL1D object containing the plasma parameters.
+
+  Returns:
+      q_cc: The parallel heat flux at the cc-interface
+      status: A SolveStatus enum indicating the outcome of the calculation.
+  """
+  # Temperatures must be in keV for the L_INT calculation.
+  cc_temp_keV = sol_state.electron_temp_at_cc_interface / 1000.0
+  div_temp_keV = sol_state.divertor_entrance_electron_temp / 1000.0
+  sep_temp_keV = sol_state.separatrix_electron_temp / 1000.0
+
+  # Calculate integrated radiation terms for fixed impurities.
+  # See Eq. 34 in Body et al. 2025.
+  Lint_cc_div = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          sol_state.fixed_impurity_concentrations,
+          start_temp=cc_temp_keV,
+          stop_temp=div_temp_keV,
+          ne_tau=sol_state.ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Lint_cc_u = (
+      collisional_radiative_models.calculate_weighted_L_INT(
+          sol_state.fixed_impurity_concentrations,
+          start_temp=cc_temp_keV,
+          stop_temp=sep_temp_keV,
+          ne_tau=sol_state.ne_tau,
+      )
+      * _LINT_SCALE_FACTOR
+  )
+  Lint_div_u = Lint_cc_u - Lint_cc_div
+
+  # Define shorthand variables for clarity, matching the paper's notation.
+  qu = sol_state.q_parallel
+  b = sol_state.divertor_broadening_factor
+  # `k` is a lumped parameter from the Lengyel model derivation.
+  # See Eq. 33 in Body et al. 2025.
+  k = (
+      2.0
+      * sol_state.kappa_e
+      * (sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR) ** 2
+      * sol_state.separatrix_electron_temp**2
+  )
+
+  qcc_squared = (
+      qu**2 / b**2
+      - k * (Lint_div_u / b**2 + Lint_cc_div) / _LINT_K_INVERSE_SCALE_FACTOR
+  )
+
+  # Check for unphysical result.
+  status = jnp.where(
+      qcc_squared < 0.0,
+      SolveStatus.Q_CC_SQUARED_NEGATIVE,
+      SolveStatus.SUCCESS,
+  )
+
+  qcc = jnp.where(status == SolveStatus.SUCCESS, jnp.sqrt(qcc_squared), 0.0)
+
+  return qcc, status
