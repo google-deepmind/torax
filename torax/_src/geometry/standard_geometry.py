@@ -973,6 +973,11 @@ class StandardGeometryIntermediates:
           'last_surface_factor or n_surfaces.'
       )
 
+    # Temporary for JETTO eqdsk
+    B_0 = -B_0
+    Phi_eqdsk = -Phi_eqdsk
+    F = -F
+
     return cls(
         geometry_type=geometry.GeometryType.EQDSK,
         Ip_from_parameters=Ip_from_parameters,
