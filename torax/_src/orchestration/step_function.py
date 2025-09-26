@@ -18,10 +18,10 @@ import dataclasses
 import functools
 
 import jax
+from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src import xnp
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
@@ -148,7 +148,7 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
-  @xnp.jit
+  @jax.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
@@ -207,23 +207,13 @@ class SimulationStepFn:
     )
 
     def _step():
-      """Take either the adaptive or fixed step, depending on the config."""
-      if runtime_params_t.numerics.adaptive_dt:
-        return self._adaptive_step(
-            runtime_params_t,
-            geo_t,
-            explicit_source_profiles,
-            input_state,
-            previous_post_processed_outputs,
-        )
-      else:
-        return self._fixed_step(
-            runtime_params_t,
-            geo_t,
-            explicit_source_profiles,
-            input_state,
-            previous_post_processed_outputs,
-        )
+      return self._step(
+          runtime_params_t,
+          geo_t,
+          explicit_source_profiles,
+          input_state,
+          previous_post_processed_outputs,
+      )
 
     # If a sawtooth model is provided, and there was no previous
     # sawtooth crash, it will be checked to see if a sawtooth
@@ -232,7 +222,7 @@ class SimulationStepFn:
     # sawtooth redistribution, at a t+dt set by the sawtooth model
     # configuration.
     if self._sawtooth_solver is not None:
-      output_state, post_processed_outputs = xnp.cond(
+      output_state, post_processed_outputs = jax.lax.cond(
           input_state.solver_numeric_outputs.sawtooth_crash,
           lambda *args: (input_state, previous_post_processed_outputs),
           self._sawtooth_step,
@@ -243,7 +233,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
       )
 
-      output_state, post_processed_outputs = xnp.cond(
+      output_state, post_processed_outputs = jax.lax.cond(
           # If the current state is a sawtooth and the previous state was not,
           # then we triggered a sawtooth crash and exit early.
           output_state.solver_numeric_outputs.sawtooth_crash
@@ -361,7 +351,7 @@ class SimulationStepFn:
         explicit_source_profiles=explicit_source_profiles,
     )
 
-  def _adaptive_step(
+  def _step(
       self,
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
@@ -397,8 +387,12 @@ class SimulationStepFn:
       next_dt, output = inputs
       solver_outputs = output[2]
 
+      if not runtime_params_t.numerics.adaptive_dt:
+        # If adaptive dt is not enabled, we only take the first step.
+        return jnp.allclose(next_dt, initial_dt)
+
       # Check for NaN in the next dt to avoid a recursive loop.
-      is_nan_next_dt = xnp.isnan(next_dt)
+      is_nan_next_dt = jnp.isnan(next_dt)
 
       # If the solver did not converge we need to make a new step.
       solver_did_not_converge = solver_outputs.solver_error_state == 1
@@ -406,21 +400,21 @@ class SimulationStepFn:
       # If t + dt  is exactly the final time we may need a smaller step than
       # min_dt to exactly reach the final time.
       if runtime_params_t.numerics.exact_t_final:
-        at_exact_t_final = xnp.allclose(
+        at_exact_t_final = jnp.allclose(
             input_state.t + next_dt,
             runtime_params_t.numerics.t_final,
         )
       else:
-        at_exact_t_final = xnp.array(False)
+        at_exact_t_final = jnp.array(False)
 
       next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
 
-      take_another_step = xnp.cond(
+      take_another_step = jax.lax.cond(
           solver_did_not_converge,
           # If the solver did not converge then we check if we are at the exact
           # final time and should take a smaller step. If not we also check if
           # the next dt is too small, if so we should end the step.
-          lambda: xnp.cond(
+          lambda: jax.lax.cond(
               at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
           ),
           lambda: False,
@@ -463,7 +457,10 @@ class SimulationStepFn:
           explicit_source_profiles=explicit_source_profiles,
       )
       solver_numeric_outputs = state.SolverNumericOutputs(
-          solver_error_state=solver_numeric_outputs.solver_error_state,
+          solver_error_state=jnp.array(
+              solver_numeric_outputs.solver_error_state,
+              jax_utils.get_int_dtype(),
+          ),
           outer_solver_iterations=old_solver_outputs.outer_solver_iterations
           + 1,
           inner_solver_iterations=old_solver_outputs.inner_solver_iterations
@@ -480,7 +477,7 @@ class SimulationStepFn:
           core_profiles_t_plus_dt,
       )
 
-    _, result = xnp.while_loop(
+    _, result = jax.lax.while_loop(
         cond_fun,
         body_fun,
         (
@@ -493,9 +490,13 @@ class SimulationStepFn:
                 state.SolverNumericOutputs(
                     # The solver has not converged yet as we have not performed
                     # any steps yet.
-                    solver_error_state=1,
-                    outer_solver_iterations=0,
-                    inner_solver_iterations=0,
+                    solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
+                    outer_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
+                    inner_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
                     sawtooth_crash=False,
                 ),
                 runtime_params_t,
@@ -520,74 +521,9 @@ class SimulationStepFn:
     )
     return output_state, post_processed_outputs
 
-  def _fixed_step(
-      self,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      geo_t: geometry.Geometry,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
-      input_state: sim_state.ToraxSimState,
-      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
-  ) -> tuple[
-      sim_state.ToraxSimState,
-      post_processing.PostProcessedOutputs,
-  ]:
-    """Performs a single simulation step."""
-    dt = self.time_step_calculator.next_dt(
-        input_state.t,
-        runtime_params_t,
-        geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
-    )
-
-    runtime_params_t_plus_dt, geo_t, geo_t_plus_dt = (
-        _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-            input_state.t,
-            dt,
-            self._runtime_params_provider,
-            geo_t,
-            self._geometry_provider,
-        )
-    )
-    core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=input_state.core_profiles,
-    )
-    # The solver returned state is still "intermediate" since the CoreProfiles
-    # need to be updated by the evolved CellVariables in x_new
-    x_new, solver_numeric_outputs = self._solver(
-        t=input_state.t,
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t=geo_t,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
-    )
-    output_state, post_processed_outputs = _finalize_outputs(
-        t=input_state.t,
-        dt=dt,
-        x_new=x_new,
-        solver_numeric_outputs=solver_numeric_outputs,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geometry_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
-        physics_models=self._solver.physics_models,
-        evolving_names=runtime_params_t.numerics.evolving_names,
-        input_post_processed_outputs=previous_post_processed_outputs,
-    )
-    return output_state, post_processed_outputs
-
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],
@@ -650,7 +586,7 @@ def _finalize_outputs(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'sawtooth_solver',
     ],

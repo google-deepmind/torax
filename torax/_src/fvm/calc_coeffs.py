@@ -18,7 +18,6 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax._src import constants
-from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -273,7 +272,7 @@ def calc_coeffs(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],
@@ -622,7 +621,7 @@ def _calc_coeffs_full(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],

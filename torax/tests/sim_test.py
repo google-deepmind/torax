@@ -32,6 +32,7 @@ from torax._src.output_tools import output
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
+import xarray as xr
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_I,
@@ -639,6 +640,19 @@ class SimTest(sim_test_case.SimTestCase):
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
+  def test_full_output_matches_reference(self):
+    """Check for complete output match with reference."""
+    torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+    _, state_history = run_simulation.run_simulation(torax_config)
+    sim_data_tree = state_history.simulation_output_to_xr()
+    expected_results_path = self._expected_results_path(
+        'test_iterhybrid_rampup.nc'
+    )
+    ref_data_tree = output.safe_load_dataset(expected_results_path)
+    xr.map_over_datasets(
+        xr.testing.assert_allclose, sim_data_tree, ref_data_tree
+    )
 
 
 if __name__ == '__main__':
