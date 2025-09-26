@@ -79,6 +79,11 @@ class ToraxMuscleRunner:
                 self.run_o_i()
                 self.run_s()
                 self.run_timestep()
+                not_done = self.step_fn.time_step_calculator.not_done(
+                    self.t_cur,
+                    self.t_final,
+                    self.time_step_calculator_dynamic_params,
+                )
             self.run_o_f()
 
         self.finished = True
@@ -170,6 +175,7 @@ class ToraxMuscleRunner:
             self.sim_state,
             self.post_processed_outputs,
         )
+        self.t_cur = self.sim_state.t
 
         if self.output_all_timeslices:
             equilibrium_data = torax_state_to_imas_equilibrium(
