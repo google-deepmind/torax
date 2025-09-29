@@ -58,7 +58,7 @@ def calculate_generic_current(
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates the external parallel current density profile on the cell
   grid."""
   source_params = runtime_params.sources[source_name]

@@ -138,14 +138,14 @@ class PostProcessedOutputs:
     j_parallel_external: Parallel current density from external psi sources
       (i.e., excluding bootstrap) [A m^-2]
     j_parallel_ohmic: Parallel ohmic current density [Am^-2]
-    j_toroidal_total: Total toroidal current density [Am^-2]
-    j_toroidal_bootstrap: Toroidal bootstrap current density [Am^-2]
-    j_toroidal_ohmic: Toroidal ohmic current density [Am^-2]
-    j_toroidal_external: Toroidal current density from external psi sources
+    j_total: Total toroidal current density [Am^-2]
+    j_bootstrap: Toroidal bootstrap current density [Am^-2]
+    j_ohmic: Toroidal ohmic current density [Am^-2]
+    j_external: Toroidal current density from external psi sources
       (i.e., excluding bootstrap) [A m^-2]
-    j_toroidal_generic_current: Toroidal current density from generic current source
+    j_generic_current: Toroidal current density from generic current source
       [Am^-2]
-    j_toroidal_ecrh: Toroidal current density from electron cyclotron heating
+    j_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
@@ -228,12 +228,12 @@ class PostProcessedOutputs:
   I_bootstrap: array_typing.FloatScalar
   j_parallel_external: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
-  j_toroidal_total: array_typing.FloatVector
-  j_toroidal_bootstrap: array_typing.FloatVector
-  j_toroidal_ohmic: array_typing.FloatVector
-  j_toroidal_external: array_typing.FloatVector
-  j_toroidal_generic_current: array_typing.FloatVector
-  j_toroidal_ecrh: array_typing.FloatVector
+  j_total: array_typing.FloatVector
+  j_bootstrap: array_typing.FloatVector
+  j_ohmic: array_typing.FloatVector
+  j_external: array_typing.FloatVector
+  j_generic_current: array_typing.FloatVector
+  j_ecrh: array_typing.FloatVector
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
@@ -330,14 +330,15 @@ class PostProcessedOutputs:
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        # TODO (v2): rename j_* to j_toroidal_* for clarity
         j_parallel_external=jnp.zeros(geo.rho_face.shape),
         j_parallel_ohmic=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_total=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_bootstrap=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_ohmic=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_external=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_generic_current=jnp.zeros(geo.rho_face.shape),
-        j_toroidal_ecrh=jnp.zeros(geo.rho_face.shape),
+        j_total=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho_face.shape),
+        j_ohmic=jnp.zeros(geo.rho_face.shape),
+        j_external=jnp.zeros(geo.rho_face.shape),
+        j_generic_current=jnp.zeros(geo.rho_face.shape),
+        j_ecrh=jnp.zeros(geo.rho_face.shape),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -735,28 +736,26 @@ def make_post_processed_outputs(
 
   # Toroidal current densities
   # TODO: check whether j_total is parallel or toroidal
-  j_toroidal_total = psi_calculations.j_parallel_to_j_tor(
+  j_total = psi_calculations.j_parallel_to_j_tor(
       sim_state.core_profiles.j_total, sim_state.geometry
   )
-  j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_tor(
+  j_bootstrap = psi_calculations.j_parallel_to_j_tor(
       sim_state.core_sources.bootstrap_current.j_bootstrap, sim_state.geometry
   )
-  j_toroidal_ohmic = psi_calculations.j_parallel_to_j_tor(
+  j_ohmic = psi_calculations.j_parallel_to_j_tor(
       j_parallel_ohmic, sim_state.geometry
   )
-  j_toroidal_external = psi_calculations.j_parallel_to_j_tor(
+  j_external = psi_calculations.j_parallel_to_j_tor(
       j_parallel_external, sim_state.geometry
   )
-  j_toroidal_sources = {}
+  j_sources = {}
   for source_name in ['ecrh', 'generic_current']:
     if source_name in sim_state.core_sources.psi.keys():
-      j_toroidal_sources[f'j_toroidal_{source_name}'] = (
-          psi_calculations.j_parallel_to_j_tor(
-              sim_state.core_sources.psi[source_name], sim_state.geometry
-          )
+      j_sources[f'j_{source_name}'] = psi_calculations.j_parallel_to_j_tor(
+          sim_state.core_sources.psi[source_name], sim_state.geometry
       )
     else:
-      j_toroidal_sources[f'j_toroidal_{source_name}'] = jnp.array(
+      j_sources[f'j_{source_name}'] = jnp.array(
           0.0, dtype=jax_utils.get_dtype()
       )
 
@@ -810,11 +809,11 @@ def make_post_processed_outputs(
       I_bootstrap=I_bootstrap,
       j_parallel_external=j_parallel_external,
       j_parallel_ohmic=j_parallel_ohmic,
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_bootstrap=j_toroidal_bootstrap,
-      j_toroidal_ohmic=j_toroidal_ohmic,
-      j_toroidal_external=j_toroidal_external,
-      **j_toroidal_sources,
+      j_total=j_total,
+      j_bootstrap=j_bootstrap,
+      j_ohmic=j_ohmic,
+      j_external=j_external,
+      **j_sources,
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
