@@ -14,7 +14,8 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 import functools
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
@@ -39,6 +40,8 @@ LY_OBJECT_TYPE: TypeAlias = (
 )
 
 TIME_INVARIANT = torax_pydantic.TIME_INVARIANT
+
+COCOSInt = Literal[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18]
 
 
 class CircularConfig(torax_pydantic.BaseModelFrozen):
@@ -244,7 +247,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
-  cocos: pydantic_types.COCOSInt
+  cocos: COCOSInt
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     return standard_geometry.build_standard_geometry(
