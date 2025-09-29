@@ -14,11 +14,9 @@
 
 """Ion mixture model and impurity fractions model for plasma composition."""
 import dataclasses
-from typing import Annotated, Any, Literal
 import chex
 import jax
 from jax import numpy as jnp
-import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
@@ -92,26 +90,3 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
         A_avg=A_avg,
         Z_override=Z_override,
     )
-
-
-class ImpurityFractions(IonMixture):
-  """Impurity content defined by fractional abundances."""
-
-  impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (
-      'fractions'
-  )
-  # Default impurity setting. Parent class has species without a default.
-  species: runtime_validation_utils.IonMapping = (
-      torax_pydantic.ValidatedDefault({'Ne': 1.0})
-  )
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_impurity_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    """Ensures backward compatibility if infered that data in legacy format."""
-
-    # Maps legacy inputs to the new API format.
-    # TODO(b/434175938): Remove this once V1 API is deprecated.
-    if 'species' not in data and 'impurity_mode' not in data:
-      return {'species': data, 'impurity_mode': _IMPURITY_MODE_FRACTIONS}
-    return data

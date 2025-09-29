@@ -29,6 +29,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import post_processing
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -402,7 +403,7 @@ class StateHistory:
     profiles_dict = {
         k: v
         for k, v in flat_dict.items()
-        if v is not None and v.values.ndim == 2  # pytype: disable=attribute-error
+        if v is not None and v.values.ndim > 1  # pytype: disable=attribute-error
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
@@ -562,25 +563,26 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core transport to a dict."""
     xr_dict = {}
+    core_transport = self._stacked_core_transport
 
-    xr_dict[CHI_TURB_I] = self._stacked_core_transport.chi_face_ion
-    xr_dict[CHI_TURB_E] = self._stacked_core_transport.chi_face_el
-    xr_dict[D_TURB_E] = self._stacked_core_transport.d_face_el
-    xr_dict[V_TURB_E] = self._stacked_core_transport.v_face_el
+    xr_dict[CHI_TURB_I] = core_transport.chi_face_ion
+    xr_dict[CHI_TURB_E] = core_transport.chi_face_el
+    xr_dict[D_TURB_E] = core_transport.d_face_el
+    xr_dict[V_TURB_E] = core_transport.v_face_el
 
-    xr_dict[CHI_NEO_I] = self._stacked_core_transport.chi_neo_i
-    xr_dict[CHI_NEO_E] = self._stacked_core_transport.chi_neo_e
-    xr_dict[D_NEO_E] = self._stacked_core_transport.D_neo_e
-    xr_dict[V_NEO_E] = self._stacked_core_transport.V_neo_e
-    xr_dict[V_NEO_WARE_E] = self._stacked_core_transport.V_neo_ware_e
+    xr_dict[CHI_NEO_I] = core_transport.chi_neo_i
+    xr_dict[CHI_NEO_E] = core_transport.chi_neo_e
+    xr_dict[D_NEO_E] = core_transport.D_neo_e
+    xr_dict[V_NEO_E] = core_transport.V_neo_e
+    xr_dict[V_NEO_WARE_E] = core_transport.V_neo_ware_e
 
-    # Save optional BohmGyroBohm attributes if nonzero.
+    # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
     if (
-        np.any(core_transport.chi_face_el_bohm != 0)
-        or np.any(core_transport.chi_face_el_gyrobohm != 0)
-        or np.any(core_transport.chi_face_ion_bohm != 0)
-        or np.any(core_transport.chi_face_ion_gyrobohm != 0)
+        core_transport.chi_face_el_bohm is not None
+        or core_transport.chi_face_el_gyrobohm is not None
+        or core_transport.chi_face_ion_bohm is not None
+        or core_transport.chi_face_ion_gyrobohm is not None
     ):
       xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
       xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
@@ -646,6 +648,11 @@ class StateHistory:
     xr_dict = {}
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
+
+      # The impurity_radiation is structured differently and handled separately.
+      if attr_name == "impurity_species":
+        continue
+
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
       if hasattr(attr_value, "cell_plus_boundaries"):
         # Handles stacked CellVariable-like objects.
@@ -653,6 +660,20 @@ class StateHistory:
       else:
         data_to_save = attr_value
       xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
+
+    if self._stacked_post_processed_outputs.impurity_species:
+      radiation_outputs = (
+          impurity_radiation.construct_xarray_for_radiation_output(
+              self._stacked_post_processed_outputs.impurity_species,
+              self.times,
+              self.rho_cell_norm,
+              TIME,
+              RHO_CELL_NORM,
+          )
+      )
+      for key, value in radiation_outputs.items():
+        xr_dict[key] = value
+
     return xr_dict
 
   def _save_geometry(

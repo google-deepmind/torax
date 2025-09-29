@@ -29,6 +29,7 @@ import numpy as np
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
 _State = ParamSpec('_State')
+PyTree: TypeAlias = Any
 
 
 @functools.cache
@@ -297,6 +298,70 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+def batched_cond(
+    pred: jax.Array,
+    true_fun: Callable[..., PyTree],
+    false_fun: Callable[..., PyTree],
+    operands: tuple[PyTree, ...],
+    implementation: Literal['vectorize', 'map'] = 'vectorize',
+):
+  """A batched version of `jax.lax.cond`.
+
+  JAX provides two approaches for implementing a batched version of
+  `jax.lax.cond`, neither of which is always faster:
+  `implementation='vectorize'` is equivalent to `jnp.select`, which evaluates
+  both braches for every batch element. This is fully vectorized, allowing for
+  parallel execution on CPU/GPU, but requiring twice the number of function
+  evaluations. `implementation='map'` will sequentially evaluate `jax.lax.cond`,
+  preventing vectorized execution, but only requiring a single function
+  evaluation per batch element.
+
+  This function also handles the special case where `pred` is a concrete list of
+  length-1, in which case we can avoid tracing both branches like `jax.lax.cond`
+  does by doing the control-flow in Python.
+
+  Args:
+    pred: Boolean 1D array `[batch_size]`, indicating which branch function to
+      apply.
+    true_fun: Function (A -> B), to be applied if `pred` is True.
+    false_fun: Function (A -> B), to be applied if `pred` is False.
+    operands: A tuple of arguments to pass to the functions. Each `jax.Array`
+      (every PyTree leaf) must have a leading batch dimension of size
+      `batch_size`.
+    implementation: The implementation to use. 'vectorize' compiles to a
+      `jax.lax.select`, where both branches are evaluated. 'map' uses
+      `jax.lax.map`.
+
+  Returns:
+    The result of applying the appropriate function to each element of the
+    batch.
+  """
+
+  if not isinstance(operands, tuple):
+    raise ValueError('The args must be a tuple.')
+
+  if pred.ndim != 1 or pred.dtype != jnp.bool:
+    raise ValueError('pred must be a 1D array of bools.')
+
+  # For the special case where `pred` is a concrete list of length 1, we can
+  # avoid tracing both branches by doing the control flow in Python.
+  if len(pred) == 1 and not isinstance(pred, jax.core.Tracer):
+    f = true_fun if bool(pred) else false_fun
+    operands = jax.tree.map(lambda x: jnp.squeeze(x, axis=0), operands)
+    out = f(*operands)
+    return jax.tree.map(lambda x: jnp.expand_dims(x, axis=0), out)
+
+  f = lambda args: jax.lax.cond(args[0], true_fun, false_fun, *args[1])
+  match implementation:
+    case 'vectorize':
+      # This is compiled to a jax.lax.select, where both branches are evaluated.
+      return jax.vmap(f)((pred, operands))
+    case 'map':
+      return jax.lax.map(f, (pred, operands))
+    case _:
+      raise ValueError(f'Unknown implementation: {implementation}')
 
 
 @functools.partial(

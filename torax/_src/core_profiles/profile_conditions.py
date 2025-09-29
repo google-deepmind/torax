@@ -14,6 +14,7 @@
 
 """Profile condition parameters used throughout TORAX simulations."""
 import dataclasses
+import enum
 from typing import Annotated, Callable, Final
 
 import chex
@@ -32,6 +33,14 @@ _MIN_DENSITY_M3: Final[float] = 1e10
 _MAX_DENSITY_GW: Final[float] = 1e2
 _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
+
+
+class InitialPsiMode(enum.StrEnum):
+  """How to calculate the initial psi value."""
+
+  PROFILE_CONDITIONS = 'profile_conditions'
+  GEOMETRY = 'geometry'
+  J = 'j'
 
 
 @jax.tree_util.register_dataclass
@@ -63,6 +72,9 @@ class RuntimeParams:
       metadata={'static': True}
   )
   n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
+  initial_psi_mode: InitialPsiMode = dataclasses.field(
+      metadata={'static': True}
+  )
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -123,6 +135,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       "current_profile_nu" current formula, or from the psi available in the
       numerical geometry file. This setting is ignored for the ad-hoc circular
       geometry, which has no numerical geometry.
+    initial_psi_mode: Mode of the initial psi value. If `PROFILE_CONDITIONS`
+      is used, then the initial psi is taken from the `psi` attribute. If
+      `GEOMETRY` is used, then the initial psi is taken from the geometry. If
+      `J` is used, then the psi calculation is based on the `current_profile_nu`
+      current formula. For now if `PROFILE_CONDITIONS` is used, but `psi` is not
+      provided then the `initial_psi_from_j` setting will be used to match the
+      legacy behavior.
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
@@ -154,7 +173,12 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_right_bc_is_fGW: bool = False
   current_profile_nu: float = 1.0
   initial_j_is_total_current: bool = False
+  # TODO(b/434175938): Remove this before the V2 API release in place of
+  # initial_psi_source.
   initial_psi_from_j: bool = False
+  initial_psi_mode: Annotated[InitialPsiMode, torax_pydantic.JAX_STATIC] = (
+      InitialPsiMode.PROFILE_CONDITIONS
+  )
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:

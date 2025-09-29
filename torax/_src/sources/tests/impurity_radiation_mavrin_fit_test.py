@@ -321,7 +321,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         for symbol in impurity_ratios
     }
     impurities_lz = {
-        symbol: impurity_radiation_mavrin_fit._calculate_impurity_radiation_single_species(
+        symbol: impurity_radiation_mavrin_fit.calculate_impurity_radiation_single_species(
             np.array([t_e_keV]), symbol
         )
         for symbol in impurity_ratios
@@ -330,7 +330,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     n_impurities_true = {
         symbol: ratio * n_e_true for symbol, ratio in impurity_ratios.items()
     }
-    # Explictly assumes that Z_i = 1.0
+    # Explicitly assumes that Z_i = 1.0
     ni_true = n_e_true - sum(
         n_imp * z_imp
         for n_imp, z_imp in zip(

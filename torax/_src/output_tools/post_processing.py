@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions for adding post-processed outputs to the simulation state."""
+
 import dataclasses
 from typing import Callable
 
@@ -29,6 +30,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -36,9 +38,8 @@ from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
 
+
 # pylint: disable=invalid-name
-
-
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
 class PostProcessedOutputs:
@@ -78,6 +79,8 @@ class PostProcessedOutputs:
     P_aux_e: Total auxiliary electron heating power [W]
     P_aux_total: Total auxiliary heating power [W]
     P_external_injected: Total external injected power before absorption [W]
+    P_external_total: Total external power before absorption (
+        P_external_injected + P_ohmic_e) [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
     P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
@@ -91,9 +94,10 @@ class PostProcessedOutputs:
     P_cyclotron_e: Cyclotron radiation electron heat sink [W]
     P_ecrh_e: Total electron cyclotron source power [W]
     P_radiation_e: Impurity radiation heat sink [W]
+    P_fusion: Generated fusion power (5*P_alpha_total) [W]
     I_ecrh: Total electron cyclotron source current [A]
     I_aux_generic: Total generic source current [A]
-    Q_fusion: Fusion power gain
+    Q_fusion: Fusion power gain (P_fusion / P_external_total) [dimensionless]
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
@@ -103,7 +107,14 @@ class PostProcessedOutputs:
       [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
-    E_aux: Total external injected energy (Ohmic + auxiliary heating) [J]
+    E_aux_total: Total auxiliary heating energy absorbed by the plasma (
+      time integral of P_aux_total) [J].
+    E_ohmic_e: Total Ohmic heating energy to electrons (time integral of
+      P_ohmic_e) [J].
+    E_external_injected: Total external injected energy before absorption (
+      time integral of P_external_injected) [J].
+    E_external_total: Total external energy absorbed by the plasma (
+      time integral of P_external_total) [J].
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
     n_e_volume_avg: Volume average electron density [m^-3]
@@ -144,6 +155,7 @@ class PostProcessedOutputs:
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
+    impurity_species: Dictionary of outputs for each impurity species.
   """
 
   pressure_thermal_i: cell_variable.CellVariable
@@ -169,6 +181,7 @@ class PostProcessedOutputs:
   P_aux_e: array_typing.FloatScalar
   P_aux_total: array_typing.FloatScalar
   P_external_injected: array_typing.FloatScalar
+  P_external_total: array_typing.FloatScalar
   P_ei_exchange_i: array_typing.FloatScalar
   P_ei_exchange_e: array_typing.FloatScalar
   P_aux_generic_i: array_typing.FloatScalar
@@ -184,6 +197,7 @@ class PostProcessedOutputs:
   P_radiation_e: array_typing.FloatScalar
   I_ecrh: array_typing.FloatScalar
   I_aux_generic: array_typing.FloatScalar
+  P_fusion: array_typing.FloatScalar
   Q_fusion: array_typing.FloatScalar
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
@@ -193,7 +207,10 @@ class PostProcessedOutputs:
   P_LH: array_typing.FloatScalar
   n_e_min_P_LH: array_typing.FloatScalar
   E_fusion: array_typing.FloatScalar
-  E_aux: array_typing.FloatScalar
+  E_aux_total: array_typing.FloatScalar
+  E_ohmic_e: array_typing.FloatScalar
+  E_external_injected: array_typing.FloatScalar
+  E_external_total: array_typing.FloatScalar
   T_e_volume_avg: array_typing.FloatScalar
   T_i_volume_avg: array_typing.FloatScalar
   n_e_volume_avg: array_typing.FloatScalar
@@ -224,6 +241,7 @@ class PostProcessedOutputs:
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
+  impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
   # pylint: enable=invalid-name
 
   @classmethod
@@ -266,6 +284,7 @@ class PostProcessedOutputs:
         P_aux_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_aux_generic_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -281,6 +300,7 @@ class PostProcessedOutputs:
         P_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_aux_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -290,7 +310,10 @@ class PostProcessedOutputs:
         P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        E_aux=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_ohmic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_external_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_i_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -321,6 +344,7 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        impurity_species={},
     )
 
   def check_for_errors(self):
@@ -499,6 +523,10 @@ def _calculate_integrated_sources(
 
   integrated['P_SOL_total'] = integrated['P_SOL_i'] + integrated['P_SOL_e']
   integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
+  integrated['P_fusion'] = 5 * integrated['P_alpha_total']
+  integrated['P_external_total'] = (
+      integrated['P_external_injected'] + integrated['P_ohmic_e']
+  )
 
   return integrated
 
@@ -525,6 +553,12 @@ def make_post_processed_outputs(
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
   """
+  # TODO(b/444380540): Remove once aux outputs from sources are exposed.
+  impurity_radiation_outputs = (
+      impurity_radiation.calculate_impurity_species_output(
+          sim_state, runtime_params
+      )
+  )
 
   (
       pressure_thermal_el,
@@ -554,16 +588,10 @@ def make_post_processed_outputs(
       runtime_params,
   )
   # Calculate fusion gain with a zero division guard.
-  # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
-      integrated_sources['P_alpha_total']
-      * 5.0
-      / (
-          integrated_sources['P_external_injected']
-          + integrated_sources['P_ohmic_e']
-          + constants.CONSTANTS.eps
-      )
-  )
+      integrated_sources['P_fusion']
+      / (integrated_sources['P_external_total']
+         + constants.CONSTANTS.eps))
 
   P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
       scaling_laws.calculate_plh_scaling_factor(
@@ -616,32 +644,59 @@ def make_post_processed_outputs(
   # interval average.
   if previous_post_processed_outputs is not None:
     # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
-    E_cumulative_fusion = (
+    E_fusion = (
         previous_post_processed_outputs.E_fusion
-        + 5.0
-        * sim_state.dt
+        + sim_state.dt
         * (
-            integrated_sources['P_alpha_total']
-            + previous_post_processed_outputs.P_alpha_total
+            integrated_sources['P_fusion']
+            + previous_post_processed_outputs.P_fusion
         )
         / 2.0
     )
-    E_cumulative_external = (
-        previous_post_processed_outputs.E_aux
+    E_aux_total = (
+        previous_post_processed_outputs.E_aux_total
         + sim_state.dt
         * (
             integrated_sources['P_aux_total']
-            + integrated_sources['P_ohmic_e']
             + previous_post_processed_outputs.P_aux_total
+        )
+        / 2.0
+    )
+    E_ohmic_e = (
+        previous_post_processed_outputs.E_ohmic_e
+        + sim_state.dt
+        * (
+            integrated_sources['P_ohmic_e']
             + previous_post_processed_outputs.P_ohmic_e
+        )
+        / 2.0
+    )
+    E_external_injected = (
+        previous_post_processed_outputs.E_external_injected
+        + sim_state.dt
+        * (
+            integrated_sources['P_external_injected']
+            + previous_post_processed_outputs.P_external_injected
+        )
+        / 2.0
+    )
+    E_external_total = (
+        previous_post_processed_outputs.E_external_total
+        + sim_state.dt
+        * (
+            integrated_sources['P_external_total']
+            + previous_post_processed_outputs.P_external_total
         )
         / 2.0
     )
   else:
     # Used during initiailization. Note for restarted simulations this should
     # be overwritten by the previous_post_processed_outputs.
-    E_cumulative_fusion = 0.0
-    E_cumulative_external = 0.0
+    E_fusion = 0.0
+    E_aux_total = 0.0
+    E_ohmic_e = 0.0
+    E_external_injected = 0.0
+    E_external_total = 0.0
 
   # Calculate q at 95% of the normalized poloidal flux
   q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
@@ -724,8 +779,11 @@ def make_post_processed_outputs(
       P_LH_min=P_LH_min,
       P_LH_high_density=P_LH_hi_dens,
       n_e_min_P_LH=n_e_min_P_LH,
-      E_fusion=E_cumulative_fusion,
-      E_aux=E_cumulative_external,
+      E_fusion=E_fusion,
+      E_aux_total=E_aux_total,
+      E_ohmic_e=E_ohmic_e,
+      E_external_injected=E_external_injected,
+      E_external_total=E_external_total,
       T_e_volume_avg=te_volume_avg,
       T_i_volume_avg=ti_volume_avg,
       n_e_volume_avg=n_e_volume_avg,
@@ -752,4 +810,5 @@ def make_post_processed_outputs(
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
+      impurity_species=impurity_radiation_outputs,
   )

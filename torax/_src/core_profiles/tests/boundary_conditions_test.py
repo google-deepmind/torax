@@ -126,7 +126,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
 
     psi_constraint = (
         6e6
-        * (16 * np.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+        * (16 * np.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name

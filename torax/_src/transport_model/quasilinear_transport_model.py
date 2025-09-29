@@ -90,9 +90,9 @@ def calculate_chiGB(
   """
   constants = constants_module.CONSTANTS
   return (
-      (reference_mass * constants.mp) ** 0.5
-      / (reference_magnetic_field * constants.qe) ** 2
-      * (reference_temperature * constants.keV2J) ** 1.5
+      (reference_mass * constants.m_amu) ** 0.5
+      / (reference_magnetic_field * constants.q_e) ** 2
+      * (reference_temperature * constants.keV_to_J) ** 1.5
       / reference_length
   )
 
@@ -124,7 +124,11 @@ def calculate_alpha(
   constants = constants_module.CONSTANTS
 
   factor_0 = (
-      2 * constants.keV2J / reference_magnetic_field**2 * constants.mu0 * q**2
+      2
+      * constants.keV_to_J
+      / reference_magnetic_field**2
+      * constants.mu_0
+      * q**2
   )
   alpha = factor_0 * (
       core_profiles.T_e.face_value()

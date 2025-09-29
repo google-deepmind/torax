@@ -146,7 +146,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       return True
 
     # Exclude non-field values in __dict__, such as cached_properties.
-    leaves = {k: self.__dict__[k] for k in self.model_fields.keys()}
+    leaves = {k: self.__dict__[k] for k in self.__class__.model_fields.keys()}
     # Some Pydantic models are values of a dict. We flatten the tree to access
     # them.
     leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]

@@ -18,11 +18,11 @@ tensors for the neural network.
       ...
       def _call_implementation(
           self,
-          dynamic_runtime_params_slice: runtime_params_slice.RuntimeParams,
+          runtime_params: runtime_params_slice.RuntimeParams,
           geo: geometry.Geometry,
           core_profiles: state.CoreProfiles,
       ) -> TurbulentTransport:
-        input_tensor = self._prepare_input(dynamic_runtime_params_slice, geo, core_profiles)
+        input_tensor = self._prepare_input(runtime_params, geo, core_profiles)
 
         output_tensor = self._call_surrogate_model(input_tensor)
 

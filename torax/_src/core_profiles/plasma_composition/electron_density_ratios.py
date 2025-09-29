@@ -18,6 +18,7 @@ from typing import Annotated, Literal, Mapping
 import chex
 import jax
 from jax import numpy as jnp
+import jaxtyping as jt
 import pydantic
 from torax._src import array_typing
 from torax._src import constants
@@ -58,8 +59,10 @@ def calculate_fractions_from_ratios(
 class RuntimeParams:
   """Analogous to ion_mixture.RuntimeParams but for n_e_ratio inputs."""
 
-  n_e_ratios: array_typing.FloatVector
-  A_avg: array_typing.FloatScalar
+  n_e_ratios: jt.Float[array_typing.Array, 'ion_symbol rhon']
+  n_e_ratios_face: jt.Float[array_typing.Array, 'ion_symbol rhon+1']
+  A_avg: array_typing.FloatVectorCell
+  A_avg_face: array_typing.FloatVectorFace
   Z_override: array_typing.FloatScalar | None = None
 
   @property
@@ -67,11 +70,24 @@ class RuntimeParams:
     """Returns the impurity fractions calculated from the n_e_ratios."""
     return calculate_fractions_from_ratios(self.n_e_ratios)
 
+  @property
+  def fractions_face(self) -> array_typing.FloatVectorFace:
+    """Returns the impurity fractions calculated from the n_e_ratios."""
+    return calculate_fractions_from_ratios(self.n_e_ratios_face)
+
 
 class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
-  """Impurity content defined by ratios of impurity to electron density."""
+  """Impurity content defined by ratios of impurity to electron density.
 
-  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingScalar]
+  Attributes:
+    species: A dictionary of TimeVaryingArray objects, where the keys are ion
+      symbols and the values are TimeVaryingArray objects representing the
+      ratios of impurity to electron density at the defined rho_norm points.
+    Z_override: A TimeVaryingScalar object representing the charge override.
+    A_override: A TimeVaryingScalar object representing the A override.
+  """
+
+  species: Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray]
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
   impurity_mode: Annotated[Literal['n_e_ratios'], torax_pydantic.JAX_STATIC] = (
@@ -90,17 +106,26 @@ class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
     n_e_ratios_arr = jnp.array(
         [ratio.get_value(t) for ratio in self.species.values()]
     )
+    n_e_ratios_face_arr = jnp.array([
+        ratio.get_value(t, grid_type='face') for ratio in self.species.values()
+    ])
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
     fractions = calculate_fractions_from_ratios(n_e_ratios_arr)
+    fractions_face = calculate_fractions_from_ratios(n_e_ratios_face_arr)
 
     if not self.A_override:
       As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As * fractions)
+      A_avg = jnp.sum(As[..., jnp.newaxis] * fractions, axis=0)
+      A_avg_face = jnp.sum(As[..., jnp.newaxis] * fractions_face, axis=0)
     else:
-      A_avg = self.A_override.get_value(t)
+      A_override = self.A_override.get_value(t)
+      A_avg = jnp.ones_like(n_e_ratios_arr[0]) * A_override
+      A_avg_face = jnp.ones_like(n_e_ratios_face_arr[0]) * A_override
 
     return RuntimeParams(
         n_e_ratios=n_e_ratios_arr,
+        n_e_ratios_face=n_e_ratios_face_arr,
         A_avg=A_avg,
         Z_override=Z_override,
+        A_avg_face=A_avg_face,
     )

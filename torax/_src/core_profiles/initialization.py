@@ -16,6 +16,7 @@
 
 import dataclasses
 
+from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -26,6 +27,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
@@ -158,7 +160,7 @@ def update_psi_from_j(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+      (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on hires cell grid
@@ -200,6 +202,44 @@ def update_psi_from_j(
   return psi
 
 
+def _get_initial_psi_mode(
+    runtime_params: runtime_params_slice.RuntimeParams,
+    geo: geometry.Geometry,
+) -> profile_conditions_lib.InitialPsiMode:
+  """Returns the initial psi mode based on the runtime parameters.
+
+  This allows us to support the legacy behavior of initial_psi_from_j, which
+  is only available when using the standard geometry and initial psi is not
+  provided. Moving forward the initial_psi_mode setting in the profile
+  conditions should be preferred.
+
+  Args:
+    runtime_params: Runtime parameters.
+    geo: Torus geometry.
+
+  Returns:
+    How to calculate the initial psi value.
+  """
+  psi_mode = runtime_params.profile_conditions.initial_psi_mode
+  if psi_mode == profile_conditions_lib.InitialPsiMode.PROFILE_CONDITIONS:
+    if runtime_params.profile_conditions.psi is None:
+      logging.warning(
+          'Falling back to legacy behavior as `profile_conditions.psi` is '
+          'None. Future versions of TORAX will require `psi` to be provided '
+          'if `initial_psi_mode` is PROFILE_CONDITIONS. Use '
+          '`initial_psi_mode` to initialize psi from `j` or `geometry` and '
+          'avoid this warning.'
+      )
+      if (
+          isinstance(geo, standard_geometry.StandardGeometry)
+          and not runtime_params.profile_conditions.initial_psi_from_j
+      ):
+        psi_mode = profile_conditions_lib.InitialPsiMode.GEOMETRY
+      else:
+        psi_mode = profile_conditions_lib.InitialPsiMode.J
+  return psi_mode
+
+
 def _init_psi_and_psi_derived(
     runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
@@ -233,104 +273,119 @@ def _init_psi_and_psi_derived(
   # Initialize psi source profiles and bootstrap current to all zeros.
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
 
-  # Case 1: retrieving psi from the profile conditions, using the prescribed
-  # profile and Ip
-  if runtime_params.profile_conditions.psi is not None:
-    # Calculate the dpsi/drho necessary to achieve the given Ip
-    dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
-        runtime_params.profile_conditions.Ip,
-        geo,
-    )
+  initial_psi_mode = _get_initial_psi_mode(runtime_params, geo)
 
-    # Set the BCs to ensure the correct Ip
-    if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
-      # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
-      # to achieve the desired Ip
-      right_face_grad_constraint = None
-      right_face_constraint = (
-          runtime_params.profile_conditions.psi[-1]
-          + dpsi_drhonorm_edge * geo.drho_norm / 2
-      )
-    else:
-      # Use the dpsi/drho calculated above as the right face gradient constraint
-      right_face_grad_constraint = dpsi_drhonorm_edge
-      right_face_constraint = None
-
-    psi = cell_variable.CellVariable(
-        value=runtime_params.profile_conditions.psi,
-        right_face_grad_constraint=right_face_grad_constraint,
-        right_face_constraint=right_face_constraint,
-        dr=geo.drho_norm,
-    )
-
-  # Case 2: retrieving psi from the standard geometry input.
-  elif (
-      isinstance(geo, standard_geometry.StandardGeometry)
-      and not runtime_params.profile_conditions.initial_psi_from_j
-  ):
-    # psi is already provided from a numerical equilibrium, so no need to
-    # first calculate currents.
-    dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
-        runtime_params.profile_conditions.Ip,
-        geo,
-    )
-    # Use the psi from the equilibrium as the right face constraint
-    # This has already been made consistent with the desired Ip
-    # by make_ip_consistent
-    psi = cell_variable.CellVariable(
-        value=geo.psi_from_Ip,  # Use psi from equilibrium
-        right_face_grad_constraint=None
-        if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-        else dpsi_drhonorm_edge,
-        right_face_constraint=geo.psi_from_Ip_face[-1]
-        if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-        else None,
-        dr=geo.drho_norm,
-    )
-
-  # Case 3: calculating j according to nu formula and psi from j.
-  else:
-    # calculate j and psi from the nu formula
-    j_total_hires = _get_j_total_hires_with_no_external_sources(
-        runtime_params, geo
-    )
-    psi = update_psi_from_j(
-        runtime_params.profile_conditions.Ip,
-        geo,
-        j_total_hires,
-        use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
-    )
-    if not (runtime_params.profile_conditions.initial_j_is_total_current):
-      # In this branch we require non-inductive currents to determine j_total.
-      # The nu formula only provides the Ohmic component of the current.
-      # However calculating non-inductive currents requires a non-zero psi.
-      # We thus iterate between psi and source calculations, using j_total
-      # and psi calculated purely with the nu formula as an initial guess.
-
-      # Initialize iterations
-      core_profiles_initial = dataclasses.replace(
-          core_profiles,
-          psi=psi,
-          q_face=psi_calculations.calc_q_face(geo, psi),
-          s_face=psi_calculations.calc_s_face(geo, psi),
+  match initial_psi_mode:
+    # Case 1: retrieving psi from the profile conditions, using the prescribed
+    # profile and Ip
+    case profile_conditions_lib.InitialPsiMode.PROFILE_CONDITIONS:
+      if runtime_params.profile_conditions.psi is None:
+        raise ValueError(
+            'psi is None, but initial_psi_mode is PROFILE_CONDITIONS.'
+        )
+      # Calculate the dpsi/drho necessary to achieve the given Ip
+      dpsi_drhonorm_edge = (
+          psi_calculations.calculate_psi_grad_constraint_from_Ip(
+              runtime_params.profile_conditions.Ip,
+              geo,
+          )
       )
 
-      # TODO(b/440385263): add tunable iteration number or convergence criteria,
-      # and modify python for loop to jax fori loop for the general case.
+      # Set the BCs to ensure the correct Ip
+      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
+        # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
+        # to achieve the desired Ip
+        right_face_grad_constraint = None
+        right_face_constraint = (
+            runtime_params.profile_conditions.psi[-1]
+            + dpsi_drhonorm_edge * geo.drho_norm / 2
+        )
+      else:
+        # Use the dpsi/drho calculated above as the right face gradient
+        # constraint
+        right_face_grad_constraint = dpsi_drhonorm_edge
+        right_face_constraint = None
 
-      # Iterate with non-inductive current source calculations. Stop after 2.
-      psi, source_profiles = _iterate_psi_and_sources(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles_initial,
-          neoclassical_models=neoclassical_models,
-          source_models=source_models,
-          source_profiles=source_profiles,
-          iterations=2,
+      psi = cell_variable.CellVariable(
+          value=runtime_params.profile_conditions.psi,
+          right_face_grad_constraint=right_face_grad_constraint,
+          right_face_constraint=right_face_constraint,
+          dr=geo.drho_norm,
       )
 
-      # Mark that sources have been calculated to avoid redundant work.
-      sources_are_calculated = True
+    # Case 2: retrieving psi from the standard geometry input.
+    case profile_conditions_lib.InitialPsiMode.GEOMETRY:
+      if not isinstance(geo, standard_geometry.StandardGeometry):
+        raise ValueError(
+            'GEOMETRY initial_psi_source is only supported for standard'
+            ' geometry.'
+        )
+      # psi is already provided from a numerical equilibrium, so no need to
+      # first calculate currents.
+      dpsi_drhonorm_edge = (
+          psi_calculations.calculate_psi_grad_constraint_from_Ip(
+              runtime_params.profile_conditions.Ip,
+              geo,
+          )
+      )
+      # Use the psi from the equilibrium as the right face constraint
+      # This has already been made consistent with the desired Ip
+      # by make_ip_consistent
+      psi = cell_variable.CellVariable(
+          value=geo.psi_from_Ip,  # Use psi from equilibrium
+          right_face_grad_constraint=None
+          if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
+          else dpsi_drhonorm_edge,
+          right_face_constraint=geo.psi_from_Ip_face[-1]
+          if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
+          else None,
+          dr=geo.drho_norm,
+      )
+
+    # Case 3: calculating j according to nu formula and psi from j.
+    case profile_conditions_lib.InitialPsiMode.J:
+      # calculate j and psi from the nu formula
+      j_total_hires = _get_j_total_hires_with_no_external_sources(
+          runtime_params, geo
+      )
+      psi = update_psi_from_j(
+          runtime_params.profile_conditions.Ip,
+          geo,
+          j_total_hires,
+          use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
+      )
+      if not (runtime_params.profile_conditions.initial_j_is_total_current):
+        # In this branch we require non-inductive currents to determine j_total.
+        # The nu formula only provides the Ohmic component of the current.
+        # However calculating non-inductive currents requires a non-zero psi.
+        # We thus iterate between psi and source calculations, using j_total
+        # and psi calculated purely with the nu formula as an initial guess
+
+        # Initialize iterations
+        core_profiles_initial = dataclasses.replace(
+            core_profiles,
+            psi=psi,
+            q_face=psi_calculations.calc_q_face(geo, psi),
+            s_face=psi_calculations.calc_s_face(geo, psi),
+        )
+
+        # TODO(b/440385263): add tunable iteration number or convergence
+        # criteria, and modify python for loop to jax fori loop for the general
+        # case.
+
+        # Iterate with non-inductive current source calculations. Stop after 2.
+        psi, source_profiles = _iterate_psi_and_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            core_profiles=core_profiles_initial,
+            neoclassical_models=neoclassical_models,
+            source_models=source_models,
+            source_profiles=source_profiles,
+            iterations=2,
+        )
+
+        # Mark that sources have been calculated to avoid redundant work.
+        sources_are_calculated = True
 
   # Conclude with completing core_profiles with all psi-dependent profiles.
   core_profiles = _calculate_all_psi_dependent_profiles(

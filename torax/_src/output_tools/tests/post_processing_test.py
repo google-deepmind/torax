@@ -100,6 +100,8 @@ class PostProcessingTest(parameterized.TestCase):
         'P_ohmic_e',
         'P_bremsstrahlung_e',
         'P_ecrh_e',
+        'P_external_total',
+        'P_fusion',
         'P_icrh_i',
         'P_icrh_e',
         'P_icrh_total',
@@ -225,22 +227,44 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
 
     _, state_history = run_simulation.run_simulation(torax_config)
     p_fusion = state_history._stacked_post_processed_outputs.P_alpha_total
-    p_external = state_history._stacked_post_processed_outputs.P_aux_total
+    p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
+    p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e
+    p_external_injected = (
+        state_history._stacked_post_processed_outputs.P_external_injected)
+    p_external_total = (
+        state_history._stacked_post_processed_outputs.P_external_total)
     e_fusion = state_history._stacked_post_processed_outputs.E_fusion
-    e_external = state_history._stacked_post_processed_outputs.E_aux
+    e_aux_total = state_history._stacked_post_processed_outputs.E_aux_total
+    e_ohmic_e = state_history._stacked_post_processed_outputs.E_ohmic_e
+    e_external_injected = (
+        state_history._stacked_post_processed_outputs.E_external_injected)
+    e_external_total = (
+        state_history._stacked_post_processed_outputs.E_external_total)
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.
     e_fusion_expected = scipy.integrate.cumulative_trapezoid(
         p_fusion * 5, t, initial=0.0
     )
-
-    e_external_expected = scipy.integrate.cumulative_trapezoid(
-        p_external, t, initial=0.0
+    e_aux_total_expected = scipy.integrate.cumulative_trapezoid(
+        p_aux_total, t, initial=0.0
+    )
+    e_ohmic_e_expected = scipy.integrate.cumulative_trapezoid(
+        p_ohmic_e, t, initial=0.0
+    )
+    e_external_injected_expected = scipy.integrate.cumulative_trapezoid(
+        p_external_injected, t, initial=0.0
+    )
+    e_external_total_expected = scipy.integrate.cumulative_trapezoid(
+        p_external_total, t, initial=0.0
     )
 
     np.testing.assert_allclose(e_fusion, e_fusion_expected)
-    np.testing.assert_allclose(e_external, e_external_expected)
+    np.testing.assert_allclose(e_aux_total, e_aux_total_expected)
+    np.testing.assert_allclose(e_ohmic_e, e_ohmic_e_expected)
+    np.testing.assert_allclose(e_external_injected,
+                               e_external_injected_expected)
+    np.testing.assert_allclose(e_external_total, e_external_total_expected)
 
 
 if __name__ == '__main__':

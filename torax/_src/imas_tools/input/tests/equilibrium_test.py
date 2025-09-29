@@ -97,6 +97,59 @@ class EquilibriumTest(parameterized.TestCase):
     )
     config.build_geometry()
 
+  def test_IMAS_loading_specific_slice(self):
+    def _check_geo_match(geo1, geo2):
+      for key in geo1.__dict__.keys():
+        if key not in [
+            'geometry_type',
+            'torax_mesh',
+            'R_major',
+            'B_0',
+            'rho_hires_norm',
+            'Phi_b_dot',
+            'Ip_from_parameters',
+        ]:
+          np.testing.assert_allclose(
+              geo1.__dict__[key],
+              geo2.__dict__[key],
+              err_msg=(
+                  f'Value {key} mismatched between slice_time and slice_index'
+              ),
+          )
+
+    filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
+    config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
+    config_at_slice_from_time = geometry_pydantic_model.IMASConfig(
+        imas_filepath=filename, slice_time=40
+    )
+    config_at_slice_from_index = geometry_pydantic_model.IMASConfig(
+        imas_filepath=filename, slice_index=5
+    )
+
+    geo_at_0 = config_at_0.build_geometry()
+    geo_at_slice_from_time = config_at_slice_from_time.build_geometry()
+    geo_at_slice_from_index = config_at_slice_from_index.build_geometry()
+
+    _check_geo_match(geo_at_slice_from_time, geo_at_slice_from_index)
+
+    # Check that the geometry is not the same as at t=0
+    with self.assertRaisesRegex(
+        AssertionError, 'mismatched between slice_time and slice_index'
+    ):
+      _check_geo_match(geo_at_0, geo_at_slice_from_index)
+
+  def test_IMAS_raises_if_slice_out_of_range(self):
+    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+    with self.assertRaisesRegex(
+        IndexError,
+        'out of range',
+    ):
+      config = geometry_pydantic_model.IMASConfig(
+          imas_filepath=filename,
+          slice_index=100,
+      )
+      config.build_geometry()
+
 
 if __name__ == '__main__':
   absltest.main()

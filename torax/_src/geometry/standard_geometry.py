@@ -312,7 +312,7 @@ class StandardGeometryIntermediates:
     # set psi in TORAX units with 2*pi factor
     psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
     Ip_chease = (
-        chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * R_major * B_0
+        chease_data['Ipprofile'] / constants.CONSTANTS.mu_0 * R_major * B_0
     )
 
     # toroidal flux
@@ -620,11 +620,6 @@ class StandardGeometryIntermediates:
     # Approximate with analytical expressions for circular geometry.
     flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
     flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
-    logging.warning(
-        '<B^2> and <1/B^2> not currently supported by FBT geometry;'
-        ' approximating using analytical expressions for circular geometry.'
-        ' This might cause inaccuracies in neoclassical transport.'
-    )
 
     return cls(
         geometry_type=geometry.GeometryType.FBT,
@@ -924,7 +919,7 @@ class StandardGeometryIntermediates:
       flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
       flux_surf_avg_B2_eqdsk[n + 1] = surface_FSA_B2
       flux_surf_avg_1_over_B2_eqdsk[n + 1] = surface_FSA_1_over_B2
-      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
       delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
       delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
       elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (
@@ -1015,6 +1010,8 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
+      slice_time: float | None = None,
+      slice_index: int = 0,
       equilibrium_object: ids_toplevel.IDSToplevel | None = None,
       imas_uri: str | None = None,
       imas_filepath: str | None = None,
@@ -1029,6 +1026,9 @@ class StandardGeometryIntermediates:
         values in the Geometry are rescaled to match the new Ip.
       n_rho: Radial grid points (num cells).
       hires_factor: High resolution factor for calculations.
+      slice_time: Time of slice to load from IMAS IDS. If given, overrides
+        slice_index.
+      slice_index: Index of slice to load from IMAS IDS.
       equilibrium_object: The equilibrium IDS containing the relevant data.
       imas_uri: The IMAS uri containing the equilibrium data.
       imas_filepath: The path to the IMAS netCDF file containing the equilibrium
@@ -1046,6 +1046,8 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        slice_time=slice_time,
+        slice_index=slice_index,
     )
     return cls(geometry_type=geometry.GeometryType.IMAS, **inputs)
 
@@ -1090,7 +1092,7 @@ def build_standard_geometry(
   # Ip profile. Needed since input psi profile may have noisy second derivatives
   dpsidrhon = (
       intermediate.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1])
+      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1])
       / (g2g3_over_rhon[1:] * intermediate.F[1:])
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
@@ -1105,7 +1107,7 @@ def build_standard_geometry(
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1]
+      16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1]
   ) * intermediate.Ip_profile[-1] / (
       g2g3_over_rhon[-1] * intermediate.F[-1]
   ) * (

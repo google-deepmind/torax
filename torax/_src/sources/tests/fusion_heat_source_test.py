@@ -126,7 +126,7 @@ def reference_calc_fusion(geo, core_profiles):
   # NF 1992.
   # T is in keV for the formula
 
-  Efus = 17.6 * 1e3 * consts.keV2J
+  Efus = 17.6 * 1e3 * consts.keV_to_J
   mrc2 = 1124656
   BG = 34.3827
   C1 = 1.17302e-9

@@ -164,7 +164,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
       E_fusion=scalars_dataset.data_vars['E_fusion'].to_numpy(),
-      E_aux=scalars_dataset.data_vars['E_aux'].to_numpy(),
+      E_aux_total=scalars_dataset.data_vars['E_aux_total'].to_numpy(),
+      E_ohmic_e=scalars_dataset.data_vars['E_ohmic_e'].to_numpy(),
+      E_external_injected=scalars_dataset.data_vars[
+          'E_external_injected'].to_numpy(),
+      E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,

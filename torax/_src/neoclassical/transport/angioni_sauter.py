@@ -195,12 +195,12 @@ def _calculate_angioni_sauter_transport(
   pe = (
       core_profiles.n_e.face_value()
       * core_profiles.T_e.face_value()
-      * constants.CONSTANTS.keV2J
+      * constants.CONSTANTS.keV_to_J
   )
   pi = (
       core_profiles.n_i.face_value()
       * core_profiles.T_i.face_value()
-      * constants.CONSTANTS.keV2J
+      * constants.CONSTANTS.keV_to_J
   )
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
@@ -507,7 +507,7 @@ def _calculate_Lmn(
   # Normalization factors from Eqs. 16, 20, 21
   consts = constants.CONSTANTS
   thermal_velocity_e = jnp.sqrt(
-      2 * core_profiles.T_e.face_value() * consts.keV2J / consts.me
+      2 * core_profiles.T_e.face_value() * consts.keV_to_J / consts.m_e
   )
   collision_time_e = (core_profiles.q_face * geo.R_major) / (
       nu_e_star * epsilon**1.5 * thermal_velocity_e + consts.eps
@@ -515,19 +515,19 @@ def _calculate_Lmn(
   thermal_velocity_i = jnp.sqrt(
       2
       * core_profiles.T_i.face_value()
-      * consts.keV2J
-      / (core_profiles.A_i * consts.mp)
+      * consts.keV_to_J
+      / (core_profiles.A_i * consts.m_amu)
   )
   collision_time_i = (core_profiles.q_face * geo.R_major) / (
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
-  r_larmor_e = consts.me * thermal_velocity_e / consts.qe
+  r_larmor_e = consts.m_e * thermal_velocity_e / consts.q_e
   r_larmor_i = (
-      consts.mp
+      consts.m_amu
       * core_profiles.A_i
       * thermal_velocity_i
-      / (consts.qe * core_profiles.Z_i_face)
+      / (consts.q_e * core_profiles.Z_i_face)
   )
 
   dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
@@ -549,14 +549,14 @@ def _calculate_Lmn(
 
   Lsi = (
       core_profiles.n_i.face_value()
-      * (consts.qe * core_profiles.Z_i_face) ** 2
+      * (consts.q_e * core_profiles.Z_i_face) ** 2
       * collision_time_i
       * geo.B_0**2
       / (
-          consts.mp
+          consts.m_amu
           * core_profiles.A_i
           * core_profiles.T_i.face_value()
-          * consts.keV2J
+          * consts.keV_to_J
       )
   )
 

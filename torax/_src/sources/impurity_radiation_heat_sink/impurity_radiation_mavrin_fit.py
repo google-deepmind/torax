@@ -117,7 +117,7 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
 
 
 # pylint: disable=invalid-name
-def _calculate_impurity_radiation_single_species(
+def calculate_impurity_radiation_single_species(
     T_e: array_typing.FloatVector,
     ion_symbol: str,
 ) -> array_typing.FloatVector:
@@ -188,7 +188,7 @@ def calculate_total_impurity_radiation(
   effective_LZ = jnp.zeros_like(T_e)
   for i, ion_symbol in enumerate(ion_symbols):
     fraction = impurity_fractions[i]
-    effective_LZ += fraction * _calculate_impurity_radiation_single_species(
+    effective_LZ += fraction * calculate_impurity_radiation_single_species(
         T_e, ion_symbol
     )
   return effective_LZ
