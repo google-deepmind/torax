@@ -2034,8 +2034,7 @@ There are three main methods to load IMAS equilibrium:
 * Using IMAS netCDF file (imas_filepath).
   This is the main method as it does not require the optional dependency to
   imas-core. The path of the file can then be provided in the config to run
-  TORAX with this geometry. An example yaml input file for this function can be
-  found at |example_imas_scenario|.
+  TORAX with this geometry.
 
 * Using IMAS uri (imas_uri).
   This method does require the imas-core dependency. It loads the
@@ -2043,6 +2042,27 @@ There are three main methods to load IMAS equilibrium:
 
 * Providing the equilibium IDS on the fly (equilibrium_object).
   Using this method the IDS can be provided externally or pre-loaded.
+
+Loading Profiles
+^^^^^^^^^^^^^^^^
+
+Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
+saved in Data Dictionary version 4.0.0 or newer.
+If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
+the loader function ``load_imas_data`` from |imas_loader|.
+It can then be loaded programatically in the ``CONFIG`` by constructing a nested
+dictionary with the ``core_profiles_from_imas`` function from
+|core_profiles_input_imas|. The function returns a dictionary whose structure
+fits the schema of profile_conditions and can be programatically loaded into a
+``CONFIG`` with standard dictionary manipulation.
+
+An example on how to inject the IMAS conditions into the config can be found in
+the test file ``imas_tools/input/tests/core_profiles_test.py``.
+It is possible to directly input all of profile_conditions from an IDS into the
+config, or to only load specific values of it. It is also possible to combine
+profiles from different IDSs and their time slices can be shifted to correct
+offsets between different IDSs or to match the config t_initial.
+
 
 Config example
 ==============

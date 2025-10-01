@@ -350,7 +350,10 @@ rst_epilog = f"""
 .. |neoclassical| replace:: `neoclassical <torax_src_neoclassical_target_>`_
 .. _torax_src_neoclassical_target: {github_base_url}/torax/_src/neoclassical
 
-.. |example_imas_scenario| replace:: `example_imas_scenario.yaml <torax_imas_example_yaml_target_>`_
-.. _torax_imas_example_yaml_target: {github_base_url}/torax/data/third_party/geo/example_imas_scenario.yaml
+.. |core_profiles_input_imas| replace:: `imas_tools/input/core_profiles <torax_src_core_profiles_imas_target_>`_
+.. _torax_src_core_profiles_imas_target: {github_base_url}/torax/_src/imas_tools/input/core_profiles.py
+
+.. |imas_loader| replace:: `imas_tools/input/loader <torax_src_imas_loader_target_>`_
+.. torax_src_imas_loader_target_: {github_base_url}/torax/_src/imas_tools/input/loader.py
 
 """
