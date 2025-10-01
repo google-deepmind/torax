@@ -44,7 +44,7 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
@@ -187,7 +187,7 @@ def theta_method_matrix_equation(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],
@@ -275,7 +275,7 @@ def theta_method_block_residual(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],
@@ -333,7 +333,7 @@ def theta_method_block_loss(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
     ],

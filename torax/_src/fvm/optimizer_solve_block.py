@@ -19,7 +19,6 @@ import functools
 from typing import TypeAlias
 
 import jax
-from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -38,7 +37,7 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'coeffs_callback',
         'evolving_names',

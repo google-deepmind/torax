@@ -18,7 +18,6 @@ import functools
 import chex
 import jax
 import jax.numpy as jnp
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import sim_state
@@ -26,7 +25,7 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 
 
-@functools.partial(jax_utils.jit, static_argnames=['max_steps'])
+@functools.partial(jax.jit, static_argnames=['max_steps'])
 def run_loop_jit(
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,

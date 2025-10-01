@@ -16,11 +16,11 @@
 
 See function docstring for details.
 """
-
 import functools
 from typing import Final
+
+import jax
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
@@ -35,6 +35,7 @@ from torax._src.geometry import geometry
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
+
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
 # cases with bad numerics.
@@ -42,7 +43,7 @@ MIN_DELTA: Final[float] = 1e-7
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
         'coeffs_callback',
