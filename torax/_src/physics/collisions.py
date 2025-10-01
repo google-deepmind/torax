@@ -20,10 +20,11 @@ Functions:
     - calc_nu_star: Calculates the nu_star parameter: the electron-ion collision
       frequency normalized by bounce frequency.
     - fast_ion_fractional_heating_formula: Returns the fraction of heating that
-      goes to the ions according to Stix 1975 analyticlal formulas.
-    - _calculate_log_lambda_ei: Calculates the Coulomb logarithm for
-    electron-ion
-      collisions.
+      goes to the ions according to Stix 1975 analytical formulas.
+    - calculate_log_lambda_ee: Calculates the Coulomb logarithm for
+      electron-electron collisions.
+    - calculate_log_lambda_ei: Calculates the Coulomb logarithm for
+      electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
@@ -180,6 +181,28 @@ def fast_ion_fractional_heating_formula(
       / x_squared
   )
   return frac_i
+
+
+def calculate_log_lambda_ee(
+    T_e: jax.Array,
+    n_e: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for electron-electron collisions.
+
+  Note: the difference with calculate_log_lambda_ei is minimal.
+
+  See Wesson 3rd edition p727.
+
+  Args:
+    T_e: Electron temperature in keV.
+    n_e: Electron density in m^-3.
+
+  Returns:
+    Coulomb logarithm.
+  """
+  # Rescale T_e to eV for specific form of formula.
+  T_e_ev = T_e * 1e3
+  return 31.0 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
 
 
 def calculate_log_lambda_ei(
