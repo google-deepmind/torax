@@ -249,6 +249,11 @@ To convert the ONNX model to a JAX representation, you can use the
     output_tensors = jax.jit(jax_model_from_onnx.run)({"input": jnp.asarray(input_tensor, dtype=jnp.float32)})
 
 
+Option 4: using a JAX callback
+==============================
+For more information see :ref:`using_jax`.
+
+
 Best practices
 ==============
 

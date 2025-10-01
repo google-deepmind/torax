@@ -14,8 +14,7 @@
 
 """A transport model that calls QuaLiKiz.
 
-Must be run with TORAX_COMPILATION_ENABLED=False. Used for generating ground
-truth for surrogate model evaluations.
+Used for generating ground truth for surrogate model evaluations.
 """
 
 import dataclasses
@@ -94,17 +93,8 @@ class QualikizTransportModel(
 
     Returns:
       coeffs: transport coefficients
-
-    Raises:
-      EnvironmentError: if TORAX_COMPILATION_ENABLED is set to True.
     """
     del pedestal_model_output, runtime_params  # Unused.
-
-    if jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True):
-      raise EnvironmentError(
-          'TORAX_COMPILATION_ENABLED environment variable is set to True.'
-          'JAX Compilation is not supported with QuaLiKiz.'
-      )
 
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -114,22 +104,55 @@ class QualikizTransportModel(
         geo=geo,
         core_profiles=core_profiles,
     )
-    # Generate nested ordered dict that will correspond to the input
-    # QuaLiKiz json file
-    qualikiz_plan = _extract_qualikiz_plan(
-        qualikiz_inputs=qualikiz_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
+
+    def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
+      # Qualikiz expects numpy arrays, but the callback passes jax.Array.
+      (qualikiz_inputs, transport_runtime_params, geo, core_profiles) = (
+          jax.tree.map(
+              np.asarray,
+              (qualikiz_inputs, transport_runtime_params, geo, core_profiles),
+          )
+      )
+      # Generate nested ordered dict that will correspond to the input
+      # QuaLiKiz json file
+      qualikiz_plan = _extract_qualikiz_plan(
+          qualikiz_inputs=qualikiz_inputs,
+          transport=transport_runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      self._run_qualikiz(qualikiz_plan, transport_runtime_params.n_processes)
+      core_transport = self._extract_run_data(
+          qualikiz_inputs=qualikiz_inputs,
+          transport=transport_runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      return core_transport
+
+    face_array_shape_dtype = jax.ShapeDtypeStruct(
+        shape=(geo.torax_mesh.nx+1,), dtype=jax_utils.get_dtype()
     )
-    self._run_qualikiz(
-        qualikiz_plan, transport_runtime_params.n_processes
+    result_shape_dtypes = transport_model.TurbulentTransport(
+        chi_face_ion=face_array_shape_dtype,
+        chi_face_el=face_array_shape_dtype,
+        d_face_el=face_array_shape_dtype,
+        v_face_el=face_array_shape_dtype,
     )
-    core_transport = self._extract_run_data(
-        qualikiz_inputs=qualikiz_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
+    # Even though qualikiz has side-effects (writing and reading from disk) we
+    # still use a pure_callback here as:
+    # 1. Nothing outside of this method depends on the side-effect.
+    # 2. We don't mind if results are cached or recomputed.
+    # 3. DCE will not happen here as we make use of the `core_transport` result.
+    # This is based on the current implementation of pure_callback and JAX
+    # may change the implementation making this not appropriate down the line.
+    core_transport = jax.pure_callback(
+        callback,
+        result_shape_dtypes,
+        qualikiz_inputs,
+        transport_runtime_params,
+        geo,
+        core_profiles,
     )
 
     return core_transport
@@ -229,7 +252,7 @@ def _extract_qualikiz_plan(
     transport: RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-):
+) -> qualikiz_inputtools.QuaLiKizPlan:
   """Converts TORAX parameters to QuaLiKiz input JSON.
 
   Args:

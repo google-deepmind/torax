@@ -1,7 +1,12 @@
-.. _cache:
+.. _using_jax:
 
+##################
+Using Jax in TORAX
+##################
+
+******************************
 Using the Jax persistent cache
-##############################
+******************************
 
 Torax is based on Jax. Each time we run the Python interpreter, Torax uses Jax
 to "trace" or construct mathematic expressions, then compiles these into executable
@@ -48,4 +53,21 @@ detail.
 The `tests/persistent_cache.py` test gives some good examples of usage and
 includes comments with advice about debugging cases of the cache unexpectedly
 not being used.
+
+*******************
+Using JAX callbacks
+*******************
+
+In instances where you want to add a component to the TORAX simulation that
+is not easily expressed in JAX, you can use JAX callbacks. This allows JAX to
+execute regular Python code on the host and can be used to embed Python code
+within a ``jax.jit`` scope.
+
+See https://docs.jax.dev/en/latest/external-callbacks.html#external-callbacks
+for more details.
+
+For an example of how this is currently used in TORAX see the
+``qualikiz_transport_model.py``.
+
+
 
