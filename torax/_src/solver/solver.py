@@ -21,6 +21,8 @@ import abc
 import functools
 
 import jax
+import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
@@ -121,7 +123,12 @@ class Solver(abc.ABC):
       )
     else:
       x_new = tuple()
-      solver_numeric_output = state.SolverNumericOutputs()
+      solver_numeric_output = state.SolverNumericOutputs(
+          sawtooth_crash=False,
+          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      )
 
     return (
         x_new,

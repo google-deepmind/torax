@@ -18,6 +18,8 @@ import dataclasses
 import functools
 
 import jax
+from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src import xnp
@@ -492,9 +494,13 @@ class SimulationStepFn:
                 state.SolverNumericOutputs(
                     # The solver has not converged yet as we have not performed
                     # any steps yet.
-                    solver_error_state=1,
-                    outer_solver_iterations=0,
-                    inner_solver_iterations=0,
+                    solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
+                    outer_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
+                    inner_solver_iterations=jnp.array(
+                        0, jax_utils.get_int_dtype()
+                    ),
                     sawtooth_crash=False,
                 ),
                 runtime_params_t,

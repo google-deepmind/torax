@@ -16,6 +16,8 @@
 import functools
 
 import jax
+from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
@@ -102,9 +104,13 @@ class LinearThetaMethod(solver_lib.Solver):
       inner_solver_iterations = 1
 
     solver_numeric_outputs = state.SolverNumericOutputs(
-        inner_solver_iterations=inner_solver_iterations,
-        outer_solver_iterations=1,
-        solver_error_state=0,  # linear method always works
+        inner_solver_iterations=jnp.array(
+            inner_solver_iterations, jax_utils.get_int_dtype()
+        ),
+        outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
+        # linear method always works
+        solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+        sawtooth_crash=False,
     )
 
     return (

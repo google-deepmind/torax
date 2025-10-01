@@ -247,6 +247,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
           outer_solver_iterations=1,
           solver_error_state=error_code,
           inner_solver_iterations=current_inner_solver_iterations,
+          sawtooth_crash=False,
       )
       return (x_new,), solver_numeric_outputs
 

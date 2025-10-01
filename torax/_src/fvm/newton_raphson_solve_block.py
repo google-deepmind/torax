@@ -16,11 +16,14 @@
 
 See function docstring for details.
 """
+
 import functools
 from typing import Final
 
 import jax
+import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
 from torax._src.config import runtime_params_slice
@@ -235,9 +238,12 @@ def newton_raphson_solve_block(
       x_root, core_profiles_t_plus_dt, evolving_names
   )
   solver_numeric_outputs = state_module.SolverNumericOutputs(
-      inner_solver_iterations=metadata.iterations,
-      solver_error_state=metadata.error,
-      outer_solver_iterations=1,
+      inner_solver_iterations=jnp.array(
+          metadata.iterations, jax_utils.get_int_dtype()
+      ),
+      solver_error_state=jnp.array(metadata.error, jax_utils.get_int_dtype()),
+      outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
+      sawtooth_crash=False,
   )
 
   return x_new, solver_numeric_outputs

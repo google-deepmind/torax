@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Code for getting the initial state for a simulation."""
+
 import dataclasses
 
 from absl import logging
 import numpy as np
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
@@ -104,9 +106,10 @@ def _get_initial_state(
       core_sources=initial_core_sources,
       core_transport=transport_coeffs,
       solver_numeric_outputs=state.SolverNumericOutputs(
-          solver_error_state=0,
-          outer_solver_iterations=0,
-          inner_solver_iterations=0,
+          solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+          sawtooth_crash=False,
       ),
       geometry=geo,
   )
@@ -189,8 +192,13 @@ def get_initial_state_and_post_processed_outputs_from_file(
           core_profiles=core_profiles,
           solver_numeric_outputs=state.SolverNumericOutputs(
               sawtooth_crash=sawtooth_crash,
-              outer_solver_iterations=outer_solver_iterations,
-              inner_solver_iterations=inner_solver_iterations,
+              solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+              outer_solver_iterations=np.array(
+                  outer_solver_iterations, jax_utils.get_int_dtype()
+              ),
+              inner_solver_iterations=np.array(
+                  inner_solver_iterations, jax_utils.get_int_dtype()
+              ),
           ),
       ),
       post_processed_outputs,

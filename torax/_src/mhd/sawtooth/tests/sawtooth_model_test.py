@@ -197,7 +197,12 @@ class SawtoothModelTest(parameterized.TestCase):
             self.initial_state.core_profiles,
             q_face=self.initial_state.core_profiles.q_face,
         ),
-        solver_numeric_outputs=state.SolverNumericOutputs(sawtooth_crash=False),
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            inner_solver_iterations=np.array(0, np.int64),
+            outer_solver_iterations=np.array(0, np.int64),
+            solver_error_state=np.array(0, np.int64),
+            sawtooth_crash=False,
+        ),
     )
 
     with self.subTest('no_subsequent_sawtooth_crashes'):
