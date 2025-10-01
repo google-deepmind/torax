@@ -49,6 +49,7 @@ class NewtonRaphsonRuntimeParams(runtime_params.RuntimeParams):
   tau_min: float
   initial_guess_mode: int = dataclasses.field(metadata={'static': True})
   log_iterations: bool = dataclasses.field(metadata={'static': True})
+  use_jax_custom_root: bool = dataclasses.field(metadata={'static': True})
 
 
 class NonlinearThetaMethod(solver.Solver):
@@ -251,6 +252,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         coarse_tol=solver_params.residual_coarse_tol,
         delta_reduction_factor=solver_params.delta_reduction_factor,
         tau_min=solver_params.tau_min,
+        use_jax_custom_root=solver_params.use_jax_custom_root,
     )
     return (
         x_new,

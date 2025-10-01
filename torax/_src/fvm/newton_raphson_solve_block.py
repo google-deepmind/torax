@@ -52,6 +52,7 @@ MIN_DELTA: Final[float] = 1e-7
         'coeffs_callback',
         'initial_guess_mode',
         'log_iterations',
+        'use_jax_custom_root',
     ],
 )
 def newton_raphson_solve_block(
@@ -74,6 +75,7 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     log_iterations: bool = False,
+    use_jax_custom_root: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.SolverNumericOutputs,
@@ -144,6 +146,9 @@ def newton_raphson_solve_block(
       routine resets at a lower timestep.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
+    use_jax_custom_root: Whether to use the custom root finder. This currently
+      defaults to False due to a compile time regression but is needed to be
+      set to take reverse-mode gradients of this function.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -229,7 +234,7 @@ def newton_raphson_solve_block(
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
       log_iterations=log_iterations,
-      use_jax_custom_root=False,
+      use_jax_custom_root=use_jax_custom_root,
   )
 
   # Create updated CellVariable instances based on state_plus_dt which has

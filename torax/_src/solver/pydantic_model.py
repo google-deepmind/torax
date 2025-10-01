@@ -135,6 +135,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     delta_reduction_factor: The delta reduction factor for the Newton-Raphson
       solver.
     tau_min: The minimum value of tau for the Newton-Raphson solver.
+    use_jax_custom_root: Whether to use the custom root finder. This currently
+      defaults to False due to compile time slowness but is needed to be
+      set to take reverse-mode gradients of a simulation with this solver.
   """
 
   solver_type: Annotated[
@@ -149,6 +152,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   residual_coarse_tol: float = 1e-2
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
+  use_jax_custom_root: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @functools.cached_property
   def build_runtime_params(
@@ -170,6 +174,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,
         log_iterations=self.log_iterations,
+        use_jax_custom_root=self.use_jax_custom_root,
     )
 
   def build_solver(
