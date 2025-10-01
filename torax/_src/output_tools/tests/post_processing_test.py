@@ -215,6 +215,9 @@ class PostProcessingTest(parameterized.TestCase):
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
         runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
     )
     self.assertEqual(
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR

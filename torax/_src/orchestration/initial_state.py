@@ -55,7 +55,11 @@ def get_initial_state_and_post_processed_outputs(
       step_fn=step_fn,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
-      initial_state, runtime_params_for_init
+      sim_state=initial_state,
+      runtime_params=runtime_params_for_init,
+      previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+          geo_for_init
+      ),
   )
   return initial_state, post_processed_outputs
 
@@ -161,8 +165,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
   scalars_dataset = data_tree.children[output.SCALARS].dataset
   scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = post_processing.make_post_processed_outputs(
-      initial_state,
-      runtime_params_for_init,
+      sim_state=initial_state,
+      runtime_params=runtime_params_for_init,
+      previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+          geo_for_init
+      ),
   )
   post_processed_outputs = dataclasses.replace(
       post_processed_outputs,
