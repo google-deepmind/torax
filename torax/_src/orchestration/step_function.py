@@ -22,7 +22,6 @@ from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src import xnp
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
@@ -149,7 +148,7 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
-  @xnp.jit
+  @jax.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
@@ -233,7 +232,7 @@ class SimulationStepFn:
     # sawtooth redistribution, at a t+dt set by the sawtooth model
     # configuration.
     if self._sawtooth_solver is not None:
-      output_state, post_processed_outputs = xnp.cond(
+      output_state, post_processed_outputs = jax.lax.cond(
           input_state.solver_numeric_outputs.sawtooth_crash,
           lambda *args: (input_state, previous_post_processed_outputs),
           self._sawtooth_step,
@@ -244,7 +243,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
       )
 
-      output_state, post_processed_outputs = xnp.cond(
+      output_state, post_processed_outputs = jax.lax.cond(
           # If the current state is a sawtooth and the previous state was not,
           # then we triggered a sawtooth crash and exit early.
           output_state.solver_numeric_outputs.sawtooth_crash
@@ -399,7 +398,7 @@ class SimulationStepFn:
       solver_outputs = output[2]
 
       # Check for NaN in the next dt to avoid a recursive loop.
-      is_nan_next_dt = xnp.isnan(next_dt)
+      is_nan_next_dt = jnp.isnan(next_dt)
 
       # If the solver did not converge we need to make a new step.
       solver_did_not_converge = solver_outputs.solver_error_state == 1
@@ -407,21 +406,21 @@ class SimulationStepFn:
       # If t + dt  is exactly the final time we may need a smaller step than
       # min_dt to exactly reach the final time.
       if runtime_params_t.numerics.exact_t_final:
-        at_exact_t_final = xnp.allclose(
+        at_exact_t_final = jnp.allclose(
             input_state.t + next_dt,
             runtime_params_t.numerics.t_final,
         )
       else:
-        at_exact_t_final = xnp.array(False)
+        at_exact_t_final = jnp.array(False)
 
       next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
 
-      take_another_step = xnp.cond(
+      take_another_step = jax.lax.cond(
           solver_did_not_converge,
           # If the solver did not converge then we check if we are at the exact
           # final time and should take a smaller step. If not we also check if
           # the next dt is too small, if so we should end the step.
-          lambda: xnp.cond(
+          lambda: jax.lax.cond(
               at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
           ),
           lambda: False,
@@ -481,7 +480,7 @@ class SimulationStepFn:
           core_profiles_t_plus_dt,
       )
 
-    _, result = xnp.while_loop(
+    _, result = jax.lax.while_loop(
         cond_fun,
         body_fun,
         (

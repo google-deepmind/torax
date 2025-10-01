@@ -22,7 +22,6 @@ import functools
 
 import jax
 from torax._src import state
-from torax._src import xnp
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -99,7 +98,7 @@ def predictor_corrector_method(
     )
 
   if solver_params.use_predictor_corrector:
-    x_new = xnp.fori_loop(
+    x_new = jax.lax.fori_loop(
         0,
         runtime_params_t_plus_dt.solver.n_corrector_steps + 1,
         loop_body,
