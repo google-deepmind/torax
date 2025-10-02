@@ -131,10 +131,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles_in.profiles_1d[1].electrons.density / 100
     )
     # Modifying the input config profiles_conditions class
-    core_profiles_data = core_profiles.core_profiles_from_IMAS(
+    plasma_composition_data = core_profiles.plasma_composition_from_imas(
         core_profiles_in,
     )
-    config["plasma_composition"] = core_profiles_data
+    config["plasma_composition"] = plasma_composition_data
     config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
     torax_config = model_config.ToraxConfig.from_dict(config)
 
