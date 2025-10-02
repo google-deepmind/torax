@@ -15,7 +15,6 @@
 """File I/O for loading geometry files."""
 
 import enum
-import logging
 import os
 from typing import IO
 
@@ -23,6 +22,7 @@ import eqdsk
 import numpy as np
 import scipy
 import torax
+from torax._src.geometry import pydantic_model
 from torax._src.torax_pydantic import pydantic_types
 
 
@@ -81,7 +81,7 @@ def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
 
 
 def _load_eqdsk_data(
-    file_path: str, cocos: pydantic_types.COCOSInt
+    file_path: str, cocos: pydantic_model.COCOSInt
 ) -> dict[str, np.ndarray]:
   eqdsk_data = eqdsk.EQDSKInterface.from_file(
       file_path, from_cocos=cocos, to_cocos=11
@@ -100,7 +100,7 @@ def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
     geometry_source: GeometrySource,
-    cocos: pydantic_types.COCOSInt | None = None,
+    cocos: pydantic_model.COCOSInt | None = None,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a geometry file into a dictionary.
 

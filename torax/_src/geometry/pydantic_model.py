@@ -26,7 +26,6 @@ from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
-from torax._src.torax_pydantic import pydantic_types
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
