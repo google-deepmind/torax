@@ -19,8 +19,8 @@ Radiative Cooling Rates for Low-Z Impurities in Non-coronal Equilibrium State.
 J Fusion Energ (2017) 36:161-172
 DOI 10.1007/s10894-017-0136-z
 """
-
 import enum
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -42,7 +42,7 @@ def calculate_mavrin_2017(
     ne_tau: array_typing.FloatScalar,
     ion_symbol: str,
     variable: MavrinVariable,
-) -> array_typing.FloatVector:
+) -> jax.Array:
   """Calculates the average charge state of an impurity based on a polynomial fit.
 
   Polynomial fit range is ~1 eV-15 keV, which is within the typical
@@ -118,13 +118,13 @@ def calculate_mavrin_2017(
   return 10**log10_variable
 
 
-def calculate_L_INT(
+def _calculate_L_INT(
     start_temp: array_typing.FloatScalar,
     stop_temp: array_typing.FloatScalar,
     ne_tau: array_typing.FloatScalar,
     ion_symbol: str,
     resolution: int = 100,
-) -> array_typing.FloatScalar:
+) -> jax.Array:
   """Calculates the integral of Lz * sqrt(Te) from start_temp to stop_temp.
 
   This is the L_INT term from the extended Lengyel model.
@@ -168,3 +168,44 @@ def calculate_L_INT(
   Lint = jax.scipy.integrate.trapezoid(y=Lz_sqrt_Te, x=electron_temp_ev)
 
   return Lint
+
+
+# TODO(b/446608829). Modify intent of this function to only be used for
+# impurity weights, and modify calling routines to reflect this.
+def calculate_weighted_L_INT(
+    impurity_map: Mapping[str, array_typing.FloatScalar],
+    start_temp: array_typing.FloatScalar,
+    stop_temp: array_typing.FloatScalar,
+    ne_tau: array_typing.FloatScalar,
+    resolution: int = 100,
+) -> jax.Array:
+  """Calculates the weighted integral of Lz * sqrt(Te).
+
+  This function iterates over a dictionary of impurities and their respective
+  weights (or concentrations), calculates the integrated cooling rate (L_INT)
+  for each, and returns the weighted sum.
+
+  Args:
+    impurity_map: A mapping of impurity symbols to their weights/concentrations.
+    start_temp: The starting electron temperature for integration [keV].
+    stop_temp: The stopping electron temperature for integration [keV].
+    ne_tau: The non-coronal parameter [m^-3 s].
+    resolution: The number of points for numerical integration.
+
+  Returns:
+    The total integrated cooling rate.
+    For concentration inputs, output unit is [eV^1.5].
+    For weight inputs, output unit is [eV^1.5 * m^3].
+  """
+  total_weighted_L_INT = jnp.array(0.0)
+  for ion_symbol, weight in impurity_map.items():
+    L_INT = _calculate_L_INT(
+        start_temp=start_temp,
+        stop_temp=stop_temp,
+        ne_tau=ne_tau,
+        ion_symbol=ion_symbol,
+        resolution=resolution,
+    )
+    total_weighted_L_INT += weight * L_INT
+
+  return total_weighted_L_INT

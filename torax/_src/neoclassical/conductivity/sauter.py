@@ -18,7 +18,6 @@ from typing import Annotated, Literal
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
@@ -76,7 +75,7 @@ class SauterModelConfig(base.ConductivityModelConfig):
     return SauterModel()
 
 
-@jax_utils.jit
+@jax.jit
 def _calculate_conductivity(
     *,
     Z_eff_face: array_typing.FloatVectorFace,

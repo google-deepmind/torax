@@ -113,6 +113,7 @@ class StateHistoryTest(parameterized.TestCase):
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,
+            sawtooth_crash=False,
         ),
         geometry=self.geo,
     )

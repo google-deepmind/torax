@@ -87,7 +87,7 @@ some cases:
   export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
   export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
 
-For more information see :ref:`cache`.
+For more information see :ref:`using_jax`.
 
 (Optional) GPU support
 ----------------------

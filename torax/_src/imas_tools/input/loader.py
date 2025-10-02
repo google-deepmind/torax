@@ -11,15 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Generic loader function that can load any IDS from a netCDF file or from an
-IMASdb.
-"""
+"""Generic loader that can load any IDS from a netCDF file or from an IMASdb."""
 import os
+import pathlib
+from typing import Literal
 
 import imas
 from imas import ids_toplevel
-import torax
+
+# Names of the IDSs that can be loaded and used in TORAX.
+IDS = Literal["core_profiles", "plasma_profiles", "equilibrium"]
 
 
 def load_imas_data(
@@ -34,12 +35,21 @@ def load_imas_data(
   directory arg will be ignored. Note that loading from an IMASdb requires
   IMAS-core. The loaded IDS can then be used as input to
   core_profiles_from_IMAS().
+
+  Args:
+    uri: Path to netCDF file or full uri of the IDS (this requires IMAS-core).
+    ids_name: The name of the IDS to load.
+    directory: The directory of the IDS to load.
+
+  Returns:
+    An IDS object.
   """
   # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
   # filepath is already provided in the uri.
-  if uri[-3:] == ".nc":
+  if uri.endswith(".nc"):
     if directory is None:
-      directory = os.path.join(torax.__path__[0], "data/third_party/imas_data")
+      torax_directory = pathlib.Path(__file__).parent.parent.parent.parent
+      directory = torax_directory.joinpath("data/imas_data")
     uri = os.path.join(directory, uri)
   with imas.DBEntry(uri=uri, mode="r") as db:
     ids = db.get(ids_name=ids_name)

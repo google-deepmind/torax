@@ -19,7 +19,7 @@ from typing import Any
 from imas import ids_toplevel
 import numpy as np
 import scipy
-from torax._src.imas_tools.input.loader import load_imas_data
+from torax._src.imas_tools.input import loader
 
 
 # pylint: disable=invalid-name
@@ -66,16 +66,12 @@ def geometry_from_IMAS(
   if equilibrium_object is not None:
     equilibrium = equilibrium_object
   elif imas_uri is not None:
-    equilibrium = load_imas_data(
-        imas_uri,
-        "equilibrium",
-        geometry_directory,
+    equilibrium = loader.load_imas_data(
+        imas_uri, "equilibrium", geometry_directory,
     )
   elif imas_filepath is not None:
-    equilibrium = load_imas_data(
-        imas_filepath,
-        "equilibrium",
-        geometry_directory,
+    equilibrium = loader.load_imas_data(
+        imas_filepath, "equilibrium", geometry_directory,
     )
   else:
     raise ValueError(

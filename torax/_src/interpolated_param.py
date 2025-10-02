@@ -28,11 +28,11 @@ import xarray as xr
 
 RHO_NORM: Final[str] = 'rho_norm'
 
-_interp_fn = jax_utils.jit(jnp.interp)
-_interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+_interp_fn = jax.jit(jnp.interp)
+_interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
-@jax_utils.jit
+@jax.jit
 def _step_interpolation(
     xs: array_typing.Array, x: chex.Numeric
 ) -> array_typing.Array:

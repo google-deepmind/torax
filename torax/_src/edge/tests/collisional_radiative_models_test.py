@@ -488,7 +488,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     )
 
   def test_calculate_L_INT(self):
-    """Tests the calculate_L_INT function against a reference value."""
+    """Tests the _calculate_L_INT function against a reference value."""
     start_temp = 0.01  # keV
     stop_temp = 0.02  # keV
     ne_tau = 0.5e17
@@ -498,7 +498,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     # https://github.com/cfs-energy/extended-lengyel
     expected_L_INT = 2.144797293548036e-30
 
-    calculated_L_INT = collisional_radiative_models.calculate_L_INT(
+    calculated_L_INT = collisional_radiative_models._calculate_L_INT(
         start_temp=start_temp,
         stop_temp=stop_temp,
         ne_tau=ne_tau,
@@ -510,6 +510,35 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
         expected_L_INT,
         rtol=1e-2,
         err_msg='Lint calculation does not match the reference value.',
+    )
+
+  def test_calculate_weighted_L_INT(self):
+    """Tests the calculate_weighted_L_INT function against a reference value."""
+    start_temp = 6.167578954082415e-3  # keV
+    stop_temp = 55.02789988290978e-3  # keV
+    ne_tau = 0.5e17
+    impurity_map = {'N': 1.0, 'Ar': 0.05}
+
+    # Reference value taken from running the same routine in
+    # https://github.com/cfs-energy/extended-lengyel
+    expected_weighted_L_INT = 7.09255e-30
+
+    calculated_weighted_L_INT = (
+        collisional_radiative_models.calculate_weighted_L_INT(
+            impurity_map=impurity_map,
+            start_temp=start_temp,
+            stop_temp=stop_temp,
+            ne_tau=ne_tau,
+        )
+    )
+
+    np.testing.assert_allclose(
+        calculated_weighted_L_INT,
+        expected_weighted_L_INT,
+        rtol=1e-5,
+        err_msg=(
+            'Weighted L_INT calculation does not match the reference value.'
+        ),
     )
 
 

@@ -20,10 +20,11 @@ Functions:
     - calc_nu_star: Calculates the nu_star parameter: the electron-ion collision
       frequency normalized by bounce frequency.
     - fast_ion_fractional_heating_formula: Returns the fraction of heating that
-      goes to the ions according to Stix 1975 analyticlal formulas.
-    - _calculate_log_lambda_ei: Calculates the Coulomb logarithm for
-    electron-ion
-      collisions.
+      goes to the ions according to Stix 1975 analytical formulas.
+    - calculate_log_lambda_ee: Calculates the Coulomb logarithm for
+      electron-electron collisions.
+    - calculate_log_lambda_ei: Calculates the Coulomb logarithm for
+      electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
@@ -72,8 +73,8 @@ def coll_exchange(
 
   log_Qei_coef = (
       jnp.log(Qei_multiplier * 1.5 * core_profiles.n_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.m_amu)
-      + jnp.log(2 * constants.CONSTANTS.me)
+      + jnp.log(constants.CONSTANTS.keV_to_J / constants.CONSTANTS.m_amu)
+      + jnp.log(2 * constants.CONSTANTS.m_e)
       + jnp.log(weighted_Z_eff)
       - log_tau_e_Z1
   )
@@ -131,8 +132,8 @@ def calc_nu_star(
           epsilon**1.5
           * jnp.sqrt(
               core_profiles.T_e.face_value()
-              * constants.CONSTANTS.keV2J
-              / constants.CONSTANTS.me
+              * constants.CONSTANTS.keV_to_J
+              / constants.CONSTANTS.m_e
           )
       )
   )
@@ -180,6 +181,28 @@ def fast_ion_fractional_heating_formula(
       / x_squared
   )
   return frac_i
+
+
+def calculate_log_lambda_ee(
+    T_e: jax.Array,
+    n_e: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for electron-electron collisions.
+
+  Note: the difference with calculate_log_lambda_ei is minimal.
+
+  See Wesson 3rd edition p727.
+
+  Args:
+    T_e: Electron temperature in keV.
+    n_e: Electron density in m^-3.
+
+  Returns:
+    Coulomb logarithm.
+  """
+  # Rescale T_e to eV for specific form of formula.
+  T_e_ev = T_e * 1e3
+  return 31.0 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
 
 
 def calculate_log_lambda_ei(
@@ -257,8 +280,8 @@ def _calculate_log_tau_e_Z1(
   """
   return (
       jnp.log(12 * jnp.pi**1.5 / (n_e * log_lambda_ei))
-      - 4 * jnp.log(constants.CONSTANTS.qe)
-      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(T_e * constants.CONSTANTS.keV2J)
+      - 4 * jnp.log(constants.CONSTANTS.q_e)
+      + 0.5 * jnp.log(constants.CONSTANTS.m_e / 2.0)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+      + 1.5 * jnp.log(T_e * constants.CONSTANTS.keV_to_J)
   )

@@ -103,6 +103,7 @@ CONFIG = {
             # total pellet particles/s
             'S_total': 0.0,
         },
+        'ohmic': {},
         'pellet': {
             # total pellet particles/s (continuous pellet model)
             'S_total': 0.0e22,

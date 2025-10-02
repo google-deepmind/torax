@@ -562,8 +562,8 @@ flat and constant Z_eff, and time varying fractional abundances.
         'impurity': {
             'impurity_mode': 'fractions',
             'species': {
-                'Ne': {0.0: {0.0: 0.1, 5.0: 0.9}},
-                'Ar': {0.0: {0.0: 0.9, 5.0: 0.1}},
+                'Ne': {0.0: {0.0: 0.1}, 5.0: {0.0: 0.9}},
+                'Ar': {0.0: {0.0: 0.9}, 5.0: {0.0: 0.1}},
             },
         },
         'Z_eff': 2.0,
@@ -586,6 +586,7 @@ issued).
     impurity's average mass (A).
 
 Example: A plasma with a time-varying Tungsten concentration and constant Neon.
+Tungsten starts hollow, and evolves to a flat profile at t=10s.
 
 .. code-block:: python
 
@@ -594,8 +595,11 @@ Example: A plasma with a time-varying Tungsten concentration and constant Neon.
       'impurity': {
           'impurity_mode': 'n_e_ratios',
           'species': {
-              'W': {0.0: {0.0: 1e-5, 10.0: 1e-4}}, # n_W/n_e ramps from 1e-5 to 1e-4
-              'Ne': 0.01, # n_Ne/n_e is constant
+              'W': {
+                  0.0: {0.0: 1e-5, 1.0: 1e-4},
+                  10.0: {0.0: 1e-4},
+              },  # n_W/n_e ramps hollow to flat 1e-4
+              'Ne': 0.01,  # n_Ne/n_e is constant
           },
       },
       # 'Z_eff': 2.0 # This would be ignored and a warning would be issued.
@@ -622,7 +626,7 @@ impurities.
     impurity's average mass (A).
 
 Example: A plasma with a known, constant Neon concentration, where the
-Tungsten concentration is unknown but `Z_eff` ramps up over time.
+Tungsten concentration is unknown but a flat `Z_eff` profile ramps up over time.
 
 .. code-block:: python
 
@@ -632,10 +636,13 @@ Tungsten concentration is unknown but `Z_eff` ramps up over time.
           'impurity_mode': 'n_e_ratios_Z_eff',
           'species': {
               'Ne': 0.01,  # n_Ne/n_e is constant
-              'W': None,     # n_W/n_e will be calculated
+              'W': None,  # n_W/n_e will be calculated
           },
       },
-      'Z_eff': {0.0: 2.0, 10.0: 2.2}, # Z_eff ramps from 2.0 to 2.2
+      'Z_eff': {
+          0.0: {0.0: 2.0},
+          10.0: {0.0: 2.2},
+      },  # Flat Z_eff ramps from 2.0 to 2.2
   }
 
 An error will be raised if the calculated density for the unknown impurity
@@ -2041,20 +2048,20 @@ Loading Profiles
 
 Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
 saved in Data Dictionary version 4.0.0 or newer.
-If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using the
-loader function ``load_core_profiles_data`` from |core_profiles_input_imas|.
-It can then be loaded programatically in the CONFIG by constructing a nested
-dictionary with the ``core_profiles_from_imas`` function. The function returns 
-a dictionary whose structure fits the schema of profile_conditions and can be 
-programatically loaded into a CONFIG with standard dictionary manipulation
-or using ``update_dict`` function.
+If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
+the loader function ``load_imas_data`` from |imas_loader|.
+It can then be loaded programatically in the ``CONFIG`` by constructing a nested
+dictionary with the ``core_profiles_from_imas`` function from
+|core_profiles_input_imas|. The function returns a dictionary whose structure
+fits the schema of profile_conditions and can be programatically loaded into a
+``CONFIG`` with standard dictionary manipulation.
+
+An example on how to inject the IMAS conditions into the config can be found in
+the test file ``imas_tools/input/tests/core_profiles_test.py``.
 It is possible to directly input all of profile_conditions from an IDS into the
-config, or to only load specific values of it. It is also possible to combine 
-profiles from different IDSs and their time slices can be shifted to correct 
+config, or to only load specific values of it. It is also possible to combine
+profiles from different IDSs and their time slices can be shifted to correct
 offsets between different IDSs or to match the config t_initial.
-Examples for how to set a config file using these methods will be added.
-
-
 
 
 Config example
