@@ -33,6 +33,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
+from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
 from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
@@ -383,140 +384,59 @@ class SimulationStepFn:
         input_state.core_transport,
     )
 
-    input_type = jax.Array
-    output_type = tuple[
-        tuple[cell_variable.CellVariable, ...],
-        jax.Array,  # dt
-        state.SolverNumericOutputs,
-        runtime_params_slice.RuntimeParams,
-        geometry.Geometry,
-        state.CoreProfiles,
-    ]
+    initial_aux_outputs = {
+        'inner_solver_iterations': jnp.array(0, jax_utils.get_int_dtype()),
+    }
 
-    def cond_fun(inputs: tuple[input_type, output_type]):
-      next_dt, output = inputs
-      solver_outputs = output[2]
-
-      # Check for NaN in the next dt to avoid a recursive loop.
-      is_nan_next_dt = jnp.isnan(next_dt)
-
-      # If the solver did not converge we need to make a new step.
-      solver_did_not_converge = solver_outputs.solver_error_state == 1
-
-      # If t + dt  is exactly the final time we may need a smaller step than
-      # min_dt to exactly reach the final time.
-      if runtime_params_t.numerics.exact_t_final:
-        at_exact_t_final = jnp.allclose(
-            input_state.t + next_dt,
-            runtime_params_t.numerics.t_final,
-        )
-      else:
-        at_exact_t_final = jnp.array(False)
-
-      next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
-
-      take_another_step = jax.lax.cond(
-          solver_did_not_converge,
-          # If the solver did not converge then we check if we are at the exact
-          # final time and should take a smaller step. If not we also check if
-          # the next dt is too small, if so we should end the step.
-          lambda: jax.lax.cond(
-              at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
-          ),
-          lambda: False,
-      )
-
-      return take_another_step & ~is_nan_next_dt
-
-    def body_fun(inputs: tuple[input_type, output_type]):
-      dt, output = inputs
-      old_solver_outputs = output[2]
-
-      runtime_params_t_plus_dt, geo_t_with_phibdot, geo_t_plus_dt = (
-          _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-              input_state.t,
-              dt,
-              self._runtime_params_provider,
-              geo_t,
-              self._geometry_provider,
-          )
-      )
-
-      core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-          dt=dt,
-          runtime_params_t=runtime_params_t,
-          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-          geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=input_state.core_profiles,
-      )
-      # The solver returned state is still "intermediate" since the CoreProfiles
-      # need to be updated by the evolved CellVariables in x_new
-      x_new, solver_numeric_outputs = self._solver(
-          t=input_state.t,
-          dt=dt,
-          runtime_params_t=runtime_params_t,
-          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-          geo_t=geo_t_with_phibdot,
-          geo_t_plus_dt=geo_t_plus_dt,
-          core_profiles_t=input_state.core_profiles,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          explicit_source_profiles=explicit_source_profiles,
-      )
-      solver_numeric_outputs = state.SolverNumericOutputs(
-          solver_error_state=solver_numeric_outputs.solver_error_state,
-          outer_solver_iterations=old_solver_outputs.outer_solver_iterations
-          + 1,
-          inner_solver_iterations=old_solver_outputs.inner_solver_iterations
-          + solver_numeric_outputs.inner_solver_iterations,
-          sawtooth_crash=solver_numeric_outputs.sawtooth_crash,
-      )
-      next_dt = dt / runtime_params_t_plus_dt.numerics.dt_reduction_factor
-      return next_dt, (
-          x_new,
-          dt,
-          solver_numeric_outputs,
-          runtime_params_t_plus_dt,
-          geo_t_plus_dt,
-          core_profiles_t_plus_dt,
-      )
-
-    _, result = jax.lax.while_loop(
-        cond_fun,
-        body_fun,
-        (
-            initial_dt,
-            (
-                convertors.core_profiles_to_solver_x_tuple(
-                    input_state.core_profiles, evolving_names
-                ),
-                initial_dt,
-                state.SolverNumericOutputs(
-                    # The solver has not converged yet as we have not performed
-                    # any steps yet.
-                    solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
-                    outer_solver_iterations=jnp.array(
-                        0, jax_utils.get_int_dtype()
-                    ),
-                    inner_solver_iterations=jnp.array(
-                        0, jax_utils.get_int_dtype()
-                    ),
-                    sawtooth_crash=False,
-                ),
-                runtime_params_t,
-                geo_t,
-                input_state.core_profiles,
+    result = whilei_loop.whilei_loop(
+        _cond_fun,
+        functools.partial(_compute_state, solver=self.solver),
+        ((
+            convertors.core_profiles_to_solver_x_tuple(
+                input_state.core_profiles, evolving_names
             ),
-        ),
+            initial_dt,
+            state.SolverNumericOutputs(
+                # The solver has not converged yet as we have not performed
+                # any steps yet.
+                solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
+                outer_solver_iterations=jnp.array(
+                    0, jax_utils.get_int_dtype()
+                ),
+                inner_solver_iterations=jnp.array(
+                    0, jax_utils.get_int_dtype()
+                ),
+                sawtooth_crash=False,
+            ),
+            runtime_params_t,
+            geo_t,
+            input_state.core_profiles,
+        ), initial_aux_outputs),
+        initial_dt,
+        runtime_params_t,
+        geo_t,
+        input_state,
+        explicit_source_profiles,
+        self.runtime_params_provider,
+        self.geometry_provider,
+    )
+
+    final_solver_numeric_outputs = result.state[2]
+    solver_numeric_outputs = state.SolverNumericOutputs(
+        solver_error_state=final_solver_numeric_outputs.solver_error_state,
+        outer_solver_iterations=result.counter,
+        inner_solver_iterations=result.aux_outputs['inner_solver_iterations'],
+        sawtooth_crash=final_solver_numeric_outputs.sawtooth_crash,
     )
     output_state, post_processed_outputs = _finalize_outputs(
         t=input_state.t,
-        dt=result[1],
-        x_new=result[0],
-        solver_numeric_outputs=result[2],
-        runtime_params_t_plus_dt=result[3],
-        geometry_t_plus_dt=result[4],
+        dt=result.state[1],
+        x_new=result.state[0],
+        solver_numeric_outputs=solver_numeric_outputs,
+        runtime_params_t_plus_dt=result.state[3],
+        geometry_t_plus_dt=result.state[4],
         core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=result[5],
+        core_profiles_t_plus_dt=result.state[5],
         explicit_source_profiles=explicit_source_profiles,
         physics_models=self._solver.physics_models,
         evolving_names=evolving_names,
@@ -588,6 +508,109 @@ class SimulationStepFn:
         input_post_processed_outputs=previous_post_processed_outputs,
     )
     return output_state, post_processed_outputs
+
+
+def _cond_fun(
+    inputs,
+    unused_initial_dt,
+    runtime_params_t,
+    unused_geo_t,
+    input_state,
+    unused_explicit_source_profiles,
+    unused_runtime_params_provider,
+    unused_geometry_provider,
+    ):
+  """Condition function for the adaptive step to keep stepping."""
+  solver_outputs = inputs[2]
+  next_dt = inputs[1]
+
+  # Check for NaN in the next dt to avoid a recursive loop.
+  is_nan_next_dt = jnp.isnan(next_dt)
+
+  # If the solver did not converge we need to make a new step.
+  solver_did_not_converge = solver_outputs.solver_error_state == 1
+
+  # If t + dt  is exactly the final time we may need a smaller step than
+  # min_dt to exactly reach the final time.
+  if runtime_params_t.numerics.exact_t_final:
+    at_exact_t_final = jnp.allclose(
+        input_state.t + next_dt,
+        runtime_params_t.numerics.t_final,
+    )
+  else:
+    at_exact_t_final = jnp.array(False)
+
+  next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
+
+  take_another_step = jax.lax.cond(
+      solver_did_not_converge,
+      # If the solver did not converge then we check if we are at the exact
+      # final time and should take a smaller step. If not we also check if
+      # the next dt is too small, if so we should end the step.
+      lambda: jax.lax.cond(
+          at_exact_t_final, lambda: True, lambda: ~next_dt_too_small
+      ),
+      lambda: False,
+  )
+
+  return take_another_step & ~is_nan_next_dt
+
+
+def _compute_state(
+    i,
+    aux_outputs,
+    initial_dt,
+    runtime_params_t,
+    geo_t,
+    input_state,
+    explicit_source_profiles,
+    runtime_params_provider,
+    geometry_provider,
+    solver,
+):
+  """Computes the state at step i."""
+  dt = initial_dt / runtime_params_t.numerics.dt_reduction_factor**i
+  runtime_params_t_plus_dt, geo_t_with_phibdot, geo_t_plus_dt = (
+      _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
+          input_state.t,
+          dt,
+          runtime_params_provider,
+          geo_t,
+          geometry_provider,
+      )
+  )
+  core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
+      dt=dt,
+      runtime_params_t=runtime_params_t,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=input_state.core_profiles,
+  )
+  # The solver returned state is still "intermediate" since the CoreProfiles
+  # need to be updated by the evolved CellVariables in x_new
+  x_new, solver_numeric_outputs = solver(
+      t=input_state.t,
+      dt=dt,
+      runtime_params_t=runtime_params_t,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo_t=geo_t_with_phibdot,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=input_state.core_profiles,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      explicit_source_profiles=explicit_source_profiles,
+  )
+  aux_outputs['inner_solver_iterations'] += (
+      solver_numeric_outputs.inner_solver_iterations
+  )
+
+  return (
+      x_new,
+      dt,
+      solver_numeric_outputs,
+      runtime_params_t_plus_dt,
+      geo_t_plus_dt,
+      core_profiles_t_plus_dt,
+  ), aux_outputs
 
 
 @functools.partial(

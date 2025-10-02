@@ -15,16 +15,19 @@ import copy
 import dataclasses
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 
-class StepFunctionTest(absltest.TestCase):
+class StepFunctionTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -139,6 +142,35 @@ class StepFunctionTest(absltest.TestCase):
         numerics, new_sim_state, self.post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NO_ERROR)
+
+  @parameterized.parameters([
+      'basic_config',
+      'iterhybrid_predictor_corrector',
+  ])
+  def test_step_function_grad(self, config_name_no_py):
+    example_config_paths = config_loader.example_config_paths()
+    example_config_path = example_config_paths[config_name_no_py]
+    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    (
+        _,
+        sim_state,
+        post_processed_outputs,
+        step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+    input_value = step_fn.runtime_params_provider.profile_conditions.Ip.value
+
+    @jax.jit
+    def f(override_value):
+      step_fn._runtime_params_provider.profile_conditions.Ip.__dict__[
+          'value'
+      ] = override_value
+      _, new_post_processed_outputs = step_fn(sim_state, post_processed_outputs)
+      return new_post_processed_outputs.Q_fusion
+
+    grad_ip_jax = jax.grad(f)(input_value)
+    eps = input_value / 1e7
+    grad_ip_diff = (f(input_value + eps) - f(input_value - eps)) / (2 * eps)
+    np.testing.assert_almost_equal(grad_ip_jax, grad_ip_diff)
 
 
 if __name__ == '__main__':
