@@ -15,7 +15,6 @@
 """File I/O for loading geometry files."""
 
 import enum
-import logging
 import os
 from typing import IO
 
@@ -23,6 +22,8 @@ import eqdsk
 import numpy as np
 import scipy
 import torax
+from torax._src.geometry import pydantic_model
+from torax._src.torax_pydantic import pydantic_types
 
 
 @enum.unique
@@ -79,15 +80,11 @@ def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
     return LY_bundle_dict
 
 
-def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
-  eqdsk_data = eqdsk.EQDSKInterface.from_file(file_path, no_cocos=True)
-  # TODO(b/335204606): handle COCOS shenanigans
-  logging.warning(
-      """
-               WARNING: Using EQDSK geometry.
-               The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
-               The converter is not guaranteed to work as expected with arbitrary EQDSK input. Please verify carefully.
-               Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value."""
+def _load_eqdsk_data(
+    file_path: str, cocos: pydantic_model.COCOSInt
+) -> dict[str, np.ndarray]:
+  eqdsk_data = eqdsk.EQDSKInterface.from_file(
+      file_path, from_cocos=cocos, to_cocos=11
   )
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
@@ -103,8 +100,11 @@ def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
     geometry_source: GeometrySource,
+    cocos: pydantic_model.COCOSInt | None = None,
 ) -> dict[str, np.ndarray]:
-  """Loads the data from a geometry file into a dictionary."""
+  """Loads the data from a geometry file into a dictionary.
+
+  If geometry_source=EQDSK, cocos must be provided."""
   geometry_dir = get_geometry_dir(geometry_dir)
   filepath = os.path.join(geometry_dir, geometry_file)
 
@@ -115,6 +115,6 @@ def load_geo_data(
     case GeometrySource.FBT:
       return _load_fbt_data(file_path=filepath)
     case GeometrySource.EQDSK:
-      return _load_eqdsk_data(file_path=filepath)
+      return _load_eqdsk_data(file_path=filepath, cocos=cocos)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

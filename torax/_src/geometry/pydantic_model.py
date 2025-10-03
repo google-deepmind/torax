@@ -41,6 +41,8 @@ LY_OBJECT_TYPE: TypeAlias = (
 
 TIME_INVARIANT = torax_pydantic.TIME_INVARIANT
 
+COCOSInt = Literal[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18]
+
 
 class CircularConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for the circular geometry config.
@@ -238,6 +240,8 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    cocos: COCOS coordinate convention of the EQDSK file, specified as an
+      integer in the range 1-8 or 11-18 inclusive.
   """
 
   geometry_type: Annotated[Literal['eqdsk'], TIME_INVARIANT] = 'eqdsk'
@@ -248,6 +252,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  cocos: COCOSInt
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     return standard_geometry.build_standard_geometry(
