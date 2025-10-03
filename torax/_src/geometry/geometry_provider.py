@@ -219,7 +219,11 @@ class TimeDependentGeometryProvider:
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       if attr.name == 'Phi_b_dot':
-        kwargs[attr.name] = 0.0
+
+        def Phi_b(t: chex.Numeric) -> chex.Numeric:
+          return self.Phi_face.get_value(t)[..., -1]
+
+        kwargs[attr.name] = jax.grad(Phi_b)(t)
         continue
       if attr.name == '_z_magnetic_axis':
         if self._z_magnetic_axis is None:
