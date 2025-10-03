@@ -169,12 +169,9 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
     T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
-    ion_symbols = tuple(species.keys())
-    fractions = np.array(tuple(species.values()))
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols,
         T_e,
-        fractions,
+        species,
         Z_override=None,
     ).Z_mixture
 
@@ -185,11 +182,9 @@ class ChargeStatesTest(parameterized.TestCase):
     species = {'W': 1.0}
     T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
-    ion_symbols = tuple(species.keys())
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols,
         T_e,
-        np.array(tuple(species.values())),
+        species,
         np.array([50.0, 50.0, 50.0]),
     ).Z_mixture
     np.testing.assert_allclose(Z_calculated, Z_override)

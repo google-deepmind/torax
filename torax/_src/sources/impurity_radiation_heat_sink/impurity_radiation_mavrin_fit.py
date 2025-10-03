@@ -209,6 +209,9 @@ def impurity_radiation_mavrin_fit(
   impurity_fractions_arr = jnp.stack(
       [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
   )
+  impurity_fractions = {
+      symbol: core_profiles.impurity_fractions[symbol] for symbol in ion_symbols
+  }
   # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=runtime_params.plasma_composition.impurity_names,
@@ -227,9 +230,8 @@ def impurity_radiation_mavrin_fit(
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
   charge_state_info = charge_states.get_average_charge_state(
-      ion_symbols=runtime_params.plasma_composition.impurity_names,
       T_e=core_profiles.T_e.value,
-      fractions=impurity_fractions_arr,
+      fractions=impurity_fractions,
       Z_override=runtime_params.plasma_composition.impurity.Z_override,
   )
   Z_avg = charge_state_info.Z_avg

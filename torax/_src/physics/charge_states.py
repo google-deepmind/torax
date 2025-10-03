@@ -15,7 +15,7 @@
 """Routines for calculating impurity charge states."""
 
 import dataclasses
-from typing import Final, Mapping, Sequence
+from typing import Final, Mapping
 
 import immutabledict
 import jax
@@ -108,7 +108,7 @@ class ChargeStateInfo:
 
   Z_avg: array_typing.FloatVector
   Z2_avg: array_typing.FloatVector
-  Z_per_species: array_typing.FloatVector
+  Z_per_species: Mapping[str, array_typing.FloatVector]
 
   @property
   def Z_mixture(self) -> array_typing.FloatVector:
@@ -167,9 +167,8 @@ def calculate_average_charge_state_single_species(
 
 
 def get_average_charge_state(
-    ion_symbols: Sequence[str],
     T_e: array_typing.FloatVector,
-    fractions: array_typing.FloatVector,
+    fractions: Mapping[str, array_typing.FloatVector],
     Z_override: array_typing.FloatScalar | None = None,
 ) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
@@ -199,10 +198,9 @@ def get_average_charge_state(
     = sum(fraction_i * Z_i ** 2) / sum(fraction_i * Z_i) = <Z^2> / <Z>
 
   Args:
-    ion_symbols: Species to calculate average charge state for.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
-    fractions: Array of impurity fractions.
+    fractions: Mapping of ion symbols to impurity fractions.
     Z_override: If not None, use this value for the average charge state.
 
   Returns:
@@ -219,21 +217,24 @@ def get_average_charge_state(
     return ChargeStateInfo(
         Z_avg=override_val,
         Z2_avg=override_val**2,
-        Z_per_species=jnp.stack([override_val for _ in ion_symbols]),
+        Z_per_species={ion: override_val for ion in fractions.keys()},
     )
 
-  Z_per_species = jnp.stack([
-      calculate_average_charge_state_single_species(T_e, ion_symbol)
-      for ion_symbol in ion_symbols
-  ])
+  Z_per_species = {
+      ion_symbol: calculate_average_charge_state_single_species(
+          T_e, ion_symbol
+      )
+      for ion_symbol in fractions.keys()
+  }
+  Z_avg = jnp.sum(jnp.array([
+      Z_per_species[ion_symbol] * fraction
+      for ion_symbol, fraction in fractions.items()
+  ]), axis=0)
 
-  # Handle both radially constant (1D) and radially varying (2D) fractions.
-  # fractions has shape (n_species,) for 'fractions' or 'n_e_ratios' impurity
-  # mode, or (n_species, n_grid) for 'n_e_ratios_Z_eff' impurity mode.
-  fractions = fractions if fractions.ndim == 2 else fractions[:, jnp.newaxis]
-
-  Z_avg = jnp.sum(fractions * Z_per_species, axis=0)
-  Z2_avg = jnp.sum(fractions * Z_per_species**2, axis=0)
+  Z2_avg = jnp.sum(jnp.array([
+      Z_per_species[ion_symbol] ** 2 * fraction
+      for ion_symbol, fraction in fractions.items()
+  ]), axis=0)
 
   return ChargeStateInfo(
       Z_avg=Z_avg,

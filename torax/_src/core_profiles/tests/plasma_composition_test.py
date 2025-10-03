@@ -595,7 +595,6 @@ class IonMixtureTest(parameterized.TestCase):
     )
     mixture_params = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
-        ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
         fractions=mixture_params.fractions,
         Z_override=mixture_params.Z_override,
@@ -621,7 +620,6 @@ class IonMixtureTest(parameterized.TestCase):
     )
     mixture_params = mixture.build_runtime_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
-        ion_symbols=tuple(mixture.species.keys()),
         T_e=np.array([1.0]),  # arbitrary temperature, won't be used for D
         fractions=mixture_params.fractions,
         Z_override=mixture_params.Z_override,

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
-
 from collections.abc import Mapping
 import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
@@ -21,7 +20,6 @@ from typing import Annotated, Any, Literal, TypeAlias
 import chex
 import jax
 from jax import numpy as jnp
-import jaxtyping as jt
 import numpy as np
 import pydantic
 from torax._src import array_typing
@@ -132,8 +130,8 @@ class RuntimeParams:
       provided, it is used instead for the average Z.
   """
 
-  fractions: jt.Float[array_typing.Array, 'ion_symbol rhon']
-  fractions_face: jt.Float[array_typing.Array, 'ion_symbol rhon+1']
+  fractions: Mapping[str, array_typing.FloatVectorCell]
+  fractions_face: Mapping[str, array_typing.FloatVectorFace]
   A_avg: array_typing.FloatVectorCell
   A_avg_face: array_typing.FloatVectorFace
   Z_override: array_typing.FloatScalar | None = None
@@ -151,21 +149,33 @@ class ImpurityFractions(torax_pydantic.BaseModelFrozen):
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
-    ions = self.species.keys()
-    fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
-    fractions_face = jnp.array(
-        [self.species[ion].get_value(t, grid_type='face') for ion in ions]
-    )
+    fractions = {ion: value.get_value(t) for ion, value in self.species.items()}
+    fractions_face = {
+        ion: value.get_value(t, grid_type='face')
+        for ion, value in self.species.items()
+    }
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
 
     if not self.A_override:
-      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As[..., jnp.newaxis] * fractions, axis=0)
-      A_avg_face = jnp.sum(As[..., jnp.newaxis] * fractions_face, axis=0)
+      A_avg = jnp.sum(
+          jnp.array([
+              constants.ION_PROPERTIES_DICT[ion].A * fraction
+              for ion, fraction in fractions.items()
+          ]),
+          axis=0,
+      )
+      A_avg_face = jnp.sum(
+          jnp.array([
+              constants.ION_PROPERTIES_DICT[ion].A * fraction
+              for ion, fraction in fractions_face.items()
+          ]),
+          axis=0,
+      )
     else:
-      A_avg = jnp.full_like(fractions[0], self.A_override.get_value(t))
+      ion_key = list(self.species.keys())[0]
+      A_avg = jnp.full_like(fractions[ion_key], self.A_override.get_value(t))
       A_avg_face = jnp.full_like(
-          fractions_face[0], self.A_override.get_value(t)
+          fractions_face[ion_key], self.A_override.get_value(t)
       )
 
     return RuntimeParams(

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
+from collections.abc import Mapping
 import dataclasses
 import chex
 import jax
@@ -47,7 +48,7 @@ class RuntimeParams:
       provided, it is used instead for the average Z.
   """
 
-  fractions: array_typing.FloatVector
+  fractions: Mapping[str, array_typing.FloatScalar]
   A_avg: array_typing.FloatScalar | array_typing.FloatVectorCell
   Z_override: array_typing.FloatScalar | None = None
 
@@ -75,13 +76,16 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
-    ions = self.species.keys()
-    fractions = jnp.array([self.species[ion].get_value(t) for ion in ions])
+    fractions = {ion: x.get_value(t) for ion, x in self.species.items()}
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)
 
     if not self.A_override:
-      As = jnp.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      A_avg = jnp.sum(As * fractions)
+      A_avg = jnp.sum(
+          jnp.array([
+              constants.ION_PROPERTIES_DICT[ion].A * fraction
+              for ion, fraction in fractions.items()
+          ])
+      )
     else:
       A_avg = self.A_override.get_value(t)
 

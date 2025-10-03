@@ -92,15 +92,12 @@ def calculate_impurity_species_output(
   impurity_fractions = sim_state.core_profiles.impurity_fractions
   impurity_names = runtime_params.plasma_composition.impurity_names
   charge_state_info = charge_states.get_average_charge_state(
-      ion_symbols=impurity_names,
       T_e=sim_state.core_profiles.T_e.value,
-      fractions=jnp.stack(
-          [impurity_fractions[symbol] for symbol in impurity_names]
-      ),
+      fractions=impurity_fractions,
       Z_override=runtime_params.plasma_composition.impurity.Z_override,
   )
 
-  for i, symbol in enumerate(impurity_names):
+  for symbol in impurity_names:
     core_profiles = sim_state.core_profiles
     impurity_density_scaling = (
         core_profiles.Z_impurity / charge_state_info.Z_avg
@@ -110,7 +107,7 @@ def calculate_impurity_species_output(
         * core_profiles.n_impurity.value
         * impurity_density_scaling
     )
-    Z_imp = charge_state_info.Z_per_species[i]
+    Z_imp = charge_state_info.Z_per_species[symbol]
     if mavrin_active:
       lz = impurity_radiation_mavrin_fit.calculate_impurity_radiation_single_species(
           core_profiles.T_e.value, symbol
