@@ -18,6 +18,7 @@ import functools
 import chex
 import jax
 import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import sim_state
@@ -97,7 +98,7 @@ def run_loop_jit(
     )
 
   final_i, _, _, states_history, post_processed_outputs_history = (
-      jax.lax.while_loop(
+      jax_utils.while_loop_bounded(
           _cond_fun,
           _step_fn,
           (
@@ -107,6 +108,7 @@ def run_loop_jit(
               states_history,
               post_processed_outputs_history,
           ),
+          max_steps,
       )
   )
 
