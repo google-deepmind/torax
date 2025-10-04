@@ -35,6 +35,7 @@ from torax._src.fvm import fvm_conversions
 from torax._src.fvm import jax_root_finding
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
@@ -67,6 +68,7 @@ def newton_raphson_solve_block(
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
@@ -128,6 +130,7 @@ def newton_raphson_solve_block(
       core_profiles. Repeatedly called by the iterative optimizer.
     evolving_names: The names of variables within the core profiles that should
       evolve.
+    pedestal_policy_state: State variables held by the pedestal policy.
     initial_guess_mode: chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport coefficients
@@ -159,6 +162,7 @@ def newton_raphson_solve_block(
       core_profiles_t,
       x_old,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=pedestal_policy_state,
       explicit_call=True,
   )
 
@@ -175,6 +179,7 @@ def newton_raphson_solve_block(
           core_profiles_t,
           x_old,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state=pedestal_policy_state,
           allow_pereverzev=True,
           explicit_call=True,
       )
@@ -193,6 +198,7 @@ def newton_raphson_solve_block(
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_policy_state=pedestal_policy_state,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -214,6 +220,7 @@ def newton_raphson_solve_block(
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       physics_models=physics_models,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=pedestal_policy_state,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )

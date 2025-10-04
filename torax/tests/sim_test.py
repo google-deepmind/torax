@@ -442,7 +442,8 @@ class SimTest(sim_test_case.SimTestCase):
 
     original_get_initial_state = initial_state._get_initial_state
 
-    def wrapped_get_initial_state(runtime_params, geo, step_fn):
+    def wrapped_get_initial_state(runtime_params, geo, step_fn, t):
+      del t  # Unused.
       # Load in the reference core profiles.
       Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
       # All profiles are on a grid with [left_face, cell_grid, right_face]
@@ -475,6 +476,7 @@ class SimTest(sim_test_case.SimTestCase):
           runtime_params,
           geo,
           step_fn,
+          loading_time,
       )
 
     with mock.patch.object(

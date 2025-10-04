@@ -45,10 +45,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
 ):
   """Pedestal model with specification of pressure, temp ratio, and density."""
 
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
-
   @override
   def _call_implementation(
       self,
