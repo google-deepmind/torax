@@ -20,18 +20,20 @@ Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
 import dataclasses
+from typing import Self, Sequence
 
 import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
+from torax._src import jax_utils
 import typing_extensions
 
 
 def _zero() -> array_typing.FloatScalar:
   """Returns a scalar zero as a jax Array."""
-  return jnp.zeros(())
+  return jnp.zeros((), dtype=jax_utils.get_dtype())
 
 
 @chex.dataclass(frozen=True)
@@ -266,3 +268,62 @@ class CellVariable:
       return True
     except AssertionError:
       return False
+
+
+@dataclasses.dataclass(frozen=True)
+class BatchedCellVariable:
+  """An object representing a batch of `CellVariable` objects."""
+
+  value: jt.Float[jax.Array, 'batch cell']
+  dr: jt.Float[jax.Array, 'batch']
+  left_face_constraint: jt.Float[jax.Array, 'batch']
+  right_face_constraint: jt.Float[jax.Array, 'batch']
+  left_face_grad_constraint: jt.Float[jax.Array, 'batch']
+  right_face_grad_constraint: jt.Float[jax.Array, 'batch']
+
+  @classmethod
+  def construct(cls, x: CellVariable | Sequence[CellVariable]) -> Self:
+    """Constructs a `CellVariableBatched` object.
+
+    Note that any `None` values are represented as `jnp.nan` values.
+
+    Args:
+      x: A `CellVariable` or a sequence of `CellVariables`.
+
+    Returns:
+      A `BatchedCellVariable` object.
+    """
+    x = (x,) if isinstance(x, CellVariable) else x
+    if not x:
+      raise ValueError('The tuple must have at least one element.')
+
+    x = [_conform(v) for v in x]
+
+    def concat(*x):
+      return jnp.concatenate(x, axis=0)
+
+    x = jax.tree_util.tree_map(concat, *x)
+    return cls(**x)
+
+
+def _conform(x: CellVariable):
+  def conform_scalar(x):
+    if x is None:
+      return jnp.array([jnp.nan], dtype=jax_utils.get_dtype())
+
+    if x.ndim == 0:
+      return jnp.expand_dims(x, axis=0)
+    return x
+
+  value = jnp.expand_dims(x.value, axis=0) if x.value.ndim == 1 else x.value
+
+  return {
+      'value': value,
+      'dr': conform_scalar(x.dr),
+      'left_face_constraint': conform_scalar(x.left_face_constraint),
+      'right_face_constraint': conform_scalar(x.right_face_constraint),
+      'left_face_grad_constraint': conform_scalar(x.left_face_grad_constraint),
+      'right_face_grad_constraint': conform_scalar(
+          x.right_face_grad_constraint
+      ),
+  }
