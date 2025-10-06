@@ -111,6 +111,7 @@ def profile_conditions_from_IMAS(
       "v_loop_lcfs": v_loop_lcfs,
   }
 
+
 def plasma_composition_from_imas(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
@@ -146,17 +147,17 @@ def plasma_composition_from_imas(
   Z_eff = (
       time_array,
       rhon_array,
-      [profiles_1d[ti].zeff for ti in range(len(time_array))],
+      [profile.zeff for profile in profiles_1d],
   )
   species = {}  # Impurity mapping {symbol: n_e_ratio,}.
   ratios = {}
-  for iion in range(len(profiles_1d[0].ion)):
+  for ion in range(len(profiles_1d[0].ion)):
     try:
-      symbol = str(profiles_1d[0].ion[iion].name)
+      symbol = str(profiles_1d[0].ion[ion].name)
     except (
         AttributeError
     ):  # Case ids is plasma_profiles in early DDv4 releases.
-      symbol = str(profiles_1d[0].ion[iion].label)
+      symbol = str(profiles_1d[0].ion[ion].label)
     if symbol in constants.ION_PROPERTIES_DICT.keys():
       # Fill impurities
       if symbol not in ("D", "T", "H"):
@@ -164,17 +165,15 @@ def plasma_composition_from_imas(
             time_array,
             rhon_array,
             [
-                profiles_1d[ti].ion[iion].density
-                / profiles_1d[ti].electrons.density
-                for ti in range(len(time_array))
+                profile.ion[ion].density / profile.electrons.density
+                for profile in profiles_1d
             ],
         )
         species[symbol] = n_e_ratio
       # Fill main ions
       else:
         ratios[symbol] = [
-            profiles_1d[ti].ion[iion].density[0]
-            for ti in range(len(time_array))
+            profile.ion[ion].density[0] for profile in profiles_1d
         ]
         # Currently take ratios of central density value, would it be more
         # accurate to take ratios of volume integrated densities ?
@@ -189,6 +188,7 @@ def plasma_composition_from_imas(
           "species": species,
       },
   }
+
 
 def imas_core_profiles_converter(
     ids: ids_toplevel.IDSToplevel,
@@ -212,10 +212,9 @@ def imas_core_profiles_converter(
     of a TORAX `CONFIG`.
   """
   profile_conditions = profile_conditions_from_IMAS(ids, t_initial)
-  plasma_composition= plasma_composition_from_imas(ids, t_initial)
+  plasma_composition = plasma_composition_from_imas(ids, t_initial)
 
   return {
-    "profile_conditions": profile_conditions,
-    "plasma_composition": plasma_composition,
+      "profile_conditions": profile_conditions,
+      "plasma_composition": plasma_composition,
   }
-
