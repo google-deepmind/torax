@@ -119,9 +119,9 @@ def plasma_composition_from_imas(
   """Returns dict with args for plasma_composition config from a given ids.
 
   Loading IMAS data for plasma composition should only be used with n_e_ratios
-  and n_e_ratios_Zeff impurity modes, not with fractions mode. The impurity
+  and n_e_ratios_Z_eff impurity modes, not with fractions mode. The impurity
   mode needs to be specified explicitly after loading the IMAS data. In case
-  n_e_ratios_Zeff is specified, one impurity ratio must be set to None
+  n_e_ratios_Z_eff is specified, one impurity ratio must be set to None
   explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
   Note that if the ids indivual ions properties are not filled, it will not
   raise an error and just return an empty dict as main_ion and species.
