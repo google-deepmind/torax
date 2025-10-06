@@ -31,7 +31,7 @@ _ALL_PROFILES = (
 )
 
 
-class SimExperimentalCompileTest(sim_test_case.SimTestCase):
+class JitSimTest(sim_test_case.SimTestCase):
 
   @parameterized.named_parameters(
       # Tests implicit solver with theta=1.0 (backwards Euler)
@@ -264,7 +264,7 @@ class SimExperimentalCompileTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_imas.py',
       ),
   )
-  def test_run_simulation_experimental_compile(
+  def test_run_simulation_with_jit_run_loop(
       self,
       config_name: str,
   ):
