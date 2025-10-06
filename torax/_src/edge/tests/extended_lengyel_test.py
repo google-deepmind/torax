@@ -14,103 +14,12 @@
 
 from absl.testing import absltest
 import numpy as np
-from torax._src.edge import divertor_sol_1d
 from torax._src.edge import extended_lengyel
-from torax._src.edge import extended_lengyel_defaults
 
 # pylint: disable=invalid-name
 
 
 class ExtendedLengyelTest(absltest.TestCase):
-
-  def test_solve_for_c_z(self):
-    """Test _solve_for_c_z against reference values."""
-
-    # The plasma state is based on the second loop of
-    # the reference case in https://github.com/cfs-energy/extended-lengyel
-
-    sol_state = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=3.39611622588553e8,
-        c_z_prefactor=0.059314229517142096,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.0,
-        seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
-        fixed_impurity_concentrations={'He': 0.01},
-        main_ion_charge=1.0,
-        ne_tau=extended_lengyel_defaults.NE_TAU,
-        target_electron_temp=2.34,
-        SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
-        divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
-        divertor_parallel_length=5.0,
-        parallel_connection_length=20.0,
-        separatrix_mach_number=extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
-        separatrix_electron_density=3.3e19,
-        separatrix_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP,
-        separatrix_ratio_of_electron_to_ion_density=extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY,
-        average_ion_mass=2.0,
-        sheath_heat_transmission_factor=extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR,
-        target_mach_number=extended_lengyel_defaults.TARGET_MACH_NUMBER,
-        target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
-        target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
-        toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    )
-
-    calculated_c_z, status = extended_lengyel._solve_for_c_z_prefactor(
-        sol_state=sol_state,
-    )
-
-    expected_c_z = 0.03487637336277587
-
-    self.assertEqual(status, extended_lengyel.SolveStatus.SUCCESS)
-    np.testing.assert_allclose(
-        calculated_c_z,
-        expected_c_z,
-        rtol=5e-4,
-    )
-
-  def test_solve_for_qcc(self):
-    """Test _solve_for_qcc."""
-
-    # The plasma state is based on the first loop of the forward model reference
-    # case in https://github.com/cfs-energy/extended-lengyel.
-
-    sol_state = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=5.061935771095335e8,
-        c_z_prefactor=0.0,
-        kappa_e=1931.8277173925928,
-        alpha_t=0.0,
-        seed_impurity_weights={},
-        fixed_impurity_concentrations={
-            'He': 0.01,
-            'N': 0.038397305226362526,
-            'Ar': 0.0019198652613181264,
-        },
-        main_ion_charge=1.0,
-        ne_tau=extended_lengyel_defaults.NE_TAU,
-        target_electron_temp=2.34,
-        SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
-        divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
-        divertor_parallel_length=5.0,
-        parallel_connection_length=20.0,
-        separatrix_mach_number=extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
-        separatrix_electron_density=3.3e19,
-        separatrix_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP,
-        separatrix_ratio_of_electron_to_ion_density=extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY,
-        average_ion_mass=2.0,
-        sheath_heat_transmission_factor=extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR,
-        target_mach_number=extended_lengyel_defaults.TARGET_MACH_NUMBER,
-        target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
-        target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
-        toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    )
-
-    calculated_qcc, status = extended_lengyel._solve_for_qcc(
-        sol_state=sol_state,
-    )
-
-    expected_qcc = 1.11662e08
-    self.assertEqual(status, extended_lengyel.SolveStatus.SUCCESS)
-    np.testing.assert_allclose(calculated_qcc, expected_qcc, rtol=5e-4)
 
   def test_run_extended_lengyel_model_inverse_mode(self):
     """Integration test for the full extended_lengyel model in inverse mode."""
@@ -133,6 +42,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
         'computation_mode': extended_lengyel.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel.SolverMode.FIXED_STEP,
     }
 
     # --- Expected output values ---
@@ -145,7 +55,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'heat_flux_perp_to_target': 7.92853e5,
         'separatrix_electron_temp': 0.1028445648,  # in keV
         'separatrix_Z_eff': 1.8621973566614212,
-        'impurity_concentrations': {
+        'seed_impurity_concentrations': {
             'N': 0.038397305226362526,
             'Ar': 0.0019198652613181264,
         },
@@ -185,10 +95,12 @@ class ExtendedLengyelTest(absltest.TestCase):
         expected_outputs['separatrix_Z_eff'],
         rtol=_RTOL,
     )
-    for impurity, conc in expected_outputs['impurity_concentrations'].items():
-      self.assertIn(impurity, outputs.impurity_concentrations)
+    for impurity, conc in expected_outputs[
+        'seed_impurity_concentrations'
+    ].items():
+      self.assertIn(impurity, outputs.seed_impurity_concentrations)
       np.testing.assert_allclose(
-          outputs.impurity_concentrations[impurity],
+          outputs.seed_impurity_concentrations[impurity],
           conc,
           rtol=_RTOL,
           err_msg=f'Impurity concentration for {impurity} does not match.',
@@ -219,6 +131,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
         'computation_mode': extended_lengyel.ComputationMode.FORWARD,
+        'solver_mode': extended_lengyel.SolverMode.FIXED_STEP,
         'iterations': 100,
     }
 
