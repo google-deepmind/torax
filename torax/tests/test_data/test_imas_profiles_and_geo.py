@@ -20,7 +20,7 @@ a specific key.
 import copy
 
 from torax._src.imas_tools.input import loader
-from torax._src.imas_tools.input.core_profiles import core_profiles_from_IMAS
+from torax._src.imas_tools.input import core_profiles
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 imas_profiles1 = loader.load_imas_data(
@@ -29,8 +29,8 @@ imas_profiles1 = loader.load_imas_data(
 imas_profiles2 = loader.load_imas_data(
     "core_profiles_15MA_DT_50_50_flat_top_slice.nc", "core_profiles"
 )
-imas_data1 = core_profiles_from_IMAS(imas_profiles1)
-imas_data2 = core_profiles_from_IMAS(imas_profiles2, t_initial=0.0)
+imas_data1 = core_profiles.profile_conditions_from_IMAS(imas_profiles1)
+# imas_data2 = core_profiles.plasma_composition_from_imas(imas_profiles2, t_initial=0.0)
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG["geometry"] = {
@@ -40,7 +40,7 @@ CONFIG["geometry"] = {
 }
 # Dump all profile_conditions from the first IDS loaded.
 CONFIG["profile_conditions"] = {
-    **imas_data1["profile_conditions"],
+    **imas_data1,
     "initial_psi_mode": "geometry",
 }
 
@@ -53,7 +53,7 @@ CONFIG["profile_conditions"] = {
 #         "main_ion": {"D": 0.5, "T": 0.5},  # (bundled isotope average)
 #         "impurity": {
 #             "species": {
-#                 **imas_data2["plasma_composition"]["impurity"]["species"],
+#                 **imas_data2["impurity"]["species"],
 #                 "Ne": None,
 #             },
 #             # Manually set one impurity ratio to None to agree with
