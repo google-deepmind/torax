@@ -23,6 +23,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 
@@ -47,25 +48,9 @@ class PedestalModelOutput:
   n_e_ped: array_typing.FloatScalar
 
 
-class PedestalModel(abc.ABC):
-  """Calculates temperature and density of the pedestal.
-
-  Subclass responsbilities:
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
-
-  def __setattr__(self, attr, value):
-    # pylint: disable=g-doc-args
-    # pylint: disable=g-doc-return-or-yield
-    """Override __setattr__ to make the class (sort of) immutable.
-
-    Note that you can still do obj.field.subfield = x, so it is not true
-    immutability, but this to helps to avoid some careless errors.
-    """
-    if getattr(self, "_frozen", False):
-      raise AttributeError("PedestalModels are immutable.")
-    return super().__setattr__(attr, value)
+@dataclasses.dataclass(frozen=True, eq=False)
+class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Calculates temperature and density of the pedestal."""
 
   def __call__(
       self,
@@ -73,12 +58,6 @@ class PedestalModel(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
-
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,
         lambda: self._call_implementation(runtime_params, geo, core_profiles),
@@ -103,16 +82,3 @@ class PedestalModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
     """Calculate the pedestal values."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Hash function for the pedestal model.
-
-    Needed for jax.jit caching to work.
-    """
-    ...
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality function for the pedestal model."""
-    ...
