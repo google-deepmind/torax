@@ -160,7 +160,7 @@ def update_psi_from_j(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+      (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on hires cell grid

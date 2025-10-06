@@ -16,7 +16,7 @@
 import dataclasses
 import functools
 
-from torax._src import jax_utils
+import jax
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -25,7 +25,7 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0, 1, 2))
+@functools.partial(jax.jit, static_argnums=(0, 1, 2))
 def calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,

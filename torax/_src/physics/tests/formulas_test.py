@@ -71,9 +71,13 @@ class FormulasTest(parameterized.TestCase):
     p_el, p_ion, p_tot = formulas.calculate_pressure(self.core_profiles)
 
     # Ignore boundary condition terms and just check formula sanity.
-    np.testing.assert_allclose(p_el.value, 6e20 * constants.CONSTANTS.keV2J)
-    np.testing.assert_allclose(p_ion.value, 2.75e20 * constants.CONSTANTS.keV2J)
-    np.testing.assert_allclose(p_tot.value, 8.75e20 * constants.CONSTANTS.keV2J)
+    np.testing.assert_allclose(p_el.value, 6e20 * constants.CONSTANTS.keV_to_J)
+    np.testing.assert_allclose(
+        p_ion.value, 2.75e20 * constants.CONSTANTS.keV_to_J
+    )
+    np.testing.assert_allclose(
+        p_tot.value, 8.75e20 * constants.CONSTANTS.keV_to_J
+    )
 
   def test_calculate_stored_thermal_energy(self):
     """Test that stored thermal energy is computed correctly."""

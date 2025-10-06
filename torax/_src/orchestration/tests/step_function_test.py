@@ -108,6 +108,7 @@ class StepFunctionTest(absltest.TestCase):
             solver_error_state=1,
             outer_solver_iterations=0,
             inner_solver_iterations=0,
+            sawtooth_crash=False,
         ),
     )
     error = step_function.check_for_errors(
@@ -131,6 +132,7 @@ class StepFunctionTest(absltest.TestCase):
             solver_error_state=0,
             outer_solver_iterations=0,
             inner_solver_iterations=0,
+            sawtooth_crash=False,
         ),
     )
     error = step_function.check_for_errors(

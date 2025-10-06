@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import imas
 import numpy as np
-import torax
+from torax._src.config import config_loader
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.imas_tools.input import loader
 
@@ -78,7 +78,7 @@ class EquilibriumTest(parameterized.TestCase):
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
     imas_directory = os.path.join(
-        torax.__path__[0], 'data/third_party/imas_data'
+        config_loader.torax_path(), 'data/imas_data'
     )
     full_path = os.path.join(imas_directory, filename)
     mock_value = imas.DBEntry(uri=full_path, mode='r')
@@ -93,7 +93,7 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    equilibrium_in = loader.load_imas_data(filename, loader.EQUILIBRIUM)
+    equilibrium_in = loader.load_imas_data(filename, 'equilibrium')
     config = geometry_pydantic_model.IMASConfig(
         equilibrium_object=equilibrium_in, imas_filepath=None
     )

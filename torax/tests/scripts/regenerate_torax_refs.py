@@ -142,7 +142,7 @@ def _calculate_new_references(
     psi_value = geo.psi_from_Ip
     psi_constraint = (
         runtime_params.profile_conditions.Ip
-        * (16 * np.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+        * (16 * np.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     psi = cell_variable.CellVariable(

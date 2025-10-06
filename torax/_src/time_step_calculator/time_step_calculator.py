@@ -19,7 +19,6 @@ import functools
 
 import jax
 from jax import numpy as jnp
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
@@ -51,7 +50,7 @@ class TimeStepCalculator(abc.ABC):
     return t < (t_final - time_calculator_params.tolerance)
 
   @functools.partial(
-      jax_utils.jit,
+      jax.jit,
       static_argnames=['self'],
   )
   def next_dt(

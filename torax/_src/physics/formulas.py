@@ -68,21 +68,21 @@ def calculate_pressure(
   pressure_thermal_el = cell_variable.CellVariable(
       value=core_profiles.n_e.value
       * core_profiles.T_e.value
-      * constants.CONSTANTS.keV2J,
+      * constants.CONSTANTS.keV_to_J,
       dr=core_profiles.n_e.dr,
       right_face_constraint=core_profiles.n_e.right_face_constraint
       * core_profiles.T_e.right_face_constraint
-      * constants.CONSTANTS.keV2J,
+      * constants.CONSTANTS.keV_to_J,
       right_face_grad_constraint=None,
   )
 
   pressure_thermal_ion = cell_variable.CellVariable(
       value=core_profiles.T_i.value
-      * constants.CONSTANTS.keV2J
+      * constants.CONSTANTS.keV_to_J
       * (core_profiles.n_i.value + core_profiles.n_impurity.value),
       dr=core_profiles.n_i.dr,
       right_face_constraint=core_profiles.T_i.right_face_constraint
-      * constants.CONSTANTS.keV2J
+      * constants.CONSTANTS.keV_to_J
       * (
           core_profiles.n_i.right_face_constraint
           + core_profiles.n_impurity.right_face_constraint
@@ -133,7 +133,7 @@ def calc_pprime(
   dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
 
-  dptot_drhon = constants.CONSTANTS.keV2J * (
+  dptot_drhon = constants.CONSTANTS.keV_to_J * (
       n_e * dte_drhon
       + n_i * dti_drhon
       + n_impurity * dti_drhon
@@ -190,7 +190,7 @@ def calc_FFprime(
       respect to the poloidal flux.
   """
 
-  mu0 = constants.CONSTANTS.mu0
+  mu0 = constants.CONSTANTS.mu_0
   pprime = calc_pprime(core_profiles)
   # g3 = <1/R^2>
   g3 = geo.g3_face
@@ -289,7 +289,7 @@ def calculate_betas(
   _, _, p_total = calculate_pressure(core_profiles)
   p_total_volume_avg = math_utils.volume_average(p_total.value, geo)
 
-  magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu0)
+  magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
   beta_tor = p_total_volume_avg / (
       magnetic_pressure_on_axis + constants.CONSTANTS.eps
@@ -300,7 +300,7 @@ def calculate_betas(
       * geo.volume[-1]
       * p_total_volume_avg
       / (
-          constants.CONSTANTS.mu0
+          constants.CONSTANTS.mu_0
           * core_profiles.Ip_profile_face[-1] ** 2
           * geo.R_major
           + constants.CONSTANTS.eps

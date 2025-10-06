@@ -54,7 +54,10 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     self.assertNotEqual(post_processed.E_fusion, 0.0)
-    self.assertNotEqual(post_processed.E_aux, 0.0)
+    self.assertNotEqual(post_processed.E_aux_total, 0.0)
+    self.assertNotEqual(post_processed.E_ohmic_e, 0.0)
+    self.assertNotEqual(post_processed.E_external_injected, 0.0)
+    self.assertNotEqual(post_processed.E_external_total, 0.0)
 
     with self.assertRaises(AssertionError):
       chex.assert_trees_all_equal(result, non_restart)

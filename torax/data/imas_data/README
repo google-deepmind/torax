@@ -1,0 +1,16 @@
+The IMAS netCDF file core_profiles_ddv4_iterhybrid_rampup_conditions.nc was
+generated manually filling the core_profiles IDS based on the
+profile_conditions contained in the iterhybrid_rampup.py example config (after
+unit conversions).
+
+The file core_profiles_15MA_DT_50_50_flat_top_slice.nc comes from a METIS ITER
+baseline scenario time slice taken on the flat top. The IDS grid is made of 21
+points.
+
+
+The IMAS netCDF file ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc was generated
+by extracting p' and ff' profiles for each timeslice from a TORAX simulation with the
+iterhybrid_rampup.py config, and passing the profiles in to CHEASE.
+The LCFS was kept fixed for all timeslices, using the values from
+ITER_hybrid_citrin_equil_cheasedata.mat2cols.
+

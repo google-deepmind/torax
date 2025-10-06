@@ -19,7 +19,6 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import jax_utils
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
@@ -453,7 +452,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
 
 
 # jitted since also used outside the solver
-@jax_utils.jit
+@jax.jit
 def get_updated_ions(
     runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,

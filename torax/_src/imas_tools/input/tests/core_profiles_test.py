@@ -11,15 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-import os
-from typing import Optional
-
 from absl.testing import absltest
-from absl.testing import parameterized
 import numpy as np
-import torax
 from torax._src.imas_tools.input import core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.orchestration import run_simulation
@@ -28,17 +21,11 @@ from torax._src.torax_pydantic import model_config
 
 
 class CoreProfilesTest(sim_test_case.SimTestCase):
-  """Unit tests for torax.torax_imastools.input.core_profiles.py"""
 
-  def test_offset_time(
-      self,
-  ):
-    """Unit tests to check the t_initial optional args offset correctly the
-    time array."""
+  def test_offset_time(self):
     offset = 100.0
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
-    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    ids_in = loader.load_imas_data(path, loader.CORE_PROFILES, dir)
+    ids_in = loader.load_imas_data(path, "core_profiles")
     core_profiles_conditions = core_profiles.profile_conditions_from_IMAS(
         ids_in,
         t_initial=offset,
@@ -50,45 +37,29 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     t_out = np.array(list(core_profiles_conditions["Ip"][0]))
     np.testing.assert_equal(t_out, t_in + 100.0)
 
-  @parameterized.parameters([
-      dict(config_name="test_iterhybrid_rampup_short.py", rtol=1e-6, atol=1e-8),
-  ])
-  def test_init_profiles_from_IMAS(
-      self,
-      config_name,
-      rtol: Optional[float] = None,
-      atol: Optional[float] = None,
-  ):
-    """Test to compare initialized profiles in TORAX with the initial
-    core_profiles used to check consistency.
+  def test_init_profiles_from_IMAS(self):
+    """Test to compare initialized profiles for consistency.
 
     The IMAS netCDF file comes from a METIS ITER baseline scenario time
     slice taken on the flat top. It is useful to have such file with
     profiles having more radial resolution. The IDS grid is made of 21
     points.
     """
-    if rtol is None:
-      rtol = self.rtol
-    if atol is None:
-      atol = self.atol
+    rtol = 1e-6
+    atol = 1e-8
     # Input core_profiles reading and config loading
-    config = self._get_config_dict(config_name)
-    path = (  # Using this as input instead of rampup_conditions because it has more radial resolution.
-        "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
-    )
-    dir = os.path.join(torax.__path__[0], "data/third_party/imas_data")
-    core_profiles_in = loader.load_imas_data(path, loader.CORE_PROFILES, dir)
-    rhon_in = core_profiles_in.profiles_1d[0].grid.rho_tor_norm
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
+    ids_in = loader.load_imas_data(path, "core_profiles")
+    rhon_in = ids_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = core_profiles.profile_conditions_from_IMAS(
-        core_profiles_in,
+        ids_in,
         t_initial=0.0,
     )
     config["geometry"]["n_rho"] = 200
-    config["profile_conditions"] = {
-        **core_profiles_conditions,
-    }
+    config["profile_conditions"] = core_profiles_conditions
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Init sim from config
@@ -102,9 +73,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.T_e.value * 1e3,
         np.interp(
-            cell_centers,
-            rhon_in,
-            core_profiles_in.profiles_1d[0].electrons.temperature,
+            cell_centers, rhon_in, ids_in.profiles_1d[0].electrons.temperature,
         ),
         rtol=rtol,
         atol=atol,
@@ -113,7 +82,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.T_i.value * 1e3,
         np.interp(
-            cell_centers, rhon_in, core_profiles_in.profiles_1d[0].t_i_average
+            cell_centers, rhon_in, ids_in.profiles_1d[0].t_i_average
         ),
         rtol=rtol,
         atol=atol,
@@ -122,9 +91,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.n_e.value,
         np.interp(
-            cell_centers,
-            rhon_in,
-            core_profiles_in.profiles_1d[0].electrons.density,
+            cell_centers, rhon_in, ids_in.profiles_1d[0].electrons.density,
         ),
         rtol=rtol,
         atol=atol,
@@ -133,13 +100,61 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.psi.value,
         np.interp(
-            cell_centers, rhon_in, core_profiles_in.profiles_1d[0].grid.psi
+            cell_centers, rhon_in, ids_in.profiles_1d[0].grid.psi
         ),
         rtol=rtol,
         atol=atol,
         err_msg="psi profile failed",
     )
 
+  def test_imas_plasma_composition(self):
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc" 
+    core_profiles_in = loader.load_imas_data(path, "core_profiles")
+    # Indivual ion info empty in the inital IDS so create fake ions data
+    core_profiles_in.profiles_1d[0].ion.resize(3)
+    core_profiles_in.profiles_1d[1].ion.resize(3)
+    core_profiles_in.global_quantities.ion.resize(3)
+    core_profiles_in.profiles_1d[0].ion[0].name = "D"
+    core_profiles_in.profiles_1d[0].ion[0].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[1].ion[0].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[0].ion[1].name = "T"
+    core_profiles_in.profiles_1d[0].ion[1].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[1].ion[1].density = [9e19, 3e19]
+    core_profiles_in.profiles_1d[0].ion[2].name = "Ne"
+    core_profiles_in.profiles_1d[1].ion[2].name = "Ne"
+    core_profiles_in.profiles_1d[0].ion[2].density = (
+        core_profiles_in.profiles_1d[0].electrons.density / 100
+    )
+    core_profiles_in.profiles_1d[1].ion[2].density = (
+        core_profiles_in.profiles_1d[1].electrons.density / 100
+    )
+    # Modifying the input config profiles_conditions class
+    plasma_composition_data = core_profiles.plasma_composition_from_imas(
+        core_profiles_in,
+    )
+    config["plasma_composition"] = plasma_composition_data
+    config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    assert torax_config.plasma_composition.impurity.species["Ne"] is not None
+    np.testing.assert_allclose(
+        torax_config.plasma_composition.impurity.species["Ne"].get_value(0.0),
+        0.01,
+    )
+    np.testing.assert_allclose(
+        torax_config.plasma_composition.main_ion["D"].get_value(0.0), 0.5
+    )
+    np.testing.assert_equal(
+        torax_config.plasma_composition.get_main_ion_names(), ("D", "T")
+    )
+    np.testing.assert_equal(
+        torax_config.plasma_composition.get_impurity_names(), ("Ne",)
+    )
+
+
 
 if __name__ == "__main__":
   absltest.main()
+

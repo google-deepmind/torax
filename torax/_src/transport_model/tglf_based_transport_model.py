@@ -192,7 +192,7 @@ class TGLFBasedTransportModel(
       A `TGLFInputs` dataclass containing dimensionless inputs required by
       TGLF-based models.
     """
-    T_e = core_profiles.T_e.face_value() * constants.CONSTANTS.keV2J
+    T_e = core_profiles.T_e.face_value() * constants.CONSTANTS.keV_to_J
     n_e = core_profiles.n_e.face_value()
 
     # Reference values used for TGLF-specific normalisation
@@ -250,12 +250,12 @@ class TGLFBasedTransportModel(
     log_nu_ee = (
         0.5 * jnp.log(2)
         + jnp.log(n_e)
-        + 4 * jnp.log(constants.CONSTANTS.qe)
+        + 4 * jnp.log(constants.CONSTANTS.q_e)
         + jnp.log(log_Lambda)
         - jnp.log(16)
         - jnp.log(jnp.pi)
-        - 2 * jnp.log(constants.CONSTANTS.epsilon0)
-        - 0.5 * jnp.log(constants.CONSTANTS.me)
+        - 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+        - 0.5 * jnp.log(constants.CONSTANTS.m_e)
         - 1.5 * jnp.log(T_e)
     )
 
@@ -279,7 +279,7 @@ class TGLFBasedTransportModel(
     # https://gacode.io/cgyro/cgyro_list.html#betae-unit
     # - In the TGLF docs, beta_e equation shown in CGS units, this is the SI
     #   version
-    beta_e = 2 * constants.CONSTANTS.mu0 * n_e * T_e / B_unit**2
+    beta_e = 2 * constants.CONSTANTS.mu_0 * n_e * T_e / B_unit**2
 
     # Major radius shear = drmaj/drmin, where 'rmaj' is the flux surface
     # centroid major radius and 'rmin' the flux surface centroid minor radius

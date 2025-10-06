@@ -67,15 +67,11 @@ def geometry_from_IMAS(
     equilibrium = equilibrium_object
   elif imas_uri is not None:
     equilibrium = loader.load_imas_data(
-        imas_uri,
-        loader.EQUILIBRIUM,
-        geometry_directory,
+        imas_uri, "equilibrium", geometry_directory,
     )
   elif imas_filepath is not None:
     equilibrium = loader.load_imas_data(
-        imas_filepath,
-        loader.EQUILIBRIUM,
-        geometry_directory,
+        imas_filepath, "equilibrium", geometry_directory,
     )
   else:
     raise ValueError(

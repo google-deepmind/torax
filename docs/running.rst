@@ -70,24 +70,12 @@ incompatible with the persistent compilation cache.
 
   export TORAX_ERRORS_ENABLED=<True/False>
 
-``TORAX_COMPILATION_ENABLED`` (default: `True`) - If `False`, JAX does not compile
+``JAX_DISABLE_JIT`` (default: `False`) - If `True`, JAX does not compile
 internal TORAX functions. Used for debugging.
 
 .. code-block:: console
 
-  export TORAX_COMPILATION_ENABLED=<True/False>
-
-``TORAX_EXPERIMENTAL_COMPILE`` (default: `False`) - If `True`, trigger expanded
-compilation up to the TORAX step function's call method. Normally with
-`TORAX_COMPILATION_ENABLED` flag set to `True` TORAX will compile a more limited
-set of functions. This is an experimental flag at the moment and will lead to
-faster simulations (at the expense of larger compilation time). We are currently
-working on reducing compile times so that the behaviour of this flag is
-triggered by `TORAX_COMPILATION_ENABLED`.
-
-.. code-block:: console
-
-  export TORAX_EXPERIMENTAL_COMPILE=<True/False>
+  export JAX_DISABLE_JIT=<True/False>
 
 .. _torax_flags:
 

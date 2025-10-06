@@ -100,7 +100,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
             + temperature_ratio
             * n_impurity_ped  # Impurity pressure contribution.
         )
-        / constants.CONSTANTS.keV2J
+        / constants.CONSTANTS.keV_to_J
     )
 
     # Calculate T_i_ped
