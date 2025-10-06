@@ -149,14 +149,13 @@ def plasma_composition_from_imas(
       rhon_array,
       [profile.zeff for profile in profiles_1d],
   )
-  species = {}  # Impurity mapping {symbol: n_e_ratio,}.
+  species = {}
   ratios = {}
   for ion in range(len(profiles_1d[0].ion)):
     try:
       symbol = str(profiles_1d[0].ion[ion].name)
-    except (
-        AttributeError
-    ):  # Case ids is plasma_profiles in early DDv4 releases.
+    except (AttributeError):  
+      # Case ids is plasma_profiles in early DDv4 releases.
       symbol = str(profiles_1d[0].ion[ion].label)
     if symbol in constants.ION_PROPERTIES_DICT.keys():
       # Fill impurities
@@ -193,7 +192,7 @@ def plasma_composition_from_imas(
 def imas_core_profiles_converter(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-) -> Mapping[str, Any]:
+) -> Mapping[str, Mapping[str,Any]]:
   """Converts core_profiles IDS to a dict with input fields for the config.
 
   This function call the two functions profile_conditions_from_imas and
