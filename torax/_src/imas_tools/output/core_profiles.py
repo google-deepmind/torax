@@ -31,7 +31,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-from torax._src.imas_tools.input import charge_states
+from torax._src.physics import charge_states
 
 
 # pylint: disable=invalid-name
