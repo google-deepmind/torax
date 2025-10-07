@@ -131,7 +131,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles_in.profiles_1d[1].electrons.density / 100
     )
     # Modifying the input config profiles_conditions class
-    plasma_composition_data = core_profiles.plasma_composition_from_imas(
+    plasma_composition_data = core_profiles.plasma_composition_from_IMAS(
         core_profiles_in,
     )
     config["plasma_composition"] = plasma_composition_data

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
-from typing import Any, Mapping
+from typing import Any, Mapping, MutableMapping
 
 from imas import ids_toplevel
 import numpy as np
@@ -23,7 +23,7 @@ import torax._src.constants as constants
 def profile_conditions_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-) -> Mapping[str, Any]:
+) -> dict[str, Any]:
   """Converts core_profiles IDS to a profile_conditions dict for TORAX config.
 
   Args:
@@ -37,11 +37,7 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
-  profiles_1d = ids.profiles_1d
-  time_array = [profile.time for profile in profiles_1d]
-  if t_initial:
-    time_array = [ti - time_array[0] + t_initial for ti in time_array]
-  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(ids, t_initial)
 
   # profile_conditions
   psi = (np.array(rhon_array[0]), np.array(profiles_1d[0].grid.psi))
@@ -112,10 +108,10 @@ def profile_conditions_from_IMAS(
   }
 
 
-def plasma_composition_from_imas(
+def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-) -> Mapping[str, Any]:
+) -> dict[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
 
   Loading IMAS data for plasma composition should only be used with n_e_ratios
@@ -123,9 +119,8 @@ def plasma_composition_from_imas(
   mode needs to be specified explicitly after loading the IMAS data. In case
   n_e_ratios_Z_eff is specified, one impurity ratio must be set to None
   explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
-  Note that if the ids indivual ions properties are not filled, it will not
+  Note that if the ids individual ions properties are not filled, it will not
   raise an error and just return an empty dict as main_ion and species.
-
 
   Args:
     ids: A core_profiles IDS object. The IDS can contain multiple time slices.
@@ -138,11 +133,7 @@ def plasma_composition_from_imas(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `plasma_composition` section of a TORAX `CONFIG`.
   """
-  profiles_1d = ids.profiles_1d
-  time_array = [profile.time for profile in profiles_1d]
-  if t_initial:
-    time_array = [ti - time_array[0] + t_initial for ti in time_array]
-  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(ids, t_initial)
 
   Z_eff = (
       time_array,
@@ -189,10 +180,10 @@ def plasma_composition_from_imas(
   }
 
 
-def imas_core_profiles_converter(
+def IMAS_core_profiles_converter(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-) -> Mapping[str, Mapping[str,Any]]:
+) -> dict[str, dict[str,Any]]:
   """Converts core_profiles IDS to a dict with input fields for the config.
 
   This function call the two functions profile_conditions_from_imas and
@@ -211,9 +202,19 @@ def imas_core_profiles_converter(
     of a TORAX `CONFIG`.
   """
   profile_conditions = profile_conditions_from_IMAS(ids, t_initial)
-  plasma_composition = plasma_composition_from_imas(ids, t_initial)
+  plasma_composition = plasma_composition_from_IMAS(ids, t_initial)
 
   return {
       "profile_conditions": profile_conditions,
       "plasma_composition": plasma_composition,
   }
+
+def _get_time_and_radial_arrays(ids: ids_toplevel.IDSToplevel,
+    t_initial: float | None = None,
+) -> tuple[ids_toplevel.IDSStructure, list[list[float]], list[float]]:
+  profiles_1d = ids.profiles_1d
+  time_array = [profile.time for profile in profiles_1d]
+  if t_initial:
+    time_array = [ti - time_array[0] + t_initial for ti in time_array]
+  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  return profiles_1d, rhon_array, time_array
