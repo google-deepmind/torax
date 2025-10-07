@@ -197,7 +197,7 @@ class CellVariable:
     right = jnp.expand_dims(right_grad, axis=0)
     return jnp.concatenate([left, forward_difference, right])
 
-  def _left_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def left_face_value(self) -> jt.Float[chex.Array, '#t']:
     """Calculates the value of the leftmost face."""
     if self.left_face_constraint is not None:
       value = self.left_face_constraint
@@ -209,7 +209,7 @@ class CellVariable:
       value = self.value[..., 0:1]
     return value
 
-  def _right_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def right_face_value(self) -> jt.Float[chex.Array, '#t']:
     """Calculates the value of the rightmost face."""
     if self.right_face_constraint is not None:
       value = self.right_face_constraint
@@ -229,7 +229,7 @@ class CellVariable:
     """Calculates values of this variable on the face grid."""
     inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
     return jnp.concatenate(
-        [self._left_face_value(), inner, self._right_face_value()], axis=-1
+        [self.left_face_value(), inner, self.right_face_value()], axis=-1
     )
 
   def grad(self) -> jt.Float[jax.Array, 't* face']:
@@ -256,8 +256,8 @@ class CellVariable:
 
   def cell_plus_boundaries(self) -> jt.Float[jax.Array, 't* cell+2']:
     """Returns the value of this variable plus left and right boundaries."""
-    right_value = self._right_face_value()
-    left_value = self._left_face_value()
+    right_value = self.right_face_value()
+    left_value = self.left_face_value()
     return jnp.concatenate(
         [left_value, self.value, right_value],
         axis=-1,
