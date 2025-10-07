@@ -87,7 +87,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     final_sim_state = state_history[-1]
     t_final = final_sim_state.t
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        torax_config,
         runtime_params_provider(t_final),
         post_processed_outputs,
         final_sim_state,
@@ -131,7 +130,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     sim_state = state_history[0]
     post_processed_outputs = post_processed_outputs_history[0]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        torax_config,
         runtime_params_provider(0),
         post_processed_outputs,
         sim_state,
