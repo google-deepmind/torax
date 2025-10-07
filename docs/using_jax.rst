@@ -69,5 +69,54 @@ for more details.
 For an example of how this is currently used in TORAX see the
 ``qualikiz_transport_model.py``.
 
+########################################
+Defining JIT compatible objects in TORAX
+########################################
+
+In TORAX we often make use of custom classes that are inputs or outputs of a
+function that is decorated with ``jax.jit``. In order to allow this these
+objects must either be registered as a
+[Pytree](https://jax.readthedocs.io/en/latest/pytrees.html) or marked as static.
+
+Objects marked as static must define a ``__hash__`` method and a
+``__eq__`` method. These will be used to decide whether to re-execute
+compilation (if the hash is the same and objects are equal) or re-use the cached
+compilation.
+
+**************
+Custom pytrees
+**************
+
+For most cases where we want to define a custom pytree we make use of a regular
+dataclass as well as the ``jax.tree_util.register_dataclass`` decorator. This
+allows us to define a custom dataclass that contains both JAX array types and
+regular python types that can be marked as static in the same object.
+
+*********************
+Custom static classes
+*********************
+
+We also define various classes for holding physics models that are marked as
+static in ``jax.jit`` decorators. This includes the ``source_models``,
+``transport_model``, ``pedestal_model``, ``neoclassical_models`` and
+``mhd_models``.
+
+Static arguments should be hashable, meaning both ``__hash__`` and ``__eq__``
+are implemented, and immutable.
+
+In TORAX the interface for the above physics models defines abstract methods for
+``__hash__`` and ``__eq__`` that must be defined by any child classes. The child
+classes hold the responsibility of what constitutes a JAX cache hit/miss in
+these method implementations.
+
+Immutability is currently enforced in these classes by a ``_frozen`` attribute
+on the object that is set to ``True`` in the initializer. The object's
+``__setattr__`` method is also overridden to raise an ``AttributeError`` if
+``_frozen`` is ``True``.
+
+
+
+
+
 
 
