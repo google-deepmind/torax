@@ -196,6 +196,15 @@ run_torax \
    --output_dir=/path/to/output/dir
 ```
 
+### Running Tests with Full Assertion Checks
+
+To run the pytest test suite with all assertion checks enabled, you can use the
+following command:
+
+```shell
+TORAX_JAXTYPING=True TORAX_ERRORS_ENABLED=True pytest . -n auto
+```
+
 ### Post-simulation
 
 Once complete, the time history of a simulation state and derived quantities
