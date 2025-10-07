@@ -241,6 +241,49 @@ def _fill_profiles_1d(
 # grid to get rid of this function.
 def _calculate_impurity_density_scaling_and_charge_states(
     core_profiles: state.CoreProfiles,
+    runtime_params: runtime_params.RuntimeParams,
+) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
+  """Computes the impurity_density_scaling factor to compute "True" impurity density.
+
+  Reproduces what is done in impurity_radiation_mavrin_fit in
+  sources/impurity_radiation_heat_sink/impurity_radiation_mavrin_fit.py
+  Also outputs Z_per_species to avoid calculating them again.
+
+  Returns:
+      FloatVector of impurity density scaling Z_imp_eff / <Z> and
+      FloatVector of avg Z_per_specie for all impurities on
+      cell_plus_boundaries grid.
+  """
+  ion_symbols = runtime_params.plasma_composition.impurity_names
+  # TODO: check if there is a better way to extrapolate values on boundaries.
+  impurity_fractions = {
+      symbol: np.concatenate([
+          [core_profiles.impurity_fractions[symbol][0]],
+          core_profiles.impurity_fractions[symbol],
+          [core_profiles.impurity_fractions[symbol][-1]],
+      ])
+      for symbol in ion_symbols
+  }
+
+  charge_state_info = charge_states.get_average_charge_state(
+      T_e=core_profiles.T_e.cell_plus_boundaries(),
+      fractions=impurity_fractions,
+      Z_override=runtime_params.plasma_composition.impurity.Z_override,
+  )
+  Z_avg = charge_state_info.Z_avg
+  Z_impurity = np.concatenate([
+      [core_profiles.Z_impurity_face[0]],
+      core_profiles.Z_impurity,
+      [core_profiles.Z_impurity_face[-1]],
+  ])
+  impurity_density_scaling = Z_impurity / Z_avg
+  return impurity_density_scaling, charge_state_info.Z_per_species
+
+
+# TODO: Map impurity quantities in PostProcessedOutputs on cell_plus_boundaries
+# grid to get rid of this function.
+def _calculate_impurity_density_scaling_and_charge_states(
+    core_profiles: state.CoreProfiles,
     runtime_params: runtime_params_lib.RuntimeParams,
 ) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
   """Computes the impurity_density_scaling factor to compute "True" impurity density.
