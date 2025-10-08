@@ -1,8 +1,8 @@
 import dataclasses
 import logging
 import os
+from typing import Literal
 
-from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_config
 from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
 import jax.numpy as jnp
@@ -28,43 +28,18 @@ class TGLFNNukaeaTransportModel(
 
   def __init__(
       self,
-      machine: str | tglfnn_ukaea_config.Machine,
-      config_path: str | os.PathLike,
-      stats_path: str | os.PathLike,
-      efe_gb_pt: str | os.PathLike,
-      efi_gb_pt: str | os.PathLike,
-      pfi_gb_pt: str | os.PathLike,
+      machine: Literal["step", "multimachine"],
   ):
-    if isinstance(machine, str):
-      self.machine = tglfnn_ukaea_config.Machine(machine)
-    else:
-      self.machine = machine
-    self._config_path = config_path
-    self._stats_path = stats_path
-    self._efe_gb_pt = efe_gb_pt
-    self._efi_gb_pt = efi_gb_pt
-    self._pfi_gb_pt = pfi_gb_pt
+    self.machine = machine
+    self.model = tglfnn_ukaea_model.TGLFNNukaeaModel(machine=machine)
 
-    self.model = tglfnn_ukaea_model.TGLFNNukaeaModel(
-        config=tglfnn_ukaea_config.TGLFNNukaeaModelConfig.load(
-            machine=self.machine, config_path=config_path
-        ),
-        stats=tglfnn_ukaea_config.TGLFNNukaeaModelStats.load(
-            machine=self.machine, stats_path=stats_path
-        ),
-    )
-    # Currently, the model is loaded into memory once per class instantiation
-    # If this becomes a bottleneck, we can consider caching the loaded models
-    self.model.load_params(
-        efe_gb_pt=efe_gb_pt, efi_gb_pt=efi_gb_pt, pfi_gb_pt=pfi_gb_pt
-    )
-
-    if self.machine == tglfnn_ukaea_config.Machine("step"):
+    if self.machine == "step":
       logging.info("Using STEP version of TGLFNNukaea")
       self._prepare_tglfnn_inputs = self._make_input_tensor_step
     else:
       logging.info("Using Multimachine version of TGLFNNukaea")
       self._prepare_tglfnn_inputs = self._make_input_tensor_multimachine
+
     super().__init__()
     self._frozen = True
 
@@ -137,16 +112,10 @@ class TGLFNNukaeaTransportModel(
 
     # TODO: expose variance outputs
     return self._make_core_transport(
-        ion_heat_flux_GB=predictions["efi_gb"][
-            ..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX
-        ],
-        electron_heat_flux_GB=predictions["efe_gb"][
-            ..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX
-        ],
+        ion_heat_flux_GB=predictions["efi_gb"][..., 0],
+        electron_heat_flux_GB=predictions["efe_gb"][..., 0],
         # TODO: Convert pfi to pfe for multi-ion plasmas
-        electron_particle_flux_GB=predictions["pfi_gb"][
-            ..., tglfnn_ukaea_config.MEAN_OUTPUT_IDX
-        ],
+        electron_particle_flux_GB=predictions["pfi_gb"][..., 0],
         tglf_inputs=tglf_inputs,
         transport=transport,
         geo=geo,
@@ -154,21 +123,10 @@ class TGLFNNukaeaTransportModel(
     )
 
   def __hash__(self) -> int:
-    return hash((
-        self.machine,
-        str(self._config_path),
-        str(self._stats_path),
-        str(self._efe_gb_pt),
-        str(self._efi_gb_pt),
-        str(self._pfi_gb_pt),
-    ))
+    return hash((self.machine,))
 
   def __eq__(self, other) -> bool:
     return (
-        self.machine == other.machine
-        and self._config_path == other._config_path
-        and self._stats_path == other._stats_path
-        and self._efe_gb_pt == other._efe_gb_pt
-        and self._efi_gb_pt == other._efi_gb_pt
-        and self._pfi_gb_pt == other._pfi_gb_pt
+        isinstance(other, TGLFNNukaeaTransportModel)
+        and self.machine == other.machine
     )

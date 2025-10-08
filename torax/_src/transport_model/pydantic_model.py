@@ -177,18 +177,13 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
-    ...
+    machine: The machine type to use. Either 'step' or 'multimachine'.
   """
 
   model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
       'tglfnn-ukaea'
   )
   machine: Annotated[Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC]
-  config_path: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
-  stats_path: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
-  efe_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
-  efi_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
-  pfi_gb_pt: Annotated[pydantic.FilePath, torax_pydantic.JAX_STATIC]
   # Quasilinear transport options
   DV_effective: bool
   An_min: float
@@ -198,11 +193,6 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   ) -> tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel:
     return tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
         machine=self.machine,
-        config_path=self.config_path,
-        stats_path=self.stats_path,
-        efe_gb_pt=self.efe_gb_pt,
-        efi_gb_pt=self.efi_gb_pt,
-        pfi_gb_pt=self.pfi_gb_pt,
     )
 
   def build_runtime_params(
