@@ -33,7 +33,7 @@ import typing_extensions
 
 
 class Solver(abc.ABC):
-  """Solves for a single time steps update to State.
+  """Solves for a single time step's update to State.
 
   Attributes:
     physics_models: Physics models.
@@ -45,11 +45,18 @@ class Solver(abc.ABC):
   ):
     self.physics_models = physics_models
 
+  def _class_id(self) -> str:
+    return f'{self.__class__.__module__}.{self.__class__.__qualname__}'
+
   def __hash__(self) -> int:
-    return hash(self.physics_models)
+    return hash((self._class_id(), self.physics_models))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
-    return self.physics_models == other.physics_models
+    return (
+        isinstance(other, Solver)
+        and self._class_id() == other._class_id()
+        and self.physics_models == other.physics_models
+    )
 
   @functools.partial(
       jax.jit,
