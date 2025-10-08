@@ -272,13 +272,11 @@ class SimulationStepFn:
     assert runtime_params_t.mhd.sawtooth is not None
     dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
 
-    runtime_params_t_plus_crash_dt, geo_t, geo_t_plus_crash_dt = (
-        _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-            input_state.t,
-            dt_crash,
-            self._runtime_params_provider,
-            geo_t,
-            self._geometry_provider,
+    runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=input_state.t + dt_crash,
+            runtime_params_provider=self._runtime_params_provider,
+            geometry_provider=self._geometry_provider,
         )
     )
 
@@ -431,14 +429,11 @@ class SimulationStepFn:
     def body_fun(inputs: tuple[input_type, output_type]):
       dt, output = inputs
       old_solver_outputs = output[2]
-
-      runtime_params_t_plus_dt, geo_t_with_phibdot, geo_t_plus_dt = (
-          _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-              input_state.t,
-              dt,
-              self._runtime_params_provider,
-              geo_t,
-              self._geometry_provider,
+      runtime_params_t_plus_dt, geo_t_plus_dt = (
+          build_runtime_params.get_consistent_runtime_params_and_geometry(
+              t=input_state.t + dt,
+              runtime_params_provider=self._runtime_params_provider,
+              geometry_provider=self._geometry_provider,
           )
       )
 
@@ -456,7 +451,7 @@ class SimulationStepFn:
           dt=dt,
           runtime_params_t=runtime_params_t,
           runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-          geo_t=geo_t_with_phibdot,
+          geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=input_state.core_profiles,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -544,13 +539,11 @@ class SimulationStepFn:
         input_state.core_transport,
     )
 
-    runtime_params_t_plus_dt, geo_t, geo_t_plus_dt = (
-        _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-            input_state.t,
-            dt,
-            self._runtime_params_provider,
-            geo_t,
-            self._geometry_provider,
+    runtime_params_t_plus_dt, geo_t_plus_dt = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=input_state.t + dt,
+            runtime_params_provider=self._runtime_params_provider,
+            geometry_provider=self._geometry_provider,
         )
     )
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
@@ -768,49 +761,6 @@ def _sawtooth_step(
           input_state,
           input_post_processed_outputs,
       ),
-  )
-
-
-def _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
-    t: jax.Array,
-    dt: jax.Array,
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    geo_t: geometry.Geometry,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-) -> tuple[
-    runtime_params_slice.RuntimeParams,
-    geometry.Geometry,
-    geometry.Geometry,
-]:
-  """Returns the geos including Phibdot, and runtime params at t + dt.
-
-  Args:
-    t: Time at which the simulation is currently at.
-    dt: Time step duration.
-    runtime_params_provider: Object that returns a set of runtime parameters
-      which may change from time step to time step or simulation run to run.
-    geo_t: The geometry of the torus during this time step of the simulation.
-    geometry_provider: Provides the magnetic geometry for each time step based
-      on the ToraxSimState at the start of the time step.
-
-  Returns:
-    Tuple containing:
-      - The runtime params at time t + dt.
-      - The geometry of the torus during this time step of the simulation.
-      - The geometry of the torus during the next time step of the simulation.
-  """
-  runtime_params_t_plus_dt, geo_t_plus_dt = (
-      build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=t + dt,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
-      )
-  )
-
-  return (
-      runtime_params_t_plus_dt,
-      geo_t,
-      geo_t_plus_dt,
   )
 
 
