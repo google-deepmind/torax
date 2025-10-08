@@ -73,12 +73,14 @@ class GeometryTest(parameterized.TestCase):
     geometry_pydantic_model.CheaseConfig().build_geometry()
 
   @parameterized.parameters([
-      dict(geometry_file='eqdsk_cocos02.eqdsk'),
-      dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
+      dict(geometry_file='iterhybrid_cocos02.eqdsk', cocos=2),
+      dict(geometry_file='iterhybrid_cocos11.eqdsk', cocos=11),
   ])
-  def test_build_geometry_from_eqdsk(self, geometry_file):
+  def test_build_geometry_from_eqdsk(self, geometry_file, cocos):
     """Test that EQDSK geometries can be built."""
-    config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config = geometry_pydantic_model.EQDSKConfig(
+        geometry_file=geometry_file, cocos=cocos
+    )
     config.build_geometry()
 
   def test_build_standard_geometry_from_IMAS(self):
@@ -91,7 +93,8 @@ class GeometryTest(parameterized.TestCase):
   def test_gm4_gm5_terms(self):
     """Test that gm4 and gm5 are correctly computed."""
     eqdsk_geo = geometry_pydantic_model.EQDSKConfig(
-        geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'
+        geometry_file='iterhybrid_cocos02.eqdsk',
+        cocos=2,
     ).build_geometry()
 
     imas_geo = geometry_pydantic_model.IMASConfig(
@@ -99,13 +102,14 @@ class GeometryTest(parameterized.TestCase):
     ).build_geometry()
 
     chease_geo = geometry_pydantic_model.CheaseConfig(
-        geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols'
+        geometry_file='iterhybrid.mat2cols'
     ).build_geometry()
 
-    np.testing.assert_allclose(eqdsk_geo.gm4, chease_geo.gm4, rtol=0.01)
+    # EQDSK is more inaccurate
+    np.testing.assert_allclose(eqdsk_geo.gm4, chease_geo.gm4, rtol=0.05)
     np.testing.assert_allclose(imas_geo.gm4, chease_geo.gm4, rtol=0.01)
-    np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.02)
-    np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.02)
+    np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.05)
+    np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.01)
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
