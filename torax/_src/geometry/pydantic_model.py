@@ -204,7 +204,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   # TODO(b/398191165): Remove this branch once the FBT bundle logic is
   # redesigned.
   def build_fbt_geometry_provider_from_bundle(
-      self,
+      self, calcphibdot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a `GeometryProvider` from the input config."""
     intermediates = _apply_relevant_kwargs(
@@ -216,7 +216,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         for t in intermediates
     }
     return standard_geometry.StandardGeometryProvider.create_provider(
-        geometries
+        geometries, calcphibdot=calcphibdot,
     )
 
 
@@ -361,10 +361,15 @@ class Geometry(torax_pydantic.BaseModelFrozen):
     geometry_type: A `geometry.GeometryType` enum.
     geometry_configs: Either a single `GeometryConfig` or a dict of
       `GeometryConfig` objects, where the keys are times in seconds.
+    calcphibdot: Whether to calculate Phibdot in the geometry dataclasses. This
+      is used in calc_coeffs to calculate terms related to time-dependent
+      geometry. We can set this to False to zero out Phibdot in the geometry
+      dataclasses to look at its effect on the simulation.
   """
 
   geometry_type: geometry.GeometryType
   geometry_configs: GeometryConfig | dict[torax_pydantic.Second, GeometryConfig]
+  calcphibdot: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -390,9 +395,10 @@ class Geometry(torax_pydantic.BaseModelFrozen):
     if self.geometry_type == geometry.GeometryType.FBT:
       if not isinstance(self.geometry_configs, dict):
         assert isinstance(self.geometry_configs.config, FBTConfig)
-        if self.geometry_configs.config.LY_bundle_object is not None:
-          return (
-              self.geometry_configs.config.build_fbt_geometry_provider_from_bundle()
+        fbt_config = self.geometry_configs.config
+        if fbt_config.LY_bundle_object is not None:
+          return fbt_config.build_fbt_geometry_provider_from_bundle(
+              self.calcphibdot
           )
 
     if isinstance(self.geometry_configs, dict):
@@ -405,11 +411,11 @@ class Geometry(torax_pydantic.BaseModelFrozen):
           if self.geometry_type == geometry.GeometryType.CIRCULAR
           else standard_geometry.StandardGeometryProvider.create_provider
       )
+      return provider(geometries, calcphibdot=self.calcphibdot)
     else:
       geometries = self.geometry_configs.config.build_geometry()
       provider = geometry_provider.ConstantGeometryProvider
-
-    return provider(geometries)  # pytype: disable=attribute-error
+      return provider(geometries)
 
 
 def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -426,6 +432,10 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
   geometry_type = getattr(geometry.GeometryType, data['geometry_type'].upper())
   constructor_args = {'geometry_type': geometry_type}
   configs_time_dependent = data_copy.pop('geometry_configs', None)
+
+  if 'calcphibdot' in data_copy:
+    calcphibdot = data_copy.pop('calcphibdot')
+    constructor_args['calcphibdot'] = calcphibdot
 
   if configs_time_dependent:
     # geometry config has sequence of standalone geometry files.

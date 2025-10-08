@@ -19,10 +19,12 @@ protocol defined here.
 """
 from collections.abc import Mapping
 import dataclasses
+import functools
 from typing import Protocol, Type
 
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src import interpolated_param
 from torax._src import jax_utils
@@ -155,10 +157,13 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
+  calcphibdot: bool = dataclasses.field(metadata={'static': True})
 
   @classmethod
   def create_provider(
-      cls, geometries: Mapping[float, geometry.Geometry]
+      cls,
+      geometries: Mapping[float, geometry.Geometry],
+      calcphibdot: bool,
   ) -> typing_extensions.Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
@@ -174,6 +179,7 @@ class TimeDependentGeometryProvider:
     kwargs = {
         'geometry_type': initial_geometry.geometry_type,
         'torax_mesh': initial_geometry.torax_mesh,
+        'calcphibdot': calcphibdot,
     }
     if hasattr(initial_geometry, 'Ip_from_parameters'):
       kwargs['Ip_from_parameters'] = initial_geometry.Ip_from_parameters
@@ -182,6 +188,7 @@ class TimeDependentGeometryProvider:
           attr.name == 'geometry_type'
           or attr.name == 'torax_mesh'
           or attr.name == 'Ip_from_parameters'
+          or attr.name == 'calcphibdot'
       ):
         continue
       if attr.name == '_z_magnetic_axis':
@@ -215,11 +222,11 @@ class TimeDependentGeometryProvider:
           or attr.name == 'Ip_from_parameters'
       ):
         continue
-      # always initialize Phibdot as zero. It will be replaced once both geo_t
-      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
-      # geo_t_plus_dt for each given time interval.
       if attr.name == 'Phi_b_dot':
-        kwargs[attr.name] = 0.0
+        if self.calcphibdot:
+          kwargs[attr.name] = _Phi_b_grad(self.Phi_face, t)
+        else:
+          kwargs[attr.name] = 0.0
         continue
       if attr.name == '_z_magnetic_axis':
         if self._z_magnetic_axis is None:
@@ -230,4 +237,14 @@ class TimeDependentGeometryProvider:
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
+    chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, geometry.Geometry)
+
+
+@jax.jit
+@functools.partial(jax.grad, argnums=1)
+def _Phi_b_grad(
+    Phi_face: interpolated_param.InterpolatedVarSingleAxis,
+    t: chex.Numeric,
+) -> chex.Numeric:
+  return Phi_face.get_value(t)[..., -1]

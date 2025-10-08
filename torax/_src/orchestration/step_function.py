@@ -806,12 +806,6 @@ def _get_geo_and_runtime_params_at_t_plus_dt_and_phibdot(
           geometry_provider=geometry_provider,
       )
   )
-  if runtime_params_t_plus_dt.numerics.calcphibdot:
-    geo_t, geo_t_plus_dt = geometry.update_geometries_with_Phibdot(
-        dt=dt,
-        geo_t=geo_t,
-        geo_t_plus_dt=geo_t_plus_dt,
-    )
 
   return (
       runtime_params_t_plus_dt,

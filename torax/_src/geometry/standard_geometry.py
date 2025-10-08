@@ -26,6 +26,7 @@ import chex
 import contourpy
 from imas import ids_toplevel
 import jax
+from jax import numpy as jnp
 import numpy as np
 import scipy
 from torax._src import array_typing
@@ -104,6 +105,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
+    chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, StandardGeometry)
 
 

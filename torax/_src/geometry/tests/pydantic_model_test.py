@@ -85,7 +85,9 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         geo_provider, standard_geometry.StandardGeometryProvider
     )
-    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
+    self.assertIsInstance(
+        geo_provider(t=0.0), standard_geometry.StandardGeometry
+    )
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
 
   @parameterized.parameters([
