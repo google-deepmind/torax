@@ -14,7 +14,7 @@
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 from collections.abc import Collection, Mapping
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 from imas import ids_toplevel
 import numpy as np
