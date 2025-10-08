@@ -20,6 +20,7 @@ previously executed TORAX reference:
 import copy
 from typing import Final, Sequence
 from unittest import mock
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -316,6 +317,9 @@ class SimTest(sim_test_case.SimTestCase):
       ref_name: str | None = None,
   ):
     """Integration test comparing to reference output from TORAX."""
+    if "tglfnn_ukaea" in config_name and not os.getenv("TGLFNN_UKAEA_DIR"):
+      self.skipTest("TGLFNN_UKAEA_DIR env variable not set")
+
     # The @parameterized decorator removes the `test_torax_sim` method,
     # so we separate the actual functionality into a helper method that will
     # not be removed.

@@ -15,12 +15,13 @@
 """Identical to test_iterhybrid_predictor_corrector but with TGLFNNukaea
 transport"""
 from copy import deepcopy
+import os
 from pathlib import Path
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
-base_path = Path(
-    '/home/theo/documents/ukaea/tglfnn-ukaea/MultiMachineHyper_1Aug25'
+tglfnn_base_path = (
+    Path(os.getenv('TGLFNN_UKAEA_DIR', None)) / 'MultiMachineHyper_1Aug25'
 )
 
 # Note: This simulation uses a D-T plasma, but TGLFNNukaea is currently
@@ -31,11 +32,11 @@ CONFIG = deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG['transport'] = {
     'model_name': 'tglfnn-ukaea',
     'machine': 'multimachine',
-    'config_path': base_path / 'config.yaml',
-    'stats_path': base_path / 'stats.json',
-    'efe_gb_pt': base_path / 'regressor_efe_gb.pt',
-    'efi_gb_pt': base_path / 'regressor_efi_gb.pt',
-    'pfi_gb_pt': base_path / 'regressor_pfi_gb.pt',
+    'config_path': tglfnn_base_path / 'config.yaml',
+    'stats_path': tglfnn_base_path / 'stats.json',
+    'efe_gb_pt': tglfnn_base_path / 'regressor_efe_gb.pt',
+    'efi_gb_pt': tglfnn_base_path / 'regressor_efi_gb.pt',
+    'pfi_gb_pt': tglfnn_base_path / 'regressor_pfi_gb.pt',
     # Inner patch
     'apply_inner_patch': True,
     'D_e_inner': 0.25,
