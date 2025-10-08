@@ -13,11 +13,24 @@
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 from collections.abc import Collection, Mapping
+import logging
 from typing import Any
 
 from imas import ids_toplevel
 import numpy as np
 from torax._src import constants
+
+_PROFILE_CONDITIONS_REQUIRED_FIELDS = {
+    "gloabl_quantities": ["ip", "v_loop"],
+    "profiles_1d": [
+        "time",
+        "grid.rho_tor_norm",
+        "grid.psi",
+        "electrons.temperature",
+        "t_i_average",
+        "electrons.density",
+    ],
+}
 
 
 # pylint: disable=invalid-name
@@ -237,3 +250,34 @@ def _check_expected_ions_presence(
               " properly filled"
           )
       )
+
+
+def _validate_core_profiles_ids_for_profile_conditions(
+    ids: ids_toplevel.IDSToplevel,
+):
+  """Checks that all expected attributes exist in the IDS."""
+  profiles_1d = ids.profiles_1d
+  global_quantities = ids.global_quantities
+  logged_fields = []
+  for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["gloabl_quantities"]:
+    if not getattr(global_quantities, field):
+      # Warning or critical ?
+      logging.critical(
+          f"The IDS is missing global_quantities.{field} to build"
+          " profile_conditions. \n Please Check that your IDS is properly"
+          " filled."
+      )
+  for profile in profiles_1d:
+    for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["profiles_1d"]:
+      leaf = profile
+      for node in field.split("."):
+        leaf = getattr(leaf, node)
+      if not leaf:
+        if field not in logged_fields:
+          # Warning or critical ?
+          logging.critical(
+              f"The IDS is missing profiles_1d.{field} to build"
+              " profile_conditions. \n Please Check that your IDS is properly"
+              " filled."
+          )
+          logged_fields.append(field)
