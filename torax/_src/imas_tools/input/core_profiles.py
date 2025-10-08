@@ -13,11 +13,10 @@
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 from imas import ids_toplevel
 import numpy as np
-import torax._src.constants as constants
 
 _PROFILE_CONDITIONS_REQUIRED_FIELDS = {
     "gloabl_quantities": ["ip", "v_loop"],
