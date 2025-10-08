@@ -21,7 +21,7 @@ from torax._src.mhd.sawtooth import sawtooth_models as sawtooth_models_lib
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class MHDModels:
   """Container for instantiated MHD model objects."""
 
@@ -30,5 +30,15 @@ class MHDModels:
   def __eq__(self, other: 'MHDModels') -> bool:
     return self.sawtooth_models == other.sawtooth_models
 
-  def __hash__(self) -> int:
+  def _hash(self) -> int:
     return hash((self.sawtooth_models,))
+
+  def __hash__(self) -> int:
+    return self._hash()
+
+  def __post_init__(self):
+    """Run post-init checks."""
+
+    # Make sure our custom hash hasn't been overwritten by the dataclasses
+    # decorator
+    assert hash(self) == self._hash()

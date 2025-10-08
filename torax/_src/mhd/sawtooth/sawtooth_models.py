@@ -19,7 +19,7 @@ from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class SawtoothModels:
   """Container for sawtooth models."""
   trigger_model: trigger_base.TriggerModel
@@ -31,8 +31,18 @@ class SawtoothModels:
         and self.redistribution_model == other.redistribution_model
     )
 
-  def __hash__(self) -> int:
+  def _hash(self) -> int:
     return hash((
         self.trigger_model,
         self.redistribution_model,
     ))
+
+  def __hash__(self) -> int:
+    return self._hash()
+
+  def __post_init__(self):
+    """Run post-init checks."""
+
+    # Make sure our custom hash hasn't been overwritten by the dataclasses
+    # decorator
+    assert hash(self) == self._hash()
