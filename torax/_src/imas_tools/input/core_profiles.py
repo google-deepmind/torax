@@ -19,7 +19,7 @@ from imas import ids_toplevel
 import numpy as np
 
 _PROFILE_CONDITIONS_REQUIRED_FIELDS = {
-    "gloabl_quantities": ["ip", "v_loop"],
+    "global_quantities": ["ip", "v_loop"],
     "profiles_1d": [
         "time",
         "grid.rho_tor_norm",
@@ -130,7 +130,7 @@ def _validate_core_profiles_ids_for_profile_conditions(
   profiles_1d = ids.profiles_1d
   global_quantities = ids.global_quantities
   logged_fields = []
-  for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["gloabl_quantities"]:
+  for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["global_quantities"]:
     if not getattr(global_quantities, field):
       # Warning or critical ?
       logging.critical(
