@@ -16,7 +16,6 @@
 import dataclasses
 
 import jax
-from torax._src import array_typing
 
 
 @jax.tree_util.register_dataclass
@@ -24,4 +23,4 @@ from torax._src import array_typing
 class RuntimeParams:
   """Input params for the pedestal model."""
 
-  set_pedestal: array_typing.BoolScalar
+  pass
