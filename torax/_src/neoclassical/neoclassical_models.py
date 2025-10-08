@@ -23,7 +23,7 @@ from torax._src.neoclassical.transport import base as transport_base
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class NeoclassicalModels:
   """Container for instantiated Neoclassical model objects."""
 
@@ -31,8 +31,18 @@ class NeoclassicalModels:
   bootstrap_current: bootstrap_current_base.BootstrapCurrentModel
   transport: transport_base.NeoclassicalTransportModel
 
-  def __hash__(self) -> int:
+  def _hash(self) -> int:
     return hash((self.bootstrap_current, self.conductivity, self.transport))
+
+  def __hash__(self) -> int:
+    return self._hash()
+
+  def __post_init__(self):
+    """Run post-init checks."""
+
+    # Make sure our custom hash hasn't been overwritten by the dataclasses
+    # decorator
+    assert hash(self) == self._hash()
 
   def __eq__(self, other) -> bool:
     return (
