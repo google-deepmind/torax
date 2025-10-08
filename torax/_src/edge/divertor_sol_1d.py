@@ -28,7 +28,7 @@ from torax._src.edge import extended_lengyel_formulas
 # TODO(b/446608829) - investigate separating the structure to dataclasses with
 # fixed variables and variables that are modified during the workflows.
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class DivertorSOL1D:
   """Represents the state of a 1D divertor scrape-off layer (SOL) model.
 
@@ -161,15 +161,18 @@ class DivertorSOL1D:
 
     # Calculate the basic target electron temperature from the two-point model,
     # which assumes no power or momentum loss.
-    target_electron_temp_basic = (
-        (
-            8.0
-            * self.average_ion_mass
-            * constants.CONSTANTS.m_amu
-            / self.sheath_heat_transmission_factor**2
-        )
-        * (self.q_parallel**2 / self.separatrix_total_pressure**2)
-    ) / constants.CONSTANTS.q_e
+    # In log space to avoid over/underflows in fp32.
+    log_target_electron_temp_basic = (
+        jnp.log(8.0)
+        + jnp.log(self.average_ion_mass)
+        + jnp.log(constants.CONSTANTS.m_amu)
+        - 2.0 * jnp.log(self.sheath_heat_transmission_factor)
+        + 2.0 * jnp.log(self.q_parallel)
+        - 2.0 * jnp.log(self.separatrix_total_pressure)
+        - jnp.log(constants.CONSTANTS.q_e)
+    )
+
+    target_electron_temp_basic = jnp.exp(log_target_electron_temp_basic)
 
     # Correction factor for additional physics at the target, including
     # ion temperature, mach number, and flux expansion.
@@ -279,15 +282,18 @@ def calc_target_electron_temp(
 
   # Calculate the basic target electron temperature from the two-point model,
   # which assumes no power or momentum loss.
-  target_electron_temp_basic = (
-      (
-          8.0
-          * sol_state.average_ion_mass
-          * constants.CONSTANTS.m_amu
-          / sol_state.sheath_heat_transmission_factor**2
-      )
-      * (sol_state.q_parallel**2 / sol_state.separatrix_total_pressure**2)
-  ) / constants.CONSTANTS.q_e
+  # In log space to avoid over/underflows in fp32.
+  log_target_electron_temp_basic = (
+      jnp.log(8.0)
+      + jnp.log(sol_state.average_ion_mass)
+      + jnp.log(constants.CONSTANTS.m_amu)
+      - 2.0 * jnp.log(sol_state.sheath_heat_transmission_factor)
+      + 2.0 * jnp.log(sol_state.q_parallel)
+      - 2.0 * jnp.log(sol_state.separatrix_total_pressure)
+      - jnp.log(constants.CONSTANTS.q_e)
+  )
+
+  target_electron_temp_basic = jnp.exp(log_target_electron_temp_basic)
 
   # Correction factor for additional physics at the target, including
   # ion temperature, mach number, and flux expansion.

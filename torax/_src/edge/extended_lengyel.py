@@ -16,6 +16,7 @@
 
 import dataclasses
 import enum
+import functools
 from typing import Mapping
 import jax
 from jax import numpy as jnp
@@ -100,6 +101,12 @@ class ExtendedLengyelOutputs:
 # 1. Consider renaming variables to match the rest of TORAX
 # 2. Consider repackaging the inputs into single or multiple dataclasses for
 #    better readability.
+@functools.partial(
+    jax.jit,
+    static_argnames=[
+        'computation_mode',
+    ],
+)
 def run_extended_lengyel_model(
     *,
     power_crossing_separatrix: array_typing.FloatScalar,
@@ -353,13 +360,15 @@ def _inverse_mode_fixed_step_solver(
     cylindrical_safety_factor: array_typing.FloatScalar,
 ) -> divertor_sol_1d_lib.DivertorSOL1D:
   """Runs the fixed-step iterative solver for the inverse mode."""
-  for _ in range(iterations):
-    # Calculate new value of q_parallel modified by alpha_t broadening.
-    sol_state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
-        separatrix_electron_temp=sol_state.separatrix_electron_temp,
-        average_ion_mass=sol_state.average_ion_mass,
+
+  def body_fun(i, current_sol_state):
+    del i  # Unused.
+
+    new_q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+        separatrix_electron_temp=current_sol_state.separatrix_electron_temp,
+        average_ion_mass=current_sol_state.average_ion_mass,
         separatrix_average_poloidal_field=separatrix_average_poloidal_field,
-        alpha_t=sol_state.alpha_t,
+        alpha_t=current_sol_state.alpha_t,
         ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
         fraction_of_PSOL_to_divertor=fraction_of_P_SOL_to_divertor,
         minor_radius=minor_radius,
@@ -367,28 +376,53 @@ def _inverse_mode_fixed_step_solver(
         power_crossing_separatrix=power_crossing_separatrix,
         fieldline_pitch_at_omp=fieldline_pitch_at_omp,
     )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        q_parallel=new_q_parallel,
+    )
 
     # Solve for the impurity concentration required to achieve the target
     # temperature for a given q_parallel. This also updates the divertor and
     # separatrix Z_eff values in sol_state, used downstream.
-    sol_state.c_z_prefactor, _ = _solve_for_c_z_prefactor(sol_state=sol_state)
+    new_c_z_prefactor, _ = _solve_for_c_z_prefactor(
+        sol_state=current_sol_state
+    )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        c_z_prefactor=new_c_z_prefactor,
+    )
 
     # Update alpha_t for the next loop iteration. Impacts q_parallel.
-    sol_state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=sol_state.separatrix_electron_density,
-        separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+    new_alpha_t = extended_lengyel_formulas.calc_alpha_t(
+        separatrix_electron_density=current_sol_state.separatrix_electron_density,
+        separatrix_electron_temp=current_sol_state.separatrix_electron_temp
+        / 1e3,
         cylindrical_safety_factor=cylindrical_safety_factor,
         major_radius=major_radius,
-        average_ion_mass=sol_state.average_ion_mass,
-        Z_eff=sol_state.separatrix_Z_eff,
+        average_ion_mass=current_sol_state.average_ion_mass,
+        Z_eff=current_sol_state.separatrix_Z_eff,
         mean_ion_charge_state=1.0,
+    )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        alpha_t=new_alpha_t,
     )
 
     # Update kappa_e for the next loop iteration. Impacts q_parallel and
     # temperatures upstream from target.
-    sol_state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
-        sol_state.divertor_Z_eff
+    new_kappa_e = extended_lengyel_formulas.calc_kappa_e(
+        current_sol_state.divertor_Z_eff
     )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        kappa_e=new_kappa_e,
+    )
+
+    return current_sol_state
+
+  sol_state = jax.lax.fori_loop(
+      lower=0, upper=iterations, body_fun=body_fun, init_val=sol_state
+  )
   return sol_state
 
 
@@ -411,17 +445,17 @@ def _forward_mode_fixed_step_solver(
   def _relax(new_value, prev_value, relaxation_factor=0.4):
     return relaxation_factor * new_value + (1 - relaxation_factor) * prev_value
 
-  for i in range(iterations):
+  def body_fun(i, current_sol_state):
 
     # Store current values for the next relaxation step
-    prev_sol_state = sol_state
+    prev_sol_state = current_sol_state
 
     # Update q_parallel based on the current separatrix temperature and alpha_t.
-    sol_state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
-        separatrix_electron_temp=sol_state.separatrix_electron_temp,
-        average_ion_mass=sol_state.average_ion_mass,
+    new_q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+        separatrix_electron_temp=current_sol_state.separatrix_electron_temp,
+        average_ion_mass=current_sol_state.average_ion_mass,
         separatrix_average_poloidal_field=separatrix_average_poloidal_field,
-        alpha_t=sol_state.alpha_t,
+        alpha_t=current_sol_state.alpha_t,
         ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
         fraction_of_PSOL_to_divertor=fraction_of_P_SOL_to_divertor,
         minor_radius=minor_radius,
@@ -429,45 +463,69 @@ def _forward_mode_fixed_step_solver(
         power_crossing_separatrix=power_crossing_separatrix,
         fieldline_pitch_at_omp=fieldline_pitch_at_omp,
     )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        q_parallel=new_q_parallel,
+    )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
-    q_cc, _ = _solve_for_qcc(sol_state=sol_state)
+    new_q_cc, _ = _solve_for_qcc(sol_state=current_sol_state)
 
     # Calculate new target electron temperature with forward two-point model.
-    sol_state.target_electron_temp = (
-        divertor_sol_1d_lib.calc_target_electron_temp(
-            sol_state=sol_state,
-            parallel_heat_flux_at_cc_interface=q_cc,
-            previous_target_electron_temp=sol_state.target_electron_temp,
-        )
+    new_target_electron_temp = divertor_sol_1d_lib.calc_target_electron_temp(
+        sol_state=current_sol_state,
+        parallel_heat_flux_at_cc_interface=new_q_cc,
+        previous_target_electron_temp=current_sol_state.target_electron_temp,
+    )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        target_electron_temp=new_target_electron_temp,
     )
 
     # Update kappa_e and alpha_t for the next iteration.
-    sol_state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
-        sol_state.divertor_Z_eff
+    new_kappa_e = extended_lengyel_formulas.calc_kappa_e(
+        current_sol_state.divertor_Z_eff
+    )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        kappa_e=new_kappa_e,
     )
 
-    sol_state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=sol_state.separatrix_electron_density,
-        separatrix_electron_temp=sol_state.separatrix_electron_temp / 1e3,
+    new_alpha_t = extended_lengyel_formulas.calc_alpha_t(
+        separatrix_electron_density=current_sol_state.separatrix_electron_density,
+        separatrix_electron_temp=current_sol_state.separatrix_electron_temp
+        / 1e3,
         cylindrical_safety_factor=cylindrical_safety_factor,
         major_radius=major_radius,
-        average_ion_mass=sol_state.average_ion_mass,
-        Z_eff=sol_state.separatrix_Z_eff,
+        average_ion_mass=current_sol_state.average_ion_mass,
+        Z_eff=current_sol_state.separatrix_Z_eff,
         mean_ion_charge_state=1.0,
+    )
+    current_sol_state = dataclasses.replace(
+        current_sol_state,
+        alpha_t=new_alpha_t,
     )
 
     # Relaxation step after the first iteration
-    if i > 0:
+    current_sol_state = jax.lax.cond(
+        i > 0,
+        lambda state: dataclasses.replace(
+            state,
+            target_electron_temp=_relax(
+                state.target_electron_temp,
+                prev_sol_state.target_electron_temp,
+            ),
+            alpha_t=_relax(state.alpha_t, prev_sol_state.alpha_t),
+        ),
+        lambda state: state,
+        current_sol_state,
+    )
 
-      sol_state.target_electron_temp = _relax(
-          sol_state.target_electron_temp,
-          prev_sol_state.target_electron_temp,
-      )
-      sol_state.alpha_t = _relax(
-          sol_state.alpha_t,
-          prev_sol_state.alpha_t,
-      )
+    return current_sol_state
+
+  sol_state = jax.lax.fori_loop(
+      lower=0, upper=iterations, body_fun=body_fun, init_val=sol_state
+  )
 
   return sol_state
 
@@ -632,12 +690,16 @@ def _solve_for_c_z_prefactor(
   b = sol_state.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
-  k = (
-      2.0
-      * sol_state.kappa_e
-      * (sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR) ** 2
-      * sol_state.separatrix_electron_temp**2
+  # Need log to avoid overflow in fp32 when jitted.
+  log_k = (
+      jnp.log(2.0)
+      + jnp.log(sol_state.kappa_e)
+      + 2.0
+      * jnp.log(sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR)
+      + 2.0 * jnp.log(sol_state.separatrix_electron_temp)
   )
+
+  k = jnp.exp(log_k)
 
   # Calculate the squared parallel heat flux at the divertor entrance.
   # This formula is derived by combining the Lengyel equations for the region
@@ -721,12 +783,16 @@ def _solve_for_qcc(
   b = sol_state.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
-  k = (
-      2.0
-      * sol_state.kappa_e
-      * (sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR) ** 2
-      * sol_state.separatrix_electron_temp**2
+  # Need log to avoid overflow in fp32 when jitted.
+  log_k = (
+      jnp.log(2.0)
+      + jnp.log(sol_state.kappa_e)
+      + 2.0
+      * jnp.log(sol_state.separatrix_electron_density * _DENSITY_SCALE_FACTOR)
+      + 2.0 * jnp.log(sol_state.separatrix_electron_temp)
   )
+
+  k = jnp.exp(log_k)
 
   qcc_squared = (
       qu**2 / b**2

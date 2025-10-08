@@ -296,6 +296,7 @@ def calc_alpha_t(
   )
 
   # electron-electron collision frequency. Equation B1 from Eich 2020.
+  # In log space to avoid over/underflows in fp32.
   log_nu_ee = (
       jnp.log(4.0 / 3.0)
       + 0.5 * jnp.log(2.0 * jnp.pi)
