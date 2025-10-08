@@ -22,6 +22,7 @@ import types
 import typing
 from typing import Any, Literal, TypeAlias
 
+from torax._src import path_utils
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
 
@@ -37,19 +38,10 @@ ExamplePlotConfig: TypeAlias = Literal[
 ]
 
 
-def torax_path() -> pathlib.Path:
-  """Returns the absolute path to the Torax directory."""
-
-  path = pathlib.Path(__file__).parent.parent.parent
-  assert path.is_dir(), f'Path {path} is not a directory.'
-  assert path.parts[-1] == 'torax', f'Path {path} is not a Torax directory.'
-  return path
-
-
 def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
   """Returns a tuple of example config paths."""
 
-  example_dir = torax_path().joinpath('examples')
+  example_dir = path_utils.torax_path().joinpath('examples')
   assert example_dir.is_dir()
 
   def _get_path(path):
@@ -63,7 +55,7 @@ def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
 def example_plot_config_paths() -> dict[ExamplePlotConfig, pathlib.Path]:
   """Returns a tuple of example plot config paths."""
 
-  example_dir = torax_path().joinpath('plotting', 'configs')
+  example_dir = path_utils.torax_path().joinpath('plotting', 'configs')
   assert example_dir.is_dir(), f'Path {example_dir} is not a directory.'
 
   def _get_path(path):
@@ -111,12 +103,12 @@ def import_module(path: str | pathlib.Path) -> dict[str, Any]:
     # exists, or if it is a relative path and it exists relative to the working
     # directory. In this case, neither was successful, so check whether this
     # path exists relative to the Torax directory.
-    new_path = torax_path().joinpath(path)
+    new_path = path_utils.torax_path().joinpath(path)
     if not new_path.is_file():
       raise ValueError(
           f'The file {path} could not be found. If it is a relative path, it'
           ' could not be resolved relative to the working directory'
-          f' {os.getcwd()} or the Torax directory {torax_path()}.'
+          f' {os.getcwd()} or the Torax directory {path_utils.torax_path()}.'
       )
     path = new_path
 

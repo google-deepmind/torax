@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import imas
 import numpy as np
-from torax._src.config import config_loader
+from torax._src import path_utils
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.imas_tools.input import loader
 
@@ -77,9 +77,7 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    imas_directory = os.path.join(
-        config_loader.torax_path(), 'data/imas_data'
-    )
+    imas_directory = os.path.join(path_utils.torax_path(), 'data/imas_data')
     full_path = os.path.join(imas_directory, filename)
     mock_value = imas.DBEntry(uri=full_path, mode='r')
     # imas_core not available for CI so just check if loader is called

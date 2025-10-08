@@ -18,6 +18,7 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.test_utils import paths
@@ -43,7 +44,7 @@ class PlotrunsLibTest(parameterized.TestCase):
       "sources_plot_config",
   ])
   def test_plot_config_smoke_test(self, config_name: str):
-    config_path = config_loader.torax_path().joinpath(
+    config_path = path_utils.torax_path().joinpath(
         "plotting", "configs", config_name + ".py"
     )
     assert config_path.is_file(), f"Path {config_path} is not a file."

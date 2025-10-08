@@ -21,7 +21,7 @@ from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import config_loader
+from torax._src import path_utils
 from torax._src.test_utils import torax_refs
 from torax.tests.scripts import regenerate_torax_refs
 
@@ -35,13 +35,13 @@ class RegenerateRefsTest(parameterized.TestCase):
     self.temp_dir = pathlib.Path(self.create_tempdir())
 
     # Get the original torax_path before mocking
-    original_torax_path = config_loader.torax_path()
+    original_torax_path = path_utils.torax_path()
     original_refs_path = (
         original_torax_path / '_src' / 'test_utils' / torax_refs.JSON_FILENAME
     )
 
     self.mock_torax_path_patch = mock.patch.object(
-        config_loader, 'torax_path', return_value=self.temp_dir
+        path_utils, 'torax_path', return_value=self.temp_dir
     )
     self.mock_torax_path = self.mock_torax_path_patch.start()
     self.addCleanup(self.mock_torax_path_patch.stop)

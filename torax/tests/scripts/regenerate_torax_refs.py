@@ -46,7 +46,7 @@ from absl import app
 from absl import flags
 import numpy as np
 from torax._src import constants
-from torax._src.config import config_loader
+from torax._src import path_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import standard_geometry
@@ -205,7 +205,7 @@ def main(argv: Sequence[str]) -> None:
   else:
     # Use the default path inside the torax source tree.
     output_path = (
-        config_loader.torax_path()
+        path_utils.torax_path()
         / '_src'
         / 'test_utils'
         / torax_refs.JSON_FILENAME

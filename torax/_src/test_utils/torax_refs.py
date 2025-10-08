@@ -23,8 +23,8 @@ import numpy as np
 # set_jax_precision() is called in torax __init__.py, needed for tests and
 # reference generation
 import torax  # pylint: disable=unused-import
+from torax._src import path_utils
 from torax._src.config import build_runtime_params
-from torax._src.config import config_loader
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -38,7 +38,7 @@ JSON_FILENAME: Literal['references.json'] = 'references.json'
 
 def _load_all_references():
   """Loads all reference data from the JSON file."""
-  json_path = config_loader.torax_path() / '_src' / 'test_utils' / JSON_FILENAME
+  json_path = path_utils.torax_path() / '_src' / 'test_utils' / JSON_FILENAME
   try:
     with open(json_path, 'r') as f:
       return json.load(f)
