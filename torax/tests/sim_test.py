@@ -20,6 +20,7 @@ previously executed TORAX reference:
 import copy
 from typing import Final, Sequence
 from unittest import mock
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -248,6 +249,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_neoclassical',
           'test_iterhybrid_predictor_corrector_neoclassical.py',
       ),
+      # Predictor-corrector solver with TGLFNNukaea transport
+      (
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
+      ),
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
@@ -311,6 +317,9 @@ class SimTest(sim_test_case.SimTestCase):
       ref_name: str | None = None,
   ):
     """Integration test comparing to reference output from TORAX."""
+    if "tglfnn_ukaea" in config_name and not os.getenv("TGLFNN_UKAEA_DIR"):
+      self.skipTest("TGLFNN_UKAEA_DIR env variable not set")
+
     # The @parameterized decorator removes the `test_torax_sim` method,
     # so we separate the actual functionality into a helper method that will
     # not be removed.
