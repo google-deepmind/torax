@@ -218,8 +218,6 @@ def newton_raphson_solve_block(
       evolving_names=evolving_names,
   )
 
-  # TODO(b/438673871): Set use_jax_custom_root=True once the compile time
-  # regression is resolved.
   x_root, metadata = jax_root_finding.root_newton_raphson(
       fun=residual_fun,
       x0=init_x_new_vec,
@@ -229,7 +227,6 @@ def newton_raphson_solve_block(
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
       log_iterations=log_iterations,
-      use_jax_custom_root=False,
   )
 
   # Create updated CellVariable instances based on state_plus_dt which has
