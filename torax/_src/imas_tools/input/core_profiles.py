@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
-from typing import Any, Mapping
+from typing import Any, Mapping, MutableMapping
 
 from imas import ids_toplevel
 import numpy as np
+import torax._src.constants as constants
 
 
 # pylint: disable=invalid-name
 def profile_conditions_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-) -> Mapping[str, Any]:
+) -> dict[str, Any]:
   """Converts core_profiles IDS to a profile_conditions dict for TORAX config.
 
   Args:
@@ -36,11 +37,7 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
-  profiles_1d = ids.profiles_1d
-  time_array = [profile.time for profile in profiles_1d]
-  if t_initial:
-    time_array = [ti - time_array[0] + t_initial for ti in time_array]
-  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(ids, t_initial)
 
   # profile_conditions
   psi = (np.array(rhon_array[0]), np.array(profiles_1d[0].grid.psi))
@@ -109,3 +106,115 @@ def profile_conditions_from_IMAS(
       "normalize_n_e_to_nbar": False,
       "v_loop_lcfs": v_loop_lcfs,
   }
+
+
+def plasma_composition_from_IMAS(
+    ids: ids_toplevel.IDSToplevel,
+    t_initial: float | None = None,
+) -> dict[str, Any]:
+  """Returns dict with args for plasma_composition config from a given ids.
+
+  Loading IMAS data for plasma composition should only be used with n_e_ratios
+  and n_e_ratios_Z_eff impurity modes, not with fractions mode. The impurity
+  mode needs to be specified explicitly after loading the IMAS data. In case
+  n_e_ratios_Z_eff is specified, one impurity ratio must be set to None
+  explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
+  Note that if the ids individual ions properties are not filled, it will not
+  raise an error and just return an empty dict as main_ion and species.
+
+  Args:
+    ids: A core_profiles IDS object. The IDS can contain multiple time slices.
+    t_initial: Initial time used to map the profiles in the dicts. If None the
+      initial time will be the time of the first time slice of the ids. Else all
+      time slices will be shifted such that the first time slice has time =
+      t_initial.
+
+  Returns:
+    The updated fields read from the IDS that can be used to completely or
+    partially fill the `plasma_composition` section of a TORAX `CONFIG`.
+  """
+  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(ids, t_initial)
+
+  Z_eff = (
+      time_array,
+      rhon_array,
+      [profile.zeff for profile in profiles_1d],
+  )
+  species = {}
+  ratios = {}
+  for ion in range(len(profiles_1d[0].ion)):
+    try:
+      symbol = str(profiles_1d[0].ion[ion].name)
+    except (AttributeError):  
+      # Case ids is plasma_profiles in early DDv4 releases.
+      symbol = str(profiles_1d[0].ion[ion].label)
+    if symbol in constants.ION_PROPERTIES_DICT.keys():
+      # Fill impurities
+      if symbol not in ("D", "T", "H"):
+        n_e_ratio = (
+            time_array,
+            rhon_array,
+            [
+                profile.ion[ion].density / profile.electrons.density
+                for profile in profiles_1d
+            ],
+        )
+        species[symbol] = n_e_ratio
+      # Fill main ions
+      else:
+        ratios[symbol] = [
+            profile.ion[ion].density[0] for profile in profiles_1d
+        ]
+        # Currently take ratios of central density value, would it be more
+        # accurate to take ratios of volume integrated densities ?
+  total_main_ion_density = np.sum([ratio for ratio in ratios.values()], axis=0)
+  main_ion = {}
+  for symbol, ratio in ratios.items():
+    main_ion[symbol] = (time_array, ratio / total_main_ion_density)
+  return {
+      "main_ion": main_ion,
+      "Z_eff": Z_eff,
+      "impurity": {
+          "species": species,
+      },
+  }
+
+
+def IMAS_core_profiles_converter(
+    ids: ids_toplevel.IDSToplevel,
+    t_initial: float | None = None,
+) -> dict[str, dict[str,Any]]:
+  """Converts core_profiles IDS to a dict with input fields for the config.
+
+  This function call the two functions profile_conditions_from_imas and
+  plasma_composition_from_imas and return a nested dict with the two dicts.
+
+  Args:
+    ids: A core_profiles IDS object. The IDS can contain multiple time slices.
+    t_initial: Initial time used to map the profiles in the dicts. If None the
+      initial time will be the time of the first time slice of the ids. Else all
+      time slices will be shifted such that the first time slice has time =
+      t_initial.
+
+  Returns:
+    The updated fields read from the IDS that can be used to completely or
+    partially fill the `profile_conditions` and `plasma_composition` sections
+    of a TORAX `CONFIG`.
+  """
+  profile_conditions = profile_conditions_from_IMAS(ids, t_initial)
+  plasma_composition = plasma_composition_from_IMAS(ids, t_initial)
+
+  return {
+      "profile_conditions": profile_conditions,
+      "plasma_composition": plasma_composition,
+  }
+
+def _get_time_and_radial_arrays(ids: ids_toplevel.IDSToplevel,
+    t_initial: float | None = None,
+) -> tuple[ids_toplevel.IDSStructure, list[list[float]], list[float]]:
+  profiles_1d = ids.profiles_1d
+  time_array = [profile.time for profile in profiles_1d]
+  if t_initial:
+    time_array = [ti - time_array[0] + t_initial for ti in time_array]
+  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  return profiles_1d, rhon_array, time_array
