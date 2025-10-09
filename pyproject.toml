@@ -22,7 +22,7 @@ dependencies = [
     "jaxlib>=0.7.0",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "torch==2.1.0",
+    "torch>=2.7.1", # Required for numpy>2 compatibility. See https://github.com/google-deepmind/fusion_surrogates/pull/29
     "fusion_surrogates[tglfnnukaea]",
     "matplotlib>=3.3.0",
     "numpy>2",
