@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pathlib
+
 from absl.testing import absltest
 from absl.testing import parameterized
+import imas
 from imas import ids_toplevel
 from torax._src.imas_tools.input import loader
 
@@ -34,6 +37,30 @@ class IMASLoaderTest(parameterized.TestCase):
   ):
     ids_in = loader.load_imas_data(path, ids_name)
     assert isinstance(ids_in, ids_toplevel.IDSToplevel)
+
+  def test_load_older_dd_version_data_explicit_convert(self):
+    directory = pathlib.Path(__file__).parent
+    ids = loader.load_imas_data(
+        "core_profiles_ddv3.nc",
+        "core_profiles",
+        directory=directory,
+        explicit_convert=True,
+    )
+    assert isinstance(ids, ids_toplevel.IDSToplevel)
+    self.assertEqual(
+        imas.util.get_data_dictionary_version(ids),
+        loader._TORAX_IMAS_DD_VERSION,
+    )
+
+  def test_load_older_dd_version_without_explicit_convert_raises(self):
+    directory = pathlib.Path(__file__).parent
+    with self.assertRaises(AttributeError):
+      loader.load_imas_data(
+          "core_profiles_ddv3.nc",
+          "core_profiles",
+          directory=directory,
+          explicit_convert=False,
+      )
 
 
 if __name__ == "__main__":

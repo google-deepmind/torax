@@ -13,6 +13,7 @@
 # limitations under the License.
 """Generic loader that can load any IDS from a netCDF file or from an IMASdb."""
 import os
+import pathlib
 from typing import Literal
 
 import imas
@@ -21,12 +22,14 @@ from torax._src import path_utils
 
 # Names of the IDSs that can be loaded and used in TORAX.
 IDS = Literal["core_profiles", "plasma_profiles", "equilibrium"]
+_TORAX_IMAS_DD_VERSION = "4.0.0"
 
 
 def load_imas_data(
     uri: str,
     ids_name: str,
-    directory: str | None = None,
+    directory: pathlib.Path | None = None,
+    explicit_convert: bool = False,
 ) -> ids_toplevel.IDSToplevel:
   """Loads a full IDS for a given uri or path_name and a given ids_name.
 
@@ -40,9 +43,14 @@ def load_imas_data(
     uri: Path to netCDF file or full uri of the IDS (this requires IMAS-core).
     ids_name: The name of the IDS to load.
     directory: The directory of the IDS to load.
-
+    explicit_convert: Whether to explicitly convert the IDS to the current DD
+      version. If True, an explicit conversion will be attempted. Explicit
+      conversion is recommended when converting between major DD versions.
+      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
   Returns:
     An IDS object.
+  Raises:
+    AttributeError: If the IDS cannot be autoconverted.
   """
   # Differentiate between netCDF and IMASdb uris. For IMASdb files the full
   # filepath is already provided in the uri.
@@ -50,6 +58,10 @@ def load_imas_data(
     if directory is None:
       directory = path_utils.torax_path().joinpath("data/imas_data")
     uri = os.path.join(directory, uri)
-  with imas.DBEntry(uri=uri, mode="r") as db:
-    ids = db.get(ids_name=ids_name)
+  with imas.DBEntry(uri=uri, mode="r", dd_version=_TORAX_IMAS_DD_VERSION) as db:
+    if not explicit_convert:
+      ids = db.get(ids_name=ids_name, autoconvert=True)
+    else:
+      ids = db.get(ids_name=ids_name, autoconvert=False)
+      ids = imas.convert_ids(ids, _TORAX_IMAS_DD_VERSION)
   return ids
