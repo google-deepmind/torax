@@ -9,8 +9,9 @@ eqdsk_cocos02.eqdsk
 This EQDSK geometry was used to verify the TORAX EQDSK geometry converter/
 
 
+All associated LICENSE files are located in torax/data/licenses.
 The mapping of datafile: LICENSE for the geometry files in this directory are as follows.
-All associated LICENSE files are also located in this directory.
 
 ITER_hybrid_citrin_equil_cheasedata.mat2cols: LICENSE_PINT
 eqdsk_cocos02.eqdsk: LICENSE_PINT
+STEP_SPP_001_ECHD_ftop.eqdsk: LICENSE_OpenSTEP
