@@ -274,6 +274,7 @@ def calc_coeffs(
 @functools.partial(
     jax.jit,
     static_argnames=[
+        'physics_models',
         'evolving_names',
     ],
 )

@@ -41,6 +41,7 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 @functools.partial(
     jax.jit,
     static_argnames=[
+        'physics_models',
         'coeffs_callback',
         'evolving_names',
         'initial_guess_mode',

@@ -49,6 +49,7 @@ MIN_DELTA: Final[float] = 1e-7
     jax.jit,
     static_argnames=[
         'evolving_names',
+        'physics_models',
         'coeffs_callback',
         'initial_guess_mode',
         'log_iterations',

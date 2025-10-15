@@ -190,6 +190,7 @@ def theta_method_matrix_equation(
     jax.jit,
     static_argnames=[
         'evolving_names',
+        'physics_models',
     ],
 )
 def theta_method_block_residual(
@@ -277,6 +278,7 @@ def theta_method_block_residual(
 @functools.partial(
     jax.jit,
     static_argnames=[
+        'physics_models',
         'evolving_names',
     ],
 )
@@ -335,6 +337,7 @@ def theta_method_block_loss(
 @functools.partial(
     jax.jit,
     static_argnames=[
+        'physics_models',
         'evolving_names',
     ],
 )
