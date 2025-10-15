@@ -17,15 +17,18 @@ import dataclasses
 import functools
 
 import immutabledict
-import jax
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
 
-@jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class SourceModels:
-  """Source models for the different equations being evolved in Torax."""
+  """Source models for the different equations being evolved in Torax.
+
+  This class is intended for use as a static argument to jitted Jax
+  functions. It is thus immutable and supports comparison and hashing
+  by value, and is not a pytree.
+  """
 
   qei_source: qei_source_lib.QeiSource
   standard_sources: immutabledict.immutabledict[str, source_lib.Source]
