@@ -38,14 +38,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   n_e_ped_is_fGW: array_typing.BoolScalar
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   """A basic version of the pedestal model that uses direct specification."""
-
-  def __init__(
-      self,
-  ):
-    super().__init__()
-    self._frozen = True
 
   @override
   def _call_implementation(
@@ -77,9 +72,3 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
             geo.rho_norm - pedestal_params.rho_norm_ped_top
         ).argmin(),
     )
-
-  def __hash__(self) -> int:
-    return hash('SetTemperatureDensityPedestalModel')
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, SetTemperatureDensityPedestalModel)
