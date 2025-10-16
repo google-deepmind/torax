@@ -77,9 +77,23 @@ class QualikizTransportModelTest(parameterized.TestCase):
     })
     transport_model = torax_config.transport.build_transport_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(*model_inputs)
+    pedestal_policy = torax_config.pedestal.set_pedestal.build_pedestal_policy()
+    runtime_params, geo, core_profiles = model_inputs
+    pedestal_policy_state = pedestal_policy.initial_state(
+        t=torax_config.numerics.t_initial,
+        runtime_params=runtime_params.pedestal_policy,
+    )
+    pedestal_model_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, pedestal_policy_state
+    )
 
-    core_transport = transport_model(*model_inputs, pedestal_model_outputs)
+    core_transport = transport_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_policy_state,
+        pedestal_model_outputs,
+    )
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.chi_face_el.shape, expected_shape)

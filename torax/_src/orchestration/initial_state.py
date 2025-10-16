@@ -53,6 +53,7 @@ def get_initial_state_and_post_processed_outputs(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
+      t=t,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
@@ -68,6 +69,7 @@ def _get_initial_state(
     runtime_params: runtime_params_slice.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
+    t: float,
 ) -> sim_state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   physics_models = step_fn.solver.physics_models
@@ -92,6 +94,12 @@ def _get_initial_state(
       ),
   )
 
+  pedestal_policy = physics_models.pedestal_model.pedestal_policy
+
+  initial_pedestal_policy_state = pedestal_policy.initial_state(
+      t, runtime_params.pedestal_policy
+  )
+
   transport_coeffs = (
       transport_coefficients_builder.calculate_total_transport_coeffs(
           physics_models.pedestal_model,
@@ -100,6 +108,7 @@ def _get_initial_state(
           runtime_params,
           geo,
           initial_core_profiles,
+          initial_pedestal_policy_state,
       )
   )
 
@@ -116,6 +125,7 @@ def _get_initial_state(
           sawtooth_crash=False,
       ),
       geometry=geo,
+      pedestal_policy_state=initial_pedestal_policy_state,
   )
 
 
@@ -161,6 +171,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
+      t=t_initial,
   )
   scalars_dataset = data_tree.children[output.SCALARS].dataset
   scalars_dataset = scalars_dataset.squeeze()
