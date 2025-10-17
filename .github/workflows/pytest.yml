@@ -10,7 +10,7 @@ on:
   push:
   schedule:
     # Trigger tests every day at 02:00 UTC.
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
 
 # Concurrency config borrowed from tensorflow_datasets.
 concurrency:
@@ -22,7 +22,7 @@ concurrency:
 env:
   TORAX_ERRORS_ENABLED: 1
   TORAX_JAXTYPING: 1
-  PYTEST_NUM_SHARDS: 8  # Controls tests sharding enabled by `pytest-shard`
+  PYTEST_NUM_SHARDS: 8 # Controls tests sharding enabled by `pytest-shard`
 
 jobs:
   shards-job:
@@ -43,7 +43,7 @@ jobs:
   pytest-job:
     needs: shards-job
 
-    name: '[${{ matrix.os-version }}][Python ${{ matrix.python-version }}][${{ matrix.shard-id }}/${{ matrix.num-shards }}] Core TORAX tests'
+    name: "[${{ matrix.os-version }}][Python ${{ matrix.python-version }}][${{ matrix.shard-id }}/${{ matrix.num-shards }}] Core TORAX tests"
     runs-on: ${{ matrix.os-version }}
     timeout-minutes: 30
     strategy:
@@ -53,31 +53,40 @@ jobs:
         # Can't reference env variables in matrix
         num-shards: ${{ fromJson(needs.shards-job.outputs.num-shards) }}
         shard-id: ${{ fromJson(needs.shards-job.outputs.shard-ids) }}
-        python-version: ['3.11']
+        python-version: ["3.11"]
         os-version: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v4
+      # Checkout torax
+      - uses: actions/checkout@v4
 
-    # Install deps
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      # Checkout tglfnn-ukaea
+      - uses: actions/checkout@v4
+        with:
+          repository: "ukaea/tglfnn-ukaea"
+          path: "external_dependencies/tglfnn-ukaea"
+          lfs: "true"
 
-    - run: pip --version
+      # Install deps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - run: pip install -e .[dev]
-    - run: pip freeze
+      - run: pip --version
 
-    # Run tests (in parallel)
-    - name: Run core tests
-      run: |
-        pytest \
-          -vv -n auto \
-          --ignore=torax/tests/sim_no_compile_test.py \
-          --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
-    # This test requires an extra environment variable, so we run it separately.
-    - name: Run sim_no_compile
-      if: ${{ matrix.shard-id == 2 }}
-      run: |
-        JAX_DISABLE_JIT=True pytest -vv -n auto torax/tests/sim_no_compile_test.py
+      - run: pip install -e .[dev]
+      - run: pip freeze
+
+        # Run tests (in parallel)
+      - name: Run core tests
+        run: |
+          TGLFNN_UKAEA_DIR=external_dependencies/tglfnn-ukaea \
+          pytest \
+            -vv -n auto \
+            --ignore=torax/tests/sim_no_compile_test.py \
+            --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
+      # This test requires an extra environment variable, so we run it separately.
+      - name: Run sim_no_compile
+        if: ${{ matrix.shard-id == 2 }}
+        run: |
+          JAX_DISABLE_JIT=True pytest -vv -n auto torax/tests/sim_no_compile_test.py
