@@ -27,6 +27,7 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
+from torax._src.fvm import jax_fixed_point
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
 
@@ -76,7 +77,7 @@ def predictor_corrector_method(
 
   # predictor-corrector loop. Will only be traversed once if not in
   # predictor-corrector mode
-  def loop_body(i, x_new_guess):  # pylint: disable=unused-argument
+  def loop_body(x_new_guess):
     coeffs_new = coeffs_callback(
         runtime_params_t_plus_dt,
         geo_t_plus_dt,
@@ -98,12 +99,13 @@ def predictor_corrector_method(
     )
 
   if solver_params.use_predictor_corrector:
-    x_new = jax.lax.fori_loop(
-        0,
-        runtime_params_t_plus_dt.solver.n_corrector_steps + 1,
+    x_new = jax_fixed_point.fixed_point(
         loop_body,
         x_new_guess,
+        maxiter=solver_params.n_corrector_steps + 1,
+        xtol=None,
+        method='iteration',
     )
   else:
-    x_new = loop_body(0, x_new_guess)
+    x_new = loop_body(x_new_guess)
   return x_new

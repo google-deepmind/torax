@@ -26,7 +26,7 @@ from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
-
+from torax._src.fvm import jax_fixed_point
 # pylint: disable=invalid-name
 # pylint: disable=unused-variable
 
@@ -361,8 +361,7 @@ def _inverse_mode_fixed_step_solver(
 ) -> divertor_sol_1d_lib.DivertorSOL1D:
   """Runs the fixed-step iterative solver for the inverse mode."""
 
-  def body_fun(i, current_sol_state):
-    del i  # Unused.
+  def body_fun(current_sol_state):
 
     new_q_parallel = extended_lengyel_formulas.calculate_q_parallel(
         separatrix_electron_temp=current_sol_state.separatrix_electron_temp,
@@ -384,9 +383,7 @@ def _inverse_mode_fixed_step_solver(
     # Solve for the impurity concentration required to achieve the target
     # temperature for a given q_parallel. This also updates the divertor and
     # separatrix Z_eff values in sol_state, used downstream.
-    new_c_z_prefactor, _ = _solve_for_c_z_prefactor(
-        sol_state=current_sol_state
-    )
+    new_c_z_prefactor, _ = _solve_for_c_z_prefactor(sol_state=current_sol_state)
     current_sol_state = dataclasses.replace(
         current_sol_state,
         c_z_prefactor=new_c_z_prefactor,
@@ -420,8 +417,12 @@ def _inverse_mode_fixed_step_solver(
 
     return current_sol_state
 
-  sol_state = jax.lax.fori_loop(
-      lower=0, upper=iterations, body_fun=body_fun, init_val=sol_state
+  sol_state = jax_fixed_point.fixed_point(
+      func=body_fun,
+      x0=sol_state,
+      method='iteration',
+      maxiter=iterations,
+      xtol=None,
   )
   return sol_state
 

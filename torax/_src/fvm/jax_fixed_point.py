@@ -14,20 +14,22 @@
 
 """JAX fixed point functions."""
 
-from typing import Callable, Literal
+from typing import Any, Callable, Literal, TypeAlias
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
 
+PyTree: TypeAlias = Any
+
 
 def fixed_point(
     func: Callable[..., jax.Array],
-    x0: jax.Array,
-    args: tuple[jax.Array, ...] = (),
+    x0: PyTree,
+    args: tuple[PyTree, ...] = (),
     xtol: float | None = 1e-08,
     maxiter: int = 500,
     method: Literal['del2', 'iteration'] = 'del2',
-) -> jax.Array:
+) -> PyTree:
   """A JAX version of `scipy.optimize.fixed_point`.
 
   Unlike `scipy.optimize.fixed_point`, this function will not raise a
@@ -59,16 +61,25 @@ def fixed_point(
     out1 = func(x, *args)
     if method == 'del2':
       out2 = func(out1, *args)
-      d = out2 - 2.0 * out1 + x
-      out3 = x - (out1 - x) ** 2 / d
-      out = jax.lax.select(d != 0, out3, out2)
+
+      def _del2(p0, p1, p2):
+        d = p2 - 2.0 * p1 + x
+        out3 = x - (p1 - p0) ** 2 / d
+        return jax.lax.select(d != 0, out3, p2)
+
+      out = jax.tree.map(_del2, x, out1, out2)
     else:
       out = out1
 
     if xtol:
-      relative_error = (out - x) / x
-      relerr = jax.lax.select(x != 0, relative_error, out)
-      stop = jnp.all(jnp.abs(relerr) < xtol)
+
+      def _relative_error(actual, expected):
+        relative_error = (actual - expected) / expected
+        relerr = jax.lax.select(x != 0, relative_error, actual)
+        return jnp.all(jnp.abs(relerr) < xtol)
+
+      stop = jax.tree.map(_relative_error, out, x)
+      stop = jnp.all(jnp.hstack(jax.tree.leaves(stop)))
     else:
       stop = jnp.array(False, dtype=jnp.bool_)
     count += 1
