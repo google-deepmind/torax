@@ -28,6 +28,7 @@ from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.solver import common as solver_common
 from torax._src.sources import source_profiles
 import typing_extensions
 
@@ -132,7 +133,7 @@ class Solver(abc.ABC):
       x_new = tuple()
       solver_numeric_output = state.SolverNumericOutputs(
           sawtooth_crash=False,
-          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          solver_error_state=solver_common.SolverError.converged,
           inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       )

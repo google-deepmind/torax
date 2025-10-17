@@ -24,6 +24,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.solver import common as solver_common
 from torax._src.solver import solver
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -124,7 +125,7 @@ class SawtoothSolver(solver.Solver):
 
       solver_numeric_outputs_post_step = state.SolverNumericOutputs(
           sawtooth_crash=True,
-          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          solver_error_state=solver_common.SolverError.converged,
           inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
           outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       )
@@ -143,7 +144,7 @@ class SawtoothSolver(solver.Solver):
             tuple([getattr(core_profiles_t, name) for name in evolving_names]),
             state.SolverNumericOutputs(
                 sawtooth_crash=False,
-                solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+                solver_error_state=solver_common.SolverError.converged,
                 inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
                 outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
             ),

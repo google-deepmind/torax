@@ -25,6 +25,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.solver import common
 import typing_extensions
 
 
@@ -221,10 +222,7 @@ class SolverNumericOutputs:
   Attributes:
     outer_solver_iterations: Number of iterations performed in the outer loop of
       the solver.
-    solver_error_state: 0 if solver converged with fine tolerance for this step
-      1 if solver did not converge for this step (was above coarse tol) 2 if
-      solver converged within coarse tolerance. Allowed to pass with a warning.
-      Occasional error=2 has low impact on final sim state.
+    solver_error_state: A `SolverError` enum value.
     inner_solver_iterations: Total number of iterations performed in the solver
       across all iterations of the solver.
     sawtooth_crash: True if a sawtooth model is active and the solver step
@@ -232,7 +230,7 @@ class SolverNumericOutputs:
   """
 
   outer_solver_iterations: array_typing.IntScalar
-  solver_error_state: array_typing.IntScalar
+  solver_error_state: common.SolverError
   inner_solver_iterations: array_typing.IntScalar
   sawtooth_crash: array_typing.BoolScalar
 

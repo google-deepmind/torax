@@ -32,6 +32,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.solver import common as solver_common
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
@@ -170,7 +171,7 @@ def optimizer_solve_block(
   solver_numeric_outputs = state.SolverNumericOutputs(
       inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-      solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_error_state=solver_common.SolverError.converged,
       sawtooth_crash=False,
   )
 
@@ -202,10 +203,8 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  solver_numeric_outputs.solver_error_state = jax.lax.cond(
-      final_loss > tol,
-      lambda: 1,  # Called when True
-      lambda: 0,  # Called when False
+  solver_numeric_outputs.solver_error_state = solver_common.get_solver_error(
+      scalar_condition=final_loss, tol=tol
   )
 
   return x_new, solver_numeric_outputs

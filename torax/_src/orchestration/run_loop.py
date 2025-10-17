@@ -24,6 +24,7 @@ from torax._src.config import build_runtime_params
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.solver import common as solver_common
 import tqdm
 
 
@@ -202,11 +203,11 @@ def _log_timestep(
   # TODO(b/330172917): once tol and coarse_tol are configurable in the
   # runtime_params, also log the value of tol and coarse_tol below
   match current_state.solver_numeric_outputs.solver_error_state:
-    case 0:
+    case solver_common.SolverError.converged:
       pass
-    case 1:
+    case solver_common.SolverError.not_converged:
       log_str += ' Solver did not converge in previous step.'
-    case 2:
+    case solver_common.SolverError.weakly_converged:
       log_str += (
           ' Solver converged only within coarse tolerance in previous step.'
       )
