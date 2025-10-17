@@ -20,6 +20,7 @@ from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src.orchestration import adaptive_step
 from torax._src.orchestration import run_simulation
+from torax._src.solver import common as solver_common
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -54,7 +55,7 @@ class AdaptiveStepTest(parameterized.TestCase):
     self.assertFalse(initial_state.solver_numeric_outputs.sawtooth_crash)
     self.assertEqual(
         initial_state.solver_numeric_outputs.solver_error_state,
-        jnp.array(1, jax_utils.get_int_dtype()),
+        solver_common.SolverError.not_converged,
     )
     self.assertEqual(
         initial_state.solver_numeric_outputs.outer_solver_iterations,
@@ -98,7 +99,7 @@ class AdaptiveStepTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='solver_converged',
-          solver_error_state=0,
+          solver_error_state=solver_common.SolverError.converged,
           dt=0.1,
           runtime_params_numerics_updates={},
           sim_state_updates={},
@@ -106,7 +107,7 @@ class AdaptiveStepTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='solver_did_not_converge_dt_not_too_small',
-          solver_error_state=1,
+          solver_error_state=solver_common.SolverError.not_converged,
           dt=0.05,
           runtime_params_numerics_updates={'min_dt': 0.01},
           sim_state_updates={},
@@ -114,7 +115,7 @@ class AdaptiveStepTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='solver_did_not_converge_dt_too_small',
-          solver_error_state=1,
+          solver_error_state=solver_common.SolverError.not_converged,
           dt=0.05,
           runtime_params_numerics_updates={'min_dt': 0.1},
           sim_state_updates={},
@@ -122,7 +123,7 @@ class AdaptiveStepTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='solver_did_not_converge_dt_too_small_at_t_final',
-          solver_error_state=1,
+          solver_error_state=solver_common.SolverError.not_converged,
           dt=0.1,
           runtime_params_numerics_updates={
               'exact_t_final': True,
@@ -134,7 +135,7 @@ class AdaptiveStepTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='dt_is_nan',
-          solver_error_state=1,
+          solver_error_state=solver_common.SolverError.not_converged,
           dt=jnp.nan,
           runtime_params_numerics_updates={},
           sim_state_updates={},

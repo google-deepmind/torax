@@ -28,6 +28,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
+from torax._src.solver import common as solver_common
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -57,7 +58,7 @@ def create_initial_state(
   initial_solver_numeric_outputs = state.SolverNumericOutputs(
       # The solver has not converged yet as we have not performed
       # any steps yet.
-      solver_error_state=jnp.array(1, jax_utils.get_int_dtype()),
+      solver_error_state=solver_common.SolverError.not_converged,
       outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       sawtooth_crash=False,
@@ -117,14 +118,17 @@ def compute_state(
       'inner_solver_iterations'
   ] += solver_numeric_outputs.inner_solver_iterations
 
-  return AdaptiveStepState(
-      x_new,
-      dt,
-      solver_numeric_outputs,
-      runtime_params_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-  ), loop_statistics
+  return (
+      AdaptiveStepState(
+          x_new,
+          dt,
+          solver_numeric_outputs,
+          runtime_params_t_plus_dt,
+          geo_t_plus_dt,
+          core_profiles_t_plus_dt,
+      ),
+      loop_statistics,
+  )
 
 
 def cond_fun(
@@ -145,7 +149,10 @@ def cond_fun(
   is_nan_next_dt = jnp.isnan(next_dt)
 
   # If the solver did not converge we need to make a new step.
-  solver_did_not_converge = solver_outputs.solver_error_state == 1
+  solver_did_not_converge = (
+      solver_outputs.solver_error_state
+      == solver_common.SolverError.not_converged
+  )
 
   # If t + dt  is exactly the final time we may need a smaller step than
   # min_dt to exactly reach the final time.

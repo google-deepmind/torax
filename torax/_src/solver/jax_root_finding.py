@@ -16,11 +16,11 @@
 import dataclasses
 import functools
 from typing import Callable, Final
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
+from torax._src.solver import common
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
@@ -34,7 +34,7 @@ class RootMetadata:
   iterations: jax.Array
   residual: jax.Array
   last_tau: jax.Array
-  error: jax.Array
+  error: common.SolverError
 
 
 def root_newton_raphson(
@@ -128,15 +128,10 @@ def root_newton_raphson(
   else:
     x_out, metadata = _newton_raphson(fun, x0)
 
-  # Tell the caller whether or not x_new successfully reduces the residual below
-  # the tolerance by providing an extra output, error.
-  # error = 0: residual converged within fine tolerance (tol)
-  # error = 1: not converged. Possibly backtrack to smaller dt and retry
-  # error = 2: residual not strictly converged but is still within reasonable
-  # tolerance (coarse_tol). Can occur when solver exits early due to small steps
-  # in solution vicinity. Proceed but provide a warning to user.
-  error = _error_cond(
-      residual=metadata['residual'], coarse_tol=coarse_tol, tol=tol
+  error = common.get_solver_error(
+      scalar_condition=_residual_scalar(metadata['residual']),
+      coarse_tol=coarse_tol,
+      tol=tol,
   )
   # Workaround for https://github.com/google/jax/issues/24295: cast iterations
   # to the correct int dtype.
@@ -144,18 +139,6 @@ def root_newton_raphson(
       jax_utils.get_int_dtype()
   )
   return x_out, RootMetadata(**metadata, error=error)
-
-
-def _error_cond(residual: jax.Array, coarse_tol: float, tol: float):
-  return jax.lax.cond(
-      _residual_scalar(residual) < tol,
-      lambda: 0,  # Called when True
-      lambda: jax.lax.cond(  # Called when False
-          _residual_scalar(residual) < coarse_tol,
-          lambda: 2,  # Called when True
-          lambda: 1,  # Called when False
-      ),
-  )
 
 
 def _residual_scalar(x):

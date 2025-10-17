@@ -395,7 +395,10 @@ class SimulationStepFn:
     result = whilei_loop.whilei_loop(
         adaptive_step.cond_fun,
         functools.partial(adaptive_step.compute_state, solver=self.solver),
-        (initial_state, initial_loop_stats,),
+        (
+            initial_state,
+            initial_loop_stats,
+        ),
         initial_dt,
         runtime_params_t,
         geo_t,
@@ -409,10 +412,7 @@ class SimulationStepFn:
     ), 'adaptive step state is not the expected type.'
 
     final_solver_numeric_outputs = state.SolverNumericOutputs(
-        solver_error_state=jnp.array(
-            result.state.solver_numeric_outputs.solver_error_state,
-            jax_utils.get_int_dtype(),
-        ),
+        solver_error_state=result.state.solver_numeric_outputs.solver_error_state,
         outer_solver_iterations=jnp.array(
             result.counter, jax_utils.get_int_dtype()
         ),

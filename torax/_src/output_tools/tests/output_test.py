@@ -33,6 +33,7 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from torax._src.solver import common as solver_common
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
@@ -69,11 +70,9 @@ class StateHistoryTest(parameterized.TestCase):
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
-    runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            self.torax_config
-        )(t=0.0)
-    )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self.torax_config
+    )(t=0.0)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
@@ -111,8 +110,7 @@ class StateHistoryTest(parameterized.TestCase):
         dt=dt,
         solver_numeric_outputs=state.SolverNumericOutputs(
             outer_solver_iterations=1,
-            solver_error_state=1,
-            inner_solver_iterations=1,
+            inner_solver_iterations=solver_common.SolverError.not_converged,
             sawtooth_crash=False,
         ),
         geometry=self.geo,

@@ -25,6 +25,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.solver import common as solver_common
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -40,9 +41,9 @@ class PostProcessingTest(parameterized.TestCase):
     config['sources'] = default_sources.get_default_source_config()
     torax_config = model_config.ToraxConfig.from_dict(config)
     self.runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(t=0.0)
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=0.0
+        )
     )
     self.geo = torax_config.geometry.build_provider(t=0.0)
     # Make some dummy source profiles.
@@ -206,7 +207,7 @@ class PostProcessingTest(parameterized.TestCase):
         core_sources=source_profiles,
         geometry=self.geo,
         solver_numeric_outputs=state.SolverNumericOutputs(
-            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            solver_error_state=solver_common.SolverError.converged,
             outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             sawtooth_crash=False,
@@ -239,16 +240,20 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
     p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e
     p_external_injected = (
-        state_history._stacked_post_processed_outputs.P_external_injected)
+        state_history._stacked_post_processed_outputs.P_external_injected
+    )
     p_external_total = (
-        state_history._stacked_post_processed_outputs.P_external_total)
+        state_history._stacked_post_processed_outputs.P_external_total
+    )
     e_fusion = state_history._stacked_post_processed_outputs.E_fusion
     e_aux_total = state_history._stacked_post_processed_outputs.E_aux_total
     e_ohmic_e = state_history._stacked_post_processed_outputs.E_ohmic_e
     e_external_injected = (
-        state_history._stacked_post_processed_outputs.E_external_injected)
+        state_history._stacked_post_processed_outputs.E_external_injected
+    )
     e_external_total = (
-        state_history._stacked_post_processed_outputs.E_external_total)
+        state_history._stacked_post_processed_outputs.E_external_total
+    )
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.
@@ -271,8 +276,9 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(e_fusion, e_fusion_expected)
     np.testing.assert_allclose(e_aux_total, e_aux_total_expected)
     np.testing.assert_allclose(e_ohmic_e, e_ohmic_e_expected)
-    np.testing.assert_allclose(e_external_injected,
-                               e_external_injected_expected)
+    np.testing.assert_allclose(
+        e_external_injected, e_external_injected_expected
+    )
     np.testing.assert_allclose(e_external_total, e_external_total_expected)
 
 

@@ -24,6 +24,7 @@ from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.solver import common as solver_common
 from torax._src.solver import predictor_corrector_method
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles
@@ -109,7 +110,7 @@ class LinearThetaMethod(solver_lib.Solver):
         ),
         outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
         # linear method always works
-        solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+        solver_error_state=solver_common.SolverError.converged,
         sawtooth_crash=False,
     )
 

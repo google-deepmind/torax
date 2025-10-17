@@ -32,9 +32,9 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
-from torax._src.fvm import jax_root_finding
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.solver import jax_root_finding
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
@@ -149,8 +149,7 @@ def newton_raphson_solve_block(
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
     solver_numeric_outputs: state_module.SolverNumericOutputs. Iteration and
-      error info. For the error, 0 signifies residual < tol at exit, 1 signifies
-      residual > tol, steps became small.
+      error info.
   """
   # pyformat: enable
 
@@ -239,7 +238,7 @@ def newton_raphson_solve_block(
       inner_solver_iterations=jnp.array(
           metadata.iterations, jax_utils.get_int_dtype()
       ),
-      solver_error_state=jnp.array(metadata.error, jax_utils.get_int_dtype()),
+      solver_error_state=metadata.error,
       outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
       sawtooth_crash=False,
   )
