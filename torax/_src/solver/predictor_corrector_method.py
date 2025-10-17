@@ -27,8 +27,8 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
-from torax._src.fvm import jax_fixed_point
 from torax._src.geometry import geometry
+from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
 

@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy import optimize
-from torax._src.fvm import jax_fixed_point
+from torax._src.solver import jax_fixed_point
 
 
 def _func_np(x, c1, c2):

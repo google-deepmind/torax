@@ -26,7 +26,7 @@ from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
-from torax._src.fvm import jax_fixed_point
+from torax._src.solver import jax_fixed_point
 # pylint: disable=invalid-name
 # pylint: disable=unused-variable
 
