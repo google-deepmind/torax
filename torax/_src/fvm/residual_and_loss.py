@@ -395,7 +395,7 @@ def jaxopt_solver(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )
-  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
+  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, implicit_diff=True)
   solver_output = solver.run(init_x_new_vec)
   x_new_vec = solver_output.params
   final_loss = loss(x_new_vec)
