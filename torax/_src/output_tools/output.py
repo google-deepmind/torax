@@ -17,14 +17,12 @@ from collections.abc import Sequence
 import dataclasses
 import inspect
 import itertools
-
 import os
 
 from absl import logging
 import chex
 import jax
 import numpy as np
-import os
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
@@ -58,14 +56,14 @@ Z_IMPURITY = "Z_impurity"
 Z_EFF = "Z_eff"
 SIGMA_PARALLEL = "sigma_parallel"
 V_LOOP_LCFS = "v_loop_lcfs"
-J_TOTAL = "j_total"
 IP_PROFILE = "Ip_profile"
+J_TOTAL = "j_parallel_total"
 IP = "Ip"
 
 # Calculated or derived currents.
-J_OHMIC = "j_ohmic"
-J_EXTERNAL = "j_external"
-J_BOOTSTRAP = "j_bootstrap"
+J_OHMIC = "j_parallel_ohmic"
+J_EXTERNAL = "j_parallel_external"
+J_BOOTSTRAP = "j_parallel_bootstrap"
 I_BOOTSTRAP = "I_bootstrap"
 
 # Core transport.
@@ -494,6 +492,7 @@ class StateHistory:
         "Ip_profile_face": IP_PROFILE,
         "q_face": Q,
         "s_face": MAGNETIC_SHEAR,
+        "j_total": J_TOTAL,
     }
 
     core_profile_field_names = {
@@ -630,7 +629,7 @@ class StateHistory:
       else:
         xr_dict[f"p_{profile}_e"] = self._stacked_core_sources.T_e[profile]
     for profile in self._stacked_core_sources.psi:
-      xr_dict[f"j_{profile}"] = self._stacked_core_sources.psi[profile]
+      xr_dict[f"j_parallel_{profile}"] = self._stacked_core_sources.psi[profile]
     for profile in self._stacked_core_sources.n_e:
       xr_dict[f"s_{profile}"] = self._stacked_core_sources.n_e[profile]
 
