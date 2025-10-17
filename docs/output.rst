@@ -701,24 +701,24 @@ Working with output data
 ========================
 
 To demonstrate xarray and numpy manipulations of output data, the following
-code carries out volume integration of ``alpha_e`` and ``alpha_i`` at the time
-closest to t=1. The result equals the input config
-``sources['fusion']['P_total']`` at the time closest to t=1.
+code carries out volume integration of ``p_alpha_e`` and ``p_alpha_i`` at the
+time closest to t=1. The result equals the output quantity
+``scalars.P_alpha_total`` at the time closest to t=1.
 
 The netCDF file is assumed to be in the working directory.
 
 .. code-block:: python
 
   import numpy as np
-  from torax import output
+  import xarray as xr
 
-  data_tree = output.load_state_file('state_history.nc').sel(time=1.0, method='nearest')
-  alpha_electron = data_tree.profiles.alpha_e
-  alpha_ion = data_tree.profiles.alpha_i
+  filepath = 'state_history.nc'
+  data_tree = xr.open_datatree(filepath).sel(time=1.0, method='nearest')
+  alpha_electron = data_tree.profiles.p_alpha_e
+  alpha_ion = data_tree.profiles.p_alpha_i
   vpr = data_tree.profiles.vpr.sel(rho_norm=data_tree.rho_cell_norm)
 
-  P_total = np.trapz((alpha_el + alpha_ion) * vpr, data_tree.rho_cell_norm)
-
+  P_total = np.trapezoid((alpha_electron + alpha_ion) * vpr, data_tree.rho_cell_norm)
 
 It is possible to retrieve the input config from the output for debugging
 purposes or to rerun the simulation.
@@ -727,10 +727,11 @@ purposes or to rerun the simulation.
 
   import json
   import torax
-  from torax import output
+  import xarray as xr
 
-  data_tree = output.load_state_file('state_history.nc')
-  config_dict = json.loads(data_tree.attrs['config'])
+  filepath = 'state_history.nc'
+  data_tree = xr.open_datatree(filepath).sel(time=1.0, method='nearest')
+  config_dict = json.loads(data_tree.config)
   # Check which transport model was used.
   print(config_dict['transport']['model_name'])
   # We can also use ToraxConfig to run the simulation again.
