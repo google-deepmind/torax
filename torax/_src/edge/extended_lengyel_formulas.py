@@ -219,32 +219,6 @@ def calc_fieldline_pitch_at_omp(
   )
 
 
-def calc_electron_temp_at_cc_interface(
-    target_electron_temp: array_typing.FloatScalar,
-) -> jax.Array:
-  """Calculates the electron temperature at the convection/conduction interface.
-
-  This function determines the electron temperature at the boundary between the
-  convection-dominated sheath/divertor region and the upstream conduction layer.
-  It uses empirical fit functions for momentum and density loss within the
-  convection layer, which depend on the electron temperature at the divertor
-  target. The formula relates the interface temperature to the target
-  temperature modified by these loss factors.
-
-  See section 4 of T. Body et al 2025 Nucl. Fusion 65 086002 for details.
-  https://doi.org/10.1088/1741-4326/ade4d9
-
-  Args:
-    target_electron_temp: Electron temperature at the divertor target [eV].
-
-  Returns:
-    The electron temperature at the convection/conduction interface [eV].
-  """
-  momentum_loss = calc_momentum_loss_in_convection_layer(target_electron_temp)
-  density_loss = calc_density_ratio_in_convection_layer(target_electron_temp)
-  return target_electron_temp / ((1.0 - momentum_loss) / (2.0 * density_loss))
-
-
 def calc_alpha_t(
     separatrix_electron_density: array_typing.FloatScalar,
     separatrix_electron_temp: array_typing.FloatScalar,

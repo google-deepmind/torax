@@ -45,16 +45,24 @@ class DivertorSOL1DInverseModeTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self._RTOL = 1e-6
-    self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=3.39611623e8,
-        c_z_prefactor=0.059314229517142096,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.0,
+    params = divertor_sol_1d.ExtendedLengyelParameters(
+        # Dummy values for unused parameters in these specific tests.
+        major_radius=1.0,
+        minor_radius=1.0,
+        separatrix_average_poloidal_field=1.0,
+        fieldline_pitch_at_omp=1.0,
+        cylindrical_safety_factor=1.0,
+        power_crossing_separatrix=1.0,
+        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        fraction_of_P_SOL_to_divertor=extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR,
+        target_angle_of_incidence=extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE,
+        wall_temperature=extended_lengyel_defaults.WALL_TEMPERATURE,
+        ratio_of_molecular_to_ion_mass=extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS,
+        # Parameters from reference case
         main_ion_charge=1.0,
         seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
         fixed_impurity_concentrations={'He': 0.01},
         ne_tau=extended_lengyel_defaults.NE_TAU,
-        target_electron_temp=2.34,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
         divertor_parallel_length=5.0,
@@ -69,6 +77,17 @@ class DivertorSOL1DInverseModeTest(parameterized.TestCase):
         target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
         target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
+    )
+    state = divertor_sol_1d.ExtendedLengyelState(
+        q_parallel=3.39611623e8,
+        c_z_prefactor=0.059314229517142096,
+        kappa_e=1751.6010938527386,
+        alpha_t=0.0,
+        target_electron_temp=2.34,
+    )
+    self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
+        params=params,
+        state=state,
     )
 
   def test_electron_temp_at_cc_interface(self):
@@ -122,11 +141,20 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self._RTOL = 5e-5
-    self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
-        q_parallel=5.061935771095335e8,
-        c_z_prefactor=0.0,
-        kappa_e=1931.8277173925928,
-        alpha_t=0.0,
+    params = divertor_sol_1d.ExtendedLengyelParameters(
+        # Dummy values for unused parameters in these specific tests.
+        major_radius=1.0,
+        minor_radius=1.0,
+        separatrix_average_poloidal_field=1.0,
+        fieldline_pitch_at_omp=1.0,
+        cylindrical_safety_factor=1.0,
+        power_crossing_separatrix=1.0,
+        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        fraction_of_P_SOL_to_divertor=extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR,
+        target_angle_of_incidence=extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE,
+        wall_temperature=extended_lengyel_defaults.WALL_TEMPERATURE,
+        ratio_of_molecular_to_ion_mass=extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS,
+        # Parameters from reference case
         seed_impurity_weights={},
         fixed_impurity_concentrations={
             'He': 0.01,
@@ -135,7 +163,6 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
         },
         main_ion_charge=1.0,
         ne_tau=extended_lengyel_defaults.NE_TAU,
-        target_electron_temp=2.34,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
         divertor_parallel_length=5.0,
@@ -150,6 +177,17 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
         target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
         target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
+    )
+    state = divertor_sol_1d.ExtendedLengyelState(
+        q_parallel=5.061935771095335e8,
+        c_z_prefactor=0.0,
+        kappa_e=1931.8277173925928,
+        alpha_t=0.0,
+        target_electron_temp=2.34,
+    )
+    self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
+        params=params,
+        state=state,
     )
 
   def test_calc_target_electron_temp(self):
