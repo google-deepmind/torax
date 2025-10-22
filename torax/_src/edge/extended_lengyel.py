@@ -323,8 +323,10 @@ def run_extended_lengyel_model(
         iterations=fixed_step_iterations,
     )
   elif solver_key == (ComputationMode.INVERSE, SolverMode.NEWTON_RAPHSON):
-    raise NotImplementedError(
-        'Newton-Raphson solver is not yet implemented for inverse mode.'
+    output_sol_model, _ = extended_lengyel_solvers.inverse_mode_newton_solver(
+        initial_sol_model=initial_sol_model,
+        maxiter=newton_raphson_iterations,
+        tol=newton_raphson_tol,
     )
   elif solver_key == (ComputationMode.FORWARD, SolverMode.NEWTON_RAPHSON):
     output_sol_model, _ = extended_lengyel_solvers.forward_mode_newton_solver(

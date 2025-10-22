@@ -216,7 +216,16 @@ def forward_mode_newton_solver(
       status and number of iterations.
   """
   # 1. Create initial guess state vector.
-  x0 = _pack_forward_state(initial_sol_model.state)
+  # Uses log space for strictly positive variables and to improve conditioning.
+  # alpha_t is left linear since should always remain O(1) and log steps
+  # can lead to numerical issues due to exponential amplification. Positivity is
+  # enforced via softplus when unpacking.
+  x0 = jnp.stack([
+      jnp.log(initial_sol_model.state.q_parallel),
+      initial_sol_model.state.alpha_t,
+      jnp.log(initial_sol_model.state.kappa_e),
+      jnp.log(initial_sol_model.state.target_electron_temp),
+  ])
 
   # 2. Define residual function, closing over params and fixed c_z.
   fixed_cz = initial_sol_model.state.c_z_prefactor
@@ -232,7 +241,13 @@ def forward_mode_newton_solver(
   )
 
   # 4. Construct final model.
-  final_state = _unpack_forward_state(x_root, fixed_cz)
+  final_state = divertor_sol_1d_lib.ExtendedLengyelState(
+      q_parallel=jnp.exp(x_root[0]),
+      alpha_t=jax.nn.softplus(x_root[1]),
+      kappa_e=jnp.exp(x_root[2]),
+      target_electron_temp=jnp.exp(x_root[3]),
+      c_z_prefactor=fixed_cz,
+  )
   final_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
       params=params, state=final_state
   )
@@ -240,54 +255,69 @@ def forward_mode_newton_solver(
   return final_sol_model, metadata
 
 
-def _pack_forward_state(
-    state: divertor_sol_1d_lib.ExtendedLengyelState,
-) -> jax.Array:
-  """Packs forward mode state variables into a vector optimized for solving.
+def inverse_mode_newton_solver(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    maxiter: int = 30,
+    tol: float = 1e-5,
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, jax_root_finding.RootMetadata]:
+  """Runs the Newton-Raphson solver for the inverse mode.
 
-  Uses log space for strictly positive variables and to improve conditioning.
-  alpha_t is left linear (no log) since should always remain O(1) and log steps
-  can lead to numerical issues due to exponential amplification. Positivity is
-  enforced via softplus in the unpack function.
+  Solves for {q_parallel, alpha_t, kappa_e, c_z_prefactor} given a fixed
+  target electron temperature.
 
   Args:
-    state: An ExtendedLengyelState object containing the plasma state variables
-      in physical units.
+    initial_sol_model: A DivertorSOL1D object containing the initial plasma
+      parameters and a fixed target electron temperature.
+    maxiter: Maximum number of iterations for the Newton-Raphson solver.
+    tol: Tolerance for convergence of the Newton-Raphson solver.
 
   Returns:
-    x_vec: A vector of variable values transformed for solving.
+    final_sol_model: The updated DivertorSOL1D object with the solved state
+      variables.
+    metadata: Metadata from the root-finding process, including convergence
+      status and number of iterations.
   """
-  return jnp.stack([
-      jnp.log(state.q_parallel),
-      state.alpha_t,
-      jnp.log(state.kappa_e),
-      jnp.log(state.target_electron_temp),
+  # 1. Create initial guess state vector.
+
+  # Uses log space for strictly positive variables and to improve conditioning.
+  # alpha_t is left linear since should always remain O(1) and log steps
+  # can lead to numerical issues due to exponential amplification. Positivity is
+  # enforced via softplus when unpacking.
+
+  x0 = jnp.stack([
+      jnp.log(initial_sol_model.state.q_parallel),
+      initial_sol_model.state.alpha_t,
+      jnp.log(initial_sol_model.state.kappa_e),
+      initial_sol_model.state.c_z_prefactor,
   ])
 
+  # 2. Define residual function, closing over params and fixed T_t.
+  fixed_Tt = initial_sol_model.state.target_electron_temp
+  params = initial_sol_model.params
 
-def _unpack_forward_state(
-    x_vec: jax.Array, fixed_cz: jax.Array
-) -> divertor_sol_1d_lib.ExtendedLengyelState:
-  """Unpacks solver vector into a State object.
-
-  Applies exp() to logged variables to enforce strict positivity.
-  Applies softplus() to alpha_t to enforce positivity.
-
-  Args:
-    x_vec: A vector of variable values transformed for solving.
-    fixed_cz: The fixed impurity concentration scaling factor (typically zero).
-
-  Returns:
-    state: An ExtendedLengyelState object containing the plasma state variables
-      in physical units.
-  """
-  return divertor_sol_1d_lib.ExtendedLengyelState(
-      q_parallel=jnp.exp(x_vec[0]),
-      alpha_t=jax.nn.softplus(x_vec[1]),
-      kappa_e=jnp.exp(x_vec[2]),
-      target_electron_temp=jnp.exp(x_vec[3]),
-      c_z_prefactor=fixed_cz,
+  residual_fun = functools.partial(
+      _inverse_residual, params=params, fixed_Tt=fixed_Tt
   )
+
+  # 3. Run Newton-Raphson.
+  x_root, metadata = jax_root_finding.root_newton_raphson(
+      residual_fun, x0, maxiter=maxiter, tol=tol, use_jax_custom_root=True
+  )
+
+  # 4. Construct final model.
+  final_state = divertor_sol_1d_lib.ExtendedLengyelState(
+      q_parallel=jnp.exp(x_root[0]),
+      alpha_t=jax.nn.softplus(x_root[1]),
+      kappa_e=jnp.exp(x_root[2]),
+      c_z_prefactor=x_root[3],
+      target_electron_temp=fixed_Tt,
+  )
+
+  final_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
+      params=params, state=final_state
+  )
+
+  return final_sol_model, metadata
 
 
 def _forward_residual(
@@ -297,7 +327,13 @@ def _forward_residual(
 ) -> jax.Array:
   """Calculates the residual vector for Forward Mode F(x) = 0."""
   # 1. Construct physical state from vector guess (uses exp/softplus).
-  current_state = _unpack_forward_state(x_vec, fixed_cz)
+  current_state = divertor_sol_1d_lib.ExtendedLengyelState(
+      q_parallel=jnp.exp(x_vec[0]),
+      alpha_t=jax.nn.softplus(x_vec[1]),
+      kappa_e=jnp.exp(x_vec[2]),
+      target_electron_temp=jnp.exp(x_vec[3]),
+      c_z_prefactor=fixed_cz,
+  )
   temp_model = divertor_sol_1d_lib.DivertorSOL1D(
       params=params, state=current_state
   )
@@ -353,6 +389,71 @@ def _forward_residual(
   r_Tt = jnp.log(Tt_calc_safe) - x_vec[3]
 
   return jnp.stack([r_qp, r_at, r_ke, r_Tt])
+
+
+def _inverse_residual(
+    x_vec: jax.Array,
+    params: divertor_sol_1d_lib.ExtendedLengyelParameters,
+    fixed_Tt: jax.Array,
+) -> jax.Array:
+  """Calculates the residual vector for Inverse Mode F(x) = 0."""
+  # 1. Construct physical state from vector guess.
+  current_state = divertor_sol_1d_lib.ExtendedLengyelState(
+      q_parallel=jnp.exp(x_vec[0]),
+      alpha_t=jax.nn.softplus(x_vec[1]),
+      kappa_e=jnp.exp(x_vec[2]),
+      c_z_prefactor=x_vec[3],
+      target_electron_temp=fixed_Tt,
+  )
+
+  temp_model = divertor_sol_1d_lib.DivertorSOL1D(
+      params=params, state=current_state
+  )
+
+  # 2. Calculate next guess of state variables.
+
+  # a) q_parallel
+  qp_calc = extended_lengyel_formulas.calculate_q_parallel(
+      separatrix_electron_temp=temp_model.separatrix_electron_temp,
+      average_ion_mass=params.average_ion_mass,
+      separatrix_average_poloidal_field=params.separatrix_average_poloidal_field,
+      alpha_t=current_state.alpha_t,
+      ratio_of_upstream_to_average_poloidal_field=params.ratio_of_upstream_to_average_poloidal_field,
+      fraction_of_PSOL_to_divertor=params.fraction_of_P_SOL_to_divertor,
+      minor_radius=params.minor_radius,
+      major_radius=params.major_radius,
+      power_crossing_separatrix=params.power_crossing_separatrix,
+      fieldline_pitch_at_omp=params.fieldline_pitch_at_omp,
+  )
+
+  # b) alpha_t
+  at_calc = extended_lengyel_formulas.calc_alpha_t(
+      separatrix_electron_density=params.separatrix_electron_density,
+      separatrix_electron_temp=temp_model.separatrix_electron_temp / 1e3,
+      cylindrical_safety_factor=params.cylindrical_safety_factor,
+      major_radius=params.major_radius,
+      average_ion_mass=params.average_ion_mass,
+      Z_eff=temp_model.separatrix_Z_eff,
+      mean_ion_charge_state=1.0,
+  )
+
+  # c) kappa_e
+  ke_calc = extended_lengyel_formulas.calc_kappa_e(temp_model.divertor_Z_eff)
+
+  # d) c_z_prefactor
+  cz_calc, _ = _solve_for_c_z_prefactor(sol_model=temp_model)
+
+  # 3. Compute residuals in solver space for conditioning.
+  qp_calc_safe = jnp.maximum(qp_calc, constants.CONSTANTS.eps)
+  ke_calc_safe = jnp.maximum(ke_calc, constants.CONSTANTS.eps)
+  at_calc_safe = jnp.maximum(at_calc, constants.CONSTANTS.eps)
+
+  r_qp = jnp.log(qp_calc_safe) - x_vec[0]
+  r_at = at_calc_safe - current_state.alpha_t
+  r_ke = jnp.log(ke_calc_safe) - x_vec[2]
+  r_cz = cz_calc - current_state.c_z_prefactor
+
+  return jnp.stack([r_qp, r_at, r_ke, r_cz])
 
 
 def _solve_for_c_z_prefactor(
