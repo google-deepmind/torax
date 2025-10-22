@@ -23,7 +23,7 @@ import dataclasses
 from torax._src.sources import source as source_lib
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 

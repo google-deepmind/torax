@@ -66,7 +66,7 @@ def calc_puff_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
