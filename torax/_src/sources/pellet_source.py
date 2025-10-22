@@ -56,7 +56,7 @@ def calc_pellet_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class PelletSource(source.Source):
   """Pellet source for the n_e equation."""
 

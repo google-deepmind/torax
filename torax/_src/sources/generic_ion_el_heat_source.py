@@ -104,7 +104,7 @@ def default_formula(
   return (ion, el)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
