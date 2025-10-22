@@ -319,59 +319,60 @@ def run_extended_lengyel_model(
   solver_key = (computation_mode, solver_mode)
 
   # ComputationMode enum is a static variable so can use standard flow.
-  if solver_key == (ComputationMode.INVERSE, SolverMode.FIXED_STEP):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.inverse_mode_fixed_step_solver(
-            initial_sol_model=initial_sol_model,
-            iterations=fixed_step_iterations,
-        )
-    )
-  elif solver_key == (ComputationMode.FORWARD, SolverMode.FIXED_STEP):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.forward_mode_fixed_step_solver(
-            initial_sol_model=initial_sol_model,
-            iterations=fixed_step_iterations,
-        )
-    )
-  elif solver_key == (ComputationMode.INVERSE, SolverMode.NEWTON_RAPHSON):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.inverse_mode_newton_solver(
-            initial_sol_model=initial_sol_model,
-            maxiter=newton_raphson_iterations,
-            tol=newton_raphson_tol,
-        )
-    )
-  elif solver_key == (ComputationMode.FORWARD, SolverMode.NEWTON_RAPHSON):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.forward_mode_newton_solver(
-            initial_sol_model=initial_sol_model,
-            maxiter=newton_raphson_iterations,
-            tol=newton_raphson_tol,
-        )
-    )
-  elif solver_key == (ComputationMode.INVERSE, SolverMode.HYBRID):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.inverse_mode_hybrid_solver(
-            initial_sol_model=initial_sol_model,
-            fixed_step_iterations=hybrid_fixed_step_iterations,
-            newton_raphson_iterations=newton_raphson_iterations,
-            newton_raphson_tol=newton_raphson_tol,
-        )
-    )
-  elif solver_key == (ComputationMode.FORWARD, SolverMode.HYBRID):
-    output_sol_model, solver_status = (
-        extended_lengyel_solvers.forward_mode_hybrid_solver(
-            initial_sol_model=initial_sol_model,
-            fixed_step_iterations=hybrid_fixed_step_iterations,
-            newton_raphson_iterations=newton_raphson_iterations,
-            newton_raphson_tol=newton_raphson_tol,
-        )
-    )
-  else:
-    raise ValueError(
-        'Invalid computation and solver mode combination:'
-        f' {computation_mode}, {solver_mode}'
-    )
+  match solver_key:
+    case (ComputationMode.INVERSE, SolverMode.FIXED_STEP):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.inverse_mode_fixed_step_solver(
+              initial_sol_model=initial_sol_model,
+              iterations=fixed_step_iterations,
+          )
+      )
+    case (ComputationMode.FORWARD, SolverMode.FIXED_STEP):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.forward_mode_fixed_step_solver(
+              initial_sol_model=initial_sol_model,
+              iterations=fixed_step_iterations,
+          )
+      )
+    case (ComputationMode.INVERSE, SolverMode.NEWTON_RAPHSON):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.inverse_mode_newton_solver(
+              initial_sol_model=initial_sol_model,
+              maxiter=newton_raphson_iterations,
+              tol=newton_raphson_tol,
+          )
+      )
+    case (ComputationMode.FORWARD, SolverMode.NEWTON_RAPHSON):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.forward_mode_newton_solver(
+              initial_sol_model=initial_sol_model,
+              maxiter=newton_raphson_iterations,
+              tol=newton_raphson_tol,
+          )
+      )
+    case (ComputationMode.INVERSE, SolverMode.HYBRID):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.inverse_mode_hybrid_solver(
+              initial_sol_model=initial_sol_model,
+              fixed_step_iterations=hybrid_fixed_step_iterations,
+              newton_raphson_iterations=newton_raphson_iterations,
+              newton_raphson_tol=newton_raphson_tol,
+          )
+      )
+    case (ComputationMode.FORWARD, SolverMode.HYBRID):
+      output_sol_model, solver_status = (
+          extended_lengyel_solvers.forward_mode_hybrid_solver(
+              initial_sol_model=initial_sol_model,
+              fixed_step_iterations=hybrid_fixed_step_iterations,
+              newton_raphson_iterations=newton_raphson_iterations,
+              newton_raphson_tol=newton_raphson_tol,
+          )
+      )
+    case _:
+      raise ValueError(
+          'Invalid computation and solver mode combination:'
+          f' {computation_mode}, {solver_mode}'
+      )
 
   # --------------------------------------- #
   # -------- 3. Post-processing ----------- #
