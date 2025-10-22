@@ -22,7 +22,6 @@ from torax._src import constants
 from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_formulas
 from torax._src.fvm import jax_root_finding
 # pylint: disable=invalid-name
 
@@ -93,17 +92,10 @@ def inverse_mode_fixed_step_solver(
 
     current_sol_model, _ = carry
 
-    current_sol_model.state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+    current_sol_model.state.q_parallel = divertor_sol_1d_lib.calc_q_parallel(
+        params=current_sol_model.params,
         separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
-        average_ion_mass=current_sol_model.params.average_ion_mass,
-        separatrix_average_poloidal_field=current_sol_model.params.separatrix_average_poloidal_field,
         alpha_t=current_sol_model.state.alpha_t,
-        ratio_of_upstream_to_average_poloidal_field=current_sol_model.params.ratio_of_upstream_to_average_poloidal_field,
-        fraction_of_PSOL_to_divertor=current_sol_model.params.fraction_of_P_SOL_to_divertor,
-        minor_radius=current_sol_model.params.minor_radius,
-        major_radius=current_sol_model.params.major_radius,
-        power_crossing_separatrix=current_sol_model.params.power_crossing_separatrix,
-        fieldline_pitch_at_omp=current_sol_model.params.fieldline_pitch_at_omp,
     )
 
     # Solve for the impurity concentration required to achieve the target
@@ -114,19 +106,14 @@ def inverse_mode_fixed_step_solver(
     )
 
     # Update alpha_t for the next loop iteration.
-    current_sol_model.state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=current_sol_model.params.separatrix_electron_density,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp
-        / 1e3,
-        cylindrical_safety_factor=current_sol_model.params.cylindrical_safety_factor,
-        major_radius=current_sol_model.params.major_radius,
-        average_ion_mass=current_sol_model.params.average_ion_mass,
-        Z_eff=current_sol_model.separatrix_Z_eff,
-        mean_ion_charge_state=1.0,
+    current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
+        params=current_sol_model.params,
+        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
+        separatrix_Z_eff=current_sol_model.separatrix_Z_eff,
     )
 
     # Update kappa_e for the next loop iteration.
-    current_sol_model.state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
+    current_sol_model.state.kappa_e = divertor_sol_1d_lib.calc_kappa_e(
         current_sol_model.divertor_Z_eff
     )
 
@@ -167,43 +154,32 @@ def forward_mode_fixed_step_solver(
     prev_sol_model = current_sol_model
 
     # Update q_parallel based on the current separatrix temperature and alpha_t.
-    current_sol_model.state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
+    current_sol_model.state.q_parallel = divertor_sol_1d_lib.calc_q_parallel(
+        params=current_sol_model.params,
         separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
-        average_ion_mass=current_sol_model.params.average_ion_mass,
-        separatrix_average_poloidal_field=current_sol_model.params.separatrix_average_poloidal_field,
         alpha_t=current_sol_model.state.alpha_t,
-        ratio_of_upstream_to_average_poloidal_field=current_sol_model.params.ratio_of_upstream_to_average_poloidal_field,
-        fraction_of_PSOL_to_divertor=current_sol_model.params.fraction_of_P_SOL_to_divertor,
-        minor_radius=current_sol_model.params.minor_radius,
-        major_radius=current_sol_model.params.major_radius,
-        power_crossing_separatrix=current_sol_model.params.power_crossing_separatrix,
-        fieldline_pitch_at_omp=current_sol_model.params.fieldline_pitch_at_omp,
     )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
     new_q_cc, physics_outcome = _solve_for_qcc(sol_model=current_sol_model)
 
     # Calculate new target electron temperature with forward two-point model.
-    current_sol_model.state.target_electron_temp = divertor_sol_1d_lib.calc_target_electron_temp(
-        sol_model=current_sol_model,
-        parallel_heat_flux_at_cc_interface=new_q_cc,
-        previous_target_electron_temp=current_sol_model.state.target_electron_temp,
+    current_sol_model.state.target_electron_temp = (
+        divertor_sol_1d_lib.calc_target_electron_temp(
+            sol_model=current_sol_model,
+            parallel_heat_flux_at_cc_interface=new_q_cc,
+        )
     )
 
     # Update kappa_e and alpha_t for the next iteration.
-    current_sol_model.state.kappa_e = extended_lengyel_formulas.calc_kappa_e(
+    current_sol_model.state.kappa_e = divertor_sol_1d_lib.calc_kappa_e(
         current_sol_model.divertor_Z_eff
     )
 
-    current_sol_model.state.alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=current_sol_model.params.separatrix_electron_density,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp
-        / 1e3,
-        cylindrical_safety_factor=current_sol_model.params.cylindrical_safety_factor,
-        major_radius=current_sol_model.params.major_radius,
-        average_ion_mass=current_sol_model.params.average_ion_mass,
-        Z_eff=current_sol_model.separatrix_Z_eff,
-        mean_ion_charge_state=1.0,
+    current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
+        params=current_sol_model.params,
+        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
+        separatrix_Z_eff=current_sol_model.separatrix_Z_eff,
     )
 
     # Relaxation step after the first iteration
@@ -445,39 +421,27 @@ def _forward_residual(
   # 2. Calculate next guess of state variables.
 
   # a) q_parallel
-  qp_calc = extended_lengyel_formulas.calculate_q_parallel(
+  qp_calc = divertor_sol_1d_lib.calc_q_parallel(
+      params=params,
       separatrix_electron_temp=temp_model.separatrix_electron_temp,
-      average_ion_mass=params.average_ion_mass,
-      separatrix_average_poloidal_field=params.separatrix_average_poloidal_field,
       alpha_t=current_state.alpha_t,
-      ratio_of_upstream_to_average_poloidal_field=params.ratio_of_upstream_to_average_poloidal_field,
-      fraction_of_PSOL_to_divertor=params.fraction_of_P_SOL_to_divertor,
-      minor_radius=params.minor_radius,
-      major_radius=params.major_radius,
-      power_crossing_separatrix=params.power_crossing_separatrix,
-      fieldline_pitch_at_omp=params.fieldline_pitch_at_omp,
   )
 
   # b) alpha_t
-  at_calc = extended_lengyel_formulas.calc_alpha_t(
-      separatrix_electron_density=params.separatrix_electron_density,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp / 1e3,
-      cylindrical_safety_factor=params.cylindrical_safety_factor,
-      major_radius=params.major_radius,
-      average_ion_mass=params.average_ion_mass,
-      Z_eff=temp_model.separatrix_Z_eff,
-      mean_ion_charge_state=1.0,
+  at_calc = divertor_sol_1d_lib.calc_alpha_t(
+      params=temp_model.params,
+      separatrix_electron_temp=temp_model.separatrix_electron_temp,
+      separatrix_Z_eff=temp_model.separatrix_Z_eff,
   )
 
   # c) kappa_e
-  ke_calc = extended_lengyel_formulas.calc_kappa_e(temp_model.divertor_Z_eff)
+  ke_calc = divertor_sol_1d_lib.calc_kappa_e(temp_model.divertor_Z_eff)
 
   # d) T_t
   q_cc_calc, _ = _solve_for_qcc(sol_model=temp_model)
   Tt_calc = divertor_sol_1d_lib.calc_target_electron_temp(
       sol_model=temp_model,
       parallel_heat_flux_at_cc_interface=q_cc_calc,
-      previous_target_electron_temp=current_state.target_electron_temp,
   )
 
   # 3. Compute residuals in solver space for conditioning.
@@ -517,32 +481,21 @@ def _inverse_residual(
   # 2. Calculate next guess of state variables.
 
   # a) q_parallel
-  qp_calc = extended_lengyel_formulas.calculate_q_parallel(
+  qp_calc = divertor_sol_1d_lib.calc_q_parallel(
+      params=params,
       separatrix_electron_temp=temp_model.separatrix_electron_temp,
-      average_ion_mass=params.average_ion_mass,
-      separatrix_average_poloidal_field=params.separatrix_average_poloidal_field,
       alpha_t=current_state.alpha_t,
-      ratio_of_upstream_to_average_poloidal_field=params.ratio_of_upstream_to_average_poloidal_field,
-      fraction_of_PSOL_to_divertor=params.fraction_of_P_SOL_to_divertor,
-      minor_radius=params.minor_radius,
-      major_radius=params.major_radius,
-      power_crossing_separatrix=params.power_crossing_separatrix,
-      fieldline_pitch_at_omp=params.fieldline_pitch_at_omp,
   )
 
   # b) alpha_t
-  at_calc = extended_lengyel_formulas.calc_alpha_t(
-      separatrix_electron_density=params.separatrix_electron_density,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp / 1e3,
-      cylindrical_safety_factor=params.cylindrical_safety_factor,
-      major_radius=params.major_radius,
-      average_ion_mass=params.average_ion_mass,
-      Z_eff=temp_model.separatrix_Z_eff,
-      mean_ion_charge_state=1.0,
+  at_calc = divertor_sol_1d_lib.calc_alpha_t(
+      params=temp_model.params,
+      separatrix_electron_temp=temp_model.separatrix_electron_temp,
+      separatrix_Z_eff=temp_model.separatrix_Z_eff,
   )
 
   # c) kappa_e
-  ke_calc = extended_lengyel_formulas.calc_kappa_e(temp_model.divertor_Z_eff)
+  ke_calc = divertor_sol_1d_lib.calc_kappa_e(temp_model.divertor_Z_eff)
 
   # d) c_z_prefactor
   cz_calc, _ = _solve_for_c_z_prefactor(sol_model=temp_model)

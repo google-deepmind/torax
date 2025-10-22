@@ -111,6 +111,7 @@ def run_extended_lengyel_model(
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
     average_ion_mass: array_typing.FloatScalar,
+    mean_ion_charge_state: array_typing.FloatScalar,
     target_electron_temp: array_typing.FloatScalar | None = None,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None = None,
     computation_mode: ComputationMode = ComputationMode.FORWARD,
@@ -167,6 +168,8 @@ def run_extended_lengyel_model(
     elongation_psi95: Elongation at psiN=0.95.
     triangularity_psi95: Triangularity at psiN=0.95.
     average_ion_mass: Average main-ion mass [amu].
+    mean_ion_charge_state: Mean ion charge state [dimensionless]. Defined as
+      n_e/(sum_i n_i).
     target_electron_temp: For inverse mode, desired electron temperature at
       sheath entrance [eV].
     seed_impurity_weights: For inverse mode, Mapping from ion symbol to
@@ -262,6 +265,7 @@ def run_extended_lengyel_model(
       fixed_impurity_concentrations=fixed_impurity_concentrations,
       ne_tau=ne_tau,
       main_ion_charge=main_ion_charge,
+      mean_ion_charge_state=mean_ion_charge_state,
       divertor_broadening_factor=divertor_broadening_factor,
       divertor_parallel_length=divertor_parallel_length,
       parallel_connection_length=parallel_connection_length,
@@ -282,17 +286,10 @@ def run_extended_lengyel_model(
   c_z_prefactor_init = 0.0
   kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
   separatrix_electron_temp_init = 100.0  # [eV], needed to initialize q_parallel
-  q_parallel_init = extended_lengyel_formulas.calculate_q_parallel(
+  q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
+      params=params,
       separatrix_electron_temp=separatrix_electron_temp_init,
-      average_ion_mass=params.average_ion_mass,
-      separatrix_average_poloidal_field=params.separatrix_average_poloidal_field,
       alpha_t=alpha_t_init,
-      ratio_of_upstream_to_average_poloidal_field=params.ratio_of_upstream_to_average_poloidal_field,
-      fraction_of_PSOL_to_divertor=params.fraction_of_P_SOL_to_divertor,
-      minor_radius=params.minor_radius,
-      major_radius=params.major_radius,
-      power_crossing_separatrix=params.power_crossing_separatrix,
-      fieldline_pitch_at_omp=params.fieldline_pitch_at_omp,
   )
 
   if computation_mode == ComputationMode.INVERSE:

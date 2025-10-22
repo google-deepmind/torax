@@ -22,39 +22,6 @@ from torax._src.edge import extended_lengyel_formulas
 
 class ExtendedLengyelFormulasTest(absltest.TestCase):
 
-  def test_calc_alpha_t(self):
-    """Test calc_alpha_t against reference values."""
-
-    # Inputs and output from the first loop of the reference case in
-    # https://github.com/cfs-energy/extended-lengyel
-    separatrix_electron_density = 3.3e19  # m^-3
-    separatrix_electron_temp = 0.1062293618373  # keV
-    cylindrical_safety_factor = 3.7290303009853  # dimensionless
-    major_radius = 1.65  # m
-    average_ion_mass = 2.0  # [amu]
-    Z_eff = 2.329589485913357  # dimensionless
-    mean_ion_charge_state = 1.0  # elementary charge
-    ion_to_electron_temp_ratio = 1.0  # dimensionless
-
-    expected_alpha_t = 0.4020393753155751
-
-    calculated_alpha_t = extended_lengyel_formulas.calc_alpha_t(
-        separatrix_electron_density=separatrix_electron_density,
-        separatrix_electron_temp=separatrix_electron_temp,
-        cylindrical_safety_factor=cylindrical_safety_factor,
-        major_radius=major_radius,
-        average_ion_mass=average_ion_mass,
-        Z_eff=Z_eff,
-        mean_ion_charge_state=mean_ion_charge_state,
-        ion_to_electron_temp_ratio=ion_to_electron_temp_ratio,
-    )
-
-    np.testing.assert_allclose(
-        calculated_alpha_t,
-        expected_alpha_t,
-        rtol=1e-5,
-    )
-
   def test_calc_momentum_loss_in_convection_layer(self):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
@@ -193,39 +160,6 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         rtol=1e-5,
     )
 
-  def test_calculate_q_parallel(self):
-    separatrix_average_poloidal_field = 0.28506577
-    alpha_t = 0.0
-    fieldline_pitch_at_omp = 5.14589459864493
-    separatrix_election_temp = 100.0  # [eV]
-    average_ion_mass = 2.0  # [amu]
-    power_crossing_separatrix = 5.5e6  # [W]
-    major_radius = 1.65  # [m]
-    minor_radius = 0.5  # [m]
-
-    # reference value from the first loop of the reference case in
-    # https://github.com/cfs-energy/extended-lengyel
-    expected_q_parallel = 506.193577e6
-
-    calculated_q_parallel = extended_lengyel_formulas.calculate_q_parallel(
-        separatrix_electron_temp=separatrix_election_temp,
-        average_ion_mass=average_ion_mass,
-        separatrix_average_poloidal_field=separatrix_average_poloidal_field,
-        alpha_t=alpha_t,
-        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
-        fraction_of_PSOL_to_divertor=extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR,
-        major_radius=major_radius,
-        minor_radius=minor_radius,
-        power_crossing_separatrix=power_crossing_separatrix,
-        fieldline_pitch_at_omp=fieldline_pitch_at_omp,
-    )
-
-    np.testing.assert_allclose(
-        calculated_q_parallel,
-        expected_q_parallel,
-        rtol=1e-5,
-    )
-
   def test_calc_Z_eff(self):
 
     c_z = 0.059314229517142054
@@ -250,15 +184,6 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     np.testing.assert_allclose(
         calculated_Z_eff,
         expected_Z_eff,
-        rtol=1e-5,
-    )
-
-  def test_calc_kappa_e(self):
-    expected_value = 1751.6010938527386
-    Z_eff = 2.291360670810858
-    np.testing.assert_allclose(
-        extended_lengyel_formulas.calc_kappa_e(Z_eff),
-        expected_value,
         rtol=1e-5,
     )
 

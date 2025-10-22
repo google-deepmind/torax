@@ -11,7 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Helper physics formulas for the extended Lengyel model."""
+"""A collection of helper physics formulas for the extended Lengyel model.
+
+This module provides self-contained functions for calculating various physical
+quantities and empirical fits used throughout the extended Lengyel model. These
+functions are the building blocks for the more complex, interconnected model
+logic defined in `divertor_sol_1d.py`.
+
+This includes:
+- Empirical fits for momentum, density, and power loss in the convection layer.
+- Formulas related to magnetic geometry (e.g., shaping factor, safety factor).
+- Calculation of effective ion charge (Z_eff) based on impurity concentrations.
+"""
 
 from typing import Mapping
 import jax
@@ -219,182 +230,6 @@ def calc_fieldline_pitch_at_omp(
   )
 
 
-def calc_alpha_t(
-    separatrix_electron_density: array_typing.FloatScalar,
-    separatrix_electron_temp: array_typing.FloatScalar,
-    cylindrical_safety_factor: array_typing.FloatScalar,
-    major_radius: array_typing.FloatScalar,
-    average_ion_mass: array_typing.FloatScalar,
-    Z_eff: array_typing.FloatScalar,
-    mean_ion_charge_state: array_typing.FloatScalar,
-    ion_to_electron_temp_ratio: array_typing.FloatScalar = 1.0,
-) -> array_typing.FloatScalar:
-  """Calculate the turbulence broadening parameter alpha_t.
-
-  Equation 9 from T. Eich et al. Nuclear Fusion, 60(5), 056016. (2020),
-  with an additional factor of an ion_to_electron_temp_ratio.
-  https://doi.org/10.1088/1741-4326/ab7a66
-
-  Args:
-    separatrix_electron_density: electron density at the separatrix [m^-3].
-    separatrix_electron_temp: electron temperature at the separatrix [keV].
-    cylindrical_safety_factor: cylindrical safety factor [dimensionless].
-    major_radius: major radius [m].
-    average_ion_mass: average ion mass [amu].
-    Z_eff: effective ion charge [dimensionless].
-    mean_ion_charge_state: mean ion charge state [dimensionless]. Defined as
-      n_e/(sum_i n_i).
-    ion_to_electron_temp_ratio: ratio of ion to electron temperature.
-
-  Returns:
-    alpha_t: the turbulence parameter alpha_t.
-  """
-  separatrix_electron_temp_ev = separatrix_electron_temp * 1e3
-  average_ion_mass_kg = average_ion_mass * constants.CONSTANTS.m_amu
-
-  # Variant from Verdoolaege et al., 2021 Nucl. Fusion 61 076006.
-  # Differs from Wesson 3rd edition p727 by a small absolute value of 0.1.
-  coulomb_logarithm = (
-      30.9
-      - 0.5 * jnp.log(separatrix_electron_density)
-      + jnp.log(separatrix_electron_temp_ev)
-  )
-
-  # Plasma ion sound speed. Differs from that stated in Eich 2020 by the
-  # inclusion of the mean ion charge state.
-  ion_sound_speed = jnp.sqrt(
-      mean_ion_charge_state
-      * separatrix_electron_temp_ev
-      * constants.CONSTANTS.eV_to_J
-      / average_ion_mass_kg
-  )
-
-  # electron-electron collision frequency. Equation B1 from Eich 2020.
-  # In log space to avoid over/underflows in fp32.
-  log_nu_ee = (
-      jnp.log(4.0 / 3.0)
-      + 0.5 * jnp.log(2.0 * jnp.pi)
-      + jnp.log(separatrix_electron_density)
-      + 4 * jnp.log(constants.CONSTANTS.q_e)
-      + jnp.log(coulomb_logarithm)
-      - 2 * jnp.log(4.0 * jnp.pi * constants.CONSTANTS.epsilon_0)
-      - 0.5 * jnp.log(constants.CONSTANTS.m_e)
-      - 1.5 * jnp.log(separatrix_electron_temp_ev * constants.CONSTANTS.eV_to_J)
-  )
-
-  nu_ee = jnp.exp(log_nu_ee)
-
-  # Z_eff correction to transform electron-electron collisions to ion-electron
-  # collisions. Equation B2 in Eich 2020
-  Z_eff_correction = (1.0 - 0.569) * jnp.exp(
-      -(((Z_eff - 1.0) / 3.25) ** 0.85)
-  ) + 0.569
-
-  nu_ei = nu_ee * Z_eff_correction * Z_eff
-
-  # Equation 9 from Eich 2020, with an additional factor of an
-  # ion_to_electron_temp_ratio.
-  alpha_t = (
-      1.02
-      * nu_ei
-      / ion_sound_speed
-      * (1.0 * constants.CONSTANTS.m_e / average_ion_mass_kg)
-      * cylindrical_safety_factor**2
-      * major_radius
-      * (1.0 + ion_to_electron_temp_ratio / mean_ion_charge_state)
-  )
-
-  return alpha_t
-
-
-def calculate_q_parallel(
-    *,
-    separatrix_electron_temp: array_typing.FloatScalar,
-    average_ion_mass: array_typing.FloatScalar,
-    separatrix_average_poloidal_field: array_typing.FloatScalar,
-    alpha_t: array_typing.FloatScalar,
-    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
-    fraction_of_PSOL_to_divertor: array_typing.FloatScalar,
-    major_radius: array_typing.FloatScalar,
-    minor_radius: array_typing.FloatScalar,
-    power_crossing_separatrix: array_typing.FloatScalar,
-    fieldline_pitch_at_omp: array_typing.FloatScalar,
-) -> jax.Array:
-  """Calculates the parallel heat flux density.
-
-  For the flux-tube assumed in the extended Lengyel model.
-  See T. Body et al 2025 Nucl. Fusion 65 086002 for details.
-  https://doi.org/10.1088/1741-4326/ade4d9
-
-  Args:
-    separatrix_electron_temp: Electron temperature at the separatrix [eV].
-    average_ion_mass: Average ion mass [amu].
-    separatrix_average_poloidal_field: Average poloidal magnetic field at the
-      separatrix [T].
-    alpha_t: Turbulence broadening parameter alpha_t.
-    ratio_of_upstream_to_average_poloidal_field: Bpol_omp / Bpol_avg.
-    fraction_of_PSOL_to_divertor: Fraction of PSOL to divertor [dimensionless].
-    major_radius: Major radius [m].
-    minor_radius: Minor radius [m].
-    power_crossing_separatrix: Power crossing the separatrix [W].
-    fieldline_pitch_at_omp: Ratio of total to poloidal magnetic field at the
-      outboard midplane.
-
-  Returns:
-    q_parallel: Parallel heat flux density [W/m^2].
-  """
-
-  # Body NF 2025 Eq 53.
-  separatrix_average_rho_s_pol = (
-      jnp.sqrt(
-          separatrix_electron_temp
-          * average_ion_mass
-          * constants.CONSTANTS.m_amu
-          / constants.CONSTANTS.q_e
-      )
-      / separatrix_average_poloidal_field
-  )
-
-  # Body NF 2025 Eq 49.
-  separatrix_average_lambda_q = (
-      0.6 * (1.0 + 2.1 * alpha_t**1.7) * separatrix_average_rho_s_pol
-  )
-
-  # Scaling lambda_q by the scalings of the average and upstream toroidal and
-  # poloidal fields. Body NF 2025 Eq 50.
-  ratio_of_upstream_to_average_lambda_q = (
-      ratio_of_upstream_to_average_poloidal_field
-      * (major_radius + minor_radius)
-      / major_radius
-  )
-  lambda_q_outboard_midplane = (
-      separatrix_average_lambda_q / ratio_of_upstream_to_average_lambda_q
-  )
-
-  # Power reduction for the fraction of power inside one e-folding length
-  # (lambda_q).
-  fraction_of_power_entering_flux_tube = (
-      1.0 - 1.0 / jnp.e
-  ) * fraction_of_PSOL_to_divertor
-
-  # Parallel heat flux at the target.
-  # Body NF 2025 Eq 48.
-
-  q_parallel = (
-      power_crossing_separatrix
-      * fraction_of_power_entering_flux_tube
-      / (
-          2.0
-          * jnp.pi
-          * (major_radius + minor_radius)
-          * lambda_q_outboard_midplane
-      )
-      * fieldline_pitch_at_omp
-  )
-
-  return q_parallel
-
-
 def calc_Z_eff(
     *,
     c_z: array_typing.FloatScalar,
@@ -454,22 +289,3 @@ def calc_Z_eff(
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
   return Z_eff[0]  # Return scalar for extended-lengyel.
-
-
-def calc_kappa_e(Z_eff: array_typing.FloatScalar) -> jax.Array:
-  """Corrected parallel electron heat conductivity prefactor.
-
-  Eq 9, Body NF 2025.
-  https://doi.org/10.1088/1741-4326/ade4d9
-
-  Eq 10, A.P. Brown A.O. and R.J. Goldston 2021 Nucl. Mater. Energy 27 101002
-  https://doi.org/10.1016/j.nme.2021.101002
-
-  Args:
-    Z_eff: Effective ion charge.
-
-  Returns:
-    Corrected parallel electron heat conductivity prefactor [W/(m*eV^3.5)].
-  """
-  kappa_z = 0.672 + 0.076 * jnp.sqrt(Z_eff) + 0.252 * Z_eff
-  return extended_lengyel_defaults.KAPPA_E_0 / kappa_z

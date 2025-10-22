@@ -31,6 +31,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'power_crossing_separatrix': 5.5e6,
         'separatrix_electron_density': 3.3e19,
         'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
         'fixed_impurity_concentrations': {'He': 0.01},
         'magnetic_field_on_axis': 2.5,
@@ -123,6 +124,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'power_crossing_separatrix': 5.5e6,
         'separatrix_electron_density': 3.3e19,
         'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
         'seed_impurity_weights': {},
         'fixed_impurity_concentrations': {
             'He': 0.01,
@@ -215,6 +217,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'power_crossing_separatrix': 5.5e6,
         'separatrix_electron_density': 3.3e19,
         'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
         'fixed_impurity_concentrations': {'He': 0.01},
         'magnetic_field_on_axis': 2.5,
@@ -309,6 +312,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'power_crossing_separatrix': 5.5e6,
         'separatrix_electron_density': 3.3e19,
         'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
         'seed_impurity_weights': {},
         'fixed_impurity_concentrations': {
             'He': 0.01,
