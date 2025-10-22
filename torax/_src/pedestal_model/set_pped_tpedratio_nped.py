@@ -40,14 +40,11 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   n_e_ped_is_fGW: array_typing.BoolScalar
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class SetPressureTemperatureRatioAndDensityPedestalModel(
     pedestal_model.PedestalModel
 ):
   """Pedestal model with specification of pressure, temp ratio, and density."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   @override
   def _call_implementation(
@@ -113,9 +110,3 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
         rho_norm_ped_top_idx=ped_idx,
     )
-
-  def __hash__(self) -> int:
-    return hash('SetPressureTemperatureRatioAndDensityPedestalModel')
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, SetPressureTemperatureRatioAndDensityPedestalModel)
