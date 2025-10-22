@@ -15,6 +15,7 @@
 from absl.testing import absltest
 import numpy as np
 from torax._src.edge import extended_lengyel
+from torax._src.edge import extended_lengyel_solvers
 
 # pylint: disable=invalid-name
 
@@ -65,6 +66,14 @@ class ExtendedLengyelTest(absltest.TestCase):
     outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
 
     # --- Assertions ---
+    self.assertEqual(
+        outputs.solver_status.physics_outcome,
+        extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+    )
+    self.assertEqual(
+        outputs.solver_status.numerics_outcome,
+        extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
+    )
     np.testing.assert_allclose(
         outputs.neutral_pressure_in_divertor,
         expected_outputs['neutral_pressure_in_divertor'],
@@ -154,6 +163,14 @@ class ExtendedLengyelTest(absltest.TestCase):
     outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
 
     # --- Assertions ---
+    self.assertEqual(
+        outputs.solver_status.physics_outcome,
+        extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+    )
+    self.assertEqual(
+        outputs.solver_status.numerics_outcome,
+        extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
+    )
     np.testing.assert_allclose(
         outputs.neutral_pressure_in_divertor,
         expected_outputs['neutral_pressure_in_divertor'],
@@ -235,6 +252,14 @@ class ExtendedLengyelTest(absltest.TestCase):
     outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
 
     # --- Assertions ---
+    self.assertEqual(
+        outputs.solver_status.physics_outcome,
+        extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+    )
+    self.assertEqual(
+        outputs.solver_status.numerics_outcome.error,
+        0,
+    )
     np.testing.assert_allclose(
         outputs.neutral_pressure_in_divertor,
         expected_outputs['neutral_pressure_in_divertor'],
@@ -324,6 +349,14 @@ class ExtendedLengyelTest(absltest.TestCase):
     outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
 
     # --- Assertions ---
+    self.assertEqual(
+        outputs.solver_status.physics_outcome,
+        extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+    )
+    self.assertEqual(
+        outputs.solver_status.numerics_outcome.error,
+        0,
+    )
     np.testing.assert_allclose(
         outputs.neutral_pressure_in_divertor,
         expected_outputs['neutral_pressure_in_divertor'],

@@ -54,13 +54,43 @@ class PhysicsOutcome(enum.IntEnum):
   Q_CC_SQUARED_NEGATIVE = 2
 
 
+class FixedStepOutcome(enum.IntEnum):
+  """Status of the fixed-step iterative solver.
+
+  Attributes:
+    SUCCESS: The solver ran successfully. Currently this is the only possible
+      outcome since no convergence criteria (e.g. tolerance) are used.
+  """
+
+  SUCCESS = 0
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ExtendedLengyelSolverStatus:
+  """Container for solver status outputs.
+
+  Attributes:
+    physics_outcome: Outcome of the physics helper functions. See
+      `extended_lengyel_solvers.PhysicsOutcome` for details.
+    numerics_outcome: Outcome of the numerical solver. This will be a
+      `jax_root_finding.RootMetadata` for the Newton-Raphson solver, or a
+      `extended_lengyel_solvers.FixedStepOutcome` for the fixed-step solver.
+  """
+
+  physics_outcome: PhysicsOutcome
+  numerics_outcome: jax_root_finding.RootMetadata | FixedStepOutcome
+
+
 def inverse_mode_fixed_step_solver(
-    sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     iterations: int,
-) -> divertor_sol_1d_lib.DivertorSOL1D:
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-step iterative solver for the inverse mode."""
 
-  def body_fun(_, current_sol_model):
+  def body_fun(_, carry):
+
+    current_sol_model, _ = carry
 
     current_sol_model.state.q_parallel = extended_lengyel_formulas.calculate_q_parallel(
         separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
@@ -78,8 +108,8 @@ def inverse_mode_fixed_step_solver(
     # Solve for the impurity concentration required to achieve the target
     # temperature for a given q_parallel. This also updates the divertor and
     # separatrix Z_eff values in sol_model, used downstream.
-    current_sol_model.state.c_z_prefactor, _ = _solve_for_c_z_prefactor(
-        sol_model=current_sol_model
+    current_sol_model.state.c_z_prefactor, physics_outcome = (
+        _solve_for_c_z_prefactor(sol_model=current_sol_model)
     )
 
     # Update alpha_t for the next loop iteration.
@@ -100,18 +130,27 @@ def inverse_mode_fixed_step_solver(
     )
 
     # Returning the updated-in-place current_sol_model.
-    return current_sol_model
+    return current_sol_model, physics_outcome
 
-  sol_model = jax.lax.fori_loop(
-      lower=0, upper=iterations, body_fun=body_fun, init_val=sol_model
+  final_sol_model, physics_outcome = jax.lax.fori_loop(
+      lower=0,
+      upper=iterations,
+      body_fun=body_fun,
+      init_val=(initial_sol_model, PhysicsOutcome.SUCCESS),
   )
-  return sol_model
+
+  solver_status = ExtendedLengyelSolverStatus(
+      physics_outcome=physics_outcome,
+      numerics_outcome=FixedStepOutcome.SUCCESS,
+  )
+
+  return final_sol_model, solver_status
 
 
 def forward_mode_fixed_step_solver(
-    sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     iterations: int,
-) -> divertor_sol_1d_lib.DivertorSOL1D:
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-step iterative solver for the forward mode."""
 
   # Relaxation function needed for fixed point iteration in forward mode for
@@ -119,7 +158,9 @@ def forward_mode_fixed_step_solver(
   def _relax(new_value, prev_value, relaxation_factor=0.4):
     return relaxation_factor * new_value + (1 - relaxation_factor) * prev_value
 
-  def body_fun(i, current_sol_model):
+  def body_fun(i, carry):
+
+    current_sol_model, _ = carry
 
     # Store current values for the next relaxation step
     prev_sol_model = current_sol_model
@@ -139,7 +180,7 @@ def forward_mode_fixed_step_solver(
     )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
-    new_q_cc, _ = _solve_for_qcc(sol_model=current_sol_model)
+    new_q_cc, physics_outcome = _solve_for_qcc(sol_model=current_sol_model)
 
     # Calculate new target electron temperature with forward two-point model.
     current_sol_model.state.target_electron_temp = divertor_sol_1d_lib.calc_target_electron_temp(
@@ -185,20 +226,28 @@ def forward_mode_fixed_step_solver(
     )
 
     # Returning the updated-in-place current_sol_model.
-    return current_sol_model
+    return current_sol_model, physics_outcome
 
-  sol_model = jax.lax.fori_loop(
-      lower=0, upper=iterations, body_fun=body_fun, init_val=sol_model
+  final_sol_model, physics_outcome = jax.lax.fori_loop(
+      lower=0,
+      upper=iterations,
+      body_fun=body_fun,
+      init_val=(initial_sol_model, PhysicsOutcome.SUCCESS),
   )
 
-  return sol_model
+  solver_status = ExtendedLengyelSolverStatus(
+      physics_outcome=physics_outcome,
+      numerics_outcome=FixedStepOutcome.SUCCESS,
+  )
+
+  return final_sol_model, solver_status
 
 
 def forward_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     maxiter: int = 30,
     tol: float = 1e-5,
-) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, jax_root_finding.RootMetadata]:
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the forward mode.
 
   Solves for {q_parallel, alpha_t, kappa_e, target_electron_temp} given fixed
@@ -253,14 +302,22 @@ def forward_mode_newton_solver(
       params=params, state=final_state
   )
 
-  return final_sol_model, metadata
+  # 5. Re-calculate physics outcome at final state to return the physics_outcome
+  _, physics_outcome = _solve_for_qcc(sol_model=final_sol_model)
+
+  solver_status = ExtendedLengyelSolverStatus(
+      physics_outcome=physics_outcome,
+      numerics_outcome=metadata,
+  )
+
+  return final_sol_model, solver_status
 
 
 def inverse_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     maxiter: int = 30,
     tol: float = 1e-5,
-) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, jax_root_finding.RootMetadata]:
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the inverse mode.
 
   Solves for {q_parallel, alpha_t, kappa_e, c_z_prefactor} given a fixed
@@ -318,7 +375,14 @@ def inverse_mode_newton_solver(
       params=params, state=final_state
   )
 
-  return final_sol_model, metadata
+  # 5. Re-calculate physics outcome at final state to return the physics_outcome
+  _, physics_outcome = _solve_for_c_z_prefactor(sol_model=final_sol_model)
+
+  solver_status = ExtendedLengyelSolverStatus(
+      physics_outcome=physics_outcome,
+      numerics_outcome=metadata,
+  )
+  return final_sol_model, solver_status
 
 
 def _forward_residual(
@@ -459,7 +523,7 @@ def _inverse_residual(
 
 def _solve_for_c_z_prefactor(
     sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, PhysicsOutcome]:
   """Solves the extended Lengyel model for the required impurity concentration.
 
   This function implements the extended Lengyel model in inverse mode,
@@ -477,7 +541,7 @@ def _solve_for_c_z_prefactor(
         To be multiplied by seed_impurity_weights to get each seeded impurity
         concentration. Clipped to zero if the solution required it
         to be negative, which is unphysical.
-      status: A SolveCzStatus enum indicating the outcome of the calculation.
+      status: A PhysicsOutcome enum indicating the outcome of the calculation.
   """
   # Temperatures must be in keV for the L_INT calculation.
   cc_temp_keV = sol_model.electron_temp_at_cc_interface / 1000.0
@@ -582,7 +646,7 @@ def _solve_for_c_z_prefactor(
 
 def _solve_for_qcc(
     sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, PhysicsOutcome]:
   """Calculates the parallel heat flux at the cc-interface for fixed impurities.
 
   This function is part of the extended Lengyel model in forward mode,

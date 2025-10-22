@@ -68,6 +68,7 @@ class ExtendedLengyelOutputs:
     separatrix_electron_temp: Electron temperature at the separatrix [keV].
     separatrix_Z_eff: Z_eff at the separatrix.
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
+    solver_status: Status of the solver.
   """
 
   target_electron_temp: jax.Array
@@ -78,6 +79,7 @@ class ExtendedLengyelOutputs:
   separatrix_electron_temp: jax.Array
   separatrix_Z_eff: jax.Array
   seed_impurity_concentrations: Mapping[str, jax.Array]
+  solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
 
 
 # TODO(b/446608829)
@@ -191,7 +193,8 @@ def run_extended_lengyel_model(
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
 
   Returns:
-    An ExtendedLengyelOutputs object with the calculated values.
+    An ExtendedLengyelOutputs object with the calculated values and solver
+    status.
   """
 
   # --------------------------------------- #
@@ -313,26 +316,34 @@ def run_extended_lengyel_model(
 
   # ComputationMode enum is a static variable so can use standard flow.
   if solver_key == (ComputationMode.INVERSE, SolverMode.FIXED_STEP):
-    output_sol_model = extended_lengyel_solvers.inverse_mode_fixed_step_solver(
-        sol_model=initial_sol_model,
-        iterations=fixed_step_iterations,
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.inverse_mode_fixed_step_solver(
+            initial_sol_model=initial_sol_model,
+            iterations=fixed_step_iterations,
+        )
     )
   elif solver_key == (ComputationMode.FORWARD, SolverMode.FIXED_STEP):
-    output_sol_model = extended_lengyel_solvers.forward_mode_fixed_step_solver(
-        sol_model=initial_sol_model,
-        iterations=fixed_step_iterations,
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.forward_mode_fixed_step_solver(
+            initial_sol_model=initial_sol_model,
+            iterations=fixed_step_iterations,
+        )
     )
   elif solver_key == (ComputationMode.INVERSE, SolverMode.NEWTON_RAPHSON):
-    output_sol_model, _ = extended_lengyel_solvers.inverse_mode_newton_solver(
-        initial_sol_model=initial_sol_model,
-        maxiter=newton_raphson_iterations,
-        tol=newton_raphson_tol,
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.inverse_mode_newton_solver(
+            initial_sol_model=initial_sol_model,
+            maxiter=newton_raphson_iterations,
+            tol=newton_raphson_tol,
+        )
     )
   elif solver_key == (ComputationMode.FORWARD, SolverMode.NEWTON_RAPHSON):
-    output_sol_model, _ = extended_lengyel_solvers.forward_mode_newton_solver(
-        initial_sol_model=initial_sol_model,
-        maxiter=newton_raphson_iterations,
-        tol=newton_raphson_tol,
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.forward_mode_newton_solver(
+            initial_sol_model=initial_sol_model,
+            maxiter=newton_raphson_iterations,
+            tol=newton_raphson_tol,
+        )
     )
   else:
     raise ValueError(
@@ -359,6 +370,7 @@ def run_extended_lengyel_model(
       separatrix_electron_temp=output_sol_model.separatrix_electron_temp / 1e3,
       separatrix_Z_eff=output_sol_model.separatrix_Z_eff,
       seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,
+      solver_status=solver_status,
   )
 
 
