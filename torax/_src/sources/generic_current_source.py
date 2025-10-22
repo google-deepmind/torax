@@ -92,7 +92,7 @@ def _calculate_I_generic(
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 

@@ -78,7 +78,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_standard_source_profiles_for_single_affected_core_profile(
       self,
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
@@ -131,7 +132,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_standard_source_profiles_for_multiple_affected_core_profile(
       self,
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
@@ -220,7 +222,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_build_standard_source_profiles_calculate_anyway(
       self, calculate_anyway, is_explicit, expected_calculate
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
