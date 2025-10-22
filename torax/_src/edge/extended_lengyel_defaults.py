@@ -37,7 +37,9 @@ TARGET_RATIO_ION_TO_ELECTRON_TEMP: Final[float] = 1.0
 TARGET_RATIO_ELECTRON_TO_ION_DENSITY: Final[float] = 1.0
 TARGET_MACH_NUMBER: Final[float] = 1.0
 TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
-ITERATIONS: Final[int] = 25
+FIXED_STEP_ITERATIONS: Final[int] = 25
+NEWTON_RAPHSON_ITERATIONS: Final[int] = 30
+NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 
 
 @dataclasses.dataclass(frozen=True)

@@ -140,7 +140,9 @@ def run_extended_lengyel_model(
     ),
     target_mach_number: array_typing.FloatScalar = extended_lengyel_defaults.TARGET_MACH_NUMBER,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    iterations: int = extended_lengyel_defaults.ITERATIONS,
+    fixed_step_iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+    newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -184,7 +186,9 @@ def run_extended_lengyel_model(
     target_ratio_of_electron_to_ion_density: ne/ni at target.
     target_mach_number: Mach number at target.
     toroidal_flux_expansion: Toroidal flux expansion factor.
-    iterations: Number of iterations for fixed point solver.
+    fixed_step_iterations: Number of iterations for fixed step solver.
+    newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
+    newton_raphson_tol: Tolerance for Newton-Raphson solver.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values.
@@ -231,19 +235,6 @@ def run_extended_lengyel_model(
       ratio_of_upstream_to_average_poloidal_field=ratio_of_upstream_to_average_poloidal_field,
   )
 
-  # Initialize values for iterative solver.
-  alpha_t_init = 0.0
-  c_z_prefactor_init = 0.0
-  kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
-  q_parallel_init = 1e6  # arbitrary value for initialization.
-
-  if computation_mode == ComputationMode.INVERSE:
-    target_electron_temp_init = target_electron_temp  # from input
-  elif computation_mode == ComputationMode.FORWARD:
-    target_electron_temp_init = 2.0  # eV
-  else:
-    raise ValueError(f'Unknown computation mode: {computation_mode}')
-
   params = divertor_sol_1d_lib.ExtendedLengyelParameters(
       major_radius=major_radius,
       minor_radius=minor_radius,
@@ -276,6 +267,31 @@ def run_extended_lengyel_model(
       toroidal_flux_expansion=toroidal_flux_expansion,
   )
 
+  # Initialize values for iterative solver.
+  alpha_t_init = 0.1
+  c_z_prefactor_init = 0.0
+  kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
+  separatrix_electron_temp_init = 100.0  # [eV], needed to initialize q_parallel
+  q_parallel_init = extended_lengyel_formulas.calculate_q_parallel(
+      separatrix_electron_temp=separatrix_electron_temp_init,
+      average_ion_mass=params.average_ion_mass,
+      separatrix_average_poloidal_field=params.separatrix_average_poloidal_field,
+      alpha_t=alpha_t_init,
+      ratio_of_upstream_to_average_poloidal_field=params.ratio_of_upstream_to_average_poloidal_field,
+      fraction_of_PSOL_to_divertor=params.fraction_of_P_SOL_to_divertor,
+      minor_radius=params.minor_radius,
+      major_radius=params.major_radius,
+      power_crossing_separatrix=params.power_crossing_separatrix,
+      fieldline_pitch_at_omp=params.fieldline_pitch_at_omp,
+  )
+
+  if computation_mode == ComputationMode.INVERSE:
+    target_electron_temp_init = target_electron_temp  # from input
+  elif computation_mode == ComputationMode.FORWARD:
+    target_electron_temp_init = 2.0  # eV
+  else:
+    raise ValueError(f'Unknown computation mode: {computation_mode}')
+
   initial_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=q_parallel_init,
       alpha_t=alpha_t_init,
@@ -299,15 +315,23 @@ def run_extended_lengyel_model(
   if solver_key == (ComputationMode.INVERSE, SolverMode.FIXED_STEP):
     output_sol_model = extended_lengyel_solvers.inverse_mode_fixed_step_solver(
         sol_model=initial_sol_model,
-        iterations=iterations,
+        iterations=fixed_step_iterations,
     )
   elif solver_key == (ComputationMode.FORWARD, SolverMode.FIXED_STEP):
     output_sol_model = extended_lengyel_solvers.forward_mode_fixed_step_solver(
         sol_model=initial_sol_model,
-        iterations=iterations,
+        iterations=fixed_step_iterations,
     )
-  elif solver_mode == SolverMode.NEWTON_RAPHSON:
-    raise NotImplementedError('Newton-Raphson solver is not yet implemented.')
+  elif solver_key == (ComputationMode.INVERSE, SolverMode.NEWTON_RAPHSON):
+    raise NotImplementedError(
+        'Newton-Raphson solver is not yet implemented for inverse mode.'
+    )
+  elif solver_key == (ComputationMode.FORWARD, SolverMode.NEWTON_RAPHSON):
+    output_sol_model, _ = extended_lengyel_solvers.forward_mode_newton_solver(
+        initial_sol_model=initial_sol_model,
+        maxiter=newton_raphson_iterations,
+        tol=newton_raphson_tol,
+    )
   else:
     raise ValueError(
         'Invalid computation and solver mode combination:'
