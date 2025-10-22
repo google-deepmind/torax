@@ -40,6 +40,7 @@ TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
 FIXED_STEP_ITERATIONS: Final[int] = 25
 NEWTON_RAPHSON_ITERATIONS: Final[int] = 30
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
+HYBRID_FIXED_STEP_ITERATIONS: Final[int] = 5
 
 
 @dataclasses.dataclass(frozen=True)

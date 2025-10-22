@@ -48,10 +48,13 @@ class SolverMode(enum.StrEnum):
   Attributes:
     FIXED_STEP: A simple fixed-step iterative solver.
     NEWTON_RAPHSON: A Newton-Raphson solver (not yet implemented).
+    HYBRID: A hybrid solver using a warm start from fixed-step, and then
+      Newton-Raphson.
   """
 
   FIXED_STEP = 'fixed_step'
   NEWTON_RAPHSON = 'newton_raphson'
+  HYBRID = 'hybrid'
 
 
 @jax.tree_util.register_dataclass
@@ -144,6 +147,7 @@ def run_extended_lengyel_model(
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     fixed_step_iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    hybrid_fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
@@ -190,6 +194,9 @@ def run_extended_lengyel_model(
     toroidal_flux_expansion: Toroidal flux expansion factor.
     fixed_step_iterations: Number of iterations for fixed step solver.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
+    hybrid_fixed_step_iterations: Number of iterations for the fixed step first
+      phase of the hybrid solver. The newton iterations in the second
+      phase are still determined by `newton_raphson_iterations`.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
 
   Returns:
@@ -343,6 +350,24 @@ def run_extended_lengyel_model(
             initial_sol_model=initial_sol_model,
             maxiter=newton_raphson_iterations,
             tol=newton_raphson_tol,
+        )
+    )
+  elif solver_key == (ComputationMode.INVERSE, SolverMode.HYBRID):
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.inverse_mode_hybrid_solver(
+            initial_sol_model=initial_sol_model,
+            fixed_step_iterations=hybrid_fixed_step_iterations,
+            newton_raphson_iterations=newton_raphson_iterations,
+            newton_raphson_tol=newton_raphson_tol,
+        )
+    )
+  elif solver_key == (ComputationMode.FORWARD, SolverMode.HYBRID):
+    output_sol_model, solver_status = (
+        extended_lengyel_solvers.forward_mode_hybrid_solver(
+            initial_sol_model=initial_sol_model,
+            fixed_step_iterations=hybrid_fixed_step_iterations,
+            newton_raphson_iterations=newton_raphson_iterations,
+            newton_raphson_tol=newton_raphson_tol,
         )
     )
   else:

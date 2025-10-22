@@ -21,6 +21,7 @@ from jax import numpy as jnp
 from torax._src import constants
 from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
 from torax._src.fvm import jax_root_finding
 # pylint: disable=invalid-name
@@ -84,7 +85,7 @@ class ExtendedLengyelSolverStatus:
 
 def inverse_mode_fixed_step_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    iterations: int,
+    iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-step iterative solver for the inverse mode."""
 
@@ -149,7 +150,7 @@ def inverse_mode_fixed_step_solver(
 
 def forward_mode_fixed_step_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    iterations: int,
+    iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-step iterative solver for the forward mode."""
 
@@ -245,8 +246,8 @@ def forward_mode_fixed_step_solver(
 
 def forward_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    maxiter: int = 30,
-    tol: float = 1e-5,
+    maxiter: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the forward mode.
 
@@ -315,8 +316,8 @@ def forward_mode_newton_solver(
 
 def inverse_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    maxiter: int = 30,
-    tol: float = 1e-5,
+    maxiter: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the inverse mode.
 
@@ -381,6 +382,44 @@ def inverse_mode_newton_solver(
   solver_status = ExtendedLengyelSolverStatus(
       physics_outcome=physics_outcome,
       numerics_outcome=metadata,
+  )
+  return final_sol_model, solver_status
+
+
+def forward_mode_hybrid_solver(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+    newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
+  """Runs the hybrid solver for the forward mode."""
+  intermediate_sol_model, _ = forward_mode_fixed_step_solver(
+      initial_sol_model=initial_sol_model,
+      iterations=fixed_step_iterations,
+  )
+  final_sol_model, solver_status = forward_mode_newton_solver(
+      initial_sol_model=intermediate_sol_model,
+      maxiter=newton_raphson_iterations,
+      tol=newton_raphson_tol,
+  )
+  return final_sol_model, solver_status
+
+
+def inverse_mode_hybrid_solver(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+    newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
+    newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
+  """Runs the hybrid solver for the inverse mode."""
+  intermediate_sol_model, _ = inverse_mode_fixed_step_solver(
+      initial_sol_model=initial_sol_model,
+      iterations=fixed_step_iterations,
+  )
+  final_sol_model, solver_status = inverse_mode_newton_solver(
+      initial_sol_model=intermediate_sol_model,
+      maxiter=newton_raphson_iterations,
+      tol=newton_raphson_tol,
   )
   return final_sol_model, solver_status
 
