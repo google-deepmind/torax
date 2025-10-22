@@ -33,23 +33,24 @@ _DENSITY_SCALE_FACTOR = 1e-20
 _LINT_K_INVERSE_SCALE_FACTOR = 1e-10
 
 
-class SolveStatus(enum.IntEnum):
+class PhysicsOutcome(enum.IntEnum):
   """Status of the _solve_for_qcc or _solve_for_c_z_prefactor calculations.
 
   Attributes:
     SUCCESS: The calculation was successful.
-    Q_DIV_SQUARED_NEGATIVE: q_div_squared was negative. This is unphysical and
-      indicates that the required power loss is too low for the given plasma
-      parameters. This can happen if the power lost in the cc region is
-      sufficient to reach detachment even no seeded impurities.
+    C_Z_PREFACTOR_NEGATIVE: c_z_prefactor was negative. This is unphysical and
+      indicates that even with no seeded impurities, a value lower than the
+      target temperature is reached. To reach the target temperature, we thus
+      need added heating with "negative impurities" which is not physically
+      possible.
     QCC_SQUARED_NEGATIVE: qcc_squared was negative. This is unphysical and
       indicates that so much power has been lost such that the target
       temperature would be negative according to the formulations used in the
-      model.
+      model. This indicates full detachment.
   """
 
   SUCCESS = 0
-  Q_DIV_SQUARED_NEGATIVE = 1
+  C_Z_PREFACTOR_NEGATIVE = 1
   Q_CC_SQUARED_NEGATIVE = 2
 
 
@@ -474,7 +475,8 @@ def _solve_for_c_z_prefactor(
   Returns:
       c_z_prefactor: The scaling factor for the seeded impurity concentrations.
         To be multiplied by seed_impurity_weights to get each seeded impurity
-        concentration.
+        concentration. Clipped to zero if the solution required it
+        to be negative, which is unphysical.
       status: A SolveCzStatus enum indicating the outcome of the calculation.
   """
   # Temperatures must be in keV for the L_INT calculation.
@@ -555,19 +557,25 @@ def _solve_for_c_z_prefactor(
       * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
   ) / (Ls_div_u / _LINT_SCALE_FACTOR / b**2 + Ls_cc_div / _LINT_SCALE_FACTOR)
 
-  # Check for unphysical result.
-  status = jnp.where(
-      q_div_squared < 0.0,
-      SolveStatus.Q_DIV_SQUARED_NEGATIVE,
-      SolveStatus.SUCCESS,
-  )
-
   # Calculate the required seeded impurity concentration `c_z`.
   # See Eq. 42 in Body et al. 2025.
   c_z_prefactor = (
       (qu**2 + (1.0 / b**2 - 1.0) * q_div_squared - qcc**2)
       / (k * Ls_cc_u / _LINT_K_INVERSE_SCALE_FACTOR)
   ) - (Lf_cc_u / Ls_cc_u)
+
+  # Check for unphysical result.
+  status = jnp.where(
+      c_z_prefactor < 0.0,
+      PhysicsOutcome.C_Z_PREFACTOR_NEGATIVE,
+      PhysicsOutcome.SUCCESS,
+  )
+
+  # c_z is related to impurity density which physically cannot be negative.
+  # The natural floor of c_z_prefactor is zero.
+  c_z_prefactor = jnp.where(
+      status == PhysicsOutcome.SUCCESS, c_z_prefactor, 0.0
+  )
 
   return c_z_prefactor, status
 
@@ -592,7 +600,7 @@ def _solve_for_qcc(
 
   Returns:
       q_cc: The parallel heat flux at the cc-interface
-      status: A SolveStatus enum indicating the outcome of the calculation.
+      status: A PhysicsOutcome enum indicating the outcome of the calculation.
   """
   # Temperatures must be in keV for the L_INT calculation.
   cc_temp_keV = sol_model.electron_temp_at_cc_interface / 1000.0
@@ -647,10 +655,10 @@ def _solve_for_qcc(
   # Check for unphysical result.
   status = jnp.where(
       qcc_squared < 0.0,
-      SolveStatus.Q_CC_SQUARED_NEGATIVE,
-      SolveStatus.SUCCESS,
+      PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
+      PhysicsOutcome.SUCCESS,
   )
 
-  qcc = jnp.where(status == SolveStatus.SUCCESS, jnp.sqrt(qcc_squared), 0.0)
+  qcc = jnp.where(status == PhysicsOutcome.SUCCESS, jnp.sqrt(qcc_squared), 0.0)
 
   return qcc, status
