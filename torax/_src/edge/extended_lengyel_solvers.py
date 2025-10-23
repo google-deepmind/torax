@@ -22,7 +22,7 @@ from torax._src import constants
 from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
-from torax._src.fvm import jax_root_finding
+from torax._src.solver import jax_root_finding
 # pylint: disable=invalid-name
 
 # Scale factors for physics calculations to avoid numerical issues in fp32.

@@ -18,7 +18,7 @@ from torax._src.edge import divertor_sol_1d
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_formulas
 from torax._src.edge import extended_lengyel_solvers
-from torax._src.fvm import jax_root_finding
+from torax._src.solver import jax_root_finding
 
 # pylint: disable=invalid-name
 
