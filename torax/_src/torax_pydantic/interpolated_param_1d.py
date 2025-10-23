@@ -117,8 +117,12 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       if set(data.keys()).issubset(cls.model_fields.keys()):
         return data  # pytype: disable=bad-return-type
 
+    default_interpolation_mode = cls.model_fields['interpolation_mode'].default
+
     time, value, interpolation_mode, is_bool_param = (
-        interpolated_param.convert_input_to_xs_ys(data)
+        interpolated_param.convert_input_to_xs_ys(
+            data, default_interpolation_mode
+        )
     )
 
     # Ensure that the time is sorted.
@@ -176,11 +180,21 @@ def _interval(
   return time_varying_scalar
 
 
+class TimeVaryingScalarStep(TimeVaryingScalar):
+  """TimeVaryingScalar with STEP interpolation mode by default."""
+  interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.STEP
+
+
 PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
 ]
 NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
+]
+NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingScalarStep, pydantic.AfterValidator(_is_non_negative)
 ]
 UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar,
