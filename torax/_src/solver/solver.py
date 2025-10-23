@@ -43,6 +43,7 @@ class Solver(abc.ABC):
       self,
       physics_models: physics_models_lib.PhysicsModels,
   ):
+    assert False
     self.physics_models = physics_models
 
   def _class_id(self) -> str:
