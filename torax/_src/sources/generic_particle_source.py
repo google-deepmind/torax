@@ -57,7 +57,7 @@ def calc_generic_particle_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
 
