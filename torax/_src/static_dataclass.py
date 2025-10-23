@@ -149,10 +149,15 @@ class StaticDataclass:
         for v in values
     )
     names = [field.name for field in dataclasses.fields(self)]
+    hash_by_id_fields = self._hash_by_id_fields()
     for h, bh, n in zip(hashes, bad_hashes, names):
+      if n in hash_by_id_fields:
+        continue
       if h in bh:
         raise TypeError(
-            f"{self}.{n} hashes by id when it should hash by value."
+            f"{type(self)}.{n} hashes by id when it should hash by value. "
+            "If you're confident that this is correct, allow it via the "
+            "_hash_by_id_fields method."
         )
 
     # Make sure nested dataclasses are StaticDataclass
@@ -164,3 +169,11 @@ class StaticDataclass:
             "StaticDataclass objects to ensure that all hash "
             "functions hash the class id."
         )
+
+  def _hash_by_id_fields(self) -> tuple[str, ...]:
+    """Returns a tuple of field names that are allowed to hash by id.
+
+    Subclasses can implement this method and use it to override the check in
+    __post_init__.
+    """
+    return tuple()
