@@ -2056,9 +2056,6 @@ dictionary with the ``profile_conditions_from_imas`` and
 functions returns a dictionary whose structure fits the schema of 
 profile_conditions or plasma_composition and can be programatically loaded into
 a ``CONFIG`` with standard dictionary manipulation.
-In case you want to directly load both plasma_composition and 
-profile_conditions fields from an IDS, you can use the
-``imas_core_profiles_converter`` which returns the two dicts.
 
 An example on how to inject the IMAS conditions into the config can be found in
 the test file ``imas_tools/input/tests/core_profiles_test.py``.

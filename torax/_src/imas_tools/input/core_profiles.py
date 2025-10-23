@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
-from typing import Any
+from typing import Any, Collection
 
 from imas import ids_toplevel
 import numpy as np
-import torax._src.constants as constants
+from torax._src import constants
 
 
 # pylint: disable=invalid-name
@@ -112,20 +112,27 @@ def profile_conditions_from_IMAS(
 
 def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
+    main_ions_symbols: Collection[str] = constants.HYDROGENIC_IONS,
     t_initial: float | None = None,
 ) -> dict[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
 
-  Loading IMAS data for plasma composition should only be used with n_e_ratios
-  and n_e_ratios_Z_eff impurity modes, not with fractions mode. The impurity
-  mode needs to be specified explicitly after loading the IMAS data. In case
-  n_e_ratios_Z_eff is specified, one impurity ratio must be set to None
-  explicitly. In case n_e_ratios is used, Z_eff will simply be ignored.
-  Note that if the ids individual ions properties are not filled, it will not
-  raise an error and just return an empty dict as main_ion and species.
+  plasma_composition dict obtained from IMAS can be used with two impurity
+  modes (contained within the `impurity` key):
+    - `n_e_ratios` - default returned from this function (note Z_eff will be
+    ignored in this case).
+    - `n_e_ratios_Z_eff` - In this case one impurity ratio should be set to
+    None and the `impurity_mode` string overwritten.
+    - `fractions` impurity mode is unsupported.
+  Note that if the input ids does not contain info for the different ion
+  species, the function will not raise an error but return an empty dict for
+  `main_ion` and `species` plasma_composition keys.
 
   Args:
     ids: A core_profiles IDS object. The IDS can contain multiple time slices.
+    main_ions_symbols: collection of ions to be used to define the main_ion 
+    mixture.
+    Default are hydrogenic ions H, D, T.
     t_initial: Initial time used to map the profiles in the dicts. If None the
       initial time will be the time of the first time slice of the ids. Else all
       time slices will be shifted such that the first time slice has time =
@@ -144,8 +151,8 @@ def plasma_composition_from_IMAS(
       rhon_array,
       [profile.zeff for profile in profiles_1d],
   )
-  species = {}
-  ratios = {}
+  impurity_species = {}
+  main_ion_ratios = {}
   for ion in range(len(profiles_1d[0].ion)):
     try:
       symbol = str(profiles_1d[0].ion[ion].name)
@@ -153,8 +160,15 @@ def plasma_composition_from_IMAS(
       # Case ids is plasma_profiles in early DDv4 releases.
       symbol = str(profiles_1d[0].ion[ion].label)
     if symbol in constants.ION_PROPERTIES_DICT.keys():
+      # Fill main ions
+      if symbol in main_ions_symbols:
+        main_ion_ratios[symbol] = [
+            profile.ion[ion].density[0] for profile in profiles_1d
+        ]
+        # Currently take ratios of central density value, would it be more
+        # accurate to take ratios of volume integrated densities ?
       # Fill impurities
-      if symbol not in constants.MAIN_ION_SYMBOLS:
+      else:
         n_e_ratio = (
             time_array,
             rhon_array,
@@ -163,24 +177,19 @@ def plasma_composition_from_IMAS(
                 for profile in profiles_1d
             ],
         )
-        species[symbol] = n_e_ratio
-      # Fill main ions
-      else:
-        ratios[symbol] = [
-            profile.ion[ion].density[0] for profile in profiles_1d
-        ]
-        # Currently take ratios of central density value, would it be more
-        # accurate to take ratios of volume integrated densities ?
-  total_main_ion_density = np.sum([ratio for ratio in ratios.values()], axis=0)
+        impurity_species[symbol] = n_e_ratio
+  total_main_ion_density = np.sum(
+      [ratio for ratio in main_ion_ratios.values()], axis=0
+  )
   main_ion = {}
-  for symbol, ratio in ratios.items():
+  for symbol, ratio in main_ion_ratios.items():
     main_ion[symbol] = (time_array, ratio / total_main_ion_density)
   return {
       "main_ion": main_ion,
       "Z_eff": Z_eff,
       "impurity": {
           "impurity_mode": "n_e_ratios",
-          "species": species,
+          "species": impurity_species,
       },
   }
 

@@ -110,4 +110,4 @@ ION_PROPERTIES_DICT: Final[Mapping[str, IonProperties]] = (
 
 ION_SYMBOLS = frozenset(ION_PROPERTIES_DICT.keys())
 
-MAIN_ION_SYMBOLS = frozenset(['H', 'D', 'T'])
+HYDROGENIC_IONS: Final[frozenset[str]] = frozenset(['H', 'D', 'T'])

@@ -110,7 +110,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
   def test_imas_plasma_composition(self):
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
-    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc" 
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     core_profiles_in = loader.load_imas_data(path, "core_profiles")
     # Indivual ion info empty in the inital IDS so create fake ions data
     core_profiles_in.profiles_1d[0].ion.resize(3)
@@ -154,7 +154,5 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
 
 
-
 if __name__ == "__main__":
   absltest.main()
-
