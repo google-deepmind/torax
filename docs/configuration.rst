@@ -933,6 +933,9 @@ transport model.
 * ``'qlknn'``
   A QuaLiKiz Neural Network surrogate model, the default is
   `QLKNN_7_11 <https://github.com/google-deepmind/fusion_surrogates>`_.
+* ``'tglfnn-ukaea'``
+  A TGLF Neural Network surrogate model developed by UKAEA,
+  `reimplemented in JAX <https://github.com/google-deepmind/fusion_surrogates>`_.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear
   gyrokinetic transport model.
@@ -1194,6 +1197,29 @@ It is recommended to not set ``qlknn_model_name``,  or
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+tglfnn-ukaea
+^^^^^^^^^^^^
+
+Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cite
+`L. Zanisi et al. (2025) <https://conferences.iaea.org/event/392/contributions/36059/>`_.
+
+``machine`` (str [default = 'multimachine'])
+  Machine type for TGLFNN-UKAEA. Options are 'multimachine', and 'step'.
+  The 'multimachine' model is trained on a hypercube covering a wide variety
+  of conventional tokamaks. The 'step' model is trained specifically on the
+  design space of UKAEA's Spherical Tokamak for Energy Production (STEP).
+  See `ukaea/tglfnn-ukaea <https://github.com/ukaea/tglfnn-ukaea>`_ for more
+  details. Note: currently, only the 'multimachine' model is publicly available.
+
+``DV_effective`` (bool [default = False])
+  If ``True``, use either :math:`D_{eff}` or :math:`V_{eff}` for particle
+  transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float [default = 0.05])
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
+  :math:`D_{eff}`, if ``DV_effective==True``.
+
 
 qualikiz
 ^^^^^^^^

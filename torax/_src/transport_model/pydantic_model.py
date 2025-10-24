@@ -31,6 +31,7 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import tglfnn_ukaea_transport_model
 import typing_extensions
 
 
@@ -171,6 +172,43 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     )
 
 
+class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
+  """Model for the TGLFNN-ukaea transport model.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
+    machine: The machine type to use. Either 'step' or 'multimachine'.
+  """
+
+  model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
+      'tglfnn-ukaea'
+  )
+  machine: Annotated[
+      Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
+  ] = 'multimachine'
+  # Quasilinear transport options
+  DV_effective: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
+
+  def build_transport_model(
+      self,
+  ) -> tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel:
+    return tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine=self.machine,
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> tglfnn_ukaea_transport_model.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return tglfnn_ukaea_transport_model.RuntimeParams(
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        # From base
+        **base_kwargs,
+    )
+
+
 class ConstantTransportModel(pydantic_model_base.TransportBase):
   """Model for the Constant transport model.
 
@@ -199,9 +237,7 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
 
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> constant.RuntimeParams:
+  def build_runtime_params(self, t: chex.Numeric) -> constant.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return constant.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
@@ -352,6 +388,7 @@ try:
   # errors in pytype.
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -361,6 +398,7 @@ try:
 except ImportError:
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -405,9 +443,7 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         pedestal_transport_models=pedestal_transport_models,
     )
 
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> combined.RuntimeParams:
+  def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     transport_model_params = [
         model.build_runtime_params(t) for model in self.transport_models

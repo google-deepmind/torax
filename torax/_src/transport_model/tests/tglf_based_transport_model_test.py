@@ -171,15 +171,13 @@ class FakeTGLFBasedTransportModel(
         core_profiles=core_profiles,
     )
     return self._make_core_transport(
-        qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
-        qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
-        pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
-        quasilinear_inputs=tglf_inputs,
+        ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
+        electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
+        electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
+        tglf_inputs=tglf_inputs,
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        gradient_reference_length=geo.a_minor,
-        gyrobohm_flux_reference_length=geo.a_minor,
     )
 
   def __hash__(self) -> int:
