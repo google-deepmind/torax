@@ -16,7 +16,7 @@
 
 import dataclasses
 import functools
-from typing import Annotated
+from typing import Annotated, Optional
 
 import chex
 import jax
@@ -51,6 +51,8 @@ class RuntimeParams:
   evolve_density: bool = dataclasses.field(metadata={'static': True})
   exact_t_final: bool = dataclasses.field(metadata={'static': True})
   adaptive_dt: bool = dataclasses.field(metadata={'static': True})
+  phased_dt_windows: tuple[tuple[float, float], ...] | None = None
+  phased_dt_values: tuple[float, ...] | None = None
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
@@ -84,7 +86,13 @@ class Numerics(torax_pydantic.BaseModelFrozen):
     chi_timestep_prefactor: Prefactor in front of chi_timestep_calculator base
       timestep dt=dx^2/(2*chi). In most use-cases can be increased further above
       this.
-    fixed_dt: Timestep used for `fixed_time_step_calculator`.
+    fixed_dt: Timestep used for `fixed_time_step_calculator` and as fallback for
+      `phased_time_step_calculator`.
+    phased_dt_windows: List of time windows (t_start, t_end) for phased time
+      stepping. Each window defines a time interval where a specific dt should
+      be used. Windows should be contiguous and non-overlapping.
+    phased_dt_values: List of dt values corresponding to each time window in
+      phased_dt_windows. Must have the same length as phased_dt_windows.
     adaptive_dt: Iterative reduction of dt if nonlinear step does not converge,
       if nonlinear step does not converge, then the step is redone iteratively
       at successively lower dt until convergence is reached.
@@ -111,6 +119,8 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
   fixed_dt: torax_pydantic.Second = 1e-1
+  phased_dt_windows: Optional[tuple[tuple[float, float], ...]] = None
+  phased_dt_values: Optional[tuple[float, ...]] = None
   adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
   evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
@@ -136,6 +146,60 @@ class Numerics(torax_pydantic.BaseModelFrozen):
           'max_dt must be greater than or equal to min_dt. '
           f'max_dt: {self.max_dt}, min_dt: {self.min_dt}'
       )
+
+    # Validate phased time stepping configuration
+    if (self.phased_dt_windows is None) != (self.phased_dt_values is None):
+      raise ValueError(
+          'phased_dt_windows and phased_dt_values must both be None or both be specified'
+      )
+
+    if self.phased_dt_windows is not None and self.phased_dt_values is not None:
+      if len(self.phased_dt_windows) != len(self.phased_dt_values):
+        raise ValueError(
+            'phased_dt_windows and phased_dt_values must have the same length. '
+            f'Got {len(self.phased_dt_windows)} windows and {len(self.phased_dt_values)} values'
+        )
+
+      if len(self.phased_dt_windows) == 0:
+        raise ValueError('phased_dt_windows cannot be empty')
+
+      # Validate time windows are ordered and non-overlapping
+      for i, (t_start, t_end) in enumerate(self.phased_dt_windows):
+        if t_start >= t_end:
+          raise ValueError(
+              f'Window {i}: start time must be less than end time. '
+              f'Got t_start={t_start}, t_end={t_end}'
+          )
+
+        if i > 0:
+          prev_end = self.phased_dt_windows[i-1][1]
+          if t_start != prev_end:
+            raise ValueError(
+                f'Window {i}: time windows must be contiguous. '
+                f'Previous window ends at {prev_end}, current starts at {t_start}'
+            )
+
+      # Validate dt values are positive
+      for i, dt in enumerate(self.phased_dt_values):
+        if dt <= 0:
+          raise ValueError(
+              f'dt value {i} must be positive. Got {dt}'
+          )
+
+      # Check if phased windows cover the simulation time range
+      first_start = self.phased_dt_windows[0][0]
+      last_end = self.phased_dt_windows[-1][1]
+      if first_start > self.t_initial:
+        raise ValueError(
+            f'First phased window starts at {first_start}, which is after t_initial={self.t_initial}. '
+            'Phased windows should cover the entire simulation time range.'
+        )
+      if last_end < self.t_final:
+        raise ValueError(
+            f'Last phased window ends at {last_end}, which is before t_final={self.t_final}. '
+            'Phased windows should cover the entire simulation time range.'
+        )
+
     return self
 
   @property
@@ -161,6 +225,8 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         min_dt=self.min_dt,
         chi_timestep_prefactor=self.chi_timestep_prefactor,
         fixed_dt=self.fixed_dt,
+        phased_dt_windows=self.phased_dt_windows,
+        phased_dt_values=self.phased_dt_values,
         dt_reduction_factor=self.dt_reduction_factor,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,

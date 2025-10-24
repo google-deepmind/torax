@@ -19,6 +19,7 @@ from typing import Annotated
 
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import phased_time_step_calculator
 from torax._src.time_step_calculator import runtime_params
 from torax._src.time_step_calculator import time_step_calculator
 from torax._src.torax_pydantic import torax_pydantic
@@ -30,6 +31,7 @@ class TimeStepCalculatorType(enum.Enum):
 
   CHI = 'chi'
   FIXED = 'fixed'
+  PHASED = 'phased'
 
 
 class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
@@ -56,3 +58,5 @@ class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
         return chi_time_step_calculator.ChiTimeStepCalculator()
       case TimeStepCalculatorType.FIXED:
         return fixed_time_step_calculator.FixedTimeStepCalculator()
+      case TimeStepCalculatorType.PHASED:
+        return phased_time_step_calculator.PhasedTimeStepCalculator()
