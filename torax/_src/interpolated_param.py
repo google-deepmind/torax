@@ -244,11 +244,14 @@ def _convert_value_to_floats(
 
 def convert_input_to_xs_ys(
     interp_input: TimeInterpolatedInput,
+    default_interpolation_mode: InterpolationMode = InterpolationMode.PIECEWISE_LINEAR,
 ) -> tuple[np.ndarray, np.ndarray, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
   Args:
     interp_input: The input to convert.
+    default_interpolation_mode: The default interpolation mode to use if not
+      specified in the input.
 
   Returns:
     A tuple of (xs, ys, interpolation_mode, is_bool_param) where xs and ys are
@@ -257,7 +260,7 @@ def convert_input_to_xs_ys(
     bool and False otherwise.
   """
   # This function does NOT need to be jittable.
-  interpolation_mode = InterpolationMode.PIECEWISE_LINEAR
+  interpolation_mode = default_interpolation_mode
   # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
   # an InterpolatedVarSingleAxis first.
   if isinstance(interp_input, tuple):
