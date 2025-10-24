@@ -27,7 +27,10 @@ from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
 
 ExampleConfig: TypeAlias = Literal[
-    'basic_config', 'iterhybrid_predictor_corrector', 'iterhybrid_rampup'
+    'basic_config',
+    'iterhybrid_predictor_corrector',
+    'iterhybrid_rampup',
+    'step_flattop_bgb',
 ]
 
 ExamplePlotConfig: TypeAlias = Literal[

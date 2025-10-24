@@ -13,4 +13,3 @@ by extracting p' and ff' profiles for each timeslice from a TORAX simulation wit
 iterhybrid_rampup.py config, and passing the profiles in to CHEASE.
 The LCFS was kept fixed for all timeslices, using the values from
 ITER_hybrid_citrin_equil_cheasedata.mat2cols.
-

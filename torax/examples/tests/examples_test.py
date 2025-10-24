@@ -27,6 +27,7 @@ class ExamplesTest(parameterized.TestCase):
       'basic_config',
       'iterhybrid_predictor_corrector',
       'iterhybrid_rampup',
+      'step_flattop_bgb',
   ])
   def test_validation_of_configs(self, config_name_no_py: str):
     example_config_paths = config_loader.example_config_paths()
