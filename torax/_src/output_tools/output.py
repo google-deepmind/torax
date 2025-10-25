@@ -23,13 +23,14 @@ import os
 from absl import logging
 import chex
 import jax
+import jax.numpy as jnp
 import numpy as np
-import os
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
+from torax._src.output_tools import main_ion_species
 from torax._src.output_tools import post_processing
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -205,6 +206,52 @@ def stitch_state_files(
   return concat_datatrees(previous_datatree, datatree)
 
 
+def _stack_main_ion_species_outputs(
+    main_ion_species_history: list[dict | None],
+) -> dict:
+  """Stacks main ion species outputs across time steps.
+  
+  Args:
+    main_ion_species_history: List of dictionaries mapping main ion symbols 
+      to their MainIonSpeciesOutput for each time step.
+  
+  Returns:
+    Dictionary mapping main ion symbols to stacked MainIonSpeciesOutput across
+    all time steps, or empty dict if all entries are None/empty.
+  """
+  valid_entries = [x for x in main_ion_species_history if x]
+  
+  if not valid_entries:
+    return {}
+  
+  all_symbols = set()
+  for entry in valid_entries:
+    all_symbols.update(entry.keys())
+  
+  stacked_outputs = {}
+  
+  for symbol in all_symbols:
+    n_main_ion_list = []
+    Z_main_ion_list = []
+    fraction_list = []
+    
+    for entry in valid_entries:
+      if symbol in entry:
+        output = entry[symbol]
+        n_main_ion_list.append(output.n_main_ion)
+        Z_main_ion_list.append(output.Z_main_ion)
+        fraction_list.append(output.fraction)
+    
+    if n_main_ion_list:
+      stacked_outputs[symbol] = main_ion_species.MainIonSpeciesOutput(
+          n_main_ion=jnp.stack(n_main_ion_list, axis=0),
+          Z_main_ion=jnp.stack(Z_main_ion_list, axis=0),
+          fraction=jnp.stack(fraction_list, axis=0),
+      )
+  
+  return stacked_outputs
+
+
 class StateHistory:
   """A history of the state of the simulation and its error state."""
 
@@ -250,9 +297,30 @@ class StateHistory:
     self._stacked_core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *self._transport
     )
+    
+    # Handle main_ion_species separately (dict not stackable by tree_map)
+    main_ion_history = [
+        ppo.main_ion_species for ppo in post_processed_outputs_history
+    ]
+    stacked_main_ion = _stack_main_ion_species_outputs(main_ion_history)
+    
+    # Create temporary list without main_ion_species for tree_map
+    ppo_without_main_ion = [
+        dataclasses.replace(ppo, main_ion_species={})
+        for ppo in post_processed_outputs_history
+    ]
+    
+    # Stack all fields except main_ion_species using tree_map
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree_util.tree_map(stack, *post_processed_outputs_history)
+    ) = jax.tree_util.tree_map(stack, *ppo_without_main_ion)
+    
+    # Add back the stacked main_ion_species
+    self._stacked_post_processed_outputs = dataclasses.replace(
+        self._stacked_post_processed_outputs,
+        main_ion_species=stacked_main_ion,
+    )
+    
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
@@ -654,6 +722,10 @@ class StateHistory:
       # The impurity_radiation is structured differently and handled separately.
       if attr_name == "impurity_species":
         continue
+      
+      # The main_ion_species is structured differently and handled separately.
+      if attr_name == "main_ion_species":
+        continue
 
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
       if hasattr(attr_value, "cell_plus_boundaries"):
@@ -674,6 +746,19 @@ class StateHistory:
           )
       )
       for key, value in radiation_outputs.items():
+        xr_dict[key] = value
+
+    if self._stacked_post_processed_outputs.main_ion_species:
+      main_ion_outputs = (
+          main_ion_species.construct_xarray_for_main_ion_output(
+              self._stacked_post_processed_outputs.main_ion_species,
+              self.times,
+              self.rho_cell_norm,
+              TIME,
+              RHO_CELL_NORM,
+          )
+      )
+      for key, value in main_ion_outputs.items():
         xr_dict[key] = value
 
     return xr_dict
