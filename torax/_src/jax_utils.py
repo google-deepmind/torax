@@ -131,6 +131,11 @@ def error_if(
   """
   if not _ERRORS_ENABLED:
     return var
+
+  # Skip error checking during JAX cache analysis to avoid pytree leaf issues
+  if os.getenv('JAX_EXPLAIN_CACHE_MISSES') == '1':
+    return var
+
   return eqx.error_if(var, cond, msg)
 
 

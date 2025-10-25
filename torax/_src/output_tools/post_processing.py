@@ -31,6 +31,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
+from torax._src.output_tools import main_ion_species
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -157,6 +158,7 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
     impurity_species: Dictionary of outputs for each impurity species.
+    main_ion_species: Dictionary of outputs for each main ion species.
   """
 
   pressure_thermal_i: cell_variable.CellVariable
@@ -243,6 +245,7 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
+  main_ion_species: dict[str, main_ion_species.MainIonSpeciesOutput]
   first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
@@ -348,6 +351,7 @@ class PostProcessedOutputs:
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         first_step=jnp.array(True),
         impurity_species={},
+        main_ion_species={},
     )
 
   def check_for_errors(self):
@@ -558,6 +562,11 @@ def make_post_processed_outputs(
   # TODO(b/444380540): Remove once aux outputs from sources are exposed.
   impurity_radiation_outputs = (
       impurity_radiation.calculate_impurity_species_output(
+          sim_state, runtime_params
+      )
+  )
+  main_ion_species_outputs = (
+      main_ion_species.calculate_main_ion_species_output(
           sim_state, runtime_params
       )
   )
@@ -819,5 +828,6 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
+      main_ion_species=main_ion_species_outputs,
       first_step=jnp.array(False),
   )
