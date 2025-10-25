@@ -106,6 +106,42 @@ def construct_xarray_for_main_ion_output(
     Dictionary mapping output variable names to xarray DataArrays containing
     the main ion species data with proper dimensions and coordinates.
   """
+  # Handle empty main ion species case
+  if not main_ion_species_outputs:
+    # Return empty DataArrays with correct structure
+    xr_dict = {
+        DENSITY_OUTPUT_NAME: xr.DataArray(
+            np.empty((0, len(times), len(rho_cell_norm))),
+            dims=[MAIN_ION_DIM, time_coord, rho_cell_norm_coord],
+            coords={
+                MAIN_ION_DIM: [],
+                time_coord: times,
+                rho_cell_norm_coord: rho_cell_norm,
+            },
+            name=DENSITY_OUTPUT_NAME,
+        ),
+        Z_OUTPUT_NAME: xr.DataArray(
+            np.empty((0, len(times), len(rho_cell_norm))),
+            dims=[MAIN_ION_DIM, time_coord, rho_cell_norm_coord],
+            coords={
+                MAIN_ION_DIM: [],
+                time_coord: times,
+                rho_cell_norm_coord: rho_cell_norm,
+            },
+            name=Z_OUTPUT_NAME,
+        ),
+        FRACTION_OUTPUT_NAME: xr.DataArray(
+            np.empty((0, len(times))),
+            dims=[MAIN_ION_DIM, time_coord],
+            coords={
+                MAIN_ION_DIM: [],
+                time_coord: times,
+            },
+            name=FRACTION_OUTPUT_NAME,
+        ),
+    }
+    return xr_dict
+
   density_data = []
   z_data = []
   fraction_data = []
