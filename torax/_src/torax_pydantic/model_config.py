@@ -24,6 +24,7 @@ from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
@@ -80,6 +81,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       discriminator='model_name'
   )
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
+  edge: edge_pydantic_model.EdgeConfig | None = None
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
@@ -88,12 +90,14 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   )
 
   def build_physics_models(self):
+    edge_model = self.edge.build_edge_model() if self.edge else None
     return physics_models.PhysicsModels(
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
         neoclassical_models=self.neoclassical.build_models(),
         mhd_models=self.mhd.build_mhd_models(),
+        edge_model=edge_model,
     )
 
   # TODO(b/434175938): Remove this once V1 API is deprecated

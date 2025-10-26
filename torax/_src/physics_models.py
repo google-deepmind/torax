@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 """A container for all physics models."""
 import dataclasses
 
+from torax._src.edge import base as edge_model_lib
 from torax._src.mhd import base as mhd_model_lib
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -36,3 +37,4 @@ class PhysicsModels:
   pedestal_model: pedestal_model_lib.PedestalModel
   neoclassical_models: neoclassical_models_lib.NeoclassicalModels
   mhd_models: mhd_model_lib.MHDModels
+  edge_model: edge_model_lib.EdgeModelBase | None

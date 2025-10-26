@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ from absl.testing import absltest
 import numpy as np
 from torax._src.edge import extended_lengyel
 from torax._src.edge import extended_lengyel_solvers
+from torax._src.edge import pydantic_model
 
 # pylint: disable=invalid-name
 
@@ -43,8 +44,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': extended_lengyel.ComputationMode.INVERSE,
-        'solver_mode': extended_lengyel.SolverMode.FIXED_STEP,
+        'computation_mode': pydantic_model.ComputationMode.INVERSE,
+        'solver_mode': pydantic_model.SolverMode.FIXED_STEP,
     }
 
     # --- Expected output values ---
@@ -140,8 +141,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': extended_lengyel.ComputationMode.FORWARD,
-        'solver_mode': extended_lengyel.SolverMode.FIXED_STEP,
+        'computation_mode': pydantic_model.ComputationMode.FORWARD,
+        'solver_mode': pydantic_model.SolverMode.FIXED_STEP,
         'fixed_step_iterations': 100,
     }
 
@@ -229,8 +230,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': extended_lengyel.ComputationMode.INVERSE,
-        'solver_mode': extended_lengyel.SolverMode.NEWTON_RAPHSON,
+        'computation_mode': pydantic_model.ComputationMode.INVERSE,
+        'solver_mode': pydantic_model.SolverMode.NEWTON_RAPHSON,
         'newton_raphson_iterations': 30,
         'newton_raphson_tol': 1e-5,
     }
@@ -328,8 +329,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': extended_lengyel.ComputationMode.FORWARD,
-        'solver_mode': extended_lengyel.SolverMode.NEWTON_RAPHSON,
+        'computation_mode': pydantic_model.ComputationMode.FORWARD,
+        'solver_mode': pydantic_model.SolverMode.NEWTON_RAPHSON,
         'newton_raphson_iterations': 30,
         'newton_raphson_tol': 1e-5,
     }
@@ -400,7 +401,7 @@ class ExtendedLengyelTest(absltest.TestCase):
   def test_validate_inputs_for_computation_mode(self):
     # Test valid FORWARD mode
     extended_lengyel._validate_inputs_for_computation_mode(
-        computation_mode=extended_lengyel.ComputationMode.FORWARD,
+        computation_mode=pydantic_model.ComputationMode.FORWARD,
         target_electron_temp=None,
         seed_impurity_weights={},
     )
@@ -411,7 +412,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         ' computation.',
     ):
       extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=extended_lengyel.ComputationMode.FORWARD,
+          computation_mode=pydantic_model.ComputationMode.FORWARD,
           target_electron_temp=10.0,
           seed_impurity_weights={},
       )
@@ -420,13 +421,13 @@ class ExtendedLengyelTest(absltest.TestCase):
         'Seed impurity weights must not be provided for forward computation.',
     ):
       extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=extended_lengyel.ComputationMode.FORWARD,
+          computation_mode=pydantic_model.ComputationMode.FORWARD,
           target_electron_temp=None,
           seed_impurity_weights={'N': 1.0},
       )
     # Test valid INVERSE mode
     extended_lengyel._validate_inputs_for_computation_mode(
-        computation_mode=extended_lengyel.ComputationMode.INVERSE,
+        computation_mode=pydantic_model.ComputationMode.INVERSE,
         target_electron_temp=10.0,
         seed_impurity_weights={'N': 1.0},
     )
@@ -436,7 +437,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'Target electron temperature must be provided for inverse computation.',
     ):
       extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=extended_lengyel.ComputationMode.INVERSE,
+          computation_mode=pydantic_model.ComputationMode.INVERSE,
           target_electron_temp=None,
           seed_impurity_weights={'N': 1.0},
       )
@@ -445,7 +446,7 @@ class ExtendedLengyelTest(absltest.TestCase):
         'Seed impurity weights must be provided for inverse computation.',
     ):
       extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=extended_lengyel.ComputationMode.INVERSE,
+          computation_mode=pydantic_model.ComputationMode.INVERSE,
           target_electron_temp=10.0,
           seed_impurity_weights={},
       )
