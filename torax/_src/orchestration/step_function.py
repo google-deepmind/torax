@@ -150,11 +150,23 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
+  def _merge_pytrees(self, overrides):
+    return jax.tree_util.tree_map(
+        lambda base_leaf, override_leaf: override_leaf
+        if override_leaf is not None
+        else base_leaf,
+        self._runtime_params_provider,
+        overrides,
+    )
+
   @jax.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_param_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -171,6 +183,7 @@ class SimulationStepFn:
         profiles which are being evolved.
       previous_post_processed_outputs: Post-processed outputs from the previous
         time step.
+      runtime_param_overrides: Optional overrides to the runtime params.
 
     Returns:
       ToraxSimState containing:
@@ -188,10 +201,16 @@ class SimulationStepFn:
         - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
+
+    if runtime_param_overrides is not None:
+      runtime_params_provider = self._merge_pytrees(runtime_param_overrides)
+    else:
+      runtime_params_provider = self._runtime_params_provider
+
     runtime_params_t, geo_t = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t,
-            runtime_params_provider=self._runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=self._geometry_provider,
         )
     )
@@ -217,6 +236,7 @@ class SimulationStepFn:
             explicit_source_profiles,
             input_state,
             previous_post_processed_outputs,
+            runtime_params_provider,
         )
       else:
         return self._fixed_step(
@@ -225,6 +245,7 @@ class SimulationStepFn:
             explicit_source_profiles,
             input_state,
             previous_post_processed_outputs,
+            runtime_params_provider,
         )
 
     # If a sawtooth model is provided, and there was no previous
@@ -243,6 +264,7 @@ class SimulationStepFn:
           explicit_source_profiles,
           input_state,
           previous_post_processed_outputs,
+          runtime_params_provider,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -266,6 +288,7 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -277,7 +300,7 @@ class SimulationStepFn:
     runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t + dt_crash,
-            runtime_params_provider=self._runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=self._geometry_provider,
         )
     )
@@ -368,6 +391,7 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -401,7 +425,7 @@ class SimulationStepFn:
         geo_t,
         input_state,
         explicit_source_profiles,
-        self.runtime_params_provider,
+        runtime_params_provider,
         self.geometry_provider,
     )
     assert isinstance(
@@ -445,6 +469,7 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -461,7 +486,7 @@ class SimulationStepFn:
     runtime_params_t_plus_dt, geo_t_plus_dt = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t + dt,
-            runtime_params_provider=self._runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=self._geometry_provider,
         )
     )
