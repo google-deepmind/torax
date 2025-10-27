@@ -117,8 +117,12 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       if set(data.keys()).issubset(cls.model_fields.keys()):
         return data  # pytype: disable=bad-return-type
 
+    default_interpolation_mode = cls.model_fields['interpolation_mode'].default
+
     time, value, interpolation_mode, is_bool_param = (
-        interpolated_param.convert_input_to_xs_ys(data)
+        interpolated_param.convert_input_to_xs_ys(
+            data, default_interpolation_mode
+        )
     )
 
     # Ensure that the time is sorted.

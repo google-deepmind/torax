@@ -473,6 +473,52 @@ class InterpolatedParamTest(parameterized.TestCase):
     np.testing.assert_allclose(x, expected_output[0])
     np.testing.assert_allclose(y, expected_output[1])
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='step_interpolation_mode_override',
+          data=1.0,
+          interpolation_mode_override=interpolated_param.InterpolationMode.STEP,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.STEP,
+      ),
+      dict(
+          testcase_name='piecewise_linear_interpolation_mode_override',
+          data=1.0,
+          interpolation_mode_override=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      dict(
+          testcase_name='step_override_piecewise_linear_data',
+          data=(1.0, 'PIECEWISE_LINEAR'),
+          interpolation_mode_override=interpolated_param.InterpolationMode.STEP,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      dict(
+          testcase_name='step_override_step_data',
+          data=(1.0, 'STEP'),
+          interpolation_mode_override=interpolated_param.InterpolationMode.STEP,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.STEP,
+      ),
+      dict(
+          testcase_name='piecewise_linear_override_piecewise_linear_data',
+          data=(1.0, 'PIECEWISE_LINEAR'),
+          interpolation_mode_override=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      dict(
+          testcase_name='piecewise_linear_override_step_data',
+          data=(1.0, 'STEP'),
+          interpolation_mode_override=interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          expected_interpolation_mode=interpolated_param.InterpolationMode.STEP,
+      ),
+  )
+  def test_convert_input_to_xs_ys_interpolation_mode(
+      self, data, interpolation_mode_override, expected_interpolation_mode
+  ):
+    _, _, interpolation_mode, _ = interpolated_param.convert_input_to_xs_ys(
+        data, default_interpolation_mode=interpolation_mode_override
+    )
+    self.assertEqual(interpolation_mode, expected_interpolation_mode)
+
   @parameterized.parameters(
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       interpolated_param.InterpolationMode.STEP,
