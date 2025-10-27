@@ -126,7 +126,9 @@ class SimTest(sim_test_case.SimTestCase):
           'test_eqdsk',
           'test_eqdsk.py',
           _ALL_PROFILES,
-          1e-8,  # due to coincidental near-zero crossing of psi.
+          # higher rtol needed due to coincidental near-zero crossing of psi
+          # and larger relative errors in spite of small absolute errors.
+          1e-8,
       ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE

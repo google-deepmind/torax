@@ -99,6 +99,9 @@ class JitSimTest(sim_test_case.SimTestCase):
       (
           'test_eqdsk',
           'test_eqdsk.py',
+          # higher rtol needed due to coincidental near-zero crossing of psi
+          # and larger relative errors in spite of small absolute errors.
+          1e-8,
       ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE
@@ -267,12 +270,14 @@ class JitSimTest(sim_test_case.SimTestCase):
   def test_run_simulation_with_jit_run_loop(
       self,
       config_name: str,
+      rtol: float | None = None,
   ):
     mock_run_loop = mock.MagicMock(side_effect=jit_run_loop.run_loop)
     with mock.patch.object(run_loop, 'run_loop', mock_run_loop):
       self._test_run_simulation(
           config_name,
           profiles=_ALL_PROFILES,
+          rtol=rtol,
       )
     # Check the mock run loop was actually called.
     mock_run_loop.assert_called_once()
