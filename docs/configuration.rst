@@ -368,9 +368,24 @@ equations being solved, constant numerical variables.
   Prefactor in front of ``chi_timestep_calculator`` base timestep
   :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
 
-``fixed_dt`` (float [default = 1e-1])
+``fixed_dt`` ( **time-varying-scalar** [default = 1e-1])
   Timestep used for ``fixed_time_step_calculator`` (see
-  :ref:`time_step_calculator`).
+  :ref:`time_step_calculator`). All values must be non-negative.
+  Specifying a time-dependent fixed_dt can be useful in cases where there are
+  known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
+  different granularity of simulation is required for each phase. Note that the
+  default interpolation mode for `fixed_dt` has been internally imposed as
+  `'STEP'`. Also note that the `'STEP'` interpolation changes value AFTER the
+  boundary, so you may want to move the boundaries by a small epsilon to change
+  dt at the prescribed value. The need for this epsilon will go away in the
+  near future with the release of v2.0.
+  E.g.:
+
+  .. code-block:: python
+
+    # Setting a higher time resolution between 5s and 10s.
+    epsilon = 1e-5
+    'fixed_dt': {0.0: 1e-1, 5.0 - epsilon: 1e-2, 10.0 - epsilon: 1e-1}
 
 ``adaptive_dt`` (bool [default = True])
   If True, then if a nonlinear solver does not converge for a given timestep,

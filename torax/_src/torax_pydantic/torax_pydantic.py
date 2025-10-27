@@ -59,6 +59,9 @@ PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar
 NonNegativeTimeVaryingScalar = (
     interpolated_param_1d.NonNegativeTimeVaryingScalar
 )
+NonNegativeTimeVaryingScalarStep = (
+    interpolated_param_1d.NonNegativeTimeVaryingScalarStep
+)
 UnitIntervalTimeVaryingScalar = (
     interpolated_param_1d.UnitIntervalTimeVaryingScalar
 )

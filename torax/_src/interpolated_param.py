@@ -41,6 +41,8 @@ def _step_interpolation(
   # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'
   # means that the step occurs whenever x > self.xs. Clipping is strictly
   # necessary for the case where searchsorted returns index 0.
+  # TODO(b/454891040): Make the value at the boundary consistent with the
+  # prescribed value.
   return jnp.clip(jnp.searchsorted(xs, x, side='left') - 1, 0, xs.shape[0] - 1)
 
 

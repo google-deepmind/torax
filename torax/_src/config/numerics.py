@@ -40,7 +40,7 @@ class RuntimeParams:
   max_dt: float
   min_dt: float
   chi_timestep_prefactor: float
-  fixed_dt: float
+  fixed_dt: array_typing.FloatScalar
   dt_reduction_factor: float
   resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
@@ -110,7 +110,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   max_dt: torax_pydantic.Second = 2.0
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
-  fixed_dt: torax_pydantic.Second = 1e-1
+  fixed_dt: torax_pydantic.NonNegativeTimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(1e-1)
+  )
   adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
   evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
@@ -160,7 +162,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         max_dt=self.max_dt,
         min_dt=self.min_dt,
         chi_timestep_prefactor=self.chi_timestep_prefactor,
-        fixed_dt=self.fixed_dt,
+        fixed_dt=self.fixed_dt.get_value(t),
         dt_reduction_factor=self.dt_reduction_factor,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,

@@ -25,7 +25,6 @@ from torax._src.geometry import geometry
 from torax._src.time_step_calculator import time_step_calculator
 
 
-# TODO(b/337844885). Make this a time dependent calculator.
 class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   """TimeStepCalculator based on constant time steps."""
 
@@ -37,6 +36,7 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       core_transport: state_module.CoreTransport,
   ) -> jax.Array:
     """Returns the fixed time step duration."""
+    del geo, core_profiles, core_transport
     return jnp.array(runtime_params.numerics.fixed_dt)
 
   def __eq__(self, other) -> bool:

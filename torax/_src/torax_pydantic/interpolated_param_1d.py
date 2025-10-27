@@ -180,11 +180,21 @@ def _interval(
   return time_varying_scalar
 
 
+class TimeVaryingScalarStep(TimeVaryingScalar):
+  """TimeVaryingScalar with STEP interpolation mode by default."""
+  interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.STEP
+
+
 PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
 ]
 NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
+]
+NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingScalarStep, pydantic.AfterValidator(_is_non_negative)
 ]
 UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar,
