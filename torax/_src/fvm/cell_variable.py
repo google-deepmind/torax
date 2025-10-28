@@ -26,7 +26,6 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
-import typing_extensions
 
 
 def _zero() -> array_typing.FloatScalar:
@@ -34,7 +33,8 @@ def _zero() -> array_typing.FloatScalar:
   return jnp.zeros(())
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, eq=False)
 class CellVariable:
   """A variable representing values of the cells along the radius.
 
@@ -259,10 +259,3 @@ class CellVariable:
         [left_value, self.value, right_value],
         axis=-1,
     )
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    try:
-      chex.assert_trees_all_equal(self, other)
-      return True
-    except AssertionError:
-      return False
