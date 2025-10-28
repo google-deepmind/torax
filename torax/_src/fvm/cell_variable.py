@@ -34,7 +34,7 @@ def _zero() -> array_typing.FloatScalar:
   return jnp.zeros(())
 
 
-@chex.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class CellVariable:
   """A variable representing values of the cells along the radius.
 
@@ -118,6 +118,14 @@ class CellVariable:
           'Exactly one of right_face_constraint and '
           'right_face_grad_constraint must be set.'
       )
+    # If this class ever becomes polymorphic we must add eq=False to the
+    # decorator and add custom __hash__ and __eq__ methods that hash the
+    # type.
+    # Disabling the lint check because we are specifically checking that
+    # the type literally is the  CellVariable base class. The linter wants
+    #  us to use
+    # `isinstance(self, CellVariable) which accepts subclasses.
+    assert type(self) is CellVariable  # pylint: disable=unidiomatic-typecheck
 
   def _assert_unbatched(self):
     if len(self.value.shape) != 1:
