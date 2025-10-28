@@ -129,6 +129,7 @@ class InterpolatedParamBase(abc.ABC):
     """Returns a value for this parameter interpolated at the given input."""
 
 
+@jax.tree_util.register_pytree_node_class
 class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
@@ -151,6 +152,17 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
       )
     if ys.ndim not in (1, 2):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
+
+  def tree_flatten(self):
+    return (self._xs, self._ys), ()
+
+  @classmethod
+  def tree_unflatten(cls, unused_aux_data, children):
+    # Avoid calling constructor as it does validation.
+    obj = object.__new__(_PiecewiseLinearInterpolatedParam)
+    obj._xs = children[0]
+    obj._ys = children[1]
+    return obj
 
   @property
   def xs(self) -> array_typing.Array:
@@ -195,6 +207,7 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
 
+@jax.tree_util.register_pytree_node_class
 class _StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
@@ -210,6 +223,17 @@ class _StepInterpolatedParam(InterpolatedParamBase):
           'xs and ys must have the same number of elements in the first '
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
+
+  def tree_flatten(self):
+    return (self._xs, self._ys), ()
+
+  @classmethod
+  def tree_unflatten(cls, unused_aux_data, children):
+    # Avoid calling constructor as it does validation.
+    obj = object.__new__(_StepInterpolatedParam)
+    obj._xs = children[0]
+    obj._ys = children[1]
+    return obj
 
   @property
   def xs(self) -> array_typing.Array:
@@ -369,9 +393,8 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     Raises:
       RuntimeError: If the input xs is not sorted.
     """
-    self._value = value
     xs, ys = value
-    jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
+    xs = jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
 
     if not np.issubdtype(xs.dtype, np.floating):
       raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
@@ -393,11 +416,17 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
         'interpolation_mode': self.interpolation_mode,
         'is_bool_param': self.is_bool_param,
     }
-    return (self._value, static_params)
+    return ((self._param,), static_params)
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
-    return cls(children, **aux_data)
+    # Avoid calling the constructor as it contains validation logic that may
+    # fail under certain JAX transformations.
+    obj = object.__new__(InterpolatedVarSingleAxis)
+    obj._param = children[0]
+    obj._interpolation_mode = aux_data['interpolation_mode']
+    obj._is_bool_param = aux_data['is_bool_param']
+    return obj
 
   @property
   def is_bool_param(self) -> bool:
