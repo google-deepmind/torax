@@ -308,6 +308,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_imas',
           'test_iterhybrid_predictor_corrector_imas.py',
       ),
+      # Tests full integration for ITER-hybrid-based config with IMAS geometry and profiles.
+      (
+          'test_imas_profiles_and_geo',
+          'test_imas_profiles_and_geo.py',
+      ),
   )
   def test_run_simulation(
       self,
