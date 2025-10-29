@@ -38,7 +38,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Qei_multiplier: float
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class QeiSource(source.Source):
   """Collisional ion-electron heat source.
 

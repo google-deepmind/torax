@@ -29,6 +29,7 @@ from typing import ClassVar, Protocol
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
@@ -70,8 +71,8 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_EL = 4
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class Source(abc.ABC):
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class Source(static_dataclass.StaticDataclass, abc.ABC):
   """Base class for a single source/sink term.
 
   Sources are used to compute source profiles (see source_profiles.py), which
@@ -94,7 +95,9 @@ class Source(abc.ABC):
   """
 
   SOURCE_NAME: ClassVar[str] = 'source'
-  model_func: SourceProfileFunction | None = None
+  model_func: SourceProfileFunction | None = dataclasses.field(
+      default=None, metadata={'hash_by_id': True}
+  )
 
   @property
   @abc.abstractmethod
@@ -174,13 +177,3 @@ class Source(abc.ABC):
         return (zeros,) * len(self.affected_core_profiles)
       case _:
         raise ValueError(f'Unknown mode: {mode}')
-
-  def __hash__(self) -> int:
-    return hash((self.SOURCE_NAME, self.model_func))
-
-  def __eq__(self, other) -> bool:
-    return (
-        isinstance(other, type(self))
-        and self.SOURCE_NAME == other.SOURCE_NAME
-        and self.model_func == other.model_func
-    )

@@ -158,7 +158,7 @@ def fusion_heat_model_func(
   # pylint: enable=invalid-name
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
