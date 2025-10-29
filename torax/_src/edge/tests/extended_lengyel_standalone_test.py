@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
 from absl.testing import absltest
 import numpy as np
-from torax._src.edge import extended_lengyel
+from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import pydantic_model
+from torax._src.edge import extended_lengyel_standalone
 
 # pylint: disable=invalid-name
 
@@ -44,8 +46,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': pydantic_model.ComputationMode.INVERSE,
-        'solver_mode': pydantic_model.SolverMode.FIXED_STEP,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
     }
 
     # --- Expected output values ---
@@ -65,7 +67,9 @@ class ExtendedLengyelTest(absltest.TestCase):
     }
 
     # Run the model
-    outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
+    outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
+        **inputs
+    )
 
     # --- Assertions ---
     self.assertEqual(
@@ -141,8 +145,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': pydantic_model.ComputationMode.FORWARD,
-        'solver_mode': pydantic_model.SolverMode.FIXED_STEP,
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
         'fixed_step_iterations': 100,
     }
 
@@ -163,7 +167,9 @@ class ExtendedLengyelTest(absltest.TestCase):
     }
 
     # Run the model
-    outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
+    outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
+        **inputs
+    )
 
     # --- Assertions ---
     self.assertEqual(
@@ -230,8 +236,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': pydantic_model.ComputationMode.INVERSE,
-        'solver_mode': pydantic_model.SolverMode.NEWTON_RAPHSON,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
         'newton_raphson_iterations': 30,
         'newton_raphson_tol': 1e-5,
     }
@@ -253,7 +259,9 @@ class ExtendedLengyelTest(absltest.TestCase):
     }
 
     # Run the model
-    outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
+    outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
+        **inputs
+    )
 
     # --- Assertions ---
     self.assertEqual(
@@ -329,8 +337,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'elongation_psi95': 1.6,
         'triangularity_psi95': 0.3,
         'average_ion_mass': 2.0,
-        'computation_mode': pydantic_model.ComputationMode.FORWARD,
-        'solver_mode': pydantic_model.SolverMode.NEWTON_RAPHSON,
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'solver_mode': extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
         'newton_raphson_iterations': 30,
         'newton_raphson_tol': 1e-5,
     }
@@ -351,7 +359,9 @@ class ExtendedLengyelTest(absltest.TestCase):
     }
 
     # Run the model
-    outputs = extended_lengyel.run_extended_lengyel_model(**inputs)
+    outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
+        **inputs
+    )
 
     # --- Assertions ---
     self.assertEqual(
@@ -398,10 +408,98 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=_RTOL,
     )
 
+  def test_default_fixed_step_iterations(self):
+    # Minimal inputs to run the function
+    inputs = {
+        'target_electron_temp': 2.34,
+        'power_crossing_separatrix': 5.5e6,
+        'separatrix_electron_density': 3.3e19,
+        'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
+        'seed_impurity_weights': {'N': 1.0},
+        'fixed_impurity_concentrations': {},
+        'magnetic_field_on_axis': 2.5,
+        'plasma_current': 1.0e6,
+        'parallel_connection_length': 20.0,
+        'divertor_parallel_length': 5.0,
+        'major_radius': 1.65,
+        'minor_radius': 0.5,
+        'elongation_psi95': 1.6,
+        'triangularity_psi95': 0.3,
+        'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+    }
+
+    # Mock the solver functions
+    mock_fixed_step = self.enter_context(
+        mock.patch.object(
+            extended_lengyel_solvers,
+            'inverse_mode_fixed_step_solver',
+            autospec=True,
+        )
+    )
+    mock_hybrid = self.enter_context(
+        mock.patch.object(
+            extended_lengyel_solvers,
+            'inverse_mode_hybrid_solver',
+            autospec=True,
+        )
+    )
+    # Set a return value that can be unpacked.
+    mock_fixed_step.return_value = (mock.MagicMock(), mock.MagicMock())
+    mock_hybrid.return_value = (mock.MagicMock(), mock.MagicMock())
+    # Mock the post-processing function to avoid errors from the dummy
+    # sol_model returned by the solver mocks.
+    mock_post_process = self.enter_context(
+        mock.patch.object(
+            extended_lengyel_standalone,
+            '_calc_post_processed_outputs',
+            autospec=True,
+        )
+    )
+    mock_post_process.return_value = (0.0, 0.0)
+
+    # Get the original, non-JITted function to avoid issues with mocking.
+    run_standalone_nojit = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone.__wrapped__
+    )
+
+    # Case 1: FIXED_STEP, default iterations
+    run_standalone_nojit(
+        **inputs, solver_mode=extended_lengyel_enums.SolverMode.FIXED_STEP
+    )
+    mock_fixed_step.assert_called_once()
+    self.assertEqual(
+        mock_fixed_step.call_args.kwargs['iterations'],
+        extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+    )
+    mock_fixed_step.reset_mock()
+
+    # Case 2: HYBRID, default iterations
+    run_standalone_nojit(
+        **inputs, solver_mode=extended_lengyel_enums.SolverMode.HYBRID
+    )
+    mock_hybrid.assert_called_once()
+    self.assertEqual(
+        mock_hybrid.call_args.kwargs['fixed_step_iterations'],
+        extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+    )
+    mock_hybrid.reset_mock()
+
+    # Case 3: FIXED_STEP, user-provided iterations
+    run_standalone_nojit(
+        **inputs,
+        solver_mode=extended_lengyel_enums.SolverMode.FIXED_STEP,
+        fixed_step_iterations=123,
+    )
+    mock_fixed_step.assert_called_once()
+    self.assertEqual(mock_fixed_step.call_args.kwargs['iterations'], 123)
+    mock_fixed_step.reset_mock()
+
   def test_validate_inputs_for_computation_mode(self):
     # Test valid FORWARD mode
-    extended_lengyel._validate_inputs_for_computation_mode(
-        computation_mode=pydantic_model.ComputationMode.FORWARD,
+    extended_lengyel_standalone._validate_inputs_for_computation_mode(
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
         target_electron_temp=None,
         seed_impurity_weights={},
     )
@@ -411,8 +509,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         'Target electron temperature must not be provided for forward'
         ' computation.',
     ):
-      extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=pydantic_model.ComputationMode.FORWARD,
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
           target_electron_temp=10.0,
           seed_impurity_weights={},
       )
@@ -420,14 +518,14 @@ class ExtendedLengyelTest(absltest.TestCase):
         ValueError,
         'Seed impurity weights must not be provided for forward computation.',
     ):
-      extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=pydantic_model.ComputationMode.FORWARD,
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
           target_electron_temp=None,
           seed_impurity_weights={'N': 1.0},
       )
     # Test valid INVERSE mode
-    extended_lengyel._validate_inputs_for_computation_mode(
-        computation_mode=pydantic_model.ComputationMode.INVERSE,
+    extended_lengyel_standalone._validate_inputs_for_computation_mode(
+        computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
         target_electron_temp=10.0,
         seed_impurity_weights={'N': 1.0},
     )
@@ -436,8 +534,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         ValueError,
         'Target electron temperature must be provided for inverse computation.',
     ):
-      extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=pydantic_model.ComputationMode.INVERSE,
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           target_electron_temp=None,
           seed_impurity_weights={'N': 1.0},
       )
@@ -445,8 +543,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         ValueError,
         'Seed impurity weights must be provided for inverse computation.',
     ):
-      extended_lengyel._validate_inputs_for_computation_mode(
-          computation_mode=pydantic_model.ComputationMode.INVERSE,
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           target_electron_temp=10.0,
           seed_impurity_weights={},
       )

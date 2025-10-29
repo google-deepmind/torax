@@ -54,6 +54,12 @@ class EquilibriumTest(parameterized.TestCase):
         try:
           a = geo_IMAS.__dict__[key]
           b = geo_CHEASE.__dict__[key]
+          if a is None:
+            self.assertIsNone(b)
+            continue
+          if b is None:
+            # New edge params may be present in IMAS but not CHEASE.
+            continue
           if a.size > 8:
             a = a[4:-4]
             b = b[4:-4]
@@ -109,13 +115,21 @@ class EquilibriumTest(parameterized.TestCase):
             'Phi_b_dot',
             'Ip_from_parameters',
         ]:
-          np.testing.assert_allclose(
-              geo1.__dict__[key],
-              geo2.__dict__[key],
-              err_msg=(
-                  f'Value {key} mismatched between slice_time and slice_index'
-              ),
-          )
+          val1 = geo1.__dict__[key]
+          val2 = geo2.__dict__[key]
+          if val1 is None:
+            self.assertIsNone(
+                val2,
+                f'Value {key} mismatched between slice_time and slice_index',
+            )
+          else:
+            np.testing.assert_allclose(
+                val1,
+                val2,
+                err_msg=(
+                    f'Value {key} mismatched between slice_time and slice_index'
+                ),
+            )
 
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
     config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
