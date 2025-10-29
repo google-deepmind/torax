@@ -26,6 +26,7 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
+from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
@@ -182,6 +183,18 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
           Prescribed psidot is only applied when current diffusion is off.
           """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_edge_with_circular_geometry(self) -> typing_extensions.Self:
+    """Validates that edge models are not used with CircularGeometry."""
+    if (
+        self.edge is not None
+        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+    ):
+      raise ValueError(
+          'Edge models are not supported for use with CircularGeometry.'
+      )
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
