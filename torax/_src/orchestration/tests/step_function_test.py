@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
+import jax.test_util as jtu
 import numpy as np
 from torax._src import state
 from torax._src.config import config_loader
@@ -167,10 +168,7 @@ class StepFunctionTest(parameterized.TestCase):
       _, new_post_processed_outputs = step_fn(sim_state, post_processed_outputs)
       return new_post_processed_outputs.Q_fusion
 
-    grad_ip_jax = jax.grad(f)(input_value)
-    eps = input_value / 1e7
-    grad_ip_diff = (f(input_value + eps) - f(input_value - eps)) / (2 * eps)
-    np.testing.assert_almost_equal(grad_ip_jax, grad_ip_diff)
+    jtu.check_grads(f, (input_value,), order=1, modes=('rev',))
 
 
 if __name__ == '__main__':
