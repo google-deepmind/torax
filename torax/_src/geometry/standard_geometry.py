@@ -738,12 +738,12 @@ class StandardGeometryIntermediates:
     Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
 
     # 2D psi grid, with psi(axis) = 0
-    psi_eqdsk_2dgrid = eqfile['psi'] - eqfile['psimag']
+    psi_eqdsk_2dgrid = (eqfile['psi'] - eqfile['psimag'])
 
     # Mask for the region inside the LCFS
     # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
     cgf_psi = contourpy.contour_generator(X, Z, psi_eqdsk_2dgrid)
-    sep_vertices = cgf_psi.create_contour((eqfile['psibdry'] - eqfile['psimag']) * 0.9999)
+    sep_vertices = cgf_psi.create_contour((eqfile['psibdry'] - eqfile['psimag']) * 0.99)
 
     # Check which flux contour bounds contains the magnetic axis, select that contour
     idxsep = 0
@@ -758,8 +758,8 @@ class StandardGeometryIntermediates:
     Xsep, Zsep = sep_vertices[idxsep].T[0], sep_vertices[idxsep].T[1]
 
     #offset = 0.01
-    xoffset = 1.25 * eqfile['xdim'] / (eqfile['nx'] - 1)
-    zoffset = 1.25 * eqfile['zdim'] / (eqfile['nz'] - 1)
+    xoffset = 0.05 * (Xsep.max() - Xsep.min())
+    zoffset = 0.05 * (Zsep.max() - Zsep.min())
     mask = (
         (X > Xsep.min() - xoffset)
         & (X < Xsep.max() + xoffset)
@@ -793,9 +793,10 @@ class StandardGeometryIntermediates:
             """)
       c_idx = 0
       for vv in range(len(vertices)):
-        if Polygon(vertices[vv]).contains(Point(eqfile['xmag'], eqfile['zmag'])):
-          c_idx = vv
-          break
+        if len(vertices[vv]) > 4:
+          if Polygon(vertices[vv]).contains(Point(eqfile['xmag'], eqfile['zmag'])):
+            c_idx = vv
+            break
       x_surface, z_surface = vertices[c_idx].T[0], vertices[c_idx].T[1]
       surfaces.append((x_surface, z_surface))
 
