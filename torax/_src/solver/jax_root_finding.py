@@ -143,7 +143,7 @@ def root_newton_raphson(
   metadata['iterations'] = metadata['iterations'].astype(
       jax_utils.get_int_dtype()
   )
-  return x_out, RootMetadata(**metadata, error=error)
+  return x_out, RootMetadata(**metadata, error=error)  # pytype: disable=bad-return-type
 
 
 def _error_cond(residual: jax.Array, coarse_tol: float, tol: float):
