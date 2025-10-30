@@ -298,6 +298,9 @@ These are called out in the list of profiles below, and generate relate to:
   Ohmic heating power density [:math:`W/m^3`] (only relevant for electrons).
   Only output if ``ohmic`` source is active.
 
+``radial_electric_field`` (time, rho_norm)
+  Radial electric field [:math:`V/m`].
+
 ``Phi`` (time, rho_norm)
   Toroidal magnetic flux at each radial grid point [:math:`Wb`].
 
@@ -370,6 +373,12 @@ These are called out in the list of profiles below, and generate relate to:
 
 ``T_i`` (time, rho_norm)
   Ion temperature [:math:`keV`].
+
+``toroidal_velocity`` (time, rho_norm)
+  Toroidal velocity [:math:`m/s`].
+
+``poloidal_velocity`` (time, rho_norm)
+  Poloidal velocity [:math:`m/s`].
 
 ``v_loop`` (time, rho_norm)
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}`

@@ -81,6 +81,16 @@ class PydanticModelTest(parameterized.TestCase):
         output, pydantic_model.runtime_params.RuntimeParams
     )
 
+  def test_compute_toroidal_velocity_raises_error(self):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"compute_toroidal_velocity": True}
+    )
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        "Computation of toroidal velocity is not yet implemented",
+    ):
+      model.build_models()
+
 
 if __name__ == "__main__":
   absltest.main()
