@@ -84,7 +84,7 @@ class RuntimeParamsProvider:
         time_step_calculator=config.time_step_calculator,
     )
 
-  @jax.jit
+  # TODO: investigate whether jitting here decreases compilation time
   def __call__(
       self,
       t: chex.Numeric,

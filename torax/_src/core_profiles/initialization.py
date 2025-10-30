@@ -19,7 +19,6 @@ import dataclasses
 from absl import logging
 import jax
 from jax import numpy as jnp
-import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -79,18 +78,22 @@ def initial_core_profiles(
   # time intervals, the v_loop_lcfs time-series is underconstrained. Therefore,
   # we set v_loop_lcfs[0] to v_loop_lcfs[1] when creating the outputs.
   v_loop_lcfs = (
-      np.array(runtime_params.profile_conditions.v_loop_lcfs)
+      jnp.array(
+          runtime_params.profile_conditions.v_loop_lcfs,
+          dtype=jax_utils.get_dtype(),
+      )
       if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else np.array(0.0, dtype=jax_utils.get_dtype())
+      else jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
 
   # Initialise psi and derived quantities to zero before they are calculated.
   psidot = cell_variable.CellVariable(
-      value=np.zeros_like(geo.rho),
+      value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       dr=geo.drho_norm,
   )
   psi = cell_variable.CellVariable(
-      value=np.zeros_like(geo.rho), dr=geo.drho_norm
+      value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+      dr=geo.drho_norm,
   )
 
   core_profiles = state.CoreProfiles(
@@ -111,14 +114,14 @@ def initial_core_profiles(
       Z_eff_face=ions.Z_eff_face,
       psi=psi,
       psidot=psidot,
-      q_face=np.zeros_like(geo.rho_face),
-      s_face=np.zeros_like(geo.rho_face),
+      q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      s_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       v_loop_lcfs=v_loop_lcfs,
-      sigma=np.zeros_like(geo.rho),
-      sigma_face=np.zeros_like(geo.rho_face),
-      j_total=np.zeros_like(geo.rho),
-      j_total_face=np.zeros_like(geo.rho_face),
-      Ip_profile_face=np.zeros_like(geo.rho_face),
+      sigma=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+      sigma_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+      j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
   )
 
   return _init_psi_and_psi_derived(

@@ -16,7 +16,8 @@
 import dataclasses
 
 from absl import logging
-import numpy as np
+import jax
+import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -35,6 +36,7 @@ from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
 
+@jax.jit
 def get_initial_state_and_post_processed_outputs(
     t: float,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
@@ -104,15 +106,17 @@ def _get_initial_state(
   )
 
   return sim_state.ToraxSimState(
-      t=np.array(runtime_params.numerics.t_initial),
-      dt=np.zeros(()),
+      t=jnp.array(
+          runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
+      ),
+      dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
       core_profiles=initial_core_profiles,
       core_sources=initial_core_sources,
       core_transport=transport_coeffs,
       solver_numeric_outputs=state.SolverNumericOutputs(
-          solver_error_state=np.array(0, jax_utils.get_int_dtype()),
-          outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
-          inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
           sawtooth_crash=False,
       ),
       geometry=geo,
@@ -177,7 +181,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
       E_aux_total=scalars_dataset.data_vars['E_aux_total'].to_numpy(),
       E_ohmic_e=scalars_dataset.data_vars['E_ohmic_e'].to_numpy(),
       E_external_injected=scalars_dataset.data_vars[
-          'E_external_injected'].to_numpy(),
+          'E_external_injected'
+      ].to_numpy(),
       E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
   )
   core_profiles = dataclasses.replace(
@@ -199,11 +204,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
           core_profiles=core_profiles,
           solver_numeric_outputs=state.SolverNumericOutputs(
               sawtooth_crash=sawtooth_crash,
-              solver_error_state=np.array(0, jax_utils.get_int_dtype()),
-              outer_solver_iterations=np.array(
+              solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+              outer_solver_iterations=jnp.array(
                   outer_solver_iterations, jax_utils.get_int_dtype()
               ),
-              inner_solver_iterations=np.array(
+              inner_solver_iterations=jnp.array(
                   inner_solver_iterations, jax_utils.get_int_dtype()
               ),
           ),
