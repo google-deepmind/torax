@@ -127,20 +127,22 @@ def plasma_composition_from_IMAS(
     - `fractions` impurity mode is unsupported.
   Note that if the input ids does not contain info for the different ion
   species, the function will not raise an error but return an empty dict for
-  `main_ion` and `species` plasma_composition keys.
+  `main_ion` and `species` plasma_composition keys unless the expected species
+  are specified using the expected_impurities and main_ion_symbols args.
 
   Args:
     ids: A core_profiles IDS object. The IDS can contain multiple time slices.
-    main_ions_symbols: collection of ions to be used to define the main_ion
-      mixture. If value is not the default one, will check that the given ions
-      exist in the IDS and their density is filled.
-      Default are hydrogenic ions H, D, T.
     t_initial: Initial time used to map the profiles in the dicts. If None the
       initial time will be the time of the first time slice of the ids. Else all
       time slices will be shifted such that the first time slice has time =
       t_initial.
-    expected_ions: Optional arg to check that the input IDS contains the wanted
-      impurity species and raise and error if not, or if its density is empty.
+    expected_impurities: Optional arg to check that the input IDS contains the 
+      wanted impurity species and raise and error if not, or if its density is
+      empty.
+    main_ions_symbols: collection of ions to be used to define the main_ion
+      mixture. If value is not the default one, will check that the given ions
+      exist in the IDS and their density is filled.
+      Default are hydrogenic ions H, D, T.
 
   Returns:
     The updated fields read from the IDS that can be used to completely or
