@@ -26,6 +26,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
@@ -62,6 +63,7 @@ class RuntimeParamsProvider:
   solver: solver_pydantic_model.SolverConfig
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_pydantic_model.MHD
+  edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_pydantic_model.Neoclassical
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
@@ -80,6 +82,7 @@ class RuntimeParamsProvider:
         solver=config.solver,
         pedestal=config.pedestal,
         mhd=config.mhd,
+        edge=config.edge,
         neoclassical=config.neoclassical,
         time_step_calculator=config.time_step_calculator,
     )
@@ -105,6 +108,7 @@ class RuntimeParamsProvider:
         pedestal=self.pedestal.build_runtime_params(t),
         mhd=self.mhd.build_runtime_params(t),
         time_step_calculator=self.time_step_calculator.build_runtime_params(),
+        edge=None if self.edge is None else self.edge.build_runtime_params(t),
     )
 
 

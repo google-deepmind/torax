@@ -37,4 +37,4 @@ class PhysicsModels:
   pedestal_model: pedestal_model_lib.PedestalModel
   neoclassical_models: neoclassical_models_lib.NeoclassicalModels
   mhd_models: mhd_model_lib.MHDModels
-  edge_model: edge_model_lib.EdgeModelBase | None
+  edge_model: edge_model_lib.EdgeModel | None
