@@ -107,6 +107,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   t_initial: torax_pydantic.Second = 0.0
   t_final: torax_pydantic.Second = 5.0
   exact_t_final: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  # TODO(b/434175938) move these to the various time step calculator configs.
   max_dt: torax_pydantic.Second = 2.0
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0

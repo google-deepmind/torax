@@ -17,6 +17,7 @@
 import dataclasses
 import functools
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
@@ -155,6 +156,7 @@ class SimulationStepFn:
       self,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      max_dt: chex.Numeric = jnp.inf,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -171,6 +173,10 @@ class SimulationStepFn:
         profiles which are being evolved.
       previous_post_processed_outputs: Post-processed outputs from the previous
         time step.
+      max_dt: The maximum time step duration to allow the simulation to take. If
+        set this will override the properties set in the numerics config. If
+        this is infinite, the time step duration will be chosen based on the
+        values set in the numerics config.
 
     Returns:
       ToraxSimState containing:
@@ -210,32 +216,44 @@ class SimulationStepFn:
 
     def _step():
       """Take either the adaptive or fixed step, depending on the config."""
+      step_args = (
+          max_dt,
+          runtime_params_t,
+          geo_t,
+          explicit_source_profiles,
+          input_state,
+          previous_post_processed_outputs,
+      )
+      # If adaptive dt is enabled, take the adaptive step if the max_dt is
+      # greater than the min_dt, otherwise take the fixed step.
       if runtime_params_t.numerics.adaptive_dt:
-        return self._adaptive_step(
-            runtime_params_t,
-            geo_t,
-            explicit_source_profiles,
-            input_state,
-            previous_post_processed_outputs,
+        return jax.lax.cond(
+            max_dt > runtime_params_t.numerics.min_dt,
+            self._adaptive_step,
+            self._fixed_step,
+            *step_args,
         )
       else:
         return self._fixed_step(
-            runtime_params_t,
-            geo_t,
-            explicit_source_profiles,
-            input_state,
-            previous_post_processed_outputs,
+            *step_args
         )
 
-    # If a sawtooth model is provided, and there was no previous
-    # sawtooth crash, it will be checked to see if a sawtooth
-    # should trigger. If it does, the sawtooth model will be applied and instead
-    # of a full PDE solve, the step_fn will return early with a state following
-    # sawtooth redistribution, at a t+dt set by the sawtooth model
-    # configuration.
     if self._sawtooth_solver is not None:
+      # If a sawtooth model is provided, there was no previous sawtooth crash
+      # and the max_dt is greater than the crash step duration, it will be
+      # checked to see if a sawtooth should trigger. If it does, the sawtooth
+      # model will be applied and instead of a full PDE solve, the step_fn will
+      # return early with a state following sawtooth redistribution, at a t+dt
+      # set by the sawtooth model configuration.
+      sawtooth_params = runtime_params_t.mhd.sawtooth
+      # Sawtooth params should always be provided if a sawtooth model is
+      # provided.
+      assert sawtooth_params is not None, 'Sawtooth params are None.'
       output_state, post_processed_outputs = jax.lax.cond(
-          input_state.solver_numeric_outputs.sawtooth_crash,
+          jnp.logical_and(
+              input_state.solver_numeric_outputs.sawtooth_crash,
+              max_dt > sawtooth_params.crash_step_duration,
+          ),
           lambda *args: (input_state, previous_post_processed_outputs),
           self._sawtooth_step,
           runtime_params_t,
@@ -257,6 +275,41 @@ class SimulationStepFn:
       # If no sawtooth model is provided, take a normal step.
       output_state, post_processed_outputs = _step()
 
+    return output_state, post_processed_outputs
+
+  def fixed_time_step(
+      self,
+      dt: jax.Array,
+      input_state: sim_state.ToraxSimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> tuple[
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+  ]:
+    """Runs the simulation until it has advanced by dt."""
+    remaining_dt = dt
+
+    def cond(args):
+      remaining_dt, _, _ = args
+      return remaining_dt > 0.0
+
+    def body(args):
+      remaining_dt, prev_state, prev_post_processed = args
+      output_state, post_processed_outputs = self(
+          prev_state,
+          prev_post_processed,
+          max_dt=remaining_dt,
+      )
+      remaining_dt -= output_state.dt
+      return remaining_dt, output_state, post_processed_outputs
+
+    _, output_state, post_processed_outputs = jax.lax.while_loop(
+        cond,
+        body,
+        (remaining_dt, input_state, previous_post_processed_outputs),
+    )
+    # TODO(b/456188184): Add a return value for the number of steps, sawtooth
+    # crashes, and solver error states etc.
     return output_state, post_processed_outputs
 
   def _sawtooth_step(
@@ -363,6 +416,7 @@ class SimulationStepFn:
 
   def _adaptive_step(
       self,
+      max_dt: chex.Numeric,
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -381,6 +435,7 @@ class SimulationStepFn:
         input_state.core_profiles,
         input_state.core_transport,
     )
+    initial_dt = jnp.minimum(initial_dt, max_dt)
     initial_loop_stats = {
         'inner_solver_iterations': jnp.array(0, jax_utils.get_int_dtype()),
     }
@@ -395,7 +450,10 @@ class SimulationStepFn:
     result = whilei_loop.whilei_loop(
         adaptive_step.cond_fun,
         functools.partial(adaptive_step.compute_state, solver=self.solver),
-        (initial_state, initial_loop_stats,),
+        (
+            initial_state,
+            initial_loop_stats,
+        ),
         initial_dt,
         runtime_params_t,
         geo_t,
@@ -440,6 +498,7 @@ class SimulationStepFn:
 
   def _fixed_step(
       self,
+      max_dt: chex.Numeric,
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -457,6 +516,7 @@ class SimulationStepFn:
         input_state.core_profiles,
         input_state.core_transport,
     )
+    dt = jnp.minimum(dt, max_dt)
 
     runtime_params_t_plus_dt, geo_t_plus_dt = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
