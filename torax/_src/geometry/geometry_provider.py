@@ -94,6 +94,7 @@ class GeometryProvider(Protocol):
 @dataclasses.dataclass(frozen=True)
 class ConstantGeometryProvider(GeometryProvider):
   """Returns the same Geometry for all calls."""
+
   geo: geometry.Geometry
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
@@ -191,18 +192,25 @@ class TimeDependentGeometryProvider:
           or attr.name == 'calcphibdot'
       ):
         continue
-      if attr.name == '_z_magnetic_axis':
-        if initial_geometry._z_magnetic_axis is None:  # pylint: disable=protected-access
-          kwargs[attr.name] = None
-          continue
-      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis((
-          times,
-          np.stack(
-              [getattr(g, attr.name) for g in geos],
-              axis=0,
-              dtype=jax_utils.get_np_dtype(),
+      # We assume that if an attribute is None for the initial geometry, it is
+      # None for all geometries.
+      initial_val = getattr(initial_geometry, attr.name)
+      if initial_val is None:
+        kwargs[attr.name] = None
+        continue
+
+      # Remaining attributes are set up for interpolation.
+      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
+          (
+              times,
+              np.stack(
+                  [getattr(g, attr.name) for g in geos],
+                  axis=0,
+                  dtype=jax_utils.get_np_dtype(),
+              ),
           ),
-      ))
+          is_bool_param=isinstance(initial_val, bool),
+      )
     return cls(**kwargs)
 
   def _get_geometry_base(
@@ -228,11 +236,14 @@ class TimeDependentGeometryProvider:
         else:
           kwargs[attr.name] = 0.0
         continue
-      if attr.name == '_z_magnetic_axis':
-        if self._z_magnetic_axis is None:
-          kwargs[attr.name] = None
-          continue
-      kwargs[attr.name] = getattr(self, attr.name).get_value(t)
+      provider_attr = getattr(self, attr.name)
+      if isinstance(
+          provider_attr, interpolated_param.InterpolatedVarSingleAxis
+      ):
+        kwargs[attr.name] = provider_attr.get_value(t)
+      else:
+        # For None attributes.
+        kwargs[attr.name] = provider_attr
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:

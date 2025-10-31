@@ -20,6 +20,7 @@ import jax
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
+from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
 
@@ -47,6 +48,7 @@ class ToraxSimState:
       are the values at time t. For the implicit sources, these are the most
       recent guess for time t+dt. The profiles here are the merged version of
       the explicit and implicit profiles.
+    edge_outputs: Outputs from the edge model, if one is active.
     geometry: Geometry at this time step used for the simulation.
     solver_numeric_outputs: Numerical quantities related to the solver.
   """
@@ -56,6 +58,7 @@ class ToraxSimState:
   core_profiles: state.CoreProfiles
   core_transport: state.CoreTransport
   core_sources: source_profiles.SourceProfiles
+  edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs
 

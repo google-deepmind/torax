@@ -211,6 +211,7 @@ class PostProcessingTest(parameterized.TestCase):
             inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
             sawtooth_crash=False,
         ),
+        edge_outputs=None,
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
