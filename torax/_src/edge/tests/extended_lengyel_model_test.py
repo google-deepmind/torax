@@ -23,12 +23,15 @@ from torax._src.config import runtime_params_slice
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
+from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import pydantic_model
 from torax._src.fvm import cell_variable
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.orchestration import run_simulation
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import source_profiles
+from torax._src.test_utils import sim_test_case
 
 # pylint: disable=invalid-name
 
@@ -379,6 +382,50 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
         mock_geo, self.mock_core_profiles, edge_params
     )
     self.assertEqual(resolved.divertor_broadening_factor, 1.0)
+
+
+class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
+
+  def test_edge_model_coupling_smoke(self):
+    """Smoke test to ensure edge model is called and outputs are stored."""
+    torax_config = self._get_torax_config(
+        'test_iterhybrid_predictor_corrector.py'
+    )
+    torax_config.update_fields({
+        'edge': {
+            'model_name': 'extended_lengyel',
+            'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+            'fixed_impurity_concentrations': {'Ne': 5e-2},
+            'enrichment_factor': {'Ne': 1.0},
+            'parallel_connection_length': 50.0,
+            'divertor_parallel_length': 10.0,
+            'toroidal_flux_expansion': 4.0,
+            'target_angle_of_incidence': 3.0,
+        }
+    })
+
+    # Run for just a few steps
+    torax_config.update_fields({
+        'numerics.t_final': (
+            torax_config.numerics.t_initial
+            + 5 * torax_config.numerics.fixed_dt.value[0]
+        )
+    })
+
+    _, state_history = run_simulation.run_simulation(torax_config)
+
+    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+
+    # Basic sanity checks on output values
+    for edge_output in state_history._edge_outputs:
+      self.assertIsNotNone(edge_output)
+      self.assertIsInstance(
+          edge_output,
+          extended_lengyel_standalone.ExtendedLengyelOutputs,
+      )
+      # Basic sanity check that the target temperature did not converge
+      # to near-zero values, which is a common failure mode.
+      self.assertGreater(edge_output.separatrix_electron_temp, 1e-2)
 
 
 if __name__ == '__main__':

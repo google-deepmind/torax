@@ -117,8 +117,35 @@ def get_consistent_runtime_params_and_geometry(
     t: chex.Numeric,
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
+    edge_outputs: edge_base.EdgeModelOutputs | None = None,
 ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
-  runtime_params = runtime_params_provider(t=t)
+  runtime_params_from_provider = runtime_params_provider(t=t)
+  runtime_params = _update_runtime_params_from_edge(
+      runtime_params_from_provider, edge_outputs
+  )
   return runtime_params_slice.make_ip_consistent(runtime_params, geo)
+
+
+def _update_runtime_params_from_edge(
+    runtime_params: runtime_params_slice.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
+) -> runtime_params_slice.RuntimeParams:
+  """Updates runtime parameters based on edge model outputs.
+
+  This function takes the outputs from the edge model and updates the
+  runtime parameters. This allows the edge model to dynamically control boundary
+  conditions (like temperatures at the LCFS) and impurity concentrations.
+
+  Args:
+    runtime_params: The current runtime parameters.
+    edge_outputs: The outputs from the edge model execution, or None if no edge
+      model is active.
+
+  Returns:
+    Updated runtime parameters.
+  """
+  # TODO(b/446608829): Implement coupling of edge outputs to runtime params.
+  del edge_outputs  # Unused for now.
+  return runtime_params

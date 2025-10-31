@@ -33,7 +33,7 @@ from torax._src.edge import extended_lengyel_solvers
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class ExtendedLengyelOutputs(base.EdgeModelOutputsBase):
+class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   """Outputs from the extended Lengyel model on top of the base class outputs.
 
   Attributes:

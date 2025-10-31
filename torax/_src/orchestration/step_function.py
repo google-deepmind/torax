@@ -25,6 +25,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -190,7 +191,7 @@ class SimulationStepFn:
         - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
-    runtime_params_t, geo_t, explicit_source_profiles = (
+    runtime_params_t, geo_t, explicit_source_profiles, edge_outputs = (
         step_function_processing.pre_step(
             input_state=input_state,
             runtime_params_provider=self._runtime_params_provider,
@@ -206,6 +207,7 @@ class SimulationStepFn:
           runtime_params_t,
           geo_t,
           explicit_source_profiles,
+          edge_outputs,
           input_state,
           previous_post_processed_outputs,
       )
@@ -219,9 +221,7 @@ class SimulationStepFn:
             *step_args,
         )
       else:
-        return self._fixed_step(
-            *step_args
-        )
+        return self._fixed_step(*step_args)
 
     if self._sawtooth_solver is not None:
       output_state, post_processed_outputs = self._sawtooth_step(
@@ -229,6 +229,7 @@ class SimulationStepFn:
           runtime_params_t,
           geo_t,
           explicit_source_profiles,
+          edge_outputs,
           input_state,
           previous_post_processed_outputs,
       )
@@ -288,6 +289,7 @@ class SimulationStepFn:
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
@@ -316,6 +318,7 @@ class SimulationStepFn:
           geo_t=geo_t,
           geometry_provider=self._geometry_provider,
           explicit_source_profiles=explicit_source_profiles,
+          edge_outputs=edge_outputs,
           input_state=input_state,
           input_post_processed_outputs=previous_post_processed_outputs,
       )
@@ -401,6 +404,7 @@ class SimulationStepFn:
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
@@ -440,6 +444,7 @@ class SimulationStepFn:
         geo_t,
         input_state,
         explicit_source_profiles,
+        edge_outputs,
         self.runtime_params_provider,
         self.geometry_provider,
     )
@@ -472,6 +477,7 @@ class SimulationStepFn:
             core_profiles_t=input_state.core_profiles,
             core_profiles_t_plus_dt=result.state.core_profiles,
             explicit_source_profiles=explicit_source_profiles,
+            edge_outputs=edge_outputs,
             physics_models=self._solver.physics_models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
@@ -485,6 +491,7 @@ class SimulationStepFn:
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> tuple[
@@ -506,6 +513,7 @@ class SimulationStepFn:
             t=input_state.t + dt,
             runtime_params_provider=self._runtime_params_provider,
             geometry_provider=self._geometry_provider,
+            edge_outputs=edge_outputs,
         )
     )
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
@@ -539,6 +547,7 @@ class SimulationStepFn:
             core_profiles_t=input_state.core_profiles,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             explicit_source_profiles=explicit_source_profiles,
+            edge_outputs=edge_outputs,
             physics_models=self._solver.physics_models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,

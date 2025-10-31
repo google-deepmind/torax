@@ -237,6 +237,7 @@ class StateHistory:
     ]
     self._core_profiles = [state.core_profiles for state in state_history]
     self._core_sources = [state.core_sources for state in state_history]
+    self._edge_outputs = [state.edge_outputs for state in state_history]
     self._transport = [state.core_transport for state in state_history]
     self._geometries = [state.geometry for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)

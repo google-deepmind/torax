@@ -24,6 +24,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -80,6 +81,7 @@ def compute_state(
     geo_t: geometry.Geometry,
     input_state: sim_state.ToraxSimState,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     solver: solver_lib.Solver,
@@ -91,6 +93,7 @@ def compute_state(
           t=input_state.t + dt,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          edge_outputs=edge_outputs,
       )
   )
   core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
@@ -117,14 +120,17 @@ def compute_state(
       'inner_solver_iterations'
   ] += solver_numeric_outputs.inner_solver_iterations
 
-  return AdaptiveStepState(
-      x_new,
-      dt,
-      solver_numeric_outputs,
-      runtime_params_t_plus_dt,
-      geo_t_plus_dt,
-      core_profiles_t_plus_dt,
-  ), loop_statistics
+  return (
+      AdaptiveStepState(
+          x_new,
+          dt,
+          solver_numeric_outputs,
+          runtime_params_t_plus_dt,
+          geo_t_plus_dt,
+          core_profiles_t_plus_dt,
+      ),
+      loop_statistics,
+  )
 
 
 def cond_fun(
@@ -134,6 +140,7 @@ def cond_fun(
     unused_geo_t: geometry.Geometry,
     input_state: sim_state.ToraxSimState,
     unused_explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     unused_geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
 ) -> array_typing.BoolScalar:
