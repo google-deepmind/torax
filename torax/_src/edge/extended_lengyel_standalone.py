@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Implementation of the extended Lengyel model from Body et al. NF 2025."""
+"""Standalone implementation of extended Lengyel from Body et al. NF 2025."""
 
+import dataclasses
 import functools
 from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.edge import base
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_formulas
-from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import pydantic_model
 
 # pylint: disable=invalid-name
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ExtendedLengyelOutputs(base.EdgeModelOutputs):
+  """Additional outputs from the extended Lengyel model.
+
+  Attributes:
+    alpha_t: Turbulence broadening factor alpha_t.
+    separatrix_Z_eff: Z_eff at the separatrix.
+    seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
+    solver_status: Status of the solver.
+  """
+
+  alpha_t: jax.Array
+  separatrix_Z_eff: jax.Array
+  seed_impurity_concentrations: Mapping[str, jax.Array]
+  solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
 
 
 @functools.partial(
@@ -37,7 +56,7 @@ from torax._src.edge import pydantic_model
         'solver_mode',
     ],
 )
-def run_extended_lengyel_model(
+def run_extended_lengyel_standalone(
     *,
     power_crossing_separatrix: array_typing.FloatScalar,
     separatrix_electron_density: array_typing.FloatScalar,
@@ -55,8 +74,8 @@ def run_extended_lengyel_model(
     mean_ion_charge_state: array_typing.FloatScalar,
     target_electron_temp: array_typing.FloatScalar | None = None,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None = None,
-    computation_mode: pydantic_model.ComputationMode = pydantic_model.ComputationMode.FORWARD,
-    solver_mode: pydantic_model.SolverMode = pydantic_model.SolverMode.FIXED_STEP,
+    computation_mode: extended_lengyel_enums.ComputationMode = extended_lengyel_enums.ComputationMode.FORWARD,
+    solver_mode: extended_lengyel_enums.SolverMode = extended_lengyel_enums.SolverMode.FIXED_STEP,
     divertor_broadening_factor: array_typing.FloatScalar = (
         extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
     ),
@@ -87,11 +106,10 @@ def run_extended_lengyel_model(
     ),
     target_mach_number: array_typing.FloatScalar = extended_lengyel_defaults.TARGET_MACH_NUMBER,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    fixed_step_iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+    fixed_step_iterations: int | None = None,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
-    hybrid_fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
-) -> extended_lengyel_model.ExtendedLengyelOutputs:
+) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
   Args:
@@ -108,7 +126,7 @@ def run_extended_lengyel_model(
     minor_radius: Minor radius from magnetic axis to outboard midplane [m].
     elongation_psi95: Elongation at psiN=0.95.
     triangularity_psi95: Triangularity at psiN=0.95.
-    average_ion_mass: Average main-ion mass [amu].
+    average_ion_mass: Average main-ion mass [amu] defined as sum(m_i*n_i)/n_e.
     mean_ion_charge_state: Mean ion charge state [dimensionless]. Defined as
       n_e/(sum_i n_i).
     target_electron_temp: For inverse mode, desired electron temperature at
@@ -138,9 +156,6 @@ def run_extended_lengyel_model(
     toroidal_flux_expansion: Toroidal flux expansion factor.
     fixed_step_iterations: Number of iterations for fixed step solver.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
-    hybrid_fixed_step_iterations: Number of iterations for the fixed step first
-      phase of the hybrid solver. The newton iterations in the second phase are
-      still determined by `newton_raphson_iterations`.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
 
   Returns:
@@ -158,6 +173,14 @@ def run_extended_lengyel_model(
   _validate_inputs_for_computation_mode(
       computation_mode, target_electron_temp, seed_impurity_weights
   )
+
+  if fixed_step_iterations is None:
+    if solver_mode == extended_lengyel_enums.SolverMode.HYBRID:
+      fixed_step_iterations = (
+          extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS
+      )
+    else:
+      fixed_step_iterations = extended_lengyel_defaults.FIXED_STEP_ITERATIONS
 
   shaping_factor = extended_lengyel_formulas.calc_shaping_factor(
       elongation_psi95=elongation_psi95,
@@ -233,9 +256,9 @@ def run_extended_lengyel_model(
       alpha_t=alpha_t_init,
   )
 
-  if computation_mode == pydantic_model.ComputationMode.INVERSE:
+  if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
     target_electron_temp_init = target_electron_temp  # from input
-  elif computation_mode == pydantic_model.ComputationMode.FORWARD:
+  elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
     target_electron_temp_init = 2.0  # eV
   else:
     raise ValueError(f'Unknown computation mode: {computation_mode}')
@@ -262,8 +285,8 @@ def run_extended_lengyel_model(
   # ComputationMode enum is a static variable so can use standard flow.
   match solver_key:
     case (
-        pydantic_model.ComputationMode.INVERSE,
-        pydantic_model.SolverMode.FIXED_STEP,
+        extended_lengyel_enums.ComputationMode.INVERSE,
+        extended_lengyel_enums.SolverMode.FIXED_STEP,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.inverse_mode_fixed_step_solver(
@@ -272,8 +295,8 @@ def run_extended_lengyel_model(
           )
       )
     case (
-        pydantic_model.ComputationMode.FORWARD,
-        pydantic_model.SolverMode.FIXED_STEP,
+        extended_lengyel_enums.ComputationMode.FORWARD,
+        extended_lengyel_enums.SolverMode.FIXED_STEP,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.forward_mode_fixed_step_solver(
@@ -282,8 +305,8 @@ def run_extended_lengyel_model(
           )
       )
     case (
-        pydantic_model.ComputationMode.INVERSE,
-        pydantic_model.SolverMode.NEWTON_RAPHSON,
+        extended_lengyel_enums.ComputationMode.INVERSE,
+        extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.inverse_mode_newton_solver(
@@ -293,8 +316,8 @@ def run_extended_lengyel_model(
           )
       )
     case (
-        pydantic_model.ComputationMode.FORWARD,
-        pydantic_model.SolverMode.NEWTON_RAPHSON,
+        extended_lengyel_enums.ComputationMode.FORWARD,
+        extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.forward_mode_newton_solver(
@@ -304,25 +327,25 @@ def run_extended_lengyel_model(
           )
       )
     case (
-        pydantic_model.ComputationMode.INVERSE,
-        pydantic_model.SolverMode.HYBRID,
+        extended_lengyel_enums.ComputationMode.INVERSE,
+        extended_lengyel_enums.SolverMode.HYBRID,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.inverse_mode_hybrid_solver(
               initial_sol_model=initial_sol_model,
-              fixed_step_iterations=hybrid_fixed_step_iterations,
+              fixed_step_iterations=fixed_step_iterations,
               newton_raphson_iterations=newton_raphson_iterations,
               newton_raphson_tol=newton_raphson_tol,
           )
       )
     case (
-        pydantic_model.ComputationMode.FORWARD,
-        pydantic_model.SolverMode.HYBRID,
+        extended_lengyel_enums.ComputationMode.FORWARD,
+        extended_lengyel_enums.SolverMode.HYBRID,
     ):
       output_sol_model, solver_status = (
           extended_lengyel_solvers.forward_mode_hybrid_solver(
               initial_sol_model=initial_sol_model,
-              fixed_step_iterations=hybrid_fixed_step_iterations,
+              fixed_step_iterations=fixed_step_iterations,
               newton_raphson_iterations=newton_raphson_iterations,
               newton_raphson_tol=newton_raphson_tol,
           )
@@ -343,7 +366,7 @@ def run_extended_lengyel_model(
       )
   )
 
-  return extended_lengyel_model.ExtendedLengyelOutputs(
+  return ExtendedLengyelOutputs(
       target_electron_temp=output_sol_model.state.target_electron_temp,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
       alpha_t=output_sol_model.state.alpha_t,
@@ -357,12 +380,12 @@ def run_extended_lengyel_model(
 
 
 def _validate_inputs_for_computation_mode(
-    computation_mode: pydantic_model.ComputationMode,
+    computation_mode: extended_lengyel_enums.ComputationMode,
     target_electron_temp: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
 ):
   """Validates inputs based on the specified computation mode."""
-  if computation_mode == pydantic_model.ComputationMode.FORWARD:
+  if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
     if target_electron_temp is not None:
       raise ValueError(
           'Target electron temperature must not be provided for forward'
@@ -372,7 +395,7 @@ def _validate_inputs_for_computation_mode(
       raise ValueError(
           'Seed impurity weights must not be provided for forward computation.'
       )
-  elif computation_mode == pydantic_model.ComputationMode.INVERSE:
+  elif computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
     if target_electron_temp is None:
       raise ValueError(
           'Target electron temperature must be provided for inverse'

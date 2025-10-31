@@ -116,6 +116,7 @@ class StateHistoryTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
         geometry=self.geo,
+        edge_outputs=None,
     )
     sim_error = state.SimError.NO_ERROR
     self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)

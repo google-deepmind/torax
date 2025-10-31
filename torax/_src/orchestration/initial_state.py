@@ -42,11 +42,14 @@ def get_initial_state_and_post_processed_outputs(
     step_fn: step_function.SimulationStepFn,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs."""
+  # For the initial state, any parameters later coming from edge-model overrides
+  # must come from config.
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          edge_outputs=None,
       )
   )
   initial_state = _get_initial_state(
@@ -116,6 +119,7 @@ def _get_initial_state(
           sawtooth_crash=False,
       ),
       geometry=geo,
+      edge_outputs=None,
   )
 
 
@@ -142,11 +146,13 @@ def get_initial_state_and_post_processed_outputs_from_file(
         t_restart,
     )
 
+  # No need for edge_outputs since file will contain all needed overrides.
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t_initial,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          edge_outputs=None,
       )
   )
   runtime_params_for_init, geo_for_init = (
@@ -177,7 +183,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
       E_aux_total=scalars_dataset.data_vars['E_aux_total'].to_numpy(),
       E_ohmic_e=scalars_dataset.data_vars['E_ohmic_e'].to_numpy(),
       E_external_injected=scalars_dataset.data_vars[
-          'E_external_injected'].to_numpy(),
+          'E_external_injected'
+      ].to_numpy(),
       E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
   )
   core_profiles = dataclasses.replace(
@@ -220,6 +227,10 @@ def _override_initial_runtime_params_from_file(
 ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
+
+  # TODO(b/446608829): Implement passing of impurity content needed when
+  # restarting with inverse model extended-lengyel.
+
   runtime_params.numerics.t_initial = t_restart
   runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
       output.IP_PROFILE
