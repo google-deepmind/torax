@@ -76,6 +76,7 @@ class References:
         t=t,
         runtime_params_provider=params,
         geometry_provider=self.config.geometry.build_provider,
+        edge_outputs=None,
     )
 
 

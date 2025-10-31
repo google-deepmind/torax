@@ -22,6 +22,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
@@ -48,6 +49,7 @@ def sawtooth_step(
     geo_t: geometry.Geometry,
     geo_t_plus_crash_dt: geometry.Geometry,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.ToraxSimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
@@ -68,6 +70,7 @@ def sawtooth_step(
     geo_t: Geometry at time t.
     geo_t_plus_crash_dt: Geometry at time t + crash_dt.
     explicit_source_profiles: Explicit source profiles at time t.
+    explicit_edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
 
@@ -137,6 +140,7 @@ def sawtooth_step(
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
+        explicit_edge_outputs=explicit_edge_outputs,
         physics_models=sawtooth_solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
