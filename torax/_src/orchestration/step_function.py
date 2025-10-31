@@ -14,35 +14,32 @@
 
 """Logic which controls the stepping over time of the simulation."""
 
-import dataclasses
 import functools
 
 import chex
 import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
-from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params_slice
-from torax._src.core_profiles import convertors
-from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import adaptive_step
+from torax._src.orchestration import sawtooth_step
 from torax._src.orchestration import sim_state
+from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
-from torax._src.physics import formulas
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
-from torax._src.transport_model import transport_coefficients_builder
+
 
 # pylint: disable=invalid-name
 
@@ -338,7 +335,7 @@ class SimulationStepFn:
     # If no sawtooth crash is triggered, output_state and
     # post_processed_outputs will be the same as the input state and
     # previous_post_processed_outputs.
-    output_state, post_processed_outputs = _sawtooth_step(
+    output_state, post_processed_outputs = sawtooth_step.sawtooth_step(
         sawtooth_solver=self._sawtooth_solver,
         runtime_params_t=runtime_params_t,
         runtime_params_t_plus_crash_dt=runtime_params_t_plus_crash_dt,
@@ -480,19 +477,21 @@ class SimulationStepFn:
         ),
         sawtooth_crash=False,
     )
-    output_state, post_processed_outputs = _finalize_outputs(
-        t=input_state.t,
-        dt=result.state.dt,
-        x_new=result.state.x_new,
-        solver_numeric_outputs=final_solver_numeric_outputs,
-        runtime_params_t_plus_dt=result.state.runtime_params,
-        geometry_t_plus_dt=result.state.geo,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=result.state.core_profiles,
-        explicit_source_profiles=explicit_source_profiles,
-        physics_models=self._solver.physics_models,
-        evolving_names=evolving_names,
-        input_post_processed_outputs=previous_post_processed_outputs,
+    output_state, post_processed_outputs = (
+        step_function_processing.finalize_outputs(
+            t=input_state.t,
+            dt=result.state.dt,
+            x_new=result.state.x_new,
+            solver_numeric_outputs=final_solver_numeric_outputs,
+            runtime_params_t_plus_dt=result.state.runtime_params,
+            geometry_t_plus_dt=result.state.geo,
+            core_profiles_t=input_state.core_profiles,
+            core_profiles_t_plus_dt=result.state.core_profiles,
+            explicit_source_profiles=explicit_source_profiles,
+            physics_models=self._solver.physics_models,
+            evolving_names=evolving_names,
+            input_post_processed_outputs=previous_post_processed_outputs,
+        )
     )
     return output_state, post_processed_outputs
 
@@ -545,268 +544,20 @@ class SimulationStepFn:
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
     )
-    output_state, post_processed_outputs = _finalize_outputs(
-        t=input_state.t,
-        dt=dt,
-        x_new=x_new,
-        solver_numeric_outputs=solver_numeric_outputs,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geometry_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
-        physics_models=self._solver.physics_models,
-        evolving_names=runtime_params_t.numerics.evolving_names,
-        input_post_processed_outputs=previous_post_processed_outputs,
+    output_state, post_processed_outputs = (
+        step_function_processing.finalize_outputs(
+            t=input_state.t,
+            dt=dt,
+            x_new=x_new,
+            solver_numeric_outputs=solver_numeric_outputs,
+            runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+            geometry_t_plus_dt=geo_t_plus_dt,
+            core_profiles_t=input_state.core_profiles,
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+            explicit_source_profiles=explicit_source_profiles,
+            physics_models=self._solver.physics_models,
+            evolving_names=runtime_params_t.numerics.evolving_names,
+            input_post_processed_outputs=previous_post_processed_outputs,
+        )
     )
     return output_state, post_processed_outputs
-
-
-@functools.partial(
-    jax.jit,
-    static_argnames=[
-        'physics_models',
-        'evolving_names',
-    ],
-)
-def _finalize_outputs(
-    t: jax.Array,
-    dt: jax.Array,
-    x_new: tuple[cell_variable.CellVariable, ...],
-    solver_numeric_outputs: state.SolverNumericOutputs,
-    geometry_t_plus_dt: geometry.Geometry,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
-    core_profiles_t: state.CoreProfiles,
-    core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
-    evolving_names: tuple[str, ...],
-    input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
-  """Returns the final state and post-processed outputs."""
-  final_core_profiles, final_source_profiles = (
-      updaters.update_core_and_source_profiles_after_step(
-          dt=dt,
-          x_new=x_new,
-          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-          geo=geometry_t_plus_dt,
-          core_profiles_t=core_profiles_t,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          explicit_source_profiles=explicit_source_profiles,
-          source_models=physics_models.source_models,
-          neoclassical_models=physics_models.neoclassical_models,
-          evolving_names=evolving_names,
-      )
-  )
-  final_total_transport = (
-      transport_coefficients_builder.calculate_total_transport_coeffs(
-          physics_models.pedestal_model,
-          physics_models.transport_model,
-          physics_models.neoclassical_models,
-          runtime_params_t_plus_dt,
-          geometry_t_plus_dt,
-          final_core_profiles,
-      )
-  )
-
-  output_state = sim_state.ToraxSimState(
-      t=t + dt,
-      dt=dt,
-      core_profiles=final_core_profiles,
-      core_sources=final_source_profiles,
-      core_transport=final_total_transport,
-      geometry=geometry_t_plus_dt,
-      solver_numeric_outputs=solver_numeric_outputs,
-  )
-  post_processed_outputs = post_processing.make_post_processed_outputs(
-      sim_state=output_state,
-      runtime_params=runtime_params_t_plus_dt,
-      previous_post_processed_outputs=input_post_processed_outputs,
-  )
-  return output_state, post_processed_outputs
-
-
-@functools.partial(
-    jax.jit,
-    static_argnames=[
-        'sawtooth_solver',
-    ],
-)
-def _sawtooth_step(
-    *,
-    sawtooth_solver: sawtooth_solver_lib.SawtoothSolver | None,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
-    geo_t: geometry.Geometry,
-    geo_t_plus_crash_dt: geometry.Geometry,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    input_state: sim_state.ToraxSimState,
-    input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
-  """Checks for and handles a sawtooth crash.
-
-  If a sawtooth model is provided and a crash is triggered, this method
-  computes the post-crash state and returns it. Otherwise, returns the input
-  state and post-processed outputs unchanged.
-
-  Consecutive sawtooth crashes are not allowed since standard PDE steps
-  may then not take place. Therefore if the input state has sawtooth_crash set
-  to True, then no crash is triggered.
-
-  Args:
-    sawtooth_solver: Sawtooth model which carries out sawtooth step..
-    runtime_params_t: Runtime params at time t.
-    runtime_params_t_plus_crash_dt: Runtime params at time t + crash_dt.
-    geo_t: Geometry at time t.
-    geo_t_plus_crash_dt: Geometry at time t + crash_dt.
-    explicit_source_profiles: Explicit source profiles at time t.
-    input_state: State at the start of the time step.
-    input_post_processed_outputs: Post-processed outputs from the previous step.
-
-  Returns:
-    Returns a tuple (output_state, post_processed_outputs).
-  """
-
-  # Asserts needed for linter.
-  assert runtime_params_t.mhd.sawtooth is not None
-  assert sawtooth_solver is not None
-  dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
-
-  # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
-  # and prescribed profiles if present.
-  core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
-      dt=dt_crash,
-      runtime_params_t=runtime_params_t,
-      runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
-      geo_t_plus_dt=geo_t_plus_crash_dt,
-      core_profiles_t=input_state.core_profiles,
-  )
-
-  (
-      x_candidate,
-      solver_numeric_outputs,
-  ) = sawtooth_solver(
-      t=input_state.t,
-      dt=dt_crash,
-      runtime_params_t=runtime_params_t,
-      runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
-      geo_t=geo_t,
-      geo_t_plus_dt=geo_t_plus_crash_dt,
-      core_profiles_t=input_state.core_profiles,
-      core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-      explicit_source_profiles=explicit_source_profiles,
-  )
-
-  def _make_post_crash_state_and_post_processed_outputs():
-    """Returns the post-crash state and post-processed outputs."""
-
-    # We also update the temperature profiles over the sawtooth time to
-    # maintain constant dW/dt over the sawtooth period. While not strictly
-    # realistic this avoids non-physical dW/dt=perturbations in
-    # post-processing.
-    # Following the sawtooth redistribution, the PDE will take over the
-    # energy evolution and the physical dW/dt corresponding to the new profile
-    # distribution will be calculated.
-    # This must be done here and not in the sawtooth model since the Solver
-    # API does not include the post-processed outputs.
-    x_evolved = _evolve_x_after_sawtooth(
-        x_redistributed=x_candidate,
-        runtime_params_t_plus_crash_dt=runtime_params_t_plus_crash_dt,
-        core_profiles_redistributed=core_profiles_t_plus_crash_dt,
-        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
-        previous_post_processed_outputs=input_post_processed_outputs,
-        evolving_names=runtime_params_t.numerics.evolving_names,
-        dt_crash=dt_crash,
-    )
-
-    return _finalize_outputs(
-        t=input_state.t,
-        dt=dt_crash,
-        x_new=x_evolved,
-        solver_numeric_outputs=solver_numeric_outputs,
-        runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
-        geometry_t_plus_dt=geo_t_plus_crash_dt,
-        core_profiles_t=input_state.core_profiles,
-        core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-        explicit_source_profiles=explicit_source_profiles,
-        physics_models=sawtooth_solver.physics_models,
-        evolving_names=runtime_params_t.numerics.evolving_names,
-        input_post_processed_outputs=input_post_processed_outputs,
-    )
-
-  return jax.lax.cond(
-      solver_numeric_outputs.sawtooth_crash,
-      _make_post_crash_state_and_post_processed_outputs,
-      lambda: (
-          input_state,
-          input_post_processed_outputs,
-      ),
-  )
-
-
-def _evolve_x_after_sawtooth(
-    x_redistributed: tuple[cell_variable.CellVariable, ...],
-    runtime_params_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
-    core_profiles_redistributed: state.CoreProfiles,
-    geo_t_plus_crash_dt: geometry.Geometry,
-    previous_post_processed_outputs: post_processing.PostProcessedOutputs,
-    evolving_names: tuple[str, ...],
-    dt_crash: jax.Array,
-) -> tuple[cell_variable.CellVariable, ...]:
-  """Evolves the x_redistributed after the sawtooth redistribution."""
-
-  updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
-      x_new=x_redistributed,
-      evolving_names=evolving_names,
-      core_profiles=core_profiles_redistributed,
-  )
-
-  ions = getters.get_updated_ions(
-      runtime_params_t_plus_crash_dt,
-      geo_t_plus_crash_dt,
-      updated_core_profiles.n_e,
-      updated_core_profiles.T_e,
-  )
-
-  updated_core_profiles = dataclasses.replace(
-      updated_core_profiles,
-      n_i=ions.n_i,
-      n_impurity=ions.n_impurity,
-  )
-
-  (
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-  ) = formulas.calculate_pressure(updated_core_profiles)
-
-  _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-      geo_t_plus_crash_dt,
-  )
-
-  # Update temperatures to maintain constant dW/dt over the sawtooth period.
-  dW_target = previous_post_processed_outputs.dW_thermal_dt * dt_crash
-
-  factor = 1 + dW_target / W_thermal_tot
-
-  updated_core_profiles = dataclasses.replace(
-      updated_core_profiles,
-      T_e=dataclasses.replace(
-          updated_core_profiles.T_e,
-          value=updated_core_profiles.T_e.value * factor,
-      ),
-      T_i=dataclasses.replace(
-          updated_core_profiles.T_i,
-          value=updated_core_profiles.T_i.value * factor,
-      ),
-  )
-
-  x_evolved = convertors.core_profiles_to_solver_x_tuple(
-      updated_core_profiles,
-      evolving_names,
-  )
-
-  return x_evolved
