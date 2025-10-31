@@ -158,6 +158,7 @@ def _get_geo_and_runtime_params(torax_config):
           t=torax_config.numerics.t_initial,
           runtime_params_provider=params_provider,
           geometry_provider=geo_provider,
+          edge_outputs=None,
       )
   )
   return runtime_params_for_init, geo_for_init

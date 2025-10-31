@@ -148,6 +148,7 @@ class PydanticModelTest(parameterized.TestCase):
             t=0,
             runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
+            edge_outputs=None,
         )
     )
     original_Ip = torax_config.profile_conditions.Ip

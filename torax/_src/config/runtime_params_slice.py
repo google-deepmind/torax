@@ -43,6 +43,7 @@ import jax
 from torax._src.config import numerics
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
@@ -74,6 +75,7 @@ class RuntimeParams:
   be changed without recompilation.
   """
 
+  edge: edge_runtime_params.RuntimeParams | None
   mhd: mhd_runtime_params.RuntimeParams
   neoclassical: neoclassical_params.RuntimeParams
   numerics: numerics.RuntimeParams

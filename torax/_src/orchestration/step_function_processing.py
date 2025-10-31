@@ -21,6 +21,7 @@ from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state
@@ -46,6 +47,7 @@ def finalize_outputs(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_edge_outputs: edge_base.EdgeModelOutputs | None,
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
@@ -84,6 +86,7 @@ def finalize_outputs(
       core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
+      edge_outputs=explicit_edge_outputs,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
