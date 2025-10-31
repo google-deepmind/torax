@@ -662,6 +662,7 @@ class StandardGeometryIntermediates:
       n_rho: int,
       n_surfaces: int,
       last_surface_factor: float,
+      cocos: geometry_loader.COCOSInt,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -684,6 +685,8 @@ class StandardGeometryIntermediates:
       last_surface_factor: Multiplication factor of the boundary poloidal flux,
         used for the contour defining geometry terms at the LCFS on the TORAX
         grid. Needed to avoid divergent integrations in diverted geometries.
+      cocos: COCOS convention of the EQDSK file, specified as an integer between
+        1-8 or 11-18 inclusive.
 
     Returns:
       A StandardGeometryIntermediates instance based on the input file. This
@@ -705,9 +708,21 @@ class StandardGeometryIntermediates:
     # --------------------------- #
     # ---- 1. Load the eqdsk ---- #
     # --------------------------- #
+    if cocos in [2, 4, 6, 8, 12, 14, 16, 18]:
+      logging.warning(
+          f'User-specified COCOS {cocos} for EQDSK file has a (R, Z, phi)'
+          ' coordinate system (sigma_RphiZ = -1), but the EQDSK format'
+          ' specifies a (R, phi, Z) coordinate system (sigma_RphiZ = +1). This'
+          ' may result in unexpected behaviour.'
+      )
+    # load_geo_data() converts from the given COCOS to COCOS11
     eqfile = geometry_loader.load_geo_data(
-        geometry_directory, geometry_file, geometry_loader.GeometrySource.EQDSK
+        geometry_directory,
+        geometry_file,
+        geometry_loader.GeometrySource.EQDSK,
+        cocos,
     )
+    _validate_eqdsk_cocos11(eqfile)
 
     # Reference geometry terms
     # TODO(b/375696414): deal with updown asymmetric cases.
@@ -981,8 +996,7 @@ class StandardGeometryIntermediates:
         R_major=R_major,
         a_minor=a_minor,
         B_0=np.array(B_0),
-        # TODO(b/335204606): handle COCOS shenanigans
-        psi=(psi_on_flux_surfaces + eqfile['psimag']) * 2 * np.pi,
+        psi=psi_on_flux_surfaces + eqfile['psimag'],
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
         R_in=R_inboard,
@@ -1378,6 +1392,27 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+
+def _validate_eqdsk_cocos11(eqfile: dict) -> None:
+  COCOS_violations = ''
+  if eqfile['bcentre'] < 0:
+    COCOS_violations += '- B_0 is negative\n'
+  if eqfile['psibdry'] < eqfile['psimag']:
+    COCOS_violations += '- psi at the boundary is less than psi on the axis\n'
+  if np.any(eqfile['fpol']) < 0:
+    COCOS_violations += '- F=RB_phi has negative values\n'
+  if np.any(eqfile['qpsi']) < 0:
+    COCOS_violations += '- q has negative values\n'
+  if eqfile['cplasma'] < 0:
+    COCOS_violations += '- Ip is negative'
+  if COCOS_violations:
+    raise ValueError(
+        'The following violate the COCOS11 coordinate system when Ip and B0 are'
+        ' restricted to be positive:\n'
+        + COCOS_violations
+        + 'Check that the COCOS of the input EQDSK was set correctly.'
+    )
 
 
 # TODO(b/401502047): Investigate how window_length should depend on the
