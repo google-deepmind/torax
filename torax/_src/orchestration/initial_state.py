@@ -16,6 +16,7 @@
 import dataclasses
 
 from absl import logging
+import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
@@ -35,6 +36,7 @@ from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
 
+@jax.jit
 def get_initial_state_and_post_processed_outputs(
     t: float,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
