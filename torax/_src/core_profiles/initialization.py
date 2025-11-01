@@ -33,6 +33,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
@@ -84,6 +85,14 @@ def initial_core_profiles(
       else np.array(0.0, dtype=jax_utils.get_dtype())
   )
 
+  # Initialize toroidal_velocity from profile_conditions if provided, otherwise
+  # to zeros.
+  toroidal_velocity = (
+      runtime_params.profile_conditions.toroidal_velocity
+      if runtime_params.profile_conditions.toroidal_velocity is not None
+      else np.zeros_like(geo.rho)
+  )
+
   # Initialise psi and derived quantities to zero before they are calculated.
   psidot = cell_variable.CellVariable(
       value=np.zeros_like(geo.rho),
@@ -119,6 +128,9 @@ def initial_core_profiles(
       j_total=np.zeros_like(geo.rho),
       j_total_face=np.zeros_like(geo.rho_face),
       Ip_profile_face=np.zeros_like(geo.rho_face),
+      toroidal_velocity=toroidal_velocity,
+      poloidal_velocity=np.zeros_like(geo.rho),
+      radial_electric_field=np.zeros_like(geo.rho),
   )
 
   return _init_psi_and_psi_derived(
@@ -483,6 +495,13 @@ def _calculate_all_psi_dependent_profiles(
       psidot=psidot,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
+  )
+  # Calculate radial electric field
+  radial_electric_field = formulas.calculate_radial_electric_field(
+      core_profiles, geo
+  )
+  core_profiles = dataclasses.replace(
+      core_profiles, radial_electric_field=radial_electric_field
   )
   return core_profiles
 

@@ -36,6 +36,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import psi_calculations
 
 # pylint: disable=invalid-name
 
@@ -318,3 +319,46 @@ def calculate_betas(
   )
 
   return beta_tor, beta_pol, beta_N
+
+
+def calculate_radial_electric_field(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVector:
+  """Calculates the radial electric field Er.
+
+  Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
+
+  Args:
+    core_profiles: Current core plasma profiles.
+    geo: Geometry object.
+
+  Returns:
+    Er: Radial electric field [V/m] on the cell grid.
+  """
+  e = constants.CONSTANTS.q_e  # Elementary charge
+
+  # Calculate ion pressure pi
+  pi = core_profiles.n_i.value * core_profiles.T_i.value * e * 1000.0  # Pa
+  # Calculate dpi/dr with respect to rho_norm
+  dpi_dr = jnp.gradient(pi, geo.rho_norm)
+
+  # Approximate B_phi (toroidal) and B_theta (poloidal) on the cell grid
+  # B_phi = F / R. Using <1/R> as an approximation for 1/R
+  B_phi = geo.F * geo.gm9  # Tesla on cell grid
+
+  # B_theta from sqrt(<Bp^2>)
+  Bp2_face = psi_calculations.calc_bpol2(geo, core_profiles.psi)
+  Bp2_cell = geometry.face_to_cell(Bp2_face)
+  B_theta = jnp.sqrt(Bp2_cell)  # Tesla on cell grid
+
+  # Calculate Er
+  # Handle division by zero when n_i is zero.
+  den = core_profiles.Z_i * e * core_profiles.n_i.value
+  inv_den = jnp.where(den != 0, 1.0 / den, 0.0)
+  Er = (
+      inv_den * dpi_dr
+      - core_profiles.toroidal_velocity * B_theta
+      + core_profiles.poloidal_velocity * B_phi
+  )
+  return Er

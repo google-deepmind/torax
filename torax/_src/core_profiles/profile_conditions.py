@@ -58,6 +58,8 @@ class RuntimeParams:
   # If provided as array, Psi profile defined on the cell grid.
   psi: array_typing.FloatVector | None
   psidot: array_typing.FloatVector | None
+  # Toroidal velocity profile on the cell grid.
+  toroidal_velocity: array_typing.FloatVector | None
   # Electron density profile on the cell grid.
   n_e: array_typing.FloatVector
   nbar: array_typing.FloatScalar
@@ -142,6 +144,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       current formula. For now if `PROFILE_CONDITIONS` is used, but `psi` is not
       provided then the `initial_psi_from_j` setting will be used to match the
       legacy behavior.
+    toroidal_velocity: Prescribed or evolving values for toroidal velocity. If
+      None, toroidal_velocity will be initialized to zero.
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
@@ -161,6 +165,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
   psidot: torax_pydantic.TimeVaryingArray | None = None
+  toroidal_velocity: torax_pydantic.TimeVaryingArray | None = None
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
