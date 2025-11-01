@@ -194,7 +194,9 @@ def calc_FFprime(
   pprime = calc_pprime(core_profiles)
   # g3 = <1/R^2>
   g3 = geo.g3_face
-  jtor_over_R = core_profiles.j_total_face / geo.R_major
+  # Use local major radius at each flux surface
+  r_major_face = (geo.R_in_face + geo.R_out_face) / 2
+  jtor_over_R = core_profiles.j_total_face / r_major_face
 
   FFprime_face = -(jtor_over_R / (2 * jnp.pi) + pprime) * mu0 / g3
   return FFprime_face
@@ -302,7 +304,7 @@ def calculate_betas(
       / (
           constants.CONSTANTS.mu_0
           * core_profiles.Ip_profile_face[-1] ** 2
-          * geo.R_major
+          * (geo.R_in_face[-1] + geo.R_out_face[-1]) / 2  # Local major radius at LCFS
           + constants.CONSTANTS.eps
       )
   )

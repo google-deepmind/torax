@@ -509,7 +509,9 @@ def _calculate_Lmn(
   thermal_velocity_e = jnp.sqrt(
       2 * core_profiles.T_e.face_value() * consts.keV_to_J / consts.m_e
   )
-  collision_time_e = (core_profiles.q_face * geo.R_major) / (
+  # Use local major radius for collision time calculations
+  r_major_face = (geo.R_in_face + geo.R_out_face) / 2
+  collision_time_e = (core_profiles.q_face * r_major_face) / (
       nu_e_star * epsilon**1.5 * thermal_velocity_e + consts.eps
   )
   thermal_velocity_i = jnp.sqrt(
@@ -518,7 +520,7 @@ def _calculate_Lmn(
       * consts.keV_to_J
       / (core_profiles.A_i * consts.m_amu)
   )
-  collision_time_i = (core_profiles.q_face * geo.R_major) / (
+  collision_time_i = (core_profiles.q_face * r_major_face) / (
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
