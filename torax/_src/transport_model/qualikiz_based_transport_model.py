@@ -124,7 +124,8 @@ class QualikizBasedTransportModel(
     )
 
     # Inverse aspect ratio at LCFS.
-    epsilon_lcfs = rmid_face[-1] / geo.R_major
+    # Use local major radius at LCFS for correct aspect ratio calculation
+    epsilon_lcfs = rmid_face[-1] / ((geo.R_in_face[-1] + geo.R_out_face[-1]) / 2)
     # Local normalized radius.
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
