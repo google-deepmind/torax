@@ -111,11 +111,13 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         ** 0.5
         / (constants.q_e * geo.B_0) ** 2
         * (T_i_face * constants.keV_to_J) ** 1.5
-        / geo.R_major
+        / ((geo.R_in_face + geo.R_out_face) / 2)  # Use local major radius
     )
 
     # R/LTi profile from current timestep T_i
-    rlti = -geo.R_major * T_i_face_grad / T_i_face
+    # Use local major radius for gradient length scale
+    r_major_face = (geo.R_in_face + geo.R_out_face) / 2
+    rlti = -r_major_face * T_i_face_grad / T_i_face
 
     # build CGM model ion heat transport coefficient
     chi_face_ion = jnp.where(
@@ -135,7 +137,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     d_face_el = chi_face_ion / transport_runtime_params.chi_D_ratio
 
     # User-provided convection coefficient
-    v_face_el = d_face_el * transport_runtime_params.VR_D_ratio / geo.R_major
+    v_face_el = d_face_el * transport_runtime_params.VR_D_ratio / r_major_face
 
     return transport_model.TurbulentTransport(
         chi_face_ion=chi_face_ion,

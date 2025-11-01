@@ -363,8 +363,8 @@ def icrh_model_func(
       core_profiles.T_e.value[0] / volume_average_temperature
   )
   density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
-  Router = geo.R_major + geo.a_minor
-  Rinner = geo.R_major - geo.a_minor
+  Router = geo.R_out_face[-1]  # Use LCFS outboard radius
+  Rinner = geo.R_in_face[-1]   # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
   # This is a good assumption for the inner gap but perhaps less good for the
   # outer gap where there is significant curvature to the outer limiter.

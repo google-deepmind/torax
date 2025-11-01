@@ -70,7 +70,9 @@ def ohmic_model_func(
   )
 
   # Ohmic power is positive regardless of the sign of voltage and current.
-  pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major))
+  # Use local major radius for accurate local power calculation
+  r_major_face = (geo.R_in_face + geo.R_out_face) / 2
+  pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * r_major_face))
   return (pohm,)
 
 
