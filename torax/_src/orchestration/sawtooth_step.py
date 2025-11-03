@@ -18,12 +18,14 @@ import dataclasses
 import functools
 import jax
 from torax._src import state
+from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
@@ -42,11 +44,11 @@ from torax._src.sources import source_profiles as source_profiles_lib
 )
 def sawtooth_step(
     *,
-    sawtooth_solver: sawtooth_solver_lib.SawtoothSolver | None,
+    sawtooth_solver: sawtooth_solver_lib.SawtoothSolver,
     runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
-    geo_t_plus_crash_dt: geometry.Geometry,
+    geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     input_state: sim_state.ToraxSimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
@@ -64,9 +66,9 @@ def sawtooth_step(
   Args:
     sawtooth_solver: Sawtooth model which carries out sawtooth step..
     runtime_params_t: Runtime params at time t.
-    runtime_params_t_plus_crash_dt: Runtime params at time t + crash_dt.
+    runtime_params_provider: Provider for runtime params.
     geo_t: Geometry at time t.
-    geo_t_plus_crash_dt: Geometry at time t + crash_dt.
+    geometry_provider: Provider for geometry.
     explicit_source_profiles: Explicit source profiles at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
@@ -74,11 +76,16 @@ def sawtooth_step(
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
   """
-
   # Asserts needed for linter.
   assert runtime_params_t.mhd.sawtooth is not None
-  assert sawtooth_solver is not None
   dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
+  runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
+          t=input_state.t + dt_crash,
+          runtime_params_provider=runtime_params_provider,
+          geometry_provider=geometry_provider,
+      )
+  )
 
   # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
   # and prescribed profiles if present.
