@@ -29,27 +29,35 @@ class PlotrunsLibTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
 
-    test_data_dir = paths.test_data_dir()
-    self.test_data_path = os.path.join(
-        test_data_dir, "test_iterhybrid_rampup.nc"
-    )
-
   def test_data_loading(self):
-    plotruns_lib.load_data(self.test_data_path)
+    test_data_dir = paths.test_data_dir()
+    data_file = "test_iterhybrid_rampup.nc"
+    test_data_path = os.path.join(
+        test_data_dir, data_file
+    )
+    plotruns_lib.load_data(test_data_path)
 
-  @parameterized.parameters([
-      "default_plot_config",
-      "global_params_plot_config",
-      "simple_plot_config",
-      "sources_plot_config",
-  ])
-  def test_plot_config_smoke_test(self, config_name: str):
+  @parameterized.product(
+    config_name=[
+        "default_plot_config",
+        "global_params_plot_config",
+        "simple_plot_config",
+        "sources_plot_config",
+    ],
+    data_file=[
+        "test_iterhybrid_rampup.nc",
+    ])
+  def test_plot_config_smoke_test(self, config_name: str, data_file: str):
+    test_data_dir = paths.test_data_dir()
+    test_data_path = os.path.join(
+       test_data_dir, data_file
+    )
     config_path = path_utils.torax_path().joinpath(
         "plotting", "configs", config_name + ".py"
     )
     assert config_path.is_file(), f"Path {config_path} is not a file."
     plot_config = config_loader.import_module(config_path)["PLOT_CONFIG"]
-    plotruns_lib.plot_run(plot_config, self.test_data_path)
+    plotruns_lib.plot_run(plot_config, test_data_path)
 
 
 if __name__ == "__main__":
