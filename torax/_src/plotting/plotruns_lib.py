@@ -25,6 +25,7 @@ import matplotlib
 from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 from torax._src.output_tools import output
 import xarray as xr
@@ -453,8 +454,9 @@ def load_data(filename: str) -> PlotData:
 
 
 def plot_run(
-    plot_config: FigureProperties, outfile: str, outfile2: str | None = None
-):
+    plot_config: FigureProperties, outfile: str, outfile2: str | None = None,
+    interactive: bool=True
+) -> Figure:
   """Plots a single run or comparison of two runs."""
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
@@ -509,8 +511,10 @@ def plot_run(
 
     timeslider.on_changed(update)
 
-  fig.canvas.draw()
-  plt.show()
+  if interactive:
+    fig.canvas.draw()
+    plt.show()
+  return fig
 
 
 def _update(

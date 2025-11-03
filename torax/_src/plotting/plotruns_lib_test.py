@@ -18,6 +18,8 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
@@ -46,7 +48,8 @@ class PlotrunsLibTest(parameterized.TestCase):
     ],
     data_file=[
         "test_iterhybrid_rampup.nc",
-    ])
+    ]
+  )
   def test_plot_config_smoke_test(self, config_name: str, data_file: str):
     test_data_dir = paths.test_data_dir()
     test_data_path = os.path.join(
@@ -57,7 +60,36 @@ class PlotrunsLibTest(parameterized.TestCase):
     )
     assert config_path.is_file(), f"Path {config_path} is not a file."
     plot_config = config_loader.import_module(config_path)["PLOT_CONFIG"]
-    plotruns_lib.plot_run(plot_config, test_data_path)
+    fig = plotruns_lib.plot_run(plot_config, test_data_path, interactive=False)
+    assert isinstance(fig, Figure)
+    plt.close(fig)
+
+  @parameterized.product(
+    config_name=[
+      "default_plot_config",
+      "global_params_plot_config",
+      "simple_plot_config",
+      "sources_plot_config",
+    ]
+  )
+  def test_plot_config_all_test(self, config_name: str):
+    test_data_dir = paths.test_data_dir()
+    config_path = path_utils.torax_path().joinpath(
+        "plotting", "configs", config_name + ".py"
+    )
+    assert config_path.is_file(), f"Path {config_path} is not a file."
+    plot_config = config_loader.import_module(config_path)["PLOT_CONFIG"]
+    data_files = test_data_dir.glob("*.nc")
+    for test_data_path in data_files:
+        # TODO: Allow plotting of runs without 'profiles' and remove exception
+        # or filter out runs without 'profiles' apriori
+        try:
+            fig = plotruns_lib.plot_run(plot_config, test_data_path, interactive=False)
+        except Exception as ee:
+            raise Exception(f"Could not plot '{test_data_path.name}'") from ee
+        else:
+            assert isinstance(fig, Figure), f"Plotting of {data_files.name} failed"
+            plt.close(fig)
 
 
 if __name__ == "__main__":
