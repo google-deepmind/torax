@@ -190,7 +190,7 @@ def calc_fieldline_pitch_at_omp(
     minor_radius: array_typing.FloatScalar,
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
-    ratio_of_upstream_to_average_poloidal_field: array_typing.FloatScalar,
+    ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the fieldline pitch at the outboard midplane."""
   consts = constants.CONSTANTS
@@ -214,7 +214,7 @@ def calc_fieldline_pitch_at_omp(
   )
 
   upstream_poloidal_field = (
-      ratio_of_upstream_to_average_poloidal_field
+      ratio_bpol_omp_to_bpol_avg
       * separatrix_average_poloidal_field
   )
 

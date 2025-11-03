@@ -23,7 +23,7 @@ KAPPA_E_0: Final[float] = (
 )
 DIVERTOR_BROADENING_FACTOR: Final[float] = 3.0
 TARGET_ANGLE_OF_INCIDENCE: Final[float] = 3.0
-RATIO_UPSTREAM_TO_AVG_BPOL: Final[float] = 4.0 / 3.0
+RATIO_BPOL_OMP_TO_BPOL_AVG: Final[float] = 4.0 / 3.0
 NE_TAU: Final[float] = 0.5e17
 SHEATH_HEAT_TRANSMISSION_FACTOR: Final[float] = 8.0
 FRACTION_OF_PSOL_TO_DIVERTOR: Final[float] = 2.0 / 3.0

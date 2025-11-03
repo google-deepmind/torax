@@ -61,7 +61,7 @@ class EdgeModelBase(static_dataclass.StaticDataclass, abc.ABC):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParamsBase:
+class RuntimeParams:
   """Base for edge model runtime parameters."""
 
   pass
@@ -71,7 +71,7 @@ class EdgeModelConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base pydantic configuration for all edge models."""
 
   @abc.abstractmethod
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParamsBase:
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
     pass
 
