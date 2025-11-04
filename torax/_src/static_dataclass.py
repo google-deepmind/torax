@@ -128,11 +128,11 @@ class StaticDataclass:
     # Make sure the StaticDataclass method is used
     if hash(self) != self._hash():
       raise TypeError(
-          "A subclass of StaticDataclass is not using the base "
+          f"{type(self)} is not using the base "
           "StaticDataclass.__hash__ method. This is usually "
           "accidental and caused by forgetting to pass eq=False "
           "to the dataclass decorator on the subclass. If this is"
-          "intentional then override the __post_init__ method too"
+          " intentional then override the __post_init__ method too"
           " to avoid this check."
       )
 
