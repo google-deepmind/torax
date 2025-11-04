@@ -38,7 +38,11 @@ from torax._src.imas_tools.input import loader
 
 # Load IDSs
 path = (
-    path_utils.torax_path() / "data" / "imas_data" / "STEP_SPP_001_ECHD_ftop.nc"
+    path_utils.torax_path()
+    / "data"
+    / "third_party"
+    / "imas"
+    / "STEP_SPP_001_ECHD_ftop.nc"
 )
 equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
 core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")

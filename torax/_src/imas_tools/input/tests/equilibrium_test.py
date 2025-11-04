@@ -83,7 +83,9 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    imas_directory = os.path.join(path_utils.torax_path(), 'data/imas_data')
+    imas_directory = os.path.join(
+        path_utils.torax_path(), 'data/third_party/imas'
+    )
     full_path = os.path.join(imas_directory, filename)
     mock_value = imas.DBEntry(uri=full_path, mode='r')
     # imas_core not available for CI so just check if loader is called
