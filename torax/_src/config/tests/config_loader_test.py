@@ -21,7 +21,10 @@ from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
-
+from torax._src.config.runtime_validation_utils import (
+  _check_q_profile,
+  _check_source_densities,
+)
 
 class ConfigLoaderTest(parameterized.TestCase):
 
@@ -82,6 +85,60 @@ class ConfigLoaderTest(parameterized.TestCase):
     cfg = config_loader.get_plot_config_from_file(path)
     self.assertIsInstance(cfg, plotruns_lib.FigureProperties)
 
+  def test_build_torax_config_from_file_low_q_warning(self):
+      # Create a dictionary representing a minimal ToraxConfig with unphysical values
+      config_dict = {
+          "global_parameters": {
+              "plasma_current": {"value": 1e7},  # High plasma current
+              "toroidal_field": {"value": 1.0},  # Low toroidal field
+          },
+          "geometry": {
+              "minor_radius": 0.5,
+              "major_radius": 2.0,
+          },
+          "sources": {
+              "power_source_density": {"value": 2e8},  # High power source density
+              "particle_source_density": {
+                  "value": 3e20
+              },  # High particle source density
+          },
+          "runtime_params": {},
+          "physics_options": {},
+          "numerics_options": {},
+      }
+
+      # Create a temporary config file with the unphysical values
+      with open("temp_config.py", "w") as f:
+          f.write("CONFIG = " + str(config_dict))
+
+      # Capture log messages
+      with self.assertLogs(level="WARNING") as captured:
+          # Load the config from the temporary file
+          config = config_loader.build_torax_config_from_file("temp_config.py")
+
+      # Clean up the temporary file
+      os.remove("temp_config.py")
+
+      # Assert that a warning message was logged
+      self.assertTrue(
+          any(
+              "Q-profile estimate is very low" in record.getMessage()
+              for record in captured.records
+          )
+      )
+
+      self.assertTrue(
+          any(
+              "Power source density is very high" in record.getMessage()
+              for record in captured.records
+          )
+      )
+      self.assertTrue(
+          any(
+              "Particle source density is very high" in record.getMessage()
+              for record in captured.records
+          )
+      )
 
 if __name__ == "__main__":
   absltest.main()

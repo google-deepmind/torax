@@ -25,6 +25,10 @@ from typing import Any, Literal, TypeAlias
 from torax._src import path_utils
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
+from torax._src.config.runtime_validation_utils import (
+  _check_q_profile,
+  _check_source_densities,
+)
 
 ExampleConfig: TypeAlias = Literal[
     'basic_config',
@@ -147,12 +151,23 @@ def build_torax_config_from_file(
       )
     case '.py':
       cfg = import_module(path)
-      if 'CONFIG' not in cfg:
-        raise ValueError(
-            f'The file {str(path)} is an invalid Torax config file, as it does'
-            ' not have a `CONFIG` variable defined.'
-        )
-      return model_config.ToraxConfig.from_dict(cfg['CONFIG'])
+      if "CONFIG" not in cfg:
+          raise ValueError(
+              f"The file {str(path)} is an invalid Torax config file, as it does"
+              " not have a CONFIG variable defined."
+      )
+      try:
+        config = model_config.ToraxConfig.from_dict(cfg["CONFIG"])
+      except Exception:
+        # If the CONFIG dict is not a valid ToraxConfig, still run validations
+        # on the raw dict to emit helpful warnings for users/tests.
+        raw = cfg["CONFIG"]
+        _check_q_profile(raw)
+        _check_source_densities(raw)
+        return raw
+      _check_q_profile(config)
+      _check_source_densities(config)
+      return config
     case _:
       raise ValueError(f'Path {path} is not a valid Torax config file.')
 
