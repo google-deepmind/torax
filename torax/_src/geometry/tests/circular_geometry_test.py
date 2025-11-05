@@ -22,48 +22,48 @@ from torax._src.geometry import geometry_provider
 
 class CircularGeometryTest(absltest.TestCase):
 
-  def test_build_geometry_provider_from_circular(self):
-    """Test that the circular geometry provider can be built."""
-    geo_0 = circular_geometry.build_circular_geometry(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        R_major=6.2,
-        a_minor=2.0,
-        B_0=5.3,
-        hires_factor=4,
-    )
-    geo_1 = circular_geometry.build_circular_geometry(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        R_major=7.2,
-        a_minor=1.0,
-        B_0=5.3,
-        hires_factor=4,
-    )
-    provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
-    )
-    geo = provider(5.0)
-    np.testing.assert_allclose(geo.R_major, 6.7)
-    np.testing.assert_allclose(geo.a_minor, 1.5)
+    def test_build_geometry_provider_from_circular(self):
+        """Test that the circular geometry provider can be built."""
+        geo_0 = circular_geometry.build_circular_geometry(
+            n_rho=25,
+            elongation_LCFS=1.72,
+            R_major=6.2,
+            a_minor=2.0,
+            B_0=5.3,
+            hires_factor=4,
+        )
+        geo_1 = circular_geometry.build_circular_geometry(
+            n_rho=25,
+            elongation_LCFS=1.72,
+            R_major=7.2,
+            a_minor=1.0,
+            B_0=5.3,
+            hires_factor=4,
+        )
+        provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
+            {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
+        )
+        geo = provider(5.0)
+        np.testing.assert_allclose(geo.R_major, 6.7)
+        np.testing.assert_allclose(geo.a_minor, 1.5)
 
-  def test_circular_geometry_can_be_input_to_jitted_function(self):
+    def test_circular_geometry_can_be_input_to_jitted_function(self):
 
-    @jax.jit
-    def foo(geo: geometry.Geometry):
-      return geo.R_major
+        @jax.jit
+        def foo(geo: geometry.Geometry):
+            return geo.R_major
 
-    geo = circular_geometry.build_circular_geometry(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        R_major=6.2,
-        a_minor=2.0,
-        B_0=5.3,
-        hires_factor=4,
-    )
-    # Make sure you can call the function with geo as an arg.
-    foo(geo)
+        geo = circular_geometry.build_circular_geometry(
+            n_rho=25,
+            elongation_LCFS=1.72,
+            R_major=6.2,
+            a_minor=2.0,
+            B_0=5.3,
+            hires_factor=4,
+        )
+        # Make sure you can call the function with geo as an arg.
+        foo(geo)
 
 
 if __name__ == "__main__":
-  absltest.main()
+    absltest.main()
