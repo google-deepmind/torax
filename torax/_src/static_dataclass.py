@@ -144,9 +144,16 @@ class StaticDataclass:
     bad_hashes = tuple(
         (
             id(v) // 16,  # Python 2.7-3.2 default hash
-            hash(id(v)),
-        )  # Naive user-provided hash by id
+            hash(id(v)),  # Naive user-provided hash by id
+        )
         for v in values
+    )
+    bad_hash_explanations = (
+        "This hash is id // 16, which is the default hash in Python 2.7--3.2. ",
+        (
+            "This hash is hash(id), which is a common pattern for a naive "
+            "user-provided hash. "
+        ),
     )
     fields = dataclasses.fields(self)
     for i, field in enumerate(fields):
@@ -175,8 +182,13 @@ class StaticDataclass:
       if hash_by_id:
         continue
       if h in bh:
+        idx = bh.index(h)
+        bad_hash_msg = bad_hash_explanations[idx]
         raise TypeError(
             f"{type(self)}.{n} hashes by id when it should hash by value. "
+            f"This field is of type {type(v)}. "
+            f"Its id is {id(v)}, its hash is {hash(v)}. "
+            f"{bad_hash_msg}"
             "If you're confident that this is correct, allow it by "
             "adding metadata to the field, e.g., "
             "my_field: Any = dataclasses.field(metadata={'hash_by_id': True})"
