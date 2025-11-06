@@ -27,6 +27,7 @@ Functions:
       electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
+    - calculate_tau_ii: Calculates the ion-ion collision time.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
     - _calculate_log_tau_e_Z1: Calculates log of electron-ion collision time for
@@ -242,6 +243,41 @@ def calculate_log_lambda_ii(
   # Rescale T_i to eV for specific form of formula.
   T_i_ev = T_i * 1e3
   return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
+
+
+def calculate_tau_ii(
+  A_i: jax.Array,
+  Z_i: jax.Array,
+  T_i: jax.Array,
+  n_i: jax.Array,
+  ln_Lambda_ii: jax.Array,
+) -> jax.Array:
+  """Calculates ion-ion (self) collision time for a single ion species.
+
+  See Wesson 3rd edition p730.
+
+  Args:
+    A_i: Ion mass in amu.
+    Z_i: Ion charge.
+    T_i: Ion temperature in keV.
+    n_i: Ion density in m^-3.
+    ln_Lambda_ii: Coulomb logarithm for ion-ion collisions.
+
+  Returns:
+    Ion-ion collision time in seconds.
+  """
+  log_tau_ii = (
+    jnp.log(12)
+    + 1.5 * jnp.log(jnp.pi)
+    + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+    + 0.5 * (jnp.log(A_i) + jnp.log(constants.CONSTANTS.m_amu))
+    + 1.5 * (jnp.log(T_i) + jnp.log(constants.CONSTANTS.keV_to_J))
+    - jnp.log(n_i)
+    - 4 * jnp.log(Z_i)
+    - 4 * jnp.log(constants.CONSTANTS.q_e)
+    - jnp.log(ln_Lambda_ii)
+  )
+  return jnp.exp(log_tau_ii)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.

@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
+import dataclasses
+
 import numpy as np
+from absl.testing import absltest
+
+from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
-from torax._src.neoclassical.transport import angioni_sauter
+from torax._src.geometry import geometry
+from torax._src.neoclassical.transport import angioni_sauter, base
 from torax._src.torax_pydantic import model_config
 
 _N_RHO = 10
@@ -25,9 +31,11 @@ _R_TOL = 1e-6
 
 
 class AngioniSauterTest(absltest.TestCase):
-
-  def test_angioni_sauter_against_reference_values(self):
-    """Reference values generated from Angioni-Sauter with NEOS verification."""
+  def _get_reference_runtime_params_geo_and_core_profiles(self) -> tuple[
+    runtime_params_lib.RuntimeParams,
+    geometry.Geometry,
+    state.CoreProfiles
+  ]:
     torax_config = model_config.ToraxConfig.from_dict({
         'profile_conditions': {
             'Ip': 15e6,
@@ -72,23 +80,101 @@ class AngioniSauterTest(absltest.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
+    return runtime_params, geo, core_profiles
+
+  def test_angioni_sauter_against_reference_values(self):
+    """Reference values generated from running Angioni-Sauter."""
+    runtime_params, geo, core_profiles = (
+      self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+
+    # Test raw Angioni-Sauter values
     result = angioni_sauter._calculate_angioni_sauter_transport(
         runtime_params, geo, core_profiles
     )
     np.testing.assert_allclose(
-        result.chi_neo_i, _EXPECTED_CHI_NEO_I, atol=_A_TOL, rtol=_R_TOL
+        result.chi_neo_i,
+        _ANGIONI_SAUTER_REFERENCE_VALUES.chi_neo_i,
+        atol=_A_TOL,
+        rtol=_R_TOL,
     )
     np.testing.assert_allclose(
-        result.chi_neo_e, _EXPECTED_CHI_NEO_E, atol=_A_TOL, rtol=_R_TOL
+        result.chi_neo_e,
+        _ANGIONI_SAUTER_REFERENCE_VALUES.chi_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
     )
     np.testing.assert_allclose(
-        result.D_neo_e, _EXPECTED_D_NEO_E, atol=_A_TOL, rtol=_R_TOL
+        result.D_neo_e,
+        _ANGIONI_SAUTER_REFERENCE_VALUES.D_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
     )
     np.testing.assert_allclose(
-        result.V_neo_e, _EXPECTED_V_NEO_E, atol=_A_TOL, rtol=_R_TOL
+        result.V_neo_e,
+        _ANGIONI_SAUTER_REFERENCE_VALUES.V_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
     )
     np.testing.assert_allclose(
-        result.V_neo_ware_e, _EXPECTED_V_NEO_WARE_E, atol=_A_TOL, rtol=_R_TOL
+        result.V_neo_ware_e,
+        _ANGIONI_SAUTER_REFERENCE_VALUES.V_neo_ware_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+
+  def test_angioni_sauter_with_shaing_against_reference_values(self):
+    """Reference values generated from Angioni-Sauter + Shaing ion correction"""
+    runtime_params, geo, core_profiles = (
+      self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+
+    # Modify runtime params to include settings for Shaing
+    neoclassical_runtime_params = runtime_params.neoclassical
+    neoclassical_runtime_params = dataclasses.replace(
+      neoclassical_runtime_params,
+      transport=angioni_sauter.AngioniSauterModelConfig(
+        use_shaing_ion_correction=True
+      ).build_runtime_params(),
+    )
+    modified_runtime_params = dataclasses.replace(
+      runtime_params,
+      neoclassical=neoclassical_runtime_params,
+    )
+
+    # Test blended Angioni-Sauter + Shaing values
+    result = angioni_sauter.AngioniSauterModel()._call_implementation(
+      modified_runtime_params, geo, core_profiles
+    )
+    np.testing.assert_allclose(
+        result.chi_neo_i,
+        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.chi_neo_i,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        result.chi_neo_e,
+        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.chi_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        result.D_neo_e,
+        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.D_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        result.V_neo_e,
+        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.V_neo_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        result.V_neo_ware_e,
+        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.V_neo_ware_e,
+        atol=_A_TOL,
+        rtol=_R_TOL,
     )
 
 
@@ -98,76 +184,94 @@ class AngioniSauterTest(absltest.TestCase):
 #
 # The implementation was independently tested against NEOS up to the
 # generation of the Kmn matrix.
-_EXPECTED_CHI_NEO_I = np.array([
-    -0.0,
-    0.01220085,
-    0.02223608,
-    0.03117304,
-    0.03891618,
-    0.04568965,
-    0.05179111,
-    0.0572006,
-    0.06147531,
-    0.06320731,
-    0.0591895,
-])
+_ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
+  chi_neo_i=np.array([
+      -0.0,
+      0.01220085,
+      0.02223608,
+      0.03117304,
+      0.03891618,
+      0.04568965,
+      0.05179111,
+      0.0572006,
+      0.06147531,
+      0.06320731,
+      0.0591895,
+  ]),
+  chi_neo_e=np.array([
+      -0.0,
+      -0.00210023,
+      -0.0030792,
+      -0.00388683,
+      -0.0045548,
+      -0.00511068,
+      -0.0056083,
+      -0.0060884,
+      -0.00658147,
+      -0.00717367,
+      -0.00750323,
+  ]),
+  D_neo_e=np.array([
+      0.0,
+      0.00011698,
+      0.00021105,
+      0.00028474,
+      0.00033721,
+      0.00037529,
+      0.00040377,
+      0.00042199,
+      0.00042404,
+      0.00039292,
+      0.0002924,
+  ]),
+  V_neo_e=np.array([
+      0.0,
+      1.07951440e-05,
+      1.11015003e-05,
+      1.54065751e-05,
+      2.65710672e-05,
+      4.42853751e-05,
+      7.06387381e-05,
+      1.12983269e-04,
+      1.92360065e-04,
+      3.86372126e-04,
+      1.18868626e-03,
+  ]),
+  V_neo_ware_e=np.array([
+      -0.0,
+      -0.00038114,
+      -0.00041759,
+      -0.00037123,
+      -0.00032066,
+      -0.00030646,
+      -0.0003312,
+      -0.00038565,
+      -0.00056229,
+      -0.00159816,
+      -0.00178913,
+  ])
+)
 
-_EXPECTED_CHI_NEO_E = np.array([
-    -0.0,
-    -0.00210023,
-    -0.0030792,
-    -0.00388683,
-    -0.0045548,
-    -0.00511068,
-    -0.0056083,
-    -0.0060884,
-    -0.00658147,
-    -0.00717367,
-    -0.00750323,
-])
-
-_EXPECTED_D_NEO_E = np.array([
-    0.0,
-    0.00011698,
-    0.00021105,
-    0.00028474,
-    0.00033721,
-    0.00037529,
-    0.00040377,
-    0.00042199,
-    0.00042404,
-    0.00039292,
-    0.0002924,
-])
-
-_EXPECTED_V_NEO_E = np.array([
-    0.0,
-    1.07951440e-05,
-    1.11015003e-05,
-    1.54065751e-05,
-    2.65710672e-05,
-    4.42853751e-05,
-    7.06387381e-05,
-    1.12983269e-04,
-    1.92360065e-04,
-    3.86372126e-04,
-    1.18868626e-03,
-])
-
-_EXPECTED_V_NEO_WARE_E = np.array([
-    -0.0,
-    -0.00038114,
-    -0.00041759,
-    -0.00037123,
-    -0.00032066,
-    -0.00030646,
-    -0.0003312,
-    -0.00038565,
-    -0.00056229,
-    -0.00159816,
-    -0.00178913,
-])
-
+# Shaing correction only affects ions, so we can reuse the other values
+_ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = base.NeoclassicalTransport(
+  chi_neo_i=np.array([
+    0.20237419,
+    0.17130245,
+    0.03031974,
+    0.02593766,
+    0.03523606,
+    0.04391418,
+    0.05103481,
+    0.05690314,
+    0.06136931,
+    0.06317694,
+    0.05918355,
+  ]),
+  chi_neo_e=_ANGIONI_SAUTER_REFERENCE_VALUES.chi_neo_e,
+  D_neo_e=_ANGIONI_SAUTER_REFERENCE_VALUES.D_neo_e,
+  V_neo_e=_ANGIONI_SAUTER_REFERENCE_VALUES.V_neo_e,
+  V_neo_ware_e=_ANGIONI_SAUTER_REFERENCE_VALUES.V_neo_ware_e,
+)
 
 if __name__ == '__main__':
   absltest.main()
