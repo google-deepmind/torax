@@ -145,20 +145,16 @@ CONFIG = {
         "D_e_max": 100.0,
         "V_e_min": -50.0,
         "V_e_max": 50.0,
-        # Patching
-        # Replaces neoclassical in the core, pending potato orbit correction
-        # https://github.com/google-deepmind/torax/issues/1406
-        "apply_inner_patch": True,
-        "rho_inner": 0.05,
-        "chi_e_inner": 1.0,
-        "chi_i_inner": 15.0,
         # Smoothing
         "smooth_everywhere": True,
         "smoothing_width": 0.05,
     },
     "neoclassical": {
         "bootstrap_current": {"model_name": "sauter"},
-        "transport": {"model_name": "angioni_sauter"},
+        "transport": {
+            "model_name": "angioni_sauter",
+            "use_shaing_correction": True,
+        },
     },
     "numerics": {
         "t_initial": 0.0,

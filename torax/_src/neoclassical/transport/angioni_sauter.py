@@ -21,8 +21,10 @@ The implementation was facilitated by and verified against the NEOS code:
 https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
+import dataclasses
 from typing import Annotated, Literal
 
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -39,20 +41,48 @@ from typing_extensions import override
 # pylint: disable=invalid-name
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(transport_runtime_params.RuntimeParams):
+  """RuntimeParams for the Angioni-Sauter neoclassical transport model."""
+
+  use_shaing_correction: array_typing.BoolScalar
+  shaing_chi_i_multiplier: array_typing.FloatScalar
+  shaing_chi_e_multiplier: array_typing.FloatScalar
+  shaing_D_e_multiplier: array_typing.FloatScalar
+  shaing_blend_start: array_typing.FloatScalar
+  shaing_blend_rate: array_typing.FloatScalar
+
+
 class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
   """Pydantic model for the Angioni-Sauter neoclassical transport model."""
 
   model_name: Annotated[
       Literal['angioni_sauter'], torax_pydantic.JAX_STATIC
   ] = 'angioni_sauter'
+  use_shaing_correction: bool = False
+  shaing_chi_i_multiplier: float = 1.0
+  shaing_chi_e_multiplier: float = 1.0
+  shaing_D_e_multiplier: float = 1.0
+  shaing_blend_start: float = 0.2
+  shaing_blend_rate: float = 10.0
 
   @override
   def build_model(self) -> 'AngioniSauterModel':
     return AngioniSauterModel()
 
   @override
-  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
-    return super().build_runtime_params()
+  def build_runtime_params(self) -> RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params())
+    return RuntimeParams(
+        use_shaing_correction=self.use_shaing_correction,
+        shaing_chi_i_multiplier=self.shaing_chi_i_multiplier,
+        shaing_chi_e_multiplier=self.shaing_chi_e_multiplier,
+        shaing_D_e_multiplier=self.shaing_D_e_multiplier,
+        shaing_blend_start=self.shaing_blend_start,
+        shaing_blend_rate=self.shaing_blend_rate,
+        **base_kwargs
+    )
 
 
 class AngioniSauterModel(base.NeoclassicalTransportModel):
@@ -65,11 +95,47 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:
-    """Calculates neoclassical transport coefficients."""
-    return _calculate_angioni_sauter_transport(
+    """Calculates neoclassical transport coefficients with smooth blend.
+
+    When use_shaing_correction is enabled, smoothly blends between Shaing
+    (near axis) and Angioni-Sauter (far from axis) models using an exponential
+    transition function.
+    """
+    angioni_sauter = _calculate_angioni_sauter_transport(
         runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
+    )
+    shaing = _calculate_shaing_transport(
+        runtime_params=runtime_params,
+        geometry=geometry,
+        core_profiles=core_profiles,
+    )
+
+
+    # Calculate sigmoid blend weight for Angioni-Sauter (alpha)
+    # If correction disabled: alpha = 1 (pure Angioni-Sauter)
+    # If correction enabled: alpha varies smoothly with rho_norm
+    alpha = jnp.where(
+        runtime_params.neoclassical.transport.use_shaing_correction,
+        _calculate_blend_alpha(
+            rho_norm=geometry.rho_face_norm,
+            start=runtime_params.neoclassical.transport.shaing_blend_start,
+            rate=runtime_params.neoclassical.transport.shaing_blend_rate,
+        ),
+        1.0,  # Pure Angioni-Sauter when correction disabled
+    )
+
+    # Blend: (1-alpha)*Shaing + alpha*Angioni-Sauter
+    return base.NeoclassicalTransport(
+        chi_neo_i=(1.0 - alpha) * shaing.chi_neo_i
+        + alpha * angioni_sauter.chi_neo_i,
+        chi_neo_e=(1.0 - alpha) * shaing.chi_neo_e
+        + alpha * angioni_sauter.chi_neo_e,
+        D_neo_e=(1.0 - alpha) * shaing.D_neo_e
+        + alpha * angioni_sauter.D_neo_e,
+        V_neo_e=angioni_sauter.V_neo_e,
+        V_neo_ware_e=angioni_sauter.V_neo_ware_e,
     )
 
   def __hash__(self) -> int:
@@ -587,3 +653,150 @@ def _calculate_Lmn(
   )
 
   return Lmn_e, Lmn_i
+
+
+def _calculate_shaing_transport(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geometry: geometry_lib.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> base.NeoclassicalTransport:
+  """JIT-compatible implementation of the Shaing transport model.
+
+  Args:
+    runtime_params: Runtime parameters.
+    geometry: Geometry object.
+    core_profiles: Core profiles object.
+
+  Returns:
+    - Neoclassical transport coefficients.
+    - Radius of validity (in terms of rho_norm) of Shaing model for electrons.
+    - Radius of validity (in terms of rho_norm) of Shaing model for ions.
+  """
+  # Aliases for readability
+  m_ion = core_profiles.A_i * constants.CONSTANTS.m_amu
+  Z_ion = core_profiles.Z_i_face
+  q = core_profiles.q_face
+  kappa = geometry.elongation_face  # Note: denoted delta in Shaing
+  F = geometry.F_face  # Note: denoted I in Shaing
+  R = geometry.R_major_profile_face
+  T_i_J = core_profiles.T_i.face_value() * constants.CONSTANTS.keV_to_J
+  T_e_J = core_profiles.T_e.face_value() * constants.CONSTANTS.keV_to_J
+  ln_Lambda_ii = collisions.calculate_log_lambda_ii(
+      core_profiles.T_i.face_value(),
+      core_profiles.n_i.face_value(),
+      core_profiles.Z_i_face,
+  )
+  ln_Lambda_ei = collisions.calculate_log_lambda_ei(
+      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()
+  )
+
+  # Collision times
+  tau_ii = (
+      12
+      * jnp.pi ** (3 / 2)
+      * constants.CONSTANTS.epsilon_0**2
+      * m_ion ** (1 / 2)
+      * T_i_J ** (3 / 2)
+      / (
+          core_profiles.n_i.face_value()
+          * Z_ion**4
+          * constants.CONSTANTS.q_e**4
+          * ln_Lambda_ii
+      )
+  )
+  tau_ei = (
+      3
+      * (2 * jnp.pi) ** (3 / 2)
+      * constants.CONSTANTS.epsilon_0**2
+      * constants.CONSTANTS.m_e ** (1 / 2)
+      * T_e_J ** (3 / 2)
+      / (
+          core_profiles.n_i.face_value()
+          * Z_ion**4
+          * constants.CONSTANTS.q_e**4
+          * ln_Lambda_ei
+      )
+  )
+
+  # Collision frequencies
+  nu_ii = 1 / tau_ii
+  nu_ei = 1 / tau_ei
+  v_t_ion = jnp.sqrt(2 * T_i_J / m_ion)
+  v_t_electron = jnp.sqrt(2 * T_e_J / constants.CONSTANTS.m_e)
+
+  # Larmor / gyrofrequencies for ions and electrons
+  Omega_0_ion = (
+      constants.CONSTANTS.q_e * core_profiles.Z_i_face * geometry.B_0 / m_ion
+  )
+  Omega_0_electron = (
+      constants.CONSTANTS.q_e * geometry.B_0 / constants.CONSTANTS.m_e
+  )
+
+  # Common terms
+  # Large aspect ratio approximation (Equation 3, Shaing March 1997)
+  C_1 = (2 * q / (kappa * F * R)) ** (1 / 2)
+  # Conversion from flux^2/s -> m^2/s
+  # TODO: make a more informed choice for dpsi_drhon near the axis (currently
+  # we simply copy the value at i=1)
+  dpsi_drhon = core_profiles.psi.face_grad()
+  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])
+  conversion_factor = 1 / (dpsi_drhon / (2*jnp.pi*geometry.rho_b)) ** 2
+
+  # Trapped particle fraction (Equation 46, Shaing March 1997)
+  f_t_ion = (F * v_t_ion * C_1**2 / Omega_0_ion) ** (1 / 3)
+  f_t_electron = (F * v_t_electron * C_1**2 / Omega_0_electron) ** (1 / 3)
+
+  # Orbit width in psi coordinates (Equation 73, Shaing March 1997)
+  Delta_psi_ion = (F**2 * v_t_ion**2 * C_1 / Omega_0_ion**2) ** (2 / 3)
+  Delta_psi_electron = (
+      F**2 * v_t_electron**2 * C_1 / Omega_0_electron**2
+  ) ** (2 / 3)
+
+  # Chi i term
+  # Equation 74, Shaing March 1997
+  # psi normalization difference accounted for in conversion_factor
+  chi_i = (nu_ii * Delta_psi_ion**2 / f_t_ion) * conversion_factor
+
+  # Chi e term
+  # Equation 31, Shaing May 1997
+  # psi normalization difference accounted for in conversion_factor
+  chi_e = (nu_ei * Delta_psi_electron**2 / f_t_electron) * conversion_factor
+
+  return base.NeoclassicalTransport(
+      chi_neo_i=runtime_params.neoclassical.transport.shaing_chi_i_multiplier
+      * chi_i,
+      chi_neo_e=runtime_params.neoclassical.transport.shaing_chi_e_multiplier
+      * chi_e,
+      D_neo_e=runtime_params.neoclassical.transport.shaing_D_e_multiplier
+      * chi_e,
+      # TODO: Shaing convection not implemented
+      V_neo_e=jnp.zeros_like(geometry.rho_face),
+      V_neo_ware_e=jnp.zeros_like(geometry.rho_face),
+  )
+
+
+def _calculate_blend_alpha(
+    rho_norm: array_typing.FloatVectorFace,
+    start: array_typing.FloatScalar,
+    rate: array_typing.FloatScalar,
+) -> array_typing.FloatVectorFace:
+  """Calculate blending weight between Angioni-Sauter and Shaing models.
+
+  The blend is:
+    result = (1-alpha)*Shaing + alpha*Angioni-Sauter
+  where alpha = 1 / (1 + exp(-2*rate*(rho_norm - start))).
+
+  This gives:
+    - At axis (rho_norm = 0 << start): alpha ~ 0 (pure Shaing)
+    - At start: alpha = 0.5 (equal blend)
+    - Far from axis (rho_norm >> start): alpha ~ 1 (pure Angioni-Sauter)
+
+  Args:
+    rho_norm: Normalized toroidal flux coordinate (face grid)
+    start: Rho norm value where blend transition is centered
+    rate: Controls transition steepness (higher = sharper transition)
+
+  Returns:
+    Blend factor alpha in range [0, 1]
+  """
+  return 1.0 / (1.0 + jnp.exp(-2.0 * rate * (rho_norm - start)))
