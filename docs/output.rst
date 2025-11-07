@@ -509,13 +509,13 @@ properties and characteristics.
   [:math:`m^{-3}`].
 
 ``n_e_volume_avg`` (time)
-  Volume-averaged electron density [dimensionless].
+  Volume-averaged electron density [:math:`m^{-3}`].
 
 ``n_i_line_avg`` (time)
   Line-averaged main ion density [dimensionless].
 
 ``n_i_volume_avg`` (time)
-  Volume-averaged main ion density [dimensionless].
+  Volume-averaged main ion density [:math:`m^{-3}`].
 
 ``P_alpha_e`` (time)
   Total fusion alpha heating power to electrons [:math:`W`].
