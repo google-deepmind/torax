@@ -349,7 +349,7 @@ def cyclotron_radiation_albajar(
   return (-Q_cycl,)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 

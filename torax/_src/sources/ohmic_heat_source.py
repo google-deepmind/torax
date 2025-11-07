@@ -76,7 +76,7 @@ def ohmic_model_func(
   return (pohm,)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class OhmicHeatSource(source_lib.Source):
   """Ohmic heat source for electron heat equation.
 

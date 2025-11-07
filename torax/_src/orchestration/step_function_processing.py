@@ -19,14 +19,50 @@ import functools
 import jax
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
+from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
+
+
+def pre_step(
+    input_state: sim_state.ToraxSimState,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+    physics_models: physics_models_lib.PhysicsModels,
+) -> tuple[
+    runtime_params_slice.RuntimeParams,
+    geometry.Geometry,
+    source_profiles_lib.SourceProfiles,
+]:
+  """Performs the pre-step operations for the step function."""
+  runtime_params_t, geo_t = (
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
+          t=input_state.t,
+          runtime_params_provider=runtime_params_provider,
+          geometry_provider=geometry_provider,
+      )
+  )
+
+  # This only computes sources set to explicit in the
+  # SourceConfig. All implicit sources will have their profiles
+  # set to 0.
+  explicit_source_profiles = source_profile_builders.build_source_profiles(
+      runtime_params=runtime_params_t,
+      geo=geo_t,
+      core_profiles=input_state.core_profiles,
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
+      explicit=True,
+  )
+  return runtime_params_t, geo_t, explicit_source_profiles
 
 
 @functools.partial(

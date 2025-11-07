@@ -441,7 +441,7 @@ def icrh_model_func(
   return (source_ion, source_el)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 

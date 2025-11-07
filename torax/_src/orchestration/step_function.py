@@ -36,7 +36,6 @@ from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
 from torax._src.solver import solver as solver_lib
-from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 
@@ -191,24 +190,13 @@ class SimulationStepFn:
         - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
-    runtime_params_t, geo_t = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=input_state.t,
+    runtime_params_t, geo_t, explicit_source_profiles = (
+        step_function_processing.pre_step(
+            input_state=input_state,
             runtime_params_provider=self._runtime_params_provider,
             geometry_provider=self._geometry_provider,
+            physics_models=self._solver.physics_models,
         )
-    )
-
-    # This only computes sources set to explicit in the
-    # SourceConfig. All implicit sources will have their profiles
-    # set to 0.
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
-        runtime_params=runtime_params_t,
-        geo=geo_t,
-        core_profiles=input_state.core_profiles,
-        source_models=self._solver.physics_models.source_models,
-        neoclassical_models=self._solver.physics_models.neoclassical_models,
-        explicit=True,
     )
 
     def _step():
@@ -223,7 +211,7 @@ class SimulationStepFn:
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
-      if runtime_params_t.numerics.adaptive_dt:
+      if self._runtime_params_provider.numerics.adaptive_dt:
         return jax.lax.cond(
             max_dt > runtime_params_t.numerics.min_dt,
             self._adaptive_step,
@@ -236,23 +224,8 @@ class SimulationStepFn:
         )
 
     if self._sawtooth_solver is not None:
-      # If a sawtooth model is provided, there was no previous sawtooth crash
-      # and the max_dt is greater than the crash step duration, it will be
-      # checked to see if a sawtooth should trigger. If it does, the sawtooth
-      # model will be applied and instead of a full PDE solve, the step_fn will
-      # return early with a state following sawtooth redistribution, at a t+dt
-      # set by the sawtooth model configuration.
-      sawtooth_params = runtime_params_t.mhd.sawtooth
-      # Sawtooth params should always be provided if a sawtooth model is
-      # provided.
-      assert sawtooth_params is not None, 'Sawtooth params are None.'
-      output_state, post_processed_outputs = jax.lax.cond(
-          jnp.logical_and(
-              input_state.solver_numeric_outputs.sawtooth_crash,
-              max_dt > sawtooth_params.crash_step_duration,
-          ),
-          lambda *args: (input_state, previous_post_processed_outputs),
-          self._sawtooth_step,
+      output_state, post_processed_outputs = self._sawtooth_step(
+          max_dt,
           runtime_params_t,
           geo_t,
           explicit_source_profiles,
@@ -311,6 +284,7 @@ class SimulationStepFn:
 
   def _sawtooth_step(
       self,
+      max_dt: chex.Numeric,
       runtime_params_t: runtime_params_slice.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -321,31 +295,41 @@ class SimulationStepFn:
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
-    assert runtime_params_t.mhd.sawtooth is not None
-    dt_crash = runtime_params_t.mhd.sawtooth.crash_step_duration
+    # If a sawtooth model is provided, there was no previous sawtooth crash
+    # and the max_dt is greater than the crash step duration, it will be
+    # checked to see if a sawtooth should trigger. If it does, the sawtooth
+    # model will be applied and instead of a full PDE solve, the step_fn will
+    # return early with a state following sawtooth redistribution, at a t+dt
+    # set by the sawtooth model configuration.
 
-    runtime_params_t_plus_crash_dt, geo_t_plus_crash_dt = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=input_state.t + dt_crash,
-            runtime_params_provider=self._runtime_params_provider,
-            geometry_provider=self._geometry_provider,
-        )
-    )
+    sawtooth_params = runtime_params_t.mhd.sawtooth
+    # Sawtooth params should always be provided if a sawtooth model is
+    # provided.
+    assert sawtooth_params is not None, 'Sawtooth params are None'
 
-    # If no sawtooth crash is triggered, output_state and
-    # post_processed_outputs will be the same as the input state and
-    # previous_post_processed_outputs.
-    output_state, post_processed_outputs = sawtooth_step.sawtooth_step(
-        sawtooth_solver=self._sawtooth_solver,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_crash_dt=runtime_params_t_plus_crash_dt,
-        geo_t=geo_t,
-        geo_t_plus_crash_dt=geo_t_plus_crash_dt,
-        explicit_source_profiles=explicit_source_profiles,
-        input_state=input_state,
-        input_post_processed_outputs=previous_post_processed_outputs,
+    def _sawtooth_step_fn():
+      assert self._sawtooth_solver is not None
+      return sawtooth_step.sawtooth_step(
+          sawtooth_solver=self._sawtooth_solver,
+          runtime_params_t=runtime_params_t,
+          runtime_params_provider=self._runtime_params_provider,
+          geo_t=geo_t,
+          geometry_provider=self._geometry_provider,
+          explicit_source_profiles=explicit_source_profiles,
+          input_state=input_state,
+          input_post_processed_outputs=previous_post_processed_outputs,
+      )
+
+    # If a sawtooth crash is not triggered for any reason,the input
+    # state and post-processed outputs will be returned unchanged.
+    return jax.lax.cond(
+        jnp.logical_and(
+            input_state.solver_numeric_outputs.sawtooth_crash,
+            max_dt > sawtooth_params.crash_step_duration,
+        ),
+        lambda *args: (input_state, previous_post_processed_outputs),
+        _sawtooth_step_fn,
     )
-    return output_state, post_processed_outputs
 
   def step(
       self,

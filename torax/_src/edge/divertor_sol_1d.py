@@ -52,7 +52,7 @@ class ExtendedLengyelParameters:
   divertor_parallel_length: array_typing.FloatScalar  # [m]
   parallel_connection_length: array_typing.FloatScalar  # [m]
   separatrix_average_poloidal_field: array_typing.FloatScalar  # [T]
-  ratio_of_upstream_to_average_poloidal_field: (
+  ratio_bpol_omp_to_bpol_avg: (
       array_typing.FloatScalar
   )  # [dimensionless]
   fieldline_pitch_at_omp: array_typing.FloatScalar  # [dimensionless]
@@ -337,7 +337,7 @@ def calc_q_parallel(
   # Scaling lambda_q by the scalings of the average and upstream toroidal and
   # poloidal fields. Body NF 2025 Eq 50.
   ratio_of_upstream_to_average_lambda_q = (
-      params.ratio_of_upstream_to_average_poloidal_field
+      params.ratio_bpol_omp_to_bpol_avg
       * (params.major_radius + params.minor_radius)
       / params.major_radius
   )

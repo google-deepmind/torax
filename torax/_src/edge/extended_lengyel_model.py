@@ -17,9 +17,11 @@
 import dataclasses
 from typing import Mapping
 import jax
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params_slice
 from torax._src.edge import base
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_solvers
 from torax._src.geometry import geometry
 
@@ -28,11 +30,51 @@ from torax._src.geometry import geometry
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(base.RuntimeParamsBase):
+class RuntimeParams(base.RuntimeParams):
   """Runtime parameters for the extended Lengyel edge model."""
 
-  pass
-  # TODO(b/446608829) - to be completed in a later PR.
+  # See extended_lengyel_standalone.py for documentation of these parameters.
+
+  # --- Control Parameters ---
+  computation_mode: extended_lengyel_enums.ComputationMode = dataclasses.field(
+      metadata={'static': True}
+  )
+  solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
+      metadata={'static': True}
+  )
+  fixed_step_iterations: int
+  newton_raphson_iterations: int
+  newton_raphson_tol: float
+
+  # --- Physical Parameters ---
+  ne_tau: array_typing.FloatScalar
+  divertor_broadening_factor: array_typing.FloatScalar
+  ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar
+  sheath_heat_transmission_factor: array_typing.FloatScalar
+  fraction_of_P_SOL_to_divertor: array_typing.FloatScalar
+  SOL_conduction_fraction: array_typing.FloatScalar
+  ratio_of_molecular_to_ion_mass: array_typing.FloatScalar
+  wall_temperature: array_typing.FloatScalar
+  separatrix_mach_number: array_typing.FloatScalar
+  separatrix_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
+  separatrix_ratio_of_electron_to_ion_density: array_typing.FloatScalar
+  target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
+  target_ratio_of_electron_to_ion_density: array_typing.FloatScalar
+  target_mach_number: array_typing.FloatScalar
+
+  # --- Geometry Parameters ---
+  parallel_connection_length: array_typing.FloatScalar | None
+  divertor_parallel_length: array_typing.FloatScalar | None
+  toroidal_flux_expansion: array_typing.FloatScalar
+  target_angle_of_incidence: array_typing.FloatScalar
+
+  # --- Impurity parameters ---
+  seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
+  fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
+  enrichment_factor: Mapping[str, array_typing.FloatScalar]
+
+  # --- Optional parameter for inverse mode ---
+  target_electron_temp: array_typing.FloatScalar | None
 
 
 @jax.tree_util.register_dataclass
