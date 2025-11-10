@@ -73,6 +73,26 @@ class StandardGeometry(geometry.Geometry):
       `Geometry` docstring for definition of `delta_upper_face`.
     delta_lower_face: Lower triangularity on the face grid [dimensionless]. See
       `Geometry` docstring for definition of `delta_lower_face`.
+    connection_length_target: Optional input. Parallel connection length from
+      outboard midplane to target [m]. If not provided, then the value is taken
+      from runtime parameters in any model that needs it, e.g. edge models.
+    connection_length_divertor: Optional input. Parallel connection length from
+      outboard midplane to X-point [m]. If not provided, same procedure holds as
+      for `connection_length_target`.
+    target_angle_of_incidence: Optional input. Angle between magnetic field line
+      and divertor target [degrees]. If not provided, same procedure holds as
+      for `connection_length_target`.
+    R_OMP: Optional input. Major radius of the outboard midplane [m]. If not
+      provided, same procedure holds as for `connection_length_target`.
+    R_target: Optional input. Major radius of the divertor target strike point
+      [m]. If not provided, same procedure holds as for
+      `connection_length_target`.
+    B_pol_OMP: Optional input. Poloidal magnetic field at the outboard midplane
+      [T]. If not provided, same procedure holds as for
+      `connection_length_target`.
+    diverted: Optional input. Boolean flag indicating whether the geometry is
+      diverted. If not available, then diverted/limited will be determined by
+      flux_surf_avg_Bp2[-1] in StandardGeometryIntermediates.
   """
 
   Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
@@ -84,6 +104,14 @@ class StandardGeometry(geometry.Geometry):
   j_total_face: array_typing.FloatVectorFace
   delta_upper_face: array_typing.FloatVectorFace
   delta_lower_face: array_typing.FloatVectorFace
+  # Optional parameters not present in all geometry sources.
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
+  target_angle_of_incidence: array_typing.FloatScalar | None
+  R_OMP: array_typing.FloatScalar | None
+  R_target: array_typing.FloatScalar | None
+  B_pol_OMP: array_typing.FloatScalar | None
+  diverted: array_typing.BoolScalar | None
 
 
 @jax.tree_util.register_dataclass
@@ -102,6 +130,15 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
+  connection_length_target: interpolated_param.InterpolatedVarSingleAxis | None
+  connection_length_divertor: (
+      interpolated_param.InterpolatedVarSingleAxis | None
+  )
+  target_angle_of_incidence: interpolated_param.InterpolatedVarSingleAxis | None
+  R_OMP: interpolated_param.InterpolatedVarSingleAxis | None
+  R_target: interpolated_param.InterpolatedVarSingleAxis | None
+  B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
+  diverted: interpolated_param.InterpolatedVarSingleAxis | None
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
@@ -172,6 +209,16 @@ class StandardGeometryIntermediates:
       calculations. Used to create a higher-resolution grid to improve accuracy
       when initializing psi from a plasma current profile.
     z_magnetic_axis: z position of magnetic axis [:math:`\mathrm{m}`].
+    diverted: Boolean flag indicating whether the geometry is diverted.
+    connection_length_target: Parallel connection length from outboard midplane
+      to target [m].
+    connection_length_divertor: Parallel connection length from outboard
+      midplane to X-point [m].
+    target_angle_of_incidence: Angle between magnetic field line and divertor
+      target [degrees].
+    R_OMP: Major radius of the outboard midplane [m].
+    R_target: Major radius of the divertor target strike point [m].
+    B_pol_OMP: Poloidal magnetic field at the outboard midplane [T].
   """
 
   geometry_type: geometry.GeometryType
@@ -200,6 +247,14 @@ class StandardGeometryIntermediates:
   n_rho: int
   hires_factor: int
   z_magnetic_axis: array_typing.FloatScalar | None
+  # Optional parameters not present in all geometry sources.
+  diverted: bool | None
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
+  target_angle_of_incidence: array_typing.FloatScalar | None
+  R_OMP: array_typing.FloatScalar | None
+  R_target: array_typing.FloatScalar | None
+  B_pol_OMP: array_typing.FloatScalar | None
 
   def __post_init__(self):
     """Extrapolates edge values and smooths near-axis values.
@@ -210,7 +265,7 @@ class StandardGeometryIntermediates:
     """
 
     # Check if last flux surface is diverted and correct via spline fit if so
-    if self.flux_surf_avg_Bp2[-1] < 1e-10:
+    if self.diverted or self.flux_surf_avg_Bp2[-1] < 1e-10:
       # Calculate rhon
       rhon = np.sqrt(self.Phi / self.Phi[-1])
 
@@ -368,6 +423,13 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=None,
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=None,
     )
 
@@ -553,6 +615,7 @@ class StandardGeometryIntermediates:
         'deltal',
         'kappa',
         'zA',
+        'lX',
     ]
     LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
 
@@ -572,7 +635,7 @@ class StandardGeometryIntermediates:
   @classmethod
   def _from_fbt(
       cls,
-      LY: Mapping[str, np.ndarray],
+      LY: Mapping[str, np.ndarray | int],
       L: Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
@@ -594,6 +657,10 @@ class StandardGeometryIntermediates:
       can then be used to build a StandardGeometry by passing to
       `build_standard_geometry`.
     """
+    # lX is a flag for diverted (1) or limited (0) geometry. Converted to
+    # boolean when constructing the StandardGeometryIntermediates.
+    if LY['lX'] not in [0, 1]:
+      raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
     R_major = LY['rgeom'][-1]  # Major radius
     B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
     a_minor = LY['aminor'][-1]  # Minor radius
@@ -622,6 +689,7 @@ class StandardGeometryIntermediates:
     # Approximate with analytical expressions for circular geometry.
     flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
     flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
+    # TODO(b/446608829): Add support for edge geometries once available in MEQ
 
     return cls(
         geometry_type=geometry.GeometryType.FBT,
@@ -649,6 +717,13 @@ class StandardGeometryIntermediates:
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=bool(LY['lX']),
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=LY['zA'],
     )
 
@@ -1002,6 +1077,13 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=None,
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=np.array(Zaxis),
     )
 
@@ -1296,6 +1378,13 @@ def build_standard_geometry(
       # geo_t_plus_dt for each given time interval.
       Phi_b_dot=np.asarray(0.0),
       _z_magnetic_axis=intermediate.z_magnetic_axis,
+      diverted=intermediate.diverted,
+      connection_length_target=intermediate.connection_length_target,
+      connection_length_divertor=intermediate.connection_length_divertor,
+      target_angle_of_incidence=intermediate.target_angle_of_incidence,
+      R_OMP=intermediate.R_OMP,
+      R_target=intermediate.R_target,
+      B_pol_OMP=intermediate.B_pol_OMP,
   )
 
 
@@ -1346,6 +1435,7 @@ def _validate_fbt_data(
       'deltal': psi_and_time_shape,
       'kappa': psi_and_time_shape,
       'zA': time_only_shape,
+      'lX': time_only_shape,
   }
   toroidal_flux_spec = {
       'FtPVQ': psi_and_time_shape,

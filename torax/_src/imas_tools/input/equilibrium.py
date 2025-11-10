@@ -199,6 +199,8 @@ def geometry_from_IMAS(
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
+  # TODO(b/446608829): Add support for edge geometries from IMAS.
+
   return {
       "Ip_from_parameters": Ip_from_parameters,
       "R_major": R_major,
@@ -225,4 +227,11 @@ def geometry_from_IMAS(
       "n_rho": n_rho,
       "hires_factor": hires_factor,
       "z_magnetic_axis": z_magnetic_axis,
+      "diverted": np.bool(IMAS_data.boundary.type),
+      "connection_length_target": None,
+      "connection_length_divertor": None,
+      "target_angle_of_incidence": None,
+      "R_OMP": None,
+      "R_target": None,
+      "B_pol_OMP": None,
   }
