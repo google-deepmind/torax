@@ -15,6 +15,7 @@
 """Implementation of extended_lengyel instance of EdgeModel."""
 
 import dataclasses
+import logging
 from typing import Mapping
 import jax
 import jax.numpy as jnp
@@ -28,6 +29,8 @@ from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
+from torax._src.geometry import standard_geometry
+from torax._src.physics import psi_calculations
 from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
@@ -82,6 +85,19 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   target_electron_temp: array_typing.FloatScalar | None
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class _ResolvedGeometricParams:
+  """Container for parameters after resolution between geometry and edge config."""
+
+  parallel_connection_length: array_typing.FloatScalar
+  divertor_parallel_length: array_typing.FloatScalar
+  toroidal_flux_expansion: array_typing.FloatScalar
+  target_angle_of_incidence: array_typing.FloatScalar
+  ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar
+  divertor_broadening_factor: array_typing.FloatScalar
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class ExtendedLengyelModel(base.EdgeModel):
   """Adapter for running the extended Lengyel model within TORAX."""
@@ -99,11 +115,17 @@ class ExtendedLengyelModel(base.EdgeModel):
     assert isinstance(
         edge_params, RuntimeParams
     ), 'Edge parameters must be of type ExtendedLengyelModel.RuntimeParams'
+    assert isinstance(
+        geo, standard_geometry.StandardGeometry
+    ), 'Geometry must be of type StandardGeometry'
 
     # Extract geometric parameters from TORAX geometry.
 
-    # TODO(b/446608829) Add support for new optional geometry parameters such
-    # as connection lengths and divertor broadening factor.
+    # Extract and resolve geometric parameters, handling precedence and
+    # warnings.
+    resolved_geo_params = _resolve_geometric_parameters(
+        geo, core_profiles, edge_params
+    )
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
     # Used to interpolate geometry quantities at psi_norm = 0.95.
@@ -157,19 +179,21 @@ class ExtendedLengyelModel(base.EdgeModel):
         elongation_psi95=elongation_psi95,
         triangularity_psi95=triangularity_psi95,
         average_ion_mass=average_ion_mass,
+        # Geometry parameters that may come from geometry or RuntimeParams
+        parallel_connection_length=resolved_geo_params.parallel_connection_length,
+        divertor_parallel_length=resolved_geo_params.divertor_parallel_length,
+        toroidal_flux_expansion=resolved_geo_params.toroidal_flux_expansion,
+        target_angle_of_incidence=resolved_geo_params.target_angle_of_incidence,
+        ratio_bpol_omp_to_bpol_avg=resolved_geo_params.ratio_bpol_omp_to_bpol_avg,
+        divertor_broadening_factor=resolved_geo_params.divertor_broadening_factor,
         # Configurable parameters from RuntimeParams
-        parallel_connection_length=edge_params.parallel_connection_length,
-        divertor_parallel_length=edge_params.divertor_parallel_length,
         target_electron_temp=edge_params.target_electron_temp,
         seed_impurity_weights=edge_params.seed_impurity_weights,
         fixed_impurity_concentrations=edge_params.fixed_impurity_concentrations,
         computation_mode=edge_params.computation_mode,
         solver_mode=edge_params.solver_mode,
-        divertor_broadening_factor=edge_params.divertor_broadening_factor,
-        ratio_bpol_omp_to_bpol_avg=edge_params.ratio_bpol_omp_to_bpol_avg,
         ne_tau=edge_params.ne_tau,
         sheath_heat_transmission_factor=edge_params.sheath_heat_transmission_factor,
-        target_angle_of_incidence=edge_params.target_angle_of_incidence,
         fraction_of_P_SOL_to_divertor=edge_params.fraction_of_P_SOL_to_divertor,
         SOL_conduction_fraction=edge_params.SOL_conduction_fraction,
         ratio_of_molecular_to_ion_mass=edge_params.ratio_of_molecular_to_ion_mass,
@@ -180,8 +204,105 @@ class ExtendedLengyelModel(base.EdgeModel):
         target_ratio_of_ion_to_electron_temp=edge_params.target_ratio_of_ion_to_electron_temp,
         target_ratio_of_electron_to_ion_density=edge_params.target_ratio_of_electron_to_ion_density,
         target_mach_number=edge_params.target_mach_number,
-        toroidal_flux_expansion=edge_params.toroidal_flux_expansion,
         fixed_step_iterations=edge_params.fixed_step_iterations,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
     )
+
+
+def _resolve_geometric_parameters(
+    geo: standard_geometry.StandardGeometry,
+    core_profiles: state.CoreProfiles,
+    edge_params: RuntimeParams,
+) -> _ResolvedGeometricParams:
+  """Resolves geometric parameters from Geometry or RuntimeParams."""
+
+  # Extract potential values from Geometry if existing
+  geo_L_par = geo.connection_length_target
+  geo_L_div = geo.connection_length_divertor
+  geo_alpha = geo.target_angle_of_incidence
+  if geo.R_target is not None and geo.R_OMP is not None:
+    geo_flux_exp = geo.R_target / geo.R_OMP
+  else:
+    geo_flux_exp = None
+  if geo.B_pol_OMP is not None:
+    bpol_avg_lcfs = jnp.sqrt(
+        psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+    )[-1]
+    geo_ratio_bpol = jnp.abs(geo.B_pol_OMP) / jnp.sqrt(bpol_avg_lcfs)
+  else:
+    geo_ratio_bpol = None
+
+  # If limited, set divertor broadening to 1.0.
+  if not geo.diverted:
+    broadening = 1.0
+  else:
+    broadening = edge_params.divertor_broadening_factor
+
+  # Resolve basic geometric parameters
+  L_par = _resolve_param(
+      'parallel_connection_length',
+      geo_L_par,
+      edge_params.parallel_connection_length,
+  )
+  L_div = _resolve_param(
+      'divertor_parallel_length',
+      geo_L_div,
+      edge_params.divertor_parallel_length,
+  )
+  alpha_incidence = _resolve_param(
+      'target_angle_of_incidence',
+      geo_alpha,
+      edge_params.target_angle_of_incidence,
+  )
+  flux_expansion = _resolve_param(
+      'toroidal_flux_expansion',
+      geo_flux_exp,
+      edge_params.toroidal_flux_expansion,
+  )
+  ratio_bpol = _resolve_param(
+      'ratio_bpol_omp_to_bpol_avg',
+      geo_ratio_bpol,
+      edge_params.ratio_bpol_omp_to_bpol_avg,
+  )
+
+  return _ResolvedGeometricParams(
+      parallel_connection_length=L_par,
+      divertor_parallel_length=L_div,
+      toroidal_flux_expansion=flux_expansion,
+      target_angle_of_incidence=alpha_incidence,
+      ratio_bpol_omp_to_bpol_avg=ratio_bpol,
+      divertor_broadening_factor=broadening,
+  )
+
+
+def _resolve_param(
+    name: str,
+    geo_val: array_typing.FloatScalar | None,
+    config_val: array_typing.FloatScalar | None,
+) -> array_typing.FloatScalar:
+  """Helper to resolve a single parameter with logging."""
+  match (geo_val, config_val):
+    case (g_val, c_val) if g_val is not None:
+      if c_val is not None:
+        # Logging won't cause spamming under jit since will only be logged
+        # during tracing.
+        logging.warning(
+            "ExtendedLengyelModel: Parameter '%s' found in both Geometry and"
+            ' Config. Using Geometry value. Config value ignored.',
+            name,
+        )
+      return g_val
+    case (None, c_val) if c_val is not None:
+      logging.warning(
+          "ExtendedLengyelModel: Parameter '%s' not found in Geometry. Using"
+          ' Config value. It is recommended to use a Geometry source that'
+          ' provides this parameter for full self-consistency.',
+          name,
+      )
+      return c_val
+    case (None, None):
+      raise ValueError(
+          f"ExtendedLengyelModel: Parameter '{name}' must be provided either"
+          ' via the Geometry or the ExtendedLengyelConfig.'
+      )

@@ -61,6 +61,10 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_torax_config_integration(self):
     """Ensures ToraxConfig can parse the new edge field."""
     config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    }
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'computation_mode': 'inverse',

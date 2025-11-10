@@ -220,6 +220,7 @@ class GeometryTest(parameterized.TestCase):
       'FtPQ',  # TODO(b/412965439)  remove support for LY files w/o FtPVQ.
       'zA',
       't',
+      'lX',
   )
   def test_validate_fbt_data_missing_LY_key(self, missing_key):
     len_psinorm = 20
