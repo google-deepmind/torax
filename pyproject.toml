@@ -69,8 +69,7 @@ tglfnnukaea = [
 # Installed through `pip install -e .[dev]`
 dev = [
     "isort",
-    # TODO(b/459369454): Remove once bad interaction between pytest==9.0.0 and pytest-xdist is resolved.
-    "pytest<9.0.0",
+    "pytest",
     "pytest-xdist",
     "pytest-shard",
     "pylint>=2.6.0",
