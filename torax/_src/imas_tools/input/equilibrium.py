@@ -22,6 +22,7 @@ import scipy
 from torax._src.imas_tools.input import loader
 
 
+# TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
 def geometry_from_IMAS(
     geometry_directory: str | None = None,
@@ -111,28 +112,28 @@ def geometry_from_IMAS(
   B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
 
   # Poloidal flux.
-  psi = 1 * IMAS_data.profiles_1d.psi  # Sign changed ddv4
+  psi = np.abs(IMAS_data.profiles_1d.psi)
 
   # Toroidal flux.
-  phi = -1 * IMAS_data.profiles_1d.phi
+  phi = np.abs(IMAS_data.profiles_1d.phi)
 
   # Midplane radii.
   R_in = IMAS_data.profiles_1d.r_inboard
   R_out = IMAS_data.profiles_1d.r_outboard
   # toroidal field flux function
-  F = -1 * IMAS_data.profiles_1d.f
+  F = np.abs(IMAS_data.profiles_1d.f)
 
   # Flux surface integrals of various geometry quantities.
   # IDS Contour integrals.
   if IMAS_data.profiles_1d.dvolume_dpsi:
-    dvoldpsi = 1 * IMAS_data.profiles_1d.dvolume_dpsi  # Sign changed ddv4.
+    dvoldpsi = np.abs(IMAS_data.profiles_1d.dvolume_dpsi)
   else:
     dvoldpsi = np.gradient(
         IMAS_data.profiles_1d.volume, IMAS_data.profiles_1d.psi
     )
   # dpsi_drho_tor
   if IMAS_data.profiles_1d.dpsi_drho_tor:
-    dpsidrhotor = 1 * IMAS_data.profiles_1d.dpsi_drho_tor  # Sign changed ddv4.
+    dpsidrhotor = np.abs(IMAS_data.profiles_1d.dpsi_drho_tor)
   else:
     rho_tor = IMAS_data.profiles_1d.rho_tor
     if not rho_tor:
