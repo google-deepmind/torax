@@ -29,7 +29,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class RuntimeParamsSliceTest(parameterized.TestCase):
+class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
