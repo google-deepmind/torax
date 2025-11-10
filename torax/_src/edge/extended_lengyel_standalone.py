@@ -14,20 +14,39 @@
 
 """Standalone implementation of extended Lengyel from Body et al. NF 2025."""
 
+import dataclasses
 import functools
 from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.edge import base
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_formulas
-from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
 
 # pylint: disable=invalid-name
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ExtendedLengyelOutputs(base.EdgeModelOutputsBase):
+  """Outputs from the extended Lengyel model on top of the base class outputs.
+
+  Attributes:
+    alpha_t: Turbulence broadening factor alpha_t.
+    separatrix_Z_eff: Z_eff at the separatrix.
+    seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
+    solver_status: Status of the solver.
+  """
+
+  alpha_t: jax.Array
+  separatrix_Z_eff: jax.Array
+  seed_impurity_concentrations: Mapping[str, jax.Array]
+  solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
 
 
 @functools.partial(
@@ -90,7 +109,7 @@ def run_extended_lengyel_standalone(
     fixed_step_iterations: int | None = None,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
-) -> extended_lengyel_model.ExtendedLengyelOutputs:
+) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
   Args:
@@ -107,7 +126,7 @@ def run_extended_lengyel_standalone(
     minor_radius: Minor radius from magnetic axis to outboard midplane [m].
     elongation_psi95: Elongation at psiN=0.95.
     triangularity_psi95: Triangularity at psiN=0.95.
-    average_ion_mass: Average main-ion mass [amu].
+    average_ion_mass: Average main-ion mass [amu] defined as sum(m_i*n_i)/n_e.
     mean_ion_charge_state: Mean ion charge state [dimensionless]. Defined as
       n_e/(sum_i n_i).
     target_electron_temp: For inverse mode, desired electron temperature at
@@ -352,7 +371,7 @@ def run_extended_lengyel_standalone(
       )
   )
 
-  return extended_lengyel_model.ExtendedLengyelOutputs(
+  return ExtendedLengyelOutputs(
       target_electron_temp=output_sol_model.state.target_electron_temp,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
       alpha_t=output_sol_model.state.alpha_t,

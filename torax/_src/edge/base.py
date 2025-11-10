@@ -21,8 +21,12 @@ import jax
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
+from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
+from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
+
+# pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
@@ -37,6 +41,7 @@ class EdgeModelOutputsBase:
     target_electron_temp: Electron temperature at sheath entrance [eV].
     neutral_pressure_in_divertor: Neutral pressure in the divertor [Pa].
   """
+
   q_parallel: jax.Array
   heat_flux_perp_to_target: jax.Array
   separatrix_electron_temp: jax.Array
@@ -45,7 +50,7 @@ class EdgeModelOutputsBase:
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class EdgeModelBase(static_dataclass.StaticDataclass, abc.ABC):
+class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for edge models."""
 
   @abc.abstractmethod
@@ -54,28 +59,21 @@ class EdgeModelBase(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_slice.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      core_sources: source_profiles_lib.SourceProfiles,
   ) -> EdgeModelOutputsBase:
     """Evaluates the edge model at the given time."""
-  pass
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class RuntimeParams:
-  """Base for edge model runtime parameters."""
-
-  pass
-
-
-class EdgeModelConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base pydantic configuration for all edge models."""
 
   @abc.abstractmethod
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> edge_runtime_params.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
-    pass
 
   @abc.abstractmethod
-  def build_edge_model(self) -> EdgeModelBase:
+  def build_edge_model(self) -> EdgeModel:
     """Builds an edge model from the config."""
-    pass
+

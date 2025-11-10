@@ -31,7 +31,7 @@ import typing_extensions
 # and forward modes inheriting from a base extended_lengyel config.
 # TODO(b/446608829) - decide on final version of namings, possibly more
 # consistent with the rest of TORAX
-class ExtendedLengyelConfig(base.EdgeModelConfigBase):
+class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
   model_name: Annotated[
