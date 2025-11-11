@@ -16,7 +16,9 @@
  - `RuntimeParamsProvider` which provides a the `RuntimeParams` to
   use during time t of the sim.
  - `get_consistent_params_and_geometry` which returns a
-`RuntimeParams` and a corresponding `Geometry` with consistent `Ip`.
+`RuntimeParams` and a corresponding `Geometry` with consistent `Ip`. Also
+  optionally updates temperature boundary conditions and impurity
+  concentrations based on the edge model outputs.
 """
 import dataclasses
 
@@ -27,6 +29,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_model
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
@@ -38,6 +41,8 @@ from torax._src.time_step_calculator import pydantic_model as time_step_calculat
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
 import typing_extensions
+
+# pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
@@ -141,11 +146,37 @@ def _update_runtime_params_from_edge(
   Args:
     runtime_params: The current runtime parameters.
     edge_outputs: The outputs from the edge model execution, or None if no edge
-      model is active.
+      model is active, or if it's the first step of the simulation.
 
   Returns:
     Updated runtime parameters.
   """
-  # TODO(b/446608829): Implement coupling of edge outputs to runtime params.
-  del edge_outputs  # Unused for now.
-  return runtime_params
+  # TODO(b/446608829): Implement coupling of impurity outputs to runtime params.
+
+  # If there is no edge model, there is nothing to update.
+  if edge_outputs is None:
+    return runtime_params
+
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+
+  def _update_temperatures(
+      runtime_params: runtime_params_slice.RuntimeParams,
+  ) -> runtime_params_slice.RuntimeParams:
+    T_e_bc = edge_outputs.separatrix_electron_temp
+    T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
+    return dataclasses.replace(
+        runtime_params,
+        profile_conditions=dataclasses.replace(
+            runtime_params.profile_conditions,
+            T_e_right_bc=T_e_bc,
+            T_i_right_bc=T_i_bc,
+        ),
+    )
+
+  # Conditionally update temperatures based on the update_temperatures flag.
+  return jax.lax.cond(
+      runtime_params.edge.update_temperatures,
+      _update_temperatures,
+      lambda runtime_params: runtime_params,
+      runtime_params,
+  )

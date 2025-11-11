@@ -16,6 +16,7 @@
 
 from unittest import mock
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 from torax._src import math_utils
 from torax._src import state
@@ -233,6 +234,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     defaults = {
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
+        'update_temperatures': True,
         'fixed_step_iterations': 1,
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
@@ -426,6 +428,80 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
       # Basic sanity check that the target temperature did not converge
       # to near-zero values, which is a common failure mode.
       self.assertGreater(edge_output.separatrix_electron_temp, 1e-2)
+
+  @parameterized.named_parameters(
+      ('updates_enabled', True, 2.0),
+      ('updates_disabled', False, 2.0),
+      ('non_unity_ratio', True, 3.0),
+  )
+  def test_boundary_condition_updates(
+      self, update_temperatures, ion_to_electron_ratio
+  ):
+    """Tests that boundary conditions are correctly updated based on edge model."""
+
+    initial_Te_bc = 0.5
+    initial_Ti_bc = 0.5
+
+    torax_config = self._get_torax_config(
+        'test_iterhybrid_predictor_corrector.py'
+    )
+    torax_config.update_fields({
+        'profile_conditions.T_e_right_bc': initial_Te_bc,
+        'profile_conditions.T_i_right_bc': initial_Ti_bc,
+        'edge': {
+            'model_name': 'extended_lengyel',
+            'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+            'fixed_impurity_concentrations': {'Ne': 5e-2},
+            'enrichment_factor': {'Ne': 1.0},
+            'parallel_connection_length': 50.0,
+            'divertor_parallel_length': 10.0,
+            'toroidal_flux_expansion': 4.0,
+            'target_angle_of_incidence': 3.0,
+            # Test parameters
+            'update_temperatures': update_temperatures,
+            'target_ratio_of_ion_to_electron_temp': ion_to_electron_ratio,
+        },
+    })
+
+    # Run for a few steps to allow updates to happen
+    torax_config.update_fields({
+        'numerics.t_final': (
+            torax_config.numerics.t_initial
+            + 3 * torax_config.numerics.fixed_dt.value[0]
+        )
+    })
+
+    _, state_history = run_simulation.run_simulation(torax_config)
+    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+
+    # Check the last time step
+    final_state = state_history.core_profiles[-1]
+    final_edge_output = state_history._edge_outputs[-1]
+    self.assertIsNotNone(final_edge_output)
+
+    if update_temperatures:
+      # BCs should match edge model output
+      expected_Te_bc = final_edge_output.separatrix_electron_temp
+      expected_Ti_bc = expected_Te_bc * ion_to_electron_ratio
+      np.testing.assert_allclose(
+          final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
+      )
+      np.testing.assert_allclose(
+          final_state.T_i.right_face_constraint, expected_Ti_bc, rtol=1e-5
+      )
+      # Sanity check that it actually changed from initial
+      with self.assertRaises(AssertionError):
+        np.testing.assert_allclose(
+            final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
+        )
+    else:
+      # BCs should remain at initial prescribed values
+      np.testing.assert_allclose(
+          final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
+      )
+      np.testing.assert_allclose(
+          final_state.T_i.right_face_constraint, initial_Ti_bc, rtol=1e-5
+      )
 
 
 if __name__ == '__main__':

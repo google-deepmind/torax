@@ -260,6 +260,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
+    runtime_params_dict.pop('update_temperatures')
     kwargs = {**dynamic_inputs, **runtime_params_dict}
     # Run the model
     outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
