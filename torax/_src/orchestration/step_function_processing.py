@@ -14,14 +14,15 @@
 
 """Functions for pre and post processing used in the step function call."""
 
+import dataclasses
 import functools
-
 import jax
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -41,6 +42,7 @@ def pre_step(
     runtime_params_slice.RuntimeParams,
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
+    edge_base.EdgeModelOutputs | None,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -48,12 +50,12 @@ def pre_step(
           t=input_state.t,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          edge_outputs=input_state.edge_outputs,
       )
   )
 
   # This only computes sources set to explicit in the
-  # SourceConfig. All implicit sources will have their profiles
-  # set to 0.
+  # SourceConfig.
   explicit_source_profiles = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params_t,
       geo=geo_t,
@@ -62,7 +64,36 @@ def pre_step(
       neoclassical_models=physics_models.neoclassical_models,
       explicit=True,
   )
-  return runtime_params_t, geo_t, explicit_source_profiles
+
+  # Execute the edge model if one is configured. The edge model uses the state
+  # at time t to calculate new edge conditions for the next time step.
+  edge_model = physics_models.edge_model
+  if edge_model is not None:
+
+    # Update core sources with any newly calculated explicit sources.
+    # This is because in input_state, the sources are those which were
+    # used to compute the state. For explicit sources, these were computed with
+    # core_profiles at time t_minus_dt, whereas the implicit sources are
+    # consistent with time t. For the edge model, we want all sources consistent
+    # with the state at time t, so we replace the explicit sources with the
+    # newly calculated profiles.
+    core_sources = dataclasses.replace(
+        input_state.core_sources,
+        T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
+        T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
+        n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
+        psi=input_state.core_sources.psi | explicit_source_profiles.psi,
+    )
+    edge_outputs = edge_model(
+        runtime_params_t,
+        geo_t,
+        input_state.core_profiles,
+        core_sources,
+    )
+  else:
+    edge_outputs = None
+
+  return runtime_params_t, geo_t, explicit_source_profiles, edge_outputs
 
 
 @functools.partial(
@@ -82,6 +113,7 @@ def finalize_outputs(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
@@ -120,6 +152,7 @@ def finalize_outputs(
       core_transport=final_total_transport,
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
+      edge_outputs=edge_outputs,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,

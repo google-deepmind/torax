@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class EdgeModelOutputsBase:
+class EdgeModelOutputs:
   """Base class for outputs from an edge model.
 
   Attributes:
@@ -60,7 +60,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
-  ) -> EdgeModelOutputsBase:
+  ) -> EdgeModelOutputs:
     """Evaluates the edge model at the given time."""
 
 

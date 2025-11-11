@@ -77,9 +77,6 @@ def _get_initial_state(
       source_models=physics_models.source_models,
       neoclassical_models=physics_models.neoclassical_models,
   )
-  # Populate the starting state with source profiles from the implicit sources
-  # before starting the run-loop. The explicit source profiles will be computed
-  # inside the loop and will be merged with these implicit source profiles.
   initial_core_sources = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
@@ -91,6 +88,16 @@ def _get_initial_state(
           sigma_face=initial_core_profiles.sigma_face,
       ),
   )
+
+  if physics_models.edge_model is not None:
+    edge_outputs = physics_models.edge_model(
+        runtime_params,
+        geo,
+        initial_core_profiles,
+        initial_core_sources,
+    )
+  else:
+    edge_outputs = None
 
   transport_coeffs = (
       transport_coefficients_builder.calculate_total_transport_coeffs(
@@ -116,6 +123,7 @@ def _get_initial_state(
           sawtooth_crash=False,
       ),
       geometry=geo,
+      edge_outputs=edge_outputs,
   )
 
 
@@ -142,6 +150,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
         t_restart,
     )
 
+  # No need for edge_outputs since file will contain all needed overrides.
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t_initial,
@@ -177,7 +186,8 @@ def get_initial_state_and_post_processed_outputs_from_file(
       E_aux_total=scalars_dataset.data_vars['E_aux_total'].to_numpy(),
       E_ohmic_e=scalars_dataset.data_vars['E_ohmic_e'].to_numpy(),
       E_external_injected=scalars_dataset.data_vars[
-          'E_external_injected'].to_numpy(),
+          'E_external_injected'
+      ].to_numpy(),
       E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
   )
   core_profiles = dataclasses.replace(
@@ -220,6 +230,10 @@ def _override_initial_runtime_params_from_file(
 ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
+
+  # TODO(b/446608829): Implement passing of impurity content needed when
+  # restarting with inverse model extended-lengyel.
+
   runtime_params.numerics.t_initial = t_restart
   runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
       output.IP_PROFILE
