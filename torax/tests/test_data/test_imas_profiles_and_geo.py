@@ -30,7 +30,7 @@ imas_profiles2 = loader.load_imas_data(
     "core_profiles_15MA_DT_50_50_flat_top_slice.nc", "core_profiles"
 )
 imas_data1 = core_profiles.profile_conditions_from_IMAS(imas_profiles1)
-# imas_data2 = core_profiles.plasma_composition_from_imas(imas_profiles2, t_initial=0.0)
+imas_data2 = core_profiles.plasma_composition_from_IMAS(imas_profiles2, t_initial=0.0, expected_impurities=['He3', 'Be'])
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG["geometry"] = {
@@ -43,23 +43,17 @@ CONFIG["profile_conditions"] = {
     **imas_data1,
     "initial_psi_mode": "geometry",
 }
-
-# TODO: Uncomment once it will be rebased onto branch with plasma composition
-# mapping.
-
 # Load just a specific key from the other IDS: impurity species dict.
-# CONFIG["plasma_composition"] = (
-#     {
-#         "main_ion": {"D": 0.5, "T": 0.5},  # (bundled isotope average)
-#         "impurity": {
-#             "species": {
-#                 **imas_data2["impurity"]["species"],
-#                 "Ne": None,
-#             },
-#             # Manually set one impurity ratio to None to agree with
-#             # the n_e_ratios_Z_eff impurity mode.
-#             "impurity_mode": "n_e_ratios_Z_eff",
-#         },
-#         "Z_eff": 1.6,  # sets impurity density
-#     },
-# )
+CONFIG["plasma_composition"] = {
+        "main_ion": {"D": 0.5, "T": 0.5},  # (bundled isotope average)
+        "impurity": {
+            "species": {
+                **imas_data2["impurity"]["species"],
+                "He3": None,
+            },
+            # Manually set one impurity ratio to None to agree with
+            # the n_e_ratios_Z_eff impurity mode.
+            "impurity_mode": "n_e_ratios_Z_eff",
+        },
+        "Z_eff": 1.6,  # sets impurity density
+}
