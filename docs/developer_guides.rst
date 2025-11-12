@@ -12,3 +12,4 @@ underlying libraries, and API.
    code_structure
    fvm
    model_integration
+   jax_classes
