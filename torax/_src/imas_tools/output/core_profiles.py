@@ -29,13 +29,18 @@ from torax._src.orchestration.sim_state import ToraxSimState
 from torax._src.output_tools import post_processing
 from torax._src.physics import charge_states
 from torax._src.torax_pydantic import model_config
+from torax._src.sources import source_profiles
+from torax._src.geometry import geometry
 
 
 # TODO: Add option to save entire state history in one core_profiles output.
 def core_profiles_to_IMAS(
     runtime_params: runtime_params_slice.RuntimeParams,
-    post_processed_outputs: post_processing.PostProcessedOutputs,
-    state: ToraxSimState,
+    post_processed_outputs: list[post_processing.PostProcessedOutputs],
+    core_profiles: list[state.CoreProfiles],
+    core_sources: list[source_profiles.SourceProfiles],
+    geometry: list[geometry.Geometry],
+    times: array_typing.FloatVector,
     ids: ids_toplevel.IDSToplevel = imas.IDSFactory().core_profiles(),
 ) -> ids_toplevel.IDSToplevel:
   """Converts torax core_profiles to IMAS IDS.
@@ -49,17 +54,18 @@ def core_profiles_to_IMAS(
 
   Returns:
     Filled core_profiles or plas_profiles IDS object."""
-  t = state.t
-  cp_state = state.core_profiles
-  cs_state = state.core_sources
-  geometry = state.geometry
+  times = np.array(times)
+  core_profiles = np.array(core_profiles)
+  core_sources = np.array(core_sources)
+  geometry = np.array(geometry)
+  post_processed_outputs = np.array(post_processed_outputs)
   ids.ids_properties.comment = (
       'IDS built from TORAX sim output. Grid based on torax cell grid +'
       ' boundaries.'
   )
   ids.ids_properties.homogeneous_time = 1
   ids.ids_properties.creation_date = datetime.date.today().isoformat()
-  ids.time = [t]
+  ids.time = [times]
   ids.code.name = 'TORAX'
   ids.code.description = (
       'TORAX is a differentiable tokamak core transport simulator aimed for'
@@ -67,42 +73,32 @@ def core_profiles_to_IMAS(
       ' optimization, and controller design workflows.'
   )
   ids.code.repository = 'https://github.com/google-deepmind/torax'
-  ids.vacuum_toroidal_field.b0.resize(1)
-  ids.global_quantities.current_bootstrap.resize(1)
-  ids.global_quantities.ip.resize(1)
-  ids.global_quantities.v_loop.resize(1)
-  ids.global_quantities.li_3.resize(1)
-  ids.global_quantities.beta_pol.resize(1)
-  ids.global_quantities.beta_tor.resize(1)
-  ids.global_quantities.beta_tor_norm.resize(1)
-  ids.global_quantities.t_e_volume_average.resize(1)
-  ids.global_quantities.n_e_volume_average.resize(1)
 
-  ids.profiles_1d.resize(1)
-  ids.profiles_1d[0].time = t
+  ids.vacuum_toroidal_field.r0 = geometry[0].R_major
+  ids.vacuum_toroidal_field.b0 = ([
+      geometry_slice.B_0 for geometry_slice in geometry
+  ])  # TODO: Check sign(s) once TORAX COCOS will be defined.
 
-  ids.vacuum_toroidal_field.r0 = geometry.R_major
-  ids.vacuum_toroidal_field.b0[0] = (
-      geometry.B_0
-  )  # TODO: Check sign(s) once TORAX COCOS will be defined.
-
-  ids.global_quantities.ip[0] = -1 * cp_state.Ip_profile_face[-1]
-  ids.global_quantities.current_bootstrap[0] = (
-      -1 * post_processed_outputs.I_bootstrap
+  ids.global_quantities.ip = [-1 * cp_slice.Ip_profile_face[-1] for cp_slice in core_profiles]
+  ids.global_quantities.current_bootstrap = (
+      [-1 * post_processed_outputs_slice.I_bootstrap for post_processed_outputs_slice in post_processed_outputs]
   )
-  ids.global_quantities.v_loop[0] = cp_state.v_loop_lcfs
-  ids.global_quantities.li_3[0] = post_processed_outputs.li3
-  ids.global_quantities.beta_pol[0] = post_processed_outputs.beta_pol
-  ids.global_quantities.beta_tor[0] = post_processed_outputs.beta_tor
-  ids.global_quantities.beta_tor_norm[0] = post_processed_outputs.beta_N
-  ids.global_quantities.t_e_volume_average[0] = (
-      post_processed_outputs.T_e_volume_avg * 1e3
+  ids.global_quantities.v_loop = [cp_slice.v_loop_lcfs for cp_slice in core_profiles]
+  ids.global_quantities.li_3 = [post_processed_outputs_slice.li3 for post_processed_outputs_slice in post_processed_outputs]
+  ids.global_quantities.beta_pol = [post_processed_outputs_slice.beta_pol for post_processed_outputs_slice in post_processed_outputs]
+  ids.global_quantities.beta_tor = [post_processed_outputs_slice.beta_tor for post_processed_outputs_slice in post_processed_outputs]
+  ids.global_quantities.beta_tor_norm = [post_processed_outputs_slice.beta_N for post_processed_outputs_slice in post_processed_outputs]
+  ids.global_quantities.t_e_volume_average = (
+      [post_processed_outputs_slice.T_e_volume_avg * 1e3 for post_processed_outputs_slice in post_processed_outputs]
   )
-  ids.global_quantities.n_e_volume_average[0] = (
-      post_processed_outputs.n_e_volume_avg
+  ids.global_quantities.n_e_volume_average = (
+      [post_processed_outputs_slice.n_e_volume_avg for post_processed_outputs_slice in post_processed_outputs]
   )
-  ids.global_quantities.ion_time_slice = t
-
+  ids.global_quantities.ion_time_slice = times[0]
+  exit()
+  # Fill profiles
+  ids.profiles_1d.resize(len(times))
+  ids.profiles_1d[0].time = times[0]
   ids.profiles_1d[0].grid.rho_tor_norm = np.concatenate(
       [[0.0], geometry.rho_norm, [1.0]]
   )
@@ -215,13 +211,11 @@ def core_profiles_to_IMAS(
     ids.profiles_1d[0].ion[iion].element[0].a = ion_properties.A
     ids.profiles_1d[0].ion[iion].element[0].z_n = ion_properties.Z
 
-    ids.global_quantities.ion[iion].t_i_volume_average.resize(1)
-    ids.global_quantities.ion[iion].n_i_volume_average.resize(1)
-    ids.global_quantities.ion[iion].t_i_volume_average[0] = (
-        post_processed_outputs.T_i_volume_avg * 1e3
+    ids.global_quantities.ion[iion].t_i_volume_average = (
+        [post_processed_outputs.T_i_volume_avg * 1e3]
     )
-    ids.global_quantities.ion[iion].n_i_volume_average[0] = (
-        post_processed_outputs.n_i_volume_avg * frac
+    ids.global_quantities.ion[iion].n_i_volume_average = (
+        [post_processed_outputs.n_i_volume_avg * frac]
     )  # Valid to do like this ? Volume average ni only available for main ion.
 
   # Fill impurity quantities. Helper function is called when impurities array
@@ -285,11 +279,8 @@ def core_profiles_to_IMAS(
         0
     ].z_n = ion_properties.Z
 
-    ids.global_quantities.ion[
-        num_of_main_ions + iion
-    ].t_i_volume_average.resize(1)
-    ids.global_quantities.ion[num_of_main_ions + iion].t_i_volume_average[0] = (
-        post_processed_outputs.T_i_volume_avg * 1e3
+    ids.global_quantities.ion[num_of_main_ions + iion].t_i_volume_average = (
+       [post_processed_outputs.T_i_volume_avg * 1e3]
     )  # Volume average Ti and ni only available for main ion.
 
   q_cell = geometry_module.face_to_cell(cp_state.q_face)

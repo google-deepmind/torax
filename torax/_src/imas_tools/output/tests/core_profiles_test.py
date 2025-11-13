@@ -18,14 +18,10 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 
-try:
-  import imas
-except ImportError:
-  IDSToplevel = Any
+import imas 
 import torax
 from torax._src import state
 from torax._src.imas_tools.input import core_profiles as input_core_profiles
-from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.output import core_profiles as output_core_profiles
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
@@ -48,16 +44,16 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     """Test to check that data can be written in output to the IDS, either core_profiles or plasma_profiles."""
     # Input core_profiles reading and config loading
     config = self._get_config_dict('test_iterhybrid_rampup_short.py')
-    path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
-    core_profiles_in = loader.load_imas_data(path, 'core_profiles')
+    # path = 'core_profiles_ddv4_iterhybrid_rampup_conditions.nc'
+    # core_profiles_in = loader.load_imas_data(path, 'core_profiles')
 
     # Modifying the input config profiles_conditions class
-    core_profiles_conditions = input_core_profiles.profile_conditions_from_IMAS(
-        core_profiles_in
-    )
-    config['profile_conditions'] = {
-        **core_profiles_conditions,
-    }
+    # core_profiles_conditions = input_core_profiles.profile_conditions_from_IMAS(
+    #     core_profiles_in
+    # )
+    # config['profile_conditions'] = {
+    #     **core_profiles_conditions,
+    # }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Init sim from config
@@ -85,11 +81,18 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
       )
     post_processed_outputs = post_processed_outputs_history[-1]
     final_sim_state = state_history[-1]
+    core_profiles = final_sim_state.core_profiles
+    core_sources = final_sim_state.core_sources
+    geometry = final_sim_state.geometry
+    times = final_sim_state.t 
     t_final = final_sim_state.t
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
         runtime_params_provider(t_final),
         post_processed_outputs,
-        final_sim_state,
+        core_profiles,
+        core_sources,
+        geometry, 
+        times,
         ids_out,
     )
     filled_ids.validate()
@@ -128,11 +131,18 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     # Fill an IDS with the output of the simulation, from the initial time step.
     sim_state = state_history[0]
+    core_profiles = sim_state.core_profiles
+    core_sources = sim_state.core_sources
+    geometry = sim_state.geometry
+    times = sim_state.t 
     post_processed_outputs = post_processed_outputs_history[0]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
         runtime_params_provider(0),
         post_processed_outputs,
-        sim_state,
+        core_profiles,
+        core_sources,
+        geometry, 
+        times,
     )
     # Modifying the input config profiles_conditions class with the IDS filled
     # from the previous simulation.
