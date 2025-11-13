@@ -15,17 +15,20 @@
 """Base pydantic config and model for sawtooth redistribution."""
 
 import abc
+import dataclasses
 
 import chex
 from torax._src import array_typing
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class RedistributionModel(abc.ABC):
+@dataclasses.dataclass(frozen=True, eq=False)
+class RedistributionModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for sawtooth redistribution models."""
 
   @abc.abstractmethod
@@ -37,17 +40,6 @@ class RedistributionModel(abc.ABC):
       core_profiles_t: state.CoreProfiles,
   ) -> state.CoreProfiles:
     """Returns a redistributed core_profiles if sawtooth has been triggered."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the redistribution model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality method to be implemented to support jax.jit caching."""
 
 
 class RedistributionConfig(torax_pydantic.BaseModelFrozen):

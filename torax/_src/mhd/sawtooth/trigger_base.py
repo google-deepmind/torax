@@ -15,17 +15,20 @@
 """Base pydantic config and model for sawtooth trigger."""
 
 import abc
+import dataclasses
 
 import chex
 from torax._src import array_typing
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class TriggerModel(abc.ABC):
+@dataclasses.dataclass(frozen=True, eq=False)
+class TriggerModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for sawtooth trigger models."""
 
   @abc.abstractmethod
@@ -36,17 +39,6 @@ class TriggerModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.FloatScalar]:
     """Indicates if a crash is triggered and the radius of the q=1 surface."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the trigger model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other: object) -> bool:
-    """Equality method to be implemented to support jax.jit caching."""
 
 
 class TriggerConfig(torax_pydantic.BaseModelFrozen):

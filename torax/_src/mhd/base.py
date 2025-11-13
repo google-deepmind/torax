@@ -16,15 +16,16 @@
 
 import dataclasses
 
+from torax._src import static_dataclass
 from torax._src.mhd.sawtooth import sawtooth_models as sawtooth_models_lib
 
 
-@dataclasses.dataclass(frozen=True)
-class MHDModels:
+@dataclasses.dataclass(frozen=True, eq=False)
+class MHDModels(static_dataclass.StaticDataclass):
   """Container for instantiated MHD model objects.
 
   This class is designed to be used as a static argument to jitted Jax
   functions, so it is immutable and supports comparison and hashing by value.
   """
 
-  sawtooth_models: sawtooth_models_lib.SawtoothModels | None = None
+  sawtooth_models: sawtooth_models_lib.SawtoothModels | None

@@ -22,6 +22,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
 from torax._src.geometry import geometry
@@ -33,7 +34,10 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class SimpleRedistribution(redistribution_base.RedistributionModel):
+@dataclasses.dataclass(frozen=True, eq=False)
+class SimpleRedistribution(
+    redistribution_base.RedistributionModel, static_dataclass.StaticDataclass
+):
   """Simple redistribution model."""
 
   def __call__(
@@ -176,12 +180,6 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other: object) -> bool:
-    return isinstance(other, SimpleRedistribution)
 
 
 @jax.tree_util.register_dataclass
