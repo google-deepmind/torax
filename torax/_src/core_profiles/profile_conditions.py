@@ -65,8 +65,10 @@ class RuntimeParams:
   n_e_right_bc: array_typing.FloatScalar
   n_e_right_bc_is_fGW: bool
   current_profile_nu: float
-  initial_j_is_total_current: bool
-  initial_psi_from_j: bool
+  initial_j_is_total_current: bool = dataclasses.field(
+      metadata={'static': True}
+  )
+  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
   normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
   use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
       metadata={'static': True}
@@ -172,10 +174,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False
   current_profile_nu: float = 1.0
-  initial_j_is_total_current: bool = False
+  initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
   # initial_psi_source.
-  initial_psi_from_j: bool = False
+  initial_psi_from_j: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   initial_psi_mode: Annotated[InitialPsiMode, torax_pydantic.JAX_STATIC] = (
       InitialPsiMode.PROFILE_CONDITIONS
   )
