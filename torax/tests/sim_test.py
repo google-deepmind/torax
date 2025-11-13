@@ -17,22 +17,23 @@
 These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
+
 import copy
+import os
 from typing import Final, Sequence
-from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from jax import tree
 import numpy as np
 from torax._src import state
-from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
-from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import file_restart as file_restart_pydantic
 from torax._src.torax_pydantic import model_config
 import xarray as xr
+
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_I,
@@ -404,109 +405,38 @@ class SimTest(sim_test_case.SimTestCase):
             )
             raise AssertionError(msg)
 
-  # pylint: disable=invalid-name
   @parameterized.parameters(
       'test_psi_heat_dens',
       'test_psichease_prescribed_jtot',
       'test_psichease_prescribed_johm',
       'test_iterhybrid_rampup',
   )
-  def test_core_profiles_are_recomputable(self, test_config):
-    """Tests that core profiles from a previous run are recomputable.
-
-    In this test we:
-    - Load up a reference file and build a sim from its config.
-    - Get profile values from either halfway or final time of the sim.
-    - Override the runtime params with values from the reference.
-    - Run the sim to the end and check core profiles against reference.
-
-    Args:
-      test_config: the config id under test.
-    """
-    profiles = [
-        output.T_I,
-        output.T_E,
-        output.N_E,
-        output.N_I,
-        output.PSI,
-        output.V_LOOP,
-        output.IP_PROFILE,
-        output.Q,
-        output.MAGNETIC_SHEAR,
-        output.J_BOOTSTRAP,
-        output.J_OHMIC,
-        output.J_EXTERNAL,
-        output.J_TOTAL,
-        output.SIGMA_PARALLEL,
-    ]
-    ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
+  def test_simulation_with_restart(self, test_config: str):
+    ref_name = test_config + '.nc'
+    output_file = os.path.join(paths.test_data_dir(), ref_name)
+    gt_output_xr = output.safe_load_dataset(output_file)
+    profiles_dataset = gt_output_xr.children[output.PROFILES].dataset
+    ref_time = profiles_dataset[output.TIME].to_numpy()
     index = len(ref_time) // 2
     loading_time = ref_time[index]
 
-    # Build the sim and runtime params at t=`loading_time`.
+    # Override the config to restart from the halfway point of the reference.
     torax_config = self._get_torax_config(test_config + '.py')
     torax_config.update_fields({'numerics.t_initial': loading_time})
-
-    original_get_initial_state = initial_state._get_initial_state
-
-    def wrapped_get_initial_state(runtime_params, geo, step_fn):
-      # Load in the reference core profiles.
-      Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
-      # All profiles are on a grid with [left_face, cell_grid, right_face]
-      T_e = ref_profiles[output.T_E][index, 1:-1]
-      T_e_bc = ref_profiles[output.T_E][index, -1]
-      T_i = ref_profiles[output.T_I][index, 1:-1]
-      T_i_bc = ref_profiles[output.T_I][index, -1]
-      n_e = ref_profiles[output.N_E][index, 1:-1]
-      n_e_right_bc = ref_profiles[output.N_E][index, -1]
-      psi = ref_profiles[output.PSI][index, 1:-1]
-
-      # Override the runtime params with the loaded values.
-      runtime_params.profile_conditions.Ip = Ip_total
-      runtime_params.profile_conditions.T_e = T_e
-      runtime_params.profile_conditions.T_e_right_bc = T_e_bc
-      runtime_params.profile_conditions.T_i = T_i
-      runtime_params.profile_conditions.T_i_right_bc = T_i_bc
-      runtime_params.profile_conditions.n_e = n_e
-      runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
-      runtime_params.profile_conditions.psi = psi
-      # When loading from file we want n_e not to have transformations.
-      # Both n_e and the boundary condition are given in absolute values
-      # (not fGW).
-      # Additionally we want to avoid normalizing to nbar.
-      runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
-      runtime_params.profile_conditions.n_e_nbar_is_fGW = False
-      runtime_params.profile_conditions.normalize_n_e_to_nbar = False
-      runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
-      return original_get_initial_state(
-          runtime_params,
-          geo,
-          step_fn,
-      )
-
-    with mock.patch.object(
-        initial_state, '_get_initial_state', wraps=wrapped_get_initial_state
-    ):
-      _, sim_outputs = run_simulation.run_simulation(
-          torax_config, progress_bar=False
-      )
-
-    initial_core_profiles = tree.map(
-        lambda x: x[0] if x is not None else None,
-        sim_outputs._stacked_core_profiles,
+    file_restart = file_restart_pydantic.FileRestart.from_dict(
+        dict(
+            filename=output_file,
+            time=loading_time,
+            do_restart=True,
+            stitch=True,
+        )
     )
-    core_profile_helpers.verify_core_profiles(
-        ref_profiles, index, initial_core_profiles
-    )
+    torax_config.update_fields({'restart': file_restart})
 
-    final_core_profiles = tree.map(
-        lambda x: x[-1] if x is not None else None,
-        sim_outputs._stacked_core_profiles,
+    output_xr, _ = run_simulation.run_simulation(
+        torax_config, progress_bar=False
     )
-    core_profile_helpers.verify_core_profiles(
-        ref_profiles, -1, final_core_profiles
-    )
-    # pylint: enable=invalid-name
+    xr.map_over_datasets(xr.testing.assert_allclose, output_xr, gt_output_xr)
 
   def test_ip_bc_v_loop_bc_equivalence(self):
     """Tests the equivalence of the Ip BC and the VLoop BC.
