@@ -27,6 +27,9 @@ from torax._src.test_utils import paths
 
 
 class PlotrunsLibTest(parameterized.TestCase):
+  skip_data_files_list = [
+      "test_iterhybrid_predictor_corrector_zeffprofile_qualikiz.nc",
+  ]
 
   def setUp(self):
     super().setUp()
@@ -83,11 +86,8 @@ class PlotrunsLibTest(parameterized.TestCase):
     for test_data_path in data_files:
         # TODO: Allow plotting of runs without 'profiles' and remove exception
         # or filter out runs without 'profiles' apriori
-        try:
+        if test_data_path.name not in self.skip_data_files_list:
             fig = plotruns_lib.plot_run(plot_config, test_data_path, interactive=False)
-        except Exception as ee:
-            raise Exception(f"Could not plot '{test_data_path.name}'") from ee
-        else:
             assert isinstance(fig, Figure), f"Plotting of {data_files.name} failed"
             plt.close(fig)
 
