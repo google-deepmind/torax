@@ -25,7 +25,7 @@ Functions:
     - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
     - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
-    - _calc_bpol2: Calculates square of poloidal field (Bp).
+    - calc_bpol_squared: Calculates square of poloidal field (Bp).
 """
 import jax
 from jax import numpy as jnp
@@ -186,7 +186,7 @@ def calc_s_rmid(
   return s_face
 
 
-def _calc_bpol2(
+def calc_bpol_squared(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   r"""Calculates square of poloidal field (Bp) from poloidal flux (psi).
@@ -217,7 +217,7 @@ def calc_Wpol(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates total magnetic energy (Wpol) from poloidal flux (psi)."""
-  bpol2 = _calc_bpol2(geo, psi)
+  bpol2 = calc_bpol_squared(geo, psi)
   Wpol = _trapz(bpol2 * geo.vpr_face, geo.rho_face_norm) / (
       2 * constants.CONSTANTS.mu_0
   )

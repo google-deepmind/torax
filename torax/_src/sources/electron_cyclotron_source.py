@@ -121,7 +121,7 @@ def calc_heating_and_current(
   return ec_power_density, fsa_j_dot_B
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 

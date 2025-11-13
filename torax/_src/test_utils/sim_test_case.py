@@ -119,7 +119,7 @@ class SimTestCase(parameterized.TestCase):
             .to_numpy()[step, :]
         )
         ref_value = ref_profile[step, :]
-        with self.subTest(step=step, ref_profile=ref_profile):
+        with self.subTest(step=step):
           self.assertEqual(actual_value.shape, ref_value.shape)
         actual.append(actual_value)
         ref.append(ref_value)

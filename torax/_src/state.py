@@ -48,7 +48,7 @@ class CoreProfiles:
       n_e: Electron density [m^-3].
       n_i: Main ion density [m^-3].
       n_impurity: Impurity density of bundled impurity [m^-3].
-      impurity_fractions: Fractional abundances of invididual impurity species.
+      impurity_fractions: Fractional abundances of individual impurity species.
       q_face: Safety factor.
       s_face: Magnetic shear.
       v_loop_lcfs: Loop voltage at LCFS (V).

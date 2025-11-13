@@ -152,7 +152,7 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         minor_radius=minor_radius,
         elongation_psi95=elongation_psi95,
         triangularity_psi95=triangularity_psi95,
-        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        ratio_bpol_omp_to_bpol_avg=extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG,
     )
     np.testing.assert_allclose(
         calculated_value,

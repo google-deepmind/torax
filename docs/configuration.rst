@@ -2092,10 +2092,11 @@ saved in Data Dictionary version 4.0.0 or newer.
 If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
 the loader function ``load_imas_data`` from |imas_loader|.
 It can then be loaded programatically in the ``CONFIG`` by constructing a nested
-dictionary with the ``core_profiles_from_imas`` function from
-|core_profiles_input_imas|. The function returns a dictionary whose structure
-fits the schema of profile_conditions and can be programatically loaded into a
-``CONFIG`` with standard dictionary manipulation.
+dictionary with the ``profile_conditions_from_imas`` and
+``plasma_composition_from_imas`` functions from |core_profiles_input_imas|. The
+functions returns a dictionary whose structure fits the schema of
+profile_conditions or plasma_composition and can be programatically loaded into
+a ``CONFIG`` with standard dictionary manipulation.
 
 An example on how to inject the IMAS conditions into the config can be found in
 the test file ``imas_tools/input/tests/core_profiles_test.py``.

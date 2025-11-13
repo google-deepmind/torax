@@ -267,6 +267,21 @@ class ConfigTest(parameterized.TestCase):
     else:
       self.assertNotIn(warning_snippet, warnings)
 
+  def test_edge_model_with_circular_geometry_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "circular",
+        "n_rho": 33,
+    }
+    config_dict["edge"] = {
+        "model_name": "extended_lengyel",
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "Edge models are not supported for use with CircularGeometry.",
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
 
 if __name__ == "__main__":
   absltest.main()

@@ -119,6 +119,7 @@ def run_simulation(
     the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
     `PostProcessedOutputs` dataclasses for each step of the simulation.
   """
+
   (
       runtime_params_provider,
       initial_state,

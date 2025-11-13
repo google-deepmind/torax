@@ -128,11 +128,11 @@ class StaticDataclass:
     # Make sure the StaticDataclass method is used
     if hash(self) != self._hash():
       raise TypeError(
-          "A subclass of StaticDataclass is not using the base "
+          f"{type(self)} is not using the base "
           "StaticDataclass.__hash__ method. This is usually "
           "accidental and caused by forgetting to pass eq=False "
           "to the dataclass decorator on the subclass. If this is"
-          "intentional then override the __post_init__ method too"
+          " intentional then override the __post_init__ method too"
           " to avoid this check."
       )
 
@@ -148,15 +148,39 @@ class StaticDataclass:
         )  # Naive user-provided hash by id
         for v in values
     )
-    names = [field.name for field in dataclasses.fields(self)]
-    for h, bh, n in zip(hashes, bad_hashes, names):
+    fields = dataclasses.fields(self)
+    for i, field in enumerate(fields):
+      v = values[i]
+      h = hashes[i]
+      bh = bad_hashes[i]
+      n = field.name
+
+      # Search for metadata in the MRO
+      hash_by_id = False
+      for cls in self.__class__.__mro__:
+        if dataclasses.is_dataclass(cls):
+          try:
+            parent_field = next(
+                f for f in dataclasses.fields(cls) if f.name == n
+            )
+            if "hash_by_id" in parent_field.metadata:
+              hash_by_id = parent_field.metadata["hash_by_id"]
+              break
+          except StopIteration:
+            continue
+      if hash_by_id:
+        continue
       if h in bh:
         raise TypeError(
-            f"{self}.{n} hashes by id when it should hash by value."
+            f"{type(self)}.{n} hashes by id when it should hash by value. "
+            "If you're confident that this is correct, allow it by "
+            "adding metadata to the field, e.g., "
+            "my_field: Any = dataclasses.field(metadata={'hash_by_id': True})"
         )
 
     # Make sure nested dataclasses are StaticDataclass
-    for v, n in zip(values, names):
+    for v, field in zip(values, fields):
+      n = field.name
       if dataclasses.is_dataclass(v) and not isinstance(v, StaticDataclass):
         raise TypeError(
             f"{self}.{n} is a dataclass but not a "

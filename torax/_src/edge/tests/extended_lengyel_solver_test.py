@@ -63,7 +63,7 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         minor_radius=minor_radius,
         elongation_psi95=elongation_psi95,
         triangularity_psi95=triangularity_psi95,
-        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        ratio_bpol_omp_to_bpol_avg=extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG,
     )
 
     self.params = divertor_sol_1d.ExtendedLengyelParameters(
@@ -73,8 +73,8 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         fieldline_pitch_at_omp=fieldline_pitch_at_omp,
         cylindrical_safety_factor=cylindrical_safety_factor,
         power_crossing_separatrix=5.5e6,
-        ratio_of_upstream_to_average_poloidal_field=(
-            extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL
+        ratio_bpol_omp_to_bpol_avg=(
+            extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
         ),
         fraction_of_P_SOL_to_divertor=(
             extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR
@@ -243,7 +243,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         minor_radius=minor_radius,
         elongation_psi95=elongation_psi95,
         triangularity_psi95=triangularity_psi95,
-        ratio_of_upstream_to_average_poloidal_field=extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL,
+        ratio_bpol_omp_to_bpol_avg=extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG,
     )
 
     self.params = divertor_sol_1d.ExtendedLengyelParameters(
@@ -254,8 +254,8 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         fieldline_pitch_at_omp=fieldline_pitch_at_omp,
         cylindrical_safety_factor=cylindrical_safety_factor,
         power_crossing_separatrix=5.5e6,
-        ratio_of_upstream_to_average_poloidal_field=(
-            extended_lengyel_defaults.RATIO_UPSTREAM_TO_AVG_BPOL
+        ratio_bpol_omp_to_bpol_avg=(
+            extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
         ),
         fraction_of_P_SOL_to_divertor=(
             extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR
