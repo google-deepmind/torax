@@ -28,7 +28,6 @@ from torax._src.test_utils import paths
 
 class PlotrunsLibTest(parameterized.TestCase):
   skip_data_files_list = [
-      "test_iterhybrid_predictor_corrector_zeffprofile_qualikiz.nc",
   ]
 
   def setUp(self):
