@@ -155,6 +155,10 @@ class StaticDataclass:
       bh = bad_hashes[i]
       n = field.name
 
+      # Singletons may hash by id.
+      if v in _known_singletons:
+        continue
+
       # Search for metadata in the MRO
       hash_by_id = False
       for cls in self.__class__.__mro__:
@@ -188,3 +192,6 @@ class StaticDataclass:
             "StaticDataclass objects to ensure that all hash "
             "functions hash the class id."
         )
+
+
+_known_singletons = (None,)
