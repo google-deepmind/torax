@@ -87,8 +87,9 @@ class SawtoothModelTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
     self._torax_config = torax_config
 
+    physics_models = torax_config.build_physics_models()
     solver = torax_config.solver.build_solver(
-        physics_models=torax_config.build_physics_models(),
+        physics_models=physics_models,
     )
 
     geometry_provider = torax_config.geometry.build_provider

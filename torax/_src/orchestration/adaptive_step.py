@@ -115,6 +115,7 @@ def compute_state(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state=input_state.pedestal_policy_state,
   )
   loop_statistics[
       'inner_solver_iterations'

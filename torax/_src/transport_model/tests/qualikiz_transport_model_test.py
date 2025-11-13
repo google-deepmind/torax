@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -65,6 +65,9 @@ class QualikizTransportModelTest(parameterized.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    pedestal_policy = pedestal_model.pedestal_policy
+
     # Mocking the actual call to QuaLiKiz and its results.
     mock_process = mock.Mock()
     mock_process.communicate.return_value = (b'stdout', b'stderr')
@@ -80,6 +83,9 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
         # Calling the model
         test_model = qualikiz_transport_model.QualikizTransportModel()
+        pedestal_policy_state = pedestal_policy.initial_state(
+            t=0.0, runtime_params=runtime_params.pedestal_policy
+        )
         model_call = (
             jax.jit(test_model.__call__) if jit else test_model.__call__
         )
@@ -87,7 +93,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
             runtime_params,
             geo,
             core_profiles,
-            pedestal_model.PedestalModelOutput(
+            pedestal_policy_state,
+            pedestal_model_lib.PedestalModelOutput(
                 rho_norm_ped_top=np.inf,
                 T_i_ped=0.0,
                 T_e_ped=0.0,
