@@ -26,6 +26,7 @@ CONFIG['sources']['generic_heat']['P_total'] = 0.0
 CONFIG['sources']['ohmic'] = {}
 CONFIG['numerics']['resistivity_multiplier'] = 10.0
 CONFIG['numerics']['fixed_dt'] = 1.0
+CONFIG['numerics']['t_final'] = 75
 CONFIG['transport']['chi_i_inner'] = 0.2
 CONFIG['transport']['chi_e_inner'] = 0.2
 CONFIG['transport']['D_e_inner'] = 0.02

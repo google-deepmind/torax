@@ -361,10 +361,20 @@ class Geometry:
   def gm9_face(self) -> jax.Array:
     r"""<1/R> on face grid [:math:`\mathrm{m}^{-1}`]."""
     bulk = 2 * jnp.pi * self.spr_face[..., 1:] / self.vpr_face[..., 1:]
-    first_element = 1 / self.R_major
+    first_element = 1 / self.R_major_profile_face[..., 0]
     return jnp.concatenate(
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
     )
+
+  @property
+  def R_major_profile(self) -> jax.Array:
+    """Local major radius on cell grid [m]."""
+    return (self.R_in + self.R_out) / 2
+
+  @property
+  def R_major_profile_face(self) -> jax.Array:
+    """Local major radius on face grid [m]."""
+    return (self.R_in_face + self.R_out_face) / 2
 
   def z_magnetic_axis(self) -> chex.Numeric:
     """z position of magnetic axis [m]."""

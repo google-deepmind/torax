@@ -269,6 +269,8 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector

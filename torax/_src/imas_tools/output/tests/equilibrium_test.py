@@ -53,9 +53,8 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
     config_dict['geometry']['equilibrium_object'] = equilibrium_in
     config_dict['geometry']['imas_filepath'] = None
-    # Set a current as consistent as possible with the "unscaled" current
-    # corresponding to the input psi.
-    config_dict['profile_conditions']['Ip'] = 11.35e6
+    # Set the current to be consistent with the input psi.
+    config_dict['profile_conditions']['Ip'] = 11.75e6
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     _, sim_state, post_processed_outputs, _ = run_simulation.prepare_simulation(
         torax_config

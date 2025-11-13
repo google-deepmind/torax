@@ -110,7 +110,7 @@ def torax_state_to_imas_equilibrium(
   gm2 = np.array(
       geometry.g2_face[1:] / (dpsidrhotor[1:] ** 2 * dvoldpsi[1:] ** 2)
   )
-  gm2_on_axis = np.array([1 / (geometry.R_major**2)])
+  gm2_on_axis = np.array([1 / (geometry.R_major_profile_face[0]**2)])
   gm2 = np.concatenate([gm2_on_axis, gm2])
   eq.profiles_1d.gm2 = gm2
 
