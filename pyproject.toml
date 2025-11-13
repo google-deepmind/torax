@@ -22,7 +22,7 @@ dependencies = [
     "jaxlib>=0.8.0",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "fusion_surrogates==0.4.3",
+    "fusion_surrogates==0.4.4",
     "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.11'",
@@ -63,7 +63,7 @@ documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
 
 # Installed through `pip install -e .[tglfnnukaea]`
 tglfnnukaea = [
-    "fusion_surrogates[tglfnnukaea]==0.4.3"
+    "fusion_surrogates[tglfnnukaea]==0.4.4"
 ]
 
 # Installed through `pip install -e .[dev]`
