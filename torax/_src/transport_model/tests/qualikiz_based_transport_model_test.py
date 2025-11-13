@@ -133,14 +133,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
       self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeQualikizBasedTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
 ):
   """Fake QualikizBasedTransportModel for testing purposes."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   # pylint: disable=invalid-name
   def prepare_qualikiz_inputs(
@@ -184,12 +181,6 @@ class FakeQualikizBasedTransportModel(
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
 
 
 # pylint: disable=invalid-name

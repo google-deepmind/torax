@@ -70,7 +70,6 @@ class QualikizTransportModel(
         + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
-    self._frozen = True
 
   def _call_implementation(
       self,

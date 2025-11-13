@@ -430,13 +430,13 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   )
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
-    transport_models = [
+    transport_models = tuple(
         model.build_transport_model() for model in self.transport_models
-    ]
-    pedestal_transport_models = [
+    )
+    pedestal_transport_models = tuple(
         model.build_transport_model()
         for model in self.pedestal_transport_models
-    ]
+    )
 
     return combined.CombinedTransportModel(
         transport_models=transport_models,

@@ -46,12 +46,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   V_e: array_typing.FloatVector
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ConstantTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -82,11 +79,3 @@ class ConstantTransportModel(transport_model_lib.TransportModel):
         d_face_el=transport_runtime_params.D_e,
         v_face_el=transport_runtime_params.V_e,
     )
-
-  def __hash__(self):
-    # All ConstantTransportModels are equivalent and can hash the same
-    return hash('ConstantTransportModel')
-
-  def __eq__(self, other):
-    # All ConstantTransportModels are equivalent
-    return isinstance(other, ConstantTransportModel)
