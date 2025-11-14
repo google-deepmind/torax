@@ -30,10 +30,10 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 
 
@@ -43,7 +43,7 @@ class SourceProfileFunction(Protocol):
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       source_name: str,
       core_profiles: state.CoreProfiles,
@@ -111,7 +111,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
 
   def get_value(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
@@ -148,7 +148,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
 
     mode = source_params.mode
     match mode:
-      case runtime_params_lib.Mode.MODEL_BASED:
+      case sources_runtime_params_lib.Mode.MODEL_BASED:
         if self.model_func is None:
           raise ValueError(
               'Source is in MODEL_BASED mode but has no model function.'
@@ -161,7 +161,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
             calculated_source_profiles,
             conductivity,
         )
-      case runtime_params_lib.Mode.PRESCRIBED:
+      case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(self.affected_core_profiles) != len(
             source_params.prescribed_values
         ):
@@ -172,7 +172,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
               f' Expected: {len(self.affected_core_profiles)}.'
           )
         return source_params.prescribed_values
-      case runtime_params_lib.Mode.ZERO:
+      case sources_runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
         return (zeros,) * len(self.affected_core_profiles)
       case _:

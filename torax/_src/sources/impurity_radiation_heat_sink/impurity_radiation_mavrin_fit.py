@@ -24,12 +24,12 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import charge_states
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
@@ -194,7 +194,7 @@ def calculate_total_impurity_radiation(
 
 
 def impurity_radiation_mavrin_fit(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     unused_geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -254,7 +254,7 @@ def impurity_radiation_mavrin_fit(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   radiation_multiplier: array_typing.FloatScalar
 
 
@@ -269,9 +269,9 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
       'mavrin_fit'
   )
   radiation_multiplier: float = 1.0
-  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params_lib.Mode.MODEL_BASED
-  )
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:

@@ -24,7 +24,7 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 
 # pylint: disable=invalid-name
@@ -54,7 +54,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
@@ -77,7 +77,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:

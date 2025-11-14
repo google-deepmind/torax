@@ -19,7 +19,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -42,8 +42,8 @@ class LinearThetaMethod(solver_lib.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,

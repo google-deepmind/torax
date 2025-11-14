@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -406,7 +406,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
   def _call_implementation(
       self,
       transport_runtime_params: runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

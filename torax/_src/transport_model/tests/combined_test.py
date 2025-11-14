@@ -48,7 +48,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+    runtime_params = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )(
         t=torax_config.numerics.t_initial,
@@ -100,7 +100,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+    runtime_params = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )(
         t=torax_config.numerics.t_initial,

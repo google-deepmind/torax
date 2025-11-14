@@ -150,8 +150,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.RuntimeParams:
-    return runtime_params.RuntimeParams(
+  ) -> runtime_params_lib.RuntimeParams:
+    return runtime_params_lib.RuntimeParams(
         chi_min=self.chi_min,
         chi_max=self.chi_max,
         D_e_min=self.D_e_min,

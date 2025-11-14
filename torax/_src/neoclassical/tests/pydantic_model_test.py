@@ -78,7 +78,7 @@ class PydanticModelTest(parameterized.TestCase):
 
     output = f(neoclassical_model)
     self.assertIsInstance(
-        output, pydantic_model.runtime_params.RuntimeParams
+        output, pydantic_model.runtime_params_lib.RuntimeParams
     )
 
 

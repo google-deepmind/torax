@@ -21,7 +21,7 @@ import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import config_loader
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base_pydantic_model
@@ -42,7 +42,7 @@ class RuntimeParams(source_runtime_params.RuntimeParams):
 
 
 def double_gas_puff_source(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,

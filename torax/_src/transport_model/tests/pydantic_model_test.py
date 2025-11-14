@@ -58,7 +58,7 @@ class PydanticModelTest(parameterized.TestCase):
       self,
       pydantic_model: type[transport_pydantic_model.TransportConfig],
       expected_runtime_params: type[
-          transport_model_runtime_params.RuntimeParams
+          transport_model_runtime_params_lib.RuntimeParams
       ],
       expected_transport_model: type[transport_model_lib.TransportModel],
   ):

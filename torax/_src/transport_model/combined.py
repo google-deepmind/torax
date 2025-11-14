@@ -22,10 +22,10 @@ from typing import Callable, Sequence
 import jax
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=protected-access
@@ -33,7 +33,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
   transport_model_params: Sequence[runtime_params_lib.RuntimeParams]
   pedestal_transport_model_params: Sequence[runtime_params_lib.RuntimeParams]
 
@@ -47,7 +47,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -92,7 +92,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
   def _call_implementation(
       self,
       transport_runtime_params: runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

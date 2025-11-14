@@ -18,7 +18,7 @@ import functools
 import jax
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -42,7 +42,7 @@ _FINAL_SOURCES = frozenset(
     ],
 )
 def build_source_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -123,7 +123,7 @@ def build_source_profiles(
 def build_standard_source_profiles(
     *,
     calculated_source_profiles: source_profiles.SourceProfiles,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -221,7 +221,7 @@ def build_all_zero_profiles(
 
 
 def get_all_source_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,

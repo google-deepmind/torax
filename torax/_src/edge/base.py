@@ -20,7 +20,7 @@ import chex
 import jax
 from torax._src import state
 from torax._src import static_dataclass
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -56,7 +56,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
@@ -76,4 +76,3 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_edge_model(self) -> EdgeModel:
     """Builds an edge model from the config."""
-

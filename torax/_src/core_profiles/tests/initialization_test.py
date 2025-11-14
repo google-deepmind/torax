@@ -361,7 +361,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_mode': 'geometry',
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -377,7 +377,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_mode': 'j',
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -394,7 +394,7 @@ class InitializationTest(parameterized.TestCase):
         'psi': 15.0,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -413,7 +413,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -431,7 +431,7 @@ class InitializationTest(parameterized.TestCase):
     }
     config['geometry']['geometry_type'] = 'circular'
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -449,7 +449,7 @@ class InitializationTest(parameterized.TestCase):
     }
     config['geometry']['geometry_type'] = 'chease'
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    params_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     runtime_params = params_provider(t=0.0)
@@ -473,7 +473,7 @@ def _get_initial_state(
   runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
-          runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
+          runtime_params_provider=build_runtime_params_lib.RuntimeParamsProvider.from_config(
               torax_config
           ),
           geometry_provider=torax_config.geometry.build_provider,

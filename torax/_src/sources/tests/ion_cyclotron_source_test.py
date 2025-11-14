@@ -175,7 +175,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ]
     self.assertIsInstance(source, source_lib.Source)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+    runtime_params = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )(
         t=torax_config.numerics.t_initial,

@@ -20,7 +20,7 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
@@ -274,7 +274,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
       # Check to make sure it's a valid object.
       self.assertIsInstance(
           runtime_params,
-          runtime_params_slice.RuntimeParams,
+          runtime_params_lib.RuntimeParams,
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
