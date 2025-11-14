@@ -36,6 +36,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import psi_calculations
 
 # pylint: disable=invalid-name
 
@@ -262,3 +263,48 @@ def calculate_betas(
   )
 
   return beta_tor, beta_pol, beta_N
+
+
+def calculate_radial_electric_field(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Calculates the radial electric field Er.
+
+  Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
+
+  Args:
+    core_profiles: Current core plasma profiles.
+    geo: Geometry object.
+
+  Returns:
+    Er: Radial electric field [V/m] on the cell grid.
+  """
+  e = constants.CONSTANTS.q_e  # Elementary charge
+
+  # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
+  p_i_face = core_profiles.pressure_thermal_i.face_value()
+  dpi_dr = jnp.gradient(p_i_face, geo.r_mid_face)
+
+  # Flux surface average of `B_phi (toroidal) = F/R`. `gm9 = <1/R>``
+  B_phi = geo.F_face * geo.gm9_face  # Tesla
+
+  # flux-surface-averaged B_theta (poloidal).
+  B_theta_squared = psi_calculations.calc_bpol_squared(
+      geo, core_profiles.psi
+  )  # On the face grid.
+  B_theta = jnp.sqrt(B_theta_squared)  # Tesla
+
+  # Calculate Er
+  den = core_profiles.Z_i_face * e * core_profiles.n_i.face_value()
+  Er = (
+      (1.0 / den) * dpi_dr
+      - core_profiles.toroidal_velocity.face_value() * B_theta
+      + core_profiles.poloidal_velocity.face_value() * B_phi
+  )
+  return cell_variable.CellVariable(
+      value=geometry.face_to_cell(Er),
+      dr=geo.drho_norm,
+      right_face_constraint=Er[-1],
+      right_face_grad_constraint=None,
+  )
