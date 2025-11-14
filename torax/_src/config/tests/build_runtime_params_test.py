@@ -423,6 +423,94 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     original_ip = params_provider.profile_conditions.Ip.get_value(0.0)
     np.testing.assert_allclose(final_ip, original_ip * 4.0)
 
+  def test_update_runtime_params_provider_mapping(self):
+    params_provider = self._params_provider
+    ip_value = params_provider.profile_conditions.Ip.value
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=ip_value * 2.0,
+    )
+    T_e_value = (
+        params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
+    )
+    assert params_provider.profile_conditions.T_e.grid is not None
+    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+        value=T_e_value * 3.0,
+        rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,
+    )
+    value_Qei_multiplier = params_provider.sources.ei_exchange.Qei_multiplier
+    Qei_multiplier_update = value_Qei_multiplier * 4.0
+
+    # when
+    @jax.jit
+    def f(ip_update, T_e_update, Qei_multiplier_update):
+      # update the provider
+      provider_new = self._params_provider.update_provider_from_mapping(
+          {
+              'profile_conditions.Ip': ip_update,
+              'profile_conditions.T_e': T_e_update,
+              'sources.ei_exchange.Qei_multiplier': Qei_multiplier_update,
+          },
+      )
+      # this provider can then be used as overrides for the step function.
+      t = jnp.array(0.0)
+      return (
+          provider_new.profile_conditions.Ip.get_value(t),
+          provider_new.profile_conditions.T_e.get_value(t),
+          provider_new.sources.ei_exchange.Qei_multiplier,
+      )
+
+    ip_value_new, T_e_value_new, Qei_multiplier_new = f(
+        ip_update, T_e_update, Qei_multiplier_update
+    )
+
+    # then
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+    original_ip_value = self._params_provider.profile_conditions.Ip.get_value(
+        0.0
+    )
+    np.testing.assert_allclose(ip_value_new, original_ip_value * 2.0)
+    original_T_e_value = self._params_provider.profile_conditions.T_e.get_value(
+        0.0
+    )
+    np.testing.assert_allclose(T_e_value_new, original_T_e_value * 3.0)
+    original_Qei_multiplier = (
+        self._params_provider.sources.ei_exchange.Qei_multiplier
+    )
+    np.testing.assert_allclose(
+        Qei_multiplier_new, original_Qei_multiplier * 4.0
+    )
+
+    ip_update_new = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=ip_value * 4.0,
+    )
+    ip_value_new, T_e_value_new, Qei_multiplier_new = f(
+        ip_update_new, T_e_update, Qei_multiplier_update
+    )
+    np.testing.assert_allclose(ip_value_new, original_ip_value * 4.0)
+    np.testing.assert_allclose(T_e_value_new, original_T_e_value * 3.0)
+    np.testing.assert_allclose(
+        Qei_multiplier_new, original_Qei_multiplier * 4.0
+    )
+    self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_update_runtime_params_provider_mapping_raises_for_invalid_key(self):
+    value = self._params_provider.profile_conditions.Ip.value
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=value * 2.0,
+    )
+
+    @jax.jit
+    def f(ip_update):
+      # update the provider
+      provider_new = self._params_provider.update_provider_from_mapping(
+          # incorrectly spelt key for Ip.
+          {'profile_conditions.IP': ip_update},
+      )
+      return provider_new
+
+    with self.assertRaises(ValueError, msg='Attribute IP not found.'):
+      f(ip_update)
+
 
 if __name__ == '__main__':
   absltest.main()

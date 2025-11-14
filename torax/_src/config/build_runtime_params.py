@@ -21,7 +21,7 @@
   concentrations based on the edge model outputs.
 """
 import dataclasses
-from typing import Callable, Sequence, TypeAlias
+from typing import Any, Callable, Mapping, Sequence, TypeAlias
 
 import chex
 import equinox as eqx
@@ -180,6 +180,63 @@ class RuntimeParamsProvider:
       )
 
     return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values,)
+
+  def get_node_from_path(self, path: str) -> Any:
+    """Iteratively call `getattr` on `self` from dot-separated path of attrs."""
+    x = self
+    attributes = path.split(".")
+    for attr in attributes:
+      try:
+        x = getattr(x, attr)
+      except AttributeError as exc:
+        raise ValueError(f"Attribute {attr} of {path} not found.") from exc
+    return x
+
+  def update_provider_from_mapping(
+      self, replacements: Mapping[str, ValidReplacements]
+  ) -> typing_extensions.Self:
+    """Update a provider from a mapping of replacements.
+
+    Example usage:
+    ```
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=new_ip_value,
+    )
+    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+        cell_value=T_e_cell_value * 3.0,
+        rho_norm=T_e.grid.cell_centers,
+    )
+    new_provider = provider.update_provider_from_mapping(
+        {
+            'profile_conditions.Ip': ip_update,
+            'profile_conditions.T_e': T_e_update,
+            'sources.ei_exchange.Qei_multiplier': 2.0,
+        }
+    )
+    ```
+
+    Args:
+      replacements: A mapping of node paths to replacement values. Paths are of
+        the form `'some.path.to.field_name'` and the `value` is the new value
+        depending on the type of the node. The path can be dictionary keys or
+        attribute names with field_name pointing to one of the following types:
+        {`TimeVaryingScalar`, `TimeVaryingArray`, `chex.Numeric`}.
+
+    Returns:
+      A new provider with the updated values.
+    """
+    def get_replacements(
+        provider: typing_extensions.Self
+    ) -> list[ReplaceablePytreeNodes]:
+      """Returns the nodes to replace."""
+      nodes_to_replace: list[ReplaceablePytreeNodes] = []
+
+      for key in replacements.keys():
+        x = provider.get_node_from_path(key)
+        nodes_to_replace.append(x)
+      return nodes_to_replace
+
+    return self.update_provider(get_replacements, tuple(replacements.values()))
 
 
 def _get_provider_value_from_replace_value(
