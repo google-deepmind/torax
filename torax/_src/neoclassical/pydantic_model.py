@@ -18,7 +18,7 @@ from typing import Any
 
 import pydantic
 from torax._src.neoclassical import neoclassical_models
-from torax._src.neoclassical import runtime_params
+from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
@@ -58,8 +58,8 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
 
     return configurable_data
 
-  def build_runtime_params(self) -> runtime_params.RuntimeParams:
-    return runtime_params.RuntimeParams(
+  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    return runtime_params_lib.RuntimeParams(
         bootstrap_current=self.bootstrap_current.build_runtime_params(),
         conductivity=self.conductivity.build_runtime_params(),
         transport=self.transport.build_runtime_params(),

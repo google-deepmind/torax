@@ -18,7 +18,7 @@ import dataclasses
 
 import jax
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -26,14 +26,14 @@ from torax._src.fvm import enums
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
-from torax._src.solver import runtime_params
+from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
 from torax._src.sources import source_profiles
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class OptimizerRuntimeParams(runtime_params.RuntimeParams):
+class OptimizerRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   n_max_iterations: int
   loss_tol: float
   initial_guess_mode: int = dataclasses.field(metadata={'static': True})
@@ -41,7 +41,7 @@ class OptimizerRuntimeParams(runtime_params.RuntimeParams):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class NewtonRaphsonRuntimeParams(runtime_params.RuntimeParams):
+class NewtonRaphsonRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   maxiter: int
   residual_tol: float
   residual_coarse_tol: float
@@ -57,8 +57,8 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -100,8 +100,8 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -155,8 +155,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -207,8 +207,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,

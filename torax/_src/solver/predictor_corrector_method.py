@@ -22,7 +22,7 @@ import functools
 
 import jax
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -40,7 +40,7 @@ from torax._src.sources import source_profiles
 )
 def predictor_corrector_method(
     dt: jax.Array,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],

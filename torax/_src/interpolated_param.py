@@ -377,7 +377,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   should have shape (n, m) where n is the number of elements in the 1d array and
   m is the number of spatial grid size of the InterpolatedVar1d instance
 
-  See `config.runtime_params.RuntimeParams` and associated tests to see how
+  See `config.runtime_params_lib.RuntimeParams` and associated tests to see how
   this is used.
   """
 

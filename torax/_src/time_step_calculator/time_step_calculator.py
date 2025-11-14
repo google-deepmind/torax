@@ -20,7 +20,7 @@ import functools
 import jax
 from jax import numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.time_step_calculator import runtime_params as time_runtime_params
 
@@ -56,7 +56,7 @@ class TimeStepCalculator(abc.ABC):
   def next_dt(
       self,
       t: jax.Array,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_transport: state.CoreTransport,
@@ -84,7 +84,7 @@ class TimeStepCalculator(abc.ABC):
   @abc.abstractmethod
   def _next_dt(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_transport: state.CoreTransport,

@@ -20,7 +20,7 @@ import jax
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
@@ -39,7 +39,7 @@ def pre_step(
     geometry_provider: geometry_provider_lib.GeometryProvider,
     physics_models: physics_models_lib.PhysicsModels,
 ) -> tuple[
-    runtime_params_slice.RuntimeParams,
+    runtime_params_lib.RuntimeParams,
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
@@ -109,7 +109,7 @@ def finalize_outputs(
     x_new: tuple[cell_variable.CellVariable, ...],
     solver_numeric_outputs: state.SolverNumericOutputs,
     geometry_t_plus_dt: geometry.Geometry,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,

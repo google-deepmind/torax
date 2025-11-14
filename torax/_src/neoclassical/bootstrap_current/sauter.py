@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
@@ -44,7 +44,7 @@ class SauterModel(base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.BootstrapCurrent:

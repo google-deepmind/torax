@@ -16,11 +16,11 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -42,7 +42,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        sources_runtime_params_lib.RuntimeParams,
         sources=source_params,
     )
     profile = source.get_value(
@@ -80,7 +80,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
@@ -113,7 +113,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        sources_runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
@@ -149,7 +149,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        sources_runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     with self.assertRaisesRegex(

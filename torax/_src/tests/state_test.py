@@ -50,7 +50,7 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    dynamic_provider = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )
     dynamic_runtime_params_slice, geo = (
@@ -78,7 +78,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     dynamic_runtime_params_slice_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+        build_runtime_params_lib.RuntimeParamsProvider.from_config(torax_config)
     )
     dynamic_runtime_params_slice, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(

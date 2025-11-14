@@ -23,7 +23,7 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
@@ -286,7 +286,7 @@ class SimulationStepFn:
   def _sawtooth_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
@@ -337,8 +337,8 @@ class SimulationStepFn:
   def step(
       self,
       dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       input_state: sim_state.ToraxSimState,
@@ -401,7 +401,7 @@ class SimulationStepFn:
   def _adaptive_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
@@ -488,7 +488,7 @@ class SimulationStepFn:
   def _fixed_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,

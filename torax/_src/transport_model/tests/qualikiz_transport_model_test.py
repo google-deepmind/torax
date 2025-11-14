@@ -52,7 +52,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+    runtime_params = build_runtime_params_lib.RuntimeParamsProvider.from_config(
         torax_config
     )(
         t=torax_config.numerics.t_initial,

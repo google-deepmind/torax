@@ -30,7 +30,7 @@ import jaxopt
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -196,7 +196,7 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -285,7 +285,7 @@ def theta_method_block_residual(
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -343,7 +343,7 @@ def theta_method_block_loss(
 )
 def jaxopt_solver(
     dt: jax.Array,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,

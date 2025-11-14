@@ -22,7 +22,7 @@ from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import tglf_based_transport_model
@@ -141,7 +141,7 @@ class TGLFNNukaeaTransportModel(
   def _call_implementation(
       self,
       transport: tglf_based_transport_model.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,  # unused
+      runtime_params: runtime_params_lib.RuntimeParams,  # unused
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,  # unused

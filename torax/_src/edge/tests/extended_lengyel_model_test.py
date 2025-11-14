@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
@@ -160,9 +160,7 @@ class ExtendedLengyelModelTest(absltest.TestCase):
     edge_runtime_params = edge_config.build_runtime_params(t=0.0)
 
     # Mock full RuntimeParams to hold the edge params
-    mock_runtime_params = mock.MagicMock(
-        spec=runtime_params_slice.RuntimeParams
-    )
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
     mock_runtime_params.edge = edge_runtime_params
 
     # --- 3. Run Model and Assert ---
@@ -226,7 +224,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     self.mock_core_profiles.psi = mock_psi
 
     self.mock_runtime_params = mock.MagicMock(
-        spec=runtime_params_slice.RuntimeParams
+        spec=runtime_params_lib.RuntimeParams
     )
 
   def _create_edge_params(self, **kwargs):
