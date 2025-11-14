@@ -32,6 +32,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
@@ -69,7 +70,9 @@ def initial_core_profiles(
       runtime_params.profile_conditions, geo
   )
   ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
-
+  toroidal_velocity = getters.get_updated_toroidal_velocity(
+      runtime_params.profile_conditions, geo
+  )
   # Set v_loop_lcfs. Two branches:
   # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
   # 2. Initialize v_loop_lcfs to 0 if using the Ip boundary condition for psi.
@@ -93,6 +96,20 @@ def initial_core_profiles(
   psi = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       dr=geo.drho_norm,
+  )
+
+  poloidal_velocity = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho),
+      dr=geo.drho_norm,
+      right_face_constraint=0.0,
+      right_face_grad_constraint=None,
+  )
+
+  radial_electric_field = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho),
+      dr=geo.drho_norm,
+      right_face_constraint=0.0,
+      right_face_grad_constraint=None,
   )
 
   core_profiles = state.CoreProfiles(
@@ -121,6 +138,9 @@ def initial_core_profiles(
       j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      toroidal_velocity=toroidal_velocity,
+      poloidal_velocity=poloidal_velocity,
+      radial_electric_field=radial_electric_field,
   )
 
   return _init_psi_and_psi_derived(
@@ -434,6 +454,12 @@ def _calculate_all_psi_dependent_profiles(
       core_profiles,
   )
 
+  # TODO(b/456456279): Make sure poloidal_velocity has been updated.
+  # Calculate radial electric field
+  radial_electric_field = formulas.calculate_radial_electric_field(
+      core_profiles, geo
+  )
+
   # Calculate sources if they have not already been calculated.
   if not sources_are_calculated:
     source_profiles = _get_bootstrap_and_standard_source_profiles(
@@ -485,6 +511,7 @@ def _calculate_all_psi_dependent_profiles(
       psidot=psidot,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
+      radial_electric_field=radial_electric_field,
   )
   return core_profiles
 
