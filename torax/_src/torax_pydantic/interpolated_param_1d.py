@@ -14,9 +14,14 @@
 
 """Classes and functions for defining interpolated parameters."""
 
+import dataclasses
 import functools
 from typing import Any, TypeAlias
+
 import chex
+import equinox as eqx
+import jax
+import jaxtyping as jt
 import numpy as np
 import pydantic
 from torax._src import array_typing
@@ -25,6 +30,13 @@ from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 import typing_extensions
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class TimeVaryingScalarReplace:
+  value: jt.Float[jax.Array, 't'] | None = None
+  time: jt.Float[jax.Array, 't'] | None = None
 
 
 class TimeVaryingScalar(model_base.BaseModelFrozen):
@@ -80,6 +92,23 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
             time_interpolation_mode=self.interpolation_mode,
         ),
     )
+
+  def update(
+      self, replacements: TimeVaryingScalarReplace
+  ) -> typing_extensions.Self:
+    """This method can be used under `jax.jit`."""
+    value = replacements.value if replacements.value is not None else self.value
+    time = replacements.time if replacements.time is not None else self.time
+    if time.shape != value.shape:
+      raise ValueError(
+          'The value and time arrays to update this `TimeVaryingScalar` must'
+          f' be the same length. Got value: {value.shape}, time: {time.shape}.'
+      )
+
+    def get_leaves(x: typing_extensions.Self) -> tuple[chex.Array, chex.Array]:
+      return (x.time, x.value)
+
+    return eqx.tree_at(get_leaves, self, (time, value),)
 
   def __eq__(self, other):
     return (
