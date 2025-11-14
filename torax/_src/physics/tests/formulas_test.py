@@ -105,6 +105,35 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(beta_pol, beta_pol_expected)
     np.testing.assert_allclose(beta_N, beta_N_expected)
 
+  def test_calculate_radial_electric_field(self):
+    """Test that radial electric field is calculated correctly for constant profiles."""
+    core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
+        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
+        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
+        n_impurity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.25e20
+        ),
+        psi=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.0
+        ),
+        poloidal_velocity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.0
+        ),
+        Z_i_face=1.0,
+    )
+
+    E_r = formulas.calculate_radial_electric_field(core_profiles, self.geo)
+
+    # For constant profiles and zero velocities, E_r should be zero.
+    np.testing.assert_allclose(
+        E_r.value, np.zeros_like(self.geo.rho_norm), atol=1e-12
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

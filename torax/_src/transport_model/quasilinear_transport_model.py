@@ -21,6 +21,7 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import psi_calculations
 from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
@@ -184,6 +185,19 @@ def calculate_normalized_logarithmic_gradient(
       result,
   )
   return result
+
+
+def calculate_v_ExB(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  """Calculates the ExB velocity, on the face grid."""
+  Er = core_profiles.radial_electric_field.face_value()
+  # Flux surface average of `B_phi (toroidal) = F/R`. `gm9 = <1/R>``
+  B_phi_squared = (geo.F_face * geo.gm9_face) ** 2
+  B_theta_squared = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+  B = jnp.sqrt(B_phi_squared + B_theta_squared)
+  return jnp.where(B > 0, Er / B, 0.0)
 
 
 @jax.tree_util.register_dataclass

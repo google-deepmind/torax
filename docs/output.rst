@@ -301,6 +301,9 @@ These are called out in the list of profiles below, and generate relate to:
 ``Phi`` (time, rho_norm)
   Toroidal magnetic flux at each radial grid point [:math:`Wb`].
 
+``poloidal_velocity`` (time, rho_norm)
+  Poloidal velocity [:math:`m/s`].
+
 ``pprime`` (time, rho_face_norm)
   Derivative of total pressure with respect to poloidal flux [:math:`Pa/Wb`].
 
@@ -330,6 +333,9 @@ These are called out in the list of profiles below, and generate relate to:
 
 ``q`` (time, rho_face_norm)
   Safety factor profile on the face grid [dimensionless].
+
+``radial_electric_field`` (time, rho_norm)
+  Radial electric field [:math:`V/m`].
 
 ``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   Impurity radiation power density per species [:math:`W/m^3`]. Only output
@@ -370,6 +376,9 @@ These are called out in the list of profiles below, and generate relate to:
 
 ``T_i`` (time, rho_norm)
   Ion temperature [:math:`keV`].
+
+``toroidal_velocity`` (time, rho_norm)
+  Toroidal velocity [:math:`m/s`].
 
 ``v_loop`` (time, rho_norm)
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}`

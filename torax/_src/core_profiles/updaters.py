@@ -115,6 +115,9 @@ def get_prescribed_core_profile_values(
   n_i = ions.n_i.value
   n_impurity = ions.n_impurity.value
   impurity_fractions = ions.impurity_fractions
+  toroidal_velocity = getters.get_updated_toroidal_velocity(
+      runtime_params.profile_conditions, geo
+  ).value
 
   return {
       'T_i': T_i,
@@ -132,6 +135,7 @@ def get_prescribed_core_profile_values(
       'A_impurity_face': ions.A_impurity_face,
       'Z_eff': ions.Z_eff,
       'Z_eff_face': ions.Z_eff_face,
+      'toroidal_velocity': toroidal_velocity,
   }
 
 
@@ -169,7 +173,7 @@ def update_core_profiles_during_step(
       updated_core_profiles.T_e,
   )
 
-  return dataclasses.replace(
+  updated_core_profiles = dataclasses.replace(
       updated_core_profiles,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
@@ -186,6 +190,18 @@ def update_core_profiles_during_step(
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
   )
+
+  # TODO(b/456456279): Make sure poloidal_velocity has been updated.
+  # Computing the radial electric field requires the updated ions densities.
+  radial_electric_field = formulas.calculate_radial_electric_field(
+      updated_core_profiles, geo
+  )
+
+  updated_core_profiles = dataclasses.replace(
+      updated_core_profiles,
+      radial_electric_field=radial_electric_field,
+  )
+  return updated_core_profiles
 
 
 def update_core_and_source_profiles_after_step(
@@ -280,16 +296,28 @@ def update_core_and_source_profiles_after_step(
       j_total=j_total,
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
+      toroidal_velocity=updated_core_profiles_t_plus_dt.toroidal_velocity,
+      poloidal_velocity=updated_core_profiles_t_plus_dt.poloidal_velocity,
+      radial_electric_field=(
+          updated_core_profiles_t_plus_dt.radial_electric_field
+      ),  # Not yet updated
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo, intermediate_core_profiles
   )
 
+  # TODO(b/456456279): Make sure poloidal_velocity has been updated.
+  # Computing the radial electric field requires the updated ions densities.
+  radial_electric_field = formulas.calculate_radial_electric_field(
+      intermediate_core_profiles, geo
+  )
+
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
+      radial_electric_field=radial_electric_field,
   )
 
   # build_source_profiles calculates the union with explicit + implicit

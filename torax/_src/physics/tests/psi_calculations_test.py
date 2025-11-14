@@ -190,6 +190,52 @@ class PsiCalculationsTest(parameterized.TestCase):
     # our circular geometry, but approximates it at low inverse aspect ratio.
     np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
 
+  # pylint: disable=invalid-name
+  def test_calc_bpol_squared(self):
+    # Small inverse aspect ratio limit of circular geometry, such that we
+    # approximate the simplest form of circular geometry where the analytical
+    # Bpol formula is applicable.
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        R_major=100.0,
+        a_minor=1.0,
+        B_0=5.0,
+    ).build_geometry()
+    Ip = 15e6
+    # calculate high resolution j_total consistent with total current profile
+    j_total_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(j_total_profile * geo.spr_hires, geo.rho_hires_norm)
+    Ctot = Ip / denom
+    j_total = j_total_profile * Ctot
+    psi_cell_variable = initialization.update_psi_from_j(
+        Ip,
+        geo,
+        j_total,
+    )
+    _, _, Ip_profile_face = psi_calculations.calc_j_total(
+        geo,
+        psi_cell_variable,
+    )
+
+    # Analytical formula for Bpol^2 in circular geometry (Ampere's law)
+    bpol_squared_bulk = (
+        constants.CONSTANTS.mu_0
+        * Ip_profile_face[1:]
+        / (2 * np.pi * geo.rho_face[1:])
+    ) ** 2
+    expected_bpol_squared = np.concatenate([np.array([0.0]), bpol_squared_bulk])
+
+    calculated_bpol_squared = psi_calculations.calc_bpol_squared(
+        geo, psi_cell_variable
+    )
+
+    # Relatively low tolerance because the analytical formula is not exact for
+    # our circular geometry, but approximates it at low inverse aspect ratio.
+    np.testing.assert_allclose(
+        calculated_bpol_squared, expected_bpol_squared, rtol=1e-3
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
