@@ -70,6 +70,9 @@ def make_zero_core_profiles(
       j_total=jnp.zeros_like(geo.rho),
       j_total_face=jnp.zeros_like(geo.rho_face),
       Ip_profile_face=jnp.zeros_like(geo.rho_face),
+      poloidal_velocity=zero_cell_variable,
+      toroidal_velocity=zero_cell_variable,
+      radial_electric_field=zero_cell_variable,
   )
 
 

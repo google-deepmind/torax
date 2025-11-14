@@ -13,7 +13,6 @@
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
 import dataclasses
-import logging
 
 import jax
 from jax import numpy as jnp
@@ -62,6 +61,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     Zeff: Effective charge.
     Q_GB: TGLF heat flux normalisation factor.
     Gamma_GB: TGLF particle flux normalisation factor.
+    v_ExB_shear: Toroidal ExB velocity Doppler shift gradient.
   """
 
   Ti_over_Te: array_typing.FloatVectorFace
@@ -78,6 +78,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   Zeff: array_typing.FloatVectorFace
   Q_GB: array_typing.FloatVectorFace
   Gamma_GB: array_typing.FloatVectorFace
+  v_ExB_shear: array_typing.FloatVectorFace
 
   # Also define all the TGLF notations for the variables
   @property
@@ -142,12 +143,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
 
   @property
   def VEXB_SHEAR(self) -> array_typing.FloatVectorFace:
-    # TODO(b/381199010): Replace with real values once rotation added to TORAX
-    logging.warning(
-        "VEXB_SHEAR is not yet implemented in TORAX. TGLF based transport"
-        " models may produce spurious results."
-    )
-    return jnp.zeros_like(self.r_minor)
+    return self.v_ExB_shear
 
 
 class TGLFBasedTransportModel(
@@ -315,6 +311,22 @@ class TGLFBasedTransportModel(
     Q_GB = n_e * T_e_J * GB  # [W/m^2]
     Gamma_GB = n_e * GB
 
+    # Normalized toroidal ExB velocity Doppler shift gradient.
+    # Calculated on the face grid.
+    # https://gacode.io/tglf/tglf_list.html#vexb-shear
+    v_ExB = quasilinear_transport_model.calculate_v_ExB(
+        core_profiles, geo
+    )
+    v_ExB_shear = (
+        jnp.sign(core_profiles.Ip_profile_face)
+        * (r / jnp.abs(core_profiles.q_face))
+        * jnp.gradient(
+            v_ExB * geo.gm9_face,
+            r,
+        )
+        * (a / c_s)
+    )
+
     return TGLFInputs(
         # From QuasilinearInputs
         chiGB=jnp.zeros_like(geo.rho_face_norm),  # unused
@@ -340,6 +352,7 @@ class TGLFBasedTransportModel(
         Zeff=core_profiles.Z_eff_face,
         Q_GB=Q_GB,
         Gamma_GB=Gamma_GB,
+        v_ExB_shear=v_ExB_shear,
     )
 
   @override
