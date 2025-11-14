@@ -69,6 +69,9 @@ class CoreProfiles:
       j_total: Total current density on the cell grid [A/m^2].
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
+      toroidal_velocity: Toroidal velocity [m/s].
+      poloidal_velocity: Poloidal velocity [m/s].
+      radial_electric_field: Radial electric field [V/m].
   """
 
   T_i: cell_variable.CellVariable
@@ -96,6 +99,9 @@ class CoreProfiles:
   j_total: array_typing.FloatVectorCell
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
+  toroidal_velocity: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
+  radial_electric_field: cell_variable.CellVariable
 
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
@@ -175,6 +181,9 @@ class CoreProfiles:
         n_i={self.n_i},
         n_impurity={self.n_impurity},
         impurity_fractions={self.impurity_fractions},
+        toroidal_velocity={self.toroidal_velocity},
+        poloidal_velocity={self.poloidal_velocity},
+        radial_electric_field={self.radial_electric_field},
       )
     """
 

@@ -40,6 +40,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   transport: (
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
+  compute_poloidal_velocity: bool = False
 
   @pydantic.model_validator(mode="before")
   @classmethod
@@ -66,6 +67,11 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:
+    if self.compute_poloidal_velocity:
+      # TODO(b/376326615): Implement poloidal velocity computation.
+      raise NotImplementedError(
+          "Computation of poloidal velocity is not yet implemented."
+      )
     return neoclassical_models.NeoclassicalModels(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
