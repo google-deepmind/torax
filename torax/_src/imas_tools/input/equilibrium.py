@@ -68,11 +68,11 @@ def geometry_from_IMAS(
     equilibrium = equilibrium_object
   elif imas_uri is not None:
     equilibrium = loader.load_imas_data(
-        imas_uri, "equilibrium", geometry_directory,
+        imas_uri, "equilibrium", geometry_directory
     )
   elif imas_filepath is not None:
     equilibrium = loader.load_imas_data(
-        imas_filepath, "equilibrium", geometry_directory,
+        imas_filepath, "equilibrium", geometry_directory
     )
   else:
     raise ValueError(
@@ -120,6 +120,7 @@ def geometry_from_IMAS(
   # Midplane radii.
   R_in = IMAS_data.profiles_1d.r_inboard
   R_out = IMAS_data.profiles_1d.r_outboard
+  R_major_profile = (R_in + R_out) / 2.0
   # toroidal field flux function
   F = np.abs(IMAS_data.profiles_1d.f)
 
@@ -164,14 +165,14 @@ def geometry_from_IMAS(
   else:
     logging.warning(
         "Flux surface averaged <1/R> profile (gm9) not found;"
-        " assuming <1/R> ≈ 1/R_major (constant)"
+        " assuming <1/R> ≈ 1/R_major_profile"
     )
-    flux_surf_avg_1_over_R = 1 / R_major
+    flux_surf_avg_1_over_R = 1 / R_major_profile
 
   # jtor in TORAX is defined as the flux surface average equivalent to the
   # flux-surface current density profile. i.e.
   # jtor_torax \equiv dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
-  # spr = vpr / ( 2 * np.pi * R_major)
+  # spr = vpr * <1/R> / ( 2 * np.pi )
   # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
   jtor = -1 * IMAS_data.profiles_1d.j_phi
   rhon = IMAS_data.profiles_1d.rho_tor_norm
@@ -184,16 +185,17 @@ def geometry_from_IMAS(
     rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
     rhon = rho_tor / rho_tor[-1]
   vpr = 4 * np.pi * phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
-  spr = vpr / (2 * np.pi * R_major)
-  # This Ip_profile by integration results in a discrepancy between this term
-  # and the total Ip from IDS.
+  spr = vpr * flux_surf_avg_1_over_R / (2 * np.pi)
+
+  # This Ip_profile by integration results in a minor discrepancy between this
+  # term and the total Ip from IDS. ~0.1% for the standard test case.
   Ip_profile_unscaled = scipy.integrate.cumulative_trapezoid(
       y=spr * jtor, x=rhon, initial=0.0
   )
 
-  # Because of the discrepancy between Ip_profile[-1] (computed by integration)
-  # and global_quantities.ip, here we will scale Ip_profile such that the total
-  # plasma current is equal.
+  # Because of the minor discrepancy between Ip_profile[-1] (computed by
+  # integration) and global_quantities.ip, here we will scale Ip_profile such
+  # that the total plasma current is fully consistent.
   Ip_total = -1 * IMAS_data.global_quantities.ip
   Ip_profile = Ip_profile_unscaled * (Ip_total / Ip_profile_unscaled[-1])
 

@@ -265,7 +265,8 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
-      # and resistivity is artificially increased to help induce more sawteeth.
+      # resistivity is artificially increased to help induce more sawteeth,
+      # and the solver is predictor-corrector to simplify numerics.
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
