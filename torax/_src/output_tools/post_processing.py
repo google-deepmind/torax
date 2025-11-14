@@ -27,7 +27,6 @@ from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params_slice
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
@@ -49,10 +48,6 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
-    first_step: Whether the outputs are from the first step of the simulation.
-    pressure_thermal_i: Ion thermal pressure [Pa]
-    pressure_thermal_e: Electron thermal pressure [Pa]
-    pressure_thermal_total: Total thermal pressure [Pa]
     pprime: Derivative of total pressure with respect to poloidal flux on the
       face grid [Pa/Wb]
     W_thermal_i: Ion thermal stored energy [J]
@@ -157,11 +152,9 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
     impurity_species: Dictionary of outputs for each impurity species.
+    first_step: Whether the outputs are from the first step of the simulation.
   """
 
-  pressure_thermal_i: cell_variable.CellVariable
-  pressure_thermal_e: cell_variable.CellVariable
-  pressure_thermal_total: cell_variable.CellVariable
   pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
   W_thermal_i: array_typing.FloatScalar
@@ -250,24 +243,6 @@ class PostProcessedOutputs:
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
-        pressure_thermal_i=cell_variable.CellVariable(
-            value=jnp.zeros_like(geo.rho_norm),
-            dr=jnp.array(geo.drho_norm),
-            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            right_face_grad_constraint=None,
-        ),
-        pressure_thermal_e=cell_variable.CellVariable(
-            value=jnp.zeros_like(geo.rho_norm),
-            dr=jnp.array(geo.drho_norm),
-            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            right_face_grad_constraint=None,
-        ),
-        pressure_thermal_total=cell_variable.CellVariable(
-            value=jnp.zeros_like(geo.rho_norm),
-            dr=jnp.array(geo.drho_norm),
-            right_face_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            right_face_grad_constraint=None,
-        ),
         pprime=jnp.zeros(geo.rho_face.shape),
         W_thermal_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -562,18 +537,13 @@ def make_post_processed_outputs(
       )
   )
 
-  (
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-  ) = formulas.calculate_pressure(sim_state.core_profiles)
   pprime_face = formulas.calc_pprime(sim_state.core_profiles)
   # pylint: disable=invalid-name
   W_thermal_el, W_thermal_ion, W_thermal_tot = (
       formulas.calculate_stored_thermal_energy(
-          pressure_thermal_el,
-          pressure_thermal_ion,
-          pressure_thermal_tot,
+          sim_state.core_profiles.pressure_thermal_e,
+          sim_state.core_profiles.pressure_thermal_i,
+          sim_state.core_profiles.pressure_thermal_total,
           sim_state.geometry,
       )
   )
@@ -767,9 +737,6 @@ def make_post_processed_outputs(
   )
 
   return PostProcessedOutputs(
-      pressure_thermal_i=pressure_thermal_ion,
-      pressure_thermal_e=pressure_thermal_el,
-      pressure_thermal_total=pressure_thermal_tot,
       pprime=pprime_face,
       W_thermal_i=W_thermal_ion,
       W_thermal_e=W_thermal_el,

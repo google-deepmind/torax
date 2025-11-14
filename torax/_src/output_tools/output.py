@@ -15,6 +15,7 @@
 """Module containing functions for saving and loading simulation output."""
 from collections.abc import Sequence
 import dataclasses
+import functools
 import inspect
 import itertools
 
@@ -501,9 +502,20 @@ class StateHistory:
         f.name for f in dataclasses.fields(stacked_core_profiles)
     }
 
-    for field in dataclasses.fields(stacked_core_profiles):
-      attr_name = field.name
+    # Add cached_properties to the list of fields to save.
+    core_profiles_cached_properties = inspect.getmembers(
+        type(stacked_core_profiles),
+        lambda member: isinstance(member, functools.cached_property),
+    )
+    core_profiles_cached_properties_names = set(
+        [name for name, _ in core_profiles_cached_properties]
+    )
 
+    core_profiles_names = (
+        core_profile_field_names | core_profiles_cached_properties_names
+    )
+
+    for attr_name in core_profiles_names:
       # Skip impurity_fractions since we have not yet converged on the public
       # API for individual impurity density extensions.
       if attr_name == "impurity_fractions":
@@ -516,7 +528,7 @@ class StateHistory:
       # Skip _face attributes if their cell counterpart exists;
       # they are handled when the cell attribute is processed.
       if attr_name.endswith("_face") and (
-          attr_name.removesuffix("_face") in core_profile_field_names
+          attr_name.removesuffix("_face") in core_profiles_names
       ):
         continue
 

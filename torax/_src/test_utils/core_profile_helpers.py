@@ -73,6 +73,20 @@ def make_zero_core_profiles(
   )
 
 
+def make_constant_core_profile(
+    geo: geometry.Geometry,
+    value: float,
+) -> cell_variable.CellVariable:
+  return cell_variable.CellVariable(
+      value=value * np.ones_like(geo.rho_norm),
+      left_face_grad_constraint=np.zeros(()),
+      left_face_constraint=None,
+      right_face_grad_constraint=None,
+      right_face_constraint=jnp.array(value),
+      dr=geo.drho_norm,
+  )
+
+
 def verify_core_profiles(
     ref_profiles: dict[str, array_typing.Array],
     index: int,

@@ -15,6 +15,7 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
+import functools
 from typing import Mapping
 
 from absl import logging
@@ -95,6 +96,48 @@ class CoreProfiles:
   j_total: array_typing.FloatVectorCell
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
+
+  @functools.cached_property
+  def pressure_thermal_e(self) -> cell_variable.CellVariable:
+    """Electron thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.n_e.value
+        * self.T_e.value
+        * constants.CONSTANTS.keV_to_J,
+        dr=self.n_e.dr,
+        right_face_constraint=self.n_e.right_face_constraint
+        * self.T_e.right_face_constraint
+        * constants.CONSTANTS.keV_to_J,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_thermal_i(self) -> cell_variable.CellVariable:
+    """Ion thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.T_i.value
+        * constants.CONSTANTS.keV_to_J
+        * (self.n_i.value + self.n_impurity.value),
+        dr=self.n_i.dr,
+        right_face_constraint=self.T_i.right_face_constraint
+        * constants.CONSTANTS.keV_to_J
+        * (
+            self.n_i.right_face_constraint
+            + self.n_impurity.right_face_constraint
+        ),
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_thermal_total(self) -> cell_variable.CellVariable:
+    """Total thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
+        dr=self.pressure_thermal_e.dr,
+        right_face_constraint=self.pressure_thermal_e.right_face_constraint
+        + self.pressure_thermal_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""

@@ -193,16 +193,10 @@ def _evolve_x_after_sawtooth(
       n_impurity=ions.n_impurity,
   )
 
-  (
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-  ) = formulas.calculate_pressure(updated_core_profiles)
-
   _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
+      updated_core_profiles.pressure_thermal_e,
+      updated_core_profiles.pressure_thermal_i,
+      updated_core_profiles.pressure_thermal_total,
       geo_t_plus_crash_dt,
   )
 
