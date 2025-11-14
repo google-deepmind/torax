@@ -59,6 +59,8 @@ class SauterModel(base.BootstrapCurrentModel):
         n_i=core_profiles.n_i,
         T_e=core_profiles.T_e,
         T_i=core_profiles.T_i,
+        p_e=core_profiles.pressure_thermal_e,
+        p_i=core_profiles.pressure_thermal_i,
         psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geometry,
@@ -102,6 +104,8 @@ def _calculate_bootstrap_current(
     n_i: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
+    p_e: cell_variable.CellVariable,
+    p_i: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
     q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
@@ -148,8 +152,8 @@ def _calculate_bootstrap_current(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
-  pe = n_e.face_value() * T_e.face_value() * 1e3 * 1.6e-19
-  pi = n_i.face_value() * T_i.face_value() * 1e3 * 1.6e-19
+  pe = p_e.face_value()
+  pi = p_i.face_value()
 
   dpsi_drnorm = psi.face_grad()
   dlnne_drnorm = n_e.face_grad() / n_e.face_value()

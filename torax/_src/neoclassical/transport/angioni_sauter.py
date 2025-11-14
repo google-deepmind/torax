@@ -192,16 +192,8 @@ def _calculate_angioni_sauter_transport(
   ) / (dpsi_drhon + constants.CONSTANTS.eps)
 
   # --- Step 5: Calculate neoclassical fluxes ---
-  pe = (
-      core_profiles.n_e.face_value()
-      * core_profiles.T_e.face_value()
-      * constants.CONSTANTS.keV_to_J
-  )
-  pi = (
-      core_profiles.n_i.face_value()
-      * core_profiles.T_i.face_value()
-      * constants.CONSTANTS.keV_to_J
-  )
+  pe = core_profiles.pressure_thermal_e.face_value()
+  pi = core_profiles.pressure_thermal_i.face_value()
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
   E_parallel = core_profiles.psidot.face_value() / (
