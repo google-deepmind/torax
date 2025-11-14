@@ -93,6 +93,8 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
       training set boundaries.
     clip_margin: Margin to clip inputs within desired margin of the QLKNN
       training set boundaries.
+    use_rotation_rule: Whether to use the rotation rule to correct for rotation
+      in the model output.
     collisionality_multiplier: Collisionality multiplier.
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
@@ -115,6 +117,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   ETG_correction_factor: float = 1.0 / 3.0
   clip_inputs: bool = False
   clip_margin: float = 0.95
+  use_rotation_rule: bool = False
   collisionality_multiplier: float = 1.0
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
@@ -162,6 +165,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         ETG_correction_factor=self.ETG_correction_factor,
         clip_inputs=self.clip_inputs,
         clip_margin=self.clip_margin,
+        use_rotation_rule=self.use_rotation_rule,
         collisionality_multiplier=self.collisionality_multiplier,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,

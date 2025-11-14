@@ -44,11 +44,20 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
+  use_rotation_rule: bool
 
 
 _EPSILON_NN: Final[float] = (
     1 / 3
 )  # fixed inverse aspect ratio used to train QLKNN models
+
+
+# Rotation rule constants.
+# Defined in the van de Plassche 2020 paper.(https://arxiv.org/abs/1911.05617)
+_C1: Final[float] = 0.13
+_C2: Final[float] = 0.41
+_C3: Final[float] = 0.09
+_C4: Final[float] = 1.65
 
 
 # Memoize, but evict the old model if a new path is given.
@@ -162,6 +171,44 @@ def clip_inputs(
   return feature_scan
 
 
+def _calculate_rotation_rule_factor(
+    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
+) -> jax.Array:
+  """Calculate the rotation scaling factor."""
+  # TODO(b/456456279): The rotation rule has been calibrated for QLKNN10D.
+  # We should validate if this formula makes sense for QLKNN_7_11.
+  return (
+      _C1 * qualikiz_inputs.q
+      + _C2 * qualikiz_inputs.smag
+      + _C3 / qualikiz_inputs.epsilon
+      - _C4
+  )
+
+
+def _apply_rotation_rule(
+    model_output: base_qlknn_model.ModelOutput,
+    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
+) -> base_qlknn_model.ModelOutput:
+  """Apply the rotation scaling factor to the model output."""
+  f_rot_rule = _calculate_rotation_rule_factor(qualikiz_inputs)
+  scaling_factor = jnp.clip(
+      1
+      + f_rot_rule
+      * qualikiz_inputs.gamma_ExB
+      / model_output['gamma_max'].squeeze()
+  )
+  # Add an extra dimension to match model outputs.
+  scaling_factor = scaling_factor[..., jnp.newaxis]
+
+  # Apply the scaling factor to ITG and TEM modes
+  updated_model_output = dict(model_output)
+  for flux in updated_model_output:
+    if flux.endswith('_itg') or flux.endswith('_tem'):
+      updated_model_output[flux] = scaling_factor * updated_model_output[flux]
+
+  return updated_model_output
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class QLKNNTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
@@ -238,7 +285,7 @@ class QLKNNTransportModel(
     # the correct trapped electron fraction.
     qualikiz_inputs = dataclasses.replace(
         qualikiz_inputs,
-        x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
+        x=qualikiz_inputs.x * qualikiz_inputs.epsilon[-1] / _EPSILON_NN,
     )
 
     feature_scan = model.get_model_inputs_from_qualikiz_inputs(qualikiz_inputs)
@@ -254,6 +301,11 @@ class QLKNNTransportModel(
         lambda: feature_scan,  # Called when False
     )
     model_output = model.predict(feature_scan)
+    model_output = jax.lax.cond(
+        runtime_config_inputs.transport.use_rotation_rule,
+        lambda: _apply_rotation_rule(model_output, qualikiz_inputs),
+        lambda: model_output,
+    )
     model_output = _filter_model_output(
         model_output=model_output,
         include_ITG=runtime_config_inputs.transport.include_ITG,

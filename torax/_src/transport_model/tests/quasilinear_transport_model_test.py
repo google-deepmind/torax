@@ -240,6 +240,28 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         normalized_logarithmic_gradient_expected,
     )
 
+  def test_calculate_v_ExB_zero_Er(self):
+    """Tests that calculate_v_ExB is zero when Er is zero."""
+    _, (_, geo, core_profiles, _) = _get_model_and_model_inputs(
+        {'model_name': 'quasilinear'}
+    )
+    # Set Er to zero.
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        radial_electric_field=cell_variable.CellVariable(
+            value=jnp.zeros_like(geo.rho_norm),
+            right_face_constraint=0.0,
+            right_face_grad_constraint=None,
+            dr=geo.drho_norm,
+        ),
+    )
+    v_ExB = quasilinear_transport_model.calculate_v_ExB(core_profiles, geo)
+    np.testing.assert_allclose(
+        v_ExB,
+        np.zeros_like(geo.rho_face_norm),
+        atol=1e-12,
+    )
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeQuasilinearTransportModel(

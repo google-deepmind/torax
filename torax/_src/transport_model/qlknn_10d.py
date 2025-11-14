@@ -151,6 +151,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     self.net_tempfediv = self._load('pfetem_gb_div_efetem_gb.json')
     self.net_etgleading = self._load('efeetg_gb.json')
     self.net_itgpfediv = self._load('pfeitg_gb_div_efiitg_gb.json')
+    self.net_gamma_max = self._load('gam_leq_gb.json')
 
   def _load(self, path) -> QuaLiKizNDNN:
     full_path = os.path.join(self.path, path)
@@ -174,6 +175,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
         self.net_tempfediv(inputs) * model_output['qe_tem']
     )
     model_output['qe_etg'] = self.net_etgleading(inputs).clip(0)
+    model_output['gamma_max'] = self.net_gamma_max(inputs)
     return model_output
 
   def get_model_inputs_from_qualikiz_inputs(
