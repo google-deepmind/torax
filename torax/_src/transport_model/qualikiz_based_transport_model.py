@@ -50,7 +50,8 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   log_nu_star_face: array_typing.FloatVectorFace
   normni: array_typing.FloatVectorFace
   alpha: array_typing.FloatVectorFace
-  epsilon_lcfs: array_typing.FloatScalar
+  epsilon: array_typing.FloatVectorFace
+  gamma_ExB: array_typing.FloatVectorFace
 
   # Also define the logarithmic gradients using standard QuaLiKiz notation.
   @property
@@ -91,7 +92,7 @@ class QualikizBasedTransportModel(
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
     rmid = (geo.R_out - geo.R_in) * 0.5
-    rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
+    rmid_face = geo.r_mid_face
 
     # gyrobohm diffusivity
     # (defined here with Lref=a_minor due to QLKNN training set normalization)
@@ -123,8 +124,8 @@ class QualikizBasedTransportModel(
         core_profiles.psi,
     )
 
-    # Inverse aspect ratio at LCFS.
-    epsilon_lcfs = rmid_face[-1] / geo.R_major
+    # Inverse aspect ratio.
+    epsilon = rmid_face / geo.R_major
     # Local normalized radius.
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
@@ -184,6 +185,11 @@ class QualikizBasedTransportModel(
         smag,
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+
+    # From 'Rotation Rule" section of van de Plassche K.L. 2020.
+    v_ExB = quasilinear_transport_model.calculate_v_ExB(core_profiles, geo)
+    c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
+    gamma_ExB = -1 * jnp.gradient(v_ExB, rmid_face) / (c_ref * geo.gm9_face)
     return QualikizInputs(
         Z_eff_face=core_profiles.Z_eff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
@@ -201,5 +207,6 @@ class QualikizBasedTransportModel(
         Rmaj=geo.R_major,
         Rmin=geo.a_minor,
         alpha=alpha,
-        epsilon_lcfs=epsilon_lcfs,
+        epsilon=epsilon,
+        gamma_ExB=gamma_ExB,
     )
