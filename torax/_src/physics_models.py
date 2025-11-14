@@ -14,6 +14,7 @@
 """A container for all physics models."""
 import dataclasses
 
+from torax._src import static_dataclass
 from torax._src.edge import base as edge_model_lib
 from torax._src.mhd import base as mhd_model_lib
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
@@ -22,8 +23,8 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@dataclasses.dataclass(frozen=True)
-class PhysicsModels:
+@dataclasses.dataclass(frozen=True, eq=False)
+class PhysicsModels(static_dataclass.StaticDataclass):
   """A container for all physics models.
 
   This class is used as a static argument to Jax functions. It is therefore
