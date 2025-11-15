@@ -38,7 +38,11 @@ from torax._src.imas_tools.input import loader
 
 # Load IDSs
 path = (
-    path_utils.torax_path() / "data" / "imas_data" / "STEP_SPP_001_ECHD_ftop.nc"
+    path_utils.torax_path()
+    / "data"
+    / "third_party"
+    / "imas"
+    / "STEP_SPP_001_ECHD_ftop.nc"
 )
 equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
 core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
@@ -79,19 +83,17 @@ CONFIG = {
         "impurity": "Xe",
         "Z_eff": core_profiles_xr["profiles_1d.zeff"][0][0].values.item(),
     },
-    "profile_conditions": (
-        profile_conditions_from_ids
-        | {
-            "use_v_loop_lcfs_boundary_condition": True,
-            "v_loop_lcfs": 0.0,
-        }
-    ),
+    "profile_conditions": profile_conditions_from_ids | {
+        "use_v_loop_lcfs_boundary_condition": True,
+        "v_loop_lcfs": 0.0,
+    },
     "geometry": {
         # TODO(b/323504363): Switch to loading from IMAS rather than eqdsk
         # Currently there is a bug in either the TORAX IMAS loader or the JETTO
         # IMAS writer that makes them incompatible
         "geometry_type": "EQDSK",
         "geometry_file": "STEP_SPP_001_ECHD_ftop.eqdsk",
+        "cocos": 11,
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",
