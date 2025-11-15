@@ -14,9 +14,10 @@
 
 """Pydantic config for Pedestal."""
 import abc
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import chex
+from torax._src.pedestal_model import custom_pedestal
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
@@ -171,4 +172,84 @@ class NoPedestal(BasePedestal):
     )
 
 
-PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+class CustomPedestal(BasePedestal):
+  """Custom pedestal model using user-defined callable functions.
+
+  This configuration allows users to provide callable functions that compute
+  pedestal values based on runtime parameters, geometry, and core profiles.
+  This enables machine-specific scaling laws without modifying source code.
+
+  Attributes:
+    T_i_ped_fn: Callable function to compute ion temperature at pedestal [keV].
+    T_e_ped_fn: Callable function to compute electron temperature at pedestal
+      [keV].
+    n_e_ped_fn: Callable function to compute electron density at pedestal
+      [m^-3 or fGW].
+    rho_norm_ped_top_fn: Optional callable function to compute pedestal top
+      location. If None, uses rho_norm_ped_top value.
+    rho_norm_ped_top: The location of the pedestal top (used if
+      rho_norm_ped_top_fn is None).
+    n_e_ped_is_fGW: Whether the electron density returned by n_e_ped_fn is in
+      units of fGW.
+
+  Example:
+    ```python
+    def my_T_e_ped(runtime_params, geo, core_profiles):
+      Ip_MA = runtime_params.profile_conditions.Ip / 1e6
+      return 0.5 * (Ip_MA ** 0.2) * (geo.B0 ** 0.8)
+
+    def my_T_i_ped(runtime_params, geo, core_profiles):
+      T_e = my_T_e_ped(runtime_params, geo, core_profiles)
+      return 1.2 * T_e
+
+    def my_n_e_ped(runtime_params, geo, core_profiles):
+      return 0.7  # 0.7 * nGW
+
+    config = {
+        'pedestal': {
+            'model_name': 'custom',
+            'T_i_ped_fn': my_T_i_ped,
+            'T_e_ped_fn': my_T_e_ped,
+            'n_e_ped_fn': my_n_e_ped,
+            'rho_norm_ped_top': 0.91,
+            'n_e_ped_is_fGW': True,
+        }
+    }
+    ```
+  """
+
+  model_name: Annotated[Literal['custom'], torax_pydantic.JAX_STATIC] = (
+      'custom'
+  )
+  T_i_ped_fn: Any  # Callable - Pydantic doesn't validate callables well
+  T_e_ped_fn: Any  # Callable
+  n_e_ped_fn: Any  # Callable
+  rho_norm_ped_top_fn: Any | None = None  # Optional callable
+  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+  n_e_ped_is_fGW: bool = False
+
+  def build_pedestal_model(
+      self,
+  ) -> custom_pedestal.CustomPedestalModel:
+    return custom_pedestal.CustomPedestalModel(
+        T_i_ped_fn=self.T_i_ped_fn,
+        T_e_ped_fn=self.T_e_ped_fn,
+        n_e_ped_fn=self.n_e_ped_fn,
+        rho_norm_ped_top_fn=self.rho_norm_ped_top_fn,
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> custom_pedestal.RuntimeParams:
+    return custom_pedestal.RuntimeParams(
+        set_pedestal=self.set_pedestal.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+    )
+
+
+PedestalConfig = (
+    SetPpedTpedRatioNped | SetTpedNped | CustomPedestal | NoPedestal
+)
