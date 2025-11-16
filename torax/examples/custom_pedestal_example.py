@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,127 +12,202 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Example configuration demonstrating the custom pedestal model API.
+"""Example: Custom Pedestal Model using Registration API.
 
-This example shows how to use the custom pedestal model to implement
-machine-specific scaling laws without modifying the TORAX source code.
+This example demonstrates how to create and register a custom pedestal model
+with TORAX. The model implements EPED-like scaling laws for pedestal temperature
+and density, similar to what might be used for STEP or other machines.
 
-The example implements:
-1. A simple EPED-like scaling for electron temperature
-2. A T_i/T_e ratio model for ion temperature
-3. A Greenwald fraction model for density
-4. A dynamic pedestal width model based on poloidal beta
-
-This pattern enables users to couple custom pedestal models for machines like
-STEP that use power-law fits to Europed data and modified EPED scaling.
+The key steps are:
+1. Define a custom JAX pedestal model class (inherits from PedestalModel)
+2. Define a Pydantic configuration class (inherits from BasePedestal)
+3. Register the model using register_pedestal_model()
+4. Use it in your configuration
 """
 
+from typing import Annotated, Literal
+
+import chex
+from torax._src import geometry
+from torax._src import state
+from torax._src.pedestal_model import pedestal_model as pm
+from torax._src.pedestal_model import pydantic_model
+from torax._src.pedestal_model import register_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
+from torax._src.torax_pydantic import torax_pydantic
 import jax.numpy as jnp
 
 
-# Define custom pedestal scaling functions
-def custom_T_e_ped(runtime_params, geo, core_profiles):
-  """Compute electron temperature at pedestal using EPED-like scaling.
+# =============================================================================
+# STEP 1: Define the JAX Pedestal Model
+# =============================================================================
+@chex.dataclass(frozen=True)
+class EPEDLikePedestalModel(pm.PedestalModel):
+  """EPED-like pedestal model with power-law scaling.
 
-  This is a simplified example. Real implementations might use more complex
-  fits to experimental data or physics-based models.
-
-  Args:
-    runtime_params: Runtime parameters containing plasma current, etc.
-    geo: Geometry object containing magnetic field, minor radius, etc.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Electron temperature at pedestal in keV.
+  This model implements a simplified EPED-like scaling:
+  - T_e_ped ∝ Ip^a * B0^b * (other parameters)
+  - T_i_ped = ratio * T_e_ped
+  - n_e_ped can be specified as Greenwald fraction or absolute density
+  - Pedestal width can be dynamic based on poloidal beta
   """
-  # Extract relevant parameters
-  Ip_MA = runtime_params.profile_conditions.Ip / 1e6  # Convert to MA
-  B_T = geo.B0  # Toroidal magnetic field
 
-  # Simple EPED-like scaling: T_e ~ Ip^0.2 * B^0.8
-  # In reality, this might include more dependencies on geometry, shape, etc.
-  T_e_ped = 0.8 * (Ip_MA**0.25) * (B_T**0.75)
+  def _call_implementation(
+      self,
+      runtime_params: 'RuntimeParams',
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> pm.PedestalModelOutput:
+    """Compute pedestal values using EPED-like scaling."""
 
-  return T_e_ped
+    # Extract plasma parameters
+    Ip_MA = runtime_params.profile_conditions.Ip / 1e6  # Plasma current in MA
+    B0 = geo.B0  # Toroidal field in T
+    a = geo.Rmin  # Minor radius in m
+    epsilon = geo.epsilon  # Inverse aspect ratio
+    kappa = runtime_params.profile_conditions.kappa  # Elongation
+
+    # EPED-like T_e scaling (simplified)
+    # Real EPED would include more physics (triangularity, beta, etc.)
+    T_e_ped = (
+        runtime_params.T_e_scaling_factor
+        * (Ip_MA ** runtime_params.Ip_exponent)
+        * (B0 ** runtime_params.B0_exponent)
+        * (epsilon ** runtime_params.epsilon_exponent)
+    )
+
+    # T_i from T_e using ratio
+    T_i_ped = runtime_params.T_i_T_e_ratio * T_e_ped
+
+    # Density (either Greenwald fraction or absolute)
+    if runtime_params.n_e_ped_is_fGW:
+      # Convert Greenwald fraction to absolute density
+      # nGW = Ip / (π * a^2) in 10^20 m^-3
+      n_GW = Ip_MA / (jnp.pi * a**2)  # in 10^20 m^-3
+      n_e_ped = runtime_params.n_e_ped_value * n_GW * 1e20  # Convert to m^-3
+    else:
+      n_e_ped = runtime_params.n_e_ped_value
+
+    # Pedestal location (can be dynamic based on beta_p if desired)
+    # For now, use the configured value
+    rho_norm_ped_top = runtime_params.rho_norm_ped_top
+
+    # Find the index in the mesh
+    rho_norm_ped_top_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - rho_norm_ped_top)
+    )
+
+    return pm.PedestalModelOutput(
+        rho_norm_ped_top=rho_norm_ped_top,
+        rho_norm_ped_top_idx=rho_norm_ped_top_idx,
+        T_i_ped=T_i_ped,
+        T_e_ped=T_e_ped,
+        n_e_ped=n_e_ped,
+    )
 
 
-def custom_T_i_ped(runtime_params, geo, core_profiles):
-  """Compute ion temperature at pedestal.
+@chex.dataclass(frozen=True)
+class RuntimeParams(pedestal_runtime_params.RuntimeParams):
+  """Runtime parameters for EPED-like pedestal model.
 
-  Uses a simple ratio model: T_i = ratio * T_e.
-  More sophisticated models might vary the ratio based on heating power,
-  collisionality, etc.
-
-  Args:
-    runtime_params: Runtime parameters.
-    geo: Geometry object.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Ion temperature at pedestal in keV.
+  Attributes:
+    T_e_scaling_factor: Overall scaling factor for T_e [keV].
+    Ip_exponent: Power law exponent for plasma current.
+    B0_exponent: Power law exponent for toroidal field.
+    epsilon_exponent: Power law exponent for inverse aspect ratio.
+    T_i_T_e_ratio: Ratio of ion to electron temperature at pedestal.
+    n_e_ped_value: Electron density value (either Greenwald fraction or m^-3).
+    n_e_ped_is_fGW: Whether n_e_ped_value is Greenwald fraction.
+    rho_norm_ped_top: Location of pedestal top in normalized radius.
   """
-  T_e_ped = custom_T_e_ped(runtime_params, geo, core_profiles)
+  T_e_scaling_factor: float = 5.0
+  Ip_exponent: float = 0.2
+  B0_exponent: float = 0.8
+  epsilon_exponent: float = 0.3
+  T_i_T_e_ratio: float = 1.0
+  n_e_ped_value: float = 0.7
+  n_e_ped_is_fGW: bool = True
+  rho_norm_ped_top: float = 0.91
 
-  # T_i/T_e ratio (could be made more sophisticated)
-  ratio = 1.2
 
-  return ratio * T_e_ped
+# =============================================================================
+# STEP 2: Define the Pydantic Configuration Class
+# =============================================================================
+class EPEDLikePedestal(pydantic_model.BasePedestal):
+  """Pydantic configuration for EPED-like pedestal model.
 
+  This class defines the user-facing configuration interface for the
+  EPED-like pedestal model. Users can set the scaling parameters in their
+  config files.
 
-def custom_n_e_ped(runtime_params, geo, core_profiles):
-  """Compute electron density at pedestal as Greenwald fraction.
-
-  This example returns a fixed Greenwald fraction, but real implementations
-  might include dependencies on heating power, gas puffing rate, etc.
-
-  Args:
-    runtime_params: Runtime parameters.
-    geo: Geometry object.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Electron density as Greenwald fraction (dimensionless).
+  Attributes:
+    model_name: The model identifier. Must be 'eped_like'.
+    T_e_scaling_factor: Overall scaling factor for T_e [keV].
+    Ip_exponent: Power law exponent for plasma current.
+    B0_exponent: Power law exponent for toroidal field.
+    epsilon_exponent: Power law exponent for inverse aspect ratio.
+    T_i_T_e_ratio: Ratio of ion to electron temperature at pedestal.
+    n_e_ped: Electron density value (either Greenwald fraction or m^-3).
+    n_e_ped_is_fGW: Whether n_e_ped is Greenwald fraction.
+    rho_norm_ped_top: Location of pedestal top in normalized radius.
   """
-  # Return as Greenwald fraction
-  # The framework will automatically convert this to absolute density
-  f_GW = 0.7  # 70% of Greenwald density
 
-  return f_GW
+  model_name: Annotated[Literal['eped_like'], torax_pydantic.JAX_STATIC] = (
+      'eped_like'
+  )
+
+  # Scaling parameters (can be time-varying if needed)
+  T_e_scaling_factor: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
+  )
+  Ip_exponent: float = 0.2
+  B0_exponent: float = 0.8
+  epsilon_exponent: float = 0.3
+  T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+
+  # Pedestal values
+  n_e_ped: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7)
+  )
+  n_e_ped_is_fGW: bool = True
+  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+
+  def build_pedestal_model(self) -> EPEDLikePedestalModel:
+    """Build the JAX pedestal model."""
+    return EPEDLikePedestalModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> RuntimeParams:
+    """Build runtime parameters for the given time."""
+    return RuntimeParams(
+        set_pedestal=self.set_pedestal.get_value(t),
+        T_e_scaling_factor=self.T_e_scaling_factor.get_value(t),
+        Ip_exponent=self.Ip_exponent,
+        B0_exponent=self.B0_exponent,
+        epsilon_exponent=self.epsilon_exponent,
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
+        n_e_ped_value=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
 
 
-def custom_rho_norm_ped_top(runtime_params, geo, core_profiles):
-  """Compute pedestal top location dynamically.
-
-  This example demonstrates how the pedestal width can be made to depend
-  on plasma parameters. Here we use a simple model based on poloidal beta,
-  but real implementations might use more sophisticated models.
-
-  Args:
-    runtime_params: Runtime parameters.
-    geo: Geometry object.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Normalized poloidal flux at pedestal top (dimensionless).
-  """
-  # Simple model: pedestal width depends on poloidal beta
-  # In reality, you might access core_profiles or geo for beta_p
-  # For this example, we'll use a simplified placeholder
-
-  # Get plasma current as a proxy for beta_p dependencies
-  Ip_MA = runtime_params.profile_conditions.Ip / 1e6
-
-  # Simple scaling: higher current -> slightly narrower pedestal
-  # Real models might use: rho_ped = f(beta_p, collisionality, etc.)
-  base_rho = 0.92
-  current_correction = -0.005 * (Ip_MA - 15.0)  # Normalized to 15 MA
-
-  rho_norm_ped_top = jnp.clip(base_rho + current_correction, 0.85, 0.95)
-
-  return rho_norm_ped_top
+# =============================================================================
+# STEP 3: Register the Model
+# =============================================================================
+# This makes the model available to TORAX's configuration system
+register_model.register_pedestal_model(EPEDLikePedestal)
 
 
-# Configuration dictionary
+# =============================================================================
+# STEP 4: Use in Configuration
+# =============================================================================
+# Example configuration using the registered model
 CONFIG = {
     'profile_conditions': {
         'Ip': 15e6,  # 15 MA plasma current
@@ -157,18 +232,18 @@ CONFIG = {
         'ei_exchange': {},
         'ohmic': {},
     },
-    # Custom pedestal configuration
     'pedestal': {
-        'model_name': 'custom',  # Use the custom pedestal model
-        'set_pedestal': True,  # Enable pedestal
-        # Provide the custom functions
-        'T_i_ped_fn': custom_T_i_ped,
-        'T_e_ped_fn': custom_T_e_ped,
-        'n_e_ped_fn': custom_n_e_ped,
-        'rho_norm_ped_top_fn': custom_rho_norm_ped_top,  # Optional
-        # If rho_norm_ped_top_fn is not provided, this fallback value is used:
-        # 'rho_norm_ped_top': 0.91,
-        'n_e_ped_is_fGW': True,  # n_e_ped_fn returns Greenwald fraction
+        'model_name': 'eped_like',
+        'set_pedestal': True,
+        # Custom parameters for EPED-like scaling
+        'T_e_scaling_factor': 5.0,
+        'Ip_exponent': 0.2,
+        'B0_exponent': 0.8,
+        'epsilon_exponent': 0.3,
+        'T_i_T_e_ratio': 1.0,
+        'n_e_ped': 0.7,  # Greenwald fraction
+        'n_e_ped_is_fGW': True,
+        'rho_norm_ped_top': 0.91,
     },
     'transport': {
         'model_name': 'constant',
@@ -182,20 +257,83 @@ CONFIG = {
 }
 
 
-# Alternative example: Simple constant pedestal values
-# This shows how you can also use the custom pedestal API for simple cases
-def simple_T_e_ped(runtime_params, geo, core_profiles):
-  return 5.0  # 5 keV
+# =============================================================================
+# Example 2: Simple Constant Pedestal Model
+# =============================================================================
+# For comparison, here's a simpler example with constant values
+
+@chex.dataclass(frozen=True)
+class SimplePedestalModel(pm.PedestalModel):
+  """Simple pedestal model with constant values."""
+
+  def _call_implementation(
+      self,
+      runtime_params: 'SimpleRuntimeParams',
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> pm.PedestalModelOutput:
+    """Return constant pedestal values."""
+    rho_norm_ped_top_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - runtime_params.rho_norm_ped_top)
+    )
+
+    return pm.PedestalModelOutput(
+        rho_norm_ped_top=runtime_params.rho_norm_ped_top,
+        rho_norm_ped_top_idx=rho_norm_ped_top_idx,
+        T_i_ped=runtime_params.T_i_ped,
+        T_e_ped=runtime_params.T_e_ped,
+        n_e_ped=runtime_params.n_e_ped,
+    )
 
 
-def simple_T_i_ped(runtime_params, geo, core_profiles):
-  return 6.0  # 6 keV
+@chex.dataclass(frozen=True)
+class SimpleRuntimeParams(pedestal_runtime_params.RuntimeParams):
+  """Runtime parameters for simple pedestal model."""
+  T_i_ped: float = 5.0
+  T_e_ped: float = 5.0
+  n_e_ped: float = 0.7e20
+  rho_norm_ped_top: float = 0.91
 
 
-def simple_n_e_ped(runtime_params, geo, core_profiles):
-  return 0.8e20  # 0.8e20 m^-3
+class SimplePedestal(pydantic_model.BasePedestal):
+  """Pydantic config for simple constant pedestal."""
+
+  model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = (
+      'simple'
+  )
+
+  T_i_ped: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
+  )
+  T_e_ped: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
+  )
+  n_e_ped: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7e20)
+  )
+  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+
+  def build_pedestal_model(self) -> SimplePedestalModel:
+    return SimplePedestalModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> SimpleRuntimeParams:
+    return SimpleRuntimeParams(
+        set_pedestal=self.set_pedestal.get_value(t),
+        T_i_ped=self.T_i_ped.get_value(t),
+        T_e_ped=self.T_e_ped.get_value(t),
+        n_e_ped=self.n_e_ped.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
 
 
+# Register the simple model too
+register_model.register_pedestal_model(SimplePedestal)
+
+# Simple config example
 SIMPLE_CONFIG = {
     'profile_conditions': {},
     'plasma_composition': {},
@@ -217,13 +355,12 @@ SIMPLE_CONFIG = {
         'ohmic': {},
     },
     'pedestal': {
-        'model_name': 'custom',
+        'model_name': 'simple',
         'set_pedestal': True,
-        'T_i_ped_fn': simple_T_i_ped,
-        'T_e_ped_fn': simple_T_e_ped,
-        'n_e_ped_fn': simple_n_e_ped,
-        'rho_norm_ped_top': 0.91,  # Use fixed value
-        'n_e_ped_is_fGW': False,  # Use absolute density units
+        'T_i_ped': 5.0,
+        'T_e_ped': 5.0,
+        'n_e_ped': 0.7e20,
+        'rho_norm_ped_top': 0.91,
     },
     'transport': {
         'model_name': 'constant',
