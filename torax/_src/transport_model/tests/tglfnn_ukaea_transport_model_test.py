@@ -11,21 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Base classes for MHD models."""
-
-import dataclasses
-
-from torax._src import static_dataclass
-from torax._src.mhd.sawtooth import sawtooth_models as sawtooth_models_lib
+from absl.testing import absltest
+from absl.testing import parameterized
+from torax._src.transport_model import tglfnn_ukaea_transport_model
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class MHDModels(static_dataclass.StaticDataclass):
-  """Container for instantiated MHD model objects.
+class TglfnnUkaeaTransportModelTest(parameterized.TestCase):
 
-  This class is designed to be used as a static argument to jitted Jax
-  functions, so it is immutable and supports comparison and hashing by value.
-  """
+  def test_hash_and_eq_same(self):
 
-  sawtooth_models: sawtooth_models_lib.SawtoothModels | None
+    model1 = tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine='multimachine'
+    )
+    model2 = tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine='multimachine'
+    )
+
+    self.assertEqual(hash(model1), hash(model2))
+    self.assertEqual(model1, model2)
+
+
+if __name__ == '__main__':
+  absltest.main()

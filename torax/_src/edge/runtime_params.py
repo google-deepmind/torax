@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base classes for MHD models."""
+"""Base runtime_params for edge models."""
 
 import dataclasses
-
-from torax._src import static_dataclass
-from torax._src.mhd.sawtooth import sawtooth_models as sawtooth_models_lib
+import jax
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class MHDModels(static_dataclass.StaticDataclass):
-  """Container for instantiated MHD model objects.
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams:
+  """Base for edge model runtime parameters."""
 
-  This class is designed to be used as a static argument to jitted Jax
-  functions, so it is immutable and supports comparison and hashing by value.
-  """
-
-  sawtooth_models: sawtooth_models_lib.SawtoothModels | None
+  pass

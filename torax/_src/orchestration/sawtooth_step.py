@@ -23,6 +23,7 @@ from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -50,6 +51,7 @@ def sawtooth_step(
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.ToraxSimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
@@ -70,6 +72,7 @@ def sawtooth_step(
     geo_t: Geometry at time t.
     geometry_provider: Provider for geometry.
     explicit_source_profiles: Explicit source profiles at time t.
+    edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
 
@@ -144,6 +147,7 @@ def sawtooth_step(
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
+        edge_outputs=edge_outputs,
         physics_models=sawtooth_solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
@@ -189,16 +193,10 @@ def _evolve_x_after_sawtooth(
       n_impurity=ions.n_impurity,
   )
 
-  (
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-  ) = formulas.calculate_pressure(updated_core_profiles)
-
   _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
+      updated_core_profiles.pressure_thermal_e,
+      updated_core_profiles.pressure_thermal_i,
+      updated_core_profiles.pressure_thermal_total,
       geo_t_plus_crash_dt,
   )
 

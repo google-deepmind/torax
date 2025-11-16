@@ -40,14 +40,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   VR_D_ratio: array_typing.FloatScalar
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class CriticalGradientTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
-
-  def __init__(
-      self,
-  ):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -111,7 +106,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         ** 0.5
         / (constants.q_e * geo.B_0) ** 2
         * (T_i_face * constants.keV_to_J) ** 1.5
-        / geo.R_major
+        / geo.R_major_profile_face
     )
 
     # R/LTi profile from current timestep T_i
@@ -135,7 +130,11 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     d_face_el = chi_face_ion / transport_runtime_params.chi_D_ratio
 
     # User-provided convection coefficient
-    v_face_el = d_face_el * transport_runtime_params.VR_D_ratio / geo.R_major
+    v_face_el = (
+        d_face_el
+        * transport_runtime_params.VR_D_ratio
+        / geo.R_major_profile_face
+    )
 
     return transport_model.TurbulentTransport(
         chi_face_ion=chi_face_ion,
@@ -143,10 +142,3 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
-
-  def __hash__(self):
-    # All CriticalGradientModels are equivalent and can hash the same
-    return hash('CriticalGradientModel')
-
-  def __eq__(self, other):
-    return isinstance(other, CriticalGradientTransportModel)

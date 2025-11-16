@@ -23,6 +23,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -30,7 +31,10 @@ from torax._src.mhd.sawtooth import trigger_base
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SimpleTrigger(trigger_base.TriggerModel):
+@dataclasses.dataclass(frozen=True, eq=False)
+class SimpleTrigger(
+    trigger_base.TriggerModel, static_dataclass.StaticDataclass
+):
   """Simple trigger model."""
 
   def __call__(
@@ -101,12 +105,6 @@ class SimpleTrigger(trigger_base.TriggerModel):
         jnp.logical_and(rho_norm_above_minimum, s_above_critical),
         rho_norm_q1,
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other: object) -> bool:
-    return isinstance(other, SimpleTrigger)
 
 
 @jax.tree_util.register_dataclass

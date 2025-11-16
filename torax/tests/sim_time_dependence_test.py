@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
+import dataclasses
 from typing import Annotated, Literal
 from unittest import mock
 
@@ -258,12 +259,9 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Dummy transport model that always returns zeros."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -279,12 +277,6 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         d_face_el=jnp.zeros(geo.rho_face.shape),
         v_face_el=jnp.zeros(geo.rho_face.shape),
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
 
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):

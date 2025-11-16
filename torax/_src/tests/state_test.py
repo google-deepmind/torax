@@ -17,8 +17,10 @@ import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import constants
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -267,6 +269,79 @@ class ImpurityFractionsTest(parameterized.TestCase):
     )
     # Verify that the simulation terminated before reaching t_final.
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
+
+class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
+  """Tests for the cached properties in CoreProfiles."""
+
+  def setUp(self):
+    super().setUp()
+    self.geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    base_core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+    self.core_profiles = dataclasses.replace(
+        base_core_profiles,
+        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
+        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
+        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
+        n_impurity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.25e20
+        ),
+    )
+
+  def test_pressure_thermal_e(self):
+    """Test that thermal pressures are computed correctly."""
+    np.testing.assert_allclose(
+        self.core_profiles.pressure_thermal_e.value,
+        6e20 * constants.CONSTANTS.keV_to_J,
+    )
+
+  def test_pressure_thermal_i(self):
+    np.testing.assert_allclose(
+        self.core_profiles.pressure_thermal_i.value,
+        2.75e20 * constants.CONSTANTS.keV_to_J,
+    )
+
+  def test_pressure_thermal_total(self):
+    np.testing.assert_allclose(
+        self.core_profiles.pressure_thermal_total.value,
+        8.75e20 * constants.CONSTANTS.keV_to_J,
+    )
+
+  def test_cached_properties_with_jit(self):
+    """Tests cached properties behave correctly within a jitted function."""
+
+    @jax.jit
+    def get_pressure_thermal_e(profiles):
+      return profiles.pressure_thermal_e.value
+
+    # Create two different CoreProfiles
+    geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    profiles1 = core_profile_helpers.make_zero_core_profiles(geo)
+    profiles1 = dataclasses.replace(
+        profiles1,
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
+        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
+    )
+    profiles2 = core_profile_helpers.make_zero_core_profiles(geo)
+    profiles2 = dataclasses.replace(
+        profiles2,
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 4.0),
+        n_e=core_profile_helpers.make_constant_core_profile(geo, 1.5e20),
+    )
+
+    # Get expected values without jit
+    expected1 = profiles1.pressure_thermal_e.value
+    expected2 = profiles2.pressure_thermal_e.value
+
+    # Get values from jitted function called sequentially
+    actual1 = get_pressure_thermal_e(profiles1)
+    actual2 = get_pressure_thermal_e(profiles2)
+    actual3 = get_pressure_thermal_e(profiles1)
+
+    np.testing.assert_allclose(actual1, expected1)
+    np.testing.assert_allclose(actual2, expected2)
+    np.testing.assert_allclose(actual3, expected1)
 
 
 if __name__ == '__main__':

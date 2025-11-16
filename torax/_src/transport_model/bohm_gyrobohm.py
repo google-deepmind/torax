@@ -46,14 +46,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   chi_i_gyrobohm_multiplier: array_typing.FloatScalar
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
-
-  def __init__(
-      self,
-  ):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -184,10 +179,3 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
         chi_face_ion_bohm=chi_i_bohm,
         chi_face_ion_gyrobohm=chi_i_gyrobohm,
     )
-
-  def __hash__(self):
-    # All BohmGyroBohmModels are equivalent and can hash the same
-    return hash('BohmGyroBohmModel')
-
-  def __eq__(self, other):
-    return isinstance(other, BohmGyroBohmTransportModel)

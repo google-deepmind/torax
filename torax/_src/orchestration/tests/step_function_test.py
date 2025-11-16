@@ -200,6 +200,7 @@ class StepFunctionTest(parameterized.TestCase):
         runtime_params_t=runtime_params,
         geo_t=sim_state.geometry,
         explicit_source_profiles=sim_state.core_sources,
+        edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
     )
@@ -231,6 +232,7 @@ class StepFunctionTest(parameterized.TestCase):
         runtime_params_t=runtime_params,
         geo_t=sim_state.geometry,
         explicit_source_profiles=sim_state.core_sources,
+        edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
     )
@@ -261,6 +263,7 @@ class StepFunctionTest(parameterized.TestCase):
         runtime_params_t=runtime_params,
         geo_t=sim_state.geometry,
         explicit_source_profiles=sim_state.core_sources,
+        edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
     )

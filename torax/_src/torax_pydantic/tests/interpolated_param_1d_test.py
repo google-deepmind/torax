@@ -21,6 +21,7 @@ import pydantic
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -333,6 +334,121 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     # Check that the cache is not reused with different shapes.
     self.assertEqual(f(scalar3, 1.0), scalar3.get_value(t=1.0))
     self.assertEqual(jax_utils.get_number_of_compiles(f), 2)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='update_value',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              value=np.array([2.0, 3.0, 5.0])
+          ),
+          expected_value=np.array([2.0, 3.0, 5.0]),
+          expected_time=np.array([0.0, 1.0, 2.0]),
+          expected_get_value=3.0,
+      ),
+      dict(
+          testcase_name='update_time',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              time=np.array([0.0, 1.5, 2.5])
+          ),
+          # time=[0, 1.5, 2.5], value=[1, 2, 4]. at t=1.0, interp is
+          # 1 + (2-1)/(1.5-0) * (1-0) = 1 + 1/1.5 = 1.666...
+          expected_value=np.array([1.0, 2.0, 4.0]),
+          expected_time=np.array([0.0, 1.5, 2.5]),
+          expected_get_value=1.0 + 1.0 / 1.5,
+      ),
+      dict(
+          testcase_name='update_time_and_value',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              time=np.array([0.0, 1.5, 2.5]), value=np.array([2.0, 3.0, 5.0])
+          ),
+          # time=[0, 1.5, 2.5], value=[2, 3, 5]. at t=1.0, interp is
+          # 2 + (3-2)/(1.5-0) * (1-0) = 2 + 1/1.5 = 2.666...
+          expected_value=np.array([2.0, 3.0, 5.0]),
+          expected_time=np.array([0.0, 1.5, 2.5]),
+          expected_get_value=2+1/1.5,
+      ),
+  )
+  def test_update(
+      self, replacements, expected_value, expected_time, expected_get_value,
+  ):
+    scalar = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0, 2.0]), np.array([1.0, 2.0, 4.0])),
+    )
+
+    new_scalar = scalar.update(replacements)
+    self.assertIsNot(scalar, new_scalar)
+    np.testing.assert_array_equal(new_scalar.value, expected_value)
+    np.testing.assert_array_equal(new_scalar.time, expected_time)
+    self.assertEqual(new_scalar.get_value(1.0), expected_get_value)
+
+  def test_update_under_jit(self):
+    scalar = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0, 2.0]), np.array([1.0, 2.0, 4.0])),
+    )
+
+    @jax.jit
+    def f(
+        scalar: torax_pydantic.TimeVaryingScalar,
+        replacements: interpolated_param_1d.TimeVaryingScalarReplace,
+        t: chex.Numeric,
+    ):
+      new_scalar = scalar.update(replacements)
+      return new_scalar.get_value(t=t)
+
+    replacements1 = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=jax.numpy.array([2.0, 3.0, 5.0])
+    )
+    output1 = f(scalar, replacements1, 1.0)
+    num_compiles1 = jax_utils.get_number_of_compiles(f)
+    replacements2 = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=jax.numpy.array([3.0, 4.0, 6.0])
+    )
+    output2 = f(scalar, replacements2, 1.0)
+    num_compiles2 = jax_utils.get_number_of_compiles(f)
+    replacements3 = interpolated_param_1d.TimeVaryingScalarReplace(
+        time=jax.numpy.array([0.0, 2.0]), value=jax.numpy.array([2.0, 5.0])
+    )
+    output3 = f(scalar, replacements3, 1.0)
+    num_compiles3 = jax_utils.get_number_of_compiles(f)
+
+    with self.subTest('jit_works_and_caches_same_shape'):
+      self.assertEqual(output1, 3.0)
+      self.assertEqual(num_compiles1, 1)
+
+    with self.subTest('second_call_with_same_shape_does_not_recompile'):
+      self.assertEqual(output2, 4.0)
+      self.assertEqual(num_compiles2, 1)
+
+    with self.subTest('jit_recompiles_for_new_shape'):
+      np.testing.assert_allclose(output3, 3.5)
+      self.assertEqual(num_compiles3, 2)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='wrong_shape_value',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              value=np.array([2.0, 3.0])
+          ),
+      ),
+      dict(
+          testcase_name='wrong_shape_time',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              time=np.array([0.0, 1.5])
+          ),
+      ),
+      dict(
+          testcase_name='wrong_shape_time_and_value',
+          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+              time=np.array([0.0,]), value=np.array([2.0, 3.0])
+          ),
+      ),
+  )
+  def test_update_raises_error_for_mismatched_shapes(self, replacements):
+    scalar = torax_pydantic.TimeVaryingScalar.model_validate(
+        (np.array([0.0, 1.0, 2.0]), np.array([1.0, 2.0, 4.0])),
+    )
+    with self.assertRaisesRegex(ValueError, 'must be the same length'):
+      scalar.update(replacements)
 
 
 if __name__ == '__main__':

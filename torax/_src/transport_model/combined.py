@@ -38,18 +38,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   pedestal_transport_model_params: Sequence[runtime_params_lib.RuntimeParams]
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class CombinedTransportModel(transport_model_lib.TransportModel):
-  """Combines coefficients from a list of transport models."""
+  """Combines coefficients from a tuple of transport models."""
 
-  def __init__(
-      self,
-      transport_models: Sequence[transport_model_lib.TransportModel],
-      pedestal_transport_models: Sequence[transport_model_lib.TransportModel],
-  ):
-    super().__init__()
-    self.transport_models = transport_models
-    self.pedestal_transport_models = pedestal_transport_models
-    self._frozen = True
+  transport_models: tuple[transport_model_lib.TransportModel, ...]
+  pedestal_transport_models: tuple[transport_model_lib.TransportModel, ...]
 
   def __call__(
       self,
@@ -58,11 +52,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
 
     transport_runtime_params = runtime_params.transport
 
@@ -211,16 +200,4 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
-    )
-
-  def __hash__(self):
-    return hash(
-        tuple(self.transport_models) + tuple(self.pedestal_transport_models)
-    )
-
-  def __eq__(self, other):
-    return (
-        isinstance(other, CombinedTransportModel)
-        and self.transport_models == other.transport_models
-        and self.pedestal_transport_models == other.pedestal_transport_models
     )

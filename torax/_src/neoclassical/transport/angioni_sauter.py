@@ -140,7 +140,7 @@ def _calculate_angioni_sauter_transport(
   nu_i_star = (
       4.9e-18
       * core_profiles.q_face
-      * geometry.R_major
+      * geometry.R_major_profile_face
       * core_profiles.n_i.face_value()
       * core_profiles.Z_i_face**4
       * log_lambda_ii
@@ -192,20 +192,12 @@ def _calculate_angioni_sauter_transport(
   ) / (dpsi_drhon + constants.CONSTANTS.eps)
 
   # --- Step 5: Calculate neoclassical fluxes ---
-  pe = (
-      core_profiles.n_e.face_value()
-      * core_profiles.T_e.face_value()
-      * constants.CONSTANTS.keV_to_J
-  )
-  pi = (
-      core_profiles.n_i.face_value()
-      * core_profiles.T_i.face_value()
-      * constants.CONSTANTS.keV_to_J
-  )
+  pe = core_profiles.pressure_thermal_e.face_value()
+  pi = core_profiles.pressure_thermal_i.face_value()
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
   E_parallel = core_profiles.psidot.face_value() / (
-      2 * jnp.pi * geometry.R_major
+      2 * jnp.pi * geometry.R_major_profile_face
   )
 
   # Total electron heat flux Q_e = B_e2 * T_e / (dpsi/drho) (see Angioni Sec 5)
@@ -509,7 +501,7 @@ def _calculate_Lmn(
   thermal_velocity_e = jnp.sqrt(
       2 * core_profiles.T_e.face_value() * consts.keV_to_J / consts.m_e
   )
-  collision_time_e = (core_profiles.q_face * geo.R_major) / (
+  collision_time_e = (core_profiles.q_face * geo.R_major_profile_face) / (
       nu_e_star * epsilon**1.5 * thermal_velocity_e + consts.eps
   )
   thermal_velocity_i = jnp.sqrt(
@@ -518,7 +510,7 @@ def _calculate_Lmn(
       * consts.keV_to_J
       / (core_profiles.A_i * consts.m_amu)
   )
-  collision_time_i = (core_profiles.q_face * geo.R_major) / (
+  collision_time_i = (core_profiles.q_face * geo.R_major_profile_face) / (
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 

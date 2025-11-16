@@ -241,14 +241,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeQuasilinearTransportModel(
     quasilinear_transport_model.QuasilinearTransportModel
 ):
   """Fake QuasilinearTransportModel for testing purposes."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -285,12 +282,6 @@ class FakeQuasilinearTransportModel(
         gradient_reference_length=3.0,
         gyrobohm_flux_reference_length=1.0,
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
 
 
 class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):

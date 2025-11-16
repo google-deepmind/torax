@@ -14,22 +14,19 @@
 
 """Testing the public API of the transport package."""
 
+import dataclasses
 from typing import Annotated, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
-
 import torax
 from torax import transport
 from torax._src.test_utils import default_configs
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeTransportModel(transport.TransportModel):
   """Fake transport model that always returns zeros."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -45,12 +42,6 @@ class FakeTransportModel(transport.TransportModel):
         d_face_el=jnp.zeros_like(geo.rho_face_norm),
         v_face_el=jnp.zeros_like(geo.rho_face_norm),
     )
-
-  def __hash__(self) -> int:
-    return hash('FakeTransportModel')
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, FakeTransportModel)
 
 
 class FakeTransportPydantic(transport.TransportBase):

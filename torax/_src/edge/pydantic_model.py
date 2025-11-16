@@ -31,7 +31,7 @@ import typing_extensions
 # and forward modes inheriting from a base extended_lengyel config.
 # TODO(b/446608829) - decide on final version of namings, possibly more
 # consistent with the rest of TORAX
-class ExtendedLengyelConfig(base.EdgeModelConfigBase):
+class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
   model_name: Annotated[
@@ -44,6 +44,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfigBase):
   solver_mode: Annotated[
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
+  # Flag allowing user to test simulation sensitivity to boundary condition
+  # updates, while still providing edge model outputs even if not used.
+  update_temperatures: bool = True
   fixed_step_iterations: pydantic.PositiveInt | None = None
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
@@ -274,6 +277,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfigBase):
     return extended_lengyel_model.RuntimeParams(
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
+        update_temperatures=self.update_temperatures,
         fixed_step_iterations=self.fixed_step_iterations,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,

@@ -58,6 +58,12 @@ class SauterTest(absltest.TestCase):
         Z_i_face=np.linspace(1000, 2000, n_rho + 1),
         Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
+        pressure_thermal_e=cell_variable.CellVariable(
+            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+        ),
+        pressure_thermal_i=cell_variable.CellVariable(
+            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+        ),
     )
 
     model = sauter.SauterModel()

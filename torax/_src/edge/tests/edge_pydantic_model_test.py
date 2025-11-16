@@ -61,6 +61,10 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_torax_config_integration(self):
     """Ensures ToraxConfig can parse the new edge field."""
     config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    }
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'computation_mode': 'inverse',
@@ -256,6 +260,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
+    runtime_params_dict.pop('update_temperatures')
     kwargs = {**dynamic_inputs, **runtime_params_dict}
     # Run the model
     outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(

@@ -25,6 +25,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import constants
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params_slice
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -60,28 +61,9 @@ class TurbulentTransport:
   chi_face_ion_gyrobohm: jax.Array | None = None
 
 
-class TransportModel(abc.ABC):
-  """Calculates various coefficients related to heat and particle transport.
-
-  Subclass responsbilities:
-  - Must implement __hash__, __eq__, and be immutable, so that the class can
-    be used as a static argument (or a subcomponent of a larger static
-    argument) to jax.jit
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
-
-  def __setattr__(self, attr, value):
-    # pylint: disable=g-doc-args
-    # pylint: disable=g-doc-return-or-yield
-    """Override __setattr__ to make the class (sort of) immutable.
-
-    Note that you can still do obj.field.subfield = x, so it is not true
-    immutability, but this to helps to avoid some careless errors.
-    """
-    if getattr(self, "_frozen", False):
-      raise AttributeError("TransportModels are immutable.")
-    return super().__setattr__(attr, value)
+@dataclasses.dataclass(frozen=True, eq=False)
+class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Calculates various coefficients related to heat and particle transport."""
 
   def __call__(
       self,
@@ -90,12 +72,6 @@ class TransportModel(abc.ABC):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
-
     transport_runtime_params = runtime_params.transport
 
     # Calculate the transport coefficients
@@ -148,23 +124,6 @@ class TransportModel(abc.ABC):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     pass
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the transport model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Returns whether the transport model is equal to the other.
-
-    Should be implemented to support jax.jit caching.
-
-    Args:
-      other: The object to compare to.
-    """
 
   def _apply_domain_restriction(
       self,

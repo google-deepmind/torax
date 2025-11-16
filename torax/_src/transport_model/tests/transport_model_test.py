@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from typing import Annotated, Literal
 
 from absl.testing import absltest
@@ -398,12 +399,9 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Fake TransportModel for testing purposes."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   def _call_implementation(
       self,
@@ -423,12 +421,6 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
 
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):

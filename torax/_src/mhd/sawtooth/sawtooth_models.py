@@ -15,12 +15,13 @@
 """A container for sawtooth models."""
 import dataclasses
 
+from torax._src import static_dataclass
 from torax._src.mhd.sawtooth import redistribution_base
 from torax._src.mhd.sawtooth import trigger_base
 
 
-@dataclasses.dataclass(frozen=True)
-class SawtoothModels:
+@dataclasses.dataclass(frozen=True, eq=False)
+class SawtoothModels(static_dataclass.StaticDataclass):
   """Container for sawtooth models.
 
   This class is intended for use as a static argument to Jax so it is

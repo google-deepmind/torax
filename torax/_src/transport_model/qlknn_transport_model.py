@@ -31,7 +31,6 @@ from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -163,28 +162,13 @@ def clip_inputs(
   return feature_scan
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class QLKNNTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
 ):
   """Calculates turbulent transport coefficients."""
-
-  def __init__(
-      self,
-      path: str,
-      name: str,
-  ):
-    super().__init__()
-    self._path = path
-    self._name = name
-    self._frozen = True
-
-  @property
-  def path(self) -> str:
-    return self._path
-
-  @property
-  def name(self) -> str:
-    return self._name
+  path: str
+  name: str
 
   def _call_implementation(
       self,
@@ -300,14 +284,4 @@ class QLKNNTransportModel(
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
-    )
-
-  def __hash__(self) -> int:
-    return hash(('QLKNNTransportModel' + self.path + self.name))
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    return (
-        isinstance(other, QLKNNTransportModel)
-        and self.path == other.path
-        and self.name == other.name
     )

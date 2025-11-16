@@ -130,14 +130,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
       self.assertEqual(getattr(tglf_inputs, key).shape, ())
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(
     tglf_based_transport_model.TGLFBasedTransportModel
 ):
   """Fake TGLFBasedTransportModel for testing purposes."""
-
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
 
   # pylint: disable=invalid-name
   def prepare_tglf_inputs(
@@ -179,12 +176,6 @@ class FakeTGLFBasedTransportModel(
         geo=geo,
         core_profiles=core_profiles,
     )
-
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
 
 
 # pylint: disable=invalid-name

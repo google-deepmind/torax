@@ -29,7 +29,7 @@ import xarray as xr
 RHO_NORM: Final[str] = 'rho_norm'
 
 _interp_fn = jax.jit(jnp.interp)
-_interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
 @jax.jit
@@ -128,6 +128,16 @@ class InterpolatedParamBase(abc.ABC):
   def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns a value for this parameter interpolated at the given input."""
 
+  @property
+  @abc.abstractmethod
+  def xs(self) -> array_typing.Array:
+    """Returns the array of x-values."""
+
+  @property
+  @abc.abstractmethod
+  def ys(self) -> array_typing.Array:
+    """Returns the array of y-values."""
+
 
 @jax.tree_util.register_pytree_node_class
 class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
@@ -202,7 +212,7 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         if len(self.ys) == 1 and x_shape == ():  # pylint: disable=g-explicit-bool-comparison
           return self.ys[0]
         else:
-          return _interp_fn_vmap(x, self.xs, self.ys)
+          return interp_fn_vmap(x, self.xs, self.ys)
       case _:
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
@@ -411,6 +421,16 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       case _:
         raise ValueError('Unknown interpolation mode.')
 
+  @property
+  def xs(self) -> array_typing.Array:
+    """Returns the xs used by this param."""
+    return self._param.xs
+
+  @property
+  def ys(self) -> array_typing.Array:
+    """Returns the ys used by this param."""
+    return self._param.ys
+
   def tree_flatten(self):
     static_params = {
         'interpolation_mode': self.interpolation_mode,
@@ -509,6 +529,16 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
         value=(sorted_indices, rho_norm_interpolated_values),
         interpolation_mode=time_interpolation_mode,
     )
+
+  @property
+  def xs(self) -> array_typing.Array:
+    """Returns the xs used by this param."""
+    return self._time_interpolated_var.xs
+
+  @property
+  def ys(self) -> array_typing.Array:
+    """Returns the ys used by this param."""
+    return self._time_interpolated_var.ys
 
   def tree_flatten(self):
     children = (self._time_interpolated_var,)
