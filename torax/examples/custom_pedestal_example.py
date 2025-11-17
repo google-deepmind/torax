@@ -28,10 +28,9 @@ The key steps are:
 import dataclasses
 from typing import Annotated, Literal
 
-from torax._src import geometry
-from torax._src import state
-from torax._src.static_dataclass import StaticDataclass
-from torax._src.torax_pydantic import torax_pydantic
+from torax import CoreProfiles
+from torax import Geometry
+from torax import JAX_STATIC
 from torax import pedestal
 import jax.numpy as jnp
 
@@ -40,7 +39,7 @@ import jax.numpy as jnp
 # STEP 1: Define the JAX Pedestal Model
 # =============================================================================
 @dataclasses.dataclass(frozen=True)
-class EPEDLikePedestalModel(pedestal.PedestalModel, StaticDataclass):
+class EPEDLikePedestalModel(pedestal.PedestalModel):
   """EPED-like pedestal model with power-law scaling.
 
   This model implements a simplified EPED-like scaling:
@@ -52,8 +51,8 @@ class EPEDLikePedestalModel(pedestal.PedestalModel, StaticDataclass):
   def _call_implementation(
       self,
       runtime_params: 'RuntimeParams',
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      geo: Geometry,
+      core_profiles: CoreProfiles,
   ) -> pedestal.PedestalModelOutput:
     """Compute pedestal values using EPED-like scaling."""
 
@@ -102,7 +101,7 @@ class EPEDLikePedestalModel(pedestal.PedestalModel, StaticDataclass):
 
 
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(pedestal.RuntimeParams, StaticDataclass):
+class RuntimeParams(pedestal.RuntimeParams):
   """Runtime parameters for EPED-like pedestal model.
 
   Attributes:
@@ -147,29 +146,19 @@ class EPEDLikePedestal(pedestal.BasePedestal):
     rho_norm_ped_top: Location of pedestal top in normalized radius.
   """
 
-  model_name: Annotated[Literal['eped_like'], torax_pydantic.JAX_STATIC] = (
-      'eped_like'
-  )
+  model_name: Annotated[Literal['eped_like'], JAX_STATIC] = 'eped_like'
 
-  # Scaling parameters (can be time-varying if needed)
-  T_e_scaling_factor: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(5.0)
-  )
+  # Scaling parameters
+  T_e_scaling_factor: float = 5.0
   Ip_exponent: float = 0.2
   B0_exponent: float = 0.8
   epsilon_exponent: float = 0.3
-  T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
+  T_i_T_e_ratio: float = 1.0
 
   # Pedestal values
-  n_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7)
-  )
+  n_e_ped: float = 0.7
   n_e_ped_is_fGW: bool = True
-  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.91)
-  )
+  rho_norm_ped_top: float = 0.91
 
   def build_pedestal_model(self) -> EPEDLikePedestalModel:
     """Build the JAX pedestal model."""
@@ -179,14 +168,14 @@ class EPEDLikePedestal(pedestal.BasePedestal):
     """Build runtime parameters for the given time."""
     return RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
-        T_e_scaling_factor=self.T_e_scaling_factor.get_value(t),
+        T_e_scaling_factor=self.T_e_scaling_factor,
         Ip_exponent=self.Ip_exponent,
         B0_exponent=self.B0_exponent,
         epsilon_exponent=self.epsilon_exponent,
-        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
-        n_e_ped_value=self.n_e_ped.get_value(t),
+        T_i_T_e_ratio=self.T_i_T_e_ratio,
+        n_e_ped_value=self.n_e_ped,
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top,
     )
 
 
@@ -200,31 +189,8 @@ pedestal.register_pedestal_model(EPEDLikePedestal)
 # =============================================================================
 # STEP 4: Use in Configuration
 # =============================================================================
-# Example configuration using the registered model
+# Minimal example configuration using the registered model
 CONFIG = {
-    'profile_conditions': {
-        'Ip': 15e6,  # 15 MA plasma current
-    },
-    'plasma_composition': {},
-    'numerics': {},
-    'geometry': {
-        'geometry_type': 'circular',
-        'B0': 5.3,  # 5.3 T toroidal field
-        'a_minor': 1.65,  # 1.65 m minor radius
-    },
-    'neoclassical': {
-        'bootstrap_current': {},
-    },
-    'sources': {
-        'generic_current': {},
-        'generic_particle': {},
-        'gas_puff': {},
-        'pellet': {},
-        'generic_heat': {},
-        'fusion': {},
-        'ei_exchange': {},
-        'ohmic': {},
-    },
     'pedestal': {
         'model_name': 'eped_like',
         'set_pedestal': True,
@@ -237,14 +203,5 @@ CONFIG = {
         'n_e_ped': 0.7,  # Greenwald fraction
         'n_e_ped_is_fGW': True,
         'rho_norm_ped_top': 0.91,
-    },
-    'transport': {
-        'model_name': 'constant',
-    },
-    'solver': {
-        'solver_type': 'linear',
-    },
-    'time_step_calculator': {
-        'calculator_type': 'chi',
     },
 }

@@ -25,6 +25,7 @@ class ExamplesTest(parameterized.TestCase):
 
   @parameterized.parameters([
       'basic_config',
+      'custom_pedestal_example',
       'iterhybrid_predictor_corrector',
       'iterhybrid_rampup',
       'step_flattop_bgb',
