@@ -19,7 +19,7 @@ from absl.testing import absltest
 import chex
 from torax._src import geometry
 from torax._src import state
-from torax._src.pedestal_model import pedestal_model as pm
+from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import register_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
@@ -35,7 +35,7 @@ class RegisterModelTest(absltest.TestCase):
 
     # Define a simple custom pedestal model
     @chex.dataclass(frozen=True)
-    class TestPedestalModel(pm.PedestalModel):
+    class TestPedestalModel(pedestal_model.PedestalModel):
       """Test pedestal model."""
 
       def _call_implementation(
@@ -43,14 +43,14 @@ class RegisterModelTest(absltest.TestCase):
           runtime_params: 'TestRuntimeParams',
           geo: geometry.Geometry,
           core_profiles: state.CoreProfiles,
-      ) -> pm.PedestalModelOutput:
+      ) -> pedestal_model.PedestalModelOutput:
         """Return fixed test values."""
         rho_norm_ped_top = 0.95
         rho_norm_ped_top_idx = jnp.argmin(
             jnp.abs(geo.rho_norm - rho_norm_ped_top)
         )
 
-        return pm.PedestalModelOutput(
+        return pedestal_model.PedestalModelOutput(
             rho_norm_ped_top=rho_norm_ped_top,
             rho_norm_ped_top_idx=rho_norm_ped_top_idx,
             T_i_ped=runtime_params.test_value,
@@ -102,14 +102,14 @@ class RegisterModelTest(absltest.TestCase):
     """Test that multiple custom models can be registered."""
 
     @chex.dataclass(frozen=True)
-    class Model1(pm.PedestalModel):
+    class Model1(pedestal_model.PedestalModel):
       def _call_implementation(
           self,
           runtime_params,
           geo,
           core_profiles,
-      ) -> pm.PedestalModelOutput:
-        return pm.PedestalModelOutput(
+      ) -> pedestal_model.PedestalModelOutput:
+        return pedestal_model.PedestalModelOutput(
             rho_norm_ped_top=0.9,
             rho_norm_ped_top_idx=0,
             T_i_ped=1.0,
@@ -131,14 +131,14 @@ class RegisterModelTest(absltest.TestCase):
         )
 
     @chex.dataclass(frozen=True)
-    class Model2(pm.PedestalModel):
+    class Model2(pedestal_model.PedestalModel):
       def _call_implementation(
           self,
           runtime_params,
           geo,
           core_profiles,
-      ) -> pm.PedestalModelOutput:
-        return pm.PedestalModelOutput(
+      ) -> pedestal_model.PedestalModelOutput:
+        return pedestal_model.PedestalModelOutput(
             rho_norm_ped_top=0.9,
             rho_norm_ped_top_idx=0,
             T_i_ped=2.0,

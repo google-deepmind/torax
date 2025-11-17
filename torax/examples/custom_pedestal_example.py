@@ -25,31 +25,28 @@ The key steps are:
 4. Use it in your configuration
 """
 
+import dataclasses
 from typing import Annotated, Literal
 
-import chex
 from torax._src import geometry
 from torax._src import state
-from torax._src.pedestal_model import pedestal_model as pm
-from torax._src.pedestal_model import pydantic_model
-from torax._src.pedestal_model import register_model
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
+from torax._src.static_dataclass import StaticDataclass
 from torax._src.torax_pydantic import torax_pydantic
+from torax import pedestal
 import jax.numpy as jnp
 
 
 # =============================================================================
 # STEP 1: Define the JAX Pedestal Model
 # =============================================================================
-@chex.dataclass(frozen=True)
-class EPEDLikePedestalModel(pm.PedestalModel):
+@dataclasses.dataclass(frozen=True)
+class EPEDLikePedestalModel(pedestal.PedestalModel, StaticDataclass):
   """EPED-like pedestal model with power-law scaling.
 
   This model implements a simplified EPED-like scaling:
   - T_e_ped ∝ Ip^a * B0^b * (other parameters)
   - T_i_ped = ratio * T_e_ped
   - n_e_ped can be specified as Greenwald fraction or absolute density
-  - Pedestal width can be dynamic based on poloidal beta
   """
 
   def _call_implementation(
@@ -57,7 +54,7 @@ class EPEDLikePedestalModel(pm.PedestalModel):
       runtime_params: 'RuntimeParams',
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> pm.PedestalModelOutput:
+  ) -> pedestal.PedestalModelOutput:
     """Compute pedestal values using EPED-like scaling."""
 
     # Extract plasma parameters
@@ -65,7 +62,6 @@ class EPEDLikePedestalModel(pm.PedestalModel):
     B0 = geo.B0  # Toroidal field in T
     a = geo.Rmin  # Minor radius in m
     epsilon = geo.epsilon  # Inverse aspect ratio
-    kappa = runtime_params.profile_conditions.kappa  # Elongation
 
     # EPED-like T_e scaling (simplified)
     # Real EPED would include more physics (triangularity, beta, etc.)
@@ -88,8 +84,7 @@ class EPEDLikePedestalModel(pm.PedestalModel):
     else:
       n_e_ped = runtime_params.n_e_ped_value
 
-    # Pedestal location (can be dynamic based on beta_p if desired)
-    # For now, use the configured value
+    # Pedestal location
     rho_norm_ped_top = runtime_params.rho_norm_ped_top
 
     # Find the index in the mesh
@@ -97,7 +92,7 @@ class EPEDLikePedestalModel(pm.PedestalModel):
         jnp.abs(geo.rho_norm - rho_norm_ped_top)
     )
 
-    return pm.PedestalModelOutput(
+    return pedestal.PedestalModelOutput(
         rho_norm_ped_top=rho_norm_ped_top,
         rho_norm_ped_top_idx=rho_norm_ped_top_idx,
         T_i_ped=T_i_ped,
@@ -106,8 +101,8 @@ class EPEDLikePedestalModel(pm.PedestalModel):
     )
 
 
-@chex.dataclass(frozen=True)
-class RuntimeParams(pedestal_runtime_params.RuntimeParams):
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(pedestal.RuntimeParams, StaticDataclass):
   """Runtime parameters for EPED-like pedestal model.
 
   Attributes:
@@ -133,7 +128,7 @@ class RuntimeParams(pedestal_runtime_params.RuntimeParams):
 # =============================================================================
 # STEP 2: Define the Pydantic Configuration Class
 # =============================================================================
-class EPEDLikePedestal(pydantic_model.BasePedestal):
+class EPEDLikePedestal(pedestal.BasePedestal):
   """Pydantic configuration for EPED-like pedestal model.
 
   This class defines the user-facing configuration interface for the
@@ -180,9 +175,7 @@ class EPEDLikePedestal(pydantic_model.BasePedestal):
     """Build the JAX pedestal model."""
     return EPEDLikePedestalModel()
 
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> RuntimeParams:
+  def build_runtime_params(self, t) -> RuntimeParams:
     """Build runtime parameters for the given time."""
     return RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
@@ -201,7 +194,7 @@ class EPEDLikePedestal(pydantic_model.BasePedestal):
 # STEP 3: Register the Model
 # =============================================================================
 # This makes the model available to TORAX's configuration system
-register_model.register_pedestal_model(EPEDLikePedestal)
+pedestal.register_pedestal_model(EPEDLikePedestal)
 
 
 # =============================================================================
@@ -243,123 +236,6 @@ CONFIG = {
         'T_i_T_e_ratio': 1.0,
         'n_e_ped': 0.7,  # Greenwald fraction
         'n_e_ped_is_fGW': True,
-        'rho_norm_ped_top': 0.91,
-    },
-    'transport': {
-        'model_name': 'constant',
-    },
-    'solver': {
-        'solver_type': 'linear',
-    },
-    'time_step_calculator': {
-        'calculator_type': 'chi',
-    },
-}
-
-
-# =============================================================================
-# Example 2: Simple Constant Pedestal Model
-# =============================================================================
-# For comparison, here's a simpler example with constant values
-
-@chex.dataclass(frozen=True)
-class SimplePedestalModel(pm.PedestalModel):
-  """Simple pedestal model with constant values."""
-
-  def _call_implementation(
-      self,
-      runtime_params: 'SimpleRuntimeParams',
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> pm.PedestalModelOutput:
-    """Return constant pedestal values."""
-    rho_norm_ped_top_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - runtime_params.rho_norm_ped_top)
-    )
-
-    return pm.PedestalModelOutput(
-        rho_norm_ped_top=runtime_params.rho_norm_ped_top,
-        rho_norm_ped_top_idx=rho_norm_ped_top_idx,
-        T_i_ped=runtime_params.T_i_ped,
-        T_e_ped=runtime_params.T_e_ped,
-        n_e_ped=runtime_params.n_e_ped,
-    )
-
-
-@chex.dataclass(frozen=True)
-class SimpleRuntimeParams(pedestal_runtime_params.RuntimeParams):
-  """Runtime parameters for simple pedestal model."""
-  T_i_ped: float = 5.0
-  T_e_ped: float = 5.0
-  n_e_ped: float = 0.7e20
-  rho_norm_ped_top: float = 0.91
-
-
-class SimplePedestal(pydantic_model.BasePedestal):
-  """Pydantic config for simple constant pedestal."""
-
-  model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = (
-      'simple'
-  )
-
-  T_i_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(5.0)
-  )
-  T_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(5.0)
-  )
-  n_e_ped: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7e20)
-  )
-  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.91)
-  )
-
-  def build_pedestal_model(self) -> SimplePedestalModel:
-    return SimplePedestalModel()
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> SimpleRuntimeParams:
-    return SimpleRuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
-        T_i_ped=self.T_i_ped.get_value(t),
-        T_e_ped=self.T_e_ped.get_value(t),
-        n_e_ped=self.n_e_ped.get_value(t),
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-    )
-
-
-# Register the simple model too
-register_model.register_pedestal_model(SimplePedestal)
-
-# Simple config example
-SIMPLE_CONFIG = {
-    'profile_conditions': {},
-    'plasma_composition': {},
-    'numerics': {},
-    'geometry': {
-        'geometry_type': 'circular',
-    },
-    'neoclassical': {
-        'bootstrap_current': {},
-    },
-    'sources': {
-        'generic_current': {},
-        'generic_particle': {},
-        'gas_puff': {},
-        'pellet': {},
-        'generic_heat': {},
-        'fusion': {},
-        'ei_exchange': {},
-        'ohmic': {},
-    },
-    'pedestal': {
-        'model_name': 'simple',
-        'set_pedestal': True,
-        'T_i_ped': 5.0,
-        'T_e_ped': 5.0,
-        'n_e_ped': 0.7e20,
         'rho_norm_ped_top': 0.91,
     },
     'transport': {
