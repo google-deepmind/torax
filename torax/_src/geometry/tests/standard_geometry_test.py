@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax._src import array_typing
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -54,9 +55,9 @@ class GeometryTest(parameterized.TestCase):
         int_dl_over_Bp=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi2_over_R2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_B2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_B2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
@@ -94,9 +95,9 @@ class GeometryTest(parameterized.TestCase):
         int_dl_over_Bp=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi2_over_R2=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi=np.arange(0, 1.0, 0.01),
+        flux_surf_avg_grad_psi2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_B2=np.arange(0, 1.0, 0.01),
         flux_surf_avg_1_over_B2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
@@ -126,13 +127,36 @@ class GeometryTest(parameterized.TestCase):
     geometry_pydantic_model.CheaseConfig().build_geometry()
 
   @parameterized.parameters([
-      dict(geometry_file='eqdsk_cocos02.eqdsk'),
-      dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
+      dict(geometry_file='iterhybrid_cocos02.eqdsk', cocos=2),
+      dict(geometry_file='iterhybrid_cocos11.eqdsk', cocos=11),
   ])
-  def test_build_geometry_from_eqdsk(self, geometry_file):
+  def test_build_geometry_from_eqdsk(self, geometry_file, cocos):
     """Test that EQDSK geometries can be built."""
-    config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config = geometry_pydantic_model.EQDSKConfig(
+        geometry_file=geometry_file, cocos=cocos
+    )
     config.build_geometry()
+
+  def test_eqdsk_cocos_conversion_is_consistent(self):
+    """Tests that EQDSK geometries from different COCOS are identical after conversion."""
+    geo_cocos2 = geometry_pydantic_model.EQDSKConfig(
+        geometry_file='iterhybrid_cocos02.eqdsk', cocos=2
+    ).build_geometry()
+    geo_cocos11 = geometry_pydantic_model.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
+    ).build_geometry()
+    for field in dataclasses.fields(geo_cocos2):
+      name = field.name
+      val1 = getattr(geo_cocos2, name)
+      val2 = getattr(geo_cocos11, name)
+      if isinstance(val1, array_typing.Array):
+        np.testing.assert_allclose(
+            val1, val2, err_msg=f'Field "{name}" mismatch.'
+        )
+      elif val1 is None:
+        self.assertIsNone(val2, msg=f'Field "{name}" mismatch.')
+      else:
+        self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch.')
 
   def test_build_standard_geometry_from_IMAS(self):
     """Test that the default IMAS geometry can be built."""
@@ -144,7 +168,8 @@ class GeometryTest(parameterized.TestCase):
   def test_gm4_gm5_terms(self):
     """Test that gm4 and gm5 are correctly computed."""
     eqdsk_geo = geometry_pydantic_model.EQDSKConfig(
-        geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'
+        geometry_file='iterhybrid_cocos02.eqdsk',
+        cocos=2,
     ).build_geometry()
 
     imas_geo = geometry_pydantic_model.IMASConfig(
@@ -152,13 +177,13 @@ class GeometryTest(parameterized.TestCase):
     ).build_geometry()
 
     chease_geo = geometry_pydantic_model.CheaseConfig(
-        geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols'
+        geometry_file='iterhybrid.mat2cols'
     ).build_geometry()
 
     np.testing.assert_allclose(eqdsk_geo.gm4, chease_geo.gm4, rtol=0.01)
     np.testing.assert_allclose(imas_geo.gm4, chease_geo.gm4, rtol=0.01)
     np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.02)
-    np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.02)
+    np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.01)
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""

@@ -56,6 +56,17 @@ class RegenerateRefsTest(parameterized.TestCase):
     if original_refs_path.exists():
       shutil.copyfile(original_refs_path, self.output_path)
 
+    # Copy geometry files needed for the test, since geometry loading relies
+    # on path_utils.torax_path(), which is mocked above.
+    original_geo_path = original_torax_path / 'data' / 'third_party' / 'geo'
+    if original_geo_path.exists():
+      target_geo_path = self.temp_dir / 'data' / 'third_party' / 'geo'
+      shutil.copytree(original_geo_path, target_geo_path, dirs_exist_ok=True)
+    else:
+      raise FileNotFoundError(
+          f'{original_geo_path} does not exist.'
+      )
+
   @parameterized.named_parameters(
       (case_name, case_name) for case_name in torax_refs.REFERENCES_REGISTRY
   )

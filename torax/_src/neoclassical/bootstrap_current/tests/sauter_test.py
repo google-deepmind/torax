@@ -16,7 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
@@ -30,7 +30,7 @@ class SauterTest(absltest.TestCase):
     geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
     bootstrap_params = sauter.RuntimeParams(bootstrap_multiplier=1.0)
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         instance=True,
         neoclassical=mock.create_autospec(
             neoclassical_runtime_params.RuntimeParams,

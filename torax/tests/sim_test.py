@@ -122,15 +122,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test_chease',
           'test_chease.py',
       ),
-      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
-      (
-          'test_eqdsk',
-          'test_eqdsk.py',
-          _ALL_PROFILES,
-          # higher rtol needed due to coincidental near-zero crossing of psi
-          # and larger relative errors in spite of small absolute errors.
-          1e-8,
-      ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE
       (
@@ -309,6 +300,12 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_imas',
           'test_iterhybrid_predictor_corrector_imas.py',
+      ),
+      # Tests full integration for ITER-hybrid-based config with IMAS geometry
+      # and profiles.
+      (
+          'test_imas_profiles_and_geo',
+          'test_imas_profiles_and_geo.py',
       ),
   )
   def test_run_simulation(

@@ -16,11 +16,11 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -34,15 +34,15 @@ class SourceTest(parameterized.TestCase):
     )
     source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.RuntimeParams(
+            sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=np.zeros_like(geo.rho_norm),
-                mode=runtime_params_lib.Mode.ZERO,
+                mode=sources_runtime_params_lib.Mode.ZERO,
                 is_explicit=False,
             )
         )
     }
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources=source_params,
     )
     profile = source.get_value(
@@ -55,12 +55,12 @@ class SourceTest(parameterized.TestCase):
     np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))
 
   @parameterized.parameters(
-      (runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
+      (sources_runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
       (
-          runtime_params_lib.Mode.MODEL_BASED,
+          sources_runtime_params_lib.Mode.MODEL_BASED,
           np.array([42, 42, 42, 42]),
       ),
-      (runtime_params_lib.Mode.PRESCRIBED, np.array([3, 3, 3, 3])),
+      (sources_runtime_params_lib.Mode.PRESCRIBED, np.array([3, 3, 3, 3])),
   )
   def test_correct_mode_called(
       self,
@@ -72,7 +72,7 @@ class SourceTest(parameterized.TestCase):
     source = generic_current_source.GenericCurrentSource(model_func=model_func)
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-            runtime_params_lib.RuntimeParams(
+            sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
                 mode=mode,
                 is_explicit=False,
@@ -80,7 +80,7 @@ class SourceTest(parameterized.TestCase):
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
@@ -105,15 +105,15 @@ class SourceTest(parameterized.TestCase):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.RuntimeParams(
+            sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
-                mode=runtime_params_lib.Mode.PRESCRIBED,
+                mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     profile = source.get_value(
@@ -141,15 +141,15 @@ class SourceTest(parameterized.TestCase):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-            runtime_params_lib.RuntimeParams(
+            sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
-                mode=runtime_params_lib.Mode.PRESCRIBED,
+                mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
         )
     }
     dynamic_slice = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
     )
     with self.assertRaisesRegex(

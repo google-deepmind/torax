@@ -19,7 +19,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.physics import charge_states
 from torax._src.sources import runtime_params as source_runtime_params_lib
@@ -53,7 +53,7 @@ class ImpuritySpeciesOutput:
 
 def calculate_impurity_species_output(
     sim_state: sim_state_lib.ToraxSimState,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, ImpuritySpeciesOutput]:
   """Calculates the output for each impurity species.
 

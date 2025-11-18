@@ -22,11 +22,11 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -40,7 +40,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   """Runtime parameters for the external current source."""
 
   I_generic: array_typing.FloatScalar
@@ -51,7 +51,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
 
 def calculate_generic_current(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
@@ -78,7 +78,7 @@ def calculate_generic_current(
 
 
 def _calculate_I_generic(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     source_params: RuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
@@ -137,9 +137,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params_lib.Mode.MODEL_BASED
-  )
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

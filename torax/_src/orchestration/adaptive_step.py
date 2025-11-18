@@ -21,7 +21,7 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
@@ -39,7 +39,7 @@ class AdaptiveStepState:
   x_new: tuple[cell_variable.CellVariable, ...]
   dt: chex.Numeric
   solver_numeric_outputs: state.SolverNumericOutputs
-  runtime_params: runtime_params_slice.RuntimeParams
+  runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
   core_profiles: state.CoreProfiles
 
@@ -48,7 +48,7 @@ def create_initial_state(
     input_state: sim_state.ToraxSimState,
     evolving_names: tuple[str, ...],
     initial_dt: chex.Numeric,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
 ) -> AdaptiveStepState:
   """Creates the initial state for the adaptive step."""
@@ -77,7 +77,7 @@ def compute_state(
     i: chex.Numeric,
     loop_statistics: dict[str, array_typing.IntScalar],
     initial_dt: chex.Numeric,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     input_state: sim_state.ToraxSimState,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -136,13 +136,13 @@ def compute_state(
 def cond_fun(
     inputs: AdaptiveStepState,
     unused_initial_dt: chex.Numeric,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
     unused_geo_t: geometry.Geometry,
     input_state: sim_state.ToraxSimState,
     unused_explicit_source_profiles: source_profiles_lib.SourceProfiles,
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    unused_geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
+    unused_geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""
   solver_outputs = inputs.solver_numeric_outputs

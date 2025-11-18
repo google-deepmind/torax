@@ -26,7 +26,7 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -57,8 +57,8 @@ MIN_DELTA: Final[float] = 1e-7
 )
 def newton_raphson_solve_block(
     dt: array_typing.FloatScalar,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],

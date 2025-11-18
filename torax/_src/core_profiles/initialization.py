@@ -24,7 +24,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.fvm import cell_variable
@@ -43,7 +43,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -205,7 +205,7 @@ def update_psi_from_j(
 
 
 def _get_initial_psi_mode(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
 ) -> profile_conditions_lib.InitialPsiMode:
   """Returns the initial psi mode based on the runtime parameters.
@@ -243,7 +243,7 @@ def _get_initial_psi_mode(
 
 
 def _init_psi_and_psi_derived(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -405,7 +405,7 @@ def _init_psi_and_psi_derived(
 
 
 def _calculate_all_psi_dependent_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     core_profiles: state.CoreProfiles,
@@ -490,7 +490,7 @@ def _calculate_all_psi_dependent_profiles(
 
 
 def _get_bootstrap_and_standard_source_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -519,7 +519,7 @@ def _get_bootstrap_and_standard_source_profiles(
 
 
 def _iterate_psi_and_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -560,7 +560,7 @@ def _iterate_psi_and_sources(
 
 
 def _get_j_total_hires_with_no_external_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates j_total hires when the total current is given by a formula."""
@@ -575,7 +575,7 @@ def _get_j_total_hires_with_no_external_sources(
 
 
 def get_j_total_hires_with_external_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     external_current: jax.Array,

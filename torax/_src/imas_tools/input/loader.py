@@ -56,7 +56,7 @@ def load_imas_data(
   # filepath is already provided in the uri.
   if uri.endswith(".nc"):
     if directory is None:
-      directory = path_utils.torax_path().joinpath("data/imas_data")
+      directory = path_utils.torax_path().joinpath("data/third_party/imas")
     uri = os.path.join(directory, uri)
   with imas.DBEntry(uri=uri, mode="r", dd_version=_TORAX_IMAS_DD_VERSION) as db:
     if not explicit_convert:

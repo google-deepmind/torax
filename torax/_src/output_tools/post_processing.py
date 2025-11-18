@@ -26,7 +26,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
@@ -387,7 +387,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -512,7 +512,7 @@ def _calculate_integrated_sources(
 @jax.jit
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.

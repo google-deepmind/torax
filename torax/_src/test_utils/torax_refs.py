@@ -25,7 +25,7 @@ import numpy as np
 import torax  # pylint: disable=unused-import
 from torax._src import path_utils
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -67,7 +67,7 @@ class References:
 
   def get_runtime_params_and_geo(
       self,
-  ) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
+  ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
     t = self.config.numerics.t_initial
     params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.config

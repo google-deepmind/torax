@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
@@ -58,7 +58,7 @@ class CoeffsCallback:
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
@@ -127,7 +127,7 @@ class CoeffsCallback:
 
 
 def _calculate_pereverzev_flux(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -213,7 +213,7 @@ def _calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -279,7 +279,7 @@ def calc_coeffs(
     ],
 )
 def _calc_coeffs_full(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,

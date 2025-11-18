@@ -106,7 +106,7 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
   hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
-  geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols'
+  geometry_file: str = 'iterhybrid.mat2cols'
   R_major: torax_pydantic.Meter = 6.2
   a_minor: torax_pydantic.Meter = 2.0
   B_0: torax_pydantic.Tesla = 5.3
@@ -224,6 +224,9 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:
+    cocos: COCOS coordinate convention of the EQDSK file, specified as an
+      integer in the range 1-8 or 11-18 inclusive.
+    geometry_file: Name of the EQDSK file in the geometry directory.
     geometry_type: Always set to 'eqdsk'.
     n_rho: Number of radial grid points.
     hires_factor: Only used when the initial condition ``psi`` is from plasma
@@ -240,12 +243,13 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
 
+  cocos: torax_pydantic.COCOSInt
+  geometry_file: str
   geometry_type: Annotated[Literal['eqdsk'], TIME_INVARIANT] = 'eqdsk'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
   hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
-  geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
 

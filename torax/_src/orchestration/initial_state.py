@@ -21,7 +21,7 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -67,7 +67,7 @@ def get_initial_state_and_post_processed_outputs(
 
 
 def _get_initial_state(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
 ) -> sim_state.ToraxSimState:
@@ -227,11 +227,11 @@ def get_initial_state_and_post_processed_outputs_from_file(
 
 
 def _override_initial_runtime_params_from_file(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     t_restart: float,
     profiles_ds: xr.Dataset,
-) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
+) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
 

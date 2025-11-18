@@ -19,7 +19,7 @@ Steps through time using a heuristic based on chi_max.
 import jax
 from jax import numpy as jnp
 from torax._src import state as state_module
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.time_step_calculator import time_step_calculator
 
@@ -29,7 +29,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
 
   def _next_dt(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       core_transport: state_module.CoreTransport,

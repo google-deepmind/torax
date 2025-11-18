@@ -20,12 +20,12 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   Qei_multiplier: float
 
 
@@ -61,14 +61,14 @@ class QeiSource(source.Source):
 
   def get_qei(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
         runtime_params.sources[self.source_name].mode
-        == runtime_params_lib.Mode.MODEL_BASED,
+        == sources_runtime_params_lib.Mode.MODEL_BASED,
         lambda: _model_based_qei(
             runtime_params,
             geo,
@@ -79,7 +79,7 @@ class QeiSource(source.Source):
 
   def get_value(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
@@ -97,7 +97,7 @@ class QeiSource(source.Source):
 
 
 def _model_based_qei(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:
@@ -152,9 +152,9 @@ class QeiSourceConfig(base.SourceModelBase):
   """
 
   Qei_multiplier: float = 1.0
-  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params_lib.Mode.MODEL_BASED
-  )
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> None:
