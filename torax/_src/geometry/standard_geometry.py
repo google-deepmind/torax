@@ -186,12 +186,12 @@ class StandardGeometryIntermediates:
       [:math:`\mathrm{m^{-1}}`].
     flux_surf_avg_1_over_R2: Flux surface average of :math:`1/R^2`
       [:math:`\mathrm{m^{-2}}`].
-    flux_surf_avg_Bp2: Flux surface average of :math:`B_p^2`
-      [:math:`\mathrm{T^2}`].
-    flux_surf_avg_RBp: Flux surface average of :math:`R B_p` [:math:`\mathrm{m
-      T}`].
-    flux_surf_avg_R2Bp2: Flux surface average of :math:`R^2 B_p^2`
-      [:math:`\mathrm{m^2 T^2}`].
+    flux_surf_avg_grad_psi: Flux surface average of :math:`|\nabla \psi| = R
+      B_p` [:math:`\mathrm{m T}`] (COCOS11).
+    flux_surf_avg_grad_psi2: Flux surface average of :math:`|\nabla \psi|^2 =
+      R^2 B_p^2` [:math:`\mathrm{m^2 T^2}`] (COCOS11).
+    flux_surf_avg_grad_psi2_over_R2: Flux surface average of :math:`|\nabla
+      \psi|^2 / R^2 = B_p^2` [:math:`\mathrm{T^2}`] (COCOS11).
     flux_surf_avg_B2: Flux surface average of :math:`B^2`
       [:math:`\mathrm{T}^2`].
     flux_surf_avg_1_over_B2: Flux surface average of :math:`1/B^2`
@@ -235,9 +235,9 @@ class StandardGeometryIntermediates:
   int_dl_over_Bp: array_typing.Array
   flux_surf_avg_1_over_R: array_typing.Array
   flux_surf_avg_1_over_R2: array_typing.Array
-  flux_surf_avg_Bp2: array_typing.Array
-  flux_surf_avg_RBp: array_typing.Array
-  flux_surf_avg_R2Bp2: array_typing.Array
+  flux_surf_avg_grad_psi: array_typing.Array
+  flux_surf_avg_grad_psi2: array_typing.Array
+  flux_surf_avg_grad_psi2_over_R2: array_typing.Array
   flux_surf_avg_B2: array_typing.Array
   flux_surf_avg_1_over_B2: array_typing.Array
   delta_upper_face: array_typing.Array
@@ -265,7 +265,7 @@ class StandardGeometryIntermediates:
     """
 
     # Check if last flux surface is diverted and correct via spline fit if so
-    if self.diverted or self.flux_surf_avg_Bp2[-1] < 1e-10:
+    if self.diverted or self.flux_surf_avg_grad_psi2_over_R2[-1] < 1e-10:
       # Calculate rhon
       rhon = np.sqrt(self.Phi / self.Phi[-1])
 
@@ -279,9 +279,9 @@ class StandardGeometryIntermediates:
       # Decide on the bc_type based on demanding monotonic behaviour of g2.
       # Natural bc_type means no second derivative at the spline edge, and will
       # maintain monotonicity on extrapolation, but not recommended as default.
-      flux_surf_avg_Bp2_edge = spline(
+      flux_surf_avg_grad_psi2_over_R2_edge = spline(
           rhon,
-          self.flux_surf_avg_Bp2,
+          self.flux_surf_avg_grad_psi2_over_R2,
           1.0,
           bc_type='not-a-knot',
       )
@@ -291,8 +291,11 @@ class StandardGeometryIntermediates:
           1.0,
           bc_type='not-a-knot',
       )
-      g2_edge_ratio = (flux_surf_avg_Bp2_edge * int_dl_over_Bp_edge**2) / (
-          self.flux_surf_avg_Bp2[-2] * self.int_dl_over_Bp[-2] ** 2
+      g2_edge_ratio = (
+          flux_surf_avg_grad_psi2_over_R2_edge * int_dl_over_Bp_edge**2
+      ) / (
+          self.flux_surf_avg_grad_psi2_over_R2[-2]
+          * self.int_dl_over_Bp[-2] ** 2
       )
       if g2_edge_ratio > 1.0:
         bc_type = 'not-a-knot'
@@ -300,10 +303,12 @@ class StandardGeometryIntermediates:
         bc_type = 'natural'
       set_edge = lambda array: spline(rhon, array, 1.0, bc_type)
       self.int_dl_over_Bp[-1] = set_edge(self.int_dl_over_Bp)
-      self.flux_surf_avg_Bp2[-1] = set_edge(self.flux_surf_avg_Bp2)
+      self.flux_surf_avg_grad_psi2_over_R2[-1] = set_edge(
+          self.flux_surf_avg_grad_psi2_over_R2
+      )
       self.flux_surf_avg_1_over_R2[-1] = set_edge(self.flux_surf_avg_1_over_R2)
-      self.flux_surf_avg_RBp[-1] = set_edge(self.flux_surf_avg_RBp)
-      self.flux_surf_avg_R2Bp2[-1] = set_edge(self.flux_surf_avg_R2Bp2)
+      self.flux_surf_avg_grad_psi[-1] = set_edge(self.flux_surf_avg_grad_psi)
+      self.flux_surf_avg_grad_psi2[-1] = set_edge(self.flux_surf_avg_grad_psi2)
       self.vpr[-1] = set_edge(self.vpr)
 
     # Near-axis smoothing of quantities with known near-axis trends with rho
@@ -312,14 +317,14 @@ class StandardGeometryIntermediates:
 
     # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
     # and Bp terms with order 1. vpr also goes like rho near-axis
-    self.flux_surf_avg_Bp2[:] = _smooth_savgol(
-        self.flux_surf_avg_Bp2, idx_limit, 2
+    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi2_over_R2, idx_limit, 2
     )
-    self.flux_surf_avg_R2Bp2[:] = _smooth_savgol(
-        self.flux_surf_avg_R2Bp2, idx_limit, 2
+    self.flux_surf_avg_grad_psi2[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi2, idx_limit, 2
     )
-    self.flux_surf_avg_RBp[:] = _smooth_savgol(
-        self.flux_surf_avg_RBp, idx_limit, 1
+    self.flux_surf_avg_grad_psi[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi, idx_limit, 1
     )
     self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)
 
@@ -364,10 +369,9 @@ class StandardGeometryIntermediates:
     # grid. CHEASE variables are normalized. Need to unnormalize them with
     # reference values poloidal flux and CHEASE-internal-calculated plasma
     # current.
-    psiunnormfactor = R_major**2 * B_0
-
-    # set psi in TORAX units with 2*pi factor
-    psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
+    # Also, CHEASE is COCOS=02, which means psi_torax = 2π * psi_chease
+    psiunnormfactor = R_major**2 * B_0 * 2 * np.pi
+    psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
     Ip_chease = (
         chease_data['Ipprofile'] / constants.CONSTANTS.mu_0 * R_major * B_0
     )
@@ -386,9 +390,14 @@ class StandardGeometryIntermediates:
     )
     flux_surf_avg_1_over_R = chease_data['<1/R>profile'] / R_major
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / R_major**2
-    flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B_0**2
-    flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
-    flux_surf_avg_R2Bp2 = (
+    # COCOS > 10: <|\nabla \psi|> = 2\pi<R B_p>
+    flux_surf_avg_grad_psi2_over_R2 = (
+        chease_data['<Bp**2>'] * B_0**2 * (4 * np.pi**2)
+    )
+    flux_surf_avg_grad_psi = (
+        chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
+    )
+    flux_surf_avg_grad_psi2 = (
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / R_major**2
     )
     flux_surf_avg_B2 = chease_data['<B**2>'] * B_0**2
@@ -412,9 +421,9 @@ class StandardGeometryIntermediates:
         int_dl_over_Bp=int_dl_over_Bp,
         flux_surf_avg_1_over_R=flux_surf_avg_1_over_R,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
-        flux_surf_avg_Bp2=flux_surf_avg_Bp2,
-        flux_surf_avg_RBp=flux_surf_avg_RBp,
-        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
+        flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
+        flux_surf_avg_grad_psi=flux_surf_avg_grad_psi,
+        flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
         flux_surf_avg_B2=flux_surf_avg_B2,
         flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=chease_data['delta_upper'],
@@ -706,9 +715,9 @@ class StandardGeometryIntermediates:
         int_dl_over_Bp=1 / LY_Q1Q,
         flux_surf_avg_1_over_R=LY['Q0Q'],
         flux_surf_avg_1_over_R2=LY['Q2Q'],
-        flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
-        flux_surf_avg_RBp=np.abs(LY['Q5Q']) / (2 * np.pi),
-        flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
+        flux_surf_avg_grad_psi2_over_R2=np.abs(LY['Q3Q']),
+        flux_surf_avg_grad_psi=np.abs(LY['Q5Q']),
+        flux_surf_avg_grad_psi2=np.abs(LY['Q4Q']),
         flux_surf_avg_B2=flux_surf_avg_B2,
         flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=LY['deltau'],
@@ -737,6 +746,7 @@ class StandardGeometryIntermediates:
       n_rho: int,
       n_surfaces: int,
       last_surface_factor: float,
+      cocos: int,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -759,6 +769,8 @@ class StandardGeometryIntermediates:
       last_surface_factor: Multiplication factor of the boundary poloidal flux,
         used for the contour defining geometry terms at the LCFS on the TORAX
         grid. Needed to avoid divergent integrations in diverted geometries.
+      cocos: COCOS convention of the EQDSK file, specified as an integer between
+        1-8 or 11-18 inclusive.
 
     Returns:
       A StandardGeometryIntermediates instance based on the input file. This
@@ -768,21 +780,29 @@ class StandardGeometryIntermediates:
 
     def calculate_area(x, z):
       """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
-      n = len(x)
-      area = 0.0
-      for i in range(n):
-        j = (i + 1) % n  # roll over at n
-        area += x[i] * z[j]
-        area -= z[i] * x[j]
-      area = abs(area) / 2.0
-      return area
+      z_shifted = np.roll(z, -1)
+      x_shifted = np.roll(x, -1)
+      return 0.5 * np.abs(np.sum(x * z_shifted - z * x_shifted))
 
     # --------------------------- #
     # ---- 1. Load the eqdsk ---- #
     # --------------------------- #
+    if cocos in [2, 4, 6, 8, 12, 14, 16, 18]:
+      logging.warning(
+          'User-specified COCOS %s for EQDSK file has a (R, Z, phi)'
+          ' coordinate system (sigma_RphiZ = -1), but the EQDSK format'
+          ' specifies a (R, phi, Z) coordinate system (sigma_RphiZ = +1). This'
+          ' may result in unexpected behaviour.',
+          cocos,
+      )
+    # load_geo_data() converts from the given COCOS to COCOS11
     eqfile = geometry_loader.load_geo_data(
-        geometry_directory, geometry_file, geometry_loader.GeometrySource.EQDSK
+        geometry_directory,
+        geometry_file,
+        geometry_loader.GeometrySource.EQDSK,
+        cocos,
     )
+    _validate_eqdsk_cocos11(eqfile)
 
     # Reference geometry terms
     # TODO(b/375696414): deal with updown asymmetric cases.
@@ -795,7 +815,7 @@ class StandardGeometryIntermediates:
     Btor_axis = eqfile['fpol'][0] / eqfile['xmag']
 
     # 1D psi grid, with psi(axis) = 0
-    psi_eqdsk_1dgrid = np.linspace(
+    psi_1dgrid = np.linspace(
         0.0, eqfile['psibdry'] - eqfile['psimag'], eqfile['nx']
     )
 
@@ -812,7 +832,7 @@ class StandardGeometryIntermediates:
     Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
 
     # 2D psi grid, with psi(axis) = 0
-    psi_eqdsk_2dgrid = eqfile['psi'] - eqfile['psimag']
+    psi_2dgrid = eqfile['psi'] - eqfile['psimag']
 
     # Mask for the region inside the LCFS
     # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -823,7 +843,7 @@ class StandardGeometryIntermediates:
         & (Z > Zlcfs.min() - offset)
         & (Z < Zlcfs.max() + offset)
     )
-    masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
+    masked_psi_2dgrid = np.ma.masked_where(~mask, psi_2dgrid)
 
     # --------------------------------------- #
     # ---- 2. Make flux surface contours ---- #
@@ -835,9 +855,7 @@ class StandardGeometryIntermediates:
     )
 
     surfaces = []
-    psi_contour_generator = contourpy.contour_generator(
-        X, Z, masked_psi_eqdsk_2dgrid
-    )
+    psi_contour_generator = contourpy.contour_generator(X, Z, masked_psi_2dgrid)
 
     # Skip magnetic axis since no contour is defined there.
     for _, _psi in enumerate(psi_on_flux_surfaces[1:]):
@@ -857,18 +875,18 @@ class StandardGeometryIntermediates:
     # Spline interpolator of 2D psi field defined on X-Z grid
     # This will later be evaluated on each flux surface
     psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
-        X_1D, Z_1D, psi_eqdsk_2dgrid, kx=3, ky=3, s=0
+        X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
     )
 
     # Interpolate safety factor onto new flux-surface grid
     q_interpolator = scipy.interpolate.interp1d(
-        psi_eqdsk_1dgrid, eqfile['qpsi'], kind='cubic'
+        psi_1dgrid, eqfile['qpsi'], kind='cubic'
     )
     q_profile = q_interpolator(psi_on_flux_surfaces)
 
     # Interpolate toroidal field flux function onto new flux-surface grid
     F_interpolator = scipy.interpolate.interp1d(
-        psi_eqdsk_1dgrid, eqfile['fpol'], kind='cubic'
+        psi_1dgrid, eqfile['fpol'], kind='cubic'
     )
     F = F_interpolator(psi_on_flux_surfaces)
 
@@ -885,25 +903,22 @@ class StandardGeometryIntermediates:
     R_inboard, R_outboard = np.empty(len(surfaces) + 1), np.empty(
         len(surfaces) + 1
     )
-    flux_surf_avg_1_over_R_eqdsk = np.empty(len(surfaces) + 1)  # <1/R>
-    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces) + 1)  # <1/R**2>
-    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <Bp**2>
-    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
-    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
-    flux_surf_avg_B2_eqdsk = np.empty(len(surfaces) + 1)  # <B**2>
-    flux_surf_avg_1_over_B2_eqdsk = np.empty(len(surfaces) + 1)  # <1/B**2>
-    int_dl_over_Bp_eqdsk = np.empty(
-        len(surfaces) + 1
-    )  # int(Rdl / | grad(psi) |)
-    Ip_eqdsk = np.empty(len(surfaces) + 1)  # Toroidal plasma current
-    delta_upper_face_eqdsk = np.empty(len(surfaces) + 1)  # Upper face delta
-    delta_lower_face_eqdsk = np.empty(len(surfaces) + 1)  # Lower face delta
+    flux_surf_avg_1_over_R = np.empty(len(surfaces) + 1)  # <1/R>
+    flux_surf_avg_1_over_R2 = np.empty(len(surfaces) + 1)  # <1/R**2>
+    flux_surf_avg_grad_psi2_over_R2 = np.empty(len(surfaces) + 1)  # <Bp**2>
+    flux_surf_avg_grad_psi = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
+    flux_surf_avg_grad_psi2 = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
+    flux_surf_avg_B2 = np.empty(len(surfaces) + 1)  # <B**2>
+    flux_surf_avg_1_over_B2 = np.empty(len(surfaces) + 1)  # <1/B**2>
+    int_dl_over_Bp = np.empty(len(surfaces) + 1)  # int(Rdl / | grad(psi) |)
+    Ip = np.empty(len(surfaces) + 1)  # Toroidal plasma current
+    delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
+    delta_lower_face = np.empty(len(surfaces) + 1)  # Lower face delta
     elongation = np.empty(len(surfaces) + 1)  # Elongation
 
     # Compute fsa for each surface
     # Note: surfaces is from psi[1:]
     for n, (x_surface, z_surface) in enumerate(surfaces):
-
       # Define line elements on which we will integrate
       surface_dl = np.sqrt(
           np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
@@ -914,11 +929,14 @@ class StandardGeometryIntermediates:
       surface_dpsi_z = psi_2dgrid_interpolator.ev(x_surface, z_surface, dy=1)
       surface_abs_grad_psi = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2)
 
-      # Poloidal field strength Bp = |grad(psi)| / R
-      surface_Bpol = surface_abs_grad_psi / x_surface
-      surface_int_dl_over_bpol = np.sum(
-          surface_dl / surface_Bpol
-      )  # This is denominator of all FSA
+      # B components
+      # Poloidal field strength Bp = |grad(psi)| / 2piR (COCOS>10)
+      surface_Bpol = surface_abs_grad_psi / (2 * np.pi * x_surface)
+      # Toroidal field strength Btor = F/R
+      # Note: F[n+1] is F on this flux surface
+      surface_Btor = F[n + 1] / x_surface
+      # B**2
+      surface_B2 = surface_Bpol**2 + surface_Btor**2
 
       # Plasma current
       surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
@@ -926,6 +944,7 @@ class StandardGeometryIntermediates:
       # Flux surface averaged equilibrium terms
       # <1/R>, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
       # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_int_dl_over_bpol = np.sum(surface_dl / surface_Bpol)
       surface_FSA_int_one_over_r = (
           np.sum(1 / x_surface * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
@@ -938,19 +957,18 @@ class StandardGeometryIntermediates:
           np.sum(surface_abs_grad_psi * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
       )
-      surface_FSA_Bpol_squared = (
-          np.sum(surface_Bpol * surface_dl) / surface_int_dl_over_bpol
-      )
       surface_FSA_abs_grad_psi2 = (
           np.sum(surface_abs_grad_psi**2 * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
       )
+      surface_FSA_abs_grad_psi2_over_R2 = (
+          np.sum(
+              surface_abs_grad_psi**2 / x_surface**2 * surface_dl / surface_Bpol
+          )
+          / surface_int_dl_over_bpol
+      )
 
       # <B**2> and <1/B**2> terms
-      # F[n+1] is F on this flux surface
-      # F is a flux function, so is constant on flux surfaces
-      surface_Btor = F[n + 1] / x_surface
-      surface_B2 = surface_Bpol**2 + surface_Btor**2
       surface_FSA_B2 = (
           np.sum(surface_B2 * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
@@ -988,17 +1006,17 @@ class StandardGeometryIntermediates:
       volumes[n + 1] = volume
       R_inboard[n + 1] = x_surface.min()
       R_outboard[n + 1] = x_surface.max()
-      int_dl_over_Bp_eqdsk[n + 1] = surface_int_dl_over_bpol
-      flux_surf_avg_1_over_R_eqdsk[n + 1] = surface_FSA_int_one_over_r
-      flux_surf_avg_1_over_R2_eqdsk[n + 1] = surface_FSA_int_one_over_r2
-      flux_surf_avg_RBp_eqdsk[n + 1] = surface_FSA_abs_grad_psi
-      flux_surf_avg_R2Bp2_eqdsk[n + 1] = surface_FSA_abs_grad_psi2
-      flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
-      flux_surf_avg_B2_eqdsk[n + 1] = surface_FSA_B2
-      flux_surf_avg_1_over_B2_eqdsk[n + 1] = surface_FSA_1_over_B2
-      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
-      delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
-      delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
+      int_dl_over_Bp[n + 1] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R[n + 1] = surface_FSA_int_one_over_r
+      flux_surf_avg_1_over_R2[n + 1] = surface_FSA_int_one_over_r2
+      flux_surf_avg_grad_psi[n + 1] = surface_FSA_abs_grad_psi
+      flux_surf_avg_grad_psi2[n + 1] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_grad_psi2_over_R2[n + 1] = surface_FSA_abs_grad_psi2_over_R2
+      flux_surf_avg_B2[n + 1] = surface_FSA_B2
+      flux_surf_avg_1_over_B2[n + 1] = surface_FSA_1_over_B2
+      Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
+      delta_upper_face[n + 1] = surface_delta_upper_face
+      delta_lower_face[n + 1] = surface_delta_lower_face
       elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (
           2.0 * a_minor_local
       )
@@ -1010,31 +1028,27 @@ class StandardGeometryIntermediates:
     volumes[0] = 0
     R_inboard[0] = Raxis
     R_outboard[0] = Raxis
-    int_dl_over_Bp_eqdsk[0] = 0
-    flux_surf_avg_1_over_R_eqdsk[0] = 1 / Raxis
-    flux_surf_avg_1_over_R2_eqdsk[0] = 1 / Raxis**2
-    flux_surf_avg_RBp_eqdsk[0] = 0
-    flux_surf_avg_R2Bp2_eqdsk[0] = 0
-    flux_surf_avg_Bp2_eqdsk[0] = 0
-    flux_surf_avg_B2_eqdsk[0] = Btor_axis**2
-    flux_surf_avg_1_over_B2_eqdsk[0] = 1 / Btor_axis**2
-    Ip_eqdsk[0] = 0
-    delta_upper_face_eqdsk[0] = delta_upper_face_eqdsk[1]
-    delta_lower_face_eqdsk[0] = delta_lower_face_eqdsk[1]
+    int_dl_over_Bp[0] = 0
+    flux_surf_avg_1_over_R[0] = 1 / Raxis
+    flux_surf_avg_1_over_R2[0] = 1 / Raxis**2
+    flux_surf_avg_grad_psi[0] = 0
+    flux_surf_avg_grad_psi2[0] = 0
+    flux_surf_avg_grad_psi2_over_R2[0] = 0
+    flux_surf_avg_B2[0] = Btor_axis**2
+    flux_surf_avg_1_over_B2[0] = 1 / Btor_axis**2
+    Ip[0] = 0
+    delta_upper_face[0] = delta_upper_face[1]
+    delta_lower_face[0] = delta_lower_face[1]
     elongation[0] = elongation[1]
 
     # ------------------------------------- #
     # ---- 5. Compute derived profiles ---- #
     # ------------------------------------- #
-    Phi_eqdsk = (
-        scipy.integrate.cumulative_trapezoid(
-            q_profile, psi_on_flux_surfaces, initial=0.0
-        )
-        * 2
-        * np.pi
+    Phi = scipy.integrate.cumulative_trapezoid(
+        q_profile, psi_on_flux_surfaces, initial=0.0
     )
-    rhon = np.sqrt(Phi_eqdsk / Phi_eqdsk[-1])
-    vpr = 4 * np.pi * Phi_eqdsk[-1] * rhon / (F * flux_surf_avg_1_over_R2_eqdsk)
+    rhon = np.sqrt(Phi / Phi[-1])
+    vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
 
     # ------------------------------------ #
     # ---- 6. Sense-check the results ---- #
@@ -1056,23 +1070,25 @@ class StandardGeometryIntermediates:
         R_major=R_major,
         a_minor=a_minor,
         B_0=np.array(B_0),
-        # TODO(b/335204606): handle COCOS shenanigans
-        psi=(psi_on_flux_surfaces + eqfile['psimag']) * 2 * np.pi,
-        Ip_profile=Ip_eqdsk,
-        Phi=Phi_eqdsk,
+        # psi_on_flux_surface has psi(0)=0 for ease of constructing the profiles
+        # The absolute value of psi may have meaning when connected in wider
+        # workflows, so we make sure that we set psi(0) from the eqdsk
+        psi=psi_on_flux_surfaces + eqfile['psimag'],
+        Ip_profile=Ip,
+        Phi=Phi,
         R_in=R_inboard,
         R_out=R_outboard,
         F=F,
-        int_dl_over_Bp=int_dl_over_Bp_eqdsk,
-        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R_eqdsk,
-        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
-        flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
-        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
-        flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
-        flux_surf_avg_B2=flux_surf_avg_B2_eqdsk,
-        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2_eqdsk,
-        delta_upper_face=delta_upper_face_eqdsk,
-        delta_lower_face=delta_lower_face_eqdsk,
+        int_dl_over_Bp=int_dl_over_Bp,
+        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R,
+        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
+        flux_surf_avg_grad_psi=flux_surf_avg_grad_psi,
+        flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
+        flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+        delta_upper_face=delta_upper_face,
+        delta_lower_face=delta_lower_face,
         elongation=elongation,
         vpr=vpr,
         n_rho=n_rho,
@@ -1154,21 +1170,14 @@ def build_standard_geometry(
   rho_intermediate = np.sqrt(intermediate.Phi / (np.pi * intermediate.B_0))
   rho_norm_intermediate = rho_intermediate / rho_intermediate[-1]
 
-  # flux surface integrals of various geometry quantities
-  C1 = intermediate.int_dl_over_Bp
-
-  C0 = intermediate.flux_surf_avg_RBp * C1
-  C2 = intermediate.flux_surf_avg_1_over_R2 * C1
-  C3 = intermediate.flux_surf_avg_Bp2 * C1
-  C4 = intermediate.flux_surf_avg_R2Bp2 * C1
-
-  # derived quantities for transport equations and transformations
-
-  g0 = C0 * 2 * np.pi  # <\nabla psi> * (dV/dpsi), equal to <\nabla V>
-  g1 = C1 * C4 * 4 * np.pi**2  # <(\nabla psi)**2> * (dV/dpsi) ** 2
-  g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
-  g3 = C2[1:] / C1[1:]  # <1/R**2>
-  g3 = np.concatenate((np.array([1 / intermediate.R_in[0] ** 2]), g3))
+  # derived geometric quantities
+  dV_dpsi = intermediate.int_dl_over_Bp
+  g0 = intermediate.flux_surf_avg_grad_psi * dV_dpsi  # <\nabla V>
+  g1 = intermediate.flux_surf_avg_grad_psi2 * dV_dpsi**2  # <(\nabla V)^2>
+  g2 = (
+      intermediate.flux_surf_avg_grad_psi2_over_R2 * dV_dpsi**2
+  )  # <(\nabla V)^2 / R^2>
+  g3 = intermediate.flux_surf_avg_1_over_R2  # <1/R**2>
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
@@ -1468,6 +1477,30 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+
+def _validate_eqdsk_cocos11(
+    eqfile: Mapping[str, np.ndarray | float]
+) -> None:
+  """Validates that the EQDSK data complies with COCOS11 coordinate conventions."""
+  COCOS_violations = ''
+  if eqfile['bcentre'] < 0:
+    COCOS_violations += '- B_0 is negative\n'
+  if eqfile['psibdry'] < eqfile['psimag']:
+    COCOS_violations += '- psi at the boundary is less than psi on the axis\n'
+  if np.any(eqfile['fpol']) < 0:
+    COCOS_violations += '- F=RB_phi has negative values\n'
+  if np.any(eqfile['qpsi']) < 0:
+    COCOS_violations += '- q has negative values\n'
+  if eqfile['cplasma'] < 0:
+    COCOS_violations += '- Ip is negative'
+  if COCOS_violations:
+    raise ValueError(
+        'The following violate the COCOS11 coordinate system when Ip and B0 are'
+        ' restricted to be positive:\n'
+        + COCOS_violations
+        + 'Check that the COCOS of the input EQDSK was set correctly.'
+    )
 
 
 # TODO(b/401502047): Investigate how window_length should depend on the

@@ -146,17 +146,11 @@ def geometry_from_IMAS(
       rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
     dpsidrhotor = np.gradient(IMAS_data.profiles_1d.psi, rho_tor)
 
-  flux_surf_avg_RBp = (
-      IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi)
-  )  # dpsi, C0/C1
-  flux_surf_avg_R2Bp2 = (
-      IMAS_data.profiles_1d.gm3 * (dpsidrhotor**2) / (4 * np.pi**2)
-  )  # C4/C1
-  flux_surf_avg_Bp2 = (
-      IMAS_data.profiles_1d.gm2 * (dpsidrhotor**2) / (4 * np.pi**2)
-  )  # C3/C1
-  int_dl_over_Bp = dvoldpsi  # C1
-  flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1  # C2/C1
+  flux_surf_avg_grad_psi = IMAS_data.profiles_1d.gm7 * dpsidrhotor
+  flux_surf_avg_grad_psi2 = IMAS_data.profiles_1d.gm3 * (dpsidrhotor**2)
+  flux_surf_avg_grad_psi2_over_R2 = IMAS_data.profiles_1d.gm2 * (dpsidrhotor**2)
+  int_dl_over_Bp = dvoldpsi
+  flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1
 
   # This branching is needed since currently not all equilibrium codes output
   # <1/R>
@@ -217,9 +211,9 @@ def geometry_from_IMAS(
       "int_dl_over_Bp": int_dl_over_Bp,
       "flux_surf_avg_1_over_R": flux_surf_avg_1_over_R,
       "flux_surf_avg_1_over_R2": flux_surf_avg_1_over_R2,
-      "flux_surf_avg_RBp": flux_surf_avg_RBp,
-      "flux_surf_avg_R2Bp2": flux_surf_avg_R2Bp2,
-      "flux_surf_avg_Bp2": flux_surf_avg_Bp2,
+      "flux_surf_avg_grad_psi": flux_surf_avg_grad_psi,
+      "flux_surf_avg_grad_psi2": flux_surf_avg_grad_psi2,
+      "flux_surf_avg_grad_psi2_over_R2": flux_surf_avg_grad_psi2_over_R2,
       "flux_surf_avg_B2": IMAS_data.profiles_1d.gm5,
       "flux_surf_avg_1_over_B2": IMAS_data.profiles_1d.gm4,
       "delta_upper_face": IMAS_data.profiles_1d.triangularity_upper,
