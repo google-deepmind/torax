@@ -22,6 +22,7 @@ from os import path
 from typing import Any, List
 
 import matplotlib
+from matplotlib import figure
 from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
@@ -453,8 +454,11 @@ def load_data(filename: str) -> PlotData:
 
 
 def plot_run(
-    plot_config: FigureProperties, outfile: str, outfile2: str | None = None
-):
+    plot_config: FigureProperties,
+    outfile: str,
+    outfile2: str | None = None,
+    interactive: bool = True,
+) -> figure.Figure:
   """Plots a single run or comparison of two runs."""
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
@@ -509,8 +513,10 @@ def plot_run(
 
     timeslider.on_changed(update)
 
-  fig.canvas.draw()
-  plt.show()
+  if interactive:
+    fig.canvas.draw()
+    plt.show()
+  return fig
 
 
 def _update(
