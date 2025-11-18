@@ -18,6 +18,7 @@ Abstract base class defining updates to State.
 """
 
 import abc
+import dataclasses
 import functools
 
 import jax
@@ -25,38 +26,22 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
-class Solver(abc.ABC):
+@dataclasses.dataclass(frozen=True, eq=False)
+class Solver(static_dataclass.StaticDataclass, abc.ABC):
   """Solves for a single time step's update to State.
 
   Attributes:
     physics_models: Physics models.
   """
 
-  def __init__(
-      self,
-      physics_models: physics_models_lib.PhysicsModels,
-  ):
-    self.physics_models = physics_models
-
-  def _class_id(self) -> str:
-    return f'{self.__class__.__module__}.{self.__class__.__qualname__}'
-
-  def __hash__(self) -> int:
-    return hash((self._class_id(), self.physics_models))
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    return (
-        isinstance(other, Solver)
-        and self._class_id() == other._class_id()
-        and self.physics_models == other.physics_models
-    )
+  physics_models: physics_models_lib.PhysicsModels
 
   @functools.partial(
       jax.jit,
