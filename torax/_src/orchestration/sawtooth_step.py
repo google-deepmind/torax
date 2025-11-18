@@ -49,7 +49,7 @@ def sawtooth_step(
     runtime_params_t: runtime_params_slice.RuntimeParams,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
-    geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.ToraxSimState,

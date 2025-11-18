@@ -142,7 +142,7 @@ def cond_fun(
     unused_explicit_source_profiles: source_profiles_lib.SourceProfiles,
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    unused_geometry_provider: geometry_provider_lib.TimeDependentGeometryProvider,
+    unused_geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""
   solver_outputs = inputs.solver_numeric_outputs
