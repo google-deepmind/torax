@@ -19,7 +19,7 @@ import functools
 import jax
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import updaters
@@ -46,7 +46,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 def sawtooth_step(
     *,
     sawtooth_solver: sawtooth_solver_lib.SawtoothSolver,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -165,7 +165,7 @@ def sawtooth_step(
 
 def _evolve_x_after_sawtooth(
     x_redistributed: tuple[cell_variable.CellVariable, ...],
-    runtime_params_t_plus_crash_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_crash_dt: runtime_params_lib.RuntimeParams,
     core_profiles_redistributed: state.CoreProfiles,
     geo_t_plus_crash_dt: geometry.Geometry,
     previous_post_processed_outputs: post_processing.PostProcessedOutputs,

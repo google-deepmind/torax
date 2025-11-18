@@ -28,7 +28,7 @@ import equinox as eqx
 import jax
 from jax import numpy as jnp
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
@@ -113,9 +113,9 @@ class RuntimeParamsProvider:
   def __call__(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_slice.RuntimeParams:
+  ) -> runtime_params_lib.RuntimeParams:
     """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
-    return runtime_params_slice.RuntimeParams(
+    return runtime_params_lib.RuntimeParams(
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
         sources={
@@ -292,20 +292,20 @@ def get_consistent_runtime_params_and_geometry(
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,
-) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
+) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
   runtime_params_from_provider = runtime_params_provider(t=t)
   runtime_params = _update_runtime_params_from_edge(
       runtime_params_from_provider, edge_outputs
   )
-  return runtime_params_slice.make_ip_consistent(runtime_params, geo)
+  return runtime_params_lib.make_ip_consistent(runtime_params, geo)
 
 
 def _update_runtime_params_from_edge(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs | None,
-) -> runtime_params_slice.RuntimeParams:
+) -> runtime_params_lib.RuntimeParams:
   """Updates runtime parameters based on edge model outputs.
 
   This function takes the outputs from the edge model and updates the
@@ -329,8 +329,8 @@ def _update_runtime_params_from_edge(
   assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
 
   def _update_temperatures(
-      runtime_params: runtime_params_slice.RuntimeParams,
-  ) -> runtime_params_slice.RuntimeParams:
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> runtime_params_lib.RuntimeParams:
     T_e_bc = edge_outputs.separatrix_electron_temp
     T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
     return dataclasses.replace(

@@ -16,12 +16,12 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice as runtime_params_slice_lib
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 
-class RuntimeParamsSliceTest(parameterized.TestCase):
+class RuntimeParamsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -33,7 +33,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_runtime_params_can_be_input_to_jitted_function(self):
     """Tests that the params can be input to a jitted function."""
 
-    def foo(params: runtime_params_slice_lib.RuntimeParams):
+    def foo(params: runtime_params_lib.RuntimeParams):
       _ = params  # do nothing.
 
     foo_jitted = jax.jit(foo)

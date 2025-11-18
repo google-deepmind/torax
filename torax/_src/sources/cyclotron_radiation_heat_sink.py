@@ -26,11 +26,11 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -44,7 +44,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   wall_reflection_coeff: array_typing.FloatScalar
   beta_min: array_typing.FloatScalar
   beta_max: array_typing.FloatScalar
@@ -234,7 +234,7 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -384,9 +384,9 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[
       Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
   ] = 'albajar_artaud'
-  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params_lib.Mode.MODEL_BASED
-  )
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
   beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
   beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0

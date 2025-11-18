@@ -34,7 +34,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
@@ -67,7 +67,7 @@ def _calculate_psi_value_constraint_from_v_loop(
 
 @jax.jit
 def get_prescribed_core_profile_values(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> dict[str, array_typing.FloatVector]:
@@ -138,7 +138,7 @@ def get_prescribed_core_profile_values(
 @functools.partial(jax.jit, static_argnames=['evolving_names'])
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
@@ -191,7 +191,7 @@ def update_core_profiles_during_step(
 def update_core_and_source_profiles_after_step(
     dt: array_typing.FloatScalar,
     x_new: tuple[cell_variable.CellVariable, ...],
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -339,8 +339,8 @@ def update_core_and_source_profiles_after_step(
 
 def compute_boundary_conditions_for_t_plus_dt(
     dt: array_typing.FloatScalar,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> dict[str, dict[str, jax.Array | None]]:
@@ -454,8 +454,8 @@ def compute_boundary_conditions_for_t_plus_dt(
 
 def provide_core_profiles_t_plus_dt(
     dt: jax.Array,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:

@@ -23,7 +23,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
-from torax._src.neoclassical.conductivity import runtime_params
+from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params.RuntimeParams):
+class RuntimeParams(conductivity_runtime_params.RuntimeParams):
   """Runtime params for the Sauter model."""
 
 

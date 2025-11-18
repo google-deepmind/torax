@@ -23,7 +23,7 @@ from torax import transport
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
-from torax._src.config.runtime_params_slice import RuntimeParams
+from torax._src.config.runtime_params import RuntimeParams
 from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory

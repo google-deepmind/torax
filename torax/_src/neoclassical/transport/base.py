@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 import pydantic
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
@@ -68,7 +68,7 @@ class NeoclassicalTransportModel(abc.ABC):
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalTransport:
@@ -86,7 +86,7 @@ class NeoclassicalTransportModel(abc.ABC):
 
   def _apply_clipping(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       neoclassical_transport: NeoclassicalTransport,
   ) -> NeoclassicalTransport:
     """Applies min/max clipping to neoclassical transport coefficients."""
@@ -126,7 +126,7 @@ class NeoclassicalTransportModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalTransport:
