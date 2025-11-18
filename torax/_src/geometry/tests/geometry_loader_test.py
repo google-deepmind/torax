@@ -20,6 +20,7 @@ import unittest.mock as mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src.geometry import geometry_error_handling
 from torax._src.geometry import geometry_errors
 from torax._src.geometry import geometry_loader
 
@@ -223,7 +224,7 @@ class GeometryLoaderErrorTest(parameterized.TestCase):
         f.write("test")
 
     # Find similar files to a typo
-    similar = geometry_loader._find_similar_files(
+    similar = geometry_error_handling.find_similar_files(
         "geometry_003.txt", self.test_dir
     )
 
@@ -240,7 +241,7 @@ class GeometryLoaderErrorTest(parameterized.TestCase):
 
     # Should not raise any exception
     try:
-      geometry_loader._validate_file_access(test_file, self.test_dir)
+      geometry_error_handling.validate_file_access(test_file, self.test_dir)
     except Exception as e:
       self.fail(f"Validation raised unexpected exception: {e}")
 

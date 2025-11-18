@@ -14,7 +14,6 @@
 
 """File I/O for loading geometry files."""
 
-import difflib
 import enum
 import logging
 import os
@@ -25,6 +24,7 @@ import numpy as np
 import scipy
 
 from torax._src import path_utils
+from torax._src.geometry import geometry_error_handling
 from torax._src.geometry import geometry_errors
 
 
@@ -35,78 +35,6 @@ class GeometrySource(enum.Enum):
   CHEASE = 0
   FBT = 1
   EQDSK = 2
-
-
-def _find_similar_files(
-    target_file: str,
-    directory: str,
-    max_suggestions: int = 5,
-) -> list[str]:
-  """Find files in directory similar to target_file.
-
-  Args:
-    target_file: The target filename to match against.
-    directory: Directory to search for similar files.
-    max_suggestions: Maximum number of suggestions to return.
-
-  Returns:
-    List of similar filenames, sorted by similarity score.
-  """
-  if not os.path.exists(directory) or not os.path.isdir(directory):
-    return []
-
-  try:
-    all_files = os.listdir(directory)
-  except PermissionError:
-    logging.warning("Permission denied when listing directory: %s", directory)
-    return []
-
-  # Use difflib to find similar filenames
-  similar_files = difflib.get_close_matches(
-      target_file,
-      all_files,
-      n=max_suggestions,
-      cutoff=0.6,  # Similarity threshold
-  )
-
-  return similar_files
-
-
-def _validate_file_access(filepath: str, geometry_dir: str) -> None:
-  """Validate that a file exists and is accessible.
-
-  Args:
-    filepath: Path to the file to validate.
-    geometry_dir: Directory containing the geometry file.
-
-  Raises:
-    GeometryFileNotFoundError: If file does not exist.
-    GeometryFilePermissionError: If file cannot be accessed.
-    GeometryFileEmptyError: If file is empty.
-  """
-  # Check file existence
-  if not os.path.exists(filepath):
-    logging.error("Geometry file not found: %s", filepath)
-    # Find similar files for suggestions
-    filename = os.path.basename(filepath)
-    similar_files = _find_similar_files(filename, geometry_dir)
-    raise geometry_errors.GeometryFileNotFoundError(
-        filepath=filepath,
-        similar_files=similar_files,
-        geometry_dir=geometry_dir,
-    )
-
-  # Check file permissions
-  if not os.access(filepath, os.R_OK):
-    logging.error("Permission denied for geometry file: %s", filepath)
-    raise geometry_errors.GeometryFilePermissionError(filepath=filepath)
-
-  # Check if file is empty
-  if os.path.getsize(filepath) == 0:
-    logging.error("Geometry file is empty: %s", filepath)
-    raise geometry_errors.GeometryFileEmptyError(filepath=filepath)
-
-  logging.info("File validation passed for: %s", filepath)
 
 
 def _load_CHEASE_data(  # pylint: disable=invalid-name
@@ -424,7 +352,7 @@ def load_geo_data(
   filepath = os.path.join(geometry_dir, geometry_file)
 
   # Validate file exists and is accessible
-  _validate_file_access(filepath, geometry_dir)
+  geometry_error_handling.validate_file_access(filepath, geometry_dir)
 
   # Validate EQDSK-specific requirements
   if geometry_source == GeometrySource.EQDSK and cocos is None:
