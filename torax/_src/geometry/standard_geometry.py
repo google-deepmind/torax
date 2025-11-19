@@ -32,6 +32,7 @@ import scipy
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
@@ -1385,7 +1386,7 @@ def build_standard_geometry(
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
-      Phi_b_dot=np.asarray(0.0),
+      Phi_b_dot=np.zeros((), dtype=jax_utils.get_int_dtype()),
       _z_magnetic_axis=intermediate.z_magnetic_axis,
       diverted=intermediate.diverted,
       connection_length_target=intermediate.connection_length_target,

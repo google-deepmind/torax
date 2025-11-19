@@ -232,9 +232,11 @@ class TimeDependentGeometryProvider:
         continue
       if attr.name == 'Phi_b_dot':
         if self.calcphibdot:
-          kwargs[attr.name] = _Phi_b_grad(self.Phi_face, t)
+          kwargs[attr.name] = jnp.asarray(
+              _Phi_b_grad(self.Phi_face, t), dtype=jax_utils.get_dtype()
+          )
         else:
-          kwargs[attr.name] = 0.0
+          kwargs[attr.name] = jnp.zeros((), dtype=jax_utils.get_dtype())
         continue
       provider_attr = getattr(self, attr.name)
       if isinstance(
