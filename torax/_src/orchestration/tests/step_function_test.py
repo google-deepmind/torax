@@ -206,6 +206,7 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
+        geometry_provider=step_fn.geometry_provider,
     )
     self.assertGreater(config_dt, passed_max_dt)
     np.testing.assert_allclose(
@@ -239,6 +240,7 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
+        geometry_provider=step_fn.geometry_provider,
     )
     self.assertGreater(passed_max_dt, config_dt)
     np.testing.assert_allclose(
@@ -271,6 +273,7 @@ class StepFunctionTest(parameterized.TestCase):
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
+        geometry_provider=step_fn.geometry_provider,
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 
@@ -421,6 +424,47 @@ class StepFunctionTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(cfg)
     ref_state, ref_post_processed_outputs = step_fn(
+        # Use original state and post-processed outputs as the initial value.
+        sim_state,
+        post_processed_outputs,
+    )
+
+    chex.assert_trees_all_close(override_state, ref_state)
+    chex.assert_trees_all_close(
+        override_post_processed_outputs, ref_post_processed_outputs
+    )
+
+  @parameterized.parameters([
+      ('iterhybrid_rampup',),
+  ])
+  def test_step_function_geo_overrides(self, config_name_no_py):
+    example_config_paths = config_loader.example_config_paths()
+    example_config_path = example_config_paths[config_name_no_py]
+    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    (
+        _,
+        sim_state,
+        post_processed_outputs,
+        step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+
+    # Construct a new step function with a different geometry.
+    cfg.update_fields({'geometry.calcphibdot': False})
+    (
+        _,
+        _,
+        _,
+        new_step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+    # Use original step function with new step function's geometry as overrides.
+    override_state, override_post_processed_outputs = step_fn(
+        sim_state,
+        post_processed_outputs,
+        geo_overrides=new_step_fn.geometry_provider,
+    )
+
+    # Use the new step function.
+    ref_state, ref_post_processed_outputs = new_step_fn(
         # Use original state and post-processed outputs as the initial value.
         sim_state,
         post_processed_outputs,

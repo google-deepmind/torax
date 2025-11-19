@@ -157,6 +157,7 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -179,6 +180,8 @@ class SimulationStepFn:
         values set in the numerics config.
       runtime_params_overrides: Runtime parameters to override the ones set in
         the runtime params provider.
+      geo_overrides: Geometry provider to override the one set in the step
+        function's geometry provider.
 
     Returns:
       ToraxSimState containing:
@@ -199,11 +202,12 @@ class SimulationStepFn:
     runtime_params_provider = (
         runtime_params_overrides or self.runtime_params_provider
     )
+    geometry_provider = geo_overrides or self._geometry_provider
     runtime_params_t, geo_t, explicit_source_profiles, edge_outputs = (
         step_function_processing.pre_step(
             input_state=input_state,
             runtime_params_provider=runtime_params_provider,
-            geometry_provider=self._geometry_provider,
+            geometry_provider=geometry_provider,
             physics_models=self._solver.physics_models,
         )
     )
@@ -219,6 +223,7 @@ class SimulationStepFn:
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
+          geometry_provider,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
@@ -242,6 +247,7 @@ class SimulationStepFn:
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
+          geometry_provider,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -266,6 +272,7 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -284,6 +291,7 @@ class SimulationStepFn:
           prev_post_processed,
           max_dt=remaining_dt,
           runtime_params_overrides=runtime_params_overrides,
+          geo_overrides=geo_overrides,
       )
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
@@ -307,6 +315,7 @@ class SimulationStepFn:
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -331,7 +340,7 @@ class SimulationStepFn:
           runtime_params_t=runtime_params_t,
           runtime_params_provider=runtime_params_provider,
           geo_t=geo_t,
-          geometry_provider=self._geometry_provider,
+          geometry_provider=geometry_provider,
           explicit_source_profiles=explicit_source_profiles,
           edge_outputs=edge_outputs,
           input_state=input_state,
@@ -423,6 +432,7 @@ class SimulationStepFn:
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -462,7 +472,7 @@ class SimulationStepFn:
         explicit_source_profiles,
         edge_outputs,
         runtime_params_provider,
-        self.geometry_provider,
+        geometry_provider,
     )
     assert isinstance(
         result.state, adaptive_step.AdaptiveStepState
@@ -511,6 +521,7 @@ class SimulationStepFn:
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -529,7 +540,7 @@ class SimulationStepFn:
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t + dt,
             runtime_params_provider=runtime_params_provider,
-            geometry_provider=self._geometry_provider,
+            geometry_provider=geometry_provider,
             edge_outputs=edge_outputs,
         )
     )
