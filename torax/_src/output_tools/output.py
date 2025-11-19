@@ -121,20 +121,12 @@ EXCLUDED_GEOMETRY_NAMES = frozenset({
 })
 
 
-def safe_load_dataset(filepath: str) -> xr.DataTree:
-  with open(filepath, "rb") as f:
-    with xr.open_datatree(f) as dt_open:
-      data_tree = dt_open.compute()
-  return data_tree
-
-
-def load_state_file(
-    filepath: str,
-) -> xr.DataTree:
+def load_state_file(filepath: str) -> xr.DataTree:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
-    data_tree = safe_load_dataset(filepath)
-    logging.info("Loading state file %s", filepath)
+    with xr.open_datatree(filepath) as dt_open:
+      data_tree = dt_open.compute()
+    logging.info("Loaded state file %s", filepath)
     return data_tree
   else:
     raise ValueError(f"File {filepath} does not exist.")

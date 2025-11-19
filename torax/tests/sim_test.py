@@ -416,7 +416,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_simulation_with_restart(self, test_config: str):
     ref_name = test_config + '.nc'
     output_file = os.path.join(paths.test_data_dir(), ref_name)
-    gt_output_xr = output.safe_load_dataset(output_file)
+    gt_output_xr = output.load_state_file(output_file)
     profiles_dataset = gt_output_xr.children[output.PROFILES].dataset
     ref_time = profiles_dataset[output.TIME].to_numpy()
     index = len(ref_time) // 2
@@ -588,7 +588,7 @@ class SimTest(sim_test_case.SimTestCase):
     expected_results_path = self._expected_results_path(
         'test_iterhybrid_rampup.nc'
     )
-    ref_data_tree = output.safe_load_dataset(expected_results_path)
+    ref_data_tree = output.load_state_file(expected_results_path)
     xr.map_over_datasets(
         xr.testing.assert_allclose, sim_data_tree, ref_data_tree
     )

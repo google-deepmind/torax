@@ -212,7 +212,7 @@ class StateHistoryTest(parameterized.TestCase):
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
     data_tree_to_save.to_netcdf(path)
 
-    loaded_data_tree = output.safe_load_dataset(path)
+    loaded_data_tree = output.load_state_file(path)
     xr.testing.assert_equal(loaded_data_tree, data_tree_to_save)
 
   def test_expected_keys_in_child_nodes(self):
