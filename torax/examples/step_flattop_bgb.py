@@ -48,14 +48,12 @@ equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
 core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
 core_sources_ids = loader.load_imas_data(str(path), "core_sources")
 
-# Convert profile_conditions to TORAX dict
-core_profiles_xr = imas.util.to_xarray(core_profiles_ids)
-profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
-    core_profiles_ids,
-)
 # Replace Ip from profile conditions with Ip from equilibrium
 # TODO(b/323504363): can this be handled within the IMAS loader? e.g. if Ip
 # is not present in profile_conditions, pull from equilibrium automatically.
+profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
+    core_profiles_ids,
+)
 equilibrium_xr = imas.util.to_xarray(equilibrium_ids)
 profile_conditions_from_ids["Ip"] = equilibrium_xr[
     "time_slice.global_quantities.ip"
@@ -76,13 +74,9 @@ bgb_multiplier = 0.23
 
 
 CONFIG = {
-    # TODO(b/323504363): Switch to loading from IMAS
-    # https://github.com/google-deepmind/torax/pull/1619
-    "plasma_composition": {
-        "main_ion": {"D": 0.5, "T": 0.5},
-        "impurity": "Xe",
-        "Z_eff": core_profiles_xr["profiles_1d.zeff"][0][0].values.item(),
-    },
+    "plasma_composition": core_profiles.plasma_composition_from_IMAS(
+        core_profiles_ids
+    ),
     "profile_conditions": profile_conditions_from_ids | {
         "use_v_loop_lcfs_boundary_condition": True,
         "v_loop_lcfs": 0.0,
