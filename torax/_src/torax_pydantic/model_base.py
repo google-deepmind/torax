@@ -258,7 +258,7 @@ class BaseModelFrozen(pydantic.BaseModel):
           value_name not in model.model_fields
       ):
         raise ValueError(
-            f'The path {path} is does not refer to a field of a Pydantic'
+            f'The path {path} does not refer to a field of a Pydantic'
             ' BaseModelFrozen model.'
         )
       assert value_name in model.__dict__
@@ -290,7 +290,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       if isinstance(value, BaseModelFrozen):
         if path not in value.model_fields:
           raise ValueError(
-              f'The path {".".join(paths)} is does not refer to a field of a'
+              f'The path {".".join(paths)} does not refer to a field of a'
               ' Pydantic BaseModelFrozen model.'
           )
         value = getattr(value, path)
