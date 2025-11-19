@@ -13,14 +13,19 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
-from unittest import mock
+import functools
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src.config import config_loader
 from torax._src.orchestration import jit_run_loop
-from torax._src.orchestration import run_loop
+from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
+import xarray as xr
+
 
 _ALL_PROFILES = (
     output.T_I,
@@ -154,7 +159,6 @@ class JitSimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_eqdsk',
           'test_iterhybrid_predictor_corrector_eqdsk.py',
-          1e-6,
       ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
@@ -263,17 +267,31 @@ class JitSimTest(sim_test_case.SimTestCase):
   def test_run_simulation_with_jit_run_loop(
       self,
       config_name: str,
-      rtol: float | None = None,
   ):
-    mock_run_loop = mock.MagicMock(side_effect=jit_run_loop.run_loop)
-    with mock.patch.object(run_loop, 'run_loop', mock_run_loop):
-      self._test_run_simulation(
-          config_name,
-          profiles=_ALL_PROFILES,
-          rtol=rtol,
-      )
-    # Check the mock run loop was actually called.
-    mock_run_loop.assert_called_once()
+    test_data_dir = paths.test_data_dir()
+    config_path = os.path.join(test_data_dir, config_name)
+    data_path = os.path.join(test_data_dir, config_name).replace('.py', '.nc')
+    torax_config = config_loader.build_torax_config_from_file(config_path)
+    reference_file = output.load_state_file(data_path)
+    _, _, _, step_fn = run_simulation.prepare_simulation(torax_config)
+
+    state_history, post_processed_outputs_history, sim_error = (
+        jit_run_loop.run_loop(step_fn)
+    )
+    state_history = output.StateHistory(
+        state_history=state_history,
+        post_processed_outputs_history=post_processed_outputs_history,
+        sim_error=sim_error,
+        torax_config=torax_config,
+    )
+    xr_data_tree = state_history.simulation_output_to_xr()
+
+    # Allow for small numerical differences due to the change in the order of
+    # operations in the jitted versus non-jitted case.
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-6
+    )
+    xr.map_over_datasets(assert_allclose_fn, xr_data_tree, reference_file)
 
 
 if __name__ == '__main__':

@@ -154,6 +154,9 @@ class SimulationStepFn:
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       max_dt: chex.Numeric = jnp.inf,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -174,6 +177,8 @@ class SimulationStepFn:
         set this will override the properties set in the numerics config. If
         this is infinite, the time step duration will be chosen based on the
         values set in the numerics config.
+      runtime_params_overrides: Runtime parameters to override the ones set in
+        the runtime params provider.
 
     Returns:
       ToraxSimState containing:
@@ -191,10 +196,13 @@ class SimulationStepFn:
         - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
+    runtime_params_provider = (
+        runtime_params_overrides or self.runtime_params_provider
+    )
     runtime_params_t, geo_t, explicit_source_profiles, edge_outputs = (
         step_function_processing.pre_step(
             input_state=input_state,
-            runtime_params_provider=self._runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=self._geometry_provider,
             physics_models=self._solver.physics_models,
         )
@@ -210,10 +218,11 @@ class SimulationStepFn:
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
+          runtime_params_provider,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
-      if self._runtime_params_provider.numerics.adaptive_dt:
+      if runtime_params_provider.numerics.adaptive_dt:
         return jax.lax.cond(
             max_dt > runtime_params_t.numerics.min_dt,
             self._adaptive_step,
@@ -232,6 +241,7 @@ class SimulationStepFn:
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
+          runtime_params_provider,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -253,6 +263,9 @@ class SimulationStepFn:
       dt: jax.Array,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -270,6 +283,7 @@ class SimulationStepFn:
           prev_state,
           prev_post_processed,
           max_dt=remaining_dt,
+          runtime_params_overrides=runtime_params_overrides,
       )
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
@@ -292,6 +306,7 @@ class SimulationStepFn:
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -314,7 +329,7 @@ class SimulationStepFn:
       return sawtooth_step.sawtooth_step(
           sawtooth_solver=self._sawtooth_solver,
           runtime_params_t=runtime_params_t,
-          runtime_params_provider=self._runtime_params_provider,
+          runtime_params_provider=runtime_params_provider,
           geo_t=geo_t,
           geometry_provider=self._geometry_provider,
           explicit_source_profiles=explicit_source_profiles,
@@ -407,6 +422,7 @@ class SimulationStepFn:
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -445,7 +461,7 @@ class SimulationStepFn:
         input_state,
         explicit_source_profiles,
         edge_outputs,
-        self.runtime_params_provider,
+        runtime_params_provider,
         self.geometry_provider,
     )
     assert isinstance(
@@ -494,6 +510,7 @@ class SimulationStepFn:
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -511,7 +528,7 @@ class SimulationStepFn:
     runtime_params_t_plus_dt, geo_t_plus_dt = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t + dt,
-            runtime_params_provider=self._runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=self._geometry_provider,
             edge_outputs=edge_outputs,
         )

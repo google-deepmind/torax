@@ -16,6 +16,7 @@ from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 import jax.numpy as jnp
 import jax.test_util as jtu
@@ -28,6 +29,7 @@ from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import model_config
 
 
@@ -203,6 +205,7 @@ class StepFunctionTest(parameterized.TestCase):
         edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
+        runtime_params_provider=step_fn.runtime_params_provider,
     )
     self.assertGreater(config_dt, passed_max_dt)
     np.testing.assert_allclose(
@@ -235,6 +238,7 @@ class StepFunctionTest(parameterized.TestCase):
         edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
+        runtime_params_provider=step_fn.runtime_params_provider,
     )
     self.assertGreater(passed_max_dt, config_dt)
     np.testing.assert_allclose(
@@ -266,6 +270,7 @@ class StepFunctionTest(parameterized.TestCase):
         edge_outputs=None,
         input_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
+        runtime_params_provider=step_fn.runtime_params_provider,
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 
@@ -349,22 +354,82 @@ class StepFunctionTest(parameterized.TestCase):
     example_config_path = example_config_paths[config_name_no_py]
     cfg = config_loader.build_torax_config_from_file(example_config_path)
     (
-        _,
+        params_provider,
         sim_state,
         post_processed_outputs,
         step_fn,
     ) = run_simulation.prepare_simulation(cfg)
-    input_value = step_fn.runtime_params_provider.profile_conditions.Ip.value
+    input_value = params_provider.profile_conditions.Ip.value
 
     @jax.jit
     def f(override_value):
-      step_fn._runtime_params_provider.profile_conditions.Ip.__dict__[
-          'value'
-      ] = override_value
-      _, new_post_processed_outputs = step_fn(sim_state, post_processed_outputs)
+      ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+          value=override_value
+      )
+      runtime_params_overrides = params_provider.update_provider(
+          lambda x: (x.profile_conditions.Ip,),
+          (ip_update,),
+      )
+      _, new_post_processed_outputs = step_fn(
+          sim_state,
+          post_processed_outputs,
+          runtime_params_overrides=runtime_params_overrides,
+      )
       return new_post_processed_outputs.Q_fusion
 
     jtu.check_grads(f, (input_value,), order=1, modes=('rev',))
+
+  @parameterized.parameters([
+      'iterhybrid_predictor_corrector',
+      'iterhybrid_rampup',
+  ])
+  def test_step_function_overrides(self, config_name_no_py):
+    example_config_paths = config_loader.example_config_paths()
+    example_config_path = example_config_paths[config_name_no_py]
+    raw_config = config_loader.import_module(example_config_path)['CONFIG']
+    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    (
+        params_provider,
+        sim_state,
+        post_processed_outputs,
+        step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+
+    # Run a step with overriden Ip.
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=params_provider.profile_conditions.Ip.value * 2.0
+    )
+    runtime_params_overrides = params_provider.update_provider(
+        lambda x: (x.profile_conditions.Ip,),
+        (ip_update,),
+    )
+    override_state, override_post_processed_outputs = step_fn(
+        sim_state,
+        post_processed_outputs,
+        runtime_params_overrides=runtime_params_overrides,
+    )
+
+    # Update the config itself and re-run the step.
+    doubled_ip = jax.tree_util.tree_map(
+        lambda x: x * 2.0, raw_config['profile_conditions']['Ip']
+    )
+    cfg.update_fields({'profile_conditions.Ip': doubled_ip})
+    (
+        _,
+        _,
+        _,
+        step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+    ref_state, ref_post_processed_outputs = step_fn(
+        # Use original state and post-processed outputs as the initial value.
+        sim_state,
+        post_processed_outputs,
+    )
+
+    chex.assert_trees_all_close(override_state, ref_state)
+    chex.assert_trees_all_close(
+        override_post_processed_outputs, ref_post_processed_outputs
+    )
 
 
 if __name__ == '__main__':
