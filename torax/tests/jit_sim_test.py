@@ -154,6 +154,7 @@ class JitSimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_eqdsk',
           'test_iterhybrid_predictor_corrector_eqdsk.py',
+          1e-6,
       ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (

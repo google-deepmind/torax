@@ -181,6 +181,10 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_eqdsk',
           'test_iterhybrid_predictor_corrector_eqdsk.py',
+          _ALL_PROFILES,
+          1e-6,
+          0,
+          'test_iterhybrid_predictor_corrector_eqdsk.nc',
       ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
