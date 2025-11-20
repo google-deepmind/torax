@@ -158,6 +158,32 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     # temperatures so we can compare specifically for Argon.
     np.testing.assert_allclose(lz_2017, lz_2018, rtol=1e-1)
 
+  def test_helium_isotope_equivalence(self):
+    """Tests that He3 and He4 produce identical results to He."""
+    t_e_keV = np.array([0.005, 0.01, 0.1])
+    ne_tau = 1e17
+
+    for variable in [
+        collisional_radiative_models.MavrinVariable.Z,
+        collisional_radiative_models.MavrinVariable.LZ,
+    ]:
+      val_he = collisional_radiative_models.calculate_mavrin_2017(
+          t_e_keV, ne_tau, 'He', variable
+      )
+      val_he3 = collisional_radiative_models.calculate_mavrin_2017(
+          t_e_keV, ne_tau, 'He3', variable
+      )
+      val_he4 = collisional_radiative_models.calculate_mavrin_2017(
+          t_e_keV, ne_tau, 'He4', variable
+      )
+
+      np.testing.assert_allclose(
+          val_he3, val_he, err_msg=f'He3 != He for {variable}'
+      )
+      np.testing.assert_allclose(
+          val_he4, val_he, err_msg=f'He4 != He for {variable}'
+      )
+
   @parameterized.named_parameters(
       # These values are for Z (charge states)
       # The expected values were sanity-checked by manual inspection against the
