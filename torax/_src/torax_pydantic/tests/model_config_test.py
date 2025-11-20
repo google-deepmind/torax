@@ -282,6 +282,57 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
+  def test_extended_lengyel_inverse_mode_validation_bad_impurity_mode(self):
+    """Tests validation logic for Extended Lengyel inverse mode."""
+    bad_config = default_configs.get_default_config_dict()
+    bad_config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    # Configure Edge model in INVERSE mode
+    bad_config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 5.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+
+    # Default plasma_composition uses 'fractions', which is incompatible
+    # with inverse mode extended lengyel.
+    with self.assertRaisesRegex(
+        ValueError,
+        "requires plasma_composition.impurity_mode to be 'n_e_ratios'",
+    ):
+      model_config.ToraxConfig.from_dict(bad_config)
+
+  def test_extended_lengyel_inverse_mode_validation_good_impurity_mode(self):
+    """Tests validation logic for Extended Lengyel inverse mode."""
+    good_config = default_configs.get_default_config_dict()
+    good_config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    # Configure Edge model in INVERSE mode
+    good_config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 5.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+
+    # Explicitly set impurity mode to 'n_e_ratios'.
+    good_config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": 0.01},
+        }
+    }
+
+    # Should not raise
+    model_config.ToraxConfig.from_dict(good_config)
+
 
 if __name__ == "__main__":
   absltest.main()

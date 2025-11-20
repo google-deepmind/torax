@@ -24,6 +24,7 @@ from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
@@ -195,6 +196,27 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       raise ValueError(
           'Edge models are not supported for use with CircularGeometry.'
       )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_extended_lengyel_inverse_impurity_mode(
+      self,
+  ) -> typing_extensions.Self:
+    """Ensures Extended Lengyel inverse mode uses n_e_ratios impurity mode."""
+    if (
+        isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig)
+        and self.edge.computation_mode
+        == extended_lengyel_enums.ComputationMode.INVERSE
+    ):
+      # Inverse mode calculates a scaling factor for impurities. This logic
+      # currently relies on the impurity profile being defined as a ratio to
+      # electron density (n_e_ratios).
+      if self.plasma_composition.impurity.impurity_mode != 'n_e_ratios':
+        raise ValueError(
+            'Extended Lengyel edge model in INVERSE mode requires'
+            " plasma_composition.impurity_mode to be 'n_e_ratios'. Got"
+            f" '{self.plasma_composition.impurity.impurity_mode}'."
+        )
     return self
 
   def update_fields(self, x: Mapping[str, Any]):

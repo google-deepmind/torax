@@ -70,7 +70,16 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'computation_mode': 'inverse',
         'target_electron_temp': 2.34,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
-        'enrichment_factor': {'N': 1.0, 'Ar': 1.0,},
+        'enrichment_factor': {
+            'N': 1.0,
+            'Ar': 1.0,
+        },
+    }
+    config_dict['plasma_composition'] = {
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'N': 1e-2, 'Ar': 1e-3},
+        }
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     self.assertIsNotNone(torax_config.edge)
