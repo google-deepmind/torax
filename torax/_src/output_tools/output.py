@@ -406,6 +406,13 @@ class StateHistory:
         if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
     }
     scalars = xr.Dataset(scalars_dict)
+
+    # Determine simulation status based on error state
+    if self.sim_error == state.SimError.NO_ERROR:
+      sim_status = state.SimStatus.COMPLETED
+    else:
+      sim_status = state.SimStatus.ERROR
+
     data_tree = xr.DataTree(
         children={
             NUMERICS: xr.DataTree(dataset=numerics),
@@ -415,7 +422,10 @@ class StateHistory:
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,
-            attrs={CONFIG: self.torax_config.model_dump_json()},
+            attrs={
+                CONFIG: self.torax_config.model_dump_json(),
+                "status": sim_status.value,
+            },
         ),
     )
 
