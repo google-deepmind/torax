@@ -26,7 +26,7 @@ from torax._src.sources import source_profiles
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class ToraxSimState:
   """Full simulator state.
 

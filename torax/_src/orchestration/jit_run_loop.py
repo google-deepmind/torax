@@ -171,7 +171,7 @@ def run_loop(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    tuple[sim_state.ToraxSimState, ...],
+    list[sim_state.ToraxSimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -219,7 +219,7 @@ def run_loop(
       unstacked_post_processed_outputs[-1],
   )
   return (
-      tuple(unstacked_states),
+      unstacked_states,
       tuple(unstacked_post_processed_outputs),
       sim_error,
   )

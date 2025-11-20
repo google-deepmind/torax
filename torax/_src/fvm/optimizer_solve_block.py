@@ -167,18 +167,11 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  solver_numeric_outputs = state.SolverNumericOutputs(
-      inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-      solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
-      sawtooth_crash=False,
-  )
-
   # Advance jaxopt_solver by one timestep
   (
       x_new_vec,
       final_loss,
-      solver_numeric_outputs.inner_solver_iterations,
+      inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
@@ -202,10 +195,17 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  solver_numeric_outputs.solver_error_state = jax.lax.cond(
+  solver_error_state = jax.lax.cond(
       final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
+  )
+
+  solver_numeric_outputs = state.SolverNumericOutputs(
+      inner_solver_iterations=inner_solver_iterations,
+      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_error_state=solver_error_state,
+      sawtooth_crash=False,
   )
 
   return x_new, solver_numeric_outputs

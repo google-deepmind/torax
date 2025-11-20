@@ -203,25 +203,13 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: tuple[sim_state.ToraxSimState, ...],
+      state_history: list[sim_state.ToraxSimState],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
-    if (
-        not torax_config.restart
-        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
-        and len(state_history) >= 2
-    ):
-      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
-      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-      # underconstrained
-      state_history[0].core_profiles = dataclasses.replace(
-          state_history[0].core_profiles,
-          v_loop_lcfs=state_history[1].core_profiles.v_loop_lcfs,
-      )
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._post_processed_outputs = post_processed_outputs_history
@@ -229,6 +217,18 @@ class StateHistory:
         state.solver_numeric_outputs for state in state_history
     ]
     self._core_profiles = [state.core_profiles for state in state_history]
+    if (
+        not torax_config.restart
+        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and len(state_history) >= 2
+    ):
+      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
+      # underconstrained.
+      self._core_profiles[0] = dataclasses.replace(
+          self._core_profiles[0],
+          v_loop_lcfs=self._core_profiles[1].v_loop_lcfs,
+      )
     self._core_sources = [state.core_sources for state in state_history]
     self._edge_outputs = [state.edge_outputs for state in state_history]
     self._transport = [state.core_transport for state in state_history]

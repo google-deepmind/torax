@@ -257,7 +257,7 @@ class CoreTransport:
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 

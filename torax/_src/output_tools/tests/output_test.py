@@ -122,7 +122,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     self.history = output.StateHistory(
         sim_error=sim_error,
-        state_history=(self.sim_state,),
+        state_history=[self.sim_state],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )
@@ -149,7 +149,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(self.sim_state, self.sim_state_t2),
+        state_history=[self.sim_state, self.sim_state_t2],
         post_processed_outputs_history=(
             self._output_state,
             self._output_state,
@@ -332,7 +332,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(torax_state, torax_state),
+        state_history=[torax_state, torax_state],
         post_processed_outputs_history=(
             post_processed_outputs,
             post_processed_outputs,
@@ -458,7 +458,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(sim_state_with_edge,),
+        state_history=[sim_state_with_edge],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )

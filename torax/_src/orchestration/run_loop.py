@@ -35,7 +35,7 @@ def run_loop(
     log_timestep_info: bool = False,
     progress_bar: bool = True,
 ) -> tuple[
-    tuple[sim_state.ToraxSimState, ...],
+    list[sim_state.ToraxSimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -187,7 +187,7 @@ def run_loop(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return tuple(state_history), tuple(post_processing_history), sim_error
+  return state_history, tuple(post_processing_history), sim_error
 
 
 def _log_timestep(
