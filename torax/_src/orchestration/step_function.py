@@ -109,6 +109,9 @@ class SimulationStepFn:
     self._time_step_calculator = time_step_calculator
     self._geometry_provider = geometry_provider
     self._runtime_params_provider = runtime_params_provider
+    self._pedestal_policy = (
+        self._solver.physics_models.pedestal_model.pedestal_policy
+    )
 
   @property
   def runtime_params_provider(
@@ -345,6 +348,7 @@ class SimulationStepFn:
           edge_outputs=edge_outputs,
           input_state=input_state,
           input_post_processed_outputs=previous_post_processed_outputs,
+          pedestal_policy=self._pedestal_policy,
       )
 
     # If a sawtooth crash is not triggered for any reason,the input
@@ -420,6 +424,7 @@ class SimulationStepFn:
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=input_state.pedestal_policy_state,
     )
 
   def _adaptive_step(
@@ -492,10 +497,22 @@ class SimulationStepFn:
         ),
         sawtooth_crash=False,
     )
+    dt = result.state.dt
+    runtime_params_t_plus_dt, _ = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=input_state.t + dt,
+            runtime_params_provider=self._runtime_params_provider,
+            geometry_provider=self._geometry_provider,
+        )
+    )
+    pedestal_policy_state_t_plus_dt = self._pedestal_policy.update(
+        t=input_state.t + dt,
+        runtime_params=runtime_params_t_plus_dt.pedestal_policy,
+    )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(
             t=input_state.t,
-            dt=result.state.dt,
+            dt=dt,
             x_new=result.state.x_new,
             solver_numeric_outputs=final_solver_numeric_outputs,
             runtime_params_t_plus_dt=result.state.runtime_params,
@@ -504,6 +521,7 @@ class SimulationStepFn:
             core_profiles_t_plus_dt=result.state.core_profiles,
             explicit_source_profiles=explicit_source_profiles,
             edge_outputs=edge_outputs,
+            pedestal_policy_state=pedestal_policy_state_t_plus_dt,
             physics_models=self._solver.physics_models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
@@ -544,12 +562,17 @@ class SimulationStepFn:
             edge_outputs=edge_outputs,
         )
     )
+
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
         dt=dt,
         runtime_params_t=runtime_params_t,
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
+    )
+    pedestal_policy_state_t_plus_dt = self._pedestal_policy.update(
+        t=input_state.t + dt,
+        runtime_params=runtime_params_t_plus_dt.pedestal_policy,
     )
     # The solver returned state is still "intermediate" since the CoreProfiles
     # need to be updated by the evolved CellVariables in x_new
@@ -563,6 +586,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state_t_plus_dt,
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(
@@ -576,6 +600,7 @@ class SimulationStepFn:
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             explicit_source_profiles=explicit_source_profiles,
             edge_outputs=edge_outputs,
+            pedestal_policy_state=pedestal_policy_state_t_plus_dt,
             physics_models=self._solver.physics_models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,

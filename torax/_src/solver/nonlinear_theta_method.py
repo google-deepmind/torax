@@ -26,6 +26,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
 from torax._src.sources import source_profiles
@@ -64,6 +65,7 @@ class NonlinearThetaMethod(solver.Solver):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -87,6 +89,7 @@ class NonlinearThetaMethod(solver.Solver):
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
     )
@@ -107,6 +110,7 @@ class NonlinearThetaMethod(solver.Solver):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -135,6 +139,7 @@ class NonlinearThetaMethod(solver.Solver):
         are not being evolved by the PDE system.
       explicit_source_profiles: Pre-calculated sources implemented as explicit
         sources in the PDE.
+      pedestal_policy_state: State variables held by the pedestal policy.
       coeffs_callback: Calculates diffusion, convection etc. coefficients given
         a core_profiles, geometry, runtime_params. Repeatedly called by the
         iterative solvers.
@@ -162,6 +167,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -187,6 +193,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         physics_models=self.physics_models,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
@@ -214,6 +221,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
@@ -242,6 +250,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         physics_models=self.physics_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         log_iterations=solver_params.log_iterations,
         initial_guess_mode=enums.InitialGuessMode(
             solver_params.initial_guess_mode
