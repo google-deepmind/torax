@@ -233,6 +233,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
         'update_temperatures': True,
+        'update_impurities': True,
         'fixed_step_iterations': 1,
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
@@ -432,7 +433,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
       ('updates_disabled', False, 2.0),
       ('non_unity_ratio', True, 3.0),
   )
-  def test_boundary_condition_updates(
+  def test_temperature_boundary_condition_updates(
       self, update_temperatures, ion_to_electron_ratio
   ):
     """Tests that boundary conditions are correctly updated based on edge model."""
@@ -500,6 +501,109 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
       np.testing.assert_allclose(
           final_state.T_i.right_face_constraint, initial_Ti_bc, rtol=1e-5
       )
+
+  def test_inverse_mode_updates_impurities(self):
+    """Tests that INVERSE mode updates core impurity ratios with shape scaling."""
+    # Initial profile has shape: 0.01 at center, 0.02 at edge.
+    initial_N_ratio_axis = 0.001
+    initial_N_ratio_lcfs = 0.002
+    initial_He3_ratio_axis = 0.01
+    initial_He3_ratio_lcfs = 0.03
+    # Dictionary defining linear profile in rho_norm
+    initial_N_ratio_dict = {
+        0: initial_N_ratio_axis,
+        1: initial_N_ratio_lcfs,
+    }
+
+    He3_ratio_dict = {
+        0: initial_He3_ratio_axis,
+        1: initial_He3_ratio_lcfs,
+    }
+
+    enrichment = 5.0
+
+    torax_config = self._get_torax_config(
+        'test_iterhybrid_predictor_corrector.py'
+    )
+
+    # Use n_e_ratios mode for impurities
+    torax_config.update_fields({
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': {
+                'impurity_mode': 'n_e_ratios',
+                'species': {
+                    'N': initial_N_ratio_dict,
+                    'He3': He3_ratio_dict,
+                },
+            },
+        },
+        'sources.impurity_radiation': {
+            'model_name': 'mavrin_fit',
+        },
+        'edge': {
+            'model_name': 'extended_lengyel',
+            'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+            'target_electron_temp': 2.5,
+            'seed_impurity_weights': {'N': 1.0},
+            'fixed_impurity_concentrations': {'He3': 0.06},
+            'enrichment_factor': {'N': enrichment, 'He3': 1.0},
+            'parallel_connection_length': 60.0,
+            'divertor_parallel_length': 15.0,
+            'toroidal_flux_expansion': 4.0,
+            'target_angle_of_incidence': 3.0,
+        },
+    })
+
+    # Run for a few steps
+    torax_config.update_fields({
+        'numerics.t_final': (
+            torax_config.numerics.t_initial
+            + 3 * torax_config.numerics.fixed_dt.value[0]
+        )
+    })
+
+    xr_outputs, state_history = run_simulation.run_simulation(torax_config)
+
+    final_edge_output = state_history._edge_outputs[-1]
+    N_edge_conc = final_edge_output.seed_impurity_concentrations['N']
+
+    # Check that core impurity ratios were updated correctly. Only N is updated,
+    # He3 is fixed. Impurity ratios are on the cell grid.
+    n_e_final = xr_outputs.profiles.n_e.values[-1, :]
+    calculated_N_ratio_final = (
+        xr_outputs.profiles.n_impurity_species.sel(impurity_symbol='N').values[
+            -1, :
+        ]
+        / n_e_final[1:-1]
+    )
+    calculated_He3_ratio_final = (
+        xr_outputs.profiles.n_impurity_species.sel(
+            impurity_symbol='He3'
+        ).values[-1, :]
+        / n_e_final[1:-1]
+    )
+
+    N_ratio_face = np.linspace(initial_N_ratio_axis, initial_N_ratio_lcfs, 26)
+    N_ratio_cell = 0.5 * (N_ratio_face[:-1] + N_ratio_face[1:])
+    He3_ratio_face = np.linspace(
+        initial_He3_ratio_axis, initial_He3_ratio_lcfs, 26
+    )
+    He3_ratio_cell = 0.5 * (He3_ratio_face[:-1] + He3_ratio_face[1:])
+
+    # On cell grid, scaled from shape in runtime_params
+    expected_N_ratio_final = (
+        N_edge_conc / enrichment * N_ratio_cell / initial_N_ratio_lcfs
+    )
+    # Not expected to change
+    expected_He3_ratio_final = He3_ratio_cell
+
+    np.testing.assert_allclose(
+        calculated_N_ratio_final, expected_N_ratio_final, rtol=1e-4
+    )
+    np.testing.assert_allclose(
+        calculated_He3_ratio_final, expected_He3_ratio_final, rtol=1e-4
+    )
 
 
 if __name__ == '__main__':

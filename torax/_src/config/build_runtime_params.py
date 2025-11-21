@@ -27,11 +27,14 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from torax._src import constants
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -160,10 +163,10 @@ class RuntimeParamsProvider:
     ```
 
     Args:
-      get_nodes_to_replace: A function that takes a provider and returns a
-        tuple of nodes to replace. See above for an example. The returned nodes
-        must be one of the following types: `TimeVaryingScalar`,
-        `TimeVaryingArray`, `chex.Numeric`.
+      get_nodes_to_replace: A function that takes a provider and returns a tuple
+        of nodes to replace. See above for an example. The returned nodes must
+        be one of the following types: `TimeVaryingScalar`, `TimeVaryingArray`,
+        `chex.Numeric`.
       replacement_values: A tuple of values to replace the nodes with.
 
     Returns:
@@ -179,7 +182,7 @@ class RuntimeParamsProvider:
           _get_provider_value_from_replace_value(leaf, replace_value)
       )
 
-    return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values,)
+    return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values)
 
   def get_node_from_path(self, path: str) -> Any:
     """Iteratively call `getattr` on `self` from dot-separated path of attrs."""
@@ -225,8 +228,9 @@ class RuntimeParamsProvider:
     Returns:
       A new provider with the updated values.
     """
+
     def get_replacements(
-        provider: typing_extensions.Self
+        provider: typing_extensions.Self,
     ) -> list[ReplaceablePytreeNodes]:
       """Returns the nodes to replace."""
       nodes_to_replace: list[ReplaceablePytreeNodes] = []
@@ -320,32 +324,102 @@ def _update_runtime_params_from_edge(
   Returns:
     Updated runtime parameters.
   """
-  # TODO(b/446608829): Implement coupling of impurity outputs to runtime params.
-
   # If there is no edge model, there is nothing to update.
   if edge_outputs is None:
     return runtime_params
 
   assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
 
-  def _update_temperatures(
-      runtime_params: runtime_params_lib.RuntimeParams,
-  ) -> runtime_params_lib.RuntimeParams:
-    T_e_bc = edge_outputs.separatrix_electron_temp
-    T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
-    return dataclasses.replace(
-        runtime_params,
-        profile_conditions=dataclasses.replace(
-            runtime_params.profile_conditions,
-            T_e_right_bc=T_e_bc,
-            T_i_right_bc=T_i_bc,
-        ),
-    )
-
   # Conditionally update temperatures based on the update_temperatures flag.
-  return jax.lax.cond(
+  runtime_params = jax.lax.cond(
       runtime_params.edge.update_temperatures,
-      _update_temperatures,
+      lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
+  )
+
+  # Conditionally update impurities based on being in inverse mode and the
+  # update_impurities flag.
+  is_inverse_mode = (
+      runtime_params.edge.computation_mode
+      == extended_lengyel_enums.ComputationMode.INVERSE
+  )
+  if is_inverse_mode:
+    runtime_params = jax.lax.cond(
+        runtime_params.edge.update_impurities,
+        lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
+        lambda runtime_params: runtime_params,
+        runtime_params,
+    )
+
+  return runtime_params
+
+
+def _update_temperatures(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates temperature boundary conditions based on edge model outputs."""
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  T_e_bc = edge_outputs.separatrix_electron_temp
+  T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
+  return dataclasses.replace(
+      runtime_params,
+      profile_conditions=dataclasses.replace(
+          runtime_params.profile_conditions,
+          T_e_right_bc=T_e_bc,
+          T_i_right_bc=T_i_bc,
+      ),
+  )
+
+
+def _update_impurities(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates impurity concentrations based on edge model outputs."""
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  impurity_params = runtime_params.plasma_composition.impurity
+
+  if not isinstance(impurity_params, electron_density_ratios.RuntimeParams):
+    raise NotImplementedError(
+        "Impurity updates from the edge model are only supported for the"
+        " `n_e_ratios` impurity mode."
+    )
+
+  new_n_e_ratios, new_n_e_ratios_face = {}, {}
+
+  for species, n_e_ratio in impurity_params.n_e_ratios.items():
+    # Default scaling factor is 1.0 for unseeded impurities.
+    scaling_factor = 1.0
+    if species in edge_outputs.seed_impurity_concentrations:
+      conc = edge_outputs.seed_impurity_concentrations[species]
+      # enrichment factor keys already validated to match impurity keys
+      # in pydantic model
+      enrichment = runtime_params.edge.enrichment_factor[species]
+
+      # Concentration at the (LCFS) reduced by enrichment factor
+      conc_lcfs = conc / enrichment
+
+      # Calculate scaling from the current value of the profile at the lcfs.
+      current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
+      scaling_factor = conc_lcfs / (
+          current_val_at_edge + constants.CONSTANTS.eps
+      )
+
+    new_n_e_ratios[species] = n_e_ratio * scaling_factor
+    new_n_e_ratios_face[species] = (
+        impurity_params.n_e_ratios_face[species] * scaling_factor
+    )
+
+  return dataclasses.replace(
+      runtime_params,
+      plasma_composition=dataclasses.replace(
+          runtime_params.plasma_composition,
+          impurity=dataclasses.replace(
+              runtime_params.plasma_composition.impurity,
+              n_e_ratios=new_n_e_ratios,
+              n_e_ratios_face=new_n_e_ratios_face,
+          ),
+      ),
   )

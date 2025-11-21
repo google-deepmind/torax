@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -22,6 +23,9 @@ from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_model
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -391,7 +395,10 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         ValueError,
         msg=expected_error_message,
     ):
-      params_provider.update_provider(get_node, replacement,)
+      params_provider.update_provider(
+          get_node,
+          replacement,
+      )
 
   def test_update_runtime_params_provider_raises_for_invalid_node(self):
     params_provider = self._params_provider
@@ -510,6 +517,81 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
     with self.assertRaises(ValueError, msg='Attribute IP not found.'):
       f(ip_update)
+
+
+class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
+
+  def test_update_impurities_scales_profile(self):
+    _ENRICHMENT_FACTOR = 2.0
+    _OUTPUT_CONCENTRATION = 0.1
+    _INITIAL_EDGE_RATIO = 0.02
+    _INITIAL_AXIS_RATIO = 0.01
+    config_dict = default_configs.get_default_config_dict()
+    # Set impurity mode to n_e_ratios and define a profile
+    config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {'N': {0: _INITIAL_AXIS_RATIO, 1: _INITIAL_EDGE_RATIO}},
+    }
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    # Set up edge model config
+    config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'computation_mode': 'inverse',
+        'update_impurities': True,
+        'enrichment_factor': {'N': _ENRICHMENT_FACTOR},
+        'seed_impurity_weights': {'N': 1.0},
+        # Dummy values for other required fields.
+        'target_electron_temp': 1.0,
+        'parallel_connection_length': 1.0,
+        'divertor_parallel_length': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'target_angle_of_incidence': 1.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.seed_impurity_concentrations = {
+        'N': jnp.array(_OUTPUT_CONCENTRATION)
+    }
+
+    initial_impurity_params = runtime_params.plasma_composition.impurity
+    assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+    assert isinstance(
+        initial_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    initial_n_e_ratios = initial_impurity_params.n_e_ratios['N']
+
+    updated_runtime_params = build_runtime_params._update_impurities(
+        runtime_params, edge_outputs
+    )
+
+    updated_impurity_params = updated_runtime_params.plasma_composition.impurity
+    assert isinstance(
+        updated_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    updated_n_e_ratios = updated_impurity_params.n_e_ratios['N']
+
+    # Expected scaling logic:
+    conc_lcfs = _OUTPUT_CONCENTRATION / _ENRICHMENT_FACTOR
+    scaling_factor = conc_lcfs / _INITIAL_EDGE_RATIO
+
+    initial_n_e_ratios_face = initial_impurity_params.n_e_ratios_face['N']
+    updated_n_e_ratios_face = updated_impurity_params.n_e_ratios_face['N']
+
+    np.testing.assert_allclose(
+        updated_n_e_ratios, initial_n_e_ratios * scaling_factor, rtol=1e-5
+    )
+    np.testing.assert_allclose(
+        updated_n_e_ratios_face,
+        initial_n_e_ratios_face * scaling_factor,
+        rtol=1e-5,
+    )
 
 
 if __name__ == '__main__':

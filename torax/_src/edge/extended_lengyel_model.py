@@ -50,7 +50,9 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
       metadata={'static': True}
   )
+  # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
+  update_impurities: array_typing.BoolScalar
   fixed_step_iterations: int
   newton_raphson_iterations: int
   newton_raphson_tol: float
