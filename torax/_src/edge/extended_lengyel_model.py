@@ -24,6 +24,8 @@ from torax._src import constants
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_standalone
@@ -168,6 +170,34 @@ class ExtendedLengyelModel(base.EdgeModel):
         P_SOL_total, constants.CONSTANTS.eps
     )
 
+    fixed_impurity_concentrations = edge_params.fixed_impurity_concentrations
+    # If the source of truth for fixed impurities is the core, calculate the
+    # edge concentrations from the core ratios.
+    if (
+        runtime_params.plasma_composition.impurity_source_of_truth
+        == plasma_composition_lib.FixedImpuritySourceOfTruth.CORE
+    ):
+      # Initialization
+      fixed_impurity_concentrations = {}
+      impurity_params = runtime_params.plasma_composition.impurity
+      # Only support use of extended Lengyel for n_e_ratios impurity mode.
+      # TODO(b/446608829): Support other modes for forward mode core SoT.
+      assert isinstance(impurity_params, electron_density_ratios.RuntimeParams)
+
+      for species, ratio_face in impurity_params.n_e_ratios_face.items():
+        # Skip if it's a seeded impurity
+        if (
+            edge_params.seed_impurity_weights
+            and species in edge_params.seed_impurity_weights
+        ):
+          continue
+
+        # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
+        # Enrichment factor exists for all species (validated in config)
+        fixed_impurity_concentrations[species] = (
+            ratio_face[-1] * edge_params.enrichment_factor[species]
+        )
+
     # Call the standalone runner with combined parameters
     return extended_lengyel_standalone.run_extended_lengyel_standalone(
         # Dynamic state from TORAX
@@ -192,7 +222,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         # Configurable parameters from RuntimeParams
         target_electron_temp=edge_params.target_electron_temp,
         seed_impurity_weights=edge_params.seed_impurity_weights,
-        fixed_impurity_concentrations=edge_params.fixed_impurity_concentrations,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
         computation_mode=edge_params.computation_mode,
         solver_mode=edge_params.solver_mode,
         ne_tau=edge_params.ne_tau,

@@ -64,10 +64,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
       )
   )
-  ratio_bpol_omp_to_bpol_avg: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
+  ratio_bpol_omp_to_bpol_avg: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
+      )
   )
   sheath_heat_transmission_factor: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
@@ -285,9 +285,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         newton_raphson_tol=self.newton_raphson_tol,
         ne_tau=self.ne_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
-        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(
-            t
-        ),
+        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(t),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(
             t
         ),
