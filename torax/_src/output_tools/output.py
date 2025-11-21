@@ -124,7 +124,9 @@ EXCLUDED_GEOMETRY_NAMES = frozenset({
 def load_state_file(filepath: str) -> xr.DataTree:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
-    with xr.open_datatree(filepath) as dt_open:
+    # necessary to use open here to work reliably in colab.
+    with open(filepath, "rb") as f:
+      dt_open = xr.open_datatree(f)
       data_tree = dt_open.compute()
     logging.info("Loaded state file %s", filepath)
     return data_tree
