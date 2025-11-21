@@ -311,6 +311,15 @@ class SimTest(sim_test_case.SimTestCase):
           'test_imas_profiles_and_geo',
           'test_imas_profiles_and_geo.py',
       ),
+      # Simplified SPARC test
+      (
+          'test_SPARC_PRD_benchmark_geobundle_simple',
+          'test_SPARC_PRD_benchmark_geobundle_simple.py',
+          _ALL_PROFILES,
+          None,
+          None,
+          'test_SPARC_PRD_benchmark_geobundle_simple.nc',
+      ),
   )
   def test_run_simulation(
       self,
