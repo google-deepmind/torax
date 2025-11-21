@@ -65,7 +65,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D(nx=10,)
+    torax_mesh = torax_pydantic.Grid1D(nx=10)
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )
@@ -131,8 +131,8 @@ def _build_source_profiles_with_single_value(
       n_e=profiles[source_lib.AffectedCoreProfile.NE],
       psi=profiles[source_lib.AffectedCoreProfile.PSI],
       bootstrap_current=bootstrap_current_base.BootstrapCurrent(
-          j_bootstrap=cell_1d_arr,
-          j_bootstrap_face=face_1d_arr,
+          j_parallel_bootstrap=cell_1d_arr,
+          j_parallel_bootstrap_face=face_1d_arr,
       ),
       qei=source_profiles_lib.QeiInfo(
           qei_coef=cell_1d_arr,

@@ -542,7 +542,9 @@ def _iterate_psi_and_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
-        sum(source_profiles.psi.values()),
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+            sum(source_profiles.psi.values()), geo
+        ),
     )
     psi = update_psi_from_j(
         runtime_params.profile_conditions.Ip,
@@ -578,34 +580,44 @@ def get_j_total_hires_with_external_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
-    external_current: jax.Array,
+    j_toroidal_external: jax.Array,
 ) -> jax.Array:
   """Calculates j_total hires when the Ohmic current is given by a formula."""
-  Ip = runtime_params.profile_conditions.Ip
-  psi_current = external_current + bootstrap_current.j_bootstrap
-
-  j_bootstrap_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, bootstrap_current.j_bootstrap_face
+  # Convert bootstrap current density to toroidal, and calculate high-resolution
+  # version
+  j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
+      bootstrap_current.j_parallel_bootstrap, geo
+  )
+  j_toroidal_bootstrap_hires = jnp.interp(
+      geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face
   )
 
-  # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
-  external_current_face = math_utils.cell_to_face(
-      external_current,
+  # Calculate high-resolution version of external (eg ECCD) current density
+  j_toroidal_external_face = math_utils.cell_to_face(
+      j_toroidal_external,
       geo,
       preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
-  external_current_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, external_current_face
+  j_toroidal_external_hires = jnp.interp(
+      geo.rho_hires, geo.rho_face, j_toroidal_external_face
   )
 
-  # calculate high resolution j_total and Ohmic current profile
-  jformula_hires = (
+  # Calculate high resolution j_total and j_ohmic
+  j_toroidal_ohmic_formula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** runtime_params.profile_conditions.current_profile_nu
-  denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
-  I_non_inductive = math_utils.area_integration(psi_current, geo)
-  Iohm = Ip - I_non_inductive
-  Cohm_hires = Iohm / denom
-  j_ohmic_hires = jformula_hires * Cohm_hires
-  j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
-  return j_total_hires
+  denom = _trapz(
+      j_toroidal_ohmic_formula_hires * geo.spr_hires, geo.rho_hires_norm
+  )
+  I_noninductive = math_utils.area_integration(
+      j_toroidal_external + j_toroidal_bootstrap, geo
+  )
+  I_ohmic = runtime_params.profile_conditions.Ip - I_noninductive
+  C_ohm_hires = I_ohmic / denom
+  j_toroidal_ohmic_hires = j_toroidal_ohmic_formula_hires * C_ohm_hires
+  j_toroidal_total_hires = (
+      j_toroidal_ohmic_hires
+      + j_toroidal_external_hires
+      + j_toroidal_bootstrap_hires
+  )
+  return j_toroidal_total_hires
