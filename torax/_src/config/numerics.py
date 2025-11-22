@@ -17,6 +17,7 @@
 import dataclasses
 import functools
 from typing import Annotated
+from typing import Optional
 
 import chex
 import jax
@@ -125,6 +126,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   )
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
+
+  # NEW: Minimum allowed physical temperature (in eV)
+  T_minimum_eV: pydantic.PositiveFloat = 5.0
 
   @pydantic.model_validator(mode='after')
   def model_validation(self) -> Self:
