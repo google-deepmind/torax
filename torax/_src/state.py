@@ -165,6 +165,22 @@ class CoreProfiles:
         ])
     )
 
+  def low_temperature_below(self, minimum_temperature_eV: float | None) -> bool:
+      """Return True if T_e or T_i fall below the configured minimum threshold."""
+      if minimum_temperature_eV is None:
+          return False
+
+      # Convert eV → keV since internal storage is keV
+      te_min_keV = minimum_temperature_eV / 1000.0
+
+      return np.any(
+          np.array([
+              np.any(np.less(self.T_e.value, te_min_keV)),
+              np.any(np.less(self.T_i.value, te_min_keV)),
+          ])
+      )
+
+
   def __str__(self) -> str:
     return f"""
       CoreProfiles(
@@ -289,6 +305,8 @@ class SimError(enum.Enum):
   QUASINEUTRALITY_BROKEN = 2
   NEGATIVE_CORE_PROFILES = 3
   REACHED_MIN_DT = 4
+  LOW_TEMPERATURE_COLLAPSE = 5
+
 
   def log_error(self):
     match self:
@@ -317,6 +335,12 @@ class SimError(enum.Enum):
             quasineutrality. Check the output file for near-zero temperatures or
             densities at the last valid step.
             """)
+      case SimError.LOW_TEMPERATURE_COLLAPSE:
+        logging.error("""
+          Simulation stopped because temperatures fell below the configured minimum
+          threshold (Te_min). This is usually caused by radiative collapse or runaway
+          cooling. Output file contains all profiles up to the last valid step
+        """)
       case SimError.NO_ERROR:
         pass
       case _:
