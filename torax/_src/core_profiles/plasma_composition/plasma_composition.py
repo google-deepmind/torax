@@ -15,6 +15,7 @@
 """Plasma composition parameters used throughout TORAX simulations."""
 import copy
 import dataclasses
+import enum
 import functools
 import logging
 from typing import Annotated, Any
@@ -39,11 +40,41 @@ _IMPURITY_MODE_NE_RATIOS: Final[str] = 'n_e_ratios'
 _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 
 
+class FixedImpuritySourceOfTruth(enum.StrEnum):
+  """Source of truth for fixed impurity concentrations.
+
+  Sets the source of truth for impurity densities when using edge models. When
+  EDGE, then the core impurity scaling is modified by the edge fixed impurity
+  density in the edge config, divided by the enrichment factor.
+  When CORE, then the user can directly sets the absolute values of core
+  impurities, and the edge value is the core boundary condition multiplied by
+  the enrichment factor.
+
+  Note that if the extended Lengyel edge model is used, then the SoT is always
+  EDGE for seeded impurities, regardless of the value here. This value then only
+  controls the SoT for the fixed impurities. The seeded impurity amplitudes are
+  always set by the edge model.
+
+  Attributes:
+    CORE: Core n_e_ratios are SoT. Edge inputs derived via c_edge =
+      c_core_face[-1] * enrichement_factor.
+    EDGE: Edge fixed_impurity_concentrations are SoT. Core ratios are scaled via
+      c_core = c_core / c_core_face[-1] * c_edge / enrichement_factor.
+  """
+
+  CORE = 'core'
+  EDGE = 'edge'
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class RuntimeParams:
+  """Runtime parameters for the plasma composition."""
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
+  impurity_source_of_truth: FixedImpuritySourceOfTruth = dataclasses.field(
+      metadata={'static': FixedImpuritySourceOfTruth.CORE}
+  )
   main_ion: ion_mixture.RuntimeParams
   impurity: (
       ion_mixture.RuntimeParams
@@ -83,6 +114,8 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
       Backwards compatibility is provided for legacy inputs to `'impurity'`,
       e.g. string or dict inputs similar to `main_ion`, such as `'Ar'` or
       `{'Ar': 0.6, 'Ne': 0.4}`.
+    impurity_source_of_truth: Source of truth for fixed impurity concentrations.
+      See FixedImpuritySourceOfTruth for more details.
     Z_eff: Constraint for impurity densities. If the impurity_mode is
       `'n_e_ratios'`, and the input is not None, then any input value will be
       ignored and a warning provided to the user.
@@ -107,6 +140,10 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   main_ion: runtime_validation_utils.IonMapping = (
       torax_pydantic.ValidatedDefault({'D': 0.5, 'T': 0.5})
   )
+  impurity_source_of_truth: Annotated[
+      FixedImpuritySourceOfTruth,
+      torax_pydantic.JAX_STATIC,
+  ] = FixedImpuritySourceOfTruth.CORE
   Z_eff: (
       runtime_validation_utils.TimeVaryingArrayDefinedAtRightBoundaryAndBounded
   ) = torax_pydantic.ValidatedDefault(1.0)
@@ -242,4 +279,5 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         impurity=self.impurity.build_runtime_params(t),
         Z_eff=self.Z_eff.get_value(t),
         Z_eff_face=self.Z_eff.get_value(t, grid_type='face'),
+        impurity_source_of_truth=self.impurity_source_of_truth,
     )

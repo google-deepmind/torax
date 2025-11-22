@@ -199,24 +199,55 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_extended_lengyel_inverse_impurity_mode(
+  def _validate_extended_lengyel_and_impurity_mode(
       self,
   ) -> typing_extensions.Self:
-    """Ensures Extended Lengyel inverse mode uses n_e_ratios impurity mode."""
+    """Ensures Extended Lengyel uses n_e_ratios impurity mode."""
     if (
         isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig)
-        and self.edge.computation_mode
-        == extended_lengyel_enums.ComputationMode.INVERSE
+        and self.plasma_composition.impurity.impurity_mode != 'n_e_ratios'
     ):
-      # Inverse mode calculates a scaling factor for impurities. This logic
-      # currently relies on the impurity profile being defined as a ratio to
-      # electron density (n_e_ratios).
-      if self.plasma_composition.impurity.impurity_mode != 'n_e_ratios':
+      raise ValueError(
+          'Extended Lengyel edge model requires'
+          " plasma_composition.impurity_mode to be 'n_e_ratios'."
+          f" Got '{self.plasma_composition.impurity.impurity_mode}'."
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_edge_core_impurity_consistency(self) -> typing_extensions.Self:
+    """Validates consistency between plasma composition and edge impurities."""
+    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+      core_species = set(self.plasma_composition.impurity.species.keys())
+      edge_fixed = set(self.edge.fixed_impurity_concentrations.keys())
+
+      if (
+          self.edge.computation_mode
+          == extended_lengyel_enums.ComputationMode.INVERSE
+      ):
+        if self.edge.seed_impurity_weights is not None:
+          edge_seed = set(self.edge.seed_impurity_weights.keys())
+        else:
+          edge_seed = set()
+
+        # Intersection check (should be empty)
+        if not edge_fixed.isdisjoint(edge_seed):
+          raise ValueError(
+              'Edge fixed and seeded impurities must be disjoint. Overlap:'
+              f' {edge_fixed.intersection(edge_seed)}'
+          )
+
+        edge_species = edge_fixed.union(edge_seed)
+      else:  # FORWARD mode
+        edge_species = edge_fixed
+
+      if core_species != edge_species:
         raise ValueError(
-            'Extended Lengyel edge model in INVERSE mode requires'
-            " plasma_composition.impurity_mode to be 'n_e_ratios'. Got"
-            f" '{self.plasma_composition.impurity.impurity_mode}'."
+            'Mismatch between core plasma composition impurities and edge'
+            f' impurities. Core: {core_species}, Edge: {edge_species}.'
+            f' Difference: {core_species.symmetric_difference(edge_species)}'
         )
+
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
