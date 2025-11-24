@@ -160,6 +160,7 @@ class ExtendedLengyelModelTest(absltest.TestCase):
         seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
         fixed_impurity_concentrations={'He': 0.01},
         enrichment_factor={'N': 1.0, 'Ar': 1.0, 'He': 1.0},
+        use_enrichment_model=False,
     )
     edge_runtime_params = edge_config.build_runtime_params(t=0.0)
 
@@ -297,6 +298,7 @@ class ExtendedLengyelModelTest(absltest.TestCase):
         divertor_parallel_length=5.0,
         target_angle_of_incidence=1.0,
         toroidal_flux_expansion=1.0,
+        use_enrichment_model=False,
     )
     edge_params = edge_config.build_runtime_params(t=0.0)
 
@@ -384,6 +386,8 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
         'divertor_parallel_length': None,
         'toroidal_flux_expansion': None,
         'target_angle_of_incidence': None,
+        'use_enrichment_model': False,
+        'enrichment_model_multiplier': 1.0,
     }
     defaults.update(kwargs)
     return extended_lengyel_model.RuntimeParams(**defaults)
@@ -530,6 +534,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'divertor_parallel_length': 10.0,
             'toroidal_flux_expansion': 4.0,
             'target_angle_of_incidence': 3.0,
+            'use_enrichment_model': False,
         }
     })
 
@@ -591,6 +596,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             # Test parameters
             'update_temperatures': update_temperatures,
             'target_ratio_of_ion_to_electron_temp': ion_to_electron_ratio,
+            'use_enrichment_model': False,
         },
     })
 
@@ -684,6 +690,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'divertor_parallel_length': 15.0,
             'toroidal_flux_expansion': 4.0,
             'target_angle_of_incidence': 3.0,
+            'use_enrichment_model': False,
         },
     })
 
