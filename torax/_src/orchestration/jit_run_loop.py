@@ -49,10 +49,6 @@ def run_loop_jit(
           step_fn=step_fn,
       )
   )
-  # Some of the runtime params are not time-dependent, so we can get them once
-  # before the loop.
-  initial_runtime_params = runtime_params_provider(t=initial_state.t)
-  time_step_calculator_params = initial_runtime_params.time_step_calculator
 
   # Pre-allocate history buffers
   states_history = jax.tree_util.tree_map(
@@ -76,12 +72,8 @@ def run_loop_jit(
 
   def _cond_fun(inputs):
     i, current_state, _, _, _ = inputs
-    not_done = step_fn.time_step_calculator.not_done(
-        current_state.t,
-        step_fn.runtime_params_provider.numerics.t_final,
-        time_step_calculator_params,
-    )
-    return jnp.logical_and(i < max_steps, not_done)
+    is_done = step_fn.is_done(current_state.t)
+    return jnp.logical_and(i < max_steps, jnp.logical_not(is_done))
 
   def _step_fn(inputs):
     (

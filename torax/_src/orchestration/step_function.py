@@ -148,6 +148,13 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
+  def is_done(self, t: jax.Array) -> bool | jax.Array:
+    return self._time_step_calculator.is_done(
+        t=t,
+        t_final=self._runtime_params_provider.numerics.t_final,
+        tolerance=self._runtime_params_provider.time_step_calculator.tolerance,
+    )
+
   @jax.jit
   def __call__(
       self,

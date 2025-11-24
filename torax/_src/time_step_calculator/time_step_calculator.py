@@ -22,7 +22,6 @@ from jax import numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.time_step_calculator import runtime_params as time_runtime_params
 
 
 class TimeStepCalculator(abc.ABC):
@@ -35,19 +34,16 @@ class TimeStepCalculator(abc.ABC):
     ts = <TimeStepCalculator subclass constructor>
     ts_state = ts.initial_state()
     t = 0.
-    while ts.not_done(t):
+    while not ts.is_done(t):
       dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
       t += dt
       sim_state = <update sim_state with step of size dt>
   """
 
-  def not_done(
-      self,
-      t: float | jax.Array,
-      t_final: float,
-      time_calculator_params: time_runtime_params.RuntimeParams,
+  def is_done(
+      self, t: float | jax.Array, t_final: float, tolerance: float
   ) -> bool | jax.Array:
-    return t < (t_final - time_calculator_params.tolerance)
+    return t >= (t_final - tolerance)
 
   @functools.partial(
       jax.jit,
