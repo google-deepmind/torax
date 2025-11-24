@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import functools
 import os
 from unittest import mock
 
@@ -134,7 +132,7 @@ class JaxUtilsTest(parameterized.TestCase):
   @parameterized.parameters(['while_loop', 'pure_callback'])
   def test_non_inlined_function(self, implementation):
 
-    @functools.partial(jax.jit, static_argnames=['z'])
+    @jax.jit(static_argnames='z')
     def f(x, z, y=2.0):
       if z == 'left':
         return x['temp1'] * y + jnp.sin(x['temp2'])

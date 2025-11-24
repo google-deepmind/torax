@@ -14,7 +14,6 @@
 
 """Code to build the combined transport coefficients for a simulation."""
 import dataclasses
-import functools
 
 import jax
 from torax._src import state
@@ -25,7 +24,7 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@functools.partial(jax.jit, static_argnums=(0, 1, 2))
+@jax.jit(static_argnums=(0, 1, 2))
 def calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,

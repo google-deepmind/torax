@@ -87,7 +87,7 @@ Designing JAX-compatible classes
     import functools
     import jax
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @jax.jit(static_argnums=0)
     def f(x):
       return x.num_wheels
 

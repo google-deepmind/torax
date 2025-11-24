@@ -28,7 +28,6 @@ Includes:
   the next timestep and returns updates to State.
 """
 import dataclasses
-import functools
 
 import jax
 from jax import numpy as jnp
@@ -135,7 +134,7 @@ def get_prescribed_core_profile_values(
   }
 
 
-@functools.partial(jax.jit, static_argnames=['evolving_names'])
+@jax.jit(static_argnames='evolving_names')
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     runtime_params: runtime_params_lib.RuntimeParams,

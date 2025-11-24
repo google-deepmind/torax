@@ -266,7 +266,7 @@ class ToricNNWrapper:
     return isinstance(other, ToricNNWrapper)
 
 
-@functools.partial(jax.jit, static_argnames='toric_nn')
+@jax.jit(static_argnames='toric_nn')
 def _toric_nn_predict(
     toric_nn: ToricNNWrapper,
     inputs: ToricNNInputs,

@@ -13,8 +13,6 @@
 # limitations under the License.
 
 """JITted run_loop for iterating over the simulation step function."""
-import functools
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -27,7 +25,7 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 
 
-@functools.partial(jax.jit, static_argnames=['max_steps'])
+@jax.jit(static_argnames='max_steps')
 def run_loop_jit(
     step_fn: step_function.SimulationStepFn,
     max_steps: int,
