@@ -28,6 +28,8 @@ import numpy as np
 import os
 from torax._src import array_typing
 from torax._src import state
+from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_standalone
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
@@ -44,6 +46,7 @@ import xarray as xr
 PROFILES = "profiles"
 SCALARS = "scalars"
 NUMERICS = "numerics"
+EDGE = "edge"
 
 # Core profiles.
 T_E = "T_e"
@@ -94,6 +97,11 @@ TIME = "time"
 
 # Post processed outputs
 Q_FUSION = "Q_fusion"
+
+# Edge model outputs
+SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
+CALCULATED_ENRICHMENT = "calculated_enrichment"
+IMPURITY_DIM = "impurity_symbol"
 
 # Numerics.
 # Simulation error state.
@@ -252,6 +260,13 @@ class StateHistory:
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
+    if self._edge_outputs:
+      self._stacked_edge_outputs: edge_base.EdgeModelOutputs = (
+          jax.tree_util.tree_map(stack, *self._edge_outputs)
+      )
+    else:
+      self._stacked_edge_outputs = None
+
     self._times = np.array([state.t for state in state_history])
     chex.assert_rank(self.times, 1)
     # The rho grid does not change in time so we can just take the first one.
@@ -338,6 +353,7 @@ class StateHistory:
             the simulation.
         - profiles: Contains data variables for 1D profiles.
         - scalars: Contains data variables for scalars.
+        - edge: Contains data variables for the edge model, if one is active.
     """
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
@@ -364,7 +380,7 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    all_dicts = [
+    all_core_dicts = [
         self._save_core_profiles(),
         self._save_core_transport(),
         self._save_core_sources(),
@@ -372,7 +388,7 @@ class StateHistory:
         self._save_geometry(),
     ]
     flat_dict = {}
-    for key, value in itertools.chain(*(d.items() for d in all_dicts)):
+    for key, value in itertools.chain(*(d.items() for d in all_core_dicts)):
       if key not in flat_dict:
         flat_dict[key] = value
       else:
@@ -408,19 +424,21 @@ class StateHistory:
         if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
     }
     scalars = xr.Dataset(scalars_dict)
+    children_dict = {
+        NUMERICS: xr.DataTree(dataset=numerics),
+        PROFILES: xr.DataTree(dataset=profiles),
+        SCALARS: xr.DataTree(dataset=scalars),
+    }
+    if self._stacked_edge_outputs is not None:
+      children_dict[EDGE] = xr.DataTree(dataset=self._save_edge_outputs())
     data_tree = xr.DataTree(
-        children={
-            NUMERICS: xr.DataTree(dataset=numerics),
-            PROFILES: xr.DataTree(dataset=profiles),
-            SCALARS: xr.DataTree(dataset=scalars),
-        },
+        children=children_dict,
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,
             attrs={CONFIG: self.torax_config.model_dump_json()},
         ),
     )
-
     if (
         self.torax_config.restart is not None
         and self.torax_config.restart.stitch
@@ -760,3 +778,75 @@ class StateHistory:
           xr_dict[name] = data_array
 
     return xr_dict
+
+  def _save_edge_outputs(self) -> xr.Dataset:
+    """Saves the edge outputs to a dataset."""
+    xr_dict = {}
+    outputs = self._stacked_edge_outputs
+
+    # Fields from ExtendedLengyelOutputs
+    # TODO(b/446608829): generalize when additional edge models are added
+    assert isinstance(
+        outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
+    )
+    standard_output_fields = [
+        "q_parallel",
+        "heat_flux_perp_to_target",
+        "separatrix_electron_temp",
+        "target_electron_temp",
+        "neutral_pressure_in_divertor",
+        "alpha_t",
+        "separatrix_Z_eff",
+    ]
+
+    edge_output_fields = dataclasses.fields(outputs)
+    for field in edge_output_fields:
+      name = field.name
+      value = getattr(outputs, name)
+      if field.name in standard_output_fields:
+        xr_dict[name] = self._pack_into_data_array(name, value)
+        continue
+      # Special handling for seed_impurity_concentrations
+      if (
+          name == SEED_IMPURITY_CONCENTRATIONS
+          or name == CALCULATED_ENRICHMENT
+      ):
+        # This is a dict of {symbol: array(time,)}.
+        # We want to convert it to an array (n_symbols, time) with
+        # impurity_symbol coord.
+        impurity_symbols = sorted(list(value.keys()))
+        data_list = []
+        for symbol in impurity_symbols:
+          data_list.append(value[symbol])
+        if data_list:
+          data_array = np.stack(data_list, axis=0)
+          xr_dict[name] = xr.DataArray(
+              data_array,
+              dims=[IMPURITY_DIM, TIME],
+              coords={IMPURITY_DIM: impurity_symbols, TIME: self.times},
+              name=name,
+          )
+        continue
+    # Fields from SolverStatus which depend on the solver type
+    xr_dict["solver_physics_outcome"] = self._pack_into_data_array(
+        "solver_physics_outcome", outputs.solver_status.physics_outcome
+    )
+    numerics = outputs.solver_status.numerics_outcome
+    # Check for RootMetadata structure (newton solver)
+    if hasattr(numerics, "iterations"):
+      xr_dict["solver_iterations"] = self._pack_into_data_array(
+          "solver_iterations", numerics.iterations
+      )
+      xr_dict["solver_residual"] = self._pack_into_data_array(
+          "solver_residual", numerics.residual
+      )
+      xr_dict["solver_error"] = self._pack_into_data_array(
+          "solver_error", numerics.error
+      )
+    else:
+      # FixedStepOutcome (fixed step solver)
+      xr_dict["fixed_step_outcome"] = self._pack_into_data_array(
+          "fixed_step_outcome", numerics
+      )
+
+    return xr.Dataset(xr_dict)

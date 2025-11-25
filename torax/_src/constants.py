@@ -37,12 +37,14 @@ class IonProperties:
     name: The ion's full name.
     A: The ion's atomic mass unit (amu).
     Z: The ion's atomic number.
+    E_ion: The first ionization energy in eV.
   """
 
   symbol: str
   name: str
   A: float
   Z: float
+  E_ion: float
 
 
 @jax.tree_util.register_dataclass
@@ -61,6 +63,7 @@ class Constants:
     k_B: Boltzman constant in J/K.
     eps: A small epsilon value used for numerical stability.
   """
+
   keV_to_J: chex.Numeric
   eV_to_J: chex.Numeric
   m_amu: chex.Numeric
@@ -87,21 +90,21 @@ CONSTANTS: Final[Constants] = Constants(
 # In amu. Taken from
 # https://www.nist.gov/pml/periodic-table-elements and https://ciaaw.org.
 ION_PROPERTIES: Final[tuple[IonProperties, ...]] = (
-    IonProperties(symbol='H', name='Hydrogen', A=1.008, Z=1.0),
-    IonProperties(symbol='D', name='Deuterium', A=2.0141, Z=1.0),
-    IonProperties(symbol='T', name='Tritium', A=3.0160, Z=1.0),
-    IonProperties(symbol='He3', name='Helium-3', A=3.0160, Z=2.0),
-    IonProperties(symbol='He4', name='Helium-4', A=4.0026, Z=2.0),
-    IonProperties(symbol='Li', name='Lithium', A=5.3917, Z=3.0),
-    IonProperties(symbol='Be', name='Beryllium', A=9.0122, Z=4.0),
-    IonProperties(symbol='C', name='Carbon', A=12.011, Z=6.0),
-    IonProperties(symbol='N', name='Nitrogen', A=14.007, Z=7.0),
-    IonProperties(symbol='O', name='Oxygen', A=15.999, Z=8.0),
-    IonProperties(symbol='Ne', name='Neon', A=20.180, Z=10.0),
-    IonProperties(symbol='Ar', name='Argon', A=39.95, Z=18.0),
-    IonProperties(symbol='Kr', name='Krypton', A=83.798, Z=36.0),
-    IonProperties(symbol='Xe', name='Xenon', A=131.29, Z=54.0),
-    IonProperties(symbol='W', name='Tungsten', A=183.84, Z=74.0),
+    IonProperties(symbol='H', name='Hydrogen', A=1.008, Z=1.0, E_ion=13.598),
+    IonProperties(symbol='D', name='Deuterium', A=2.0141, Z=1.0, E_ion=13.602),
+    IonProperties(symbol='T', name='Tritium', A=3.0160, Z=1.0, E_ion=13.603),
+    IonProperties(symbol='He3', name='Helium-3', A=3.0160, Z=2.0, E_ion=24.587),
+    IonProperties(symbol='He4', name='Helium-4', A=4.0026, Z=2.0, E_ion=24.587),
+    IonProperties(symbol='Li', name='Lithium', A=5.3917, Z=3.0, E_ion=5.392),
+    IonProperties(symbol='Be', name='Beryllium', A=9.0122, Z=4.0, E_ion=9.323),
+    IonProperties(symbol='C', name='Carbon', A=12.011, Z=6.0, E_ion=11.260),
+    IonProperties(symbol='N', name='Nitrogen', A=14.007, Z=7.0, E_ion=14.534),
+    IonProperties(symbol='O', name='Oxygen', A=15.999, Z=8.0, E_ion=13.618),
+    IonProperties(symbol='Ne', name='Neon', A=20.180, Z=10.0, E_ion=21.565),
+    IonProperties(symbol='Ar', name='Argon', A=39.95, Z=18.0, E_ion=15.760),
+    IonProperties(symbol='Kr', name='Krypton', A=83.798, Z=36.0, E_ion=14.000),
+    IonProperties(symbol='Xe', name='Xenon', A=131.29, Z=54.0, E_ion=12.130),
+    IonProperties(symbol='W', name='Tungsten', A=183.84, Z=74.0, E_ion=7.864),
 )
 
 ION_PROPERTIES_DICT: Final[Mapping[str, IonProperties]] = (
