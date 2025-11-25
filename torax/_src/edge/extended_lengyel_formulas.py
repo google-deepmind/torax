@@ -1,3 +1,4 @@
+### FILEPATH ### torax/_src/edge/extended_lengyel_formulas.py ###
 # Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +23,7 @@ This includes:
 - Empirical fits for momentum, density, and power loss in the convection layer.
 - Formulas related to magnetic geometry (e.g., shaping factor, safety factor).
 - Calculation of effective ion charge (Z_eff) based on impurity concentrations.
+- Empirical scaling for divertor enrichment.
 """
 
 from typing import Mapping
@@ -214,8 +216,7 @@ def calc_fieldline_pitch_at_omp(
   )
 
   upstream_poloidal_field = (
-      ratio_bpol_omp_to_bpol_avg
-      * separatrix_average_poloidal_field
+      ratio_bpol_omp_to_bpol_avg * separatrix_average_poloidal_field
   )
 
   # Using 1/R dependence of toroidal field.
@@ -289,3 +290,47 @@ def calc_Z_eff(
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
   return Z_eff[0]  # Return scalar for extended-lengyel.
+
+
+def calc_enrichment_kallenbach(
+    neutral_pressure_in_divertor: array_typing.FloatScalar,
+    ion_symbol: str,
+    enrichment_multiplier: array_typing.FloatScalar = 1.0,
+) -> jax.Array:
+  """Calculate divertor enrichment according to regression from Kallenbach 2024.
+
+  A. Kallenbach et al 2024 Nucl. Fusion 64 056003
+  DOI: 10.1088/1741-4326/ad3139
+  See figure 8.
+
+  enrichment = 41.0 * Z^-0.5 * p0^-0.4 * (E_ion_z / E_ion_D)^-5.8
+
+  Args:
+    neutral_pressure_in_divertor: Divertor neutral pressure [Pa].
+    ion_symbol: Symbol of the impurity ion.
+    enrichment_multiplier: Multiplier to adjust the empirical scaling.
+
+  Returns:
+    Enrichment factor (c_divertor / c_core).
+  """
+  # Alias He to He4
+  if ion_symbol == 'He':
+    ion_symbol = 'He4'
+
+  if ion_symbol not in constants.ION_PROPERTIES_DICT:
+    raise ValueError(
+        f'Invalid ion symbol in enrichment calculation: {ion_symbol}.'
+        f' Allowed symbols are: {constants.ION_SYMBOLS}'
+    )
+
+  properties = constants.ION_PROPERTIES_DICT[ion_symbol]
+  Z = properties.Z
+  E_ion_Z = properties.E_ion
+  E_ion_D = constants.ION_PROPERTIES_DICT['D'].E_ion
+
+  # Avoid division by zero if pressure is very low
+  p0 = jnp.maximum(neutral_pressure_in_divertor, constants.CONSTANTS.eps)
+
+  enrichment = 41.0 * Z**-0.5 * p0**-0.4 * (E_ion_Z / E_ion_D) ** -5.8
+
+  return enrichment * enrichment_multiplier

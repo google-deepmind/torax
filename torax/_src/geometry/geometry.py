@@ -57,6 +57,14 @@ class GeometryType(enum.IntEnum):
   IMAS = 4
 
 
+@enum.unique
+class DivertorDomain(enum.StrEnum):
+  """Enum for selecting the divertor domain in the extended Lengyel model."""
+
+  UPPER_NULL = 'upper_null'
+  LOWER_NULL = 'lower_null'
+
+
 # pylint: disable=invalid-name
 
 
