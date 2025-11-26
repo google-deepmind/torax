@@ -14,7 +14,7 @@
 
 """External current source profile."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -22,11 +22,11 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -40,39 +40,36 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime parameters for the external current source."""
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  """Runtime parameters for the external current source."""
 
-  I_generic: array_typing.ScalarFloat
-  fraction_of_total_current: array_typing.ScalarFloat
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
+  I_generic: array_typing.FloatScalar
+  fraction_of_total_current: array_typing.FloatScalar
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
   use_absolute_current: bool
 
 
 def calculate_generic_current(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates the external current density profiles on the cell grid."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
+  source_params = runtime_params.sources[source_name]
   # pytype: enable=name-error
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  assert isinstance(source_params, RuntimeParams)
   I_generic = _calculate_I_generic(
-      dynamic_runtime_params_slice,
-      dynamic_source_runtime_params,
+      runtime_params,
+      source_params,
   )
   # form of external current on cell grid
   generic_current_form = jnp.exp(
-      -((geo.rho_norm - dynamic_source_runtime_params.gaussian_location) ** 2)
-      / (2 * dynamic_source_runtime_params.gaussian_width**2)
+      -((geo.rho_norm - source_params.gaussian_location) ** 2)
+      / (2 * source_params.gaussian_width**2)
   )
 
   Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
@@ -81,21 +78,21 @@ def calculate_generic_current(
 
 
 def _calculate_I_generic(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    source_params: RuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
   return jnp.where(
-      dynamic_source_runtime_params.use_absolute_current,
-      dynamic_source_runtime_params.I_generic,
+      source_params.use_absolute_current,
+      source_params.I_generic,
       (
-          dynamic_runtime_params_slice.profile_conditions.Ip
-          * dynamic_source_runtime_params.fraction_of_total_current
+          runtime_params.profile_conditions.Ip
+          * source_params.fraction_of_total_current
       ),
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
@@ -115,8 +112,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current in A. Used if
-      use_absolute_current=True.
+    I_generic: total "external" current in A. Used if use_absolute_current=True.
     fraction_of_total_current: total "external" current fraction. Used if
       use_absolute_current=False.
     gaussian_width: width of "external" Gaussian current profile
@@ -125,7 +121,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       as a fraction of Ip.
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       3.0e6
   )
@@ -139,20 +137,24 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return calculate_generic_current
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         I_generic=self.I_generic.get_value(t),
         fraction_of_total_current=self.fraction_of_total_current.get_value(t),
         gaussian_width=self.gaussian_width.get_value(t),

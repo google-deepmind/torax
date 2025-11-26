@@ -15,17 +15,22 @@
 """Module containing functions for saving and loading simulation output."""
 from collections.abc import Sequence
 import dataclasses
+import functools
 import inspect
 import itertools
+
 import os
 
 from absl import logging
 import chex
 import jax
 import numpy as np
+import os
+from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import post_processing
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -116,20 +121,14 @@ EXCLUDED_GEOMETRY_NAMES = frozenset({
 })
 
 
-def safe_load_dataset(filepath: str) -> xr.DataTree:
-  with open(filepath, "rb") as f:
-    with xr.open_datatree(f) as dt_open:
-      data_tree = dt_open.compute()
-  return data_tree
-
-
-def load_state_file(
-    filepath: str,
-) -> xr.DataTree:
+def load_state_file(filepath: str) -> xr.DataTree:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
-    data_tree = safe_load_dataset(filepath)
-    logging.info("Loading state file %s", filepath)
+    # necessary to use open here to work reliably in colab.
+    with open(filepath, "rb") as f:
+      dt_open = xr.open_datatree(f)
+      data_tree = dt_open.compute()
+    logging.info("Loaded state file %s", filepath)
     return data_tree
   else:
     raise ValueError(f"File {filepath} does not exist.")
@@ -169,9 +168,11 @@ def concat_datatrees(
 
 
 def _extend_cell_grid_to_boundaries(
-    cell_var: chex.Array, face_var: chex.Array
-) -> chex.Array:
+    cell_var: array_typing.FloatVectorCell,
+    face_var: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorCellPlusBoundaries:
   """Merge face+cell grids into single [left_face, cells, right_face] grid."""
+
   left_value = np.expand_dims(face_var[:, 0], axis=-1)
   right_value = np.expand_dims(face_var[:, -1], axis=-1)
 
@@ -204,25 +205,13 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: tuple[sim_state.ToraxSimState, ...],
+      state_history: list[sim_state.ToraxSimState],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
-    if (
-        not torax_config.restart
-        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
-        and len(state_history) >= 2
-    ):
-      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
-      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-      # underconstrained
-      state_history[0].core_profiles = dataclasses.replace(
-          state_history[0].core_profiles,
-          v_loop_lcfs=state_history[1].core_profiles.v_loop_lcfs,
-      )
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._post_processed_outputs = post_processed_outputs_history
@@ -230,7 +219,20 @@ class StateHistory:
         state.solver_numeric_outputs for state in state_history
     ]
     self._core_profiles = [state.core_profiles for state in state_history]
+    if (
+        not torax_config.restart
+        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and len(state_history) >= 2
+    ):
+      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
+      # underconstrained.
+      self._core_profiles[0] = dataclasses.replace(
+          self._core_profiles[0],
+          v_loop_lcfs=self._core_profiles[1].v_loop_lcfs,
+      )
     self._core_sources = [state.core_sources for state in state_history]
+    self._edge_outputs = [state.edge_outputs for state in state_history]
     self._transport = [state.core_transport for state in state_history]
     self._geometries = [state.geometry for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
@@ -268,22 +270,22 @@ class StateHistory:
     return self._sim_error
 
   @property
-  def times(self) -> chex.Array:
+  def times(self) -> array_typing.Array:
     """Returns the time of the simulation."""
     return self._times
 
   @property
-  def rho_cell_norm(self) -> chex.Array:
+  def rho_cell_norm(self) -> array_typing.FloatVectorCell:
     """Returns the normalized toroidal coordinate on the cell grid."""
     return self._rho_cell_norm
 
   @property
-  def rho_face_norm(self) -> chex.Array:
+  def rho_face_norm(self) -> array_typing.FloatVectorFace:
     """Returns the normalized toroidal coordinate on the face grid."""
     return self._rho_face_norm
 
   @property
-  def rho_norm(self) -> chex.Array:
+  def rho_norm(self) -> array_typing.FloatVectorCellPlusBoundaries:
     """Returns the rho on the cell grid with the left and right face boundaries."""
     return self._rho_norm
 
@@ -397,7 +399,7 @@ class StateHistory:
     profiles_dict = {
         k: v
         for k, v in flat_dict.items()
-        if v is not None and v.values.ndim == 2  # pytype: disable=attribute-error
+        if v is not None and v.values.ndim > 1  # pytype: disable=attribute-error
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
@@ -494,8 +496,25 @@ class StateHistory:
         f.name for f in dataclasses.fields(stacked_core_profiles)
     }
 
-    for field in dataclasses.fields(stacked_core_profiles):
-      attr_name = field.name
+    # Add cached_properties to the list of fields to save.
+    core_profiles_cached_properties = inspect.getmembers(
+        type(stacked_core_profiles),
+        lambda member: isinstance(member, functools.cached_property),
+    )
+    core_profiles_cached_properties_names = set(
+        [name for name, _ in core_profiles_cached_properties]
+    )
+
+    core_profiles_names = (
+        core_profile_field_names | core_profiles_cached_properties_names
+    )
+
+    for attr_name in core_profiles_names:
+      # Skip impurity_fractions since we have not yet converged on the public
+      # API for individual impurity density extensions.
+      if attr_name == "impurity_fractions":
+        continue
+
       attr_value = getattr(stacked_core_profiles, attr_name)
 
       output_key = output_name_map.get(attr_name, attr_name)
@@ -503,8 +522,27 @@ class StateHistory:
       # Skip _face attributes if their cell counterpart exists;
       # they are handled when the cell attribute is processed.
       if attr_name.endswith("_face") and (
-          attr_name.removesuffix("_face") in core_profile_field_names
+          attr_name.removesuffix("_face") in core_profiles_names
       ):
+        continue
+
+      # Special handling for A_impurity for backward compatibility with V1
+      # API for default 'fractions' impurity mode where A_impurity was a scalar.
+      # TODO(b/434175938): Remove this once we move to V2
+      if attr_name == "A_impurity":
+        # Check if A_impurity is constant across the radial dimension for all
+        # time steps. Need slicing (not indexing) to avoid a broadcasting error.
+        is_constant = np.all(attr_value == attr_value[..., 0:1], axis=-1)
+        if np.all(is_constant):
+          # Save as a scalar time-series. Take the value at the first point.
+          data_to_save = attr_value[..., 0]
+        else:
+          # Save as a profile.
+          face_value = getattr(stacked_core_profiles, "A_impurity_face")
+          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+        xr_dict[output_key] = self._pack_into_data_array(
+            output_key, data_to_save
+        )
         continue
 
       if hasattr(attr_value, "cell_plus_boundaries"):
@@ -532,25 +570,26 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core transport to a dict."""
     xr_dict = {}
+    core_transport = self._stacked_core_transport
 
-    xr_dict[CHI_TURB_I] = self._stacked_core_transport.chi_face_ion
-    xr_dict[CHI_TURB_E] = self._stacked_core_transport.chi_face_el
-    xr_dict[D_TURB_E] = self._stacked_core_transport.d_face_el
-    xr_dict[V_TURB_E] = self._stacked_core_transport.v_face_el
+    xr_dict[CHI_TURB_I] = core_transport.chi_face_ion
+    xr_dict[CHI_TURB_E] = core_transport.chi_face_el
+    xr_dict[D_TURB_E] = core_transport.d_face_el
+    xr_dict[V_TURB_E] = core_transport.v_face_el
 
-    xr_dict[CHI_NEO_I] = self._stacked_core_transport.chi_neo_i
-    xr_dict[CHI_NEO_E] = self._stacked_core_transport.chi_neo_e
-    xr_dict[D_NEO_E] = self._stacked_core_transport.D_neo_e
-    xr_dict[V_NEO_E] = self._stacked_core_transport.V_neo_e
-    xr_dict[V_NEO_WARE_E] = self._stacked_core_transport.V_neo_ware_e
+    xr_dict[CHI_NEO_I] = core_transport.chi_neo_i
+    xr_dict[CHI_NEO_E] = core_transport.chi_neo_e
+    xr_dict[D_NEO_E] = core_transport.D_neo_e
+    xr_dict[V_NEO_E] = core_transport.V_neo_e
+    xr_dict[V_NEO_WARE_E] = core_transport.V_neo_ware_e
 
-    # Save optional BohmGyroBohm attributes if nonzero.
+    # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
     if (
-        np.any(core_transport.chi_face_el_bohm != 0)
-        or np.any(core_transport.chi_face_el_gyrobohm != 0)
-        or np.any(core_transport.chi_face_ion_bohm != 0)
-        or np.any(core_transport.chi_face_ion_gyrobohm != 0)
+        core_transport.chi_face_el_bohm is not None
+        or core_transport.chi_face_el_gyrobohm is not None
+        or core_transport.chi_face_ion_bohm is not None
+        or core_transport.chi_face_ion_gyrobohm is not None
     ):
       xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
       xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
@@ -616,6 +655,13 @@ class StateHistory:
     xr_dict = {}
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
+      if attr_name == "first_step":
+        continue
+
+      # The impurity_radiation is structured differently and handled separately.
+      if attr_name == "impurity_species":
+        continue
+
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
       if hasattr(attr_value, "cell_plus_boundaries"):
         # Handles stacked CellVariable-like objects.
@@ -623,6 +669,20 @@ class StateHistory:
       else:
         data_to_save = attr_value
       xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
+
+    if self._stacked_post_processed_outputs.impurity_species:
+      radiation_outputs = (
+          impurity_radiation.construct_xarray_for_radiation_output(
+              self._stacked_post_processed_outputs.impurity_species,
+              self.times,
+              self.rho_cell_norm,
+              TIME,
+              RHO_CELL_NORM,
+          )
+      )
+      for key, value in radiation_outputs.items():
+        xr_dict[key] = value
+
     return xr_dict
 
   def _save_geometry(
@@ -643,7 +703,7 @@ class StateHistory:
           or field_name == "geometry_type"
           or field_name == "Ip_from_parameters"
           or field_name == "j_total"
-          or not isinstance(data, chex.Array)
+          or not isinstance(data, array_typing.Array)
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:

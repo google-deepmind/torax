@@ -16,20 +16,21 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Final, Literal
-
+from typing import Annotated, ClassVar, Final, Literal
 import chex
 import jax
 from jax import numpy as jnp
+import jaxtyping as jt
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 
 # Default value for the model function to be used for the Bremsstrahlung heat
 # sink. This is also used as an identifier for the model function in the default
@@ -39,7 +40,7 @@ DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool
 
 
@@ -47,7 +48,7 @@ def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
   """Calculate the Bremsstrahlung radiation power profile.
 
   Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
@@ -97,29 +98,26 @@ def calc_bremsstrahlung(
 
 
 def bremsstrahlung_model_func(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[jt.Float[jax.Array, ''], ...]:
   """Model function for the Bremsstrahlung heat sink."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       geo,
-      use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
+      use_relativistic_correction=source_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.
   return (-1.0 * P_brem_profile,)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
@@ -142,22 +140,26 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
     use_relativistic_correction: Whether to use relativistic correction.
   """
 
-  model_name: Literal['wesson'] = 'wesson'
+  model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return bremsstrahlung_model_func
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> 'RuntimeParams':
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         use_relativistic_correction=self.use_relativistic_correction,
     )
 

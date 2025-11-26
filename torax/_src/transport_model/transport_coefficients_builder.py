@@ -14,42 +14,37 @@
 
 """Code to build the combined transport coefficients for a simulation."""
 import dataclasses
-import functools
 
-from torax._src import jax_utils
+import jax
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@functools.partial(jax_utils.jit, static_argnums=(0, 1, 2))
+@jax.jit(static_argnums=(0, 1, 2))
 def calculate_total_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients."""
-  pedestal_model_output = pedestal_model(
-      dynamic_runtime_params_slice_t, geo_t, core_profiles_t
-  )
+  pedestal_model_output = pedestal_model(runtime_params, geo, core_profiles)
   turbulent_transport = transport_model(
-      dynamic_runtime_params_slice_t,
-      geo_t,
-      core_profiles_t,
-      pedestal_model_output,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_model_output=pedestal_model_output,
   )
-  neoclassical_transport_coeffs = (
-      neoclassical_models.transport.calculate_neoclassical_transport(
-          dynamic_runtime_params_slice_t,
-          geo_t,
-          core_profiles_t,
-      )
+  neoclassical_transport_coeffs = neoclassical_models.transport(
+      runtime_params,
+      geo,
+      core_profiles,
   )
 
   return state.CoreTransport(

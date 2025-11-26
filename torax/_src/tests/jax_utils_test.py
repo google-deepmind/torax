@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import functools
 import os
 from unittest import mock
 
@@ -134,7 +132,7 @@ class JaxUtilsTest(parameterized.TestCase):
   @parameterized.parameters(['while_loop', 'pure_callback'])
   def test_non_inlined_function(self, implementation):
 
-    @functools.partial(jax.jit, static_argnames=['z'])
+    @jax.jit(static_argnames='z')
     def f(x, z, y=2.0):
       if z == 'left':
         return x['temp1'] * y + jnp.sin(x['temp2'])
@@ -149,6 +147,93 @@ class JaxUtilsTest(parameterized.TestCase):
 
     x = {'temp1': jnp.array(1.3), 'temp2': jnp.array(2.6)}
     chex.assert_trees_all_close(f_non_inlined(x, z='left'), f(x, z='left'))
+
+  @parameterized.parameters(['map', 'vectorize'])
+  def test_batched_cond(self, implementation):
+    pred = jnp.array([True, False])
+    x = jnp.array([[2, 3.0, 4.0], [5.0, 6.0, 7.0]])
+    out = jax_utils.batched_cond(
+        pred=pred,
+        true_fun=lambda x, y: x * y,
+        false_fun=lambda x, y: x * y**2,
+        operands=(x, x),
+        implementation=implementation,
+    )
+    out_gt = jnp.array(
+        [[4.0, 9.0, 16.0], [125.0, 216.0, 343.0]], dtype=jnp.float32
+    )
+    chex.assert_trees_all_equal(out, out_gt)
+
+  @parameterized.parameters(['map', 'vectorize'])
+  def test_batched_cond_concrete_special(self, implementation):
+    pred = jnp.array([True])
+    x = jnp.array([[2, 3.0, 4.0]])
+
+    @jax.jit
+    def f(x):
+      return jax_utils.batched_cond(
+          pred=pred,
+          true_fun=lambda x, y: x * y,
+          false_fun=lambda x, y: x * y**2,
+          operands=(x, x),
+          implementation=implementation,
+      )
+
+    out = f(x)
+    out_gt = jnp.array([[4.0, 9.0, 16.0]], dtype=jnp.float32)
+    chex.assert_trees_all_equal(out, out_gt)
+
+  def test_max_steps_while_loop(self):
+    terminating_step = 4
+
+    def cond_fun(state):
+      i, _ = state
+      return i < terminating_step
+
+    def body_fun(state):
+      i, value = state
+      next_i = i + 1
+      next_value = jnp.sin(value)
+      return next_i, next_value
+
+    init_state = (0, 0.5)
+    max_steps = 10
+
+    with self.subTest('forward_agrees_with_while_loop'):
+      output_state = jax_utils.while_loop_bounded(
+          cond_fun, body_fun, init_state, max_steps
+      )
+      chex.assert_trees_all_close(
+          output_state, jax.lax.while_loop(cond_fun, body_fun, init_state)
+      )
+
+    def f_while(x, max_steps=max_steps):
+      init_state = (0, x)
+      return jax_utils.while_loop_bounded(
+          cond_fun, body_fun, init_state, max_steps=max_steps
+      )[1]
+
+    def f(x, n_times=terminating_step):
+      result = x
+      for _ in range(n_times):
+        result = jnp.sin(result)
+      return result
+
+    with self.subTest('forward_agrees_with_explicit'):
+      chex.assert_trees_all_close(f_while(0.5), f(0.5))
+    with self.subTest('grad_agrees_with_explicit'):
+      chex.assert_trees_all_close(jax.grad(f_while)(0.5), jax.grad(f)(0.5))
+
+    with self.subTest('max_steps_is_respected'):
+      final_i, final_value = jax_utils.while_loop_bounded(
+          cond_fun, body_fun, init_state, max_steps=2
+      )
+      self.assertEqual(final_i, 2)
+      chex.assert_trees_all_close(final_value, f(0.5, n_times=2))
+      chex.assert_trees_all_close(
+          jax.grad(f_while)(0.5, max_steps=2), jax.grad(f)(0.5, n_times=2)
+      )
+      chex.assert_trees_all_close(f_while(0.5, max_steps=3), f(0.5, n_times=3))
 
 
 if __name__ == '__main__':

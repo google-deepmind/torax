@@ -16,7 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
@@ -28,16 +28,14 @@ class SauterTest(absltest.TestCase):
   def test_sauter_bootstrap_current_is_correct_shape(self):
     n_rho = 10
     geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
-    dynamic_bootstap_params = sauter.DynamicRuntimeParams(
-        bootstrap_multiplier=1.0
-    )
-    dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+    bootstrap_params = sauter.RuntimeParams(bootstrap_multiplier=1.0)
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
         instance=True,
         neoclassical=mock.create_autospec(
-            neoclassical_runtime_params.DynamicRuntimeParams,
+            neoclassical_runtime_params.RuntimeParams,
             instance=True,
-            bootstrap_current=dynamic_bootstap_params,
+            bootstrap_current=bootstrap_params,
         ),
     )
     core_profiles = mock.create_autospec(
@@ -60,13 +58,17 @@ class SauterTest(absltest.TestCase):
         Z_i_face=np.linspace(1000, 2000, n_rho + 1),
         Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
+        pressure_thermal_e=cell_variable.CellVariable(
+            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+        ),
+        pressure_thermal_i=cell_variable.CellVariable(
+            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+        ),
     )
 
     model = sauter.SauterModel()
     result = model.calculate_bootstrap_current(
-        dynamic_params,
-        geo,
-        core_profiles,
+        runtime_params, geo, core_profiles
     )
     self.assertEqual(result.j_bootstrap.shape, (n_rho,))
     self.assertEqual(result.j_bootstrap_face.shape, (n_rho + 1,))

@@ -103,24 +103,23 @@ def calc_c(
   # Add convection terms
   if v_face is not None:
     for i in range(num_channels):
-      if v_face[i] is not None:
-        # Resolve diffusion to zeros if it is not specified
-        d_face_i = d_face[i] if d_face is not None else None
-        d_face_i = jnp.zeros_like(v_face[i]) if d_face_i is None else d_face_i
+      # Resolve diffusion to zeros if it is not specified
+      d_face_i = d_face[i] if d_face is not None else None
+      d_face_i = jnp.zeros_like(v_face[i]) if d_face_i is None else d_face_i
 
-        (
-            conv_mat,
-            conv_vec,
-        ) = convection_terms.make_convection_terms(
-            v_face[i],
-            d_face_i,
-            x[i],
-            dirichlet_mode=convection_dirichlet_mode,
-            neumann_mode=convection_neumann_mode,
-        )
+      (
+          conv_mat,
+          conv_vec,
+      ) = convection_terms.make_convection_terms(
+          v_face[i],
+          d_face_i,
+          x[i],
+          dirichlet_mode=convection_dirichlet_mode,
+          neumann_mode=convection_neumann_mode,
+      )
 
-        c_mat[i][i] += conv_mat
-        c[i] += conv_vec
+      c_mat[i][i] += conv_mat
+      c[i] += conv_vec
 
   # Add implicit source terms
   if source_mat_cell is not None:

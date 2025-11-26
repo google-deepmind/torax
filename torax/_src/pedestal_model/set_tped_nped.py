@@ -18,46 +18,41 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
-from torax._src.pedestal_model import runtime_params as runtime_params_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from typing_extensions import override
 
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Dynamic runtime params for the BgB transport model."""
+class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
+  """Runtime params for the SetTemperatureDensityPedestalModel."""
 
-  n_e_ped: array_typing.ScalarFloat
-  T_i_ped: array_typing.ScalarFloat
-  T_e_ped: array_typing.ScalarFloat
-  rho_norm_ped_top: array_typing.ScalarFloat
-  n_e_ped_is_fGW: array_typing.ScalarBool
+  n_e_ped: array_typing.FloatScalar
+  T_i_ped: array_typing.FloatScalar
+  T_e_ped: array_typing.FloatScalar
+  rho_norm_ped_top: array_typing.FloatScalar
+  n_e_ped_is_fGW: array_typing.BoolScalar
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   """A basic version of the pedestal model that uses direct specification."""
-
-  def __init__(
-      self,
-  ):
-    super().__init__()
-    self._frozen = True
 
   @override
   def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
-    pedestal_params = dynamic_runtime_params_slice.pedestal
-    assert isinstance(pedestal_params, DynamicRuntimeParams)
+    pedestal_params = runtime_params.pedestal
+    assert isinstance(pedestal_params, RuntimeParams)
     nGW = (
-        dynamic_runtime_params_slice.profile_conditions.Ip
+        runtime_params.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
@@ -77,9 +72,3 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
             geo.rho_norm - pedestal_params.rho_norm_ped_top
         ).argmin(),
     )
-
-  def __hash__(self) -> int:
-    return hash('SetTemperatureDensityPedestalModel')
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, SetTemperatureDensityPedestalModel)

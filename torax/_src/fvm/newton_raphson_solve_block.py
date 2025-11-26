@@ -18,14 +18,15 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable, Final
+from typing import Final
 
-import chex
+import jax
+import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state as state_module
-from torax._src import xnp
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -33,8 +34,10 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.solver import jax_root_finding
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
+
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
@@ -42,54 +45,20 @@ from torax._src.sources import source_profiles
 MIN_DELTA: Final[float] = 1e-7
 
 
-def _log_iterations(
-    residual: chex.Array,
-    iterations: chex.Array,
-    delta_reduction: chex.Array | None = None,
-    dt: chex.Array | None = None,
-) -> None:
-  """Logs info on internal Newton-Raphson iterations.
-
-  Args:
-    residual: Scalar residual.
-    iterations: Number of iterations taken so far in the solve block.
-    delta_reduction: Current tau used in this iteration.
-    dt: Current dt used in this iteration.
-  """
-  if dt is not None:
-    xnp.logging(
-        'Iteration: %d. Residual: %.16f. dt = %.6f',
-        iterations,
-        residual,
-        dt,
-    )
-
-  elif delta_reduction is not None:
-    xnp.logging(
-        'Iteration: %d. Residual: %.16f. tau = %.6f',
-        iterations,
-        residual,
-        delta_reduction,
-    )
-  else:
-    xnp.logging('Iteration: %d. Residual: %.16f', iterations, residual)
-
-
 @functools.partial(
-    xnp.jit,
+    jax.jit,
     static_argnames=[
         'evolving_names',
+        'physics_models',
         'coeffs_callback',
         'initial_guess_mode',
-        'static_runtime_params_slice',
         'log_iterations',
     ],
 )
 def newton_raphson_solve_block(
-    dt: chex.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dt: array_typing.FloatScalar,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -139,12 +108,8 @@ def newton_raphson_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation.
-    dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-      time of the step). These config params can change from step to step
-      without triggering a recompilation.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t: Runtime parameters for time t.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t: Geometry at time t.
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
@@ -188,8 +153,9 @@ def newton_raphson_solve_block(
       residual > tol, steps became small.
   """
   # pyformat: enable
+
   coeffs_old = coeffs_callback(
-      dynamic_runtime_params_slice_t,
+      runtime_params_t,
       geo_t,
       core_profiles_t,
       x_old,
@@ -202,10 +168,10 @@ def newton_raphson_solve_block(
     # corrector method if predictor_corrector=True in the solver config
     case enums.InitialGuessMode.LINEAR:
       # returns transport coefficients with additional pereverzev terms
-      # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
-      # are used.
+      # if set by runtime_params, needed if stiff transport models
+      # (e.g. qlknn) are used.
       coeffs_exp_linear = coeffs_callback(
-          dynamic_runtime_params_slice_t,
+          runtime_params_t,
           geo_t,
           core_profiles_t,
           x_old,
@@ -220,8 +186,7 @@ def newton_raphson_solve_block(
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
           x_new_guess=x_new_guess,
@@ -237,7 +202,6 @@ def newton_raphson_solve_block(
       raise ValueError(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
-
   # Create a residual() function with only one argument: x_new.
   # The other arguments (dt, x_old, etc.) are fixed.
   # Note that core_profiles_t_plus_dt only contains the known quantities at
@@ -245,8 +209,7 @@ def newton_raphson_solve_block(
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -255,225 +218,30 @@ def newton_raphson_solve_block(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )
-  jacobian_fun = functools.partial(
-      residual_and_loss.theta_method_block_jacobian,
-      dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-      geo_t_plus_dt=geo_t_plus_dt,
-      x_old=x_old,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      evolving_names=evolving_names,
-      physics_models=physics_models,
-      explicit_source_profiles=explicit_source_profiles,
-      coeffs_old=coeffs_old,
-  )
 
-  # initialize state dict being passed around Newton-Raphson iterations
-  residual_vec_init_x_new = residual_fun(init_x_new_vec)
-  initial_state = {
-      'x': init_x_new_vec,
-      'iterations': xnp.array(0, dtype=jax_utils.get_int_dtype()),
-      'residual': residual_vec_init_x_new,
-      'last_tau': xnp.array(1.0, dtype=jax_utils.get_dtype()),
-  }
-
-  # log initial state if requested
-  if log_iterations:
-    _log_iterations(
-        residual=_residual_scalar(initial_state['residual']),
-        iterations=initial_state['iterations'],
-        dt=dt,
-    )
-
-  # carry out iterations.
-  cond_fun = functools.partial(_cond, tol=tol, tau_min=tau_min, maxiter=maxiter)
-  body_fun = functools.partial(
-      _body,
-      jacobian_fun=jacobian_fun,
-      residual_fun=residual_fun,
-      log_iterations=log_iterations,
+  x_root, metadata = jax_root_finding.root_newton_raphson(
+      fun=residual_fun,
+      x0=init_x_new_vec,
+      maxiter=maxiter,
+      tol=tol,
+      coarse_tol=coarse_tol,
       delta_reduction_factor=delta_reduction_factor,
+      tau_min=tau_min,
+      log_iterations=log_iterations,
   )
-
-  output_state = xnp.while_loop(cond_fun, body_fun, initial_state)
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      output_state['x'], core_profiles_t_plus_dt, evolving_names
+      x_root, core_profiles_t_plus_dt, evolving_names
   )
-
-  # Tell the caller whether or not x_new successfully reduces the residual below
-  # the tolerance by providing an extra output, error.
-  # error = 0: residual converged within fine tolerance (tol)
-  # error = 1: not converged. Possibly backtrack to smaller dt and retry
-  # error = 2: residual not strictly converged but is still within reasonable
-  # tolerance (coarse_tol). Can occur when solver exits early due to small steps
-  # in solution vicinity. Proceed but provide a warning to user.
-  error = _error_cond(output_state, coarse_tol, tol)
   solver_numeric_outputs = state_module.SolverNumericOutputs(
-      inner_solver_iterations=output_state['iterations'],
-      solver_error_state=error,
-      outer_solver_iterations=1,
+      inner_solver_iterations=jnp.array(
+          metadata.iterations, jax_utils.get_int_dtype()
+      ),
+      solver_error_state=jnp.array(metadata.error, jax_utils.get_int_dtype()),
+      outer_solver_iterations=jnp.array(1, jax_utils.get_int_dtype()),
+      sawtooth_crash=False,
   )
 
   return x_new, solver_numeric_outputs
-
-
-def _error_cond(
-    final_state: dict[str, chex.Array], coarse_tol: float, tol: float
-):
-  return xnp.cond(
-      _residual_scalar(final_state['residual']) < tol,
-      lambda: 0,  # Called when True
-      lambda: xnp.cond(  # Called when False
-          _residual_scalar(final_state['residual']) < coarse_tol,
-          lambda: 2,  # Called when True
-          lambda: 1,  # Called when False
-      ),
-  )
-
-
-def _residual_scalar(x):
-  return xnp.mean(xnp.abs(x))
-
-
-def _cond(
-    state: dict[str, chex.Array],
-    tau_min: float,
-    maxiter: int,
-    tol: float,
-) -> bool:
-  """Check if exit condition reached for Newton-Raphson iterations."""
-  iteration = state['iterations'][...]
-  return xnp.bool_(
-      xnp.logical_and(
-          xnp.logical_and(
-              _residual_scalar(state['residual']) > tol, iteration < maxiter
-          ),
-          state['last_tau'] > tau_min,
-      )
-  )
-
-
-def _body(
-    input_state: dict[str, chex.Array],
-    jacobian_fun: Callable[[chex.Array], chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
-    log_iterations: bool,
-    delta_reduction_factor: float,
-) -> dict[str, chex.Array]:
-  """Calculates next guess in Newton-Raphson iteration."""
-  a_mat = jacobian_fun(input_state['x'])
-  rhs = -input_state['residual']
-  # delta = x_new - x_old
-  # tau = delta/delta0, where delta0 is the delta that sets the linearized
-  # residual to zero. tau < 1 when needed such that x_new meets
-  # conditions of reduced residual and valid state quantities.
-  # If tau < taumin while residual > tol, then the routine exits with an
-  # error flag, leading to either a warning or recalculation at lower dt
-  initial_delta_state = {
-      'x': input_state['x'],
-      'delta': xnp.linalg.solve(a_mat, rhs),
-      'residual_old': input_state['residual'],
-      'residual_new': input_state['residual'],
-      'tau': xnp.array(1.0, dtype=jax_utils.get_dtype()),
-  }
-  output_delta_state = _compute_output_delta_state(
-      initial_delta_state, residual_fun, delta_reduction_factor
-  )
-
-  output_state = {
-      'x': input_state['x'] + output_delta_state['delta'],
-      'residual': output_delta_state['residual_new'],
-      'iterations': (
-          xnp.array(
-              input_state['iterations'][...], dtype=jax_utils.get_int_dtype()
-          )
-          + 1
-      ),
-      'last_tau': output_delta_state['tau'],
-  }
-  if log_iterations:
-    _log_iterations(
-        residual=_residual_scalar(output_state['residual']),
-        iterations=output_state['iterations'],
-        delta_reduction=output_delta_state['tau'],
-    )
-
-  return output_state
-
-
-def _compute_output_delta_state(
-    initial_state: dict[str, chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
-    delta_reduction_factor: float,
-):
-  """Updates output delta state."""
-  delta_body_fun = functools.partial(
-      _delta_body,
-      delta_reduction_factor=delta_reduction_factor,
-  )
-  delta_cond_fun = functools.partial(
-      _delta_cond,
-      residual_fun=residual_fun,
-  )
-  output_delta_state = xnp.while_loop(
-      delta_cond_fun, delta_body_fun, initial_state
-  )
-
-  x_new = output_delta_state['x'] + output_delta_state['delta']
-  residual_vec_x_new = residual_fun(x_new)
-  output_delta_state |= dict(
-      residual_new=residual_vec_x_new,
-  )
-  return output_delta_state
-
-
-def _delta_cond(
-    delta_state: dict[str, chex.Array],
-    residual_fun: Callable[[chex.Array], chex.Array],
-) -> bool:
-  """Check if delta obtained from Newton step is valid.
-
-  Args:
-    delta_state: see `delta_body`.
-    residual_fun: Residual function.
-
-  Returns:
-    True if the new value of `x` causes any NaNs or has increased the residual
-    relative to the old value of `x`.
-  """
-  x_old = delta_state['x']
-  x_new = x_old + delta_state['delta']
-  residual_vec_x_old = delta_state['residual_old']
-  residual_scalar_x_old = _residual_scalar(residual_vec_x_old)
-  # Avoid sanity checking inside residual, since we directly
-  # afterwards check sanity on the output (NaN checking)
-  # TODO(b/312453092) consider instead sanity-checking x_new
-  with jax_utils.enable_errors(False):
-    residual_vec_x_new = residual_fun(x_new)
-    residual_scalar_x_new = _residual_scalar(residual_vec_x_new)
-    delta_state['residual_new'] = residual_vec_x_new
-  return xnp.bool_(
-      xnp.logical_and(
-          xnp.max(delta_state['delta']) > MIN_DELTA,
-          xnp.logical_or(
-              residual_scalar_x_old < residual_scalar_x_new,
-              xnp.isnan(residual_scalar_x_new),
-          ),
-      ),
-  )
-
-
-def _delta_body(
-    input_delta_state: dict[str, chex.Array],
-    delta_reduction_factor: float,
-) -> dict[str, chex.Array]:
-  """Reduces step size for this Newton iteration."""
-  return input_delta_state | dict(
-      delta=input_delta_state['delta'] * delta_reduction_factor,
-      tau=xnp.array(input_delta_state['tau'][...], dtype=jax_utils.get_dtype())
-      * delta_reduction_factor,
-  )

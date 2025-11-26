@@ -19,10 +19,12 @@ protocol defined here.
 """
 from collections.abc import Mapping
 import dataclasses
+import functools
 from typing import Protocol, Type
 
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src import interpolated_param
 from torax._src import jax_utils
@@ -59,11 +61,11 @@ class GeometryProvider(Protocol):
 
     func_expecting_geo_provider(constant_geo_provider)  # this works.
 
-  NOTE: In order to maintain consistency between the DynamicRuntimeParamsSlice
+  NOTE: In order to maintain consistency between the RuntimeParams
   and the geometry,
-  `build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry`
+  `build_runtime_params.get_consistent_runtime_params_and_geometry`
   should be used to get a Geometry and a corresponding
-  DynamicRuntimeParamsSlice.
+  RuntimeParams.
   """
 
   def __call__(
@@ -92,6 +94,7 @@ class GeometryProvider(Protocol):
 @dataclasses.dataclass(frozen=True)
 class ConstantGeometryProvider(GeometryProvider):
   """Returns the same Geometry for all calls."""
+
   geo: geometry.Geometry
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
@@ -137,6 +140,10 @@ class TimeDependentGeometryProvider:
   g2_face: interpolated_param.InterpolatedVarSingleAxis
   g3: interpolated_param.InterpolatedVarSingleAxis
   g3_face: interpolated_param.InterpolatedVarSingleAxis
+  gm4: interpolated_param.InterpolatedVarSingleAxis
+  gm4_face: interpolated_param.InterpolatedVarSingleAxis
+  gm5: interpolated_param.InterpolatedVarSingleAxis
+  gm5_face: interpolated_param.InterpolatedVarSingleAxis
   g2g3_over_rhon: interpolated_param.InterpolatedVarSingleAxis
   g2g3_over_rhon_face: interpolated_param.InterpolatedVarSingleAxis
   g2g3_over_rhon_hires: interpolated_param.InterpolatedVarSingleAxis
@@ -151,10 +158,13 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
+  calcphibdot: bool = dataclasses.field(metadata={'static': True})
 
   @classmethod
   def create_provider(
-      cls, geometries: Mapping[float, geometry.Geometry]
+      cls,
+      geometries: Mapping[float, geometry.Geometry],
+      calcphibdot: bool,
   ) -> typing_extensions.Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
@@ -170,6 +180,7 @@ class TimeDependentGeometryProvider:
     kwargs = {
         'geometry_type': initial_geometry.geometry_type,
         'torax_mesh': initial_geometry.torax_mesh,
+        'calcphibdot': calcphibdot,
     }
     if hasattr(initial_geometry, 'Ip_from_parameters'):
       kwargs['Ip_from_parameters'] = initial_geometry.Ip_from_parameters
@@ -178,20 +189,28 @@ class TimeDependentGeometryProvider:
           attr.name == 'geometry_type'
           or attr.name == 'torax_mesh'
           or attr.name == 'Ip_from_parameters'
+          or attr.name == 'calcphibdot'
       ):
         continue
-      if attr.name == '_z_magnetic_axis':
-        if initial_geometry._z_magnetic_axis is None:  # pylint: disable=protected-access
-          kwargs[attr.name] = None
-          continue
-      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis((
-          times,
-          np.stack(
-              [getattr(g, attr.name) for g in geos],
-              axis=0,
-              dtype=jax_utils.get_np_dtype(),
+      # We assume that if an attribute is None for the initial geometry, it is
+      # None for all geometries.
+      initial_val = getattr(initial_geometry, attr.name)
+      if initial_val is None:
+        kwargs[attr.name] = None
+        continue
+
+      # Remaining attributes are set up for interpolation.
+      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
+          (
+              times,
+              np.stack(
+                  [getattr(g, attr.name) for g in geos],
+                  axis=0,
+                  dtype=jax_utils.get_np_dtype(),
+              ),
           ),
-      ))
+          is_bool_param=isinstance(initial_val, bool),
+      )
     return cls(**kwargs)
 
   def _get_geometry_base(
@@ -211,19 +230,34 @@ class TimeDependentGeometryProvider:
           or attr.name == 'Ip_from_parameters'
       ):
         continue
-      # always initialize Phibdot as zero. It will be replaced once both geo_t
-      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
-      # geo_t_plus_dt for each given time interval.
       if attr.name == 'Phi_b_dot':
-        kwargs[attr.name] = 0.0
+        if self.calcphibdot:
+          kwargs[attr.name] = jnp.asarray(
+              _Phi_b_grad(self.Phi_face, t), dtype=jax_utils.get_dtype()
+          )
+        else:
+          kwargs[attr.name] = jnp.zeros((), dtype=jax_utils.get_dtype())
         continue
-      if attr.name == '_z_magnetic_axis':
-        if self._z_magnetic_axis is None:
-          kwargs[attr.name] = None
-          continue
-      kwargs[attr.name] = getattr(self, attr.name).get_value(t)
+      provider_attr = getattr(self, attr.name)
+      if isinstance(
+          provider_attr, interpolated_param.InterpolatedVarSingleAxis
+      ):
+        kwargs[attr.name] = provider_attr.get_value(t)
+      else:
+        # For None attributes.
+        kwargs[attr.name] = provider_attr
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
+    chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, geometry.Geometry)
+
+
+@jax.jit
+@functools.partial(jax.grad, argnums=1)
+def _Phi_b_grad(
+    Phi_face: interpolated_param.InterpolatedVarSingleAxis,
+    t: chex.Numeric,
+) -> chex.Numeric:
+  return Phi_face.get_value(t)[..., -1]

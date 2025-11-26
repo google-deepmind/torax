@@ -181,9 +181,23 @@ class ConfigTest(parameterized.TestCase):
       ("cgm_lin_no_per", "CGM", "linear", None, False, True),
       ("qlknn_lin_per", "qlknn", "linear", None, True, False),
       ("qualikiz_lin_per", "qualikiz", "linear", None, True, False),
-      ("qlknn_newton_no_per_0", "qlknn", "newton_raphson", 0, False, False),
-      ("qlknn_newton_no_per_1", "qlknn", "newton_raphson", 1, False, True),
-      ("qlknn_newton_per_1", "qlknn", "newton_raphson", 1, True, False),
+      (
+          "qlknn_newton_no_per_x_old",
+          "qlknn",
+          "newton_raphson",
+          "x_old",
+          False,
+          False,
+      ),
+      (
+          "qlknn_newton_no_per_linear",
+          "qlknn",
+          "newton_raphson",
+          "linear",
+          False,
+          True,
+      ),
+      ("qlknn_newton_per_1", "qlknn", "newton_raphson", "linear", True, False),
   )
   def test_pereverzev_warning(
       self,
@@ -206,6 +220,41 @@ class ConfigTest(parameterized.TestCase):
 
     warning_snippet = "use_pereverzev=False in a configuration where setting"
 
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="psidot_none_evolve_current_true",
+          psidot=None,
+          evolve_current=True,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psidot_set_evolve_current_false",
+          psidot={0: {0: 0.1, 1: 0.2}},
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psidot_set_evolve_current_true",
+          psidot={0: {0: 0.1, 1: 0.2}},
+          evolve_current=True,
+          expect_warning=True,
+      ),
+  )
+  def test_psidot_evolve_current_warning(
+      self, psidot, evolve_current, expect_warning
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["psidot"] = psidot
+    config_dict["numerics"]["evolve_current"] = evolve_current
+
+    warning_snippet = "profile_conditions.psidot input is ignored"
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  def _assert_warning_logged(
+      self, warning_snippet, expect_warning, config_dict
+  ):
     # Avoid assertion failure when no warnings are logged at all.
     try:
       with self.assertLogs(level=logging.WARNING) as cm:
@@ -217,6 +266,72 @@ class ConfigTest(parameterized.TestCase):
       self.assertIn(warning_snippet, warnings)
     else:
       self.assertNotIn(warning_snippet, warnings)
+
+  def test_edge_model_with_circular_geometry_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "circular",
+        "n_rho": 33,
+    }
+    config_dict["edge"] = {
+        "model_name": "extended_lengyel",
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "Edge models are not supported for use with CircularGeometry.",
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_extended_lengyel_inverse_mode_validation_bad_impurity_mode(self):
+    """Tests validation logic for Extended Lengyel inverse mode."""
+    bad_config = default_configs.get_default_config_dict()
+    bad_config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    # Configure Edge model in INVERSE mode
+    bad_config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 5.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+
+    # Default plasma_composition uses 'fractions', which is incompatible
+    # with inverse mode extended lengyel.
+    with self.assertRaisesRegex(
+        ValueError,
+        "requires plasma_composition.impurity_mode to be 'n_e_ratios'",
+    ):
+      model_config.ToraxConfig.from_dict(bad_config)
+
+  def test_extended_lengyel_inverse_mode_validation_good_impurity_mode(self):
+    """Tests validation logic for Extended Lengyel inverse mode."""
+    good_config = default_configs.get_default_config_dict()
+    good_config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    # Configure Edge model in INVERSE mode
+    good_config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 5.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+
+    # Explicitly set impurity mode to 'n_e_ratios'.
+    good_config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": 0.01},
+        }
+    }
+
+    # Should not raise
+    model_config.ToraxConfig.from_dict(good_config)
 
 
 if __name__ == "__main__":

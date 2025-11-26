@@ -14,7 +14,7 @@
 
 """Electron cyclotron heating (prescribed Gaussian) and current drive (Lin-Liu model)."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -22,12 +22,13 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import formulas
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -41,33 +42,32 @@ DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  """Runtime parameters for the electron-cyclotron source."""
 
-  current_drive_efficiency: array_typing.ArrayFloat
-  extra_prescribed_power_density: array_typing.ArrayFloat
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
+  current_drive_efficiency: array_typing.FloatVector
+  extra_prescribed_power_density: array_typing.FloatVector
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
 
 
 def calc_heating_and_current(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Model function for the electron-cyclotron source.
 
   Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+  for more details.
 
   Args:
-    unused_static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Global runtime parameters
+    runtime_params: Global runtime parameters
     geo: Magnetic geometry.
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
@@ -76,51 +76,52 @@ def calc_heating_and_current(
   Returns:
     2D array of electron cyclotron heating power density and current density.
   """
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  # Helps linter understand the type of dynamic_source_runtime_params.
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  # Construct the profile
+  source_params = runtime_params.sources[source_name]
+  # Helps linter understand the type of source_params.
+  assert isinstance(source_params, RuntimeParams)
+
+  # Build the EC power deposition profile
   ec_power_density = (
-      dynamic_source_runtime_params.extra_prescribed_power_density
+      source_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
-          center=dynamic_source_runtime_params.gaussian_location,
-          width=dynamic_source_runtime_params.gaussian_width,
-          total=dynamic_source_runtime_params.P_total,
+          center=source_params.gaussian_location,
+          width=source_params.gaussian_width,
+          total=source_params.P_total,
           geo=geo,
       )
   )
 
-  # Compute j.B via the log for numerical stability
-  # This is equivalent to:
-  # <j_ec.B> = (
-  #     2 * pi * epsilon0**2
-  #     / (qe**3 * R_maj)
-  #     * F
-  #     * T_e [J] / n_e [m^-3]
-  #     * current_drive_efficiency
-  #     * ec_power_density
-  # )
-  # pylint: disable=invalid-name
-  log_j_ec_dot_B = (
-      jnp.log(2 * jnp.pi / geo.R_major)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      - 3 * jnp.log(constants.CONSTANTS.qe)
-      + jnp.log(geo.F)
-      + jnp.log(core_profiles.T_e.value)
-      + jnp.log(constants.CONSTANTS.keV2J)  # Convert T_e to J
-      - jnp.log(core_profiles.n_e.value)
-      + jnp.log(dynamic_source_runtime_params.current_drive_efficiency)
+  j_tor_ec = jnp.exp(
+      jnp.log(16.0)
+      + jnp.log(jnp.pi)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+      + jnp.log(core_profiles.T_e.value * 1e3)
+      + jnp.log(source_params.current_drive_efficiency)
       + jnp.log(ec_power_density)
+      - (
+          2 * jnp.log(constants.CONSTANTS.q_e)
+          + jnp.log(
+              collisions.calculate_log_lambda_ee(
+                  core_profiles.T_e.value, core_profiles.n_e.value
+              )
+          )
+          + jnp.log(core_profiles.n_e.value)
+      )
   )
-  j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
-  # pylint: enable=invalid-name
 
-  return ec_power_density, j_ec_dot_B
+  # < j.B >
+  q_cell = geometry.face_to_cell(core_profiles.q_face)
+  fsa_j_dot_B = (
+      geo.F
+      * geo.gm9
+      * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
+      * j_tor_ec
+  )
+
+  return ec_power_density, fsa_j_dot_B
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 
@@ -137,21 +138,29 @@ class ElectronCyclotronSource(source.Source):
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):
-  """Config for the electron-cyclotron source.
+  r"""Config for the electron-cyclotron source.
 
   Attributes:
-    current_drive_efficiency: Local dimensionless current drive efficiency. Zeta
-      from Lin-Liu, Chan, and Prater, 2003, eq 44
+    current_drive_efficiency: Dimensionless current drive efficiency profile
+      defined on the cell grid, :math:`\zeta = \frac{e^2\ln\Lambda_{ee}}{8
+      \varepsilon_0^2} \frac{1}{\left\langle\frac{1}{R}\right\rangle} \frac{n_e
+      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec}
+      [\mathrm{A}]}{P_{ec} [\mathrm{W}]}`.
+      See
+      https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+      for more details.
     extra_prescribed_power_density: Manual EC power density profile on the rho
-      grid
-    gaussian_width: Gaussian EC power density profile width
-    gaussian_location: Gaussian EC power density profile location
-    P_total: Gaussian EC total power
+      grid.
+    gaussian_width: Gaussian EC power density profile width.
+    gaussian_location: Gaussian EC power density profile location.
+    P_total: Gaussian EC total power.
   """
 
-  model_name: Literal["gaussian_lin_liu"] = "gaussian_lin_liu"
+  model_name: Annotated[
+      Literal["gaussian_lin_liu"], torax_pydantic.JAX_STATIC
+  ] = "gaussian_lin_liu"
   current_drive_efficiency: torax_pydantic.TimeVaryingArray = (
-      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
+      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.25, 1.0: 0.25}})
   )
   extra_prescribed_power_density: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
@@ -165,20 +174,24 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return calc_heating_and_current
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         current_drive_efficiency=self.current_drive_efficiency.get_value(t),
         extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t

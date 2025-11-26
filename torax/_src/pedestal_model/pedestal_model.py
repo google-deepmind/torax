@@ -23,7 +23,8 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 
 # pylint: disable=invalid-name
@@ -36,54 +37,30 @@ class PedestalModelOutput:
   """Output of the PedestalModel."""
 
   # The location of the pedestal.
-  rho_norm_ped_top: array_typing.ScalarFloat
+  rho_norm_ped_top: array_typing.FloatScalar
   # The index of the pedestal in rho_norm.
-  rho_norm_ped_top_idx: array_typing.ScalarInt
+  rho_norm_ped_top_idx: array_typing.IntScalar
   # The ion temperature at the pedestal.
-  T_i_ped: array_typing.ScalarFloat
+  T_i_ped: array_typing.FloatScalar
   # The electron temperature at the pedestal.
-  T_e_ped: array_typing.ScalarFloat
+  T_e_ped: array_typing.FloatScalar
   # The electron density at the pedestal in units 10^-3.
-  n_e_ped: array_typing.ScalarFloat
+  n_e_ped: array_typing.FloatScalar
 
 
-class PedestalModel(abc.ABC):
-  """Calculates temperature and density of the pedestal.
-
-  Subclass responsbilities:
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
-
-  def __setattr__(self, attr, value):
-    # pylint: disable=g-doc-args
-    # pylint: disable=g-doc-return-or-yield
-    """Override __setattr__ to make the class (sort of) immutable.
-
-    Note that you can still do obj.field.subfield = x, so it is not true
-    immutability, but this to helps to avoid some careless errors.
-    """
-    if getattr(self, "_frozen", False):
-      raise AttributeError("PedestalModels are immutable.")
-    return super().__setattr__(attr, value)
+@dataclasses.dataclass(frozen=True, eq=False)
+class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Calculates temperature and density of the pedestal."""
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
-
     return jax.lax.cond(
-        dynamic_runtime_params_slice.pedestal.set_pedestal,
-        lambda: self._call_implementation(
-            dynamic_runtime_params_slice, geo, core_profiles
-        ),
+        runtime_params.pedestal.set_pedestal,
+        lambda: self._call_implementation(runtime_params, geo, core_profiles),
         # Set the pedestal location to infinite to indicate that the pedestal is
         # not present.
         # Set the index to outside of bounds of the mesh to indicate that the
@@ -100,21 +77,8 @@ class PedestalModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
     """Calculate the pedestal values."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Hash function for the pedestal model.
-
-    Needed for jax.jit caching to work.
-    """
-    ...
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality function for the pedestal model."""
-    ...

@@ -17,9 +17,10 @@
 import dataclasses
 
 import jax
-from torax._src import physics_models as physics_models_lib
+from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -35,22 +36,11 @@ from torax._src.sources import source_profiles as source_profiles_lib
 class SawtoothSolver(solver.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
-  def __init__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      physics_models: physics_models_lib.PhysicsModels,
-  ):
-    super().__init__(
-        static_runtime_params_slice=static_runtime_params_slice,
-        physics_models=physics_models,
-    )
-
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -72,10 +62,8 @@ class SawtoothSolver(solver.Solver):
 
     Args:
       dt: Sawtooth step duration.
-      static_runtime_params_slice: Static runtime parameters.
-      dynamic_runtime_params_slice_t: Dynamic runtime parameters at time t.
-      dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters at time
-        t + crash_dt.
+      runtime_params_t: Runtime parameters at time t.
+      runtime_params_t_plus_dt: Runtime parameters at time t + crash_dt.
       geo_t: Geometry at time t.
       geo_t_plus_dt: Geometry at time t + crash_dt.
       core_profiles_t: Core profiles at time t.
@@ -93,8 +81,7 @@ class SawtoothSolver(solver.Solver):
       raise ValueError('Sawtooth model is None.')
 
     trigger_sawtooth, rho_norm_q1 = sawtooth_models.trigger_model(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice_t,
+        runtime_params_t,
         geo_t,
         core_profiles_t,
     )
@@ -106,8 +93,7 @@ class SawtoothSolver(solver.Solver):
 
       redistributed_core_profiles = sawtooth_models.redistribution_model(
           rho_norm_q1,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t,
+          runtime_params_t,
           geo_t,
           core_profiles_t,
       )
@@ -137,7 +123,10 @@ class SawtoothSolver(solver.Solver):
       )
 
       solver_numeric_outputs_post_step = state.SolverNumericOutputs(
-          sawtooth_crash=True
+          sawtooth_crash=True,
+          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
       )
 
       return (
@@ -152,6 +141,11 @@ class SawtoothSolver(solver.Solver):
         _redistribute_state,
         lambda: (
             tuple([getattr(core_profiles_t, name) for name in evolving_names]),
-            state.SolverNumericOutputs(),
+            state.SolverNumericOutputs(
+                sawtooth_crash=False,
+                solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+                inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+                outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+            ),
         ),
     )

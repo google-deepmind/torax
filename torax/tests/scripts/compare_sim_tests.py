@@ -20,7 +20,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 import numpy as np
-from torax._src.config import config_loader
+from torax._src import path_utils
 from torax._src.output_tools import output
 from torax.tests import scripts
 import xarray as xr
@@ -32,7 +32,7 @@ _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     ' subdirectories.',
 )
 _REFERENCE_TEST_DATA_DIR = os.path.join(
-    config_loader.torax_path(), 'tests/test_data'
+    path_utils.torax_path(), 'tests/test_data'
 )
 
 
@@ -95,8 +95,8 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
       'q',
   ]
   # Load the Datasets
-  ds_old = output.safe_load_dataset(old_file).children['profiles']
-  ds_new = output.safe_load_dataset(new_file).children['profiles']
+  ds_old = output.load_state_file(old_file).children['profiles']
+  ds_new = output.load_state_file(new_file).children['profiles']
   print(f'Comparing {old_file} and {new_file}:')
   for profile_name in profile_names:
     _print_diff(profile_name, ds_old, ds_new)

@@ -13,7 +13,7 @@
 # limitations under the License.
 from collections.abc import Mapping
 import dataclasses
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from unittest import mock
 
 from absl.testing import absltest
@@ -26,16 +26,17 @@ import pydantic
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
-from torax._src.transport_model import runtime_params
+from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
 constants = constants_module.CONSTANTS
@@ -55,30 +56,22 @@ def _get_model_and_model_inputs(
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
   neoclassical_models = torax_config.neoclassical.build_models()
-  dynamic_runtime_params_slice = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-          torax_config
-      )(
-          t=torax_config.numerics.t_initial,
-      )
+  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+      torax_config
+  )(
+      t=torax_config.numerics.t_initial,
   )
   geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
-  static_slice = build_runtime_params.build_static_params_from_config(
-      torax_config
-  )
   core_profiles = initialization.initial_core_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_slice,
+      runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
-  pedestal_model_outputs = pedestal_model(
-      dynamic_runtime_params_slice, geo, core_profiles
-  )
+  pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
   return torax_config.transport.build_transport_model(), (
-      dynamic_runtime_params_slice,
+      runtime_params,
       geo,
       core_profiles,
       pedestal_model_outputs,
@@ -100,13 +93,13 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   def test_quasilinear_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
     transport_model, (
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         pedestal_model_outputs,
     ) = _get_model_and_model_inputs({'model_name': 'quasilinear'})
     core_transport = transport_model(
-        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
+        runtime_params, geo, core_profiles, pedestal_model_outputs
     )
     expected_shape = geo.rho_face_norm.shape
 
@@ -173,9 +166,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         reference_length=1.0,
     )
     chi_GB_expected = (
-        (1.0 * constants.mp) ** 0.5
-        / (constants.qe) ** 2
-        * (1.0 * constants.keV2J) ** 1.5
+        (1.0 * constants.m_amu) ** 0.5
+        / (constants.q_e) ** 2
+        * (1.0 * constants.keV_to_J) ** 1.5
     )
     np.testing.assert_allclose(chiGB, chi_GB_expected)
 
@@ -216,7 +209,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
     )
 
-    alpha_expected = np.array([0, 32 * constants.keV2J * 1e20 * constants.mu0])
+    alpha_expected = np.array(
+        [0, 32 * constants.keV_to_J * 1e20 * constants.mu_0]
+    )
     np.testing.assert_allclose(alpha, alpha_expected)
 
   def test_calculate_normalized_logarithmic_gradient(self):
@@ -246,19 +241,16 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeQuasilinearTransportModel(
     quasilinear_transport_model.QuasilinearTransportModel
 ):
   """Fake QuasilinearTransportModel for testing purposes."""
 
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
-
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: quasilinear_transport_model.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: quasilinear_transport_model.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -273,11 +265,11 @@ class FakeQuasilinearTransportModel(
         lref_over_lni0=np.array(1.4),
         lref_over_lni1=np.array(1.5),
     )
-    transport = dynamic_runtime_params_slice.transport
+    transport = runtime_params.transport
     # Assert required for pytype.
     assert isinstance(
         transport,
-        quasilinear_transport_model.DynamicRuntimeParams,
+        quasilinear_transport_model.RuntimeParams,
     )
     return self._make_core_transport(
         qi=np.ones(geo.rho_face_norm.shape) * 0.4,
@@ -291,29 +283,25 @@ class FakeQuasilinearTransportModel(
         gyrobohm_flux_reference_length=1.0,
     )
 
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
-
 
 class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
   """QuasilinearTransportConfig for testing purposes."""
 
   # pylint: disable=invalid-name
-  model_name: Literal['quasilinear'] = 'quasilinear'
+  model_name: Annotated[Literal['quasilinear'], torax_pydantic.JAX_STATIC] = (
+      'quasilinear'
+  )
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
   def build_transport_model(self) -> FakeQuasilinearTransportModel:
     return FakeQuasilinearTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return quasilinear_transport_model.DynamicRuntimeParams(
+  ) -> transport_model_runtime_params.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
         **base_kwargs,

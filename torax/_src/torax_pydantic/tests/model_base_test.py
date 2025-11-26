@@ -257,7 +257,7 @@ class PydanticBaseTest(parameterized.TestCase):
     with self.subTest('invalid_path'):
       with self.assertRaisesRegex(
           ValueError,
-          'The path x.zz is does not refer to a field of a Pydantic'
+          'The path x.zz does not refer to a field of a Pydantic'
           ' BaseModelFrozen model',
       ):
         model._update_fields({'x.zz': -1.0})
@@ -345,14 +345,14 @@ class PydanticBaseTest(parameterized.TestCase):
     with self.subTest('update_cached_property_raises_error'):
       with self.assertRaisesRegex(
           ValueError,
-          'The path get_model_1 is does not refer to a field of a Pydantic'
+          'The path get_model_1 does not refer to a field of a Pydantic'
           ' BaseModelFrozen model',
       ):
         model._update_fields({'get_model_1': TestModel1(x=1.0, y=2.0)})
 
       with self.assertRaisesRegex(
           ValueError,
-          'The path get_model_1 is does not refer to a field of a Pydantic'
+          'The path get_model_1 does not refer to a field of a Pydantic'
           ' BaseModelFrozen model',
       ):
         model._update_fields({'get_model_1.x': 2.3})

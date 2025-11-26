@@ -13,19 +13,18 @@
 # limitations under the License.
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 import dataclasses
-from typing import Literal
-
+from typing import Annotated, Literal
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
@@ -34,19 +33,16 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 def radially_constant_fraction_of_Pin(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Model function for radiation heat sink from impurities."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   if calculated_source_profiles is None:
     raise ValueError(
@@ -74,11 +70,17 @@ def radially_constant_fraction_of_Pin(
 
   # Calculate the heat sink as a fraction of the total power input
   return (
-      -dynamic_source_runtime_params.fraction_P_heating
+      -source_params.fraction_P_heating
       * P_total_in
       / geo.volume_face[-1]
       * jnp.ones_like(geo.rho),
   )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  fraction_P_heating: array_typing.FloatScalar
 
 
 class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
@@ -89,20 +91,26 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
       impurity.
   """
 
-  model_name: Literal['P_in_scaled_flat_profile'] = 'P_in_scaled_flat_profile'
+  model_name: Annotated[
+      Literal['P_in_scaled_flat_profile'], torax_pydantic.JAX_STATIC
+  ] = 'P_in_scaled_flat_profile'
   fraction_P_heating: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         fraction_P_heating=self.fraction_P_heating.get_value(t),
     )
 
@@ -116,9 +124,3 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
     return radially_constant_fraction_of_Pin
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  fraction_P_heating: array_typing.ScalarFloat

@@ -19,7 +19,7 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -45,27 +45,20 @@ class SourceModelsTest(parameterized.TestCase):
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         source_models,
@@ -73,8 +66,7 @@ class SourceModelsTest(parameterized.TestCase):
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         source_models,
@@ -86,7 +78,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_standard_source_profiles_for_single_affected_core_profile(
       self,
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
@@ -107,19 +100,13 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),)
+            'foo': source_runtime_params.RuntimeParams(
+                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,
             )
         },
     )
@@ -130,8 +117,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=runtime_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
@@ -146,7 +132,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_standard_source_profiles_for_multiple_affected_core_profile(
       self,
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
@@ -170,22 +157,16 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_lib.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
+            'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(
                     jnp.ones(self.geo.rho.shape),
                     jnp.ones(self.geo.rho.shape),
-                )
+                ),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,
             )
         },
     )
@@ -196,8 +177,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
@@ -242,7 +222,8 @@ class SourceModelsTest(parameterized.TestCase):
   def test_build_standard_source_profiles_calculate_anyway(
       self, calculate_anyway, is_explicit, expected_calculate
   ):
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
       @property
@@ -263,19 +244,13 @@ class SourceModelsTest(parameterized.TestCase):
         standard_sources={'foo': test_source},
         psi_sources={},
     )
-    test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode='MODEL_BASED', is_explicit=True  # Set the source to be explicit.
-    )
-    static_params = mock.create_autospec(
-        runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={'foo': test_source_runtime_params},
-        torax_mesh=self.geo.torax_mesh,
-    )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+        runtime_params_lib.RuntimeParams,
         sources={
-            'foo': source_runtime_params.DynamicRuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),)
+            'foo': source_runtime_params.RuntimeParams(
+                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                mode=source_runtime_params.Mode.MODEL_BASED,
+                is_explicit=True,  # Set the source to be explicit.
             )
         },
     )
@@ -286,8 +261,7 @@ class SourceModelsTest(parameterized.TestCase):
         qei=source_profiles.QeiInfo.zeros(self.geo),
     )
     source_profile_builders.build_standard_source_profiles(
-        static_runtime_params_slice=static_params,
-        dynamic_runtime_params_slice=dynamic_params,
+        runtime_params=dynamic_params,
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,

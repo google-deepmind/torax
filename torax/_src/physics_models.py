@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 """A container for all physics models."""
 import dataclasses
 
-import jax
+from torax._src import static_dataclass
+from torax._src.edge import base as edge_model_lib
 from torax._src.mhd import base as mhd_model_lib
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -22,23 +23,19 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PhysicsModels:
-  """A container for all physics models."""
+@dataclasses.dataclass(frozen=True, eq=False)
+class PhysicsModels(static_dataclass.StaticDataclass):
+  """A container for all physics models.
 
-  source_models: source_models_lib.SourceModels = dataclasses.field(
-      metadata=dict(static=True)
-  )
-  transport_model: transport_model_lib.TransportModel = dataclasses.field(
-      metadata=dict(static=True)
-  )
-  pedestal_model: pedestal_model_lib.PedestalModel = dataclasses.field(
-      metadata=dict(static=True)
-  )
-  neoclassical_models: neoclassical_models_lib.NeoclassicalModels = (
-      dataclasses.field(metadata=dict(static=True))
-  )
-  mhd_models: mhd_model_lib.MHDModels = dataclasses.field(
-      metadata=dict(static=True)
-  )
+  This class is used as a static argument to Jax functions. It is therefore
+  designed to be immutable and support comparison and hashing by value.
+  Because this class does not use polymorphism, it does not need to hash
+  the class id, so the default frozen dataset hashing works.
+  """
+
+  source_models: source_models_lib.SourceModels
+  transport_model: transport_model_lib.TransportModel
+  pedestal_model: pedestal_model_lib.PedestalModel
+  neoclassical_models: neoclassical_models_lib.NeoclassicalModels
+  mhd_models: mhd_model_lib.MHDModels
+  edge_model: edge_model_lib.EdgeModel | None

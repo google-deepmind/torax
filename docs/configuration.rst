@@ -282,6 +282,16 @@ time-dependence of temperature, density, and current.
   the geometry or the "current_profile_nu formula" dependant on the
   ``initial_psi_from_j`` field.
 
+``psidot`` (**time-varying-array** | None [default = None])
+  Prescribed values for the time derivative of poloidal flux (loop voltage).
+  If provided, and if ``evolve_current`` is False, this prescribed ``psidot``
+  will be used instead of the internally calculated one. The motivation for
+  this feature is that sometimes the initial ``psi`` condition leads to
+  unphysical transient ``psidot`` and thus transiently unphysical
+  (e.g. too high) ohmic power. For such cases, it is useful to override a static
+  non-physical ``psidot`` with a more physical value, e.g., one obtained from
+  another similar simulation with current evolution enabled.
+
 ``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
   Prescribed or evolving values for electron density at different times.
 
@@ -358,9 +368,24 @@ equations being solved, constant numerical variables.
   Prefactor in front of ``chi_timestep_calculator`` base timestep
   :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
 
-``fixed_dt`` (float [default = 1e-1])
+``fixed_dt`` ( **time-varying-scalar** [default = 1e-1])
   Timestep used for ``fixed_time_step_calculator`` (see
-  :ref:`time_step_calculator`).
+  :ref:`time_step_calculator`). All values must be non-negative.
+  Specifying a time-dependent fixed_dt can be useful in cases where there are
+  known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
+  different granularity of simulation is required for each phase. Note that the
+  default interpolation mode for `fixed_dt` has been internally imposed as
+  `'STEP'`. Also note that the `'STEP'` interpolation changes value AFTER the
+  boundary, so you may want to move the boundaries by a small epsilon to change
+  dt at the prescribed value. The need for this epsilon will go away in the
+  near future with the release of v2.0.
+  E.g.:
+
+  .. code-block:: python
+
+    # Setting a higher time resolution between 5s and 10s.
+    epsilon = 1e-5
+    'fixed_dt': {0.0: 1e-1, 5.0 - epsilon: 1e-2, 10.0 - epsilon: 1e-1}
 
 ``adaptive_dt`` (bool [default = True])
   If True, then if a nonlinear solver does not converge for a given timestep,
@@ -419,17 +444,21 @@ follows:
       **time-varying-scalar**. The ion mixture API thus supports features such
       as time varying isotope ratios.
 
-``impurity`` (dict[str, **time-varying-scalar**] | str [default = ``'Ne'``])
-  Specifies the impurity species, following the same syntax as ``main_ion``. A
-  single effective impurity species is currently supported, although multiple
-  impurities can still be defined as a mixture.
+``impurity`` (dict)
+  Specifies the impurity species. The way impurities are defined is set by the
+  ``impurity_mode`` field within this dictionary. Three modes are supported:
+  ``'fractions'``, ``'n_e_ratios'``, and ``'n_e_ratios_Z_eff'``. See the
+  "Plasma Composition Examples" section below for details. For backward
+  compatibility, legacy formats (e.g., ``'impurity': 'Ne'`` or ``'impurity':
+  {'Ne': 0.8, 'Ar': 0.2}``) are automatically converted to the ``'fractions'``
+  mode.
 
 ``Z_eff`` ( **time-varying-array** [default = 1.0])
-  Plasma effective charge number, defined as
-  :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is the
-  normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and
-  impurity charge states, a consistent :math:`\hat{n}_i` is calculated, with the
-  appropriate degree of main ion dilution.
+  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i n_i Z_i^2 / n_e`.
+  This is a required input when using the ``'fractions'`` or
+  ``'n_e_ratios_Z_eff'`` impurity modes. When using the ``'n_e_ratios'``
+  mode, ``Z_eff`` is an emergent calculated quantity, and any user-provided
+  ``Z_eff`` value will be ignored (a warning will be issued).
 
 ``Z_i_override`` (**time-varying-scalar** | None [default = None])
   An optional override for the main ion's charge (Z) or average charge of an
@@ -442,12 +471,18 @@ follows:
   calculated from the ``main_ion`` specification.
 
 ``Z_impurity_override`` (**time-varying-scalar** | None [default = None])
-  As ``Z_i_override``, but for the impurity ion. If provided, this value will be
-  used instead of the Z calculated from the ``impurity`` specification.
+  (DEPRECATED) As ``Z_i_override``, but for the impurity ion. This is only used
+  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
+  When using the new API (with ``impurity_mode``), this parameter is ignored
+  and a warning is issued. Use ``Z_override`` inside the ``impurity`` dictionary
+  instead.
 
 ``A_impurity_override`` (**time-varying-scalar** | None [default = None])
-  As ``A_i_override``, but for the impurity ion. If provided, this value will be
-  used instead of the A calculated from the ``impurity`` specification.
+  (DEPRECATED) As ``A_i_override``, but for the impurity ion. This is only used
+  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
+  When using the new API (with ``impurity_mode``), this parameter is ignored
+  and a warning is issued. Use ``A_override`` inside the ``impurity`` dictionary
+  instead.
 
 The average charge state of each ion in each mixture is determined by
 `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_, which are
@@ -455,15 +490,15 @@ fitted to atomic data, and in the temperature ranges of interest in the tokamak
 core, are well approximated as 1D functions of electron temperature. All ions
 with atomic numbers below Carbon are assumed to be fully ionized.
 
-Plasma composition examples
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Plasma Composition Examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We remind that for all cases below, the impurity density is solely constrained
-by the input ``Z_eff`` value and the impurity charge state, presently assumed to
-be fully ionized. Imminent development will support temperature-dependent
-impurity average charge states,
+**1. Main Ion settings**
 
-* Pure deuterium plasma:
+In all examples below, the impurity mode is the default ``'fractions'`` mode,
+with a single impurity species set for each case.
+
+* Pure deuterium main ions:
 
   .. code-block:: python
 
@@ -473,7 +508,7 @@ impurity average charge states,
         'Z_eff': 1.5,
     }
 
-* 50-50 DT ion mixture:
+* 50-50 DT main ion mixture:
 
   .. code-block:: python
 
@@ -483,7 +518,7 @@ impurity average charge states,
         'Z_eff': 1.8,
     }
 
-* Time-varying DT ion mixture:
+* Time-varying DT main ion mixture:
 
   .. code-block:: python
 
@@ -493,8 +528,140 @@ impurity average charge states,
         'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
       },
       'impurity': 'W',  # Tungsten
-      'Z_eff': 2.0,
+      'Z_eff': 1.1,
     }
+
+
+**2. Impurity Fractions Mode (`impurity_mode: 'fractions'`)**
+
+This is the default and backward-compatible mode. You provide fractional
+abundances for a set of impurities, which are then treated as a single
+effective impurity species. ``Z_eff`` is a required input to constrain the
+total impurity density. Attributes in the ``impurity`` dict are as follows:
+
+*   ``impurity_mode`` (str): Must be ``'fractions'``.
+*   ``species`` (dict[str, **time-varying-array**] | str): A single impurity
+    string (e.g., ``'Ne'``) or a dict of impurities and their fractional
+    abundances within the impurity mix (e.g., ``{'Ne': 0.8, 'Ar': 0.2}``).
+    The time-varying-array values must be defined on the same grid and their
+    values across all species must sum to 1.
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: Pure deuterium plasma with a Neon impurity, constrained by a time- and
+space-varying Z_eff.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'fractions',
+          'species': 'Ne',
+      },
+      'Z_eff': {
+          0.0: {0.0: 1.2, 1.0: 1.5}, # At t=0, Z_eff profile from 1.2 to 1.5
+          5.0: {0.0: 2.0, 1.0: 2.5}, # At t=5, Z_eff profile from 2.0 to 2.5
+      },
+  }
+
+Example: Pure deuterium plasma with Neon and Argon impurity, consistent with a
+flat and constant Z_eff, and time varying fractional abundances.
+
+.. code-block:: python
+
+  'plasma_composition': {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': {
+                'Ne': {0.0: {0.0: 0.1}, 5.0: {0.0: 0.9}},
+                'Ar': {0.0: {0.0: 0.9}, 5.0: {0.0: 0.1}},
+            },
+        },
+        'Z_eff': 2.0,
+    }
+
+**3. Impurity n_e Ratios Mode (`impurity_mode: 'n_e_ratios'`)**
+
+Specify the density of each impurity species as a ratio of the electron density
+(n_impurity / n_e). In this mode, ``Z_eff`` is an emergent quantity calculated
+by TORAX, and any user-provided ``Z_eff`` will be ignored (a warning will be
+issued).
+
+*   ``impurity_mode`` (str): Must be ``'n_e_ratios'``.
+*   ``species`` (dict[str, **time-varying-array**]): A dict mapping each
+    impurity symbol to its density ratio with n_e. The values must be
+    non-negative.
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: A plasma with a time-varying Tungsten concentration and constant Neon.
+Tungsten starts hollow, and evolves to a flat profile at t=10s.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'n_e_ratios',
+          'species': {
+              'W': {
+                  0.0: {0.0: 1e-5, 1.0: 1e-4},
+                  10.0: {0.0: 1e-4},
+              },  # n_W/n_e ramps hollow to flat 1e-4
+              'Ne': 0.01,  # n_Ne/n_e is constant
+          },
+      },
+      # 'Z_eff': 2.0 # This would be ignored and a warning would be issued.
+  }
+
+Too large impurity ratios may lead to negative main ion densities being
+calculated, which will lead to TORAX returning an error.
+
+**4. Impurity n_e Ratios with Z_eff Constraint (`impurity_mode: 'n_e_ratios_Z_eff'`)**
+
+Specify the density of each impurity species as a ratio of the electron
+density (`n_impurity / n_e`), with exactly one species designated as `None`.
+TORAX will calculate the density of the `None` species to be self-consistent
+with the provided `Z_eff` profile and the densities of the other "known"
+impurities.
+
+*   ``impurity_mode`` (str): Must be ``'n_e_ratios_Z_eff'``.
+*   ``species`` (dict[str, **time-varying-array** | None]): A dict mapping each
+    impurity symbol to its density ratio with n_e. Exactly one value must be
+    `None`. All other values must be non-negative.
+*   ``Z_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average charge (Z).
+*   ``A_override`` (**time-varying-scalar** | None): Optional override for the
+    impurity's average mass (A).
+
+Example: A plasma with a known, constant Neon concentration, where the
+Tungsten concentration is unknown but a flat `Z_eff` profile ramps up over time.
+
+.. code-block:: python
+
+  'plasma_composition': {
+      'main_ion': 'D',
+      'impurity': {
+          'impurity_mode': 'n_e_ratios_Z_eff',
+          'species': {
+              'Ne': 0.01,  # n_Ne/n_e is constant
+              'W': None,  # n_W/n_e will be calculated
+          },
+      },
+      'Z_eff': {
+          0.0: {0.0: 2.0},
+          10.0: {0.0: 2.2},
+      },  # Flat Z_eff ramps from 2.0 to 2.2
+  }
+
+An error will be raised if the calculated density for the unknown impurity
+species becomes negative.
 
 Allowed ion symbols
 ^^^^^^^^^^^^^^^^^^^
@@ -634,8 +801,8 @@ additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
-  The default is set to ``‘ITER_hybrid_citrin_equil_cheasedata.mat2cols’`` for
-  CHEASE geometry and ``EQDSK_ITERhybrid_COCOS02.eqdsk``` for EQDSK geometry.
+  The default is set to ``iterhybrid.mat2cols’`` for
+  CHEASE geometry and ``iterhybrid_cocos02.eqdsk``` for EQDSK geometry.
 
 ``geometry_directory`` (str | None [default = None])
   Optionally set the geometry directory. This should be set to an absolute path.
@@ -781,6 +948,9 @@ transport model.
 * ``'qlknn'``
   A QuaLiKiz Neural Network surrogate model, the default is
   `QLKNN_7_11 <https://github.com/google-deepmind/fusion_surrogates>`_.
+* ``'tglfnn-ukaea'``
+  A TGLF Neural Network surrogate model developed by UKAEA,
+  `reimplemented in JAX <https://github.com/google-deepmind/fusion_surrogates>`_.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear
   gyrokinetic transport model.
@@ -1043,6 +1213,29 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+tglfnn-ukaea
+^^^^^^^^^^^^
+
+Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cite
+`L. Zanisi et al. (2025) <https://conferences.iaea.org/event/392/contributions/36059/>`_.
+
+``machine`` (str [default = 'multimachine'])
+  Machine type for TGLFNN-UKAEA. Options are 'multimachine', and 'step'.
+  The 'multimachine' model is trained on a hypercube covering a wide variety
+  of conventional tokamaks. The 'step' model is trained specifically on the
+  design space of UKAEA's Spherical Tokamak for Energy Production (STEP).
+  See `ukaea/tglfnn-ukaea <https://github.com/ukaea/tglfnn-ukaea>`_ for more
+  details. Note: currently, only the 'multimachine' model is publicly available.
+
+``DV_effective`` (bool [default = False])
+  If ``True``, use either :math:`D_{eff}` or :math:`V_{eff}` for particle
+  transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float [default = 0.05])
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
+  :math:`D_{eff}`, if ``DV_effective==True``.
+
+
 qualikiz
 ^^^^^^^^
 
@@ -1090,17 +1283,30 @@ combined
 
 A combined (additive) model, where the total transport coefficients are
 calculated by summing contributions from a list of component models. Each
-component model is active only within its defined radial domain, set using
-``rho_min``` and ``rho_max``. These zones can be overlapping or
-non-overlapping; in regions of overlap, the total transport coefficients are
-computed by adding the contributions from component models active at those
-coordinates. Post-processing (clipping and smoothing) is performed on the
-summed value.
+component model is active only within its defined radial domain, which can
+be overlapping or non-overlapping; in regions of overlap, the total
+transport coefficients are computed by adding the contributions from
+component models active at those coordinates.
+For individual core transport models defined in ``transport_models``, the active
+domain (where transport coefficients are non-zero) is set by ``rho_min``` and
+``rho_max``. If a pedestal is active, the active domain is then limited by
+``rho_norm_ped_top`` if ``rho_norm_ped_top`` is less than ``rho_max``.
+``rho_norm_ped_top`` is set in the ``pedestal`` section of the config.
+For models in ``pedestal_transport_models``, the active domain is only for
+radii above ``rho_norm_ped_top``.
+Post-processing (clipping and smoothing) is performed on the summed
+values from all component models, including in the pedestal.
 
 The runtime parameters are as follows.
 
 ``transport_models`` (list[dict])
-  A list containing config dicts for the component transport models.
+  A list containing config dicts for the component models for turbulent
+  transport in the core.
+
+``pedestal_transport_models`` (list[dict])
+  A list containing config dicts for the component models for turbulent
+  transport in the pedestal.
+
 
    .. warning::
     TORAX will throw a ``ValueError`` if any of the component transport
@@ -1116,28 +1322,36 @@ Example:
 
 .. code-block:: python
 
-    'transport': {
+  ...
+  'transport': {
       'model_name': 'combined',
       'transport_models': [
-        {
-          'model_name': 'constant',
-            'chi_i': 1.0,
-            'rho_max': 0.3,
-        },
-        {
-          'model_name': 'constant',
-            'chi_i': 2.0,
-            'rho_min': 0.2
-            'rho_max': 0.5,
-        },
-        {
-          'model_name': 'constant',
-            'chi_i': 0.5,
-            'rho_min': 0.5
-            'rho_max': 1.0,
-        },
+          {
+              'model_name': 'constant',
+              'chi_i': 1.0,
+              'rho_max': 0.3,
+          },
+          {
+              'model_name': 'constant',
+              'chi_i': 2.0,
+              'rho_min': 0.2,
+          },
       ],
-    }
+      'pedestal_transport_models': [
+          {
+              'model_name': 'constant',
+              'chi_i': 0.5,
+          },
+      ],
+    },
+    'pedestal': {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+        'rho_norm_ped_top': 0.9,
+        'n_e_ped': 0.8,
+        'n_e_ped_is_fGW': True,
+    },
+    ...
 
 This would produce a ``chi_i`` profile that looks like the following.
 
@@ -1147,9 +1361,9 @@ This would produce a ``chi_i`` profile that looks like the following.
 
 Note that in the region :math:`[0, 0.2]`, only the first component is active,
 so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
-active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.5]`,
-only the second model is active (``chi_i = 2.0``), and in :math:`(0.5, 1.0]`
-only the fourth model is active (``chi_i = 0.5``).
+active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
+only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
+only the pedestal transport model is active (``chi_i = 0.5``).
 
 
 sources
@@ -1719,12 +1933,104 @@ transport
   supported:
 
   * ``'zeros'``
-    Sets all neoclassical transport coefficients to zero. This is the default.
+    Sets all neoclassical transport coefficients to zero.
 
   * ``'angioni_sauter'``
     The Angioni-Sauter neoclassical transport model from
     `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This model does not have any additional configurable parameters.
+    This is the default model. This model does not have any additional
+    configurable parameters.
+
+
+``chi_min`` (float [default = 0.0])
+  Lower allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``chi_max`` (float [default = 100.0])
+  Upper allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``D_e_min`` (float [default = 0.0])
+  Lower allowed bound for neoclassical particle diffusivity :math:`D_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``D_e_max`` (float [default = 100.0])
+  Upper allowed bound for neoclassical particle conductivity :math:`D_\mathrm{neo}`,
+  in units of :math:`m^2/s`.
+
+``V_e_min`` (float [default = -50.0])
+  Lower allowed bound for neoclassical particle convection terms
+  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
+  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
+  and :math:`V_\mathrm{neo, ware}` separately.
+
+``V_e_max`` (float [default = 50.0])
+  Upper allowed bound for neoclassical particle convection terms
+  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
+  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
+  and :math:`V_\mathrm{neo, ware}` separately.
+
+restart
+-------
+
+If this optional entry is supplied in the config, TORAX will be run starting from the
+selected state in a previous simulation. This can be used to resume a completed
+simulation.
+
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
+
+``filename`` (PathLike)
+  Path to an existing TORAX output file (netCDF format).
+
+``time`` (float)
+  Time in output file to load as the new initial state.
+
+``do_restart`` (bool)
+  If True, perform the restart from the selected state. If False, disable the
+  restart and run the simulation as normal.
+
+``stitch`` (bool)
+  If True, concatenate the old and new simulation histories in the resulting
+  output file. If False, output file will only contain the new history.
+
+
+For example, following a simulation in which a state file is saved to
+``/path/to/torax_state_file.nc``, a new simulation can be started from the old
+state at ``t=10`` by adding the following to the config:
+
+.. code-block:: python
+
+  'restart': {
+      'filename': '/path/to/torax_state_file.nc',
+      'time': 10,
+      'do_restart': True,
+      'stitch': True,
+  }
+
+The resulting simulation will recreate the state from ``t=10`` in the
+previous simulation, and then run forwards from that point in time. For
+all subsequent steps the runtime parameters will be constructed using
+the runtime parameter configuration provided in the new config (from ``t=10``
+onwards).
+
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
+Some potential use cases for this feature include:
+
+* Restarting a simulation that was healthy up to a certain time and then failed.
+  After fixing the cause of the failure, a new simulation can be run from the
+  last healthy point.
+
+* Performing uncertainty quantification by sweeping a set of configs starting
+  from the same initial plasma state. After performing an initial simulation,
+  the restart option could be used to run a set of configs with modified
+  parameters to evaluate the impact of their variation.
+
 
 Additional Notes
 ================
@@ -1769,8 +2075,7 @@ There are three main methods to load IMAS equilibrium:
 * Using IMAS netCDF file (imas_filepath).
   This is the main method as it does not require the optional dependency to
   imas-core. The path of the file can then be provided in the config to run
-  TORAX with this geometry. An example yaml input file for this function can be
-  found at |example_imas_scenario|.
+  TORAX with this geometry.
 
 * Using IMAS uri (imas_uri).
   This method does require the imas-core dependency. It loads the
@@ -1778,6 +2083,28 @@ There are three main methods to load IMAS equilibrium:
 
 * Providing the equilibium IDS on the fly (equilibrium_object).
   Using this method the IDS can be provided externally or pre-loaded.
+
+Loading Profiles
+^^^^^^^^^^^^^^^^
+
+Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
+saved in Data Dictionary version 4.0.0 or newer.
+If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
+the loader function ``load_imas_data`` from |imas_loader|.
+It can then be loaded programatically in the ``CONFIG`` by constructing a nested
+dictionary with the ``profile_conditions_from_imas`` and
+``plasma_composition_from_imas`` functions from |core_profiles_input_imas|. The
+functions returns a dictionary whose structure fits the schema of
+profile_conditions or plasma_composition and can be programatically loaded into
+a ``CONFIG`` with standard dictionary manipulation.
+
+An example on how to inject the IMAS conditions into the config can be found in
+the test file ``imas_tools/input/tests/core_profiles_test.py``.
+It is possible to directly input all of profile_conditions from an IDS into the
+config, or to only load specific values of it. It is also possible to combine
+profiles from different IDSs and their time slices can be shifted to correct
+offsets between different IDSs or to match the config t_initial.
+
 
 Config example
 ==============
@@ -1827,7 +2154,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'geometry': {
           'geometry_type': 'chease',
-          'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+          'geometry_file': 'iterhybrid.mat2cols',
           'Ip_from_parameters': True,
           'R_major': 6.2,
           'a_minor': 2.0,
@@ -1903,43 +2230,3 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'calculator_type': 'fixed',
       },
   }
-
-
-Restarting a simulation
-=======================
-In order to restart a simulation a field can be added to the config.
-
-For example following a simulation in which a state file is saved to
-``/path/to/torax_state_file.nc``, if we want to start a new simulation from the
-state of the previous one at ``t=10`` we could add the following to our config:
-
-.. code-block:: python
-
-  {
-      'filename': '/path/to/torax_state_file.nc',
-      'time': 10,
-      'do_restart': True,  # Toggle to enable/disable a restart.
-      # Whether or not to pre"stitch" the contents of the loaded state file up
-      # to `time` with the output state file from this simulation.
-      'stitch': True,
-  }
-
-The subsequence simulation will then recreate the state from ``t=10`` in the
-previous simulation and then run the simulation from that point in time. For
-all subsequent steps the dynamic runtime parameters will be constructed using
-the given runtime parameter configuration (from ``t=10`` onwards).
-
-If the requested restart time is not exactly available in the state file, the
-simulation will restart from the closest available time. A warning will be
-logged in this case.
-
-We envisage this feature being useful for example to:
-
-* restart a(n expensive) simulation that was healthy up till a certain time and
-  then failed. After discovering the issue for breakage you could then restart
-  the sim from the last healthy point.
-
-* do uncertainty quantification by sweeping lots of configs following running
-  a simulation up to a certain point in time. After running the initial
-  simulation you could then modify and sweep the runtime parameter config in
-  order to do some uncertainty quantification.

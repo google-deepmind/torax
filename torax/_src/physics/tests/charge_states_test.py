@@ -16,7 +16,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
-from torax._src.config import plasma_composition
 from torax._src.physics import charge_states
 
 
@@ -34,7 +33,7 @@ class ChargeStatesTest(parameterized.TestCase):
           'Xe',
           'W',
       ],
-      temperature=[0.1, 1.0, [10.0, 20.0], 90.0],
+      temperature=[[0.1], [1.0], [10.0, 20.0], [90.0]],
   )
   def test_calculate_average_charge_state_with_impurity(
       self, ion_symbol, temperature
@@ -88,7 +87,7 @@ class ChargeStatesTest(parameterized.TestCase):
       self, ion_symbol, temperature
   ):
     """Test with valid ions and within temperature range."""
-    T_e = np.array(temperature)
+    T_e = np.array([temperature])
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
         T_e, ion_symbol
     )
@@ -111,10 +110,10 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test with valid ions and within temperature range."""
     ion_symbol = 'W'
     Z_calculated = charge_states.calculate_average_charge_state_single_species(
-        T_e_input, ion_symbol
+        np.array([T_e_input]), ion_symbol
     )
     Z_expected = charge_states.calculate_average_charge_state_single_species(
-        T_e_clipped,
+        np.array([T_e_clipped]),
         ion_symbol,
     )
 
@@ -170,16 +169,11 @@ class ChargeStatesTest(parameterized.TestCase):
     """Test the get_average_charge_state function, where expected_Z references are pre-calculated."""
     T_e = np.array(T_e)
     expected_Z = np.array(expected_Z)
-    avg_A = 2.0  # arbitrary, not used.
-    ion_symbols = tuple(species.keys())
-    fractions = np.array(tuple(species.values()))
-    ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=fractions,
-        avg_A=avg_A,
-    )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, T_e
-    )
+        T_e,
+        species,
+        Z_override=None,
+    ).Z_mixture
 
     np.testing.assert_allclose(Z_calculated, expected_Z, rtol=1e-5)
 
@@ -188,15 +182,11 @@ class ChargeStatesTest(parameterized.TestCase):
     species = {'W': 1.0}
     T_e = np.array([0.1, 2, 10])
     Z_override = np.array([50.0, 50.0, 50.0])
-    ion_symbols = tuple(species.keys())
-    ion_mixture = plasma_composition.DynamicIonMixture(
-        fractions=np.array(tuple(species.values())),
-        avg_A=2.0,  # arbitrary, not used.
-        Z_override=np.array([50.0, 50.0, 50.0]),
-    )
     Z_calculated = charge_states.get_average_charge_state(
-        ion_symbols, ion_mixture, T_e
-    )
+        T_e,
+        species,
+        np.array([50.0, 50.0, 50.0]),
+    ).Z_mixture
     np.testing.assert_allclose(Z_calculated, Z_override)
 
 

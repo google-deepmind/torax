@@ -38,7 +38,7 @@ class GeometryProviderTest(absltest.TestCase):
         R_major=7.4, a_minor=1.0, B_0=6.5
     ).build_geometry()
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}
+        {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
     )
     geo = provider(5.0)
     np.testing.assert_allclose(geo.R_major, 6.8)
@@ -52,7 +52,7 @@ class GeometryProviderTest(absltest.TestCase):
         ValueError, "All geometries must have the same geometry type."
     ):
       geometry_provider.TimeDependentGeometryProvider.create_provider(
-          {0.0: geo_0, 10.0: geo_1}
+          {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
       )
 
   def test_time_dependent_different_meshes(self):
@@ -62,14 +62,14 @@ class GeometryProviderTest(absltest.TestCase):
         ValueError, "All geometries must have the same mesh."
     ):
       geometry_provider.TimeDependentGeometryProvider.create_provider(
-          {0.0: geo_0, 10.0: geo_1}
+          {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
       )
 
   def test_none_z_magnetic_axis_stays_none_time_dependent(self):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     geo = dataclasses.replace(geo, _z_magnetic_axis=None)
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
-        {0.0: geo, 10.0: geo}
+        {0.0: geo, 10.0: geo}, calcphibdot=True,
     )
     self.assertIsNone(provider(0.0)._z_magnetic_axis)
     self.assertIsNone(provider(10.0)._z_magnetic_axis)

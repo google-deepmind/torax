@@ -1,0 +1,50 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from absl.testing import absltest
+from absl.testing import parameterized
+import jax
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import model_config
+
+
+class RuntimeParamsTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self._torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh
+
+  def test_runtime_params_can_be_input_to_jitted_function(self):
+    """Tests that the params can be input to a jitted function."""
+
+    def foo(params: runtime_params_lib.RuntimeParams):
+      _ = params  # do nothing.
+
+    foo_jitted = jax.jit(foo)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self._torax_config
+    )(
+        t=self._torax_config.numerics.t_initial,
+    )
+    # Make sure you can call the function with runtime_params as an arg.
+    foo_jitted(runtime_params)
+
+
+if __name__ == '__main__':
+  absltest.main()

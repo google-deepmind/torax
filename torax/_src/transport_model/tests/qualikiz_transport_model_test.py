@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import os
 import subprocess
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -34,17 +34,13 @@ except ImportError:
 # pylint: enable=g-import-not-at-top
 
 
-class QualikizTransportModelTest(absltest.TestCase):
+class QualikizTransportModelTest(parameterized.TestCase):
 
-  def setUp(self):
-    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
-    super().setUp()
-
-  def tearDown(self):
-    os.environ['TORAX_COMPILATION_ENABLED'] = '1'
-    super().tearDown()
-
-  def test_call(self):
+  @parameterized.named_parameters(
+      ('with_jit', True),
+      ('without_jit', False),
+  )
+  def test_call(self, jit: bool):
     """Tests that the model can be called."""
     # Test prerequisites
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
@@ -56,20 +52,14 @@ class QualikizTransportModelTest(absltest.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
-    )
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -90,8 +80,11 @@ class QualikizTransportModelTest(absltest.TestCase):
 
         # Calling the model
         test_model = qualikiz_transport_model.QualikizTransportModel()
-        test_model(
-            dynamic_runtime_params_slice,
+        model_call = (
+            jax.jit(test_model.__call__) if jit else test_model.__call__
+        )
+        model_call(
+            runtime_params,
             geo,
             core_profiles,
             pedestal_model.PedestalModelOutput(

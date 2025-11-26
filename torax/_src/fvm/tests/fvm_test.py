@@ -226,20 +226,14 @@ class FVMTest(parameterized.TestCase):
         )
     )
     physics_models = torax_config.build_physics_models()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
@@ -248,15 +242,13 @@ class FVMTest(parameterized.TestCase):
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         explicit=True,
     )
     coeffs = calc_coeffs.calc_coeffs(
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         physics_models=physics_models,
@@ -286,8 +278,7 @@ class FVMTest(parameterized.TestCase):
       # core_profiles_t_plus_dt is not updated since coeffs stay constant here
       loss = residual_and_loss.theta_method_block_loss(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+          runtime_params_t_plus_dt=runtime_params,
           geo_t_plus_dt=geo,
           x_old=x_old,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
@@ -300,8 +291,7 @@ class FVMTest(parameterized.TestCase):
 
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+          runtime_params_t_plus_dt=runtime_params,
           geo_t_plus_dt=geo,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
@@ -338,28 +328,21 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
-    )
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     physics_models = torax_config.build_physics_models()
     initial_core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=physics_models.source_models,
@@ -371,8 +354,7 @@ class FVMTest(parameterized.TestCase):
     evolving_names = tuple(['T_i'])
 
     coeffs = calc_coeffs.calc_coeffs(
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         physics_models=physics_models,
@@ -456,35 +438,28 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
+    runtime_params_theta0 = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
             t=torax_config.numerics.t_initial,
         )
     )
-    static_runtime_params_slice_theta0 = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
-    static_runtime_params_slice_theta05 = dataclasses.replace(
-        static_runtime_params_slice_theta0,
+    runtime_params_theta05 = dataclasses.replace(
+        runtime_params_theta0,
         solver=dataclasses.replace(
-            static_runtime_params_slice_theta0.solver, theta_implicit=0.5
+            runtime_params_theta0.solver, theta_implicit=0.5
         ),
     )
 
     physics_models = torax_config.build_physics_models()
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     initial_core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice_theta0,
-        dynamic_runtime_params_slice,
+        runtime_params_theta0,
         geo,
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice_theta0,
+        runtime_params=runtime_params_theta0,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=physics_models.source_models,
@@ -496,8 +471,7 @@ class FVMTest(parameterized.TestCase):
     evolving_names = tuple(['T_i'])
 
     coeffs_old = calc_coeffs.calc_coeffs(
-        static_runtime_params_slice=static_runtime_params_slice_theta05,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params_theta05,
         geo=geo,
         core_profiles=initial_core_profiles,
         physics_models=physics_models,
@@ -514,8 +488,7 @@ class FVMTest(parameterized.TestCase):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice_theta05,
+        runtime_params=runtime_params_theta05,
         geo=geo,
         source_models=physics_models.source_models,
         neoclassical_models=physics_models.neoclassical_models,
@@ -531,8 +504,7 @@ class FVMTest(parameterized.TestCase):
       # at all 0, and the residual should be 0.
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice_theta05,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+          runtime_params_t_plus_dt=runtime_params_theta05,
           geo_t_plus_dt=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
@@ -550,8 +522,7 @@ class FVMTest(parameterized.TestCase):
       final_right_boundary = jnp.array(1.0)
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice_theta0,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+          runtime_params_t_plus_dt=runtime_params_theta0,
           geo_t_plus_dt=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
@@ -570,8 +541,7 @@ class FVMTest(parameterized.TestCase):
       # But when theta_implicit > 0, the residual should be non-zero.
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice_theta05,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+          runtime_params_t_plus_dt=runtime_params_theta05,
           geo_t_plus_dt=geo,
           x_old=(x_0,),
           core_profiles_t_plus_dt=dataclasses.replace(

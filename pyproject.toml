@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "torax"
 description = "Differentiable 1D tokamak plasma transport simulator in JAX."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "TORAX authors", email="torax-dev@google.com"}]
@@ -18,28 +18,31 @@ dependencies = [
     "absl-py>=2.0.0",
     "typing_extensions>=4.2.0",
     "immutabledict>=1.0.0",
-    "jax>=0.4.32",
-    "jaxlib>=0.4.32",
+    "jax>=0.8.1",
+    "jaxlib>=0.8.1",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "fusion_surrogates==0.1.0",
+    "fusion_surrogates==0.4.4",
     "matplotlib>=3.3.0",
     "numpy>2",
-    "setuptools;python_version>='3.10'",
-    "chex>=0.1.88",
+    "setuptools;python_version>='3.11'",
+    "chex>=0.1.90",
     "equinox>=0.11.3",
     "PyYAML>=6.0.1",
     "xarray>=2024.11.0",
     "netcdf4>=1.7.2",
     "h5netcdf>=1.3.0",
+    # TODO(b/451903461) remove the upper limit once the bug is fixed.
+    "h5py>=3.1.0,<3.15.0",
     "scipy>=1.13.0",
-    "jaxtyping>=0.2.28",
+    "jaxtyping>=0.3.2",
     "contourpy>=1.2.1",
-    "eqdsk>=0.4.0",
+    "eqdsk>=0.7.0",
     "pydantic>=2.10.5",
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
     "imas-python>=2.0.1",
+    "typeguard==2.13.3",
 ]
 
 dynamic = ["version"]
@@ -57,6 +60,12 @@ repository = "https://github.com/google-deepmind/torax"
 documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
 
 [project.optional-dependencies]
+
+# Installed through `pip install -e .[tglfnnukaea]`
+tglfnnukaea = [
+    "fusion_surrogates[tglfnnukaea]==0.4.4"
+]
+
 # Installed through `pip install -e .[dev]`
 dev = [
     "isort",
@@ -71,7 +80,9 @@ dev = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_remove_toctrees",
+    "torax[tglfnnukaea]",
 ]
+
 # Installed through `pip install -e .[tutorial]`
 tutorial = [
     "seaborn",

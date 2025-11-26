@@ -19,21 +19,17 @@ Steps through time using a heuristic based on chi_max.
 import jax
 from jax import numpy as jnp
 from torax._src import state as state_module
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.time_step_calculator import time_step_calculator
 
 
 class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
-  """TimeStepCalculator based on chi_max heuristic.
-
-  Attributes:
-    config: General configuration parameters.
-  """
+  """TimeStepCalculator based on chi_max heuristic."""
 
   def _next_dt(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       core_transport: state_module.CoreTransport,
@@ -44,9 +40,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     size for the explicit method, and is therefore a function of chi_max.
 
     Args:
-      dynamic_runtime_params_slice: Input runtime parameters that can change
-        without triggering a JAX recompilation.
-      geo: Geometry for the tokamak being simulated.
+      runtime_params: Input runtime parameters for the current timestep.
+      geo: Geometry for the tokamak being simulated for the current timestep.
       core_profiles: Current core plasma profiles.
       core_transport: Used to calculate maximum step size.
 
@@ -59,8 +54,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     basic_dt = (3.0 / 4.0) * (geo.drho_norm**2) / chi_max
 
     dt = jnp.minimum(
-        dynamic_runtime_params_slice.numerics.chi_timestep_prefactor * basic_dt,
-        dynamic_runtime_params_slice.numerics.max_dt,
+        runtime_params.numerics.chi_timestep_prefactor * basic_dt,
+        runtime_params.numerics.max_dt,
     )
 
     return dt

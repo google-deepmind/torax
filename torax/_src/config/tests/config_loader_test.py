@@ -17,6 +17,7 @@ import typing
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
@@ -41,7 +42,7 @@ class ConfigLoaderTest(parameterized.TestCase):
     if relative_to == "working":
       path = path.relative_to(os.getcwd())
     if relative_to == "torax":
-      path = path.relative_to(config_loader.torax_path())
+      path = path.relative_to(path_utils.torax_path())
 
     if use_string:
       path = str(path)

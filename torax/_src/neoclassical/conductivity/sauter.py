@@ -13,26 +13,26 @@
 # limitations under the License.
 """Sauter conductivity model."""
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
-import chex
 import jax
 import jax.numpy as jnp
-from torax._src import jax_utils
+from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
-from torax._src.neoclassical.conductivity import runtime_params
+from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 
 
 # TODO(b/425750357): Add neoclassical correciton flag (default to True)
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
-  """Dynamic runtime params for the Sauter model."""
+class RuntimeParams(conductivity_runtime_params.RuntimeParams):
+  """Runtime params for the Sauter model."""
 
 
 class SauterModel(base.ConductivityModel):
@@ -66,22 +66,22 @@ class SauterModel(base.ConductivityModel):
 class SauterModelConfig(base.ConductivityModelConfig):
   """Sauter conductivity model config."""
 
-  model_name: Literal['sauter'] = 'sauter'
+  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
 
-  def build_dynamic_params(self) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams()
+  def build_runtime_params(self) -> RuntimeParams:
+    return RuntimeParams()
 
   def build_model(self) -> SauterModel:
     return SauterModel()
 
 
-@jax_utils.jit
+@jax.jit
 def _calculate_conductivity(
     *,
-    Z_eff_face: chex.Array,
+    Z_eff_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-    q_face: chex.Array,
+    q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> base.Conductivity:
   """Calculates sigma and sigma_face using the Sauter model."""

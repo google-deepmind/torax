@@ -16,6 +16,8 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.mhd import runtime_params as mhd_runtime_params
@@ -30,7 +32,6 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class MHDPydanticModelTest(parameterized.TestCase):
-  """Tests for the MHD Pydantic model and dynamic params construction."""
 
   def setUp(self):
     super().setUp()
@@ -41,23 +42,20 @@ class MHDPydanticModelTest(parameterized.TestCase):
         spec=neoclassical_models_lib.NeoclassicalModels
     )
 
-  def test_no_mhd_config(self):
-    """Tests the case where the 'mhd' key is entirely absent."""
+  def test_no_mhd_config_makes_empty_runtime_params(self):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
-    dynamic_slice = provider(t=0.0)
-    self.assertIsInstance(
-        dynamic_slice.mhd, mhd_runtime_params.DynamicMHDParams
-    )
-    self.assertIs(dynamic_slice.mhd.sawtooth, None)
+    runtime_params = provider(t=0.0)
+    self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
+    self.assertIs(runtime_params.mhd.sawtooth, None)
 
   def test_empty_mhd_config(self):
     """Tests the case where 'mhd' key exists but is an empty dict."""
@@ -70,15 +68,13 @@ class MHDPydanticModelTest(parameterized.TestCase):
     mhd_models = torax_config.mhd.build_mhd_models()
     self.assertIs(mhd_models.sawtooth_models, None)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
-    dynamic_slice = provider(t=0.0)
-    self.assertIsInstance(
-        dynamic_slice.mhd, mhd_runtime_params.DynamicMHDParams
-    )
-    self.assertIs(dynamic_slice.mhd.sawtooth, None)
+    runtime_params = provider(t=0.0)
+    self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
+    self.assertIs(runtime_params.mhd.sawtooth, None)
 
   def test_mhd_config_with_sawtooth(self):
     """Tests the case with a valid sawtooth configuration."""
@@ -101,18 +97,43 @@ class MHDPydanticModelTest(parameterized.TestCase):
     )
 
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
-    dynamic_slice = provider(t=0.0)
-    sawtooth_dynamic_params = dynamic_slice.mhd.sawtooth
+    runtime_params = provider(t=0.0)
+    sawtooth_params = runtime_params.mhd.sawtooth
     self.assertIsInstance(
-        sawtooth_dynamic_params, sawtooth_runtime_params.DynamicRuntimeParams
+        sawtooth_params, sawtooth_runtime_params.RuntimeParams
     )
-    self.assertEqual(
-        sawtooth_dynamic_params.trigger_params.minimum_radius, 0.06
-    )
+    self.assertEqual(sawtooth_params.trigger_params.minimum_radius, 0.06)
+
+  def test_mhd_model_under_jit(self):
+    mhd_model = mhd_pydantic_model.MHD.from_dict({
+        'sawtooth': {
+            'trigger_model': {
+                'model_name': 'simple',
+                'minimum_radius': 0.06,
+            },
+            'redistribution_model': {'model_name': 'simple'},
+        }
+    })
+
+    @jax.jit
+    def f(x: mhd_pydantic_model.MHD):
+      return x.build_runtime_params(t=0.0)
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(mhd_model)
+      self.assertIsInstance(output, mhd_runtime_params.RuntimeParams)
+      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.06)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      mhd_model._update_fields({'sawtooth.trigger_model.minimum_radius': 0.07})
+      output = f(mhd_model)
+      self.assertEqual(output.sawtooth.trigger_params.minimum_radius, 0.07)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':

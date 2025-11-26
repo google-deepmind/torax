@@ -25,17 +25,18 @@ CONFIG['sources']['generic_current']['fraction_of_total_current'] = 0.0
 CONFIG['sources']['generic_heat']['P_total'] = 0.0
 CONFIG['sources']['ohmic'] = {}
 CONFIG['numerics']['resistivity_multiplier'] = 10.0
-CONFIG['numerics']['fixed_dt'] = 1.0
+CONFIG['numerics']['fixed_dt'] = 0.5
 CONFIG['transport']['chi_i_inner'] = 0.2
 CONFIG['transport']['chi_e_inner'] = 0.2
 CONFIG['transport']['D_e_inner'] = 0.02
 CONFIG['transport']['rho_inner'] = 0.15
+CONFIG['solver']['solver_type'] = 'linear'  # to simplify numerics.
 CONFIG['mhd'] = {
     'sawtooth': {
         'trigger_model': {
             'model_name': 'simple',
-            'minimum_radius': 0.05,
-            's_critical': 0.15,
+            'minimum_radius': 0.15,
+            's_critical': 0.25,
         },
         'redistribution_model': {
             'model_name': 'simple',

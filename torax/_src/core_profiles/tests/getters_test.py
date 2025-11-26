@@ -12,21 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import profile_conditions as profile_conditions_lib
-from torax._src.config import runtime_params_slice
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.orchestration import run_simulation
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.test_utils import default_configs
@@ -48,14 +50,13 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
+        profile_conditions_lib.RuntimeParams,
         instance=True,
         T_i_right_bc=bound,
         T_i=value,
     )
     result = getters.get_updated_ion_temperature(
-        profile_conditions,
-        self.geo,
+        profile_conditions, self.geo
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
@@ -64,14 +65,13 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
+        profile_conditions_lib.RuntimeParams,
         instance=True,
         T_e_right_bc=bound,
         T_e=value,
     )
     result = getters.get_updated_electron_temperature(
-        profile_conditions,
-        self.geo,
+        profile_conditions, self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
@@ -91,10 +91,8 @@ class GettersTest(parameterized.TestCase):
     numerics = numerics_lib.Numerics.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-    static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -132,10 +130,8 @@ class GettersTest(parameterized.TestCase):
     numerics = numerics_lib.Numerics.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-    static_slice = _create_static_slice_mock(profile_conditions)
     n_e = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     np.testing.assert_allclose(
@@ -160,20 +156,16 @@ class GettersTest(parameterized.TestCase):
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_normalized = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
     np.testing.assert_allclose(np.mean(n_e_normalized.value), nbar, rtol=1e-1)
 
     profile_conditions._update_fields({'normalize_n_e_to_nbar': False})
-    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_unnormalized = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
@@ -200,10 +192,8 @@ class GettersTest(parameterized.TestCase):
     })
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
-    static_slice = _create_static_slice_mock(profile_conditions)
     n_e_fGW = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
     profile_conditions._update_fields(
@@ -221,8 +211,7 @@ class GettersTest(parameterized.TestCase):
     )
 
     n_e = getters.get_updated_electron_density(
-        static_slice,
-        profile_conditions.build_dynamic_params(1.0),
+        profile_conditions.build_runtime_params(1.0),
         self.geo,
     )
 
@@ -242,15 +231,10 @@ class GettersTest(parameterized.TestCase):
     }
     config['plasma_composition']['Z_eff'] = 2.0
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    runtime_params = provider(t=1.0)
     geo = torax_config.geometry.build_provider(t=1.0)
 
     T_e = cell_variable.CellVariable(
@@ -261,19 +245,17 @@ class GettersTest(parameterized.TestCase):
         dr=geo.drho_norm,
     )
     n_e = getters.get_updated_electron_density(
-        static_slice,
-        dynamic_runtime_params_slice.profile_conditions,
+        runtime_params.profile_conditions,
         geo,
     )
     ions = getters.get_updated_ions(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         n_e,
         T_e,
     )
 
-    Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
+    Z_eff = runtime_params.plasma_composition.Z_eff
 
     dilution_factor = formulas.calculate_main_ion_dilution_factor(
         ions.Z_i, ions.Z_impurity, Z_eff
@@ -295,40 +277,32 @@ class GettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
-    dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
 
-    # dynamic_runtime_params_slice.plasma_composition.Z_eff_face is not
+    # runtime_params.plasma_composition.Z_eff_face is not
     # expected to match core_profiles.Z_eff_face, since the main ion dilution
     # does not scale linearly with Z_eff, and thus Z_eff calculated from the
     # face values of the core profiles will not match the interpolated
     # Z_eff_face from plasma_composition. Only the cell grid Z_eff and
     # edge Z_eff should match exactly, since those were actually used to
     # calculate n_i and n_impurity.
-    expected_Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-    expected_Z_eff_edge = (
-        dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
-    )
+    expected_Z_eff = runtime_params.plasma_composition.Z_eff
+    expected_Z_eff_edge = runtime_params.plasma_composition.Z_eff_face[-1]
 
     calculated_Z_eff = getters._calculate_Z_eff(
         core_profiles.Z_i,
@@ -381,12 +355,14 @@ class GettersTest(parameterized.TestCase):
     z_d = constants.ION_PROPERTIES_DICT['D'].Z
     z_he3 = constants.ION_PROPERTIES_DICT['He3'].Z
     z_w = charge_states.calculate_average_charge_state_single_species(
-        jnp.array(T_e), 'W'
+        jnp.array([T_e]), 'W'
     )
     # Calculate the dilution factor for the ground truth plasma.
-    n_d = n_e * (1 - z_w * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
+    n_d = n_e * (1 - z_w[0] * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
     zeff = float((
-        (n_d / n_e) * z_d**2 + n_e_ratio_w * z_w**2 + n_e_ratio_he3 * z_he3**2
+        (n_d / n_e) * z_d**2
+        + n_e_ratio_w * z_w[0] ** 2
+        + n_e_ratio_he3 * z_he3**2
     ))
     dilution = n_d / n_e
 
@@ -418,15 +394,10 @@ class GettersTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     # 3. Call the function under test.
-    provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    dynamic_runtime_params_slice = provider(t=0.0)
+    runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
@@ -441,8 +412,7 @@ class GettersTest(parameterized.TestCase):
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         n_e_cell_variable,
         T_e_cell_variable,
@@ -450,9 +420,11 @@ class GettersTest(parameterized.TestCase):
 
     # 4. Assertions
     # Check that the effective impurity charge is calculated as <Z^2>/<Z>.
-    expected_Z_avg = impurity_fraction_w * z_w + impurity_fraction_he3 * z_he3
+    expected_Z_avg = (
+        impurity_fraction_w * z_w[0] + impurity_fraction_he3 * z_he3
+    )
     expected_Z2_avg = (
-        impurity_fraction_w * z_w**2 + impurity_fraction_he3 * z_he3**2
+        impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
     )
     expected_Z_impurity = expected_Z2_avg / expected_Z_avg
     np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
@@ -469,22 +441,620 @@ class GettersTest(parameterized.TestCase):
     ) * ions.Z_impurity**2
     np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
 
+  def test_get_updated_ions_impurity_mixture_radially_dependent(self):
+    """Tests that ion densities are correctly calculated for an impurity mixture."""
 
-def _create_static_slice_mock(
-    profile_conditions: profile_conditions_lib.ProfileConditions,
-) -> runtime_params_slice.StaticRuntimeParamsSlice:
-  return mock.create_autospec(
-      runtime_params_slice.StaticRuntimeParamsSlice,
-      instance=True,
-      profile_conditions=mock.create_autospec(
-          profile_conditions_lib.StaticRuntimeParams,
-          instance=True,
-          normalize_n_e_to_nbar=profile_conditions.normalize_n_e_to_nbar,
-          n_e_right_bc_is_absolute=False
-          if profile_conditions.n_e_right_bc is None
-          else True,
+    # 1. Define a "ground truth" plasma with individual impurity species.
+    # Assumes a single deuterium main ion
+    T_e = 50.0  # keV
+    n_e = 1e20
+    n_e_ratio_w = np.array([1e-4, 5e-5, 5e-5, 5e-5])  # n_W / n_e
+    n_e_ratio_he3 = np.array([0.03, 0.015, 0.015, 0.015])  # n_He3 / n_e
+    # Calculate ion charges for the ground truth plasma.
+    z_d = constants.ION_PROPERTIES_DICT['D'].Z
+    z_he3 = constants.ION_PROPERTIES_DICT['He3'].Z
+    z_w = charge_states.calculate_average_charge_state_single_species(
+        jnp.array([T_e]), 'W'
+    )
+    # Calculate the dilution factor for the ground truth plasma.
+    n_d = n_e * (1 - z_w[0] * n_e_ratio_w - z_he3 * n_e_ratio_he3) / z_d
+    zeff = (
+        (n_d / n_e) * z_d**2
+        + n_e_ratio_w * z_w[0] ** 2
+        + n_e_ratio_he3 * z_he3**2
+    )
+    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    dilution = n_d / n_e
+
+    # 2. Set up TORAX to use an effective impurity mixture.
+    impurity_fraction_w = n_e_ratio_w / (n_e_ratio_w + n_e_ratio_he3)
+    impurity_fraction_he3 = 1.0 - impurity_fraction_w
+    config_dict = {
+        'profile_conditions': {
+            'n_e': n_e,
+            'T_e': T_e,
+            'T_e_right_bc': T_e,
+            'n_e_right_bc': n_e,
+        },
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': {
+                'species': {
+                    'W': (geo.rho_norm, impurity_fraction_w),
+                    'He3': (geo.rho_norm, impurity_fraction_he3),
+                },
+                'impurity_mode': (
+                    plasma_composition_lib._IMPURITY_MODE_FRACTIONS
+                ),
+            },
+            'Z_eff': (geo.rho_norm, zeff),
+        },
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    # 3. Call the function under test.
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    T_e_cell_variable = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, T_e),
+        dr=geo.drho_norm,
+        right_face_constraint=T_e,
+        right_face_grad_constraint=None,
+    )
+    n_e_cell_variable = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, n_e),
+        dr=geo.drho_norm,
+        right_face_constraint=n_e,
+        right_face_grad_constraint=None,
+    )
+    ions = getters.get_updated_ions(
+        runtime_params,
+        geo,
+        n_e_cell_variable,
+        T_e_cell_variable,
+    )
+
+    # 4. Assertions
+    # Check that the effective impurity charge is calculated as <Z^2>/<Z>.
+    expected_Z_avg = (
+        impurity_fraction_w * z_w[0] + impurity_fraction_he3 * z_he3
+    )
+    expected_Z2_avg = (
+        impurity_fraction_w * z_w[0] ** 2 + impurity_fraction_he3 * z_he3**2
+    )
+    expected_Z_impurity = expected_Z2_avg / expected_Z_avg
+    np.testing.assert_allclose(ions.Z_impurity, expected_Z_impurity, rtol=1e-6)
+
+    # Check that the calculated dilution factor matches the ground truth.
+    calculated_dilution = ions.n_i.value / n_e_cell_variable.value
+    np.testing.assert_allclose(calculated_dilution, dilution, rtol=1e-6)
+
+    # Check that Z_eff can be reconstructed correctly.
+    reconstructed_zeff = (
+        ions.n_i.value / n_e_cell_variable.value
+    ) * ions.Z_i**2 + (
+        ions.n_impurity.value / n_e_cell_variable.value
+    ) * ions.Z_impurity**2
+    np.testing.assert_allclose(reconstructed_zeff, zeff, rtol=1e-6)
+
+  def test_get_updated_ions_with_n_e_ratios(self):
+    """Tests get_updated_ions for n_e_ratios vs fractions mode."""
+    # 1. Define ground truth plasma parameters
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ne': 0.005, 'Ar': 0.001}
+    impurity_symbols = tuple(n_e_ratios.keys())
+
+    # 2. Calculate equivalent fractions and Z_eff for a fractions-based config
+    # Calculate charge states
+    z_main = constants.ION_PROPERTIES_DICT['D'].Z
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            jnp.array([t_e_keV]), symbol
+        )
+        for symbol in impurity_symbols
+    }
+
+    # Calculate scalar Z_eff
+    zeff = (
+        1 - sum(r * z_impurities[s][0] for s, r in n_e_ratios.items())
+    ) * z_main + sum(r * z_impurities[s][0] ** 2 for s, r in n_e_ratios.items())
+
+    # Calculate impurity fractions
+    total_impurity_ratio = sum(n_e_ratios.values())
+    impurity_fractions = {
+        symbol: ratio / total_impurity_ratio
+        for symbol, ratio in n_e_ratios.items()
+    }
+
+    # 3. Create the two configurations
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_NE_RATIOS,
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # Config 2: fractions + Z_eff
+    config_dict_fractions = base_config_dict.copy()
+    config_dict_fractions['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
+            'species': impurity_fractions,
+        },
+        'Z_eff': float(zeff),
+    }
+    torax_config_fractions = model_config.ToraxConfig.from_dict(
+        config_dict_fractions
+    )
+
+    # 4. Run get_updated_ions for both and compare
+    def _run_get_updated_ions(torax_config):
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
+      )
+      runtime_params = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ions_fractions = _run_get_updated_ions(torax_config_fractions)
+
+    # 5. Assertions
+    chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
+
+  def test_get_updated_ions_with_n_e_ratios_radially_dependent(self):
+    """Tests get_updated_ions for n_e_ratios vs fractions mode."""
+    # Define ground truth plasma parameters
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {
+        'C': {0.0: 0.01, 1.0: 0.005},
+        'Ne': {0.0: 0.005, 1.0: 0.0025},
+        'Ar': {0.0: 0.001, 1.0: 0.0005},
+    }
+    total_rho_zero = 0.01 + 0.005 + 0.001
+    total_rho_one = 0.005 + 0.0025 + 0.0005
+    impurity_fractions = {
+        'C': {0.0: 0.01 / total_rho_zero, 1.0: 0.005 / total_rho_one},
+        'Ne': {0.0: 0.005 / total_rho_zero, 1.0: 0.0025 / total_rho_one},
+        'Ar': {0.0: 0.001 / total_rho_zero, 1.0: 0.0005 / total_rho_one},
+    }
+    impurity_symbols = tuple(n_e_ratios.keys())
+
+    z_main = constants.ION_PROPERTIES_DICT['D'].Z
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            jnp.array([t_e_keV]), symbol
+        )
+        for symbol in impurity_symbols
+    }
+
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    geo = geometry_pydantic_model.Geometry.from_dict(
+        base_config_dict['geometry']
+    ).build_provider(t=0.0)
+
+    # Calculate radially dependent Z_eff defined at rho_norm=1.0.
+    total = np.zeros((5,))
+    total_sq = np.zeros((5,))
+    for s, r in n_e_ratios.items():
+      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(
+          r
+      )
+      torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
+      impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
+      z_impurity = z_impurities[s][0]
+      total += impurity_value * z_impurity
+      total_sq += impurity_value * z_impurity**2
+
+    zeff = (1.0 - total) * z_main + total_sq
+
+    # Config 1: n_e_ratios
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_NE_RATIOS,
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # Config 2: fractions + Z_eff
+    config_dict_fractions = base_config_dict.copy()
+    config_dict_fractions['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
+            'species': impurity_fractions,
+        },
+        'Z_eff': (geo.rho_face_norm, zeff),
+    }
+    torax_config_fractions = model_config.ToraxConfig.from_dict(
+        config_dict_fractions
+    )
+
+    def _run_get_updated_ions(torax_config):
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
+      )
+      runtime_params = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ions_fractions = _run_get_updated_ions(torax_config_fractions)
+
+    chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
+
+  def test_get_updated_ions_with_n_e_ratios_Z_eff(self):
+    """Tests get_updated_ions for n_e_ratios_Z_eff vs fractions mode."""
+    # 1. Define plasma parameters
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ne': 0.005, 'Ar': 0.001}  # for n_e_ratios mode
+
+    # 2. Create the two configurations
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios (ground truth)
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # 3. Run get_updated_ions for n_e_ratios to get the ground truth ions and
+    # Z_eff
+    def _run_get_updated_ions(torax_config):
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
+      )
+      runtime_params = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+    ground_truth_zeff = ions_ne_ratios.Z_eff
+
+    # 4. Config 2: n_e_ratios_Z_eff (what we are testing)
+    config_dict_ne_ratios_zeff = base_config_dict.copy()
+    config_dict_ne_ratios_zeff['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': (
+                plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF
+            ),
+            'species': {'C': 0.01, 'Ne': None, 'Ar': 0.001},
+        },
+        'Z_eff': float(
+            ground_truth_zeff[0]
+        ),  # Use the calculated Z_eff as input
+    }
+    torax_config_ne_ratios_zeff = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios_zeff
+    )
+
+    # 5. Run get_updated_ions for n_e_ratios_Z_eff
+    ions_ne_ratios_zeff = _run_get_updated_ions(torax_config_ne_ratios_zeff)
+
+    # 6. Assertions
+    chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
+
+  def test_get_updated_ions_with_n_e_ratios_Z_eff_radially_dependent(self):
+    # Define plasma parameters.
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {
+        'C': {0.0: 0.01, 1.0: 0.005},
+        'Ne': {0.0: 0.005, 1.0: 0.0025},
+        'Ar': {0.0: 0.001, 1.0: 0.0005},
+    }
+    # Calculate radially dependent Z_eff defined at rho_norm=1.0.
+    z_main = constants.ION_PROPERTIES_DICT['D'].Z
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            jnp.array([t_e_keV]), symbol
+        )
+        for symbol in n_e_ratios.keys()
+    }
+
+    base_config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {},  # to be filled
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+
+    # Config 1: n_e_ratios (ground truth)
+    config_dict_ne_ratios = base_config_dict.copy()
+    config_dict_ne_ratios['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': n_e_ratios,
+        },
+    }
+    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios
+    )
+
+    # Run get_updated_ions for n_e_ratios to get the ground truth ions
+    def _run_get_updated_ions(torax_config):
+      provider = build_runtime_params.RuntimeParamsProvider.from_config(
+          torax_config
+      )
+      runtime_params = provider(t=0.0)
+      geo = torax_config.geometry.build_provider(t=0.0)
+
+      t_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, t_e_keV),
+          dr=geo.drho_norm,
+          right_face_constraint=t_e_keV,
+          right_face_grad_constraint=None,
+      )
+      n_e_cell_variable = cell_variable.CellVariable(
+          value=jnp.full_like(geo.rho_norm, n_e_val),
+          dr=geo.drho_norm,
+          right_face_constraint=n_e_val,
+          right_face_grad_constraint=None,
+      )
+      return getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_cell_variable,
+          t_e_cell_variable,
+      )
+
+    ions_ne_ratios = _run_get_updated_ions(torax_config_ne_ratios)
+
+    # Config 2: n_e_ratios_Z_eff
+    config_dict_ne_ratios_zeff = base_config_dict.copy()
+    geo = geometry_pydantic_model.Geometry.from_dict(
+        config_dict_ne_ratios_zeff['geometry']
+    ).build_provider(t=0.0)
+
+    # Calculate Z_eff from the previously defined n_e_ratios.
+    total = np.zeros((5,))
+    total_sq = np.zeros((5,))
+    for s, r in n_e_ratios.items():
+      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(
+          r
+      )
+      torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
+      impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
+      z_impurity = z_impurities[s][0]
+      total += impurity_value * z_impurity
+      total_sq += impurity_value * z_impurity**2
+
+    zeff = 1.0 - total * z_main + total_sq
+    config_dict_ne_ratios_zeff['plasma_composition'] = {
+        'main_ion': 'D',
+        'impurity': {
+            'impurity_mode': (
+                plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF
+            ),
+            'species': {
+                'C': {0.0: 0.01, 1.0: 0.005},
+                'Ne': None,
+                'Ar': {0.0: 0.001, 1.0: 0.0005},
+            },
+        },
+        # Use the calculated Z_eff as input
+        'Z_eff': (geo.rho_face_norm, zeff),
+    }
+    torax_config_ne_ratios_zeff = model_config.ToraxConfig.from_dict(
+        config_dict_ne_ratios_zeff
+    )
+
+    ions_ne_ratios_zeff = _run_get_updated_ions(torax_config_ne_ratios_zeff)
+
+    chex.assert_trees_all_close(ions_ne_ratios, ions_ne_ratios_zeff, rtol=1e-5)
+
+  @parameterized.parameters(
+      (
+          plasma_composition_lib._IMPURITY_MODE_FRACTIONS,
+          {'Ne': 0.5, 'W': 0.5},
+          1.0,
+      ),
+      (
+          plasma_composition_lib._IMPURITY_MODE_NE_RATIOS,
+          {'Ne': 0.0, 'W': 0.0},
+          None,
+      ),
+      (
+          plasma_composition_lib._IMPURITY_MODE_NE_RATIOS_ZEFF,
+          {'Ne': 0.0, 'W': None},
+          1.0,
       ),
   )
+  def test_get_updated_ions_with_zero_impurities(
+      self, impurity_mode, species, Z_eff
+  ):
+    config_dict = {
+        'profile_conditions': {},
+        'plasma_composition': {
+            'main_ion': 'D',
+            'impurity': {
+                'impurity_mode': impurity_mode,
+                'species': species,
+            },
+        },
+        'numerics': {'t_final': 0.1},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    if Z_eff is not None:
+      config_dict['plasma_composition']['Z_eff'] = Z_eff
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+
+    initial_core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    ions = getters.get_updated_ions(
+        runtime_params,
+        geo,
+        initial_core_profiles.n_e,
+        initial_core_profiles.T_e,
+    )
+
+    np.testing.assert_allclose(ions.n_impurity.value, 0.0)
+    np.testing.assert_allclose(ions.Z_eff, 1.0)
+    np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
+
+    _, state_history = run_simulation.run_simulation(torax_config)
+    np.testing.assert_equal(
+        state_history.sim_error,
+        state.SimError.NO_ERROR,
+        err_msg='Simulation resulted in an unexpected error.',
+    )
 
 
 if __name__ == '__main__':

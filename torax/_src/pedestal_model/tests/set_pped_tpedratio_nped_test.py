@@ -14,9 +14,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.test_utils import default_configs
@@ -60,29 +60,25 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
-    )
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    jitted_pedestal_model = jax_utils.jit(pedestal_model)
+    jitted_pedestal_model = jax.jit(pedestal_model)
 
     geo = torax_config.geometry.build_provider(time)
-    dynamic_runtime_params_slice = provider(t=time)
+    runtime_params = provider(t=time)
     core_profiles = initialization.initial_core_profiles(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     pedestal_model_output = jitted_pedestal_model(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -100,7 +96,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       expected_n_e_ped = n_e_ped[time]
     if n_e_ped_is_fGW:
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip
+          runtime_params.profile_conditions.Ip
           / 1e6  # Convert to MA.
           / (jnp.pi * geo.a_minor**2)
           * 1e20

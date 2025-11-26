@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Pydantic model for sawtooth configuration."""
-
-from typing import Union
-
 import chex
 import pydantic
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -34,7 +31,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
     crash_step_duration: Sawteeth crash period for extra timestep generated.
   """
 
-  trigger_model: Union[simple_trigger.SimpleTriggerConfig] = pydantic.Field(
+  trigger_model: simple_trigger.SimpleTriggerConfig = pydantic.Field(
       discriminator='model_name'
   )
 
@@ -50,11 +47,11 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
         redistribution_model=self.redistribution_model.build_redistribution_model(),
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> sawtooth_runtime_params.DynamicRuntimeParams:
-    return sawtooth_runtime_params.DynamicRuntimeParams(
+  ) -> sawtooth_runtime_params.RuntimeParams:
+    return sawtooth_runtime_params.RuntimeParams(
         crash_step_duration=self.crash_step_duration,
-        trigger_params=self.trigger_model.build_dynamic_params(t),
-        redistribution_params=self.redistribution_model.build_dynamic_params(t),
+        trigger_params=self.trigger_model.build_runtime_params(t),
+        redistribution_params=self.redistribution_model.build_runtime_params(t),
     )

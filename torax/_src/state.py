@@ -15,12 +15,15 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
-from typing import Optional
+import functools
+from typing import Mapping
 
 from absl import logging
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 import typing_extensions
@@ -45,18 +48,22 @@ class CoreProfiles:
       psidot: Time derivative of poloidal flux (loop voltage) [V].
       n_e: Electron density [m^-3].
       n_i: Main ion density [m^-3].
-      n_impurity: Impurity density [m^-3].
+      n_impurity: Impurity density of bundled impurity [m^-3].
+      impurity_fractions: Fractional abundances of individual impurity species.
       q_face: Safety factor.
       s_face: Magnetic shear.
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
-      Z_impurity: Impurity charge on cell grid [dimensionless].
-      Z_impurity_face: Impurity charge on face grid [dimensionless].
+      Z_impurity: Impurity charge of bundled impurity on cell grid
+        [dimensionless].
+      Z_impurity_face: Impurity charge of bundled impurity on face grid
+        [dimensionless].
       Z_eff: Effective charge on cell grid [dimensionless].
       Z_eff_face: Effective charge on face grid [dimensionless].
-      A_impurity: Impurity mass [amu].
+      A_impurity: Impurity mass on cell grid [amu].
+      A_impurity_face: Impurity mass on face grid [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
       j_total: Total current density on the cell grid [A/m^2].
@@ -71,22 +78,66 @@ class CoreProfiles:
   n_e: cell_variable.CellVariable
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  q_face: array_typing.ArrayFloat
-  s_face: array_typing.ArrayFloat
-  v_loop_lcfs: array_typing.ScalarFloat
-  Z_i: array_typing.ArrayFloat
-  Z_i_face: array_typing.ArrayFloat
-  A_i: array_typing.ScalarFloat
-  Z_impurity: array_typing.ArrayFloat
-  Z_impurity_face: array_typing.ArrayFloat
-  A_impurity: array_typing.ScalarFloat
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
-  sigma: array_typing.ArrayFloat
-  sigma_face: array_typing.ArrayFloat
-  j_total: array_typing.ArrayFloat
-  j_total_face: array_typing.ArrayFloat
-  Ip_profile_face: array_typing.ArrayFloat
+  impurity_fractions: Mapping[str, array_typing.FloatVector]
+  q_face: array_typing.FloatVectorFace
+  s_face: array_typing.FloatVectorFace
+  v_loop_lcfs: array_typing.FloatScalar
+  Z_i: array_typing.FloatVectorCell
+  Z_i_face: array_typing.FloatVectorFace
+  A_i: array_typing.FloatScalar
+  Z_impurity: array_typing.FloatVectorCell
+  Z_impurity_face: array_typing.FloatVectorFace
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
+  Z_eff: array_typing.FloatVectorCell
+  Z_eff_face: array_typing.FloatVectorFace
+  sigma: array_typing.FloatVectorCell
+  sigma_face: array_typing.FloatVectorFace
+  j_total: array_typing.FloatVectorCell
+  j_total_face: array_typing.FloatVectorFace
+  Ip_profile_face: array_typing.FloatVectorFace
+
+  @functools.cached_property
+  def pressure_thermal_e(self) -> cell_variable.CellVariable:
+    """Electron thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.n_e.value
+        * self.T_e.value
+        * constants.CONSTANTS.keV_to_J,
+        dr=self.n_e.dr,
+        right_face_constraint=self.n_e.right_face_constraint
+        * self.T_e.right_face_constraint
+        * constants.CONSTANTS.keV_to_J,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_thermal_i(self) -> cell_variable.CellVariable:
+    """Ion thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.T_i.value
+        * constants.CONSTANTS.keV_to_J
+        * (self.n_i.value + self.n_impurity.value),
+        dr=self.n_i.dr,
+        right_face_constraint=self.T_i.right_face_constraint
+        * constants.CONSTANTS.keV_to_J
+        * (
+            self.n_i.right_face_constraint
+            + self.n_impurity.right_face_constraint
+        ),
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_thermal_total(self) -> cell_variable.CellVariable:
+    """Total thermal pressure [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
+        dr=self.pressure_thermal_e.dr,
+        right_face_constraint=self.pressure_thermal_e.right_face_constraint
+        + self.pressure_thermal_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
 
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
@@ -95,7 +146,7 @@ class CoreProfiles:
         self.n_e.value,
     ).item()
 
-  def negative_temperature_or_density(self) -> bool:
+  def negative_temperature_or_density(self) -> jax.Array:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
         self.T_i,
@@ -103,9 +154,15 @@ class CoreProfiles:
         self.n_e,
         self.n_i,
         self.n_impurity,
+        self.impurity_fractions,
     )
-    return any(
-        [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
+    # Check if any profile is less than -eps
+    # (allowing for numerical precision errors)
+    return np.any(
+        np.array([
+            np.any(np.less(x, -constants.CONSTANTS.eps))
+            for x in jax.tree.leaves(profiles_to_check)
+        ])
     )
 
   def __str__(self) -> str:
@@ -115,8 +172,9 @@ class CoreProfiles:
         T_e={self.T_e},
         psi={self.psi},
         n_e={self.n_e},
-        n_impurity={self.n_impurity},
         n_i={self.n_i},
+        n_impurity={self.n_impurity},
+        impurity_fractions={self.impurity_fractions},
       )
     """
 
@@ -136,27 +194,19 @@ class CoreTransport:
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_face_el_bohm: Optional[jax.Array] = None
-  chi_face_el_gyrobohm: Optional[jax.Array] = None
-  chi_face_ion_bohm: Optional[jax.Array] = None
-  chi_face_ion_gyrobohm: Optional[jax.Array] = None
-  chi_neo_i: Optional[jax.Array] = None
-  chi_neo_e: Optional[jax.Array] = None
-  D_neo_e: Optional[jax.Array] = None
-  V_neo_e: Optional[jax.Array] = None
-  V_neo_ware_e: Optional[jax.Array] = None
+  chi_face_el_bohm: jax.Array | None = None
+  chi_face_el_gyrobohm: jax.Array | None = None
+  chi_face_ion_bohm: jax.Array | None = None
+  chi_face_ion_gyrobohm: jax.Array | None = None
+  chi_neo_i: jax.Array | None = None
+  chi_neo_e: jax.Array | None = None
+  D_neo_e: jax.Array | None = None
+  V_neo_e: jax.Array | None = None
+  V_neo_ware_e: jax.Array | None = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
     template = self.chi_face_el
-    if self.chi_face_el_bohm is None:
-      self.chi_face_el_bohm = jnp.zeros_like(template)
-    if self.chi_face_el_gyrobohm is None:
-      self.chi_face_el_gyrobohm = jnp.zeros_like(template)
-    if self.chi_face_ion_bohm is None:
-      self.chi_face_ion_bohm = jnp.zeros_like(template)
-    if self.chi_face_ion_gyrobohm is None:
-      self.chi_face_ion_gyrobohm = jnp.zeros_like(template)
     if self.chi_neo_i is None:
       self.chi_neo_i = jnp.zeros_like(template)
     if self.chi_neo_e is None:
@@ -207,7 +257,7 @@ class CoreTransport:
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 
@@ -224,10 +274,10 @@ class SolverNumericOutputs:
       corresponds to a sawtooth crash step.
   """
 
-  outer_solver_iterations: int = 0
-  solver_error_state: int = 0
-  inner_solver_iterations: int = 0
-  sawtooth_crash: bool = False
+  outer_solver_iterations: array_typing.IntScalar
+  solver_error_state: array_typing.IntScalar
+  inner_solver_iterations: array_typing.IntScalar
+  sawtooth_crash: array_typing.BoolScalar
 
 
 @enum.unique
@@ -248,7 +298,7 @@ class SimError(enum.Enum):
             """)
       case SimError.NAN_DETECTED:
         logging.error("""
-            Simulation stopped due to NaNs in state.
+            Simulation stopped due to NaNs in state and/or post processed outputs.
             Output file contains all profiles up to the last valid step.
             """)
       case SimError.QUASINEUTRALITY_BROKEN:
@@ -260,6 +310,12 @@ class SimError(enum.Enum):
       case SimError.REACHED_MIN_DT:
         logging.error("""
             Simulation stopped because the adaptive time step became too small.
+            A common cause of vanishing timesteps is due to the nonlinear solver
+            tending to negative densities or temperatures. This often arises
+            through physical reasons like radiation collapse, or unphysical
+            configuration such as impurity densities incompatible with physical
+            quasineutrality. Check the output file for near-zero temperatures or
+            densities at the last valid step.
             """)
       case SimError.NO_ERROR:
         pass

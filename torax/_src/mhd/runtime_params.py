@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Container for MHD model dynamic runtime params."""
+"""Container for MHD model runtime params."""
 
 import dataclasses
 
@@ -22,7 +22,7 @@ from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicMHDParams:
-  """Container for dynamic parameters of all configured MHD models."""
+class RuntimeParams:
+  """Container for the parameters of all configured MHD models."""
 
-  sawtooth: sawtooth_runtime_params.DynamicRuntimeParams | None = None
+  sawtooth: sawtooth_runtime_params.RuntimeParams | None = None

@@ -26,14 +26,17 @@ import chex
 import contourpy
 from imas import ids_toplevel
 import jax
+from jax import numpy as jnp
 import numpy as np
 import scipy
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import interpolated_param
+from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
-from torax._src.geometry import imas as imas_geometry
+from torax._src.imas_tools.input import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -71,17 +74,45 @@ class StandardGeometry(geometry.Geometry):
       `Geometry` docstring for definition of `delta_upper_face`.
     delta_lower_face: Lower triangularity on the face grid [dimensionless]. See
       `Geometry` docstring for definition of `delta_lower_face`.
+    connection_length_target: Optional input. Parallel connection length from
+      outboard midplane to target [m]. If not provided, then the value is taken
+      from runtime parameters in any model that needs it, e.g. edge models.
+    connection_length_divertor: Optional input. Parallel connection length from
+      outboard midplane to X-point [m]. If not provided, same procedure holds as
+      for `connection_length_target`.
+    target_angle_of_incidence: Optional input. Angle between magnetic field line
+      and divertor target [degrees]. If not provided, same procedure holds as
+      for `connection_length_target`.
+    R_OMP: Optional input. Major radius of the outboard midplane [m]. If not
+      provided, same procedure holds as for `connection_length_target`.
+    R_target: Optional input. Major radius of the divertor target strike point
+      [m]. If not provided, same procedure holds as for
+      `connection_length_target`.
+    B_pol_OMP: Optional input. Poloidal magnetic field at the outboard midplane
+      [T]. If not provided, same procedure holds as for
+      `connection_length_target`.
+    diverted: Optional input. Boolean flag indicating whether the geometry is
+      diverted. If not available, then diverted/limited will be determined by
+      flux_surf_avg_Bp2[-1] in StandardGeometryIntermediates.
   """
 
   Ip_from_parameters: bool = dataclasses.field(metadata=dict(static=True))
-  Ip_profile_face: chex.Array
-  psi: chex.Array
-  psi_from_Ip: chex.Array
-  psi_from_Ip_face: chex.Array
-  j_total: chex.Array
-  j_total_face: chex.Array
-  delta_upper_face: chex.Array
-  delta_lower_face: chex.Array
+  Ip_profile_face: array_typing.FloatVectorFace
+  psi: array_typing.FloatVectorCell
+  psi_from_Ip: array_typing.FloatVectorCell
+  psi_from_Ip_face: array_typing.FloatVectorFace
+  j_total: array_typing.Array
+  j_total_face: array_typing.FloatVectorFace
+  delta_upper_face: array_typing.FloatVectorFace
+  delta_lower_face: array_typing.FloatVectorFace
+  # Optional parameters not present in all geometry sources.
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
+  target_angle_of_incidence: array_typing.FloatScalar | None
+  R_OMP: array_typing.FloatScalar | None
+  R_target: array_typing.FloatScalar | None
+  B_pol_OMP: array_typing.FloatScalar | None
+  diverted: array_typing.BoolScalar | None
 
 
 @jax.tree_util.register_dataclass
@@ -100,9 +131,19 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
+  connection_length_target: interpolated_param.InterpolatedVarSingleAxis | None
+  connection_length_divertor: (
+      interpolated_param.InterpolatedVarSingleAxis | None
+  )
+  target_angle_of_incidence: interpolated_param.InterpolatedVarSingleAxis | None
+  R_OMP: interpolated_param.InterpolatedVarSingleAxis | None
+  R_target: interpolated_param.InterpolatedVarSingleAxis | None
+  B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
+  diverted: interpolated_param.InterpolatedVarSingleAxis | None
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
+    chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, StandardGeometry)
 
 
@@ -142,14 +183,20 @@ class StandardGeometryIntermediates:
     int_dl_over_Bp: :math:`\oint dl/B_p` (field-line contour integral on the
       flux surface) [:math:`\mathrm{m / T}`], where :math:`B_p` is the poloidal
       magnetic field.
+    flux_surf_avg_1_over_R: Flux surface average of :math:`1/R`
+      [:math:`\mathrm{m^{-1}}`].
     flux_surf_avg_1_over_R2: Flux surface average of :math:`1/R^2`
       [:math:`\mathrm{m^{-2}}`].
-    flux_surf_avg_Bp2: Flux surface average of :math:`B_p^2`
-      [:math:`\mathrm{T^2}`].
-    flux_surf_avg_RBp: Flux surface average of :math:`R B_p` [:math:`\mathrm{m
-      T}`].
-    flux_surf_avg_R2Bp2: Flux surface average of :math:`R^2 B_p^2`
-      [:math:`\mathrm{m^2 T^2}`].
+    flux_surf_avg_grad_psi: Flux surface average of :math:`|\nabla \psi| = R
+      B_p` [:math:`\mathrm{m T}`] (COCOS11).
+    flux_surf_avg_grad_psi2: Flux surface average of :math:`|\nabla \psi|^2 =
+      R^2 B_p^2` [:math:`\mathrm{m^2 T^2}`] (COCOS11).
+    flux_surf_avg_grad_psi2_over_R2: Flux surface average of :math:`|\nabla
+      \psi|^2 / R^2 = B_p^2` [:math:`\mathrm{T^2}`] (COCOS11).
+    flux_surf_avg_B2: Flux surface average of :math:`B^2`
+      [:math:`\mathrm{T}^2`].
+    flux_surf_avg_1_over_B2: Flux surface average of :math:`1/B^2`
+      [:math:`\mathrm{T}^{-2}`].
     delta_upper_face: Upper triangularity [dimensionless]. See `Geometry`
       docstring for definition.
     delta_lower_face: Lower triangularity [dimensionless]. See `Geometry`
@@ -163,31 +210,52 @@ class StandardGeometryIntermediates:
       calculations. Used to create a higher-resolution grid to improve accuracy
       when initializing psi from a plasma current profile.
     z_magnetic_axis: z position of magnetic axis [:math:`\mathrm{m}`].
+    diverted: Boolean flag indicating whether the geometry is diverted.
+    connection_length_target: Parallel connection length from outboard midplane
+      to target [m].
+    connection_length_divertor: Parallel connection length from outboard
+      midplane to X-point [m].
+    target_angle_of_incidence: Angle between magnetic field line and divertor
+      target [degrees].
+    R_OMP: Major radius of the outboard midplane [m].
+    R_target: Major radius of the divertor target strike point [m].
+    B_pol_OMP: Poloidal magnetic field at the outboard midplane [T].
   """
 
   geometry_type: geometry.GeometryType
   Ip_from_parameters: bool
-  R_major: chex.Numeric
-  a_minor: chex.Numeric
-  B_0: chex.Numeric
-  psi: chex.Array
-  Ip_profile: chex.Array
-  Phi: chex.Array
-  R_in: chex.Array
-  R_out: chex.Array
-  F: chex.Array
-  int_dl_over_Bp: chex.Array
-  flux_surf_avg_1_over_R2: chex.Array
-  flux_surf_avg_Bp2: chex.Array
-  flux_surf_avg_RBp: chex.Array
-  flux_surf_avg_R2Bp2: chex.Array
-  delta_upper_face: chex.Array
-  delta_lower_face: chex.Array
-  elongation: chex.Array
-  vpr: chex.Array
+  R_major: array_typing.FloatScalar
+  a_minor: array_typing.FloatScalar
+  B_0: array_typing.FloatScalar
+  psi: array_typing.Array
+  Ip_profile: array_typing.Array
+  Phi: array_typing.Array
+  R_in: array_typing.Array
+  R_out: array_typing.Array
+  F: array_typing.Array
+  int_dl_over_Bp: array_typing.Array
+  flux_surf_avg_1_over_R: array_typing.Array
+  flux_surf_avg_1_over_R2: array_typing.Array
+  flux_surf_avg_grad_psi: array_typing.Array
+  flux_surf_avg_grad_psi2: array_typing.Array
+  flux_surf_avg_grad_psi2_over_R2: array_typing.Array
+  flux_surf_avg_B2: array_typing.Array
+  flux_surf_avg_1_over_B2: array_typing.Array
+  delta_upper_face: array_typing.Array
+  delta_lower_face: array_typing.Array
+  elongation: array_typing.Array
+  vpr: array_typing.Array
   n_rho: int
   hires_factor: int
-  z_magnetic_axis: chex.Numeric | None
+  z_magnetic_axis: array_typing.FloatScalar | None
+  # Optional parameters not present in all geometry sources.
+  diverted: bool | None
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
+  target_angle_of_incidence: array_typing.FloatScalar | None
+  R_OMP: array_typing.FloatScalar | None
+  R_target: array_typing.FloatScalar | None
+  B_pol_OMP: array_typing.FloatScalar | None
 
   def __post_init__(self):
     """Extrapolates edge values and smooths near-axis values.
@@ -198,7 +266,7 @@ class StandardGeometryIntermediates:
     """
 
     # Check if last flux surface is diverted and correct via spline fit if so
-    if self.flux_surf_avg_Bp2[-1] < 1e-10:
+    if self.diverted or self.flux_surf_avg_grad_psi2_over_R2[-1] < 1e-10:
       # Calculate rhon
       rhon = np.sqrt(self.Phi / self.Phi[-1])
 
@@ -212,9 +280,9 @@ class StandardGeometryIntermediates:
       # Decide on the bc_type based on demanding monotonic behaviour of g2.
       # Natural bc_type means no second derivative at the spline edge, and will
       # maintain monotonicity on extrapolation, but not recommended as default.
-      flux_surf_avg_Bp2_edge = spline(
+      flux_surf_avg_grad_psi2_over_R2_edge = spline(
           rhon,
-          self.flux_surf_avg_Bp2,
+          self.flux_surf_avg_grad_psi2_over_R2,
           1.0,
           bc_type='not-a-knot',
       )
@@ -224,8 +292,11 @@ class StandardGeometryIntermediates:
           1.0,
           bc_type='not-a-knot',
       )
-      g2_edge_ratio = (flux_surf_avg_Bp2_edge * int_dl_over_Bp_edge**2) / (
-          self.flux_surf_avg_Bp2[-2] * self.int_dl_over_Bp[-2] ** 2
+      g2_edge_ratio = (
+          flux_surf_avg_grad_psi2_over_R2_edge * int_dl_over_Bp_edge**2
+      ) / (
+          self.flux_surf_avg_grad_psi2_over_R2[-2]
+          * self.int_dl_over_Bp[-2] ** 2
       )
       if g2_edge_ratio > 1.0:
         bc_type = 'not-a-knot'
@@ -233,10 +304,12 @@ class StandardGeometryIntermediates:
         bc_type = 'natural'
       set_edge = lambda array: spline(rhon, array, 1.0, bc_type)
       self.int_dl_over_Bp[-1] = set_edge(self.int_dl_over_Bp)
-      self.flux_surf_avg_Bp2[-1] = set_edge(self.flux_surf_avg_Bp2)
+      self.flux_surf_avg_grad_psi2_over_R2[-1] = set_edge(
+          self.flux_surf_avg_grad_psi2_over_R2
+      )
       self.flux_surf_avg_1_over_R2[-1] = set_edge(self.flux_surf_avg_1_over_R2)
-      self.flux_surf_avg_RBp[-1] = set_edge(self.flux_surf_avg_RBp)
-      self.flux_surf_avg_R2Bp2[-1] = set_edge(self.flux_surf_avg_R2Bp2)
+      self.flux_surf_avg_grad_psi[-1] = set_edge(self.flux_surf_avg_grad_psi)
+      self.flux_surf_avg_grad_psi2[-1] = set_edge(self.flux_surf_avg_grad_psi2)
       self.vpr[-1] = set_edge(self.vpr)
 
     # Near-axis smoothing of quantities with known near-axis trends with rho
@@ -245,14 +318,14 @@ class StandardGeometryIntermediates:
 
     # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
     # and Bp terms with order 1. vpr also goes like rho near-axis
-    self.flux_surf_avg_Bp2[:] = _smooth_savgol(
-        self.flux_surf_avg_Bp2, idx_limit, 2
+    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi2_over_R2, idx_limit, 2
     )
-    self.flux_surf_avg_R2Bp2[:] = _smooth_savgol(
-        self.flux_surf_avg_R2Bp2, idx_limit, 2
+    self.flux_surf_avg_grad_psi2[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi2, idx_limit, 2
     )
-    self.flux_surf_avg_RBp[:] = _smooth_savgol(
-        self.flux_surf_avg_RBp, idx_limit, 1
+    self.flux_surf_avg_grad_psi[:] = _smooth_savgol(
+        self.flux_surf_avg_grad_psi, idx_limit, 1
     )
     self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)
 
@@ -297,12 +370,11 @@ class StandardGeometryIntermediates:
     # grid. CHEASE variables are normalized. Need to unnormalize them with
     # reference values poloidal flux and CHEASE-internal-calculated plasma
     # current.
-    psiunnormfactor = R_major**2 * B_0
-
-    # set psi in TORAX units with 2*pi factor
-    psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
+    # Also, CHEASE is COCOS=02, which means psi_torax = 2π * psi_chease
+    psiunnormfactor = R_major**2 * B_0 * 2 * np.pi
+    psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
     Ip_chease = (
-        chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * R_major * B_0
+        chease_data['Ipprofile'] / constants.CONSTANTS.mu_0 * R_major * B_0
     )
 
     # toroidal flux
@@ -317,12 +389,20 @@ class StandardGeometryIntermediates:
     int_dl_over_Bp = (
         chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * R_major / B_0
     )
+    flux_surf_avg_1_over_R = chease_data['<1/R>profile'] / R_major
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / R_major**2
-    flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B_0**2
-    flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
-    flux_surf_avg_R2Bp2 = (
+    # COCOS > 10: <|\nabla \psi|> = 2\pi<R B_p>
+    flux_surf_avg_grad_psi2_over_R2 = (
+        chease_data['<Bp**2>'] * B_0**2 * (4 * np.pi**2)
+    )
+    flux_surf_avg_grad_psi = (
+        chease_data['<|grad(psi)|>'] * psiunnormfactor / R_major
+    )
+    flux_surf_avg_grad_psi2 = (
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / R_major**2
     )
+    flux_surf_avg_B2 = chease_data['<B**2>'] * B_0**2
+    flux_surf_avg_1_over_B2 = chease_data['<1/B**2>'] / B_0**2
 
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
@@ -340,16 +420,26 @@ class StandardGeometryIntermediates:
         R_out=R_out_chease,
         F=F,
         int_dl_over_Bp=int_dl_over_Bp,
+        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
-        flux_surf_avg_Bp2=flux_surf_avg_Bp2,
-        flux_surf_avg_RBp=flux_surf_avg_RBp,
-        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
+        flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
+        flux_surf_avg_grad_psi=flux_surf_avg_grad_psi,
+        flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=chease_data['delta_upper'],
         delta_lower_face=chease_data['delta_bottom'],
         elongation=chease_data['elongation'],
         vpr=vpr,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=None,
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=None,
     )
 
@@ -520,9 +610,11 @@ class StandardGeometryIntermediates:
         'rBt',
         'aminor',
         'rgeom',
+        'epsilon',
         'TQ',
         'FB',
         'FA',
+        'Q0Q',
         'Q1Q',
         'Q2Q',
         'Q3Q',
@@ -533,6 +625,7 @@ class StandardGeometryIntermediates:
         'deltal',
         'kappa',
         'zA',
+        'lX',
     ]
     LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
 
@@ -552,7 +645,7 @@ class StandardGeometryIntermediates:
   @classmethod
   def _from_fbt(
       cls,
-      LY: Mapping[str, np.ndarray],
+      LY: Mapping[str, np.ndarray | int],
       L: Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
@@ -574,6 +667,10 @@ class StandardGeometryIntermediates:
       can then be used to build a StandardGeometry by passing to
       `build_standard_geometry`.
     """
+    # lX is a flag for diverted (1) or limited (0) geometry. Converted to
+    # boolean when constructing the StandardGeometryIntermediates.
+    if LY['lX'] not in [0, 1]:
+      raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
     R_major = LY['rgeom'][-1]  # Major radius
     B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
     a_minor = LY['aminor'][-1]  # Minor radius
@@ -596,29 +693,47 @@ class StandardGeometryIntermediates:
     # replaces the zero does not matter, since it will be replaced by a spline
     # extrapolation in the post_init.
     LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
+
+    # TODO(b/426291465): Implement a more accurate calculation of <1/B^2>
+    # (either here or upstream in MEQ)
+    # Approximate with analytical expressions for circular geometry.
+    flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
+    flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
+    # TODO(b/446608829): Add support for edge geometries once available in MEQ
+
     return cls(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
         R_major=R_major,
         a_minor=a_minor,
         B_0=B_0,
-        psi=psi[0] - psi,
+        psi=psi,
         Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
         R_in=LY['rgeom'] - LY['aminor'],
         R_out=LY['rgeom'] + LY['aminor'],
         F=np.abs(LY['TQ']),
         int_dl_over_Bp=1 / LY_Q1Q,
+        flux_surf_avg_1_over_R=LY['Q0Q'],
         flux_surf_avg_1_over_R2=LY['Q2Q'],
-        flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
-        flux_surf_avg_RBp=np.abs(LY['Q5Q']) / (2 * np.pi),
-        flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
+        flux_surf_avg_grad_psi2_over_R2=np.abs(LY['Q3Q']),
+        flux_surf_avg_grad_psi=np.abs(LY['Q5Q']),
+        flux_surf_avg_grad_psi2=np.abs(LY['Q4Q']),
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
         elongation=LY['kappa'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=bool(LY['lX']),
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=LY['zA'],
     )
 
@@ -632,6 +747,7 @@ class StandardGeometryIntermediates:
       n_rho: int,
       n_surfaces: int,
       last_surface_factor: float,
+      cocos: int,
   ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -654,6 +770,8 @@ class StandardGeometryIntermediates:
       last_surface_factor: Multiplication factor of the boundary poloidal flux,
         used for the contour defining geometry terms at the LCFS on the TORAX
         grid. Needed to avoid divergent integrations in diverted geometries.
+      cocos: COCOS convention of the EQDSK file, specified as an integer between
+        1-8 or 11-18 inclusive.
 
     Returns:
       A StandardGeometryIntermediates instance based on the input file. This
@@ -663,18 +781,31 @@ class StandardGeometryIntermediates:
 
     def calculate_area(x, z):
       """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
-      n = len(x)
-      area = 0.0
-      for i in range(n):
-        j = (i + 1) % n  # roll over at n
-        area += x[i] * z[j]
-        area -= z[i] * x[j]
-      area = abs(area) / 2.0
-      return area
+      z_shifted = np.roll(z, -1)
+      x_shifted = np.roll(x, -1)
+      return 0.5 * np.abs(np.sum(x * z_shifted - z * x_shifted))
 
+    # --------------------------- #
+    # ---- 1. Load the eqdsk ---- #
+    # --------------------------- #
+    if cocos in [2, 4, 6, 8, 12, 14, 16, 18]:
+      logging.warning(
+          'User-specified COCOS %s for EQDSK file has a (R, Z, phi)'
+          ' coordinate system (sigma_RphiZ = -1), but the EQDSK format'
+          ' specifies a (R, phi, Z) coordinate system (sigma_RphiZ = +1). This'
+          ' may result in unexpected behaviour.',
+          cocos,
+      )
+    # load_geo_data() converts from the given COCOS to COCOS11
     eqfile = geometry_loader.load_geo_data(
-        geometry_directory, geometry_file, geometry_loader.GeometrySource.EQDSK
+        geometry_directory,
+        geometry_file,
+        geometry_loader.GeometrySource.EQDSK,
+        cocos,
     )
+    _validate_eqdsk_cocos11(eqfile)
+
+    # Reference geometry terms
     # TODO(b/375696414): deal with updown asymmetric cases.
     # R_major taken as Rgeo (LCFS R_major)
     R_major = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
@@ -682,12 +813,14 @@ class StandardGeometryIntermediates:
     B_0 = eqfile['bcentre']
     Raxis = eqfile['xmag']
     Zaxis = eqfile['zmag']
+    Btor_axis = eqfile['fpol'][0] / eqfile['xmag']
 
-    # Set psi(axis) = 0
-    psi_eqdsk_1dgrid = np.linspace(
+    # 1D psi grid, with psi(axis) = 0
+    psi_1dgrid = np.linspace(
         0.0, eqfile['psibdry'] - eqfile['psimag'], eqfile['nx']
     )
 
+    # 2D X-Z grid
     X_1D = np.linspace(
         eqfile['xgrid1'], eqfile['xgrid1'] + eqfile['xdim'], eqfile['nx']
     )
@@ -699,11 +832,11 @@ class StandardGeometryIntermediates:
     X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
     Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
 
-    # Psi 2D grid defined on the Meshgrid. Set psi(axis) = 0
-    psi_eqdsk_2dgrid = eqfile['psi'] - eqfile['psimag']
-    # Create mask for the confined region, i.e.,Xlcfs.min() < X < Xlcfs.max(),
-    # Zlcfs.min() < Z < Zlcfs.max()
+    # 2D psi grid, with psi(axis) = 0
+    psi_2dgrid = eqfile['psi'] - eqfile['psimag']
 
+    # Mask for the region inside the LCFS
+    # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
     offset = 0.01
     mask = (
         (X > Xlcfs.min() - offset)
@@ -711,38 +844,23 @@ class StandardGeometryIntermediates:
         & (Z > Zlcfs.min() - offset)
         & (Z < Zlcfs.max() + offset)
     )
-    masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
+    masked_psi_2dgrid = np.ma.masked_where(~mask, psi_2dgrid)
 
-    # q on uniform grid (pressure, etc., also defined here)
-    q_eqdsk_1dgrid = eqfile['qpsi']
-
-    # ---- Interpolations
-    q_interp = scipy.interpolate.interp1d(
-        psi_eqdsk_1dgrid, q_eqdsk_1dgrid, kind='cubic'
-    )
-    psi_spline_fit = scipy.interpolate.RectBivariateSpline(
-        X_1D, Z_1D, psi_eqdsk_2dgrid, kx=3, ky=3, s=0
-    )
-    F_interp = scipy.interpolate.interp1d(
-        psi_eqdsk_1dgrid, eqfile['fpol'], kind='cubic'
-    )  # toroidal field flux function
-
-    # -----------------------------------------------------------
-    # --------- Make flux surface contours ---------
-    # -----------------------------------------------------------
-
-    psi_interpolant = np.linspace(
+    # --------------------------------------- #
+    # ---- 2. Make flux surface contours ---- #
+    # --------------------------------------- #
+    psi_on_flux_surfaces = np.linspace(
         0,
         (eqfile['psibdry'] - eqfile['psimag']) * last_surface_factor,
         n_surfaces,
     )
 
     surfaces = []
-    cg_psi = contourpy.contour_generator(X, Z, masked_psi_eqdsk_2dgrid)
+    psi_contour_generator = contourpy.contour_generator(X, Z, masked_psi_2dgrid)
 
     # Skip magnetic axis since no contour is defined there.
-    for _, _psi in enumerate(psi_interpolant[1:]):
-      vertices = cg_psi.create_contour(_psi)
+    for _, _psi in enumerate(psi_on_flux_surfaces[1:]):
+      vertices = psi_contour_generator.create_contour(_psi)
       if not vertices:
         raise ValueError(f"""
             Valid contour not found for EQDSK geometry for psi value {_psi}.
@@ -752,55 +870,86 @@ class StandardGeometryIntermediates:
       x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
       surfaces.append((x_surface, z_surface))
 
-    # -----------------------------------------------------------
-    # --------- Compute Flux surface averages and 1D profiles ---------
-    # --- Area, Volume, R_inboard, R_outboard
-    # --- FSA: <1/R^2>, <Bp^2>, <|grad(psi)|>, <|grad(psi)|^2>
-    # --- Toroidal plasma current
-    # --- Integral dl/Bp
-    # -----------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # ---- 3. Interpolate everything onto the new flux surface grid ---- #
+    # ------------------------------------------------------------------ #
+    # Spline interpolator of 2D psi field defined on X-Z grid
+    # This will later be evaluated on each flux surface
+    psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
+        X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
+    )
 
-    # Gathering area for profiles
+    # Interpolate safety factor onto new flux-surface grid
+    q_interpolator = scipy.interpolate.interp1d(
+        psi_1dgrid, eqfile['qpsi'], kind='cubic'
+    )
+    q_profile = q_interpolator(psi_on_flux_surfaces)
+
+    # Interpolate toroidal field flux function onto new flux-surface grid
+    F_interpolator = scipy.interpolate.interp1d(
+        psi_1dgrid, eqfile['fpol'], kind='cubic'
+    )
+    F = F_interpolator(psi_on_flux_surfaces)
+
+    # ---------------------------------------------------------- #
+    # ---- 4. Compute flux surface averages and 1D profiles ---- #
+    # ---------------------------------------------------------- #
+    # - Area, Volume, R_inboard, R_outboard
+    # - FSA: <1/R^2>, <Bp^2>, <|grad(psi)|>, <|grad(psi)|^2>
+    # - Toroidal plasma current
+    # - Integral dl/Bp
+
+    # Initialise arrays
     areas, volumes = np.empty(len(surfaces) + 1), np.empty(len(surfaces) + 1)
     R_inboard, R_outboard = np.empty(len(surfaces) + 1), np.empty(
         len(surfaces) + 1
     )
-    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces) + 1)  # <1/R**2>
-    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <Bp**2>
-    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
-    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
-    int_dl_over_Bp_eqdsk = np.empty(
-        len(surfaces) + 1
-    )  # int(Rdl / | grad(psi) |)
-    Ip_eqdsk = np.empty(len(surfaces) + 1)  # Toroidal plasma current
-    delta_upper_face_eqdsk = np.empty(len(surfaces) + 1)  # Upper face delta
-    delta_lower_face_eqdsk = np.empty(len(surfaces) + 1)  # Lower face delta
+    flux_surf_avg_1_over_R = np.empty(len(surfaces) + 1)  # <1/R>
+    flux_surf_avg_1_over_R2 = np.empty(len(surfaces) + 1)  # <1/R**2>
+    flux_surf_avg_grad_psi2_over_R2 = np.empty(len(surfaces) + 1)  # <Bp**2>
+    flux_surf_avg_grad_psi = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
+    flux_surf_avg_grad_psi2 = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
+    flux_surf_avg_B2 = np.empty(len(surfaces) + 1)  # <B**2>
+    flux_surf_avg_1_over_B2 = np.empty(len(surfaces) + 1)  # <1/B**2>
+    int_dl_over_Bp = np.empty(len(surfaces) + 1)  # int(Rdl / | grad(psi) |)
+    Ip = np.empty(len(surfaces) + 1)  # Toroidal plasma current
+    delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
+    delta_lower_face = np.empty(len(surfaces) + 1)  # Lower face delta
     elongation = np.empty(len(surfaces) + 1)  # Elongation
 
-    # ---- Compute
+    # Compute fsa for each surface
+    # Note: surfaces is from psi[1:]
     for n, (x_surface, z_surface) in enumerate(surfaces):
-
-      # dl, line elements on which we will integrate
+      # Define line elements on which we will integrate
       surface_dl = np.sqrt(
           np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
       )
 
-      # calculating gradient of psi in 2D
-      surface_dpsi_x = psi_spline_fit.ev(x_surface, z_surface, dx=1)
-      surface_dpsi_z = psi_spline_fit.ev(x_surface, z_surface, dy=1)
+      # Calculate gradient of psi in 2D
+      surface_dpsi_x = psi_2dgrid_interpolator.ev(x_surface, z_surface, dx=1)
+      surface_dpsi_z = psi_2dgrid_interpolator.ev(x_surface, z_surface, dy=1)
       surface_abs_grad_psi = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2)
 
-      # Poloidal field strength Bp = |grad(psi)| / R
-      surface_Bpol = surface_abs_grad_psi / x_surface
-      surface_int_dl_over_bpol = np.sum(
-          surface_dl / surface_Bpol
-      )  # This is denominator of all FSA
+      # B components
+      # Poloidal field strength Bp = |grad(psi)| / 2piR (COCOS>10)
+      surface_Bpol = surface_abs_grad_psi / (2 * np.pi * x_surface)
+      # Toroidal field strength Btor = F/R
+      # Note: F[n+1] is F on this flux surface
+      surface_Btor = F[n + 1] / x_surface
+      # B**2
+      surface_B2 = surface_Bpol**2 + surface_Btor**2
 
-      # plasma current
+      # Plasma current
       surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
 
-      # 4 FSA, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
+      # Flux surface averaged equilibrium terms
+      # <1/R>, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
       # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_int_dl_over_bpol = np.sum(surface_dl / surface_Bpol)
+      surface_FSA_int_one_over_r = (
+          np.sum(1 / x_surface * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
       surface_FSA_int_one_over_r2 = (
           np.sum(1 / x_surface**2 * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
@@ -809,19 +958,33 @@ class StandardGeometryIntermediates:
           np.sum(surface_abs_grad_psi * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
       )
-      surface_FSA_Bpol_squared = (
-          np.sum(surface_Bpol * surface_dl) / surface_int_dl_over_bpol
-      )
       surface_FSA_abs_grad_psi2 = (
           np.sum(surface_abs_grad_psi**2 * surface_dl / surface_Bpol)
           / surface_int_dl_over_bpol
       )
+      surface_FSA_abs_grad_psi2_over_R2 = (
+          np.sum(
+              surface_abs_grad_psi**2 / x_surface**2 * surface_dl / surface_Bpol
+          )
+          / surface_int_dl_over_bpol
+      )
 
-      # volumes and areas
+      # <B**2> and <1/B**2> terms
+      surface_FSA_B2 = (
+          np.sum(surface_B2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_1_over_B2 = (
+          np.sum(1 / surface_B2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+
+      # Volumes and areas
       area = calculate_area(x_surface, z_surface)
       volume = area * 2 * np.pi * R_major
 
       # Triangularity
+      # (RMAJ - X_upperextent) / RMIN
       idx_upperextent = np.argmax(z_surface)
       idx_lowerextent = np.argmin(z_surface)
 
@@ -834,69 +997,63 @@ class StandardGeometryIntermediates:
       Z_upperextent = z_surface[idx_upperextent]
       Z_lowerextent = z_surface[idx_lowerextent]
 
-      # (RMAJ - X_upperextent) / RMIN
       surface_delta_upper_face = (R_major_local - X_upperextent) / a_minor_local
       surface_delta_lower_face = (R_major_local - X_lowerextent) / a_minor_local
 
-      # Append to lists.
-      # Start with n=1 since n=0 is the magnetic axis with no contour defined.
+      # Insert computed values into arrays
+      # Note: n is going from 0 to len(psi_on_flux_surfaces)-2, so we
+      # index by n+1 to fill fsa_arrays[1:]
       areas[n + 1] = area
       volumes[n + 1] = volume
       R_inboard[n + 1] = x_surface.min()
       R_outboard[n + 1] = x_surface.max()
-      int_dl_over_Bp_eqdsk[n + 1] = surface_int_dl_over_bpol
-      flux_surf_avg_1_over_R2_eqdsk[n + 1] = surface_FSA_int_one_over_r2
-      flux_surf_avg_RBp_eqdsk[n + 1] = surface_FSA_abs_grad_psi
-      flux_surf_avg_R2Bp2_eqdsk[n + 1] = surface_FSA_abs_grad_psi2
-      flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
-      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
-      delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
-      delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
+      int_dl_over_Bp[n + 1] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R[n + 1] = surface_FSA_int_one_over_r
+      flux_surf_avg_1_over_R2[n + 1] = surface_FSA_int_one_over_r2
+      flux_surf_avg_grad_psi[n + 1] = surface_FSA_abs_grad_psi
+      flux_surf_avg_grad_psi2[n + 1] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_grad_psi2_over_R2[n + 1] = surface_FSA_abs_grad_psi2_over_R2
+      flux_surf_avg_B2[n + 1] = surface_FSA_B2
+      flux_surf_avg_1_over_B2[n + 1] = surface_FSA_1_over_B2
+      Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
+      delta_upper_face[n + 1] = surface_delta_upper_face
+      delta_lower_face[n + 1] = surface_delta_lower_face
       elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (
           2.0 * a_minor_local
       )
 
-    # Now set n=0 quantities. StandardGeometryIntermediate values at the
-    # magnetic axis are prescribed, since a contour cannot be defined there.
+    # Set fsa_arrays[0] quantities
+    # StandardGeometryIntermediate values at the magnetic axis are prescribed,
+    # since a contour cannot be defined there.
     areas[0] = 0
     volumes[0] = 0
     R_inboard[0] = Raxis
     R_outboard[0] = Raxis
-    int_dl_over_Bp_eqdsk[0] = 0
-    flux_surf_avg_1_over_R2_eqdsk[0] = 1 / Raxis**2
-    flux_surf_avg_RBp_eqdsk[0] = 0
-    flux_surf_avg_R2Bp2_eqdsk[0] = 0
-    flux_surf_avg_Bp2_eqdsk[0] = 0
-    Ip_eqdsk[0] = 0
-    delta_upper_face_eqdsk[0] = delta_upper_face_eqdsk[1]
-    delta_lower_face_eqdsk[0] = delta_lower_face_eqdsk[1]
+    int_dl_over_Bp[0] = 0
+    flux_surf_avg_1_over_R[0] = 1 / Raxis
+    flux_surf_avg_1_over_R2[0] = 1 / Raxis**2
+    flux_surf_avg_grad_psi[0] = 0
+    flux_surf_avg_grad_psi2[0] = 0
+    flux_surf_avg_grad_psi2_over_R2[0] = 0
+    flux_surf_avg_B2[0] = Btor_axis**2
+    flux_surf_avg_1_over_B2[0] = 1 / Btor_axis**2
+    Ip[0] = 0
+    delta_upper_face[0] = delta_upper_face[1]
+    delta_lower_face[0] = delta_lower_face[1]
     elongation[0] = elongation[1]
 
-    # q-profile on interpolation
-    q_profile = q_interp(psi_interpolant)
-
-    # toroidal flux
-    Phi_eqdsk = (
-        scipy.integrate.cumulative_trapezoid(
-            q_profile, psi_interpolant, initial=0.0
-        )
-        * 2
-        * np.pi
+    # ------------------------------------- #
+    # ---- 5. Compute derived profiles ---- #
+    # ------------------------------------- #
+    Phi = scipy.integrate.cumulative_trapezoid(
+        q_profile, psi_on_flux_surfaces, initial=0.0
     )
+    rhon = np.sqrt(Phi / Phi[-1])
+    vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
 
-    # toroidal field flux function, T=RBphi
-    F_eqdsk = F_interp(psi_interpolant)
-
-    rhon = np.sqrt(Phi_eqdsk / Phi_eqdsk[-1])
-    vpr = (
-        4
-        * np.pi
-        * Phi_eqdsk[-1]
-        * rhon
-        / (F_eqdsk * flux_surf_avg_1_over_R2_eqdsk)
-    )
-
-    # Sense-check the profiles
+    # ------------------------------------ #
+    # ---- 6. Sense-check the results ---- #
+    # ------------------------------------ #
     dvolumes = np.diff(volumes)
     if not np.all(dvolumes > 0):
       idx = np.where(dvolumes <= 0)
@@ -914,24 +1071,36 @@ class StandardGeometryIntermediates:
         R_major=R_major,
         a_minor=a_minor,
         B_0=np.array(B_0),
-        # TODO(b/335204606): handle COCOS shenanigans
-        psi=psi_interpolant * 2 * np.pi,
-        Ip_profile=Ip_eqdsk,
-        Phi=Phi_eqdsk,
+        # psi_on_flux_surface has psi(0)=0 for ease of constructing the profiles
+        # The absolute value of psi may have meaning when connected in wider
+        # workflows, so we make sure that we set psi(0) from the eqdsk
+        psi=psi_on_flux_surfaces + eqfile['psimag'],
+        Ip_profile=Ip,
+        Phi=Phi,
         R_in=R_inboard,
         R_out=R_outboard,
-        F=F_eqdsk,
-        int_dl_over_Bp=int_dl_over_Bp_eqdsk,
-        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
-        flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
-        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
-        flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
-        delta_upper_face=delta_upper_face_eqdsk,
-        delta_lower_face=delta_lower_face_eqdsk,
+        F=F,
+        int_dl_over_Bp=int_dl_over_Bp,
+        flux_surf_avg_1_over_R=flux_surf_avg_1_over_R,
+        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
+        flux_surf_avg_grad_psi=flux_surf_avg_grad_psi,
+        flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
+        flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
+        flux_surf_avg_B2=flux_surf_avg_B2,
+        flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+        delta_upper_face=delta_upper_face,
+        delta_lower_face=delta_lower_face,
         elongation=elongation,
         vpr=vpr,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        diverted=None,
+        connection_length_target=None,
+        connection_length_divertor=None,
+        target_angle_of_incidence=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
         z_magnetic_axis=np.array(Zaxis),
     )
 
@@ -942,6 +1111,8 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool,
       n_rho: int,
       hires_factor: int,
+      slice_time: float | None = None,
+      slice_index: int = 0,
       equilibrium_object: ids_toplevel.IDSToplevel | None = None,
       imas_uri: str | None = None,
       imas_filepath: str | None = None,
@@ -956,6 +1127,9 @@ class StandardGeometryIntermediates:
         values in the Geometry are rescaled to match the new Ip.
       n_rho: Radial grid points (num cells).
       hires_factor: High resolution factor for calculations.
+      slice_time: Time of slice to load from IMAS IDS. If given, overrides
+        slice_index.
+      slice_index: Index of slice to load from IMAS IDS.
       equilibrium_object: The equilibrium IDS containing the relevant data.
       imas_uri: The IMAS uri containing the equilibrium data.
       imas_filepath: The path to the IMAS netCDF file containing the equilibrium
@@ -973,6 +1147,8 @@ class StandardGeometryIntermediates:
         Ip_from_parameters=Ip_from_parameters,
         n_rho=n_rho,
         hires_factor=hires_factor,
+        slice_time=slice_time,
+        slice_index=slice_index,
     )
     return cls(geometry_type=geometry.GeometryType.IMAS, **inputs)
 
@@ -995,21 +1171,14 @@ def build_standard_geometry(
   rho_intermediate = np.sqrt(intermediate.Phi / (np.pi * intermediate.B_0))
   rho_norm_intermediate = rho_intermediate / rho_intermediate[-1]
 
-  # flux surface integrals of various geometry quantities
-  C1 = intermediate.int_dl_over_Bp
-
-  C0 = intermediate.flux_surf_avg_RBp * C1
-  C2 = intermediate.flux_surf_avg_1_over_R2 * C1
-  C3 = intermediate.flux_surf_avg_Bp2 * C1
-  C4 = intermediate.flux_surf_avg_R2Bp2 * C1
-
-  # derived quantities for transport equations and transformations
-
-  g0 = C0 * 2 * np.pi  # <\nabla psi> * (dV/dpsi), equal to <\nabla V>
-  g1 = C1 * C4 * 4 * np.pi**2  # <(\nabla psi)**2> * (dV/dpsi) ** 2
-  g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
-  g3 = C2[1:] / C1[1:]  # <1/R**2>
-  g3 = np.concatenate((np.array([1 / intermediate.R_in[0] ** 2]), g3))
+  # derived geometric quantities
+  dV_dpsi = intermediate.int_dl_over_Bp
+  g0 = intermediate.flux_surf_avg_grad_psi * dV_dpsi  # <\nabla V>
+  g1 = intermediate.flux_surf_avg_grad_psi2 * dV_dpsi**2  # <(\nabla V)^2>
+  g2 = (
+      intermediate.flux_surf_avg_grad_psi2_over_R2 * dV_dpsi**2
+  )  # <(\nabla V)^2 / R^2>
+  g3 = intermediate.flux_surf_avg_1_over_R2  # <1/R**2>
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
@@ -1017,18 +1186,22 @@ def build_standard_geometry(
   # Ip profile. Needed since input psi profile may have noisy second derivatives
   dpsidrhon = (
       intermediate.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1])
+      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1])
       / (g2g3_over_rhon[1:] * intermediate.F[1:])
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0
+      y=dpsidrhon,
+      x=rho_norm_intermediate,
+      initial=0.0,
   )
+  # `initial` can only be zero or None, so add psi_axis afterwards.
+  psi_from_Ip += intermediate.psi[0]
 
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1]
+      16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediate.Phi[-1]
   ) * intermediate.Ip_profile[-1] / (
       g2g3_over_rhon[-1] * intermediate.F[-1]
   ) * (
@@ -1037,13 +1210,15 @@ def build_standard_geometry(
 
   # dV/drhon, dS/drhon
   vpr = intermediate.vpr
-  spr = vpr / (2 * np.pi * intermediate.R_major)
+  spr = vpr * intermediate.flux_surf_avg_1_over_R / (2 * np.pi)
 
   # Volume and area
   volume_intermediate = scipy.integrate.cumulative_trapezoid(
       y=vpr, x=rho_norm_intermediate, initial=0.0
   )
-  area_intermediate = volume_intermediate / (2 * np.pi * intermediate.R_major)
+  area_intermediate = scipy.integrate.cumulative_trapezoid(
+      y=spr, x=rho_norm_intermediate, initial=0.0
+  )
 
   # plasma current density
   dI_tot_drhon = np.gradient(intermediate.Ip_profile, rho_norm_intermediate)
@@ -1057,9 +1232,8 @@ def build_standard_geometry(
   j_total = np.concatenate([np.array([j_total_face_axis]), j_total_face_bulk])
 
   # fill geometry structure
-  drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
   # normalized grid
-  mesh = torax_pydantic.Grid1D(nx=intermediate.n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D(nx=intermediate.n_rho)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   rho_face_norm = mesh.face_centers
@@ -1141,6 +1315,15 @@ def build_standard_geometry(
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
+  gm4 = rhon_interpolation_func(rho_norm, intermediate.flux_surf_avg_1_over_B2)
+  gm4_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.flux_surf_avg_1_over_B2
+  )
+  gm5 = rhon_interpolation_func(rho_norm, intermediate.flux_surf_avg_B2)
+  gm5_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.flux_surf_avg_B2
+  )
+
   volume_face = rhon_interpolation_func(rho_face_norm, volume_intermediate)
   volume = rhon_interpolation_func(rho_norm, volume_intermediate)
 
@@ -1175,6 +1358,10 @@ def build_standard_geometry(
       g2g3_over_rhon=g2g3_over_rhon,
       g2g3_over_rhon_face=g2g3_over_rhon_face,
       g2g3_over_rhon_hires=g2g3_over_rhon_hires,
+      gm4=gm4,
+      gm4_face=gm4_face,
+      gm5=gm5,
+      gm5_face=gm5_face,
       F=F,
       F_face=F_face,
       F_hires=F_hires,
@@ -1199,8 +1386,15 @@ def build_standard_geometry(
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
-      Phi_b_dot=np.asarray(0.0),
+      Phi_b_dot=np.zeros((), dtype=jax_utils.get_int_dtype()),
       _z_magnetic_axis=intermediate.z_magnetic_axis,
+      diverted=intermediate.diverted,
+      connection_length_target=intermediate.connection_length_target,
+      connection_length_divertor=intermediate.connection_length_divertor,
+      target_angle_of_incidence=intermediate.target_angle_of_incidence,
+      R_OMP=intermediate.R_OMP,
+      R_target=intermediate.R_target,
+      B_pol_OMP=intermediate.B_pol_OMP,
   )
 
 
@@ -1236,9 +1430,11 @@ def _validate_fbt_data(
       'rBt': time_only_shape,
       'aminor': psi_and_time_shape,
       'rgeom': psi_and_time_shape,
+      'epsilon': psi_and_time_shape,
       'TQ': psi_and_time_shape,
       'FB': time_only_shape,
       'FA': time_only_shape,
+      'Q0Q': psi_and_time_shape,
       'Q1Q': psi_and_time_shape,
       'Q2Q': psi_and_time_shape,
       'Q3Q': psi_and_time_shape,
@@ -1249,6 +1445,7 @@ def _validate_fbt_data(
       'deltal': psi_and_time_shape,
       'kappa': psi_and_time_shape,
       'zA': time_only_shape,
+      'lX': time_only_shape,
   }
   toroidal_flux_spec = {
       'FtPVQ': psi_and_time_shape,
@@ -1281,6 +1478,30 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+
+def _validate_eqdsk_cocos11(
+    eqfile: Mapping[str, np.ndarray | float]
+) -> None:
+  """Validates that the EQDSK data complies with COCOS11 coordinate conventions."""
+  COCOS_violations = ''
+  if eqfile['bcentre'] < 0:
+    COCOS_violations += '- B_0 is negative\n'
+  if eqfile['psibdry'] < eqfile['psimag']:
+    COCOS_violations += '- psi at the boundary is less than psi on the axis\n'
+  if np.any(eqfile['fpol']) < 0:
+    COCOS_violations += '- F=RB_phi has negative values\n'
+  if np.any(eqfile['qpsi']) < 0:
+    COCOS_violations += '- q has negative values\n'
+  if eqfile['cplasma'] < 0:
+    COCOS_violations += '- Ip is negative'
+  if COCOS_violations:
+    raise ValueError(
+        'The following violate the COCOS11 coordinate system when Ip and B0 are'
+        ' restricted to be positive:\n'
+        + COCOS_violations
+        + 'Check that the COCOS of the input EQDSK was set correctly.'
+    )
 
 
 # TODO(b/401502047): Investigate how window_length should depend on the

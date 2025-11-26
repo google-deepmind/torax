@@ -25,9 +25,8 @@ Functions:
     - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
     - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
       constraint on the poloidal flux (psi) from Ip.
-    - _calc_bpol2: Calculates square of poloidal field (Bp).
+    - calc_bpol_squared: Calculates square of poloidal field (Bp).
 """
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -46,7 +45,7 @@ _trapz = jax.scipy.integrate.trapezoid
 def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> chex.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
@@ -65,10 +64,23 @@ def calc_q_face(
 def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array, chex.Array]:
+) -> tuple[
+    array_typing.FloatVectorCell,
+    array_typing.FloatVectorFace,
+    array_typing.FloatVectorFace,
+]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
-  Calculation based on j_total = dI/dS
+  `j_total` (also referred to `j_tor` in TORAX) is defined as the
+  flux-surface-averaged toroidal current density, i.e:
+
+  j_total = dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
+
+  Note that this relates to the (non-flux-function) toroidal current j_phi as:
+
+  j_total = <j_phi/R> / <1/R>
+
+  See Felici 2011 eq. 6.20 (10.5075/epfl-thesis-5203)
 
   Args:
     geo: Torus geometry.
@@ -86,7 +98,7 @@ def calc_j_total(
       * geo.g2g3_over_rhon_face
       * geo.F_face
       / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
   Ip_profile = (
@@ -94,7 +106,7 @@ def calc_j_total(
       * geo.g2g3_over_rhon
       * geo.F
       / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
   dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
@@ -174,7 +186,7 @@ def calc_s_rmid(
   return s_face
 
 
-def _calc_bpol2(
+def calc_bpol_squared(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   r"""Calculates square of poloidal field (Bp) from poloidal flux (psi).
@@ -205,9 +217,9 @@ def calc_Wpol(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates total magnetic energy (Wpol) from poloidal flux (psi)."""
-  bpol2 = _calc_bpol2(geo, psi)
+  bpol2 = calc_bpol_squared(geo, psi)
   Wpol = _trapz(bpol2 * geo.vpr_face, geo.rho_face_norm) / (
-      2 * constants.CONSTANTS.mu0
+      2 * constants.CONSTANTS.mu_0
   )
   return Wpol
 
@@ -238,13 +250,13 @@ def calc_li3(
   Returns:
     li3: Normalized internal inductance, ITER convention.
   """
-  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * R_major)
+  return 4 * Wpol / (constants.CONSTANTS.mu_0 * Ip_total**2 * R_major)
 
 
 def calc_q95(
-    psi_norm_face: array_typing.ArrayFloat,
-    q_face: array_typing.ArrayFloat,
-) -> array_typing.ScalarFloat:
+    psi_norm_face: array_typing.FloatVector,
+    q_face: array_typing.FloatVector,
+) -> array_typing.FloatScalar:
   """Calculates q95 from the q profile and the normalized poloidal flux.
 
   Args:
@@ -260,21 +272,21 @@ def calc_q95(
 
 
 def calculate_psi_grad_constraint_from_Ip(
-    Ip: array_typing.ScalarFloat,
+    Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
       Ip
-      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phi_b)
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
 
 
 def calculate_psidot_from_psi_sources(
     *,
-    psi_sources: array_typing.ArrayFloat,
-    sigma: array_typing.ArrayFloat,
+    psi_sources: array_typing.FloatVector,
+    sigma: array_typing.FloatVector,
     resistivity_multiplier: float,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
@@ -288,7 +300,7 @@ def calculate_psidot_from_psi_sources(
       / resistivity_multiplier
       * geo.rho_norm
       * sigma
-      * consts.mu0
+      * consts.mu_0
       * 16
       * jnp.pi**2
       * geo.Phi_b**2
@@ -302,7 +314,7 @@ def calculate_psidot_from_psi_sources(
   psi_sources += (
       8.0
       * jnp.pi**2
-      * consts.mu0
+      * consts.mu_0
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2

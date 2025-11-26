@@ -14,20 +14,22 @@
 
 """Routines for calculating impurity charge states."""
 
-from typing import Final, Mapping, Sequence
+import dataclasses
+from typing import Final, Mapping
 
 import immutabledict
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.config import plasma_composition
+# pylint: disable=invalid-name
 
 # Polynomial fit coefficients from A. A. Mavrin (2018):
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
 # Radiation Effects and Defects in Solids, 173:5-6, 388-398,
 # DOI: 10.1080/10420150.2018.1462361
-_MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([  # Carbon
             [-7.2007e00, -1.2217e01, -7.3521e00, -1.7632e00, 5.8588e00],
@@ -72,7 +74,7 @@ _MAVRIN_Z_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 # Temperature boundaries in keV, separating the rows for the fit coefficients.
-_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([0.7]),
         'N': np.array([0.7]),
@@ -86,11 +88,38 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ChargeStateInfo:
+  """Container for average charge state calculations.
+
+  Attributes:
+    Z_avg: Average charge of the mixture, weighted by ion fractions. <Z> =
+      sum(fraction_i * Z_i).
+    Z2_avg: Average squared charge of the mixture, weighted by ion fractions.
+      <Z^2> = sum(fraction_i * Z_i^2).
+    Z_per_species: Charge state for each individual ion species in the mixture.
+      For impurities, this is the outcome of a temperature dependent charge
+      state calculation.
+    Z_mixture: Effective charge of the mixture, defined as <Z^2> / <Z>. This is
+      the charge used in quasineutrality calculations when treating the mixture
+      as a single effective species.
+  """
+
+  Z_avg: array_typing.FloatVector
+  Z2_avg: array_typing.FloatVector
+  Z_per_species: Mapping[str, array_typing.FloatVector]
+
+  @property
+  def Z_mixture(self) -> array_typing.FloatVector:
+    return self.Z2_avg / self.Z_avg
+
+
 # pylint: disable=invalid-name
 def calculate_average_charge_state_single_species(
-    T_e: array_typing.ArrayFloat,
+    T_e: array_typing.FloatVector,
     ion_symbol: str,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Calculates the average charge state of an impurity based on the Marvin 2018 polynomial fit.
 
   The polynomial fit range is 0.1-100 keV, which is well within the typical
@@ -104,6 +133,12 @@ def calculate_average_charge_state_single_species(
   Returns:
     Z: Average charge state [amu].
   """
+
+  # Assert array input. Runtime typechecking not always on, add explicit check.
+  if T_e.ndim == 0:
+    raise ValueError(
+        'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
+    )
 
   if ion_symbol not in constants.ION_SYMBOLS:
     raise ValueError(
@@ -132,10 +167,10 @@ def calculate_average_charge_state_single_species(
 
 
 def get_average_charge_state(
-    ion_symbols: Sequence[str],
-    ion_mixture: plasma_composition.DynamicIonMixture,
-    T_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    T_e: array_typing.FloatVector,
+    fractions: Mapping[str, array_typing.FloatVector],
+    Z_override: array_typing.FloatScalar | None = None,
+) -> ChargeStateInfo:
   """Calculates or prescribes average impurity charge state profile (JAX-compatible).
 
   Equations for quasineutrality and Zeff are the following:
@@ -163,26 +198,46 @@ def get_average_charge_state(
     = sum(fraction_i * Z_i ** 2) / sum(fraction_i * Z_i) = <Z^2> / <Z>
 
   Args:
-    ion_symbols: Species to calculate average charge state for.
-    ion_mixture: DynamicIonMixture object containing impurity information. The
-      index of the ion_mixture.fractions array corresponds to the index of the
-      ion_symbols array.
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
+    fractions: Mapping of ion symbols to impurity fractions.
+    Z_override: If not None, use this value for the average charge state.
 
   Returns:
-    avg_Z: Average charge state profile [amu].
-      The shape of avg_Z is the same as T_e.
+    AverageChargeState: dataclass with average charge state info.
   """
+  # Assert array input. Runtime typechecking not always on, add explicit check.
+  if T_e.ndim == 0:
+    raise ValueError(
+        'T_e must be a 1D array, but is a scalar. Please provide a 1D array.'
+    )
 
-  if ion_mixture.Z_override is not None:
-    return jnp.ones_like(T_e) * ion_mixture.Z_override
+  if Z_override is not None:
+    override_val = jnp.ones_like(T_e) * Z_override
+    return ChargeStateInfo(
+        Z_avg=override_val,
+        Z2_avg=override_val**2,
+        Z_per_species={ion: override_val for ion in fractions.keys()},
+    )
 
-  avg_Z = jnp.zeros_like(T_e)
-  avg_Z2 = jnp.zeros_like(T_e)
-  for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
-    Z_species = calculate_average_charge_state_single_species(T_e, ion_symbol)
-    avg_Z += fraction * Z_species
-    avg_Z2 += fraction * Z_species**2
+  Z_per_species = {
+      ion_symbol: calculate_average_charge_state_single_species(
+          T_e, ion_symbol
+      )
+      for ion_symbol in fractions.keys()
+  }
+  Z_avg = jnp.sum(jnp.array([
+      Z_per_species[ion_symbol] * fraction
+      for ion_symbol, fraction in fractions.items()
+  ]), axis=0)
 
-  return avg_Z2 / avg_Z
+  Z2_avg = jnp.sum(jnp.array([
+      Z_per_species[ion_symbol] ** 2 * fraction
+      for ion_symbol, fraction in fractions.items()
+  ]), axis=0)
+
+  return ChargeStateInfo(
+      Z_avg=Z_avg,
+      Z2_avg=Z2_avg,
+      Z_per_species=Z_per_species,
+  )

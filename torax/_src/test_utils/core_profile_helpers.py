@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helpers for tests using core profiles."""
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -28,6 +28,7 @@ def make_zero_core_profiles(
     T_e: cell_variable.CellVariable | None = None,
     Z_impurity: jax.Array | None = None,
     Z_impurity_face: jax.Array | None = None,
+    impurity_names: tuple[str, ...] = ("dummy_impurity",),
 ) -> state.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
@@ -36,6 +37,9 @@ def make_zero_core_profiles(
       right_face_constraint=jnp.ones(()),
       right_face_grad_constraint=None,
   )
+  impurity_fractions_dict = {
+      name: jnp.zeros_like(geo.rho) for name in impurity_names
+  }
   return state.CoreProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -44,6 +48,7 @@ def make_zero_core_profiles(
       n_e=zero_cell_variable,
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
+      impurity_fractions=impurity_fractions_dict,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       v_loop_lcfs=jnp.array(0.0),
@@ -56,7 +61,8 @@ def make_zero_core_profiles(
       Z_impurity_face=Z_impurity_face
       if Z_impurity_face is not None
       else jnp.zeros_like(geo.rho_face),
-      A_impurity=jnp.zeros(()),
+      A_impurity=jnp.zeros_like(geo.rho),
+      A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
       Z_eff_face=jnp.zeros_like(geo.rho_face),
       sigma=jnp.zeros_like(geo.rho),
@@ -67,8 +73,22 @@ def make_zero_core_profiles(
   )
 
 
+def make_constant_core_profile(
+    geo: geometry.Geometry,
+    value: float,
+) -> cell_variable.CellVariable:
+  return cell_variable.CellVariable(
+      value=value * np.ones_like(geo.rho_norm),
+      left_face_grad_constraint=np.zeros(()),
+      left_face_constraint=None,
+      right_face_grad_constraint=None,
+      right_face_constraint=jnp.array(value),
+      dr=geo.drho_norm,
+  )
+
+
 def verify_core_profiles(
-    ref_profiles: dict[str, chex.Array],
+    ref_profiles: dict[str, array_typing.Array],
     index: int,
     core_profiles: state.CoreProfiles,
 ):

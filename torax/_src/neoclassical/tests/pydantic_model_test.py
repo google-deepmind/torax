@@ -13,6 +13,7 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from torax._src.neoclassical import pydantic_model
 
 
@@ -50,7 +51,7 @@ class PydanticModelTest(parameterized.TestCase):
 
   def test_set_transport_default_model_name(self):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})
-    self.assertEqual(model.transport.model_name, "zeros")
+    self.assertEqual(model.transport.model_name, "angioni_sauter")
 
   @parameterized.parameters("zeros", "angioni_sauter")
   def test_set_transport_model_name(self, model_name):
@@ -58,6 +59,27 @@ class PydanticModelTest(parameterized.TestCase):
         {"transport": {"model_name": model_name}}
     )
     self.assertEqual(model.transport.model_name, model_name)
+
+  @parameterized.product(
+      bootstrap_current_model_name=["zeros", "sauter"],
+      transport_model_name=["zeros", "angioni_sauter"],
+  )
+  def test_neoclassical_model_works_under_jit(
+      self, bootstrap_current_model_name, transport_model_name
+  ):
+    neoclassical_model = pydantic_model.Neoclassical.from_dict({
+        "bootstrap_current": {"model_name": bootstrap_current_model_name},
+        "transport": {"model_name": transport_model_name},
+    })
+
+    @jax.jit
+    def f(x: pydantic_model.Neoclassical):
+      return x.build_runtime_params()
+
+    output = f(neoclassical_model)
+    self.assertIsInstance(
+        output, pydantic_model.runtime_params_lib.RuntimeParams
+    )
 
 
 if __name__ == "__main__":

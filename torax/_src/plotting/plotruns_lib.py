@@ -17,10 +17,12 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
+import inspect
 from os import path
 from typing import Any, List
 
 import matplotlib
+from matplotlib import figure
 from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
@@ -126,13 +128,24 @@ class PlotData:
       [:math:`\mathrm{MA/m^2}`] on the cell grid.
     q: Safety factor (q-profile) [dimensionless] on the face grid.
     magnetic_shear: Magnetic shear profile [dimensionless] on the face grid.
-    chi_turb_i: Ion heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
-    chi_turb_e: Electron heat conductivity [:math:`\mathrm{m^2/s}`] on the face
-      grid.
-    D_turb_e: Electron particle diffusivity [:math:`\mathrm{m^2/s}`] on the face
-      grid.
-    V_turb_e: Electron particle convection velocity [:math:`\mathrm{m/s}`] on
+    chi_turb_i: Turbulent ion heat conductivity [:math:`\mathrm{m^2/s}`] on the
+      face grid.
+    chi_neo_i: Neoclassical ion heat conductivity [:math:`\mathrm{m^2/s}`] on
       the face grid.
+    chi_turb_e: Turbulent electron heat conductivity [:math:`\mathrm{m^2/s}`] on
+      the face grid.
+    chi_neo_e: Neoclassical electron heat conductivity [:math:`\mathrm{m^2/s}`]
+      on the face grid.
+    D_turb_e: Turbulent electron particle diffusivity [:math:`\mathrm{m^2/s}`]
+      on the face grid.
+    D_neo_e: Neoclassical electron particle diffusivity [:math:`\mathrm{m^2/s}`]
+      on the face grid.
+    V_turb_e: Turbulent electron particle convection [:math:`\mathrm{m^2/s}`] on
+      the face grid.
+    V_neo_e: Neoclassical electron particle convection [:math:`\mathrm{m^2/s}`]
+      on the face grid. Contains all components apart from the Ware pinch.
+    V_neo_ware_e: Neoclassical electron particle convection (Ware pinch term)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
     p_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
     p_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
     p_generic_heat_i: Generic ion heating power density
@@ -186,6 +199,17 @@ class PlotData:
       m^{-3}}`].
     W_thermal_total: Total thermal stored energy [:math:`\mathrm{MJ}`].
     q95: Safety factor at 95% of the normalized poloidal flux.
+    chi_total_i: Total ion heat conductivity (chi_turb_i + chi_neo_i)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
+    chi_total_e: Total electron heat conductivity (chi_turb_e + chi_neo_e)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
+    D_total_e: Total electron particle diffusivity (D_turb_e + D_neo_e)
+      [:math:`\mathrm{m^2/s}`] on the face grid.
+    V_total_e: Total electron particle convection (V_turb_e + V_neo_e +
+      V_neo_ware_e) [:math:`\mathrm{m^2/s}`] on the face grid.
+    V_neo_total_e: Neoclassical electron particle convection
+      [:math:`\mathrm{m^2/s}`] on the face grid. Contains all components
+      including the Ware pinch.
   """
 
   T_i: np.ndarray
@@ -205,9 +229,14 @@ class PlotData:
   q: np.ndarray
   magnetic_shear: np.ndarray
   chi_turb_i: np.ndarray
+  chi_neo_i: np.ndarray
   chi_turb_e: np.ndarray
+  chi_neo_e: np.ndarray
   D_turb_e: np.ndarray
+  D_neo_e: np.ndarray
   V_turb_e: np.ndarray
+  V_neo_e: np.ndarray
+  V_neo_ware_e: np.ndarray
   p_icrh_i: np.ndarray
   p_icrh_e: np.ndarray
   p_generic_heat_i: np.ndarray
@@ -245,6 +274,26 @@ class PlotData:
   n_i_volume_avg: np.ndarray
   W_thermal_total: np.ndarray  # pylint: disable=invalid-name
   q95: np.ndarray
+
+  @property
+  def chi_total_i(self) -> np.ndarray:
+    return self.chi_turb_i + self.chi_neo_i
+
+  @property
+  def chi_total_e(self) -> np.ndarray:
+    return self.chi_turb_e + self.chi_neo_e
+
+  @property
+  def D_total_e(self) -> np.ndarray:
+    return self.D_turb_e + self.D_neo_e
+
+  @property
+  def V_neo_total_e(self) -> np.ndarray:
+    return self.V_neo_e + self.V_neo_ware_e
+
+  @property
+  def V_total_e(self) -> np.ndarray:
+    return self.V_turb_e + self.V_neo_total_e
 
 
 def load_data(filename: str) -> PlotData:
@@ -340,9 +389,14 @@ def load_data(filename: str) -> PlotData:
       q=profiles_dataset[output.Q].to_numpy(),
       magnetic_shear=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
       chi_turb_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
+      chi_neo_i=profiles_dataset[output.CHI_NEO_I].to_numpy(),
       chi_turb_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
+      chi_neo_e=profiles_dataset[output.CHI_NEO_E].to_numpy(),
       D_turb_e=profiles_dataset[output.D_TURB_E].to_numpy(),
+      D_neo_e=profiles_dataset[output.D_NEO_E].to_numpy(),
       V_turb_e=profiles_dataset[output.V_TURB_E].to_numpy(),
+      V_neo_e=profiles_dataset[output.V_NEO_E].to_numpy(),
+      V_neo_ware_e=profiles_dataset[output.V_NEO_WARE_E].to_numpy(),
       rho_norm=dataset[output.RHO_NORM].to_numpy(),
       rho_cell_norm=dataset[output.RHO_CELL_NORM].to_numpy(),
       rho_face_norm=dataset[output.RHO_FACE_NORM].to_numpy(),
@@ -400,8 +454,11 @@ def load_data(filename: str) -> PlotData:
 
 
 def plot_run(
-    plot_config: FigureProperties, outfile: str, outfile2: str | None = None
-):
+    plot_config: FigureProperties,
+    outfile: str,
+    outfile2: str | None = None,
+    interactive: bool = True,
+) -> figure.Figure:
   """Plots a single run or comparison of two runs."""
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
@@ -411,9 +468,14 @@ def plot_run(
   plotdata2 = load_data(outfile2) if outfile2 else None
 
   # Attribute check. Sufficient to check one PlotData object.
-  plotdata_attrs = set(
-      plotdata1.__dataclass_fields__
-  )  # Get PlotData attributes
+  plotdata_fields = set(plotdata1.__dataclass_fields__)
+  plotdata_properties = {
+      name
+      for name, _ in inspect.getmembers(
+          type(plotdata1), lambda o: isinstance(o, property)
+      )
+  }
+  plotdata_attrs = plotdata_fields.union(plotdata_properties)
   for cfg in plot_config.axes:
     for attr in cfg.attrs:
       if attr not in plotdata_attrs:
@@ -451,8 +513,10 @@ def plot_run(
 
     timeslider.on_changed(update)
 
-  fig.canvas.draw()
-  plt.show()
+  if interactive:
+    fig.canvas.draw()
+    plt.show()
+  return fig
 
 
 def _update(

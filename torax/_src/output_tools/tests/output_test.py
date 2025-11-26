@@ -24,15 +24,20 @@ from jax import tree_util
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
+from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
+from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
@@ -65,11 +70,9 @@ class StateHistoryTest(parameterized.TestCase):
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            self.torax_config
-        )(t=0.0)
-    )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self.torax_config
+    )(t=0.0)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(
             self.geo
@@ -86,14 +89,10 @@ class StateHistoryTest(parameterized.TestCase):
         n_e={},
         psi={},
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        self.torax_config
-    )
     source_models = self.torax_config.sources.build_models()
     neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -113,15 +112,17 @@ class StateHistoryTest(parameterized.TestCase):
             outer_solver_iterations=1,
             solver_error_state=1,
             inner_solver_iterations=1,
+            sawtooth_crash=False,
         ),
         geometry=self.geo,
+        edge_outputs=None,
     )
     sim_error = state.SimError.NO_ERROR
     self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)
 
     self.history = output.StateHistory(
         sim_error=sim_error,
-        state_history=(self.sim_state,),
+        state_history=[self.sim_state],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )
@@ -148,7 +149,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(self.sim_state, self.sim_state_t2),
+        state_history=[self.sim_state, self.sim_state_t2],
         post_processed_outputs_history=(
             self._output_state,
             self._output_state,
@@ -211,7 +212,7 @@ class StateHistoryTest(parameterized.TestCase):
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
     data_tree_to_save.to_netcdf(path)
 
-    loaded_data_tree = output.safe_load_dataset(path)
+    loaded_data_tree = output.load_state_file(path)
     xr.testing.assert_equal(loaded_data_tree, data_tree_to_save)
 
   def test_expected_keys_in_child_nodes(self):
@@ -331,7 +332,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(torax_state, torax_state),
+        state_history=[torax_state, torax_state],
         post_processed_outputs_history=(
             post_processed_outputs,
             post_processed_outputs,
@@ -403,6 +404,72 @@ class StateHistoryTest(parameterized.TestCase):
       data_array_dims = data_array.dims
       if data_array_dims:
         self.assertEqual(data_array_dims[0], output.TIME)
+
+  def test_impurity_radiation_output(self):
+    test_data_dir = paths.test_data_dir()
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(
+            test_data_dir,
+            'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
+        )
+    )
+
+    output_xr, _ = run_simulation.run_simulation(torax_config)
+
+    self.assertIn(
+        impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    self.assertIn(
+        impurity_radiation.DENSITY_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    self.assertIn(
+        impurity_radiation.Z_OUTPUT_NAME, output_xr.profiles.data_vars
+    )
+    total_impurity_from_species = (
+        output_xr.profiles.radiation_impurity_species.sel(
+            impurity_symbol='Ne'
+        ).values
+        + output_xr.profiles.radiation_impurity_species.sel(
+            impurity_symbol='W'
+        ).values
+    )
+    total_impurity_radiation = np.abs(
+        output_xr.profiles.p_impurity_radiation_e.values
+    )
+    np.testing.assert_allclose(
+        total_impurity_from_species,
+        total_impurity_radiation,
+    )
+
+  def test_state_history_with_edge_outputs(self):
+
+    edge_outputs = edge_base.EdgeModelOutputs(
+        q_parallel=jnp.array(1.0),
+        heat_flux_perp_to_target=jnp.array(2.0),
+        separatrix_electron_temp=jnp.array(3.0),
+        target_electron_temp=jnp.array(4.0),
+        neutral_pressure_in_divertor=jnp.array(5.0),
+    )
+
+    sim_state_with_edge = dataclasses.replace(
+        self.sim_state,
+        edge_outputs=edge_outputs,
+    )
+
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=[sim_state_with_edge],
+        post_processed_outputs_history=(self._output_state,),
+        torax_config=self.torax_config,
+    )
+
+    # Verify edge outputs are stored in the history object
+    self.assertEqual(history._edge_outputs[0], edge_outputs)
+
+    # Verify that conversion to xarray works. This ensures no regressions in the
+    # output pipeline when edge outputs are present
+    output_xr = history.simulation_output_to_xr()
+    self.assertIsNotNone(output_xr)
 
 
 if __name__ == '__main__':

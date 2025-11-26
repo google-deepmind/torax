@@ -13,28 +13,28 @@
 # limitations under the License.
 """Sauter model for bootstrap current."""
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
-import chex
 import jax
 import jax.numpy as jnp
-from torax._src import jax_utils
+from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.bootstrap_current import base
-from torax._src.neoclassical.bootstrap_current import runtime_params
+from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.DynamicRuntimeParams):
-  """Dynamic runtime params for the Sauter model."""
+class RuntimeParams(bootstrap_runtime_params.RuntimeParams):
+  """Runtime params for the Sauter model."""
 
   bootstrap_multiplier: float
 
@@ -44,15 +44,13 @@ class SauterModel(base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
-    bootstrap_params = (
-        dynamic_runtime_params_slice.neoclassical.bootstrap_current
-    )
-    assert isinstance(bootstrap_params, DynamicRuntimeParams)
+    bootstrap_params = runtime_params.neoclassical.bootstrap_current
+    assert isinstance(bootstrap_params, RuntimeParams)
     result = _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
         Z_eff_face=core_profiles.Z_eff_face,
@@ -61,6 +59,8 @@ class SauterModel(base.BootstrapCurrentModel):
         n_i=core_profiles.n_i,
         T_e=core_profiles.T_e,
         T_i=core_profiles.T_i,
+        p_e=core_profiles.pressure_thermal_e,
+        p_i=core_profiles.pressure_thermal_i,
         psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geometry,
@@ -84,28 +84,30 @@ class SauterModelConfig(base.BootstrapCurrentModelConfig):
     bootstrap_multiplier: Multiplication factor for bootstrap current.
   """
 
-  model_name: Literal['sauter'] = 'sauter'
+  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
   bootstrap_multiplier: float = 1.0
 
-  def build_dynamic_params(self) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(bootstrap_multiplier=self.bootstrap_multiplier)
+  def build_runtime_params(self) -> RuntimeParams:
+    return RuntimeParams(bootstrap_multiplier=self.bootstrap_multiplier)
 
   def build_model(self) -> SauterModel:
     return SauterModel()
 
 
-@jax_utils.jit
+@jax.jit
 def _calculate_bootstrap_current(
     *,
     bootstrap_multiplier: float,
-    Z_eff_face: chex.Array,
-    Z_i_face: chex.Array,
+    Z_eff_face: array_typing.FloatVectorFace,
+    Z_i_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
+    p_e: cell_variable.CellVariable,
+    p_i: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
-    q_face: chex.Array,
+    q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> base.BootstrapCurrent:
   """Calculates j_bootstrap and j_bootstrap_face using the Sauter model."""
@@ -150,8 +152,8 @@ def _calculate_bootstrap_current(
   # calculate bootstrap current
   prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
 
-  pe = n_e.face_value() * T_e.face_value() * 1e3 * 1.6e-19
-  pi = n_i.face_value() * T_i.face_value() * 1e3 * 1.6e-19
+  pe = p_e.face_value()
+  pi = p_i.face_value()
 
   dpsi_drnorm = psi.face_grad()
   dlnne_drnorm = n_e.face_grad() / n_e.face_value()
@@ -182,10 +184,10 @@ def _calculate_bootstrap_current(
 
 
 def _calculate_L34(
-    f_trap: chex.Array,
-    nu_e_star: chex.Array,
-    Z_eff: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the L34 coefficient: Sauter PoP 1999 Eqs. 16a+b."""
   ft34 = f_trap / (
       1.0
@@ -201,9 +203,9 @@ def _calculate_L34(
 
 
 def _calculate_alpha(
-    f_trap: chex.Array,
-    nu_i_star: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the alpha coefficient: Sauter PoP 1999 Eqs. 17a+b."""
   alpha0 = -1.17 * (1 - f_trap) / (1 - 0.22 * f_trap - 0.19 * f_trap**2)
   alpha = (

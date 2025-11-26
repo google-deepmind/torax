@@ -39,16 +39,28 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('chi_turb_i', 'chi_turb_e'),
-            labels=(r'$\chi_\mathrm{i}$', r'$\chi_\mathrm{e}$'),
+            attrs=(
+                'chi_total_i',
+                'chi_total_e',
+            ),
+            labels=(
+                r'$\chi_\mathrm{i}$',
+                r'$\chi_\mathrm{e}$',
+            ),
             ylabel=r'Heat conductivity $[m^2/s]$',
             upper_percentile=98.0,
             include_first_timepoint=False,
             ylim_min_zero=False,
         ),
         plotruns_lib.PlotProperties(
-            attrs=('D_turb_e', 'V_turb_e'),
-            labels=(r'$D_\mathrm{e}$', r'$V_\mathrm{e}$'),
+            attrs=(
+                'D_total_e',
+                'V_total_e',
+            ),
+            labels=(
+                r'$D_\mathrm{e}$',
+                r'$V_\mathrm{e}$',
+            ),
             ylabel=r'Diff $[m^2/s]$ or Conv $[m/s]$',
             upper_percentile=98.0,
             lower_percentile=2.0,

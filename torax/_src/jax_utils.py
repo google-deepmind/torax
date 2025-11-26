@@ -18,7 +18,7 @@ import contextlib
 import functools
 import inspect
 import os
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 
 import chex
 import equinox as eqx
@@ -27,7 +27,9 @@ from jax import numpy as jnp
 import numpy as np
 
 T = TypeVar('T')
-BooleanNumeric = Any  # A bool, or a Boolean array.
+BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
+_State = ParamSpec('_State')
+PyTree: TypeAlias = Any
 
 
 @functools.cache
@@ -141,13 +143,6 @@ def assert_rank(
     chex.assert_rank(inputs.shape, rank)
   else:
     chex.assert_rank(inputs, rank)
-
-
-def jit(*args, **kwargs) -> Callable[..., Any]:
-  """Calls jax.jit if TORAX_COMPILATION_ENABLED is True, otherwise no-op."""
-  if env_bool('TORAX_COMPILATION_ENABLED', True):
-    return jax.jit(*args, **kwargs)
-  return args[0]
 
 
 def get_number_of_compiles(
@@ -296,3 +291,120 @@ def _init_pytree(t):
       return x
 
   return jax.tree_util.tree_map(init_array, t)
+
+
+def batched_cond(
+    pred: jax.Array,
+    true_fun: Callable[..., PyTree],
+    false_fun: Callable[..., PyTree],
+    operands: tuple[PyTree, ...],
+    implementation: Literal['vectorize', 'map'] = 'vectorize',
+):
+  """A batched version of `jax.lax.cond`.
+
+  JAX provides two approaches for implementing a batched version of
+  `jax.lax.cond`, neither of which is always faster:
+  `implementation='vectorize'` is equivalent to `jnp.select`, which evaluates
+  both braches for every batch element. This is fully vectorized, allowing for
+  parallel execution on CPU/GPU, but requiring twice the number of function
+  evaluations. `implementation='map'` will sequentially evaluate `jax.lax.cond`,
+  preventing vectorized execution, but only requiring a single function
+  evaluation per batch element.
+
+  This function also handles the special case where `pred` is a concrete list of
+  length-1, in which case we can avoid tracing both branches like `jax.lax.cond`
+  does by doing the control-flow in Python.
+
+  Args:
+    pred: Boolean 1D array `[batch_size]`, indicating which branch function to
+      apply.
+    true_fun: Function (A -> B), to be applied if `pred` is True.
+    false_fun: Function (A -> B), to be applied if `pred` is False.
+    operands: A tuple of arguments to pass to the functions. Each `jax.Array`
+      (every PyTree leaf) must have a leading batch dimension of size
+      `batch_size`.
+    implementation: The implementation to use. 'vectorize' compiles to a
+      `jax.lax.select`, where both branches are evaluated. 'map' uses
+      `jax.lax.map`.
+
+  Returns:
+    The result of applying the appropriate function to each element of the
+    batch.
+  """
+
+  if not isinstance(operands, tuple):
+    raise ValueError('The args must be a tuple.')
+
+  if pred.ndim != 1 or pred.dtype != jnp.bool:
+    raise ValueError('pred must be a 1D array of bools.')
+
+  # For the special case where `pred` is a concrete list of length 1, we can
+  # avoid tracing both branches by doing the control flow in Python.
+  if len(pred) == 1 and not isinstance(pred, jax.core.Tracer):
+    f = true_fun if bool(pred) else false_fun
+    operands = jax.tree.map(lambda x: jnp.squeeze(x, axis=0), operands)
+    out = f(*operands)
+    return jax.tree.map(lambda x: jnp.expand_dims(x, axis=0), out)
+
+  f = lambda args: jax.lax.cond(args[0], true_fun, false_fun, *args[1])
+  match implementation:
+    case 'vectorize':
+      # This is compiled to a jax.lax.select, where both branches are evaluated.
+      return jax.vmap(f)((pred, operands))
+    case 'map':
+      return jax.lax.map(f, (pred, operands))
+    case _:
+      raise ValueError(f'Unknown implementation: {implementation}')
+
+
+@functools.partial(
+    jax.jit,
+    static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
+)
+def while_loop_bounded(
+    cond_fun: Callable[[_State], BooleanNumeric],
+    body_fun: Callable[[_State], _State],
+    init_val: _State,
+    max_steps: int,
+    scan_unroll: int = 1,
+) -> _State:
+  """A reverse-mode differentiable while_loop.
+
+  This makes use of jax.lax.scan and `max_steps` to define a fixed size
+  computational graph. The body_fun is called the same number of times it would
+  be under a jax.lax.while_loop i.e. until `cond_fun` returns False (unless the
+  `max_steps` is reached).
+
+  Args:
+    cond_fun: As in jax.lax.while_loop.
+    body_fun: As in jax.lax.while_loop.
+    init_val: As in jax.lax.while_loop.
+    max_steps: An integer, the maximum number of iterations the loop can
+      perform. This is crucial for defining a fixed computational graph for
+      scan.
+    scan_unroll: The number of iterations to unroll the internal scan by.
+
+  Returns:
+    The final state after `cond_fun` returns `False` or `max_steps` are reached.
+  """
+  # Initial carry for the scan: (current_state, while_loop_condition_met)
+  initial_scan_carry = (init_val, jnp.array(True, dtype=jnp.bool_))
+
+  def scan_body(carry, _):
+    current_state, cond_prev = carry
+    # Only execute cond if the previous cond was True.
+    should_execute_body = jax.lax.cond(
+        cond_prev, cond_fun, lambda _: False, current_state
+    )
+    # If the `while_loop` would have terminated, we no-op.
+    next_state = jax.lax.cond(
+        should_execute_body, body_fun, lambda s: s, current_state
+    )
+
+    return (next_state, should_execute_body), None
+
+  (final_state, _), _ = jax.lax.scan(
+      scan_body, initial_scan_carry, length=max_steps, unroll=scan_unroll
+  )
+
+  return final_state

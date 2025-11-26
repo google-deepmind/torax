@@ -18,27 +18,31 @@ import abc
 from collections.abc import Mapping
 import enum
 from typing import Final, Literal, TypeAlias
-
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import jax_utils
 import xarray as xr
 
 RHO_NORM: Final[str] = 'rho_norm'
 
-_interp_fn = jax_utils.jit(jnp.interp)
-_interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+_interp_fn = jax.jit(jnp.interp)
+interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
-@jax_utils.jit
-def _step_interpolation(xs: chex.Array, x: chex.Numeric) -> chex.Array:
+@jax.jit
+def _step_interpolation(
+    xs: array_typing.Array, x: chex.Numeric
+) -> array_typing.Array:
   """Find the indices for step interpolation."""
   # For a given x, we want to find k such that self.xs[k] <= x < self.xs[k+1]
   # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'
   # means that the step occurs whenever x > self.xs. Clipping is strictly
   # necessary for the case where searchsorted returns index 0.
+  # TODO(b/454891040): Make the value at the boundary consistent with the
+  # prescribed value.
   return jnp.clip(jnp.searchsorted(xs, x, side='left') - 1, 0, xs.shape[0] - 1)
 
 
@@ -70,7 +74,7 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
-_ArrayOrListOfFloats: TypeAlias = chex.Array | list[float]
+_ArrayOrListOfFloats: TypeAlias = array_typing.Array | list[float]
 
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
@@ -121,14 +125,25 @@ class InterpolatedParamBase(abc.ABC):
   """
 
   @abc.abstractmethod
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns a value for this parameter interpolated at the given input."""
 
+  @property
+  @abc.abstractmethod
+  def xs(self) -> array_typing.Array:
+    """Returns the array of x-values."""
 
+  @property
+  @abc.abstractmethod
+  def ys(self) -> array_typing.Array:
+    """Returns the array of y-values."""
+
+
+@jax.tree_util.register_pytree_node_class
 class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
-  def __init__(self, xs: chex.Array, ys: chex.Array):
+  def __init__(self, xs: array_typing.Array, ys: array_typing.Array):
     """Initialises a piecewise-linear interpolated param, xs must be sorted."""
 
     if not np.issubdtype(xs.dtype, np.floating):
@@ -148,18 +163,29 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
     if ys.ndim not in (1, 2):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
+  def tree_flatten(self):
+    return (self._xs, self._ys), ()
+
+  @classmethod
+  def tree_unflatten(cls, unused_aux_data, children):
+    # Avoid calling constructor as it does validation.
+    obj = object.__new__(_PiecewiseLinearInterpolatedParam)
+    obj._xs = children[0]
+    obj._ys = children[1]
+    return obj
+
   @property
-  def xs(self) -> chex.Array:
+  def xs(self) -> array_typing.Array:
     return self._xs
 
   @property
-  def ys(self) -> chex.Array:
+  def ys(self) -> array_typing.Array:
     return self._ys
 
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     x_shape = getattr(x, 'shape', ())
     is_jax = isinstance(x, jax.Array)
     # This function can be used inside a JITted function, where x are
@@ -186,15 +212,16 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         if len(self.ys) == 1 and x_shape == ():  # pylint: disable=g-explicit-bool-comparison
           return self.ys[0]
         else:
-          return _interp_fn_vmap(x, self.xs, self.ys)
+          return interp_fn_vmap(x, self.xs, self.ys)
       case _:
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
 
+@jax.tree_util.register_pytree_node_class
 class _StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
-  def __init__(self, xs: chex.Array, ys: chex.Array):
+  def __init__(self, xs: array_typing.Array, ys: array_typing.Array):
     """Creates a step interpolated param, xs must be sorted."""
     self._xs = jnp.asarray(xs)
     self._ys = jnp.asarray(ys)
@@ -207,15 +234,26 @@ class _StepInterpolatedParam(InterpolatedParamBase):
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
 
+  def tree_flatten(self):
+    return (self._xs, self._ys), ()
+
+  @classmethod
+  def tree_unflatten(cls, unused_aux_data, children):
+    # Avoid calling constructor as it does validation.
+    obj = object.__new__(_StepInterpolatedParam)
+    obj._xs = children[0]
+    obj._ys = children[1]
+    return obj
+
   @property
-  def xs(self) -> chex.Array:
+  def xs(self) -> array_typing.Array:
     return self._xs
 
   @property
-  def ys(self) -> chex.Array:
+  def ys(self) -> array_typing.Array:
     return self._ys
 
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     indices = _step_interpolation(self.xs, x)
     return self.ys[indices]
@@ -242,11 +280,14 @@ def _convert_value_to_floats(
 
 def convert_input_to_xs_ys(
     interp_input: TimeInterpolatedInput,
+    default_interpolation_mode: InterpolationMode = InterpolationMode.PIECEWISE_LINEAR,
 ) -> tuple[np.ndarray, np.ndarray, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
   Args:
     interp_input: The input to convert.
+    default_interpolation_mode: The default interpolation mode to use if not
+      specified in the input.
 
   Returns:
     A tuple of (xs, ys, interpolation_mode, is_bool_param) where xs and ys are
@@ -255,7 +296,7 @@ def convert_input_to_xs_ys(
     bool and False otherwise.
   """
   # This function does NOT need to be jittable.
-  interpolation_mode = InterpolationMode.PIECEWISE_LINEAR
+  interpolation_mode = default_interpolation_mode
   # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
   # an InterpolatedVarSingleAxis first.
   if isinstance(interp_input, tuple):
@@ -336,13 +377,13 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   should have shape (n, m) where n is the number of elements in the 1d array and
   m is the number of spatial grid size of the InterpolatedVar1d instance
 
-  See `config.runtime_params.RuntimeParams` and associated tests to see how
+  See `config.runtime_params_lib.RuntimeParams` and associated tests to see how
   this is used.
   """
 
   def __init__(
       self,
-      value: tuple[chex.Array, chex.Array],
+      value: tuple[array_typing.Array, array_typing.Array],
       interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
@@ -358,12 +399,12 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       interpolation_mode: Defines how to interpolate between values in `value`.
       is_bool_param: If True, the input value is assumed to be a bool and is
         converted to a float.
+
     Raises:
       RuntimeError: If the input xs is not sorted.
     """
-    self._value = value
     xs, ys = value
-    jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
+    xs = jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
 
     if not np.issubdtype(xs.dtype, np.floating):
       raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
@@ -380,16 +421,32 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       case _:
         raise ValueError('Unknown interpolation mode.')
 
+  @property
+  def xs(self) -> array_typing.Array:
+    """Returns the xs used by this param."""
+    return self._param.xs
+
+  @property
+  def ys(self) -> array_typing.Array:
+    """Returns the ys used by this param."""
+    return self._param.ys
+
   def tree_flatten(self):
     static_params = {
         'interpolation_mode': self.interpolation_mode,
         'is_bool_param': self.is_bool_param,
     }
-    return (self._value, static_params)
+    return ((self._param,), static_params)
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
-    return cls(children, **aux_data)
+    # Avoid calling the constructor as it contains validation logic that may
+    # fail under certain JAX transformations.
+    obj = object.__new__(InterpolatedVarSingleAxis)
+    obj._param = children[0]
+    obj._interpolation_mode = aux_data['interpolation_mode']
+    obj._is_bool_param = aux_data['is_bool_param']
+    return obj
 
   @property
   def is_bool_param(self) -> bool:
@@ -404,7 +461,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     value = self._param.get_value(x)
     if self._is_bool_param:
@@ -438,8 +495,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 
   def __init__(
       self,
-      values: Mapping[float, tuple[chex.Array, chex.Array]],
-      rho_norm: chex.Array,
+      values: Mapping[float, tuple[array_typing.Array, array_typing.Array]],
+      rho_norm: array_typing.Array,
       time_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
@@ -473,6 +530,16 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
         interpolation_mode=time_interpolation_mode,
     )
 
+  @property
+  def xs(self) -> array_typing.Array:
+    """Returns the xs used by this param."""
+    return self._time_interpolated_var.xs
+
+  @property
+  def ys(self) -> array_typing.Array:
+    """Returns the ys used by this param."""
+    return self._time_interpolated_var.ys
+
   def tree_flatten(self):
     children = (self._time_interpolated_var,)
     aux_data = (self._rho_interpolation_mode, self._time_interpolation_mode)
@@ -498,6 +565,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """Returns the rho interpolation mode used by this param."""
     return self._rho_interpolation_mode
 
-  def get_value(self, x: chex.Numeric) -> chex.Array:
+  def get_value(self, x: chex.Numeric) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time."""
     return self._time_interpolated_var.get_value(x)

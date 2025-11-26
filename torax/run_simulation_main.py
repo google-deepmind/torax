@@ -23,6 +23,7 @@ python3 run_simulation_main.py \
 from collections.abc import Sequence
 import enum
 import functools
+import os
 import pathlib
 import time
 
@@ -36,6 +37,11 @@ from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
 
+os.environ['XLA_FLAGS'] = (
+    os.environ.get('XLA_FLAGS', '')
+    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+)
+
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
 # String used when prompting the user to make a yes / no choice
@@ -43,6 +49,7 @@ Y_N_PROMPT = 'y/n: '
 # String used when printing how long the simulation took
 SIMULATION_TIME = 'simulation time'
 
+FLAGS = flags.FLAGS
 
 _CONFIG_PATH = flags.DEFINE_string(
     'config',
@@ -94,11 +101,15 @@ _QUIT = flags.DEFINE_bool(
     'If True, quits after the first operation (no interactive mode).',
 )
 
-_OUTPUT_DIR = flags.DEFINE_string(
-    'output_dir',
-    None,
-    'If provided, overrides the default output directory.',
-)
+# Needed to test-time name collision with the flag in regenerate_torax_refs.py.
+if 'output_dir' not in FLAGS:
+  _OUTPUT_DIR = flags.DEFINE_string(
+      'output_dir',
+      None,
+      'If provided, overrides the default output directory.',
+  )
+else:
+  _OUTPUT_DIR = None
 
 _PLOT_CONFIG_PATH = flags.DEFINE_string(
     'plot_config',
@@ -355,7 +366,7 @@ def main(_):
   log_sim_output = _LOG_SIM_OUTPUT.value
   torax_config = None
   output_files = []
-  output_dir = _OUTPUT_DIR.value
+  output_dir = _OUTPUT_DIR.value if _OUTPUT_DIR is not None else None
   try:
     start_time = time.time()
     torax_config = config_loader.build_torax_config_from_file(config_path)

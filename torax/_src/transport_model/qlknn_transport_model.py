@@ -22,22 +22,21 @@ from typing import Final
 import jax
 from jax import numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import base_qlknn_model
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
-from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
@@ -80,31 +79,31 @@ def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
 class QLKNNRuntimeConfigInputs:
   """Runtime config inputs for QLKNN.
 
-  The runtime DynamicRuntimeParamsSlice contains global runtime parameters, not
+  The runtime RuntimeParams contains global runtime parameters, not
   all of which are cacheable. This set of inputs IS cacheable, and using this
   added layer allows the global config to change without affecting how
   QLKNNTransportModel works.
   """
 
   # pylint: disable=invalid-name
-  transport: DynamicRuntimeParams
+  transport: RuntimeParams
   Ped_top: float
   set_pedestal: bool
   # pylint: enable=invalid-name
 
   @staticmethod
   def from_runtime_params_slice(
-      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     return QLKNNRuntimeConfigInputs(
-        transport=transport_dynamic_runtime_params,
+        transport=transport_runtime_params,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
-        set_pedestal=dynamic_runtime_params_slice.pedestal.set_pedestal,
+        set_pedestal=runtime_params.pedestal.set_pedestal,
     )
 
 
@@ -163,33 +162,18 @@ def clip_inputs(
   return feature_scan
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class QLKNNTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
 ):
   """Calculates turbulent transport coefficients."""
-
-  def __init__(
-      self,
-      path: str,
-      name: str,
-  ):
-    super().__init__()
-    self._path = path
-    self._name = name
-    self._frozen = True
-
-  @property
-  def path(self) -> str:
-    return self._path
-
-  @property
-  def name(self) -> str:
-    return self._name
+  path: str
+  name: str
 
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -197,9 +181,9 @@ class QLKNNTransportModel(
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_dynamic_runtime_params: Input runtime parameters for this
+      transport_runtime_params: Input runtime parameters for this
         transport model. Can change without triggering a JAX recompilation.
-      dynamic_runtime_params_slice: Input runtime parameters for all components
+      runtime_params: Input runtime parameters for all components
         of the simulation that can change without triggering a JAX
         recompilation.
       geo: Geometry of the torus.
@@ -210,11 +194,11 @@ class QLKNNTransportModel(
       coeffs: transport coefficients
     """
     # Required for pytype
-    assert isinstance(transport_dynamic_runtime_params, DynamicRuntimeParams)
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
-        transport_dynamic_runtime_params,
-        dynamic_runtime_params_slice,
+        transport_runtime_params,
+        runtime_params,
         pedestal_model_output,
     )
     return self._combined(runtime_config_inputs, geo, core_profiles)
@@ -300,14 +284,4 @@ class QLKNNTransportModel(
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
-    )
-
-  def __hash__(self) -> int:
-    return hash(('QLKNNTransportModel' + self.path + self.name))
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    return (
-        isinstance(other, QLKNNTransportModel)
-        and self.path == other.path
-        and self.name == other.name
     )

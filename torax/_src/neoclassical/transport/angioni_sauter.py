@@ -15,24 +15,25 @@
 
 This module implements the neoclassical transport model described in:
 C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000).
-https://doi.org/10.1063/1.873918
+https://doi.org/10.1063/1.873933
 
 The implementation was facilitated by and verified against the NEOS code:
 https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
-import chex
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.transport import base
-from torax._src.neoclassical.transport import runtime_params
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.physics import collisions
+from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import override
 
 # pylint: disable=invalid-name
@@ -41,30 +42,32 @@ from typing_extensions import override
 class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
   """Pydantic model for the Angioni-Sauter neoclassical transport model."""
 
-  model_name: Literal['angioni_sauter'] = 'angioni_sauter'
+  model_name: Annotated[
+      Literal['angioni_sauter'], torax_pydantic.JAX_STATIC
+  ] = 'angioni_sauter'
 
   @override
   def build_model(self) -> 'AngioniSauterModel':
     return AngioniSauterModel()
 
   @override
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams()
+  def build_runtime_params(self) -> transport_runtime_params.RuntimeParams:
+    return super().build_runtime_params()
 
 
 class AngioniSauterModel(base.NeoclassicalTransportModel):
   """Implements the Angioni-Sauter neoclassical transport model."""
 
   @override
-  def calculate_neoclassical_transport(
+  def _call_implementation(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients."""
     return _calculate_angioni_sauter_transport(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
     )
@@ -77,14 +80,14 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 
 def _calculate_angioni_sauter_transport(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> base.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
   Args:
-    dynamic_runtime_params_slice: Slice of dynamic runtime parameters.
+    runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
 
@@ -95,17 +98,12 @@ def _calculate_angioni_sauter_transport(
   omitted for brevity.
   """
 
-  del dynamic_runtime_params_slice  # Unused.
+  del runtime_params  # Unused.
 
   # --- Step 1: Calculate intermediate physics quantities ---
 
   # Calculate trapped fractions ft and ftd from paper Eq. (17)
-  # TODO(b/426291465): Implement a more accurate calculation of <1/B^2>.
-  # Analytical expressions for circular geometry.
-  B2_avg = geometry.B_0**2 / jnp.sqrt(1.0 - geometry.epsilon_face**2)
-  Bm2_avg = geometry.B_0**-2 * (1.0 + 1.5 * geometry.epsilon_face**2)
-
-  B2_avg_Bm2_avg = B2_avg * Bm2_avg
+  B2_avg_Bm2_avg = geometry.gm5_face * geometry.gm4_face
 
   # Use the Sauter model's effective trapped fraction logic
   aa = (1.0 - geometry.epsilon_face) / (1.0 + geometry.epsilon_face)
@@ -142,7 +140,7 @@ def _calculate_angioni_sauter_transport(
   nu_i_star = (
       4.9e-18
       * core_profiles.q_face
-      * geometry.R_major
+      * geometry.R_major_profile_face
       * core_profiles.n_i.face_value()
       * core_profiles.Z_i_face**4
       * log_lambda_ii
@@ -176,8 +174,6 @@ def _calculate_angioni_sauter_transport(
       epsilon=geometry.epsilon_face,
       nu_e_star=nu_e_star,
       nu_i_star=nu_i_star,
-      B2_avg=B2_avg,
-      Bm2_avg=Bm2_avg,
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
@@ -196,20 +192,12 @@ def _calculate_angioni_sauter_transport(
   ) / (dpsi_drhon + constants.CONSTANTS.eps)
 
   # --- Step 5: Calculate neoclassical fluxes ---
-  pe = (
-      core_profiles.n_e.face_value()
-      * core_profiles.T_e.face_value()
-      * constants.CONSTANTS.keV2J
-  )
-  pi = (
-      core_profiles.n_i.face_value()
-      * core_profiles.T_i.face_value()
-      * constants.CONSTANTS.keV2J
-  )
+  pe = core_profiles.pressure_thermal_e.face_value()
+  pi = core_profiles.pressure_thermal_i.face_value()
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
   E_parallel = core_profiles.psidot.face_value() / (
-      2 * jnp.pi * geometry.R_major
+      2 * jnp.pi * geometry.R_major_profile_face
   )
 
   # Total electron heat flux Q_e = B_e2 * T_e / (dpsi/drho) (see Angioni Sec 5)
@@ -295,14 +283,14 @@ def _calculate_angioni_sauter_transport(
 
 
 def _calculate_Kmn(
-    ftrap: chex.Array,
-    ftrap_d: chex.Array,
-    Z_eff: chex.Array,
-    B2_avg_Bm2_avg: chex.Array,
-    nu_e_star: chex.Array,
-    nu_i_star: chex.Array,
-    alpha_I: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    ftrap: array_typing.FloatVectorFace,
+    ftrap_d: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+    B2_avg_Bm2_avg: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+    alpha_I: array_typing.FloatVectorFace,
+) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensionless transport matrices Kmn."""
 
   # F_mn matrix, Eq. (24)
@@ -449,7 +437,9 @@ def _calculate_Kmn(
   return Kmn_e, Kmn_i
 
 
-def _Fmn_X(X: chex.Array, Z_eff: chex.Array) -> chex.Array:
+def _Fmn_X(
+    X: array_typing.FloatVectorFace, Z_eff: array_typing.FloatVectorFace
+) -> array_typing.Array:
   """Calculates the F_mn matrix from Eq. (24) of Angioni & Sauter 2000."""
   F11 = X + X * (0.9 + X * (-1.9 + X * (1.6 - 0.6 * X))) / (Z_eff + 0.5)
   F12 = X + X * (0.6 + X * (-0.95 + X * (0.3 + 0.05 * X))) / (Z_eff + 0.5)
@@ -459,9 +449,16 @@ def _Fmn_X(X: chex.Array, Z_eff: chex.Array) -> chex.Array:
 
 
 def _coeffs_appendix_B(
-    Z_eff: chex.Array,
+    Z_eff: array_typing.Array,
 ) -> tuple[
-    chex.Array, chex.Array, chex.Array, chex.Array, float, float, float, float
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+    float,
+    float,
+    float,
+    float,
 ]:
   """Calculates coefficients from Appendix B of Angioni & Sauter 2000."""
   a11 = (1.0 + 3.0 * Z_eff) / (0.77 + 1.22 * Z_eff)
@@ -490,41 +487,39 @@ def _coeffs_appendix_B(
 
 
 def _calculate_Lmn(
-    Kmn_e: chex.Array,
-    Kmn_i: chex.Array,
+    Kmn_e: array_typing.Array,
+    Kmn_i: array_typing.Array,
     geo: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-    epsilon: chex.Array,
-    nu_e_star: chex.Array,
-    nu_i_star: chex.Array,
-    B2_avg: chex.Array,
-    Bm2_avg: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    epsilon: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    nu_i_star: array_typing.FloatVectorFace,
+) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensional transport matrices Lmn."""
   # Normalization factors from Eqs. 16, 20, 21
   consts = constants.CONSTANTS
   thermal_velocity_e = jnp.sqrt(
-      2 * core_profiles.T_e.face_value() * consts.keV2J / consts.me
+      2 * core_profiles.T_e.face_value() * consts.keV_to_J / consts.m_e
   )
-  collision_time_e = (core_profiles.q_face * geo.R_major) / (
+  collision_time_e = (core_profiles.q_face * geo.R_major_profile_face) / (
       nu_e_star * epsilon**1.5 * thermal_velocity_e + consts.eps
   )
   thermal_velocity_i = jnp.sqrt(
       2
       * core_profiles.T_i.face_value()
-      * consts.keV2J
-      / (core_profiles.A_i * consts.mp)
+      * consts.keV_to_J
+      / (core_profiles.A_i * consts.m_amu)
   )
-  collision_time_i = (core_profiles.q_face * geo.R_major) / (
+  collision_time_i = (core_profiles.q_face * geo.R_major_profile_face) / (
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
-  r_larmor_e = consts.me * thermal_velocity_e / consts.qe
+  r_larmor_e = consts.m_e * thermal_velocity_e / consts.q_e
   r_larmor_i = (
-      consts.mp
+      consts.m_amu
       * core_profiles.A_i
       * thermal_velocity_i
-      / (consts.qe * core_profiles.Z_i_face)
+      / (consts.q_e * core_profiles.Z_i_face)
   )
 
   dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
@@ -546,29 +541,29 @@ def _calculate_Lmn(
 
   Lsi = (
       core_profiles.n_i.face_value()
-      * (consts.qe * core_profiles.Z_i_face) ** 2
+      * (consts.q_e * core_profiles.Z_i_face) ** 2
       * collision_time_i
       * geo.B_0**2
       / (
-          consts.mp
+          consts.m_amu
           * core_profiles.A_i
           * core_profiles.T_i.face_value()
-          * consts.keV2J
+          * consts.keV_to_J
       )
   )
 
   # Calculate electron matrix (Eq. 20)
   Lmn_e = jnp.zeros((nu_e_star.shape[0], 4, 4))
 
-  Lmn_e = Lmn_e.at[:, 0, 0].set(Kmn_e[:, 0, 0] * Ld * Bm2_avg * geo.B_0**2)
-  Lmn_e = Lmn_e.at[:, 0, 1].set(Kmn_e[:, 0, 1] * Ld * Bm2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 0].set(Kmn_e[:, 0, 0] * Ld * geo.gm4_face * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 1].set(Kmn_e[:, 0, 1] * Ld * geo.gm4_face * geo.B_0**2)
   Lmn_e = Lmn_e.at[:, 0, 2].set(Kmn_e[:, 0, 2] * Lb)
-  Lmn_e = Lmn_e.at[:, 0, 3].set(Kmn_e[:, 0, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 0, 3].set(Kmn_e[:, 0, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   Lmn_e = Lmn_e.at[:, 1, 0].set(Lmn_e[:, 0, 1])
-  Lmn_e = Lmn_e.at[:, 1, 1].set(Kmn_e[:, 1, 1] * Ld * Bm2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 1, 1].set(Kmn_e[:, 1, 1] * Ld * geo.gm4_face * geo.B_0**2)
   Lmn_e = Lmn_e.at[:, 1, 2].set(Kmn_e[:, 1, 2] * Lb)
-  Lmn_e = Lmn_e.at[:, 1, 3].set(Kmn_e[:, 1, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 1, 3].set(Kmn_e[:, 1, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   Lmn_e = Lmn_e.at[:, 2, 0].set(Lmn_e[:, 0, 2])
   Lmn_e = Lmn_e.at[:, 2, 1].set(Lmn_e[:, 1, 2])
@@ -578,13 +573,17 @@ def _calculate_Lmn(
   Lmn_e = Lmn_e.at[:, 3, 0].set(Lmn_e[:, 0, 3])
   Lmn_e = Lmn_e.at[:, 3, 1].set(Lmn_e[:, 1, 3])
   Lmn_e = Lmn_e.at[:, 3, 2].set(Lmn_e[:, 2, 3])
-  Lmn_e = Lmn_e.at[:, 3, 3].set(Kmn_e[:, 3, 3] * Ld / B2_avg * geo.B_0**2)
+  Lmn_e = Lmn_e.at[:, 3, 3].set(Kmn_e[:, 3, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   # Calculate ion matrix
   Lmn_i = jnp.zeros((nu_i_star.shape[0], 2, 2))
-  Lmn_i = Lmn_i.at[:, 0, 0].set(Kmn_i[:, 0, 0] * Lsi * B2_avg / geo.B_0**2)
+  Lmn_i = Lmn_i.at[:, 0, 0].set(
+      Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
+  )
   Lmn_i = Lmn_i.at[:, 0, 1].set(Kmn_i[:, 0, 1] * Lbi)
   Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 1, 0])
-  Lmn_i = Lmn_i.at[:, 1, 1].set(Kmn_i[:, 1, 1] * Ldi * Bm2_avg * geo.B_0**2)
+  Lmn_i = Lmn_i.at[:, 1, 1].set(
+      Kmn_i[:, 1, 1] * Ldi * geo.gm4_face * geo.B_0**2
+  )
 
   return Lmn_e, Lmn_i

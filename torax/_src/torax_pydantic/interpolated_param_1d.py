@@ -14,16 +14,29 @@
 
 """Classes and functions for defining interpolated parameters."""
 
+import dataclasses
 import functools
 from typing import Any, TypeAlias
 
 import chex
+import equinox as eqx
+import jax
+import jaxtyping as jt
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import interpolated_param
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 import typing_extensions
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class TimeVaryingScalarReplace:
+  value: jt.Float[jax.Array, 't'] | None = None
+  time: jt.Float[jax.Array, 't'] | None = None
 
 
 class TimeVaryingScalar(model_base.BaseModelFrozen):
@@ -53,8 +66,8 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
-  def get_value(self, t: chex.Numeric) -> chex.Array:
-    """Returns the value of this parameter interpolated at x=time.
+  def get_value(self, t: chex.Numeric) -> array_typing.Array:
+    """Returns the value of this parameter interpolated at time t.
 
     Args:
       t: An array of times to interpolate at.
@@ -63,6 +76,39 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       An array of interpolated values.
     """
     return self._get_cached_interpolated_param.get_value(t)
+
+  def to_time_varying_array(self) -> interpolated_param_2d.TimeVaryingArray:
+    """Creates a TimeVaryingArray with radially-constant profiles."""
+    time_varying_array_values = {}
+    for time, value in zip(self.time, self.value, strict=True):
+      time_varying_array_values[float(time)] = (
+          np.array([0.0]),
+          np.array([value]),
+      )
+
+    return interpolated_param_2d.TimeVaryingArray.model_validate(
+        dict(
+            value=time_varying_array_values,
+            time_interpolation_mode=self.interpolation_mode,
+        ),
+    )
+
+  def update(
+      self, replacements: TimeVaryingScalarReplace
+  ) -> typing_extensions.Self:
+    """This method can be used under `jax.jit`."""
+    value = replacements.value if replacements.value is not None else self.value
+    time = replacements.time if replacements.time is not None else self.time
+    if time.shape != value.shape:
+      raise ValueError(
+          'The value and time arrays to update this `TimeVaryingScalar` must'
+          f' be the same length. Got value: {value.shape}, time: {time.shape}.'
+      )
+
+    def get_leaves(x: typing_extensions.Self) -> tuple[chex.Array, chex.Array]:
+      return (x.time, x.value)
+
+    return eqx.tree_at(get_leaves, self, (time, value),)
 
   def __eq__(self, other):
     return (
@@ -100,8 +146,12 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       if set(data.keys()).issubset(cls.model_fields.keys()):
         return data  # pytype: disable=bad-return-type
 
+    default_interpolation_mode = cls.model_fields['interpolation_mode'].default
+
     time, value, interpolation_mode, is_bool_param = (
-        interpolated_param.convert_input_to_xs_ys(data)
+        interpolated_param.convert_input_to_xs_ys(
+            data, default_interpolation_mode
+        )
     )
 
     # Ensure that the time is sorted.
@@ -134,6 +184,14 @@ def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
   return time_varying_scalar
 
 
+def _is_non_negative(
+    time_varying_scalar: TimeVaryingScalar,
+) -> TimeVaryingScalar:
+  if not np.all(time_varying_scalar.value >= 0):
+    raise ValueError('All values must be non-negative.')
+  return time_varying_scalar
+
+
 def _interval(
     time_varying_scalar: TimeVaryingScalar,
     lower_bound: float,
@@ -151,8 +209,21 @@ def _interval(
   return time_varying_scalar
 
 
+class TimeVaryingScalarStep(TimeVaryingScalar):
+  """TimeVaryingScalar with STEP interpolation mode by default."""
+  interpolation_mode: typing_extensions.Annotated[
+      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+  ] = interpolated_param.InterpolationMode.STEP
+
+
 PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+]
+NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
+]
+NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingScalarStep, pydantic.AfterValidator(_is_non_negative)
 ]
 UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
     TimeVaryingScalar,

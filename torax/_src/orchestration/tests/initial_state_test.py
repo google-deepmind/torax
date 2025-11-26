@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -32,16 +29,13 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_from_file_restart(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
-
-    step_fn = _get_step_fn(torax_config)
-
-    static, dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
-
+    runtime_params_provider, geo_provider, step_fn = _get_providers_and_step_fn(
+        torax_config
+    )
     non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
         t=torax_config.numerics.t_initial,
-        static_runtime_params_slice=static,
-        dynamic_runtime_params_slice_provider=dynamic,
-        geometry_provider=geo,
+        runtime_params_provider=runtime_params_provider,
+        geometry_provider=geo_provider,
         step_fn=step_fn,
     )
 
@@ -49,15 +43,17 @@ class InitialStateTest(sim_test_case.SimTestCase):
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
             t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            static_runtime_params_slice=static,
-            dynamic_runtime_params_slice_provider=dynamic,
-            geometry_provider=geo,
+            runtime_params_provider=runtime_params_provider,
+            geometry_provider=geo_provider,
             step_fn=step_fn,
         )
     )
 
     self.assertNotEqual(post_processed.E_fusion, 0.0)
-    self.assertNotEqual(post_processed.E_aux, 0.0)
+    self.assertNotEqual(post_processed.E_aux_total, 0.0)
+    self.assertNotEqual(post_processed.E_ohmic_e, 0.0)
+    self.assertNotEqual(post_processed.E_external_injected, 0.0)
+    self.assertNotEqual(post_processed.E_external_total, 0.0)
 
     with self.assertRaises(AssertionError):
       chex.assert_trees_all_equal(result, non_restart)
@@ -96,8 +92,16 @@ class InitialStateTest(sim_test_case.SimTestCase):
     config['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    static, dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
-    step_fn = _get_step_fn(torax_config)
+    runtime_params_provider, geo_provider, step_fn = _get_providers_and_step_fn(
+        torax_config
+    )
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.numerics.t_initial,
+            runtime_params_provider=runtime_params_provider,
+            geometry_provider=geo_provider,
+        )
+    )
 
     # Load in the reference core profiles.
     Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
@@ -110,73 +114,44 @@ class InitialStateTest(sim_test_case.SimTestCase):
     n_e_right_bc = ref_profiles[output.N_E][index, -1]
     psi = ref_profiles[output.PSI][index, 1:-1]
 
-    # Override the dynamic runtime params with the loaded values.
-    dynamic.profile_conditions.Ip = Ip_total
-    dynamic.profile_conditions.T_e = T_e
-    dynamic.profile_conditions.T_e_right_bc = T_e_bc
-    dynamic.profile_conditions.T_i = T_i
-    dynamic.profile_conditions.T_i_right_bc = T_i_bc
-    dynamic.profile_conditions.n_e = n_e
-    dynamic.profile_conditions.n_e_right_bc = n_e_right_bc
-    dynamic.profile_conditions.psi = psi
+    # Override the runtime params with the loaded values.
+    runtime_params.profile_conditions.Ip = Ip_total
+    runtime_params.profile_conditions.T_e = T_e
+    runtime_params.profile_conditions.T_e_right_bc = T_e_bc
+    runtime_params.profile_conditions.T_i = T_i
+    runtime_params.profile_conditions.T_i_right_bc = T_i_bc
+    runtime_params.profile_conditions.n_e = n_e
+    runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
+    runtime_params.profile_conditions.psi = psi
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
     # Additionally we want to avoid normalizing to nbar.
-    dynamic.profile_conditions.n_e_right_bc_is_fGW = False
-    dynamic.profile_conditions.n_e_nbar_is_fGW = False
-    static = dataclasses.replace(
-        static,
-        profile_conditions=dataclasses.replace(
-            static.profile_conditions,
-            n_e_right_bc_is_absolute=True,
-            normalize_n_e_to_nbar=False,
-        ),
-    )
+    runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
+    runtime_params.profile_conditions.n_e_nbar_is_fGW = False
+    runtime_params.profile_conditions.normalize_n_e_to_nbar = False
+    runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
-    result = initial_state._get_initial_state(static, dynamic, geo, step_fn)
+    result = initial_state._get_initial_state(runtime_params, geo, step_fn)
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
 
 
-def _get_step_fn(torax_config):
-  solver = mock.MagicMock()
-  solver.physics_models = torax_config.build_physics_models()
-  return mock.create_autospec(step_function.SimulationStepFn, solver=solver)
-
-
-def _get_geo_and_runtime_params_providers(torax_config):
-  static_runtime_params_slice = (
-      build_runtime_params.build_static_params_from_config(torax_config)
+def _get_providers_and_step_fn(torax_config):
+  runtime_params_provider = (
+      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
   )
-  dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-          torax_config
-      )
+  geo_provider = torax_config.geometry.build_provider
+  solver = torax_config.solver.build_solver(
+      physics_models=torax_config.build_physics_models(),
   )
-  return (
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice_provider,
-      torax_config.geometry.build_provider,
+  step_fn = step_function.SimulationStepFn(
+      solver=solver,
+      time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
+      geometry_provider=geo_provider,
+      runtime_params_provider=runtime_params_provider,
   )
-
-
-def _get_geo_and_runtime_params_slice(torax_config):
-  static, dynamic_provider, geo_provider = (
-      _get_geo_and_runtime_params_providers(torax_config)
-  )
-  dynamic_runtime_params_slice_for_init, geo_for_init = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=torax_config.numerics.t_initial,
-          dynamic_runtime_params_slice_provider=dynamic_provider,
-          geometry_provider=geo_provider,
-      )
-  )
-  return (
-      static,
-      dynamic_runtime_params_slice_for_init,
-      geo_for_init,
-  )
+  return runtime_params_provider, geo_provider, step_fn
 
 
 if __name__ == '__main__':

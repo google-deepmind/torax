@@ -14,14 +14,16 @@
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
 import dataclasses
-import functools
-
+from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
-from torax._src.config import profile_conditions
-from torax._src.config import runtime_params_slice
+from torax._src import constants
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
+from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
@@ -39,49 +41,50 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  Z_i: array_typing.ArrayFloat
-  Z_i_face: array_typing.ArrayFloat
-  Z_impurity: array_typing.ArrayFloat
-  Z_impurity_face: array_typing.ArrayFloat
-  A_i: array_typing.ScalarFloat
-  A_impurity: array_typing.ScalarFloat
-  Z_eff: array_typing.ArrayFloat
-  Z_eff_face: array_typing.ArrayFloat
+  impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+  Z_i: array_typing.FloatVectorCell
+  Z_i_face: array_typing.FloatVectorFace
+  Z_impurity: array_typing.FloatVectorCell
+  Z_impurity_face: array_typing.FloatVectorFace
+  A_i: array_typing.FloatScalar
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
+  Z_eff: array_typing.FloatVectorCell
+  Z_eff_face: array_typing.FloatVectorFace
 
 
 def get_updated_ion_temperature(
-    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed ion temperature profiles."""
   T_i = cell_variable.CellVariable(
-      value=dynamic_profile_conditions.T_i,
+      value=profile_conditions_params.T_i,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.T_i_right_bc,
+      right_face_constraint=profile_conditions_params.T_i_right_bc,
       dr=geo.drho_norm,
   )
   return T_i
 
 
 def get_updated_electron_temperature(
-    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron temperature profiles."""
   T_e = cell_variable.CellVariable(
-      value=dynamic_profile_conditions.T_e,
+      value=profile_conditions_params.T_e,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=dynamic_profile_conditions.T_e_right_bc,
+      right_face_constraint=profile_conditions_params.T_e_right_bc,
       dr=geo.drho_norm,
   )
   return T_e
 
 
 def get_updated_electron_density(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
+    profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""
@@ -89,24 +92,24 @@ def get_updated_electron_density(
   # Greenwald density in m^-3.
   # Ip in MA. a_minor in m.
   nGW = (
-      dynamic_profile_conditions.Ip
+      profile_conditions_params.Ip
       / 1e6  # Convert to MA.
       / (jnp.pi * geo.a_minor**2)
       * 1e20
   )
   n_e_value = jnp.where(
-      dynamic_profile_conditions.n_e_nbar_is_fGW,
-      dynamic_profile_conditions.n_e * nGW,
-      dynamic_profile_conditions.n_e,
+      profile_conditions_params.n_e_nbar_is_fGW,
+      profile_conditions_params.n_e * nGW,
+      profile_conditions_params.n_e,
   )
   # Calculate n_e_right_bc.
   n_e_right_bc = jnp.where(
-      dynamic_profile_conditions.n_e_right_bc_is_fGW,
-      dynamic_profile_conditions.n_e_right_bc * nGW,
-      dynamic_profile_conditions.n_e_right_bc,
+      profile_conditions_params.n_e_right_bc_is_fGW,
+      profile_conditions_params.n_e_right_bc * nGW,
+      profile_conditions_params.n_e_right_bc,
   )
 
-  if static_runtime_params_slice.profile_conditions.normalize_n_e_to_nbar:
+  if profile_conditions_params.normalize_n_e_to_nbar:
     face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
     face_right = n_e_right_bc
     face_inner = (n_e_value[..., :-1] + n_e_value[..., 1:]) / 2.0
@@ -124,13 +127,11 @@ def get_updated_electron_density(
     a_minor_out = geo.R_out_face[-1] - geo.R_out_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(
-        dynamic_profile_conditions.n_e_nbar_is_fGW,
-        dynamic_profile_conditions.nbar * nGW,
-        dynamic_profile_conditions.nbar,
+        profile_conditions_params.n_e_nbar_is_fGW,
+        profile_conditions_params.nbar * nGW,
+        profile_conditions_params.nbar,
     )
-    if (
-        not static_runtime_params_slice.profile_conditions.n_e_right_bc_is_absolute
-    ):
+    if not profile_conditions_params.n_e_right_bc_is_absolute:
       # In this case, n_e_right_bc is taken from n_e and we also normalize it.
       C = target_nbar / (_trapz(n_e_face, geo.R_out_face) / a_minor_out)
       n_e_right_bc = C * n_e_right_bc
@@ -160,13 +161,320 @@ def get_updated_electron_density(
   return n_e
 
 
+@dataclasses.dataclass(frozen=True)
+class _IonProperties:
+  """Helper container for holding ion calculation outputs."""
+
+  A_impurity: array_typing.FloatVectorCell
+  A_impurity_face: array_typing.FloatVectorFace
+  Z_impurity: array_typing.FloatVectorCell
+  Z_impurity_face: array_typing.FloatVectorFace
+  Z_eff: array_typing.FloatVectorCell
+  dilution_factor: array_typing.FloatVectorCell
+  dilution_factor_edge: array_typing.FloatScalar
+  impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+
+
+def _get_ion_properties_from_fractions(
+    impurity_params: impurity_fractions.RuntimeParams,
+    T_e: cell_variable.CellVariable,
+    Z_i: array_typing.FloatVectorCell,
+    Z_i_face: array_typing.FloatVectorFace,
+    Z_eff_from_config: array_typing.FloatVectorCell,
+    Z_eff_face_from_config: array_typing.FloatVectorFace,
+) -> _IonProperties:
+  """Calculates ion properties when impurity content is defined by fractions."""
+
+  Z_impurity = charge_states.get_average_charge_state(
+      T_e=T_e.value,
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
+  ).Z_mixture
+  Z_impurity_face = charge_states.get_average_charge_state(
+      T_e=T_e.face_value(),
+      fractions=impurity_params.fractions_face,
+      Z_override=impurity_params.Z_override,
+  ).Z_mixture
+
+  Z_eff = Z_eff_from_config
+  Z_eff_edge = Z_eff_face_from_config[-1]
+
+  dilution_factor = jnp.where(
+      Z_eff == 1.0,
+      1.0,
+      formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
+  )
+  dilution_factor_edge = jnp.where(
+      Z_eff_edge == 1.0,
+      1.0,
+      formulas.calculate_main_ion_dilution_factor(
+          Z_i_face[-1], Z_impurity_face[-1], Z_eff_edge
+      ),
+  )
+  return _IonProperties(
+      A_impurity=impurity_params.A_avg,
+      A_impurity_face=impurity_params.A_avg_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      Z_eff=Z_eff,
+      dilution_factor=dilution_factor,
+      dilution_factor_edge=dilution_factor_edge,
+      impurity_fractions=impurity_params.fractions,
+  )
+
+
+def _get_ion_properties_from_n_e_ratios(
+    impurity_params: electron_density_ratios.RuntimeParams,
+    T_e: cell_variable.CellVariable,
+    Z_i: array_typing.FloatVectorCell,
+    Z_i_face: array_typing.FloatVectorFace,
+) -> _IonProperties:
+  """Calculates ion properties when impurity content is defined by n_e ratios."""
+  average_charge_state = charge_states.get_average_charge_state(
+      T_e=T_e.value,
+      fractions=impurity_params.fractions,
+      Z_override=impurity_params.Z_override,
+  )
+  average_charge_state_face = charge_states.get_average_charge_state(
+      T_e=T_e.face_value(),
+      fractions=impurity_params.fractions_face,
+      Z_override=impurity_params.Z_override,
+  )
+  Z_impurity = average_charge_state.Z_mixture
+  Z_impurity_face = average_charge_state_face.Z_mixture
+  dilution_factor = (
+      1
+      - jnp.sum(
+          jnp.array([
+              average_charge_state.Z_per_species[ion] * n_e_ratio
+              for ion, n_e_ratio in impurity_params.n_e_ratios.items()
+          ]),
+          axis=0,
+      )
+      / Z_i
+  )
+  dilution_factor_edge = (
+      1
+      - jnp.sum(
+          jnp.array([
+              average_charge_state_face.Z_per_species[ion][-1] * n_e_ratio[-1]
+              for ion, n_e_ratio in impurity_params.n_e_ratios_face.items()
+          ]),
+          axis=0,
+      )
+      / Z_i_face[-1]
+  )
+  Z_eff = dilution_factor * Z_i**2 + jnp.sum(
+      jnp.array([
+          average_charge_state.Z_per_species[ion] ** 2 * n_e_ratio
+          for ion, n_e_ratio in impurity_params.n_e_ratios.items()
+      ]),
+      axis=0,
+  )
+
+  return _IonProperties(
+      A_impurity=impurity_params.A_avg,
+      A_impurity_face=impurity_params.A_avg_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      Z_eff=Z_eff,
+      dilution_factor=dilution_factor,
+      dilution_factor_edge=dilution_factor_edge,
+      impurity_fractions=impurity_params.fractions,
+  )
+
+
+# TODO(b/440666091): Refactor this function by breaking it down to several
+# smaller helper functions
+def _get_ion_properties_from_n_e_ratios_Z_eff(
+    impurity_params: electron_density_ratios_zeff.RuntimeParams,
+    T_e: cell_variable.CellVariable,
+    Z_i: array_typing.FloatVectorCell,
+    Z_i_face: array_typing.FloatVectorFace,
+    Z_eff_from_config: array_typing.FloatVectorCell,
+    Z_eff_face_from_config: array_typing.FloatVectorFace,
+) -> _IonProperties:
+  """Calculates ion properties when one impurity is constrained by Z_eff.
+
+  We solve for the unknown impurity species n_e_ratio and the main ion
+  n_e_ratio (dilution factor) from quasi-neutrality and Z_eff equations:
+
+  ne = Z_i * n_i + sum(Z_impurity * n_impurity)
+  Z_eff = (Z_i**2 * n_i + sum(Z_impurity**2 * n_impurity)) / n_e
+
+  This defines a 2x2 system of equations
+
+  x * Z_i + y * Z_unknown = 1 - sum(Z_known * n_known / n_e)
+  x * Z_i**2 + y * Z_unknown**2 = Z_eff - sum(Z_known**2 * n_known / n_e)
+
+  Where x = n_i / n_e = dilution, y = n_unknown / n_e , and we define "known"
+  and "unknown" to refer to impurity species with known and unknown densities.
+
+  Args:
+    impurity_params: Impurity parameters.
+    T_e: Electron temperature profile.
+    Z_i: Average charge state of main ion on cell grid.
+    Z_i_face: Average charge state of main ion on face grid.
+    Z_eff_from_config: Z_eff profile from config.
+    Z_eff_face_from_config: Z_eff profile on face grid from config.
+
+  Returns:
+    _IonProperties container with calculated ion properties.
+  """
+  # --- Vectorized charge state calculation ---
+  # This is JIT-compatible because impurity_symbols is a static tuple, so the
+  # list comprehension is unrolled during compilation.
+  impurity_symbols = tuple(impurity_params.n_e_ratios.keys())
+  Z_per_species = jnp.stack([
+      charge_states.calculate_average_charge_state_single_species(
+          T_e.value, symbol
+      )
+      for symbol in impurity_symbols
+  ])
+  Z_per_species_face = jnp.stack([
+      charge_states.calculate_average_charge_state_single_species(
+          T_e.face_value(), symbol
+      )
+      for symbol in impurity_symbols
+  ])
+
+  unknown_species_index = impurity_symbols.index(
+      impurity_params.unknown_species
+  )
+  Z_unknown = Z_per_species[unknown_species_index]
+  Z_unknown_face = Z_per_species_face[unknown_species_index]
+
+  # Create arrays of known ratios, with 0 for the unknown species.
+  n_e_ratios_known = jnp.array([
+      impurity_params.n_e_ratios[symbol]
+      if symbol != impurity_params.unknown_species
+      else jnp.zeros_like(T_e.value)
+      for symbol in impurity_symbols
+  ])
+  n_e_ratios_known_face = jnp.array([
+      impurity_params.n_e_ratios_face[symbol]
+      if symbol != impurity_params.unknown_species
+      else jnp.zeros_like(T_e.face_value())
+      for symbol in impurity_symbols
+  ])
+
+  sum_Z_n_ratio = jnp.sum(n_e_ratios_known * Z_per_species, axis=0)
+  sum_Z2_n_ratio = jnp.sum(n_e_ratios_known * Z_per_species**2, axis=0)
+  sum_Z_n_ratio_face = jnp.sum(
+      n_e_ratios_known_face * Z_per_species_face, axis=0
+  )
+  sum_Z2_n_ratio_face = jnp.sum(
+      n_e_ratios_known_face * Z_per_species_face**2, axis=0
+  )
+
+  # Solve the 2x2 system for dilution and the unknown n_e_ratio on both grids
+
+  # x * Z_i + y * Z_unknown = - sum(Z_known * n_known / n_e)
+  # x * Z_i**2 + y * Z_unknown**2 = Z_eff - sum(Z_known**2 * n_known / n_e)
+
+  def _solve_system(a1, a2, b1, b2, c1, c2):
+    """Solves a 2x2 system of the form a1*x + b1*y = c1, a2*x + b2*y = c2."""
+    det_A = a1 * b2 - a2 * b1
+    # Add a small epsilon to avoid division by zero if det_A is zero
+    det_A = jnp.where(
+        jnp.abs(det_A) < constants.CONSTANTS.eps, constants.CONSTANTS.eps, det_A
+    )
+    # Use Cramer's rule to solve the system
+    x = (b2 * c1 - b1 * c2) / det_A
+    y = (a1 * c2 - a2 * c1) / det_A
+    return x, y
+
+  dilution_factor, r_unknown = _solve_system(
+      a1=Z_i,
+      b1=Z_unknown,
+      a2=Z_i**2,
+      b2=Z_unknown**2,
+      c1=1.0 - sum_Z_n_ratio,
+      c2=Z_eff_from_config - sum_Z2_n_ratio,
+  )
+  dilution_factor_face, r_unknown_face = _solve_system(
+      a1=Z_i_face,
+      b1=Z_unknown_face,
+      a2=Z_i_face**2,
+      b2=Z_unknown_face**2,
+      c1=1.0 - sum_Z_n_ratio_face,
+      c2=Z_eff_face_from_config - sum_Z2_n_ratio_face,
+  )
+
+  # Now update the row for the unknown species with its calculated profile
+  n_e_ratios_all_species = n_e_ratios_known.at[
+      unknown_species_index, :
+  ].set(r_unknown)
+  n_e_ratios_all_species_face = n_e_ratios_known_face.at[
+      unknown_species_index, :
+  ].set(r_unknown_face)
+
+  n_e_ratios_mapping = {
+      symbol: n_e_ratios_all_species[i]
+      for i, symbol in enumerate(impurity_symbols)
+  }
+  n_e_ratios_mapping_face = {
+      symbol: n_e_ratios_all_species_face[i]
+      for i, symbol in enumerate(impurity_symbols)
+  }
+
+  fractions = electron_density_ratios.calculate_fractions_from_ratios(
+      n_e_ratios_mapping
+  )
+  fractions_face = electron_density_ratios.calculate_fractions_from_ratios(
+      n_e_ratios_mapping_face
+  )
+
+  # Build the final ion mixture and calculate properties
+
+  if not impurity_params.A_override:
+    A_avg = jnp.sum(
+        jnp.array([
+            constants.ION_PROPERTIES_DICT[ion].A * fraction
+            for ion, fraction in fractions.items()
+        ]),
+        axis=0,
+    )
+    A_avg_face = jnp.sum(
+        jnp.array([
+            constants.ION_PROPERTIES_DICT[ion].A * fraction
+            for ion, fraction in fractions_face.items()
+        ]),
+        axis=0,
+    )
+  else:
+    A_avg = jnp.ones_like(T_e.value) * impurity_params.A_override
+    A_avg_face = (
+        jnp.ones_like(T_e.face_value()) * impurity_params.A_override_face
+    )
+
+  Z_impurity = charge_states.get_average_charge_state(
+      T_e=T_e.value,
+      fractions=fractions,
+      Z_override=impurity_params.Z_override,
+  ).Z_mixture
+  Z_impurity_face = charge_states.get_average_charge_state(
+      T_e=T_e.face_value(),
+      fractions=fractions_face,
+      Z_override=impurity_params.Z_override,
+  ).Z_mixture
+
+  return _IonProperties(
+      A_impurity=A_avg,
+      A_impurity_face=A_avg_face,
+      Z_impurity=Z_impurity,
+      Z_impurity_face=Z_impurity_face,
+      Z_eff=Z_eff_from_config,
+      dilution_factor=dilution_factor,
+      dilution_factor_edge=dilution_factor_face[-1],
+      impurity_fractions=fractions,
+  )
+
+
 # jitted since also used outside the solver
-@functools.partial(
-    jax_utils.jit, static_argnames=['static_runtime_params_slice']
-)
+@jax.jit
 def get_updated_ions(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
@@ -183,8 +491,7 @@ def get_updated_ions(
   n_impurity*Z_impurity + n_i*Z_i = n_e
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
+    runtime_params: Runtime parameters.
     geo: Geometry of the tokamak.
     n_e: Electron density profile [m^-3].
     T_e: Electron temperature profile [keV].
@@ -202,50 +509,73 @@ def get_updated_ions(
       Z_impurity_face: Average charge state of impurities on face grid
       [dimensionless].
       A_i: Average atomic number of main ion [amu].
-      A_impurity: Average atomic number of impurities [amu].
+      A_impurity: Average atomic number of impurities on cell grid [amu].
+      A_impurity_face: Average atomic number of impurities on face grid [amu].
   """
 
-  Z_i, Z_i_face, Z_impurity, Z_impurity_face = _get_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      T_e,
-  )
+  Z_i = charge_states.get_average_charge_state(
+      T_e=T_e.value,
+      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      Z_override=runtime_params.plasma_composition.main_ion.Z_override,
+  ).Z_mixture
+  Z_i_face = charge_states.get_average_charge_state(
+      T_e=T_e.face_value(),
+      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      Z_override=runtime_params.plasma_composition.main_ion.Z_override,
+  ).Z_mixture
 
-  Z_eff = dynamic_runtime_params_slice.plasma_composition.Z_eff
-  Z_eff_edge = dynamic_runtime_params_slice.plasma_composition.Z_eff_face[-1]
+  impurity_params = runtime_params.plasma_composition.impurity
 
-  dilution_factor = jnp.where(
-      Z_eff == 1.0,
-      1.0,
-      formulas.calculate_main_ion_dilution_factor(Z_i, Z_impurity, Z_eff),
-  )
+  match impurity_params:
+    case impurity_fractions.RuntimeParams():
+      ion_properties = _get_ion_properties_from_fractions(
+          impurity_params,
+          T_e,
+          Z_i,
+          Z_i_face,
+          runtime_params.plasma_composition.Z_eff,
+          runtime_params.plasma_composition.Z_eff_face,
+      )
 
-  dilution_factor_edge = jnp.where(
-      Z_eff_edge == 1.0,
-      1.0,
-      formulas.calculate_main_ion_dilution_factor(
-          Z_i_face[-1], Z_impurity_face[-1], Z_eff_edge
-      ),
-  )
+    case electron_density_ratios.RuntimeParams():
+      ion_properties = _get_ion_properties_from_n_e_ratios(
+          impurity_params,
+          T_e,
+          Z_i,
+          Z_i_face,
+      )
+    case electron_density_ratios_zeff.RuntimeParams():
+      ion_properties = _get_ion_properties_from_n_e_ratios_Z_eff(
+          impurity_params,
+          T_e,
+          Z_i,
+          Z_i_face,
+          runtime_params.plasma_composition.Z_eff,
+          runtime_params.plasma_composition.Z_eff_face,
+      )
+    case _:
+      # Not expected to be reached but needed to avoid linter errors.
+      raise ValueError("Unknown impurity mode.")
 
   n_i = cell_variable.CellVariable(
-      value=n_e.value * dilution_factor,
+      value=n_e.value * ion_properties.dilution_factor,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=n_e.right_face_constraint * dilution_factor_edge,
+      right_face_constraint=n_e.right_face_constraint
+      * ion_properties.dilution_factor_edge,
   )
 
   n_impurity_value = jnp.where(
-      dilution_factor == 1.0,
+      ion_properties.dilution_factor == 1.0,
       0.0,
-      (n_e.value - n_i.value * Z_i) / Z_impurity,
+      (n_e.value - n_i.value * Z_i) / ion_properties.Z_impurity,
   )
 
   n_impurity_right_face_constraint = jnp.where(
-      dilution_factor_edge == 1.0,
+      ion_properties.dilution_factor_edge == 1.0,
       0.0,
       (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])
-      / Z_impurity_face[-1],
+      / ion_properties.Z_impurity_face[-1],
   )
 
   n_impurity = cell_variable.CellVariable(
@@ -261,68 +591,45 @@ def get_updated_ions(
   # composition Z_eff_face is) would not be physically consistent.
   Z_eff_face = _calculate_Z_eff(
       Z_i_face,
-      Z_impurity_face,
+      ion_properties.Z_impurity_face,
       n_i.face_value(),
       n_impurity.face_value(),
       n_e.face_value(),
   )
 
+  # Convert array of fractions to a mapping from symbol to fraction profile.
+  # Ensure that output is always a full radial profile for consistency across
+  # all impurity modes.
+  impurity_fractions_dict = {}
+  for symbol in runtime_params.plasma_composition.impurity_names:
+    fraction = ion_properties.impurity_fractions[symbol]
+    if fraction.ndim == 0:
+      impurity_fractions_dict[symbol] = jnp.full_like(n_e.value, fraction)
+    else:
+      impurity_fractions_dict[symbol] = fraction
+
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
+      impurity_fractions=impurity_fractions_dict,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
-      Z_impurity=Z_impurity,
-      Z_impurity_face=Z_impurity_face,
-      A_i=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
-      A_impurity=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
-      Z_eff=dynamic_runtime_params_slice.plasma_composition.Z_eff,
+      Z_impurity=ion_properties.Z_impurity,
+      Z_impurity_face=ion_properties.Z_impurity_face,
+      A_i=runtime_params.plasma_composition.main_ion.A_avg,
+      A_impurity=ion_properties.A_impurity,
+      A_impurity_face=ion_properties.A_impurity_face,
+      Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
   )
 
 
-def _get_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    T_e: cell_variable.CellVariable,
-) -> tuple[
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated charge states based on IonMixtures and electron temperature."""
-  Z_i = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.value,
-  )
-  Z_i_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      T_e=T_e.face_value(),
-  )
-
-  Z_impurity = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.value,
-  )
-  Z_impurity_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      T_e=T_e.face_value(),
-  )
-
-  return Z_i, Z_i_face, Z_impurity, Z_impurity_face
-
-
 def _calculate_Z_eff(
-    Z_i: array_typing.ArrayFloat,
-    Z_impurity: array_typing.ArrayFloat,
-    n_i: array_typing.ArrayFloat,
-    n_impurity: array_typing.ArrayFloat,
-    n_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
-  """Calculates Z_eff based on impurity and main_ion."""
+    Z_i: array_typing.FloatVector,
+    Z_impurity: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_impurity: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+) -> array_typing.FloatVector:
+  """Calculates Z_eff based on single effective impurity and main_ion."""
   return (Z_i**2 * n_i + Z_impurity**2 * n_impurity) / n_e

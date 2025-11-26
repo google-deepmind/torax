@@ -15,32 +15,35 @@
 """Simple redistribution model for sawteeth."""
 
 import dataclasses
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.mhd.sawtooth import redistribution_base
-from torax._src.mhd.sawtooth import runtime_params
+from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class SimpleRedistribution(redistribution_base.RedistributionModel):
+@dataclasses.dataclass(frozen=True, eq=False)
+class SimpleRedistribution(
+    redistribution_base.RedistributionModel, static_dataclass.StaticDataclass
+):
   """Simple redistribution model."""
 
   def __call__(
       self,
-      rho_norm_q1: array_typing.ScalarFloat,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      rho_norm_q1: array_typing.FloatScalar,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
   ) -> state.CoreProfiles:
@@ -57,8 +60,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
 
     Args:
       rho_norm_q1: The radius of the q=1 surface.
-      static_runtime_params_slice: Static runtime parameters.
-      dynamic_runtime_params_slice: Dynamic runtime parameters.
+      runtime_params: Runtime parameters.
       geo: Geometry object.
       core_profiles_t: Core plasma profiles *before* redistribution.
 
@@ -67,17 +69,15 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     """
 
     # No sawtooth redistribution if current is not being evolved.
-    if not dynamic_runtime_params_slice.numerics.evolve_current:
+    if not runtime_params.numerics.evolve_current:
       return core_profiles_t
 
-    assert dynamic_runtime_params_slice.mhd.sawtooth is not None
+    assert runtime_params.mhd.sawtooth is not None
     assert isinstance(
-        dynamic_runtime_params_slice.mhd.sawtooth.redistribution_params,
-        DynamicRuntimeParams,
+        runtime_params.mhd.sawtooth.redistribution_params,
+        RuntimeParams,
     )
-    redistribution_params = (
-        dynamic_runtime_params_slice.mhd.sawtooth.redistribution_params
-    )
+    redistribution_params = runtime_params.mhd.sawtooth.redistribution_params
 
     mixing_radius = redistribution_params.mixing_radius_multiplier * rho_norm_q1
 
@@ -90,7 +90,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     indices = jnp.arange(geo.rho_norm.shape[0])
     redistribution_mask = indices < idx_mixing
 
-    if dynamic_runtime_params_slice.numerics.evolve_density:
+    if runtime_params.numerics.evolve_density:
       n_e_redistributed = flatten_profile.flatten_density_profile(
           rho_norm_q1,
           mixing_radius,
@@ -101,7 +101,7 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       )
     else:
       n_e_redistributed = core_profiles_t.n_e
-    if dynamic_runtime_params_slice.numerics.evolve_electron_heat:
+    if runtime_params.numerics.evolve_electron_heat:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
@@ -115,12 +115,11 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
     else:
       te_redistributed = core_profiles_t.T_e
     if (
-        dynamic_runtime_params_slice.numerics.evolve_density
-        or dynamic_runtime_params_slice.numerics.evolve_electron_heat
+        runtime_params.numerics.evolve_density
+        or runtime_params.numerics.evolve_electron_heat
     ):
       ions_redistributed = getters.get_updated_ions(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
+          runtime_params,
           geo,
           n_e_redistributed,
           te_redistributed,
@@ -129,16 +128,18 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
       ions_redistributed = getters.Ions(
           n_i=core_profiles_t.n_i,
           n_impurity=core_profiles_t.n_impurity,
+          impurity_fractions=core_profiles_t.impurity_fractions,
           Z_i=core_profiles_t.Z_i,
           Z_i_face=core_profiles_t.Z_i_face,
           Z_impurity=core_profiles_t.Z_impurity,
           Z_impurity_face=core_profiles_t.Z_impurity_face,
           A_i=core_profiles_t.A_i,
           A_impurity=core_profiles_t.A_impurity,
+          A_impurity_face=core_profiles_t.A_impurity_face,
           Z_eff=core_profiles_t.Z_eff,
           Z_eff_face=core_profiles_t.Z_eff_face,
       )
-    if dynamic_runtime_params_slice.numerics.evolve_ion_heat:
+    if runtime_params.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
@@ -172,46 +173,42 @@ class SimpleRedistribution(redistribution_base.RedistributionModel):
         n_impurity=ions_redistributed.n_impurity,
         Z_i=ions_redistributed.Z_i,
         Z_i_face=ions_redistributed.Z_i_face,
+        A_impurity=ions_redistributed.A_impurity,
+        A_impurity_face=ions_redistributed.A_impurity_face,
         Z_impurity=ions_redistributed.Z_impurity,
         Z_impurity_face=ions_redistributed.Z_impurity_face,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
     )
 
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other: object) -> bool:
-    return isinstance(other, SimpleRedistribution)
-
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
-  """Dynamic runtime params for simple redistribution model.
+class RuntimeParams(sawtooth_runtime_params.RedistributionRuntimeParams):
+  """Runtime params for simple redistribution model.
 
   Attributes:
     mixing_radius_multiplier: Profile modification will be limited to a radius
       of mixing_radius_multiplier * rho_norm_at_q1.
   """
 
-  mixing_radius_multiplier: array_typing.ScalarFloat
+  mixing_radius_multiplier: array_typing.FloatScalar
 
 
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
-  model_name: Literal['simple'] = 'simple'
+  model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
   mixing_radius_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.1)
   )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return RuntimeParams(
         **base_kwargs,
         mixing_radius_multiplier=self.mixing_radius_multiplier.get_value(t)
     )

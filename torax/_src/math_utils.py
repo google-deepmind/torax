@@ -21,12 +21,10 @@ physics or differential equation solvers.
 import enum
 import functools
 
-import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src.geometry import geometry
 
 
@@ -42,15 +40,12 @@ class IntegralPreservationQuantity(enum.Enum):
   VALUE = 'value'
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=['preserved_quantity'],
-)
+@array_typing.jaxtyped
 def cell_to_face(
-    cell_values: jt.Float[chex.Array, 'rhon'],
+    cell_values: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
     preserved_quantity: IntegralPreservationQuantity = IntegralPreservationQuantity.VALUE,
-) -> jt.Float[chex.Array, 'rhon+1']:
+) -> array_typing.FloatVectorFace:
   """Convert cell values to face values.
 
   We make four assumptions:
@@ -111,7 +106,12 @@ def cell_to_face(
   return face_values
 
 
-def tridiag(diag: jax.Array, above: jax.Array, below: jax.Array) -> jax.Array:
+@array_typing.jaxtyped
+def tridiag(
+    diag: jt.Shaped[array_typing.Array, 'size'],
+    above: jt.Shaped[array_typing.Array, 'size-1'],
+    below: jt.Shaped[array_typing.Array, 'size-1'],
+) -> jt.Shaped[array_typing.Array, 'size size']:
   """Builds a tridiagonal matrix.
 
   Args:
@@ -192,10 +192,10 @@ def cumulative_trapezoid(
   return out
 
 
-@jax_utils.jit
+@array_typing.jaxtyped
 def cell_integration(
-    x: array_typing.ArrayFloat, geo: geometry.Geometry
-) -> array_typing.ScalarFloat:
+    x: array_typing.FloatVectorCell, geo: geometry.Geometry
+) -> array_typing.FloatScalar:
   r"""Integrate a value `x` over the rhon grid.
 
   Cell variables in TORAX are defined as the average of the face values. This
@@ -217,33 +217,79 @@ def cell_integration(
   return jnp.sum(x * geo.drho_norm)
 
 
+@array_typing.jaxtyped
 def area_integration(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates integral of value using an area metric."""
   return cell_integration(value * geo.spr, geo)
 
 
+@array_typing.jaxtyped
 def volume_integration(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates integral of value using a volume metric."""
   return cell_integration(value * geo.vpr, geo)
 
 
+@array_typing.jaxtyped
 def line_average(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates line-averaged value from input profile."""
   return cell_integration(value, geo)
 
 
+@array_typing.jaxtyped
 def volume_average(
-    value: array_typing.ArrayFloat,
+    value: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates volume-averaged value from input profile."""
   return cell_integration(value * geo.vpr, geo) / geo.volume_face[-1]
+
+
+@array_typing.jaxtyped
+def cumulative_cell_integration(
+    x: array_typing.FloatVectorCell, geo: geometry.Geometry
+) -> array_typing.FloatVectorCell:
+  r"""Cumulative integration of a value `x` over the rhon grid.
+
+  Args:
+    x: The cell averaged value to integrate.
+    geo: The geometry instance.
+
+  Returns:
+    Cumulative integration array same size as x.
+  """
+  if x.shape != geo.rho_norm.shape:
+    raise ValueError(
+        'For cumulative_cell_integration, input "x" must have same shape as '
+        f'the cell grid. Got x.shape={x.shape}, '
+        f'expected {geo.rho_norm.shape}.'
+    )
+  # Uses cumsum to accumulate x * drho_norm.
+  # The first element will be x[0] * drho_norm[0].
+  return jnp.cumsum(x * geo.drho_norm)
+
+
+@array_typing.jaxtyped
+def cumulative_area_integration(
+    value: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorCell:
+  """Calculates cumulative integral of value using an area metric."""
+  return cumulative_cell_integration(value * geo.spr, geo)
+
+
+@array_typing.jaxtyped
+def cumulative_volume_integration(
+    value: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorCell:
+  """Calculates cumulative integral of value using a volume metric."""
+  return cumulative_cell_integration(value * geo.vpr, geo)

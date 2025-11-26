@@ -248,7 +248,11 @@ These are called out in the list of profiles below, and generate relate to:
   Main ion density [:math:`m^{-3}`].
 
 ``n_impurity`` (time, rho_norm)
-  Impurity density [:math:`m^{-3}`].
+  Impurity density for a single effective bundled impurity species
+  [:math:`m^{-3}`].
+
+``n_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  True impurity density per species [:math:`m^{-3}`].
 
 ``p_alpha_e`` (time, rho_cell_norm)
   Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output
@@ -257,6 +261,10 @@ These are called out in the list of profiles below, and generate relate to:
 ``p_alpha_i`` (time, rho_cell_norm)
   Fusion alpha heating power density to ions [:math:`W/m^3`]. Only output if
   ``fusion`` source is active.
+
+``p_bremsstrahlung_e`` (time, rho_cell_norm) [:math:`W/m^3`]
+  Bremsstrahlung heat sink density (only relevant for electrons). Only
+  output if ``bremsstrahlung`` source is active.
 
 ``p_cyclotron_radiation_e`` (time, rho_cell_norm) [:math:`W/m^3`]
   Cyclotron radiation heat sink density (only relevant for electrons). Only
@@ -323,6 +331,12 @@ These are called out in the list of profiles below, and generate relate to:
 ``q`` (time, rho_face_norm)
   Safety factor profile on the face grid [dimensionless].
 
+``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  Impurity radiation power density per species [:math:`W/m^3`]. Only output
+  if the ``mavrin_fit`` model is active for ``impurity_radiation``. In this
+  case, the radiation corresonds to combined line radiation and Bremsstrahlung,
+  and both ``p_bremsstrahlung_e`` and ``P_bremsstrahlung_e`` will be zero.
+
 ``R_in`` (time, rho_norm)
   Inner (minimum) radius of each flux surface [:math:`m`].
 
@@ -387,7 +401,11 @@ These are called out in the list of profiles below, and generate relate to:
   Averaged main ion charge profile [dimensionless].
 
 ``Z_impurity`` (time, rho_norm)
-  Averaged impurity charge profile [dimensionless].
+  Averaged bundled impurity charge profile corresponding to <Z^2>/<Z> where
+  < > is a weighted average by fractional impurity abundance [dimensionless].
+
+``Z_impurity_species`` (impurity_symbol, time, rho_cell_norm)
+  True averaged impurity charge state per species [dimensionless].
 
 scalars
 -------
@@ -433,12 +451,18 @@ properties and characteristics.
 ``drho_norm`` ()
   Radial grid spacing in the normalized rho coordinate [dimensionless].
 
-``E_aux`` (time)
-  Total cumulative auxiliary injected energy (Ohmic + auxiliary heating)
+``E_aux_total`` (time)
+  Total cumulative auxiliary injected energy
   [:math:`J`].
+
+``E_external_injected`` (time)
+  Total cumulative injected energy before absorption [:math:`J`].
 
 ``E_fusion`` (time)
   Total cumulative fusion energy produced [:math:`J`].
+
+``E_ohmic_e`` (time)
+  Total cumulative ohmic heating to electrons [:math:`J`].
 
 ``fgw_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
@@ -485,13 +509,13 @@ properties and characteristics.
   [:math:`m^{-3}`].
 
 ``n_e_volume_avg`` (time)
-  Volume-averaged electron density [dimensionless].
+  Volume-averaged electron density [:math:`m^{-3}`].
 
 ``n_i_line_avg`` (time)
   Line-averaged main ion density [dimensionless].
 
 ``n_i_volume_avg`` (time)
-  Volume-averaged main ion density [dimensionless].
+  Volume-averaged main ion density [:math:`m^{-3}`].
 
 ``P_alpha_e`` (time)
   Total fusion alpha heating power to electrons [:math:`W`].
@@ -542,6 +566,9 @@ properties and characteristics.
   Total externally injected power into the plasma [:math:`W`]. This will be
   larger than ``P_external_tot`` if any source has a value of
   ``absorption_fraction`` less than 1.
+
+``P_fusion`` (time)
+  Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
 
 ``P_icrh_e`` (time)
   Total ion cyclotron resonance heating power to electrons [:math:`W`].
@@ -674,24 +701,24 @@ Working with output data
 ========================
 
 To demonstrate xarray and numpy manipulations of output data, the following
-code carries out volume integration of ``alpha_e`` and ``alpha_i`` at the time
-closest to t=1. The result equals the input config
-``sources['fusion']['P_total']`` at the time closest to t=1.
+code carries out volume integration of ``p_alpha_e`` and ``p_alpha_i`` at the
+time closest to t=1. The result equals the output quantity
+``scalars.P_alpha_total`` at the time closest to t=1.
 
 The netCDF file is assumed to be in the working directory.
 
 .. code-block:: python
 
   import numpy as np
-  from torax import output
+  import xarray as xr
 
-  data_tree = output.load_state_file('state_history.nc').sel(time=1.0, method='nearest')
-  alpha_electron = data_tree.profiles.alpha_e
-  alpha_ion = data_tree.profiles.alpha_i
+  filepath = 'state_history.nc'
+  data_tree = xr.open_datatree(filepath).sel(time=1.0, method='nearest')
+  alpha_electron = data_tree.profiles.p_alpha_e
+  alpha_ion = data_tree.profiles.p_alpha_i
   vpr = data_tree.profiles.vpr.sel(rho_norm=data_tree.rho_cell_norm)
 
-  P_total = np.trapz((alpha_el + alpha_ion) * vpr, data_tree.rho_cell_norm)
-
+  P_total = np.trapezoid((alpha_electron + alpha_ion) * vpr, data_tree.rho_cell_norm)
 
 It is possible to retrieve the input config from the output for debugging
 purposes or to rerun the simulation.
@@ -700,10 +727,11 @@ purposes or to rerun the simulation.
 
   import json
   import torax
-  from torax import output
+  import xarray as xr
 
-  data_tree = output.load_state_file('state_history.nc')
-  config_dict = json.loads(data_tree.attrs['config'])
+  filepath = 'state_history.nc'
+  data_tree = xr.open_datatree(filepath).sel(time=1.0, method='nearest')
+  config_dict = json.loads(data_tree.config)
   # Check which transport model was used.
   print(config_dict['transport']['model_name'])
   # We can also use ToraxConfig to run the simulation again.

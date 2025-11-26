@@ -21,8 +21,8 @@ import jax
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams:
-  """Dynamic runtime parameters for the time step calculator."""
+class RuntimeParams:
+  """Runtime parameters for the time step calculator."""
 
   tolerance: float
 

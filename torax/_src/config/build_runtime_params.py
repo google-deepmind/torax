@@ -13,126 +13,413 @@
 # limitations under the License.
 """Methods for building simulation parameters.
 
-For the static_runtime_params_slice this is a method
-`build_static_runtime_params__from_config`.
-For the dynamic_runtime_params_slice this is a class
-`DynamicRuntimeParamsSliceProvider` which provides a slice of the
-DynamicRuntimeParamsSlice to use during time t of the sim.
-This module also provides a method
-`get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
-DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
+ - `RuntimeParamsProvider` which provides a the `RuntimeParams` to
+  use during time t of the sim.
+ - `get_consistent_params_and_geometry` which returns a
+`RuntimeParams` and a corresponding `Geometry` with consistent `Ip`. Also
+  optionally updates temperature boundary conditions and impurity
+  concentrations based on the edge model outputs.
 """
+import dataclasses
+from typing import Any, Callable, Mapping, Sequence, TypeAlias
+
 import chex
+import equinox as eqx
+import jax
+from jax import numpy as jnp
+from torax._src import constants
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import extended_lengyel_model
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.mhd import pydantic_model as mhd_pydantic_model
+from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax._src.torax_pydantic import interpolated_param_1d
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import pydantic_model as transport_pydantic_model
 import typing_extensions
 
-
-def build_static_params_from_config(
-    config: model_config.ToraxConfig,
-) -> runtime_params_slice.StaticRuntimeParamsSlice:
-  """Builds a StaticRuntimeParamsSlice from a ToraxConfig."""
-  return runtime_params_slice.StaticRuntimeParamsSlice(
-      sources={
-          source_name: source_config.build_static_params()
-          for source_name, source_config in dict(config.sources).items()
-          if source_config is not None
-      },
-      torax_mesh=config.geometry.build_provider.torax_mesh,
-      solver=config.solver.build_static_params(),
-      main_ion_names=config.plasma_composition.get_main_ion_names(),
-      impurity_names=config.plasma_composition.get_impurity_names(),
-      profile_conditions=config.profile_conditions.build_static_params(),
-  )
+# pylint: disable=invalid-name
 
 
-class DynamicRuntimeParamsSliceProvider:
-  """Provides a DynamicRuntimeParamsSlice to use during time t of the sim.
+ReplaceablePytreeNodes: TypeAlias = (
+    interpolated_param_1d.TimeVaryingScalar
+    | interpolated_param_2d.TimeVaryingArray
+    | chex.Numeric
+)
+ValidReplacements: TypeAlias = (
+    interpolated_param_1d.TimeVaryingScalarReplace
+    | interpolated_param_2d.TimeVaryingArrayReplace
+    | chex.Numeric
+)
 
-  The DynamicRuntimeParamsSlice may change from time step to time step, so this
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParamsProvider:
+  """Provides a RuntimeParamsSlice to use during time t of the sim.
+
+  The RuntimeParams may change from time step to time step, so this
   class interpolates any time-dependent params in the input config to the values
   they should be at time t.
 
-  NOTE: In order to maintain consistency between the DynamicRuntimeParamsSlice
-  and the geometry,
-  `sim.get_consistent_dynamic_runtime_params_slice_and_geometry`
-  should be used to get a slice of the DynamicRuntimeParamsSlice and a
+  NOTE: In order to maintain consistency between the RuntimeParams
+  and the geometry, `get_consistent_runtime_params_and_geometry`
+  should be used to get a slice of the RuntimeParams and a
   corresponding geometry.
-
-  See `run_simulation()` for how this callable is used.
-
-  After this object has been constructed changes any runtime params may not
-  be picked up if they are updated and it is safest to construct a new provider
-  object (if for example updating the simulation).
-  ```
   """
 
-  def __init__(
-      self,
-      torax_config: model_config.ToraxConfig,
-  ):
-    """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider."""
-    self._sources = torax_config.sources
-    self._numerics = torax_config.numerics
-    self._profile_conditions = torax_config.profile_conditions
-    self._plasma_composition = torax_config.plasma_composition
-    self._transport_model = torax_config.transport
-    self._solver = torax_config.solver
-    self._pedestal = torax_config.pedestal
-    self._mhd = torax_config.mhd
-    self._neoclassical = torax_config.neoclassical
-    self._time_step_calculator = torax_config.time_step_calculator
-
-  @property
-  def numerics(self) -> numerics_lib.Numerics:
-    return self._numerics
+  sources: sources_pydantic_model.Sources
+  numerics: numerics_lib.Numerics
+  profile_conditions: profile_conditions_lib.ProfileConditions
+  plasma_composition: plasma_composition_lib.PlasmaComposition
+  transport_model: transport_pydantic_model.TransportConfig
+  solver: solver_pydantic_model.SolverConfig
+  pedestal: pedestal_pydantic_model.PedestalConfig
+  mhd: mhd_pydantic_model.MHD
+  edge: edge_base.EdgeModelConfig | None
+  neoclassical: neoclassical_pydantic_model.Neoclassical
+  time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
   @classmethod
   def from_config(
       cls,
       config: model_config.ToraxConfig,
   ) -> typing_extensions.Self:
-    """Constructs a DynamicRuntimeParamsSliceProvider from a ToraxConfig."""
-    return cls(config)
+    """Constructs a RuntimeParamsProvider from a ToraxConfig."""
+    return cls(
+        sources=config.sources,
+        numerics=config.numerics,
+        profile_conditions=config.profile_conditions,
+        plasma_composition=config.plasma_composition,
+        transport_model=config.transport,
+        solver=config.solver,
+        pedestal=config.pedestal,
+        mhd=config.mhd,
+        edge=config.edge,
+        neoclassical=config.neoclassical,
+        time_step_calculator=config.time_step_calculator,
+    )
 
+  # TODO(b/460347309): investigate effect of jit here on overall compile time.
   def __call__(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_slice.DynamicRuntimeParamsSlice:
-    """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
-    return runtime_params_slice.DynamicRuntimeParamsSlice(
-        transport=self._transport_model.build_dynamic_params(t),
-        solver=self._solver.build_dynamic_params,
+  ) -> runtime_params_lib.RuntimeParams:
+    """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
+    return runtime_params_lib.RuntimeParams(
+        transport=self.transport_model.build_runtime_params(t),
+        solver=self.solver.build_runtime_params,
         sources={
-            source_name: source_config.build_dynamic_params(t)
-            for source_name, source_config in dict(self._sources).items()
+            source_name: source_config.build_runtime_params(t)
+            for source_name, source_config in dict(self.sources).items()
             if source_config is not None
         },
-        plasma_composition=self._plasma_composition.build_dynamic_params(t),
-        profile_conditions=self._profile_conditions.build_dynamic_params(t),
-        numerics=self._numerics.build_dynamic_params(t),
-        neoclassical=self._neoclassical.build_dynamic_params(),
-        pedestal=self._pedestal.build_dynamic_params(t),
-        mhd=self._mhd.build_dynamic_params(t),
-        time_step_calculator=self._time_step_calculator.build_dynamic_params(),
+        plasma_composition=self.plasma_composition.build_runtime_params(t),
+        profile_conditions=self.profile_conditions.build_runtime_params(t),
+        numerics=self.numerics.build_runtime_params(t),
+        neoclassical=self.neoclassical.build_runtime_params(),
+        pedestal=self.pedestal.build_runtime_params(t),
+        mhd=self.mhd.build_runtime_params(t),
+        time_step_calculator=self.time_step_calculator.build_runtime_params(),
+        edge=None if self.edge is None else self.edge.build_runtime_params(t),
     )
 
+  def update_provider(
+      self,
+      get_nodes_to_replace: Callable[
+          [typing_extensions.Self],
+          Sequence[ReplaceablePytreeNodes],
+      ],
+      replacement_values: Sequence[ValidReplacements],
+  ) -> typing_extensions.Self:
+    """Updates a provider with new values. Works under `jax.jit`.
 
-def get_consistent_dynamic_runtime_params_slice_and_geometry(
+    Example usage:
+    ```
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=new_ip_value,
+    )
+    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+        value=T_e_cell_value * 3.0,
+        rho_norm=T_e.grid.cell_centers,
+    )
+    new_provider = provider.update_provider(
+        # ordering of the replace values and return values must match.
+        lambda x: (x.profile_conditions.Ip, x.profile_conditions.T_e),
+        (ip_update, T_e_update),
+    )
+    ```
+
+    Args:
+      get_nodes_to_replace: A function that takes a provider and returns a tuple
+        of nodes to replace. See above for an example. The returned nodes must
+        be one of the following types: `TimeVaryingScalar`, `TimeVaryingArray`,
+        `chex.Numeric`.
+      replacement_values: A tuple of values to replace the nodes with.
+
+    Returns:
+      A new provider with the updated values.
+    """
+    # Parse `TimeVaryingArrayReplace` -> `TimeVaryingArray` and
+    # `TimeVaryingScalarReplace` -> `TimeVaryingScalar`.
+    new_provider_values = []
+    for leaf, replace_value in zip(
+        get_nodes_to_replace(self), replacement_values, strict=True
+    ):
+      new_provider_values.append(
+          _get_provider_value_from_replace_value(leaf, replace_value)
+      )
+
+    return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values)
+
+  def get_node_from_path(self, path: str) -> Any:
+    """Iteratively call `getattr` on `self` from dot-separated path of attrs."""
+    x = self
+    attributes = path.split(".")
+    for attr in attributes:
+      try:
+        x = getattr(x, attr)
+      except AttributeError as exc:
+        raise ValueError(f"Attribute {attr} of {path} not found.") from exc
+    return x
+
+  def update_provider_from_mapping(
+      self, replacements: Mapping[str, ValidReplacements]
+  ) -> typing_extensions.Self:
+    """Update a provider from a mapping of replacements.
+
+    Example usage:
+    ```
+    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=new_ip_value,
+    )
+    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+        cell_value=T_e_cell_value * 3.0,
+        rho_norm=T_e.grid.cell_centers,
+    )
+    new_provider = provider.update_provider_from_mapping(
+        {
+            'profile_conditions.Ip': ip_update,
+            'profile_conditions.T_e': T_e_update,
+            'sources.ei_exchange.Qei_multiplier': 2.0,
+        }
+    )
+    ```
+
+    Args:
+      replacements: A mapping of node paths to replacement values. Paths are of
+        the form `'some.path.to.field_name'` and the `value` is the new value
+        depending on the type of the node. The path can be dictionary keys or
+        attribute names with field_name pointing to one of the following types:
+        {`TimeVaryingScalar`, `TimeVaryingArray`, `chex.Numeric`}.
+
+    Returns:
+      A new provider with the updated values.
+    """
+
+    def get_replacements(
+        provider: typing_extensions.Self,
+    ) -> list[ReplaceablePytreeNodes]:
+      """Returns the nodes to replace."""
+      nodes_to_replace: list[ReplaceablePytreeNodes] = []
+
+      for key in replacements.keys():
+        x = provider.get_node_from_path(key)
+        nodes_to_replace.append(x)
+      return nodes_to_replace
+
+    return self.update_provider(get_replacements, tuple(replacements.values()))
+
+
+def _get_provider_value_from_replace_value(
+    leaf: ReplaceablePytreeNodes,
+    replace_value: ValidReplacements,
+) -> ReplaceablePytreeNodes:
+  """Validate and convert any replacement value to the correct type."""
+  match leaf:
+    case interpolated_param_1d.TimeVaryingScalar():
+      if not isinstance(
+          replace_value, interpolated_param_1d.TimeVaryingScalarReplace
+      ):
+        raise ValueError(
+            "To replace a `TimeVaryingScalar` use a"
+            f" `TimeVaryingScalarReplace`, got {type(replace_value)} instead."
+        )
+      return leaf.update(replace_value)
+    case interpolated_param_2d.TimeVaryingArray():
+      if not isinstance(
+          replace_value, interpolated_param_2d.TimeVaryingArrayReplace
+      ):
+        raise ValueError(
+            "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"
+            f" got {type(replace_value)} instead."
+        )
+      return leaf.update(replace_value)
+    case _ if isinstance(leaf, (chex.Array, float)):
+      if not isinstance(replace_value, (chex.Array, float)):
+        raise ValueError(
+            "To replace a scalar or `Array` pass a scalar or `Array`,"
+            f" got {type(replace_value)} instead."
+        )
+      leaf = jnp.asarray(leaf)
+      replace_value = jnp.asarray(replace_value)
+      if leaf.shape != replace_value.shape or leaf.dtype != replace_value.dtype:
+        raise ValueError(
+            "The shape of the replacement value must match the shape of the"
+            f" leaf, Got leaf: shape={leaf.shape}, dtype={leaf.dtype},"
+            f" replace_value: shape={replace_value.shape},"
+            f" dtype={replace_value.dtype}."
+        )
+      return replace_value
+    case _:
+      raise ValueError(
+          "Only a scalar, `TimeVaryingScalar` or `TimeVaryingArray` can be"
+          f" replaced, got {type(leaf)} instead."
+      )
+
+
+def get_consistent_runtime_params_and_geometry(
     *,
     t: chex.Numeric,
-    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
+    runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
-  """Returns the dynamic runtime params and geometry for a given time."""
+    edge_outputs: edge_base.EdgeModelOutputs | None = None,
+) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
+  """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=t,
+  runtime_params_from_provider = runtime_params_provider(t=t)
+  runtime_params = _update_runtime_params_from_edge(
+      runtime_params_from_provider, edge_outputs
   )
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
+  return runtime_params_lib.make_ip_consistent(runtime_params, geo)
+
+
+def _update_runtime_params_from_edge(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates runtime parameters based on edge model outputs.
+
+  This function takes the outputs from the edge model and updates the
+  runtime parameters. This allows the edge model to dynamically control boundary
+  conditions (like temperatures at the LCFS) and impurity concentrations.
+
+  Args:
+    runtime_params: The current runtime parameters.
+    edge_outputs: The outputs from the edge model execution, or None if no edge
+      model is active, or if it's the first step of the simulation.
+
+  Returns:
+    Updated runtime parameters.
+  """
+  # If there is no edge model, there is nothing to update.
+  if edge_outputs is None:
+    return runtime_params
+
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+
+  # Conditionally update temperatures based on the update_temperatures flag.
+  runtime_params = jax.lax.cond(
+      runtime_params.edge.update_temperatures,
+      lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
+      lambda runtime_params: runtime_params,
+      runtime_params,
   )
-  return dynamic_runtime_params_slice, geo
+
+  # Conditionally update impurities based on being in inverse mode and the
+  # update_impurities flag.
+  is_inverse_mode = (
+      runtime_params.edge.computation_mode
+      == extended_lengyel_enums.ComputationMode.INVERSE
+  )
+  if is_inverse_mode:
+    runtime_params = jax.lax.cond(
+        runtime_params.edge.update_impurities,
+        lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
+        lambda runtime_params: runtime_params,
+        runtime_params,
+    )
+
+  return runtime_params
+
+
+def _update_temperatures(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates temperature boundary conditions based on edge model outputs."""
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  T_e_bc = edge_outputs.separatrix_electron_temp
+  T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
+  return dataclasses.replace(
+      runtime_params,
+      profile_conditions=dataclasses.replace(
+          runtime_params.profile_conditions,
+          T_e_right_bc=T_e_bc,
+          T_i_right_bc=T_i_bc,
+      ),
+  )
+
+
+def _update_impurities(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates impurity concentrations based on edge model outputs."""
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  impurity_params = runtime_params.plasma_composition.impurity
+
+  if not isinstance(impurity_params, electron_density_ratios.RuntimeParams):
+    raise NotImplementedError(
+        "Impurity updates from the edge model are only supported for the"
+        " `n_e_ratios` impurity mode."
+    )
+
+  new_n_e_ratios, new_n_e_ratios_face = {}, {}
+
+  for species, n_e_ratio in impurity_params.n_e_ratios.items():
+    # Default scaling factor is 1.0 for unseeded impurities.
+    scaling_factor = 1.0
+    if species in edge_outputs.seed_impurity_concentrations:
+      conc = edge_outputs.seed_impurity_concentrations[species]
+      # enrichment factor keys already validated to match impurity keys
+      # in pydantic model
+      enrichment = runtime_params.edge.enrichment_factor[species]
+
+      # Concentration at the (LCFS) reduced by enrichment factor
+      conc_lcfs = conc / enrichment
+
+      # Calculate scaling from the current value of the profile at the lcfs.
+      current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
+      scaling_factor = conc_lcfs / (
+          current_val_at_edge + constants.CONSTANTS.eps
+      )
+
+    new_n_e_ratios[species] = n_e_ratio * scaling_factor
+    new_n_e_ratios_face[species] = (
+        impurity_params.n_e_ratios_face[species] * scaling_factor
+    )
+
+  return dataclasses.replace(
+      runtime_params,
+      plasma_composition=dataclasses.replace(
+          runtime_params.plasma_composition,
+          impurity=dataclasses.replace(
+              runtime_params.plasma_composition.impurity,
+              n_e_ratios=new_n_e_ratios,
+              n_e_ratios_face=new_n_e_ratios_face,
+          ),
+      ),
+  )

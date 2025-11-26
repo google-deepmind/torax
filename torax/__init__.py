@@ -19,38 +19,51 @@ import os
 
 # pylint: disable=g-importing-member
 import jax
+from torax import transport
 from torax._src import version
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.config.config_loader import import_module
+from torax._src.config.runtime_params import RuntimeParams
 from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
+from torax._src.pedestal_model.pedestal_model import PedestalModelOutput
 from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.model_config import ToraxConfig
+from torax._src.torax_pydantic.torax_pydantic import JAX_STATIC
 
 # pylint: enable=g-importing-member
+
+os.environ['XLA_FLAGS'] = (
+    os.environ.get('XLA_FLAGS', '')
+    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+)
 
 __version__ = version.TORAX_VERSION
 __version_info__ = version.TORAX_VERSION_INFO
 
 __all__ = [
+    'transport',
     'build_torax_config_from_file',
     'import_module',
     'run_simulation',
     'CoreProfiles',
     'CoreTransport',
     'Geometry',
+    'PedestalModelOutput',
     'PostProcessedOutputs',
+    'RuntimeParams',
     'SimError',
     'SolverNumericOutputs',
     'SourceProfiles',
     'StateHistory',
     'ToraxConfig',
+    'JAX_STATIC',
 ]
 
 

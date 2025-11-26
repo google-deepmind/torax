@@ -12,21 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Literal
+import dataclasses
+from typing import Annotated, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
-from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -57,15 +59,12 @@ class TransportSmoothingTest(parameterized.TestCase):
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+    runtime_params = (
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(
             t=torax_config.numerics.t_initial,
         )
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
     )
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
@@ -73,58 +72,57 @@ class TransportSmoothingTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        dynamic_runtime_params_slice, geo, core_profiles
+        runtime_params, geo, core_profiles
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         pedestal_model_outputs,
     )
     inner_patch_idx = np.searchsorted(
-        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_inner
+        geo.rho_face_norm, runtime_params.transport.rho_inner
     )
     outer_patch_idx = np.searchsorted(
-        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_outer
+        geo.rho_face_norm, runtime_params.transport.rho_outer
     )
     inner_patch_ones = np.ones(inner_patch_idx)
     outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
     chi_face_ion_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.chi_i_inner,
+        inner_patch_ones * runtime_params.transport.chi_i_inner,
         np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.chi_i_outer,
+        outer_patch_ones * runtime_params.transport.chi_i_outer,
     ])
     chi_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.chi_e_inner,
+        inner_patch_ones * runtime_params.transport.chi_e_inner,
         np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.chi_e_outer,
+        outer_patch_ones * runtime_params.transport.chi_e_outer,
     ])
     d_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.D_e_inner,
+        inner_patch_ones * runtime_params.transport.D_e_inner,
         np.linspace(2, 3, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.D_e_outer,
+        outer_patch_ones * runtime_params.transport.D_e_outer,
     ])
     v_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.V_e_inner,
+        inner_patch_ones * runtime_params.transport.V_e_inner,
         np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.V_e_outer,
+        outer_patch_ones * runtime_params.transport.V_e_outer,
     ])
 
     # assert that the smoothing did not impact the zones inside/outside the
@@ -171,7 +169,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     smoothing_array = np.exp(
         -np.log(2)
         * (r_reduced - test_r) ** 2
-        / (dynamic_runtime_params_slice.transport.smoothing_width**2 + eps)
+        / (runtime_params.transport.smoothing_width**2 + eps)
     )
     smoothing_array /= np.sum(smoothing_array)
     smoothing_array = np.where(
@@ -233,13 +231,10 @@ class TransportSmoothingTest(parameterized.TestCase):
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+    runtime_params = (
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=torax_config.numerics.t_initial)
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
     )
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
@@ -247,25 +242,24 @@ class TransportSmoothingTest(parameterized.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models,
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        dynamic_runtime_params_slice, geo, core_profiles
+        runtime_params, geo, core_profiles
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         pedestal_model_outputs,
     )
     inner_patch_idx = np.searchsorted(
-        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_inner
+        geo.rho_face_norm, runtime_params.transport.rho_inner
     )
     # set to mimic pedestal zone minimization
     outer_patch_idx = np.searchsorted(
@@ -275,32 +269,32 @@ class TransportSmoothingTest(parameterized.TestCase):
     inner_patch_ones = np.ones(inner_patch_idx)
     outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
     chi_face_ion_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.chi_i_inner,
+        inner_patch_ones * runtime_params.transport.chi_i_inner,
         np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.chi_min,
+        outer_patch_ones * runtime_params.transport.chi_min,
     ])
     chi_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.chi_e_inner,
+        inner_patch_ones * runtime_params.transport.chi_e_inner,
         np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.chi_min,
+        outer_patch_ones * runtime_params.transport.chi_min,
     ])
     d_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.D_e_inner,
+        inner_patch_ones * runtime_params.transport.D_e_inner,
         np.linspace(2, 3, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.D_e_min,
+        outer_patch_ones * runtime_params.transport.D_e_min,
     ])
     v_face_el_orig = np.concatenate([
-        inner_patch_ones * dynamic_runtime_params_slice.transport.V_e_inner,
+        inner_patch_ones * runtime_params.transport.V_e_inner,
         np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
             inner_patch_idx:outer_patch_idx
         ],
-        outer_patch_ones * dynamic_runtime_params_slice.transport.V_e_min,
+        outer_patch_ones * runtime_params.transport.V_e_min,
     ])
 
     # assert that the smoothing did impact the zones inside/outside the
@@ -371,7 +365,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     smoothing_array = np.exp(
         -np.log(2)
         * (r - test_r) ** 2
-        / (dynamic_runtime_params_slice.transport.smoothing_width**2 + eps)
+        / (runtime_params.transport.smoothing_width**2 + eps)
     )
     smoothing_array /= np.sum(smoothing_array)
     smoothing_array = np.where(
@@ -405,22 +399,18 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Fake TransportModel for testing purposes."""
 
-  def __init__(self):
-    super().__init__()
-    self._frozen = True
-
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
-    del dynamic_runtime_params_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
@@ -432,17 +422,11 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         v_face_el=v_face_el,
     )
 
-  def __hash__(self) -> int:
-    return hash(self.__class__.__name__)
-
-  def __eq__(self, other) -> bool:
-    return isinstance(other, type(self))
-
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
 
-  model_name: Literal['fake'] = 'fake'
+  model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
 
   def build_transport_model(self) -> FakeTransportModel:
     return FakeTransportModel()

@@ -14,18 +14,18 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import formulas
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -39,12 +39,12 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  gaussian_width: array_typing.ScalarFloat
-  gaussian_location: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
-  electron_heat_fraction: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  gaussian_width: array_typing.FloatScalar
+  gaussian_location: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
+  electron_heat_fraction: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
 
 
 def calc_generic_heat_source(
@@ -54,7 +54,7 @@ def calc_generic_heat_source(
     P_total: float,
     electron_heat_fraction: float,
     absorption_fraction: float,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Computes ion/electron heat source terms.
 
   Flexible prescribed heat source term.
@@ -83,31 +83,28 @@ def calc_generic_heat_source(
 
 
 def default_formula(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
-      dynamic_source_runtime_params.gaussian_location,
-      dynamic_source_runtime_params.gaussian_width,
-      dynamic_source_runtime_params.P_total,
-      dynamic_source_runtime_params.electron_heat_fraction,
-      dynamic_source_runtime_params.absorption_fraction,
+      source_params.gaussian_location,
+      source_params.gaussian_width,
+      source_params.P_total,
+      source_params.electron_heat_fraction,
+      source_params.absorption_fraction,
   )
   return (ion, el)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
@@ -137,7 +134,9 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     electron_heat_fraction: Electron heating fraction
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   gaussian_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
@@ -153,20 +152,24 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return default_formula
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         gaussian_width=self.gaussian_width.get_value(t),
         gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),

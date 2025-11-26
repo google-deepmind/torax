@@ -54,17 +54,15 @@ class SourceTestCase(parameterized.TestCase):
     self._needs_source_models = needs_source_models
     super().setUp()
 
-  def test_build_dynamic_params(self):
+  def test_build_runtime_params(self):
     source = self._source_config_class.from_dict({})
     self.assertIsInstance(source, self._source_config_class)
     torax_pydantic.set_grid(
         source,
-        torax_pydantic.Grid1D(nx=4, dx=0.25),
+        torax_pydantic.Grid1D(nx=4,),
     )
-    dynamic_params = source.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, runtime_params_lib.DynamicRuntimeParams
-    )
+    runtime_params = source.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
 
   @parameterized.product(
       mode=(
@@ -74,17 +72,21 @@ class SourceTestCase(parameterized.TestCase):
       ),
       is_explicit=(True, False),
   )
-  def test_runtime_params_builds_static_params(
+  def test_runtime_params_builds_runtime_params(
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
-    """Tests that the static params are built correctly."""
+    """Tests that the runtime params builds runtime params."""
     source_config = self._source_config_class.from_dict(
         {'mode': mode, 'is_explicit': is_explicit}
     )
-    static_params = source_config.build_static_params()
-    self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
-    self.assertEqual(static_params.mode, mode.value)
-    self.assertEqual(static_params.is_explicit, is_explicit)
+    torax_pydantic.set_grid(
+        source_config,
+        torax_pydantic.Grid1D(nx=4,),
+    )
+    runtime_params = source_config.build_runtime_params(t=0.0)
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+    self.assertEqual(runtime_params.mode, mode)
+    self.assertEqual(runtime_params.is_explicit, is_explicit)
 
 
 class SingleProfileSourceTestCase(SourceTestCase):
@@ -103,21 +105,15 @@ class SingleProfileSourceTestCase(SourceTestCase):
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
-    )
-    static_slice = build_runtime_params.build_static_params_from_config(
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -139,8 +135,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
       conductivity = None
     source = source_models.standard_sources[self._source_name]
     value = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
@@ -169,27 +164,20 @@ class MultipleProfileSourceTestCase(SourceTestCase):
     neoclassical_models = torax_config.neoclassical.build_models()
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
     value = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,

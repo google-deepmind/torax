@@ -15,40 +15,31 @@
 """Base pydantic config and model for sawtooth redistribution."""
 
 import abc
+import dataclasses
 
 import chex
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class RedistributionModel(abc.ABC):
+@dataclasses.dataclass(frozen=True, eq=False)
+class RedistributionModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for sawtooth redistribution models."""
 
   @abc.abstractmethod
   def __call__(
       self,
-      rho_norm_q1: array_typing.ScalarFloat,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      rho_norm_q1: array_typing.FloatScalar,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
   ) -> state.CoreProfiles:
     """Returns a redistributed core_profiles if sawtooth has been triggered."""
-
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the redistribution model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Equality method to be implemented to support jax.jit caching."""
 
 
 class RedistributionConfig(torax_pydantic.BaseModelFrozen):
@@ -63,9 +54,9 @@ class RedistributionConfig(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(1.01)
   )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> sawtooth_runtime_params.RedistributionDynamicRuntimeParams:
-    return sawtooth_runtime_params.RedistributionDynamicRuntimeParams(
+  ) -> sawtooth_runtime_params.RedistributionRuntimeParams:
+    return sawtooth_runtime_params.RedistributionRuntimeParams(
         flattening_factor=self.flattening_factor.get_value(t),
     )

@@ -19,7 +19,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -35,7 +35,6 @@ class SimpleTriggerTest(parameterized.TestCase):
     self.geo = geometry_pydantic_model.CircularConfig(
         n_rho=_NRHO
     ).build_geometry()
-    self.mock_static_params = mock.ANY
     self.trigger = simple_trigger.SimpleTrigger()
 
   def _get_mock_core_profiles(
@@ -117,14 +116,14 @@ class SimpleTriggerTest(parameterized.TestCase):
   ):
     mock_core_profiles = self._get_mock_core_profiles(q_profile, s_profile)
 
-    mock_dynamic_params = mock.create_autospec(
-        runtime_params_slice.DynamicRuntimeParamsSlice,
+    mock_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
         instance=True,
-        mhd=mhd_runtime_params.DynamicMHDParams(
+        mhd=mhd_runtime_params.RuntimeParams(
             sawtooth=mock.create_autospec(
-                sawtooth_runtime_params.DynamicRuntimeParams,
+                sawtooth_runtime_params.RuntimeParams,
                 instance=True,
-                trigger_params=simple_trigger.DynamicRuntimeParams(
+                trigger_params=simple_trigger.RuntimeParams(
                     s_critical=s_critical,
                     minimum_radius=minimum_radius,
                 ),
@@ -133,8 +132,7 @@ class SimpleTriggerTest(parameterized.TestCase):
     )
 
     trigger_result, _ = self.trigger(
-        self.mock_static_params,
-        mock_dynamic_params,
+        mock_params,
         self.geo,
         mock_core_profiles,
     )

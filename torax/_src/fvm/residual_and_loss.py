@@ -30,7 +30,7 @@ import jaxopt
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -44,7 +44,7 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
@@ -187,17 +187,16 @@ def theta_method_matrix_equation(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
-        'static_runtime_params_slice',
         'evolving_names',
+        'physics_models',
     ],
 )
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -212,15 +211,7 @@ def theta_method_block_residual(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -250,15 +241,13 @@ def theta_method_block_residual(
   )
   core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
       x_new_guess,
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
       evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params=runtime_params_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
@@ -267,15 +256,16 @@ def theta_method_block_residual(
       use_pereverzev=False,
   )
 
+  solver_params = runtime_params_t_plus_dt.solver
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
       dt=dt,
       x_old=x_old,
       x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_implicit=static_runtime_params_slice.solver.theta_implicit,
-      convection_dirichlet_mode=static_runtime_params_slice.solver.convection_dirichlet_mode,
-      convection_neumann_mode=static_runtime_params_slice.solver.convection_neumann_mode,
+      theta_implicit=solver_params.theta_implicit,
+      convection_dirichlet_mode=solver_params.convection_dirichlet_mode,
+      convection_neumann_mode=solver_params.convection_neumann_mode,
   )
 
   lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec
@@ -286,28 +276,16 @@ def theta_method_block_residual(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
-        'static_runtime_params_slice',
-        'evolving_names',
-    ],
-)
-def theta_method_block_jacobian(*args, **kwargs):  # pylint: disable=missing-function-docstring
-  return jax.jacfwd(theta_method_block_residual)(*args, **kwargs)
-
-
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'static_runtime_params_slice',
+        'physics_models',
         'evolving_names',
     ],
 )
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -322,15 +300,7 @@ def theta_method_block_loss(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -350,8 +320,7 @@ def theta_method_block_loss(
 
   residual = theta_method_block_residual(
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
@@ -366,16 +335,15 @@ def theta_method_block_loss(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
-        'static_runtime_params_slice',
+        'physics_models',
         'evolving_names',
     ],
 )
 def jaxopt_solver(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
@@ -391,15 +359,7 @@ def jaxopt_solver(
 
   Args:
     dt: Time step duration.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
+    runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object for time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
@@ -426,8 +386,7 @@ def jaxopt_solver(
   loss = functools.partial(
       theta_method_block_loss,
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -436,7 +395,7 @@ def jaxopt_solver(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )
-  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol)
+  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, implicit_diff=True)
   solver_output = solver.run(init_x_new_vec)
   x_new_vec = solver_output.params
   final_loss = loss(x_new_vec)

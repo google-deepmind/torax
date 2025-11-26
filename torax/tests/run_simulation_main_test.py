@@ -65,14 +65,8 @@ class RunSimulationMainTest(parameterized.TestCase):
     self.assertEqual(user_command, run_simulation_main._UserCommand.QUIT)
 
   @flagsaver.flagsaver(
-      (
-          run_simulation_main._CONFIG_PATH,
-          "tests/test_data/test_implicit.py",
-      ),
-      (
-          run_simulation_main._OUTPUT_DIR,
-          _TMP_DIR,
-      ),
+      config="tests/test_data/test_implicit.py",
+      output_dir=_TMP_DIR,
   )
   @mock.patch("builtins.input", side_effect=["q"])
   def test_main_app_runs(self, mock_input):

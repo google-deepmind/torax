@@ -54,35 +54,26 @@ class AngioniSauterTest(absltest.TestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
 
-    dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
+    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
-    dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_provider,
+            runtime_params_provider=params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
 
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     core_profiles = initialization.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
 
-    model = angioni_sauter.AngioniSauterModel()
-    result = model.calculate_neoclassical_transport(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geometry=geo,
-        core_profiles=core_profiles,
+    result = angioni_sauter._calculate_angioni_sauter_transport(
+        runtime_params, geo, core_profiles
     )
     np.testing.assert_allclose(
         result.chi_neo_i, _EXPECTED_CHI_NEO_I, atol=_A_TOL, rtol=_R_TOL
@@ -109,72 +100,72 @@ class AngioniSauterTest(absltest.TestCase):
 # generation of the Kmn matrix.
 _EXPECTED_CHI_NEO_I = np.array([
     -0.0,
-    0.01195613,
-    0.02174449,
-    0.03062838,
-    0.03880287,
-    0.04665049,
-    0.05457236,
-    0.06273228,
-    0.07096089,
-    0.07800027,
-    0.07973496,
+    0.01220085,
+    0.02223608,
+    0.03117304,
+    0.03891618,
+    0.04568965,
+    0.05179111,
+    0.0572006,
+    0.06147531,
+    0.06320731,
+    0.0591895,
 ])
 
 _EXPECTED_CHI_NEO_E = np.array([
     -0.0,
-    -0.00203451,
-    -0.00298301,
-    -0.00379278,
-    -0.0045157,
-    -0.00518874,
-    -0.00587365,
-    -0.00663125,
-    -0.00753242,
-    -0.00873426,
-    -0.00994788,
+    -0.00210023,
+    -0.0030792,
+    -0.00388683,
+    -0.0045548,
+    -0.00511068,
+    -0.0056083,
+    -0.0060884,
+    -0.00658147,
+    -0.00717367,
+    -0.00750323,
 ])
 
 _EXPECTED_D_NEO_E = np.array([
     0.0,
-    0.00011474,
-    0.00020632,
-    0.00027948,
-    0.00033561,
-    0.00038208,
-    0.00042377,
-    0.00046043,
-    0.0004862,
-    0.00048063,
-    0.00039108,
+    0.00011698,
+    0.00021105,
+    0.00028474,
+    0.00033721,
+    0.00037529,
+    0.00040377,
+    0.00042199,
+    0.00042404,
+    0.00039292,
+    0.0002924,
 ])
 
 _EXPECTED_V_NEO_E = np.array([
-    0.00000000e00,
-    1.02011963e-05,
-    1.01671795e-05,
-    1.41110590e-05,
-    2.52396497e-05,
-    4.38906098e-05,
-    7.31203214e-05,
-    1.22781454e-04,
-    2.21681700e-04,
-    4.78413008e-04,
-    1.59532648e-03,
+    0.0,
+    1.07951440e-05,
+    1.11015003e-05,
+    1.54065751e-05,
+    2.65710672e-05,
+    4.42853751e-05,
+    7.06387381e-05,
+    1.12983269e-04,
+    1.92360065e-04,
+    3.86372126e-04,
+    1.18868626e-03,
 ])
 
 _EXPECTED_V_NEO_WARE_E = np.array([
     -0.0,
-    -0.00039555,
-    -0.00043249,
-    -0.00038382,
-    -0.00033076,
-    -0.00031509,
-    -0.0003391,
-    -0.0003929,
-    -0.00056975,
-    -0.00161012,
-    -0.00179094,
+    -0.00038114,
+    -0.00041759,
+    -0.00037123,
+    -0.00032066,
+    -0.00030646,
+    -0.0003312,
+    -0.00038565,
+    -0.00056229,
+    -0.00159816,
+    -0.00178913,
 ])
 
 

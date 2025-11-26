@@ -31,6 +31,7 @@ CONFIG['sources']['generic_heat']['P_total'] = 16.32e6
 
 # Set the ECRH source.
 CONFIG['sources']['ecrh'] = {
+    'current_drive_efficiency': 0.35,  # Section 4.1.3 from Van Mulders NF 2021
     'gaussian_width': 0.075,
     'gaussian_location': 0.36,
     'P_total': 34.68e6,

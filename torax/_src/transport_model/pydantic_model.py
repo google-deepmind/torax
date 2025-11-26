@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Any, Literal, Sequence
+from typing import Annotated, Any, Literal, Sequence
 
 from absl import logging
 import chex
@@ -31,6 +31,7 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import tglfnn_ukaea_transport_model
 import typing_extensions
 
 
@@ -104,9 +105,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
       D.
   """
 
-  model_name: Literal['qlknn'] = 'qlknn'
-  model_path: str = ''
-  qlknn_model_name: str = ''
+  model_name: Annotated[Literal['qlknn'], torax_pydantic.JAX_STATIC] = 'qlknn'
+  model_path: Annotated[str, torax_pydantic.JAX_STATIC] = ''
+  qlknn_model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
   include_ITG: bool = True
   include_TEM: bool = True
   include_ETG: bool = True
@@ -149,11 +150,11 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         path=self.model_path, name=self.qlknn_model_name
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> qlknn_transport_model.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return qlknn_transport_model.DynamicRuntimeParams(
+  ) -> qlknn_transport_model.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return qlknn_transport_model.RuntimeParams(
         include_ITG=self.include_ITG,
         include_TEM=self.include_TEM,
         include_ETG=self.include_ETG,
@@ -171,6 +172,43 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     )
 
 
+class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
+  """Model for the TGLFNN-ukaea transport model.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
+    machine: The machine type to use. Either 'step' or 'multimachine'.
+  """
+
+  model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
+      'tglfnn-ukaea'
+  )
+  machine: Annotated[
+      Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
+  ] = 'multimachine'
+  # Quasilinear transport options
+  DV_effective: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
+
+  def build_transport_model(
+      self,
+  ) -> tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel:
+    return tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine=self.machine,
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> tglfnn_ukaea_transport_model.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return tglfnn_ukaea_transport_model.RuntimeParams(
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        # From base
+        **base_kwargs,
+    )
+
+
 class ConstantTransportModel(pydantic_model_base.TransportBase):
   """Model for the Constant transport model.
 
@@ -182,7 +220,9 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
     V_e: convection coefficient in electron density equation in m^2/s.
   """
 
-  model_name: Literal['constant'] = 'constant'
+  model_name: Annotated[Literal['constant'], torax_pydantic.JAX_STATIC] = (
+      'constant'
+  )
   chi_i: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -197,11 +237,9 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
 
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> constant.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return constant.DynamicRuntimeParams(
+  def build_runtime_params(self, t: chex.Numeric) -> constant.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return constant.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
         chi_e=self.chi_e.get_value(t, 'face'),
         D_e=self.D_e.get_value(t, 'face'),
@@ -225,7 +263,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
       model.
   """
 
-  model_name: Literal['CGM'] = 'CGM'
+  model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
   chi_e_i_ratio: torax_pydantic.TimeVaryingScalar = (
@@ -243,11 +281,11 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   ) -> critical_gradient.CriticalGradientTransportModel:
     return critical_gradient.CriticalGradientTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> critical_gradient.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return critical_gradient.DynamicRuntimeParams(
+  ) -> critical_gradient.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return critical_gradient.RuntimeParams(
         alpha=self.alpha,
         chi_stiff=self.chi_stiff,
         chi_e_i_ratio=self.chi_e_i_ratio.get_value(t),
@@ -280,7 +318,9 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
 
-  model_name: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
+  model_name: Annotated[Literal['bohm-gyrobohm'], torax_pydantic.JAX_STATIC] = (
+      'bohm-gyrobohm'
+  )
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)
   )
@@ -320,11 +360,11 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   ) -> bohm_gyrobohm.BohmGyroBohmTransportModel:
     return bohm_gyrobohm.BohmGyroBohmTransportModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> bohm_gyrobohm.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return bohm_gyrobohm.DynamicRuntimeParams(
+  ) -> bohm_gyrobohm.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    return bohm_gyrobohm.RuntimeParams(
         chi_e_bohm_coeff=self.chi_e_bohm_coeff.get_value(t),
         chi_e_gyrobohm_coeff=self.chi_e_gyrobohm_coeff.get_value(t),
         chi_i_bohm_coeff=self.chi_i_bohm_coeff.get_value(t),
@@ -348,6 +388,7 @@ try:
   # errors in pytype.
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -357,6 +398,7 @@ try:
 except ImportError:
   CombinedCompatibleTransportModel = (
       QLKNNTransportModel
+      | TGLFNNukaeaTransportModel
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -369,55 +411,84 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
     transport_models: A sequence of transport models, whose outputs will be
-      summed to give the combined transport coefficients.
+      summed to give the combined core transport coefficients.
+    pedestal_transport_models: A sequence of models that will be combined for
+      pedestal transport coefficients.
   """
 
+  # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
   transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
-  model_name: Literal['combined'] = 'combined'
+  pedestal_transport_models: Sequence[
+      CombinedCompatibleTransportModel
+  ] = pydantic.Field(
+      default_factory=list
+  )  # pytype: disable=invalid-annotation
+  model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
+      'combined'
+  )
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
-    model_list = [
+    transport_models = tuple(
         model.build_transport_model() for model in self.transport_models
-    ]
-    return combined.CombinedTransportModel(transport_models=model_list)
+    )
+    pedestal_transport_models = tuple(
+        model.build_transport_model()
+        for model in self.pedestal_transport_models
+    )
 
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> combined.DynamicRuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    model_params_list = [
-        model.build_dynamic_params(t) for model in self.transport_models
+    return combined.CombinedTransportModel(
+        transport_models=transport_models,
+        pedestal_transport_models=pedestal_transport_models,
+    )
+
+  def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    transport_model_params = [
+        model.build_runtime_params(t) for model in self.transport_models
     ]
-    return combined.DynamicRuntimeParams(
-        transport_model_params=model_params_list,
+    pedestal_transport_model_params = [
+        model.build_runtime_params(t)
+        for model in self.pedestal_transport_models
+    ]
+
+    return combined.RuntimeParams(
+        transport_model_params=transport_model_params,
+        pedestal_transport_model_params=pedestal_transport_model_params,
         **base_kwargs,
     )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     super()._check_fields()
-    if not self.transport_models:
+    if (
+        any([
+            np.any(model.apply_inner_patch.value)
+            or np.any(model.apply_outer_patch.value)
+            for model in self.transport_models + self.pedestal_transport_models
+        ])
+        or np.any(self.apply_inner_patch.value)
+        or np.any(self.apply_outer_patch.value)
+    ):
       raise ValueError(
-          'transport_models cannot be empty for CombinedTransportModel. '
-          'Please provide at least one transport model configuration.'
-      )
-    if any([
-        np.any(model.apply_inner_patch.value)
-        or np.any(model.apply_outer_patch.value)
-        for model in self.transport_models
-    ]):
-      raise ValueError(
-          'apply_inner_patch and apply_outer_patch and should be set in the'
-          ' config for CombinedTransportModel only, rather than its component'
-          ' models.'
+          'apply_inner_patch and apply_outer_patch not supported for'
+          ' CombinedTransportModel or its component models.'
       )
     if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
       raise ValueError(
           'rho_min and rho_max should not be set for CombinedTransportModel, as'
           ' it should be applied across the whole rho domain.'
       )
+    if any([
+        np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
+        for model in self.pedestal_transport_models
+    ]):
+      raise ValueError(
+          'rho_min and rho_max not supported for pedestal_transport_models, as '
+          'their region of validity is set by the pedestal model.'
+      )
+
     return self
 
 

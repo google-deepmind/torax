@@ -70,12 +70,12 @@ incompatible with the persistent compilation cache.
 
   export TORAX_ERRORS_ENABLED=<True/False>
 
-``TORAX_COMPILATION_ENABLED`` (default: `True`) - If `False`, JAX does not compile
+``JAX_DISABLE_JIT`` (default: `False`) - If `True`, JAX does not compile
 internal TORAX functions. Used for debugging.
 
 .. code-block:: console
 
-  export TORAX_COMPILATION_ENABLED=<True/False>
+  export JAX_DISABLE_JIT=<True/False>
 
 .. _torax_flags:
 

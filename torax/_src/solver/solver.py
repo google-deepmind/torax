@@ -18,53 +18,33 @@ Abstract base class defining updates to State.
 """
 
 import abc
+import dataclasses
 import functools
 
 import jax
+import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src import xnp
-from torax._src.config import runtime_params_slice
+from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
-class Solver(abc.ABC):
-  """Solves for a single time steps update to State.
+@dataclasses.dataclass(frozen=True, eq=False)
+class Solver(static_dataclass.StaticDataclass, abc.ABC):
+  """Solves for a single time step's update to State.
 
   Attributes:
-    static_runtime_params_slice: Static runtime parameters. Input params that
-      trigger recompilation when they change. These don't have to be
-      JAX-friendly types and can be used in control-flow logic.
     physics_models: Physics models.
   """
 
-  def __init__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      physics_models: physics_models_lib.PhysicsModels,
-  ):
-    self.static_runtime_params_slice = static_runtime_params_slice
-    self.physics_models = physics_models
-
-  def __hash__(self) -> int:
-    return hash((
-        self.static_runtime_params_slice,
-        self.physics_models,
-    ))
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    return (
-        self.static_runtime_params_slice == other.static_runtime_params_slice
-        and self.static_runtime_params_slice
-        == other.static_runtime_params_slice
-        and self.physics_models == other.physics_models
-    )
+  physics_models: physics_models_lib.PhysicsModels
 
   @functools.partial(
-      xnp.jit,
+      jax.jit,
       static_argnames=[
           'self',
       ],
@@ -73,8 +53,8 @@ class Solver(abc.ABC):
       self,
       t: jax.Array,
       dt: jax.Array,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -89,11 +69,11 @@ class Solver(abc.ABC):
     Args:
       t: Time.
       dt: Time step duration.
-      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-        time of the step). These runtime params can change from step to step
-        without triggering a recompilation.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
-        dt, used for implicit calculations in the solver.
+      runtime_params_t: Runtime parameters for time t (the start time of the
+        step). These runtime params can change from step to step without
+        triggering a recompilation.
+      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
+        implicit calculations in the solver.
       geo_t: Geometry of the torus at time t.
       geo_t_plus_dt: Geometry of the torus at time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
@@ -118,25 +98,29 @@ class Solver(abc.ABC):
     # most can make use of the boilerplate here and just implement `_x_new`.
 
     # Don't call solver functions on an empty list
-    if dynamic_runtime_params_slice_t.numerics.evolving_names:
+    if runtime_params_t.numerics.evolving_names:
       (
           x_new,
           solver_numeric_output,
       ) = self._x_new(
           dt=dt,
-          static_runtime_params_slice=self.static_runtime_params_slice,
-          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t=runtime_params_t,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t=geo_t,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          evolving_names=dynamic_runtime_params_slice_t.numerics.evolving_names,
+          evolving_names=runtime_params_t.numerics.evolving_names,
       )
     else:
       x_new = tuple()
-      solver_numeric_output = state.SolverNumericOutputs()
+      solver_numeric_output = state.SolverNumericOutputs(
+          sawtooth_crash=False,
+          solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
+          inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+          outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      )
 
     return (
         x_new,
@@ -146,9 +130,8 @@ class Solver(abc.ABC):
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -166,14 +149,11 @@ class Solver(abc.ABC):
 
     Args:
       dt: Time step duration.
-      static_runtime_params_slice: Input params that trigger recompilation when
-        they change. These don't have to be JAX-friendly types and can be used
-        in control-flow logic.
-      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-        time of the step). These runtime params can change from step to step
-        without triggering a recompilation.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
-        dt, used for implicit calculations in the solver.
+      runtime_params_t: Runtime parameters for time t (the start time of the
+        step). These runtime params can change from step to step without
+        triggering a recompilation.
+      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
+        implicit calculations in the solver.
       geo_t: Geometry of the torus for time t.
       geo_t_plus_dt: Geometry of the torus for time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.

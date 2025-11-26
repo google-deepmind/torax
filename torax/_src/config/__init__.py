@@ -12,8 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Config.
-
-This module contains functionality related to parsing user-facing config
-files and setting up TORAX dynamic and static runtime parameters.
-"""
+"""Files related to configuring TORAX."""

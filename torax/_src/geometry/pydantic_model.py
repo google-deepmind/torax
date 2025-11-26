@@ -14,9 +14,11 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 import functools
 import inspect
+import logging
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 
 from imas import ids_toplevel
@@ -104,7 +106,7 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
   hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
-  geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols'
+  geometry_file: str = 'iterhybrid.mat2cols'
   R_major: torax_pydantic.Meter = 6.2
   a_minor: torax_pydantic.Meter = 2.0
   B_0: torax_pydantic.Tesla = 5.3
@@ -183,6 +185,11 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
       raise ValueError(
           'LY_bundle_object must be set when using LY_to_torax_times.'
       )
+    logging.warning(
+        '<B^2> and <1/B^2> not currently supported by FBT geometry;'
+        ' approximating using analytical expressions for circular geometry.'
+        ' This might cause inaccuracies in neoclassical transport.'
+    )
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
@@ -197,7 +204,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   # TODO(b/398191165): Remove this branch once the FBT bundle logic is
   # redesigned.
   def build_fbt_geometry_provider_from_bundle(
-      self,
+      self, calcphibdot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a `GeometryProvider` from the input config."""
     intermediates = _apply_relevant_kwargs(
@@ -209,7 +216,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         for t in intermediates
     }
     return standard_geometry.StandardGeometryProvider.create_provider(
-        geometries
+        geometries, calcphibdot=calcphibdot,
     )
 
 
@@ -217,6 +224,9 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:
+    cocos: COCOS coordinate convention of the EQDSK file, specified as an
+      integer in the range 1-8 or 11-18 inclusive.
+    geometry_file: Name of the EQDSK file in the geometry directory.
     geometry_type: Always set to 'eqdsk'.
     n_rho: Number of radial grid points.
     hires_factor: Only used when the initial condition ``psi`` is from plasma
@@ -233,12 +243,13 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
 
+  cocos: torax_pydantic.COCOSInt
+  geometry_file: str
   geometry_type: Annotated[Literal['eqdsk'], TIME_INVARIANT] = 'eqdsk'
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
   hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, TIME_INVARIANT] = None
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = True
-  geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk'
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
 
@@ -290,6 +301,9 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
       the with running TORAX using the provided APIs. To use this option you
       must implement a custom run loop. Only one of imas_filepath, imas_uri or
       equilibrium_object can be set.
+    slice_time: Time of slice to load from IMAS IDS. If given, overrides
+      slice_index.
+    slice_index: Index of slice to load from IMAS IDS.
   """
 
   geometry_type: Annotated[Literal['imas'], TIME_INVARIANT] = 'imas'
@@ -300,6 +314,8 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   imas_filepath: str | None = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
+  slice_index: pydantic.NonNegativeInt = 0
+  slice_time: float | None = None
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
@@ -349,10 +365,15 @@ class Geometry(torax_pydantic.BaseModelFrozen):
     geometry_type: A `geometry.GeometryType` enum.
     geometry_configs: Either a single `GeometryConfig` or a dict of
       `GeometryConfig` objects, where the keys are times in seconds.
+    calcphibdot: Whether to calculate Phibdot in the geometry dataclasses. This
+      is used in calc_coeffs to calculate terms related to time-dependent
+      geometry. We can set this to False to zero out Phibdot in the geometry
+      dataclasses to look at its effect on the simulation.
   """
 
   geometry_type: geometry.GeometryType
   geometry_configs: GeometryConfig | dict[torax_pydantic.Second, GeometryConfig]
+  calcphibdot: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -378,9 +399,10 @@ class Geometry(torax_pydantic.BaseModelFrozen):
     if self.geometry_type == geometry.GeometryType.FBT:
       if not isinstance(self.geometry_configs, dict):
         assert isinstance(self.geometry_configs.config, FBTConfig)
-        if self.geometry_configs.config.LY_bundle_object is not None:
-          return (
-              self.geometry_configs.config.build_fbt_geometry_provider_from_bundle()
+        fbt_config = self.geometry_configs.config
+        if fbt_config.LY_bundle_object is not None:
+          return fbt_config.build_fbt_geometry_provider_from_bundle(
+              self.calcphibdot
           )
 
     if isinstance(self.geometry_configs, dict):
@@ -393,11 +415,11 @@ class Geometry(torax_pydantic.BaseModelFrozen):
           if self.geometry_type == geometry.GeometryType.CIRCULAR
           else standard_geometry.StandardGeometryProvider.create_provider
       )
+      return provider(geometries, calcphibdot=self.calcphibdot)
     else:
       geometries = self.geometry_configs.config.build_geometry()
       provider = geometry_provider.ConstantGeometryProvider
-
-    return provider(geometries)  # pytype: disable=attribute-error
+      return provider(geometries)
 
 
 def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -414,6 +436,10 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
   geometry_type = getattr(geometry.GeometryType, data['geometry_type'].upper())
   constructor_args = {'geometry_type': geometry_type}
   configs_time_dependent = data_copy.pop('geometry_configs', None)
+
+  if 'calcphibdot' in data_copy:
+    calcphibdot = data_copy.pop('calcphibdot')
+    constructor_args['calcphibdot'] = calcphibdot
 
   if configs_time_dependent:
     # geometry config has sequence of standalone geometry files.

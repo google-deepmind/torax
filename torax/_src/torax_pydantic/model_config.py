@@ -22,9 +22,12 @@ import pydantic
 from torax._src import physics_models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import plasma_composition as plasma_composition_lib
-from torax._src.config import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
+from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
@@ -80,6 +83,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       discriminator='model_name'
   )
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
+  edge: edge_pydantic_model.EdgeConfig | None = None
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
@@ -88,13 +92,26 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   )
 
   def build_physics_models(self):
+    edge_model = self.edge.build_edge_model() if self.edge else None
     return physics_models.PhysicsModels(
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
         neoclassical_models=self.neoclassical.build_models(),
         mhd_models=self.mhd.build_mhd_models(),
+        edge_model=edge_model,
     )
+
+  # TODO(b/434175938): Remove this once V1 API is deprecated
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _v1_compatibility(cls, data: dict[str, Any]) -> dict[str, Any]:
+    configurable_data = copy.deepcopy(data)
+    if 'calcphibdot' in configurable_data['numerics']:
+      calcphibdot = configurable_data['numerics']['calcphibdot']
+      configurable_data['geometry']['calcphibdot'] = calcphibdot
+      del configurable_data['numerics']['calcphibdot']
+    return configurable_data
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -152,6 +169,54 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
           With this configuration, it is strongly recommended to set
           use_pereverzev=True to avoid numerical instability in the solver.
           """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_psidot_and_evolve_current(self) -> typing_extensions.Self:
+    """Warns if psidot is provided but evolve_current is True."""
+    if (
+        self.profile_conditions.psidot is not None
+        and self.numerics.evolve_current
+    ):
+      logging.warning("""
+          profile_conditions.psidot input is ignored as numerics.evolve_current
+          is True.
+
+          Prescribed psidot is only applied when current diffusion is off.
+          """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_edge_with_circular_geometry(self) -> typing_extensions.Self:
+    """Validates that edge models are not used with CircularGeometry."""
+    if (
+        self.edge is not None
+        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+    ):
+      raise ValueError(
+          'Edge models are not supported for use with CircularGeometry.'
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_extended_lengyel_inverse_impurity_mode(
+      self,
+  ) -> typing_extensions.Self:
+    """Ensures Extended Lengyel inverse mode uses n_e_ratios impurity mode."""
+    if (
+        isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig)
+        and self.edge.computation_mode
+        == extended_lengyel_enums.ComputationMode.INVERSE
+    ):
+      # Inverse mode calculates a scaling factor for impurities. This logic
+      # currently relies on the impurity profile being defined as a ratio to
+      # electron density (n_e_ratios).
+      if self.plasma_composition.impurity.impurity_mode != 'n_e_ratios':
+        raise ValueError(
+            'Extended Lengyel edge model in INVERSE mode requires'
+            " plasma_composition.impurity_mode to be 'n_e_ratios'. Got"
+            f" '{self.plasma_composition.impurity.impurity_mode}'."
+        )
     return self
 
   def update_fields(self, x: Mapping[str, Any]):

@@ -21,6 +21,7 @@ concurrency:
 # Set the correct env variables for all the unit tests
 env:
   TORAX_ERRORS_ENABLED: 1
+  TORAX_JAXTYPING: 1
   PYTEST_NUM_SHARDS: 8  # Controls tests sharding enabled by `pytest-shard`
 
 jobs:
@@ -52,7 +53,7 @@ jobs:
         # Can't reference env variables in matrix
         num-shards: ${{ fromJson(needs.shards-job.outputs.num-shards) }}
         shard-id: ${{ fromJson(needs.shards-job.outputs.shard-ids) }}
-        python-version: ['3.10']
+        python-version: ['3.11']
         os-version: [ubuntu-latest]
 
     steps:
@@ -73,15 +74,10 @@ jobs:
       run: |
         pytest \
           -vv -n auto \
-          --ignore=torax/tests/sim_experimental_compile_test.py \
           --ignore=torax/tests/sim_no_compile_test.py \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
-    # Two test require an extra environment variable, so we run them separately.
-    - name: Run sim_experimental_compile
-      if: ${{ matrix.shard-id == 1 }}
-      run: |
-        EXPERIMENTAL_COMPILE=True pytest -vv -n auto torax/tests/sim_experimental_compile_test.py
+    # This test requires an extra environment variable, so we run it separately.
     - name: Run sim_no_compile
       if: ${{ matrix.shard-id == 2 }}
       run: |
-        TORAX_COMPILATION_ENABLED=False pytest -vv -n auto torax/tests/sim_no_compile_test.py
+        JAX_DISABLE_JIT=True pytest -vv -n auto torax/tests/sim_no_compile_test.py

@@ -15,8 +15,7 @@
 """Routines for calculating impurity radiation based on a polynomial fit."""
 import dataclasses
 import functools
-from typing import Final, Literal, Mapping, Sequence
-
+from typing import Annotated, Final, Literal, Mapping, Sequence
 import chex
 import immutabledict
 import jax
@@ -24,18 +23,17 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import plasma_composition
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import charge_states
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax._src.torax_pydantic import torax_pydantic
 
 # Default value for the model function to be used for the impurity radiation
 # source. This is also used as an identifier for the model function in
@@ -46,7 +44,7 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'mavrin_fit'
 # Improved fits of coronal radiative cooling rates for high-temperature plasmas,
 # Radiation Effects and Defects in Solids, 173:5-6, 388-398,
 # DOI: 10.1080/10420150.2018.1462361
-_MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'He3': np.array([
             [2.5020e-02, -9.3730e-02, 1.0156e-01, 3.1469e-01, -3.5551e01],
@@ -103,7 +101,7 @@ _MAVRIN_L_COEFFS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 )
 
 # Temperature boundaries in keV, separating the rows for the fit coefficients.
-_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
+_TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
         'C': np.array([0.5]),
         'N': np.array([0.5, 2.0]),
@@ -118,10 +116,10 @@ _TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.ArrayFloat]] = (
 
 
 # pylint: disable=invalid-name
-def _calculate_impurity_radiation_single_species(
-    T_e: array_typing.ArrayFloat,
+def calculate_impurity_radiation_single_species(
+    T_e: array_typing.FloatVector,
     ion_symbol: str,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   """Calculates the line radiation for single impurity species.
 
   Polynomial fit range is 0.1-100 keV, which is well within the typical
@@ -161,21 +159,22 @@ def _calculate_impurity_radiation_single_species(
 
 
 @functools.partial(
-    jax_utils.jit,
+    jax.jit,
     static_argnames=[
         'ion_symbols',
     ],
 )
 def calculate_total_impurity_radiation(
     ion_symbols: Sequence[str],
-    ion_mixture: plasma_composition.DynamicIonMixture,
-    T_e: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    impurity_fractions: array_typing.FloatVector,
+    T_e: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates impurity line radiation profile (JAX-compatible).
 
   Args:
     ion_symbols: Ion symbols of the impurity species.
-    ion_mixture: DynamicIonMixture object containing impurity information.
+    impurity_fractions: Impurity fractions corresponding to the ion symbols.
+      Input shape is (n_species, n_grid)
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
 
@@ -186,31 +185,39 @@ def calculate_total_impurity_radiation(
   """
 
   effective_LZ = jnp.zeros_like(T_e)
-  for ion_symbol, fraction in zip(ion_symbols, ion_mixture.fractions):
-    effective_LZ += fraction * _calculate_impurity_radiation_single_species(
+  for i, ion_symbol in enumerate(ion_symbols):
+    fraction = impurity_fractions[i]
+    effective_LZ += fraction * calculate_impurity_radiation_single_species(
         T_e, ion_symbol
     )
   return effective_LZ
 
 
 def impurity_radiation_mavrin_fit(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     unused_geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Model function for impurity radiation heat sink."""
-  ion_symbols = static_runtime_params_slice.impurity_names
-  ion_mixture = dynamic_runtime_params_slice.plasma_composition.impurity
+
+  # Reconstruct array from mapping for DynamicIonMixture and effective LZ
+  # calculations.
+  ion_symbols = runtime_params.plasma_composition.impurity_names
+  impurity_fractions_arr = jnp.stack(
+      [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
+  )
+  impurity_fractions = {
+      symbol: core_profiles.impurity_fractions[symbol] for symbol in ion_symbols
+  }
+  # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
-      ion_symbols=ion_symbols,
-      ion_mixture=ion_mixture,
+      ion_symbols=runtime_params.plasma_composition.impurity_names,
+      impurity_fractions=impurity_fractions_arr,
       T_e=core_profiles.T_e.value,
   )
-
   # The impurity density must be scaled to account for the true total impurity
   # density. This is because in an IonMixture, the impurity density is an
   # effective density as follows:
@@ -222,33 +229,33 @@ def impurity_radiation_mavrin_fit(
   # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
+  charge_state_info = charge_states.get_average_charge_state(
+      T_e=core_profiles.T_e.value,
+      fractions=impurity_fractions,
+      Z_override=runtime_params.plasma_composition.impurity.Z_override,
+  )
+  Z_avg = charge_state_info.Z_avg
+  impurity_density_scaling = core_profiles.Z_impurity / Z_avg
 
-  # ion_symbols is a static argument so can use the for loop under jit
-  Z_per_species = jnp.stack([
-      charge_states.calculate_average_charge_state_single_species(
-          core_profiles.T_e.value, ion_symbol
-      )
-      for ion_symbol in ion_symbols
-  ])
-
-  avg_Z = jnp.sum(ion_mixture.fractions[:, jnp.newaxis] * Z_per_species, axis=0)
-  impurity_density_scaling = core_profiles.Z_impurity / avg_Z
-
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   radiation_profile = (
       effective_LZ
       * core_profiles.n_e.value
       * core_profiles.n_impurity.value
       * impurity_density_scaling
-      * dynamic_source_runtime_params.radiation_multiplier
+      * source_params.radiation_multiplier
   )
 
   # The impurity radiation heat sink is a negative source, so we return a
   # negative profile.
   return (-radiation_profile,)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  radiation_multiplier: array_typing.FloatScalar
 
 
 class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
@@ -258,22 +265,28 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
 
-  model_name: Literal['mavrin_fit'] = 'mavrin_fit'
+  model_name: Annotated[Literal['mavrin_fit'], torax_pydantic.JAX_STATIC] = (
+      'mavrin_fit'
+  )
   radiation_multiplier: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
     return impurity_radiation_mavrin_fit
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         radiation_multiplier=self.radiation_multiplier,
     )
 
@@ -283,9 +296,3 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
     return impurity_radiation_heat_sink.ImpurityRadiationHeatSink(
         model_func=self.model_func
     )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  radiation_multiplier: array_typing.ScalarFloat

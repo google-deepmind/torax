@@ -16,7 +16,7 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
@@ -26,13 +26,14 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 # Default value for the model function to be used for the Cyclotron radiation
@@ -43,25 +44,20 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class StaticRuntimeParams(runtime_params_lib.StaticRuntimeParams):
-  beta_min: float
-  beta_max: float
-  beta_grid_size: int
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  wall_reflection_coeff: array_typing.ScalarFloat
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  wall_reflection_coeff: array_typing.FloatScalar
+  beta_min: array_typing.FloatScalar
+  beta_max: array_typing.FloatScalar
+  beta_grid_size: int = dataclasses.field(metadata={'static': True})
 
 
 def _alpha_closed_form(
     *,
-    beta: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    profile_data: array_typing.ArrayFloat,
-    profile_edge_value: array_typing.ScalarFloat,
-) -> array_typing.ScalarFloat:
+    beta: array_typing.FloatScalar,
+    rho_norm: array_typing.FloatVector,
+    profile_data: array_typing.FloatVector,
+    profile_edge_value: array_typing.FloatScalar,
+) -> array_typing.FloatScalar:
   """Returns analytical closed form of alpha for parameterized profiles.
 
   See albajar_artaud for more details.
@@ -120,10 +116,10 @@ def _alpha_closed_form(
 
 
 def _loss_for_beta_t(
-    beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
-) -> array_typing.ScalarFloat:
+    beta_t: array_typing.FloatScalar,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
+) -> array_typing.FloatScalar:
   """Returns the loss function for the temperature fit for a given beta_t.
 
   The fit is from the magnetic axis to rhonorm=0.9, to avoid pedestal effects.
@@ -153,11 +149,11 @@ def _loss_for_beta_t(
 
 def _te_pred_fn(
     *,
-    alpha_t: array_typing.ScalarFloat,
-    beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    alpha_t: array_typing.FloatScalar,
+    beta_t: array_typing.FloatScalar,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   return (te_data[0] - te_data[-1]) * (
       (1 - rho_norm**beta_t)
   ) ** alpha_t + te_data[-1]
@@ -165,11 +161,11 @@ def _te_pred_fn(
 
 def _te_loss_fn(
     *,
-    alpha_t: array_typing.ScalarFloat,
-    beta_t: array_typing.ScalarFloat,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
-) -> array_typing.ScalarFloat:
+    alpha_t: array_typing.FloatScalar,
+    beta_t: array_typing.FloatScalar,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
+) -> array_typing.FloatScalar:
   """Returns the loss function for the temperature fit.
 
   The fit is from the magnetic axis to rhonorm=0.9, to avoid pedestal effects.
@@ -198,10 +194,10 @@ def _te_loss_fn(
 
 def _solve_alpha_t_beta_t_grid_search(
     *,
-    rho_norm: array_typing.ArrayFloat,
-    te_data: array_typing.ArrayFloat,
+    rho_norm: array_typing.FloatVector,
+    te_data: array_typing.FloatVector,
     beta_scan_parameters: tuple[float, float, int],
-) -> tuple[array_typing.ScalarFloat, array_typing.ScalarFloat]:
+) -> tuple[array_typing.FloatScalar, array_typing.FloatScalar]:
   """Returns the alpha and beta parameters that minimize the temperature loss function.
 
   Grid search is used for computational efficiency.
@@ -238,14 +234,13 @@ def _solve_alpha_t_beta_t_grid_search(
 
 
 def cyclotron_radiation_albajar(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.ArrayFloat, ...]:
+) -> tuple[array_typing.FloatVector, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:
@@ -267,8 +262,7 @@ def cyclotron_radiation_albajar(
   0<rhonorm<0.9, to avoid pedestal effects.
 
   Args:
-    static_runtime_params_slice: A slice of static runtime parameters.
-    dynamic_runtime_params_slice: A slice of dynamic runtime parameters.
+    runtime_params: A slice of runtime parameters.
     geo: The geometry object.
     source_name: The name of the source.
     core_profiles: The core profiles object.
@@ -278,15 +272,8 @@ def cyclotron_radiation_albajar(
     The cyclotron radiation heat sink contribution to the electron heat
     equation.
   """
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  static_source_runtime_params = static_runtime_params_slice.sources[
-      source_name
-  ]
-
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  assert isinstance(static_source_runtime_params, StaticRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   # Notation conventions based on the Albajar and Artaud papers
   # pylint: disable=invalid-name
@@ -300,22 +287,22 @@ def cyclotron_radiation_albajar(
   p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0
 
   # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
-  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major / geo.a_minor))
+  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
 
   # Calculate profile fit parameters
   alpha_n = _alpha_closed_form(
       beta=2.0,
-      rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
+      rho_norm=geo.rho_face_norm,
       profile_data=n_e20_face,
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
-      static_source_runtime_params.beta_min,
-      static_source_runtime_params.beta_max,
-      static_source_runtime_params.beta_grid_size,
+      source_params.beta_min,
+      source_params.beta_max,
+      source_params.beta_grid_size,
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
-      rho_norm=static_runtime_params_slice.torax_mesh.face_centers,
+      rho_norm=geo.rho_face_norm,
       te_data=core_profiles.T_e.face_value(),
       beta_scan_parameters=beta_scan_parameters,
   )
@@ -331,8 +318,8 @@ def cyclotron_radiation_albajar(
   # Calculate power loss in [W]
   P_cycl_total = (
       3.84e-2
-      * jnp.sqrt(1 - dynamic_source_runtime_params.wall_reflection_coeff)
-      * geo.R_major
+      * jnp.sqrt(1 - source_params.wall_reflection_coeff)
+      * geo.R_major_profile
       * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
       * geo.B_0**2.62
@@ -347,9 +334,9 @@ def cyclotron_radiation_albajar(
   # Calculate the radial profile on the cell grid,
   # according to the Artaud formula (A.45)
   Q_cycl_shape = (
-      geo.R_major
+      geo.R_major_profile
       * geo.elongation**0.79
-      * (geo.F / geo.R_major) ** 2.62
+      * (geo.F / geo.R_major_profile) ** 2.62
       * n_e20_cell**0.38
       * core_profiles.T_e.value**3.61
   )
@@ -362,7 +349,7 @@ def cyclotron_radiation_albajar(
   return (-Q_cycl,)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
@@ -394,12 +381,18 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
       fit of the temperature function.
   """
 
-  model_name: Literal['albajar_artaud'] = 'albajar_artaud'
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  model_name: Annotated[
+      Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
+  ] = 'albajar_artaud'
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
-  beta_min: float = 0.5
-  beta_max: float = 8.0
-  beta_grid_size: pydantic.PositiveInt = 32
+  beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
+  beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0
+  beta_grid_size: Annotated[pydantic.PositiveInt, torax_pydantic.JAX_STATIC] = (
+      32
+  )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
@@ -411,20 +404,16 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return cyclotron_radiation_albajar
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
+  ) -> 'RuntimeParams':
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
         wall_reflection_coeff=self.wall_reflection_coeff,
-    )
-
-  def build_static_params(self) -> 'StaticRuntimeParams':
-    return StaticRuntimeParams(
-        mode=self.mode.value,
+        mode=self.mode,
         is_explicit=self.is_explicit,
         beta_min=self.beta_min,
         beta_max=self.beta_max,

@@ -31,12 +31,5 @@ by the PDE, but have time-dependent variables in the **profile_conditions**
 configuration (see :ref:`configuration`) that determine their values
 throughout the simulation.
 
-**dynamic runtime parameters**: configuration variables, often time-dependent,
-whose modification will not retrigger JAX compilation when rerunning TORAX
-within a process. Examples are boundary conditions, initial conditions, and
-source parameters.
-
-**static runtime parameters**: configuration variables, non-time-dependent,
-whose modification will retrigger JAX compilation when rerunning TORAX within a
-process. Examples are mesh size and model names (which modify the functions
-used and thus the computational graph).
+**runtime parameters**: configuration variables that are inputs to the
+simulation. Some of these are time-dependent, and some are not.

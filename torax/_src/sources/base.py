@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base model for source pydantic configs."""
 import abc
+from typing import Annotated
 
 import chex
 from torax._src.sources import runtime_params
@@ -46,17 +47,13 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       along for all rho and time, and the output vector is along the cell grid.
   """
 
-  mode: runtime_params.Mode = runtime_params.Mode.ZERO
-  is_explicit: bool = False
+  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params.Mode.ZERO
+  )
+  is_explicit: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   prescribed_values: tuple[torax_pydantic.TimeVaryingArray, ...] = (
       torax_pydantic.ValidatedDefault(({0: {0: 0, 1: 0}},))
   )
-
-  def build_static_params(self) -> runtime_params.StaticRuntimeParams:
-    return runtime_params.StaticRuntimeParams(
-        mode=self.mode.value,
-        is_explicit=self.is_explicit,
-    )
 
   @abc.abstractmethod
   def build_source(self) -> source_lib.Source:
@@ -68,8 +65,7 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Returns the model function for the source."""
 
   @abc.abstractmethod
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> runtime_params.DynamicRuntimeParams:
-    """Builds dynamic runtime parameters for the source."""
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.RuntimeParams:
+    """Builds runtime parameters for the source."""

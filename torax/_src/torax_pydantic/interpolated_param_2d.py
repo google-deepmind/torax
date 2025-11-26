@@ -15,18 +15,26 @@
 """Classes and functions for defining interpolated parameters."""
 
 from collections.abc import Mapping
+import dataclasses
 import functools
+import logging
 from typing import Any, Literal, TypeAlias
 
 import chex
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import jaxtyping as jt
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 import typing_extensions
 import xarray as xr
+
 
 ValueType: TypeAlias = dict[
     float,
@@ -39,11 +47,13 @@ class Grid1D(model_base.BaseModelFrozen):
 
   Attributes:
     nx: Number of cells.
-    dx: Distance between cell centers.
   """
 
   nx: typing_extensions.Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
-  dx: typing_extensions.Annotated[pydantic.PositiveFloat, model_base.JAX_STATIC]
+
+  @functools.cached_property
+  def dx(self) -> float:
+    return 1 / self.nx
 
   @property
   def face_centers(self) -> np.ndarray:
@@ -62,6 +72,40 @@ class Grid1D(model_base.BaseModelFrozen):
     return hash((self.nx, self.dx))
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class TimeVaryingArrayReplace:
+  """Replacements for TimeVaryingArray."""
+
+  value: jt.Float[jax.Array, 't rhon'] | None = None
+  rho_norm: jt.Float[jax.Array, 'rhon'] | None = None
+  time: jt.Float[jax.Array, 't'] | None = None
+
+  def __post_init__(self):
+    """Consistency checks for the provided values."""
+    if not isinstance(self.value, type(self.rho_norm)):
+      raise ValueError(
+          'If rho_norm is provided, value must also be provided. Got value:'
+          f' {type(self.value)}, rho_norm: {type(self.rho_norm)}'
+      )
+    if self.rho_norm is not None and self.value is not None:
+      rho_norm_shape = self.rho_norm.shape
+      if rho_norm_shape[0] != self.value.shape[1]:
+        raise ValueError(
+            'rho_norm and value must have the same shape. Got rho_norm shape:'
+            f' {rho_norm_shape} and value shape: {self.value.shape}'
+        )
+    if self.value is not None and self.time is not None:
+      if self.value.shape[0] != self.time.shape[0]:
+        raise ValueError(
+            'value and time arrays must have same leading dimension.'
+            f'Got time: {self.time.shape}, value: {self.value.shape}'
+        )
+
+
+_vmap_interp = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 0)))
+
+
 class TimeVaryingArray(model_base.BaseModelFrozen):
   """Base class for time interpolated array types.
 
@@ -77,12 +121,9 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       1.0`, and the mapping is ordered by increasing `time`.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
-    grid_face_centers: The face centers of the grid to use for the
-      interpolation. This is optional, as this value is often not known at
-      construction time, and is set later.
-    grid_cell_centers: The cell centers of the grid to use for the
-      interpolation. This is optional, as this value is often not known at
-      construction time, and is set later.
+    grid: The grid to use for the interpolation. This is optional, as this value
+      is often not known at construction time, and is set later. This grid is
+      required to call `get_value`.
   """
 
   value: ValueType
@@ -98,9 +139,9 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     children = (
         self.value,
         # Save out the cached interpolated params.
-        self._get_cached_interpolated_param_cell,
-        self._get_cached_interpolated_param_face,
-        self._get_cached_interpolated_param_face_right,
+        self.get_cached_interpolated_param_cell,
+        self.get_cached_interpolated_param_face,
+        self.get_cached_interpolated_param_face_right,
     )
     aux_data = (
         self.rho_interpolation_mode,
@@ -120,9 +161,9 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
     # Plug back in the cached interpolated params to avoid losing the cache.
     # pylint: disable=protected-access
-    obj._get_cached_interpolated_param_cell = children[1]
-    obj._get_cached_interpolated_param_face = children[2]
-    obj._get_cached_interpolated_param_face_right = children[3]
+    obj.get_cached_interpolated_param_cell = children[1]
+    obj.get_cached_interpolated_param_face = children[2]
+    obj.get_cached_interpolated_param_face_right = children[3]
     # pylint: enable=protected-access
     return obj
 
@@ -139,13 +180,13 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       self,
       t: chex.Numeric,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
-  ) -> chex.Array:
+  ) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time.
 
     Args:
       t: An array of times to interpolate at.
       grid_type: One of 'cell', 'face', or 'face_right'. For 'face_right', the
-        element `self.grid_face_centers[-1]` is used as the grid.
+        element `self.grid.face_centers[-1]` is used as the grid.
 
     Raises:
       RuntimeError: If `self.grid` is None.
@@ -155,13 +196,73 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     """
     match grid_type:
       case 'cell':
-        return self._get_cached_interpolated_param_cell.get_value(t)
+        return self.get_cached_interpolated_param_cell.get_value(t)
       case 'face':
-        return self._get_cached_interpolated_param_face.get_value(t)
+        return self.get_cached_interpolated_param_face.get_value(t)
       case 'face_right':
-        return self._get_cached_interpolated_param_face_right.get_value(t)
+        return self.get_cached_interpolated_param_face_right.get_value(t)
       case _:
         raise ValueError(f'Unknown grid type: {grid_type}')
+
+  def update(
+      self, replace_value: TimeVaryingArrayReplace
+  ) -> typing_extensions.Self:
+    """This method can be used under `jax.jit`."""
+    assert self.grid is not None, 'grid must be set to update.'
+
+    time = (
+        replace_value.time
+        if replace_value.time is not None
+        else self.get_cached_interpolated_param_cell.xs
+    )
+    if replace_value.rho_norm is not None and replace_value.value is not None:
+      logging.info(
+          'Linearly interpolating provided values and grid onto TORAX grid in'
+          ' interval [0, 1]. Constant extrapolation is used outside provided'
+          ' intervals.'
+      )
+      cell_value = _vmap_interp(
+          self.grid.cell_centers, replace_value.rho_norm, replace_value.value
+      )
+      face_value = _vmap_interp(
+          self.grid.face_centers, replace_value.rho_norm, replace_value.value
+      )
+      face_right_value = _vmap_interp(
+          self.grid.face_centers[-1],
+          replace_value.rho_norm,
+          replace_value.value,
+      )
+    else:
+      cell_value = self.get_cached_interpolated_param_cell.ys
+      face_value = self.get_cached_interpolated_param_face.ys
+      face_right_value = self.get_cached_interpolated_param_face_right.ys
+
+    # All of these should have a leading `time` dimension.
+    chex.assert_tree_shape_prefix(
+        (time, cell_value, face_value, face_right_value), time.shape
+    )
+
+    def get_leaves(
+        x: typing_extensions.Self,
+    ) -> tuple[
+        chex.Array, chex.Array, chex.Array, chex.Array, chex.Array, chex.Array
+    ]:
+      # We need to update the time (xs) and value (ys) arrays for all
+      # cached interpolated params.
+      return (
+          x.get_cached_interpolated_param_cell.xs,
+          x.get_cached_interpolated_param_cell.ys,
+          x.get_cached_interpolated_param_face.xs,
+          x.get_cached_interpolated_param_face.ys,
+          x.get_cached_interpolated_param_face_right.xs,
+          x.get_cached_interpolated_param_face_right.ys,
+      )
+
+    return eqx.tree_at(
+        get_leaves,
+        self,
+        (time, cell_value, time, face_value, time, face_right_value),
+    )
 
   def __eq__(self, other: typing_extensions.Self):
     try:
@@ -241,14 +342,15 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     elif isinstance(data, tuple):
       values = []
       for v in data:
-        if isinstance(v, chex.Array):
+        if isinstance(v, array_typing.Array):
           values.append(v)
         elif isinstance(v, list):
           values.append(np.asarray(v))
         else:
           raise ValueError(
               'Input to TimeVaryingArray unsupported. Input was of type:'
-              f' {type(v)}. Expected chex.Array or list of floats/ints/bools.'
+              f' {type(v)}. Expected array_typing.Array or list of'
+              ' floats/ints/bools.'
           )
       value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
@@ -266,7 +368,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
   @functools.cached_property
-  def _get_cached_interpolated_param_cell(
+  def get_cached_interpolated_param_cell(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
     if self.grid is None:
@@ -280,7 +382,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
   @functools.cached_property
-  def _get_cached_interpolated_param_face(
+  def get_cached_interpolated_param_face(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
     if self.grid is None:
@@ -294,7 +396,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
   @functools.cached_property
-  def _get_cached_interpolated_param_face_right(
+  def get_cached_interpolated_param_face_right(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
     if self.grid is None:
@@ -325,7 +427,7 @@ def _load_from_primitives(
         Mapping[float, interpolated_param.InterpolatedVarSingleAxisInput]
         | float
     ),
-) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+) -> Mapping[float, tuple[array_typing.Array, array_typing.Array]]:
   """Loads the data from primitives.
 
   Three cases are supported:
@@ -365,7 +467,7 @@ def _load_from_primitives(
 
 
 def _load_from_arrays(
-    arrays: tuple[chex.Array, ...] | xr.DataArray,
+    arrays: tuple[array_typing.Array, ...] | xr.DataArray,
 ) -> Mapping[float, tuple[np.ndarray, np.ndarray]]:
   """Loads the data from numpy arrays.
 
@@ -441,7 +543,6 @@ def set_grid(
     # the same NumPy arrays.
     new_grid = Grid1D.model_construct(
         nx=grid.nx,
-        dx=grid.dx,
         face_centers=grid.face_centers,
         cell_centers=grid.cell_centers,
     )
@@ -463,6 +564,15 @@ def set_grid(
       _update_rule(submodel)
 
 
+def _is_non_negative(
+    time_varying_array: TimeVaryingArray,
+) -> TimeVaryingArray:
+  for _, value in time_varying_array.value.values():
+    if not np.all(value >= 0.0):
+      raise ValueError('All values must be non-negative.')
+  return time_varying_array
+
+
 # The Torax mesh objects will generally have the same grid parameters. Thus
 # a global cache prevents recomputing the same linspaces for each mesh.
 @functools.cache
@@ -473,3 +583,7 @@ def _get_face_centers(nx: int, dx: float) -> np.ndarray:
 @functools.cache
 def _get_cell_centers(nx: int, dx: float) -> np.ndarray:
   return np.linspace(dx * 0.5, (nx - 0.5) * dx, nx)
+
+NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingArray, pydantic.AfterValidator(_is_non_negative)
+]

@@ -85,39 +85,28 @@ class SawtoothModelTest(parameterized.TestCase):
         },
     }
     torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
-
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
+    self._torax_config = torax_config
 
     solver = torax_config.solver.build_solver(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=torax_config.build_physics_models(),
     )
 
     geometry_provider = torax_config.geometry.build_provider
-    static_runtime_params_slice = (
-        build_runtime_params.build_static_params_from_config(torax_config)
-    )
-    dynamic_runtime_params_slice_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
+    self.runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
 
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
         time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-        static_runtime_params_slice=static_runtime_params_slice,
         geometry_provider=geometry_provider,
-        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+        runtime_params_provider=self.runtime_params_provider,
     )
 
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             t=torax_config.numerics.t_initial,
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+            runtime_params_provider=self.runtime_params_provider,
             geometry_provider=geometry_provider,
             step_fn=self.step_fn,
         )
@@ -125,9 +114,14 @@ class SawtoothModelTest(parameterized.TestCase):
 
   def test_sawtooth_crash(self):
     """Tests that default values lead to crash and compares post-crash to ref."""
-    output_state, _, sim_error = self.step_fn(
+    output_state, _ = self.step_fn(
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
+    )
+    sim_error = step_function.check_for_errors(
+        self.runtime_params_provider.numerics,
+        output_state,
+        self.initial_post_processed_outputs,
     )
 
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
@@ -160,9 +154,14 @@ class SawtoothModelTest(parameterized.TestCase):
             self.initial_state.core_profiles, q_face=raised_q_face
         ),
     )
-    output_state, _, sim_error = self.step_fn(
+    output_state, _ = self.step_fn(
         input_state=initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
+    )
+    sim_error = step_function.check_for_errors(
+        self.runtime_params_provider.numerics,
+        output_state,
+        self.initial_post_processed_outputs,
     )
     np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
     np.testing.assert_equal(
@@ -176,7 +175,7 @@ class SawtoothModelTest(parameterized.TestCase):
   def test_no_subsequent_sawtooth_crashes(self):
     """Tests for no subsequent sawtooth crashes even if q in trigger condition."""
     # This crashes
-    output_state0, post_processed_outputs0, _ = self.step_fn(
+    output_state0, post_processed_outputs0 = self.step_fn(
         input_state=self.initial_state,
         previous_post_processed_outputs=self.initial_post_processed_outputs,
     )
@@ -198,13 +197,23 @@ class SawtoothModelTest(parameterized.TestCase):
             self.initial_state.core_profiles,
             q_face=self.initial_state.core_profiles.q_face,
         ),
-        solver_numeric_outputs=state.SolverNumericOutputs(sawtooth_crash=False),
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            inner_solver_iterations=np.array(0, np.int64),
+            outer_solver_iterations=np.array(0, np.int64),
+            solver_error_state=np.array(0, np.int64),
+            sawtooth_crash=False,
+        ),
     )
 
     with self.subTest('no_subsequent_sawtooth_crashes'):
-      output_state_should_not_crash, _, sim_error = self.step_fn(
+      output_state_should_not_crash, _ = self.step_fn(
           input_state=new_input_state_should_not_crash,
           previous_post_processed_outputs=post_processed_outputs0,
+      )
+      sim_error = step_function.check_for_errors(
+          self.runtime_params_provider.numerics,
+          output_state_should_not_crash,
+          post_processed_outputs0,
       )
       np.testing.assert_equal(sim_error, state.SimError.NO_ERROR)
       np.testing.assert_equal(
@@ -220,7 +229,7 @@ class SawtoothModelTest(parameterized.TestCase):
       )
 
     with self.subTest('crashes_if_sawtooth_crash_is_false'):
-      output_state_should_crash, _, sim_error = self.step_fn(
+      output_state_should_crash, _ = self.step_fn(
           input_state=new_input_state_should_crash,
           previous_post_processed_outputs=post_processed_outputs0,
       )

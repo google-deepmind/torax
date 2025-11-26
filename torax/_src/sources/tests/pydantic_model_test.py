@@ -15,7 +15,11 @@ from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 import numpy as np
+from torax._src import jax_utils
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source
@@ -158,7 +162,7 @@ class PydanticModelTest(parameterized.TestCase):
             ),
         },
     })
-    mesh = torax_pydantic.Grid1D(nx=4, dx=0.25)
+    mesh = torax_pydantic.Grid1D(nx=4,)
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertLen(source.prescribed_values, 1)
@@ -223,6 +227,141 @@ class PydanticModelTest(parameterized.TestCase):
         'Both bremsstrahlung and impurity_radiation',
     ):
       pydantic_model.Sources.from_dict(invalid_config)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='bremsstrahlung',
+          source_name='bremsstrahlung',
+          model_name='wesson',
+          field_to_update='use_relativistic_correction',
+          initial_value=False,
+          updated_value=True,
+      ),
+      dict(
+          testcase_name='cyclotron_radiation',
+          source_name='cyclotron_radiation',
+          model_name='albajar_artaud',
+          field_to_update='wall_reflection_coeff',
+          initial_value=0.9,
+          updated_value=0.8,
+      ),
+      dict(
+          testcase_name='ecrh',
+          source_name='ecrh',
+          model_name='gaussian_lin_liu',
+          field_to_update='P_total',
+          initial_value=0.0,
+          updated_value=1e6,
+      ),
+      dict(
+          testcase_name='ei_exchange',
+          source_name='ei_exchange',
+          model_name=None,
+          field_to_update='Qei_multiplier',
+          initial_value=1.0,
+          updated_value=2.0,
+      ),
+      dict(
+          testcase_name='gas_puff',
+          source_name='gas_puff',
+          model_name='exponential',
+          field_to_update='S_total',
+          initial_value=1e22,
+          updated_value=2e22,
+      ),
+      dict(
+          testcase_name='generic_current',
+          source_name='generic_current',
+          model_name='gaussian',
+          field_to_update='use_absolute_current',
+          initial_value=False,
+          updated_value=True,
+      ),
+      dict(
+          testcase_name='generic_heat',
+          source_name='generic_heat',
+          model_name='gaussian',
+          field_to_update='P_total',
+          initial_value=120e6,
+          updated_value=130e6,
+      ),
+      dict(
+          testcase_name='generic_particle',
+          source_name='generic_particle',
+          model_name='gaussian',
+          field_to_update='S_total',
+          initial_value=1e22,
+          updated_value=2e22,
+      ),
+      dict(
+          testcase_name='icrh',
+          source_name='icrh',
+          model_name='toric_nn',
+          field_to_update='wall_inner',
+          initial_value=1.24,
+          updated_value=1.25,
+      ),
+      dict(
+          testcase_name='impurity_radiation_mavrin_fit',
+          source_name='impurity_radiation',
+          model_name='mavrin_fit',
+          field_to_update='radiation_multiplier',
+          initial_value=1.0,
+          updated_value=2.0,
+      ),
+      dict(
+          testcase_name='impurity_radiation_constant_fraction',
+          source_name='impurity_radiation',
+          model_name='P_in_scaled_flat_profile',
+          field_to_update='fraction_P_heating',
+          initial_value=0.1,
+          updated_value=0.2,
+      ),
+      dict(
+          testcase_name='pellet',
+          source_name='pellet',
+          model_name='gaussian',
+          field_to_update='S_total',
+          initial_value=2e22,
+          updated_value=3e22,
+      ),
+  )
+  def test_sources_under_jit(
+      self,
+      source_name,
+      model_name,
+      field_to_update,
+      initial_value,
+      updated_value,
+  ):
+    config_dict = {
+        source_name: {field_to_update: initial_value}
+    }
+    if model_name is not None:
+      config_dict[source_name]['model_name'] = model_name
+    sm = pydantic_model.Sources.from_dict(config_dict)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(sm, geo.torax_mesh)
+
+    @jax.jit
+    def f(sources: pydantic_model.Sources):
+      source = sources.source_model_config[source_name]
+      return source.build_runtime_params(t=0.0)
+
+    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+      output = f(sm)
+      output_field = getattr(output, field_to_update)
+      chex.assert_trees_all_close(output_field, initial_value)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('second_jit_updates_value_without_recompile'):
+      sm._update_fields({f'{source_name}.{field_to_update}': updated_value})
+      # Update the grid for any recreated TimeVaryingArrays.
+      torax_pydantic.set_grid(sm, geo.torax_mesh, mode='relaxed')
+      output = f(sm)
+      output_field = getattr(output, field_to_update)
+      chex.assert_trees_all_close(output_field, updated_value)
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
 if __name__ == '__main__':

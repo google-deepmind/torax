@@ -66,13 +66,13 @@ class PydanticModelTest(parameterized.TestCase):
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+                'geometry_file': 'iterhybrid.mat2cols',
                 'R_major': 6.2,
                 'a_minor': 2.0,
                 'B_0': 5.3,
             },
             1.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+                'geometry_file': 'iterhybrid.mat2cols',
                 'R_major': 6.2,
                 'a_minor': 2.0,
                 'B_0': 5.3,
@@ -85,7 +85,9 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         geo_provider, standard_geometry.StandardGeometryProvider
     )
-    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
+    self.assertIsInstance(
+        geo_provider(t=0.0), standard_geometry.StandardGeometry
+    )
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
 
   @parameterized.parameters([
@@ -103,13 +105,13 @@ class PydanticModelTest(parameterized.TestCase):
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+                'geometry_file': 'iterhybrid.mat2cols',
                 'R_major': 6.2,
                 'a_minor': 2.0,
                 'B_0': 5.3,
             },
             1.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+                'geometry_file': 'iterhybrid.mat2cols',
                 'R_major': 6.2,
                 'a_minor': 2.0,
                 'B_0': 5.3,
@@ -137,22 +139,20 @@ class PydanticModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     runtime_params_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
-            torax_config
-        )
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
-    dynamic_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=0,
-            dynamic_runtime_params_slice_provider=runtime_params_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
     original_Ip = torax_config.profile_conditions.Ip
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    self.assertIsNotNone(dynamic_slice)
+    self.assertIsNotNone(runtime_params)
     self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip, original_Ip.value[0]
+        runtime_params.profile_conditions.Ip, original_Ip.value[0]
     )
     # pylint: enable=invalid-name
 
@@ -175,10 +175,11 @@ class PydanticModelTest(parameterized.TestCase):
   def test_failed_test(self):
     config = {
         'geometry_type': 'eqdsk',
-        'geometry_file': 'EQDSK_ITERhybrid_COCOS02.eqdsk',
+        'geometry_file': 'iterhybrid_cocos02.eqdsk',
         'Ip_from_parameters': True,
         'last_surface_factor': 0.99,
         'n_surfaces': 100,
+        'cocos': 2,
     }
     pydantic_model.Geometry.from_dict(config)
 

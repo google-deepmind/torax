@@ -70,7 +70,7 @@ is outlined in our readthedocs pages.
 
 ### Requirements
 
-Install Python 3.10 or greater.
+Install Python 3.11 or greater.
 
 Make sure that tkinter is installed:
 
@@ -163,10 +163,10 @@ $ export TORAX_ERRORS_ENABLED=<True/False>
 ##### JAX Compilation and Cache
 
 If false, JAX does not compile internal TORAX functions. Used for debugging.
-Default is true.
+Default is False.
 
 ```shell
-$ export TORAX_COMPILATION_ENABLED=<True/False>
+$ export JAX_DISABLE_JIT=<True/False>
 ```
 
 The following implements the JAX persistent cache and will cause jax to store
@@ -194,6 +194,15 @@ run_torax \
 run_torax \
    --config=examples/iterhybrid_predictor_corrector.py \
    --output_dir=/path/to/output/dir
+```
+
+### Running Tests with Full Assertion Checks
+
+To run the pytest test suite with all assertion checks enabled, you can use the
+following command:
+
+```shell
+TORAX_JAXTYPING=True TORAX_ERRORS_ENABLED=True pytest . -n auto
 ```
 
 ### Post-simulation

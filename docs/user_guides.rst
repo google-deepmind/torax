@@ -16,7 +16,7 @@ input and output, the TORAX equation summary, solver details, and physics model 
    running_programmatically
    running_muscle3
    plotting
-   cache
+   using_jax
 
 .. toctree::
    :maxdepth: 1

@@ -13,18 +13,18 @@
 # limitations under the License.
 """Generic particle source for the n_e equation."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import formulas
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -37,33 +37,27 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
 
 # pylint: disable=invalid-name
 def calc_generic_particle_source(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates external source term for n from SBI."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(
-      dynamic_source_runtime_params,
-      DynamicParticleRuntimeParams,
-  )
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=dynamic_source_runtime_params.deposition_location,
-          width=dynamic_source_runtime_params.particle_width,
-          total=dynamic_source_runtime_params.S_total,
+          center=source_params.deposition_location,
+          width=source_params.particle_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
 
@@ -81,10 +75,10 @@ class GenericParticleSource(source.Source):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  particle_width: array_typing.ScalarFloat
-  deposition_location: array_typing.ScalarFloat
-  S_total: array_typing.ScalarFloat
+class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
+  particle_width: array_typing.FloatScalar
+  deposition_location: array_typing.FloatScalar
+  S_total: array_typing.FloatScalar
 
 
 class GenericParticleSourceConfig(base.SourceModelBase):
@@ -99,7 +93,9 @@ class GenericParticleSourceConfig(base.SourceModelBase):
       etc.)
   """
 
-  model_name: Literal['gaussian'] = 'gaussian'
+  model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
+      'gaussian'
+  )
   particle_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
@@ -109,20 +105,24 @@ class GenericParticleSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[
+      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
+  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return calc_generic_particle_source
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicParticleRuntimeParams:
-    return DynamicParticleRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),

@@ -16,6 +16,7 @@
 
 import dataclasses
 import functools
+from typing import Annotated
 
 import chex
 import jax
@@ -26,10 +27,9 @@ from typing_extensions import Self
 
 
 # pylint: disable=invalid-name
-# TODO(b/326578331): remove density reference from DynamicNumerics entirely.
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
-class DynamicNumerics:
+class RuntimeParams:
   """Generic numeric parameters for the simulation.
 
   For definitions see `Numerics`.
@@ -40,9 +40,9 @@ class DynamicNumerics:
   max_dt: float
   min_dt: float
   chi_timestep_prefactor: float
-  fixed_dt: float
+  fixed_dt: array_typing.FloatScalar
   dt_reduction_factor: float
-  resistivity_multiplier: array_typing.ScalarFloat
+  resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
@@ -51,7 +51,6 @@ class DynamicNumerics:
   evolve_density: bool = dataclasses.field(metadata={'static': True})
   exact_t_final: bool = dataclasses.field(metadata={'static': True})
   adaptive_dt: bool = dataclasses.field(metadata={'static': True})
-  calcphibdot: bool = dataclasses.field(metadata={'static': True})
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
@@ -96,9 +95,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       evolves over time)
     evolve_current: Solve the current equation (current evolves over time).
     evolve_density: Solve the density equation (n evolves over time).
-    calcphibdot: Calculate Phibdot in the geometry dataclasses. This is used in
-      calc_coeffs to calculate terms related to time-dependent geometry. Can set
-      to false to zero out for testing purposes.
     resistivity_multiplier:  1/multiplication factor for sigma (conductivity) to
       reduce current diffusion timescale to be closer to heat diffusion
       timescale
@@ -110,18 +106,20 @@ class Numerics(torax_pydantic.BaseModelFrozen):
 
   t_initial: torax_pydantic.Second = 0.0
   t_final: torax_pydantic.Second = 5.0
-  exact_t_final: bool = True
+  exact_t_final: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  # TODO(b/434175938) move these to the various time step calculator configs.
   max_dt: torax_pydantic.Second = 2.0
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
-  fixed_dt: torax_pydantic.Second = 1e-1
-  adaptive_dt: bool = True
+  fixed_dt: torax_pydantic.NonNegativeTimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(1e-1)
+  )
+  adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
-  evolve_ion_heat: bool = True
-  evolve_electron_heat: bool = True
-  evolve_current: bool = False
-  evolve_density: bool = False
-  calcphibdot: bool = True
+  evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  evolve_density: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -157,18 +155,15 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicNumerics:
-    """Builds a DynamicNumerics object for time t."""
-    return DynamicNumerics(
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    """Builds a RuntimeParams object for time t."""
+    return RuntimeParams(
         t_initial=self.t_initial,
         t_final=self.t_final,
         max_dt=self.max_dt,
         min_dt=self.min_dt,
         chi_timestep_prefactor=self.chi_timestep_prefactor,
-        fixed_dt=self.fixed_dt,
+        fixed_dt=self.fixed_dt.get_value(t),
         dt_reduction_factor=self.dt_reduction_factor,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
@@ -179,5 +174,4 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         evolve_density=self.evolve_density,
         exact_t_final=self.exact_t_final,
         adaptive_dt=self.adaptive_dt,
-        calcphibdot=self.calcphibdot,
     )

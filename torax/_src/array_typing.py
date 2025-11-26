@@ -13,11 +13,44 @@
 # limitations under the License.
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
-import chex
-import jaxtyping as jt
 
-ScalarFloat = jt.Float[chex.Array | float, ""]
-ScalarBool = jt.Bool[chex.Array | bool, ""]
-ScalarInt = jt.Int[chex.Array | int, ""]
-ArrayFloat = jt.Float[chex.Array, "rhon"]
-ArrayBool = jt.Bool[chex.Array, "rhon"]
+from typing import TypeAlias, TypeVar
+import jax
+import jaxtyping as jt
+import numpy as np
+from torax._src import jax_utils
+import typeguard
+
+T = TypeVar("T")
+
+Array: TypeAlias = jax.Array | np.ndarray
+
+FloatScalar: TypeAlias = jt.Float[Array | float, ""]
+BoolScalar: TypeAlias = jt.Bool[Array | bool, ""]
+IntScalar: TypeAlias = jt.Int[Array | int, ""]
+
+FloatVector: TypeAlias = jt.Float[Array, "_"]
+BoolVector: TypeAlias = jt.Bool[Array, "_"]
+FloatVectorCell: TypeAlias = jt.Float[Array, "rhon"]
+FloatVectorCellPlusBoundaries: TypeAlias = jt.Float[Array, "rhon+2"]
+FloatMatrixCell: TypeAlias = jt.Float[Array, "rhon rhon"]
+FloatVectorFace: TypeAlias = jt.Float[Array, "rhon+1"]
+
+
+def jaxtyped(fn: T) -> T:
+  """Function and dataclass decorator to perform runtime type-checking.
+
+  This will perform jaxtyping runtime type checking if the environment variable
+  `TORAX_JAXTYPING` is set to "true" (default is "false").
+
+  Args:
+    fn: The function to decorate.
+
+  Returns:
+    The decorated function.
+  """
+  runtime_checking = jax_utils.env_bool(name="TORAX_JAXTYPING", default=False)
+  if runtime_checking:
+    return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
+  else:
+    return fn

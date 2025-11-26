@@ -19,11 +19,9 @@ import functools
 
 import jax
 from jax import numpy as jnp
-from torax._src import jax_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.time_step_calculator import runtime_params
 
 
 class TimeStepCalculator(abc.ABC):
@@ -36,48 +34,45 @@ class TimeStepCalculator(abc.ABC):
     ts = <TimeStepCalculator subclass constructor>
     ts_state = ts.initial_state()
     t = 0.
-    while ts.not_done(t):
+    while not ts.is_done(t):
       dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
       t += dt
       sim_state = <update sim_state with step of size dt>
   """
 
-  def not_done(
-      self,
-      t: float | jax.Array,
-      t_final: float,
-      dynamic_params: runtime_params.DynamicRuntimeParams,
+  def is_done(
+      self, t: float | jax.Array, t_final: float, tolerance: float
   ) -> bool | jax.Array:
-    return t < (t_final - dynamic_params.tolerance)
+    return t >= (t_final - tolerance)
 
   @functools.partial(
-      jax_utils.jit,
+      jax.jit,
       static_argnames=['self'],
   )
   def next_dt(
       self,
       t: jax.Array,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_transport: state.CoreTransport,
   ) -> jax.Array:
     """Returns the next time step duration."""
     dt = self._next_dt(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         core_transport,
     )
-    crosses_t_final = (t < dynamic_runtime_params_slice.numerics.t_final) * (
-        t + dt > dynamic_runtime_params_slice.numerics.t_final
+    crosses_t_final = (t < runtime_params.numerics.t_final) * (
+        t + dt > runtime_params.numerics.t_final
     )
     dt = jax.lax.select(
         jnp.logical_and(
-            dynamic_runtime_params_slice.numerics.exact_t_final,
+            runtime_params.numerics.exact_t_final,
             crosses_t_final,
         ),
-        dynamic_runtime_params_slice.numerics.t_final - t,
+        runtime_params.numerics.t_final - t,
         dt,
     )
     return dt
@@ -85,20 +80,12 @@ class TimeStepCalculator(abc.ABC):
   @abc.abstractmethod
   def _next_dt(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_transport: state.CoreTransport,
   ) -> jax.Array:
-    """Returns the next time step duration.
-
-    Args:
-      dynamic_runtime_params_slice: Input runtime parameters that can change
-        without triggering a JAX recompilation.
-      geo: Geometry for the Tokamak.
-      core_profiles: Core plasma profiles in the tokamak.
-      core_transport: Transport coefficients.
-    """
+    """Returns the next time step duration."""
 
   @abc.abstractmethod
   def __eq__(self, other) -> bool:

@@ -18,11 +18,11 @@ tensors for the neural network.
       ...
       def _call_implementation(
           self,
-          dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+          runtime_params: runtime_params_slice.RuntimeParams,
           geo: geometry.Geometry,
           core_profiles: state.CoreProfiles,
       ) -> TurbulentTransport:
-        input_tensor = self._prepare_input(dynamic_runtime_params_slice, geo, core_profiles)
+        input_tensor = self._prepare_input(runtime_params, geo, core_profiles)
 
         output_tensor = self._call_surrogate_model(input_tensor)
 
@@ -51,7 +51,7 @@ the full power of JAX:
     (for an example, see the |QuaLiKiz| transport model implementation) if the
     linear solver is used. However, note that if the model is called within the
     step function, JIT will need to be disabled with
-    ``TORAX_COMPILATION_ENABLED=0``.
+    ``JAX_DISABLE_JIT=True``.
 
 
 Option 1: manually reimplementing the model in JAX
@@ -247,6 +247,11 @@ To convert the ONNX model to a JAX representation, you can use the
     jax_model_from_onnx = ONNXJaxBackend.prepare(onnx_model)
     # NOTE: run() returns a list of output tensors, in order of the output nodes
     output_tensors = jax.jit(jax_model_from_onnx.run)({"input": jnp.asarray(input_tensor, dtype=jnp.float32)})
+
+
+Option 4: using a JAX callback
+==============================
+For more information see :ref:`using_jax`.
 
 
 Best practices

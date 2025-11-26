@@ -19,21 +19,13 @@ import jax
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class StaticRuntimeParams:
-  """Static params for the solver."""
-
-  theta_implicit: float
-  convection_dirichlet_mode: str
-  convection_neumann_mode: str
-  use_pereverzev: bool
-  use_predictor_corrector: bool
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams:
+class RuntimeParams:
   """Input params for the solver which can be used as compiled args."""
-
+  theta_implicit: float = dataclasses.field(metadata={'static': True})
+  use_predictor_corrector: bool = dataclasses.field(metadata={'static': True})
+  n_corrector_steps: int = dataclasses.field(metadata={'static': True})
+  convection_dirichlet_mode: str = dataclasses.field(metadata={'static': True})
+  convection_neumann_mode: str = dataclasses.field(metadata={'static': True})
+  use_pereverzev: bool = dataclasses.field(metadata={'static': True})
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
-  n_corrector_steps: int

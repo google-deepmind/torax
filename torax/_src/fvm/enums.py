@@ -19,11 +19,11 @@ import enum
 
 
 @enum.unique
-class InitialGuessMode(enum.Enum):
+class InitialGuessMode(enum.StrEnum):
   """Modes for initial guess of x_new for iterative solvers."""
 
   # Initialize x_new = x_old
-  X_OLD = 0
+  X_OLD = 'x_old'
 
   # Use the linear solver to guess x_new
-  LINEAR = 1
+  LINEAR = 'linear'

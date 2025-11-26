@@ -42,72 +42,17 @@ from torax._src.geometry import geometry
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def calculate_main_ion_dilution_factor(
-    Z_i: array_typing.ScalarFloat,
-    Z_impurity: array_typing.ArrayFloat,
-    Z_eff: array_typing.ArrayFloat,
-) -> array_typing.ArrayFloat:
+    Z_i: array_typing.FloatScalar,
+    Z_impurity: array_typing.FloatVector,
+    Z_eff: array_typing.FloatVector,
+) -> array_typing.FloatVector:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
 
-def calculate_pressure(
-    core_profiles: state.CoreProfiles,
-) -> tuple[cell_variable.CellVariable, ...]:
-  """Calculates pressure from density and temperatures.
-
-  Args:
-    core_profiles: CoreProfiles object containing information on temperatures
-      and densities.
-
-  Returns:
-    pressure_thermal_el: Electron thermal pressure [Pa]
-    pressure_thermal_ion: Ion thermal pressure [Pa]
-    pressure_thermal_tot: Total thermal pressure [Pa]
-  """
-
-  pressure_thermal_el = cell_variable.CellVariable(
-      value=core_profiles.n_e.value
-      * core_profiles.T_e.value
-      * constants.CONSTANTS.keV2J,
-      dr=core_profiles.n_e.dr,
-      right_face_constraint=core_profiles.n_e.right_face_constraint
-      * core_profiles.T_e.right_face_constraint
-      * constants.CONSTANTS.keV2J,
-      right_face_grad_constraint=None,
-  )
-
-  pressure_thermal_ion = cell_variable.CellVariable(
-      value=core_profiles.T_i.value
-      * constants.CONSTANTS.keV2J
-      * (core_profiles.n_i.value + core_profiles.n_impurity.value),
-      dr=core_profiles.n_i.dr,
-      right_face_constraint=core_profiles.T_i.right_face_constraint
-      * constants.CONSTANTS.keV2J
-      * (
-          core_profiles.n_i.right_face_constraint
-          + core_profiles.n_impurity.right_face_constraint
-      ),
-      right_face_grad_constraint=None,
-  )
-
-  pressure_thermal_tot = cell_variable.CellVariable(
-      value=pressure_thermal_el.value + pressure_thermal_ion.value,
-      dr=pressure_thermal_el.dr,
-      right_face_constraint=pressure_thermal_el.right_face_constraint
-      + pressure_thermal_ion.right_face_constraint,
-      right_face_grad_constraint=None,
-  )
-
-  return (
-      pressure_thermal_el,
-      pressure_thermal_ion,
-      pressure_thermal_tot,
-  )
-
-
 def calc_pprime(
     core_profiles: state.CoreProfiles,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   r"""Calculates total pressure gradient with respect to poloidal flux.
 
   Args:
@@ -119,7 +64,7 @@ def calc_pprime(
       with respect to the normalized toroidal flux coordinate, on the face grid.
   """
 
-  _, _, p_total = calculate_pressure(core_profiles)
+  p_total_face = core_profiles.pressure_thermal_total.face_value()
   psi = core_profiles.psi.face_value()
   n_e = core_profiles.n_e.face_value()
   n_i = core_profiles.n_i.face_value()
@@ -133,7 +78,7 @@ def calc_pprime(
   dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
 
-  dptot_drhon = constants.CONSTANTS.keV2J * (
+  dptot_drhon = constants.CONSTANTS.keV_to_J * (
       n_e * dte_drhon
       + n_i * dti_drhon
       + n_impurity * dti_drhon
@@ -141,8 +86,6 @@ def calc_pprime(
       + dni_drhon * T_i
       + dnimp_drhon * T_i
   )
-
-  p_total_face = p_total.face_value()
 
   # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
   # difference approximation for second derivative at edge.
@@ -168,7 +111,7 @@ def calc_pprime(
 def calc_FFprime(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-) -> array_typing.ArrayFloat:
+) -> array_typing.FloatVector:
   r"""Calculates FF', an output quantity used for equilibrium coupling.
 
   Calculation is based on the following formulation of the magnetic
@@ -190,11 +133,12 @@ def calc_FFprime(
       respect to the poloidal flux.
   """
 
-  mu0 = constants.CONSTANTS.mu0
+  mu0 = constants.CONSTANTS.mu_0
   pprime = calc_pprime(core_profiles)
   # g3 = <1/R^2>
+  # gm9 = <1/R>
   g3 = geo.g3_face
-  jtor_over_R = core_profiles.j_total_face / geo.R_major
+  jtor_over_R = core_profiles.j_total_face * geo.gm9_face
 
   FFprime_face = -(jtor_over_R / (2 * jnp.pi) + pprime) * mu0 / g3
   return FFprime_face
@@ -205,7 +149,7 @@ def calculate_stored_thermal_energy(
     p_ion: cell_variable.CellVariable,
     p_tot: cell_variable.CellVariable,
     geo: geometry.Geometry,
-) -> tuple[array_typing.ScalarFloat, ...]:
+) -> tuple[array_typing.FloatScalar, ...]:
   """Calculates stored thermal energy from pressures.
 
   Args:
@@ -227,10 +171,10 @@ def calculate_stored_thermal_energy(
 
 
 def calculate_greenwald_fraction(
-    n_e_avg: array_typing.ScalarFloat,
+    n_e_avg: array_typing.FloatScalar,
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates the Greenwald fraction from the averaged electron density.
 
   Different averaging can be used, e.g. volume-averaged or line-averaged.
@@ -255,7 +199,7 @@ def calculate_greenwald_fraction(
 def calculate_betas(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-) -> array_typing.ScalarFloat:
+) -> array_typing.FloatScalar:
   """Calculates the beta_tor, beta_pol, and beta_N plasma beta quantities.
 
   beta_tor is defined as the ratio of volume-averaged plasma pressure to
@@ -286,10 +230,11 @@ def calculate_betas(
   Returns:
     Tuple of beta_tor, beta_pol, and beta_N
   """
-  _, _, p_total = calculate_pressure(core_profiles)
-  p_total_volume_avg = math_utils.volume_average(p_total.value, geo)
+  p_total_volume_avg = math_utils.volume_average(
+      core_profiles.pressure_thermal_total.value, geo
+  )
 
-  magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu0)
+  magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
   beta_tor = p_total_volume_avg / (
       magnetic_pressure_on_axis + constants.CONSTANTS.eps
@@ -300,7 +245,7 @@ def calculate_betas(
       * geo.volume[-1]
       * p_total_volume_avg
       / (
-          constants.CONSTANTS.mu0
+          constants.CONSTANTS.mu_0
           * core_profiles.Ip_profile_face[-1] ** 2
           * geo.R_major
           + constants.CONSTANTS.eps

@@ -19,10 +19,11 @@ import functools
 from typing import TypeAlias
 
 import jax
+import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src import xnp
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -38,9 +39,9 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
 
 @functools.partial(
-    xnp.jit,
+    jax.jit,
     static_argnames=[
-        'static_runtime_params_slice',
+        'physics_models',
         'coeffs_callback',
         'evolving_names',
         'initial_guess_mode',
@@ -48,9 +49,8 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 )
 def optimizer_solve_block(
     dt: jax.Array,
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -79,18 +79,10 @@ def optimizer_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_runtime_params_slice: Static runtime parameters. Changes to these
-      runtime params will trigger recompilation. A key parameter in this params
-      slice is theta_implicit, a coefficient in [0, 1] determining which
-      solution method to use. We solve transient_coeff (x_new - x_old) / dt =
-      theta_implicit F(t_new) + (1 - theta_implicit) F(t_old). Three values of
-      theta_implicit correspond to named solution methods: theta_implicit = 1:
-      Backward Euler implicit method (default). theta_implicit = 0.5:
-      Crank-Nicolson. theta_implicit = 0: Forward Euler explicit method.
-    dynamic_runtime_params_slice_t: Runtime params for time t (the start time of
-      the step). These runtime params can change from step to step without
-      triggering a recompilation.
-    dynamic_runtime_params_slice_t_plus_dt: Runtime params for time t + dt.
+    runtime_params_t: Runtime params for time t (the start time of the step).
+      These runtime params can change from step to step without triggering a
+      recompilation.
+    runtime_params_t_plus_dt: Runtime params for time t + dt.
     geo_t: Geometry object used to initialize auxiliary outputs at time t.
     geo_t_plus_dt: Geometry object used to initialize auxiliary outputs at time
       t + dt.
@@ -127,7 +119,7 @@ def optimizer_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      dynamic_runtime_params_slice_t,
+      runtime_params_t,
       geo_t,
       core_profiles_t,
       x_old,
@@ -144,7 +136,7 @@ def optimizer_solve_block(
       # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          dynamic_runtime_params_slice_t,
+          runtime_params_t,
           geo_t,
           core_profiles_t,
           x_old,
@@ -158,8 +150,7 @@ def optimizer_solve_block(
       )
       init_x_new = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          static_runtime_params_slice=static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
           x_new_guess=x_new_guess,
@@ -176,17 +167,14 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  solver_numeric_outputs = state.SolverNumericOutputs()
-
   # Advance jaxopt_solver by one timestep
   (
       x_new_vec,
       final_loss,
-      solver_numeric_outputs.inner_solver_iterations,
+      inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,
@@ -207,10 +195,17 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  solver_numeric_outputs.solver_error_state = jax.lax.cond(
+  solver_error_state = jax.lax.cond(
       final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
+  )
+
+  solver_numeric_outputs = state.SolverNumericOutputs(
+      inner_solver_iterations=inner_solver_iterations,
+      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_error_state=solver_error_state,
+      sawtooth_crash=False,
   )
 
   return x_new, solver_numeric_outputs

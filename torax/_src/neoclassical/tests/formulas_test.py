@@ -59,26 +59,22 @@ class FormulasTest(parameterized.TestCase):
         'sources': {},
     })
 
-    dynamic_provider = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+    params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )
     )
-    dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            dynamic_runtime_params_slice_provider=dynamic_provider,
+            runtime_params_provider=params_provider,
             geometry_provider=torax_config.geometry.build_provider,
         )
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     self.core_profiles = initialization.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -138,29 +134,29 @@ class FormulasTest(parameterized.TestCase):
 # guards against unexpected modifications.
 _L31_EXPECTED = np.array([
     0.0,
-    0.26066935,
-    0.39309629,
-    0.48129704,
-    0.53726614,
-    0.57173028,
-    0.59029346,
-    0.59193504,
-    0.56909422,
-    0.50068221,
-    0.33686107,
+    0.25942749,
+    0.39198664,
+    0.48032915,
+    0.53634519,
+    0.57082292,
+    0.5894148,
+    0.59111759,
+    0.56839259,
+    0.5001917,
+    0.33682819,
 ])
 _L32_EXPECTED = np.array([
     0.0,
-    -0.03629958,
-    -0.07623998,
-    -0.09369294,
-    -0.09266533,
-    -0.08148761,
-    -0.06304672,
-    -0.03471382,
-    0.01076693,
-    0.08515409,
-    0.16296786,
+    -0.03501634,
+    -0.07505174,
+    -0.09268982,
+    -0.09172278,
+    -0.08055448,
+    -0.06213122,
+    -0.03385067,
+    0.01149523,
+    0.08557197,
+    0.16296924,
 ])
 
 if __name__ == '__main__':

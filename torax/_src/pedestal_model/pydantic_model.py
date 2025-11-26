@@ -14,7 +14,7 @@
 
 """Pydantic config for Pedestal."""
 import abc
-from typing import Literal
+from typing import Annotated, Literal
 
 import chex
 from torax._src.pedestal_model import no_pedestal
@@ -44,10 +44,10 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Builds the pedestal model."""
 
   @abc.abstractmethod
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    """Builds the dynamic params."""
+  ) -> runtime_params.RuntimeParams:
+    """Builds the runtime params."""
 
 
 class SetPpedTpedRatioNped(BasePedestal):
@@ -63,7 +63,9 @@ class SetPpedTpedRatioNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  model_name: Literal['set_P_ped_n_ped'] = 'set_P_ped_n_ped'
+  model_name: Annotated[
+      Literal['set_P_ped_n_ped'], torax_pydantic.JAX_STATIC
+  ] = 'set_P_ped_n_ped'
   P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
@@ -85,10 +87,10 @@ class SetPpedTpedRatioNped(BasePedestal):
         set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
     )
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_pped_tpedratio_nped.DynamicRuntimeParams:
-    return set_pped_tpedratio_nped.DynamicRuntimeParams(
+  ) -> set_pped_tpedratio_nped.RuntimeParams:
+    return set_pped_tpedratio_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
@@ -110,7 +112,9 @@ class SetTpedNped(BasePedestal):
     rho_norm_ped_top: The location of the pedestal top.
   """
 
-  model_name: Literal['set_T_ped_n_ped'] = 'set_T_ped_n_ped'
+  model_name: Annotated[
+      Literal['set_T_ped_n_ped'], torax_pydantic.JAX_STATIC
+  ] = 'set_T_ped_n_ped'
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
   )
@@ -130,10 +134,10 @@ class SetTpedNped(BasePedestal):
   ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
     return set_tped_nped.SetTemperatureDensityPedestalModel()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> set_tped_nped.DynamicRuntimeParams:
-    return set_tped_nped.DynamicRuntimeParams(
+  ) -> set_tped_nped.RuntimeParams:
+    return set_tped_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -146,26 +150,23 @@ class SetTpedNped(BasePedestal):
 class NoPedestal(BasePedestal):
   """A pedestal model for when there is no pedestal.
 
-  This is needed as under jax compilation we have to have a valid value for
-  both branches of the jax.lax.cond. This provides that value whilst being very
-  explicit about the fact that there is no pedestal and simple so minimal
-  compilation time.
-
   Note that setting `set_pedestal` to True with a NoPedestal model is the
   equivalent of setting it to False.
   """
 
-  model_name: Literal['no_pedestal'] = 'no_pedestal'
+  model_name: Annotated[Literal['no_pedestal'], torax_pydantic.JAX_STATIC] = (
+      'no_pedestal'
+  )
 
   def build_pedestal_model(
       self,
   ) -> no_pedestal.NoPedestal:
     return no_pedestal.NoPedestal()
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
+  ) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
     )
 

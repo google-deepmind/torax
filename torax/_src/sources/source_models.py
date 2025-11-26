@@ -17,15 +17,19 @@ import dataclasses
 import functools
 
 import immutabledict
-import jax
+from torax._src import static_dataclass
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class SourceModels:
-  """Source models for the different equations being evolved in Torax."""
+@dataclasses.dataclass(frozen=True, eq=False)
+class SourceModels(static_dataclass.StaticDataclass):
+  """Source models for the different equations being evolved in Torax.
+
+  This class is intended for use as a static argument to jitted Jax
+  functions. It is thus immutable and supports comparison and hashing
+  by value, and is not a pytree.
+  """
 
   qei_source: qei_source_lib.QeiSource
   standard_sources: immutabledict.immutabledict[str, source_lib.Source]
@@ -38,19 +42,3 @@ class SourceModels:
         for name, source in self.standard_sources.items()
         if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles
     })
-
-  def __hash__(self) -> int:
-    hashes = [hash(self.standard_sources)]
-    hashes.append(hash(self.qei_source))
-    return hash(tuple(hashes))
-
-  def __eq__(self, other) -> bool:
-    if set(self.standard_sources.keys()) == set(other.standard_sources.keys()):
-      return (
-          all(
-              self.standard_sources[name] == other.standard_sources[name]
-              for name in self.standard_sources.keys()
-          )
-          and self.qei_source == other.qei_source
-      )
-    return False

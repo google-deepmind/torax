@@ -13,21 +13,24 @@
 # limitations under the License.
 """Common formulas used in neoclassical models."""
 
-import chex
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src.geometry import geometry as geometry_lib
 
 # pylint: disable=invalid-name
 
 
-def calculate_f_trap(geo: geometry_lib.Geometry) -> chex.Array:
+def calculate_f_trap(
+    geo: geometry_lib.Geometry,
+) -> array_typing.FloatVectorFace:
   """Calculates the effective trapped particle fraction.
 
   From O. Sauter, Fusion Engineering and Design 112 (2016) 633-645. Eqs 33+34.
 
   Args:
     geo: The magnetic geometry.
+
   Returns:
     The effective trapped particle fraction.
   """
@@ -44,10 +47,10 @@ def calculate_f_trap(geo: geometry_lib.Geometry) -> chex.Array:
 
 
 def calculate_L31(
-    f_trap: chex.Array,
-    nu_e_star: chex.Array,
-    Z_eff: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the L31 Sauter coefficient: Sauter PoP 1999 Eqs. 14a + 14b."""
   denom = (
       1.0
@@ -63,10 +66,10 @@ def calculate_L31(
 
 
 def calculate_L32(
-    f_trap: chex.Array,
-    nu_e_star: chex.Array,
-    Z_eff: chex.Array,
-) -> chex.Array:
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the L32 Sauter coefficient: Sauter PoP 1999 Eqs. 15a-e."""
   ft32ee = f_trap / (
       1
@@ -104,13 +107,13 @@ def calculate_L32(
 # TODO(b/428166775): currently we have two very similar implementations for
 # nu_e_star. We should refactor this to have a single one in physics/collisions
 def calculate_nu_e_star(
-    q: chex.Array,
+    q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
-    n_e: chex.Array,
-    T_e: chex.Array,
-    Z_eff: chex.Array,
-    log_lambda_ei: chex.Array,
-) -> chex.Array:
+    n_e: array_typing.FloatVectorFace,
+    T_e: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+    log_lambda_ei: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the electron collisionality, nu_e_star.
 
   This is the electron collisionality, defined as the ratio of the electron
@@ -130,7 +133,7 @@ def calculate_nu_e_star(
   return (
       6.921e-18
       * q
-      * geo.R_major
+      * geo.R_major_profile_face
       * n_e
       * Z_eff
       * log_lambda_ei
@@ -142,13 +145,13 @@ def calculate_nu_e_star(
 
 
 def calculate_nu_i_star(
-    q: chex.Array,
+    q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
-    n_i: chex.Array,
-    T_i: chex.Array,
-    Z_eff: chex.Array,
-    log_lambda_ii: chex.Array,
-) -> chex.Array:
+    n_i: array_typing.FloatVectorFace,
+    T_i: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+    log_lambda_ii: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
   """Calculates the ion collisionality, nu_i_star.
 
   This is the ion collisionality, defined as the ratio of the ion
@@ -168,7 +171,7 @@ def calculate_nu_i_star(
   return (
       4.9e-18
       * q
-      * geo.R_major
+      * geo.R_major_profile_face
       * n_i
       * Z_eff**4
       * log_lambda_ii

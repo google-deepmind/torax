@@ -15,6 +15,7 @@
 """Pydantic config for time step calculators."""
 
 import enum
+from typing import Annotated
 
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
@@ -36,15 +37,17 @@ class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
 
   Attributes:
     calculator_type: The type of time step calculator to use.
-    tolerance: The tolerance within the final time for which the simulation
-      will be considered done.
+    tolerance: The tolerance within the final time for which the simulation will
+      be considered done.
   """
 
-  calculator_type: TimeStepCalculatorType = TimeStepCalculatorType.CHI
+  calculator_type: Annotated[
+      TimeStepCalculatorType, torax_pydantic.JAX_STATIC
+  ] = TimeStepCalculatorType.CHI
   tolerance: float = 1e-7
 
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(tolerance=self.tolerance)
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(tolerance=self.tolerance)
 
   @property
   def time_step_calculator(self) -> time_step_calculator.TimeStepCalculator:

@@ -19,21 +19,21 @@ previously executed TORAX reference:
 """
 
 import copy
-import dataclasses
+import os
 from typing import Final, Sequence
-from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from jax import tree
 import numpy as np
 from torax._src import state
-from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
-from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import file_restart as file_restart_pydantic
 from torax._src.torax_pydantic import model_config
+import xarray as xr
+
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_I,
@@ -122,11 +122,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test_chease',
           'test_chease.py',
       ),
-      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
-      (
-          'test_eqdsk',
-          'test_eqdsk.py',
-      ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE
       (
@@ -186,6 +181,10 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_eqdsk',
           'test_iterhybrid_predictor_corrector_eqdsk.py',
+          _ALL_PROFILES,
+          1e-6,
+          0,
+          'test_iterhybrid_predictor_corrector_eqdsk.nc',
       ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
@@ -222,6 +221,16 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation',
           'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
       ),
+      # Predictor-corrector with Mavrin radiation and n_e_ratios impurity mode.
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios',
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios.py',
+      ),
+      # Predictor-corrector with Mavrin and n_e_ratios_Z_eff impurity mode.
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_z_eff',
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_z_eff.py',
+      ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
           'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
@@ -237,6 +246,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_neoclassical',
           'test_iterhybrid_predictor_corrector_neoclassical.py',
       ),
+      # Predictor-corrector solver with TGLFNNukaea transport
+      (
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
+      ),
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
@@ -246,7 +260,8 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
-      # and resistivity is artificially increased to help induce more sawteeth.
+      # resistivity is artificially increased to help induce more sawteeth,
+      # and the solver is predictor-corrector to simplify numerics.
       (
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
@@ -289,6 +304,12 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_imas',
           'test_iterhybrid_predictor_corrector_imas.py',
+      ),
+      # Tests full integration for ITER-hybrid-based config with IMAS geometry
+      # and profiles.
+      (
+          'test_imas_profiles_and_geo',
+          'test_imas_profiles_and_geo.py',
       ),
   )
   def test_run_simulation(
@@ -386,125 +407,38 @@ class SimTest(sim_test_case.SimTestCase):
             )
             raise AssertionError(msg)
 
-  # pylint: disable=invalid-name
   @parameterized.parameters(
       'test_psi_heat_dens',
       'test_psichease_prescribed_jtot',
       'test_psichease_prescribed_johm',
       'test_iterhybrid_rampup',
   )
-  def test_core_profiles_are_recomputable(self, test_config):
-    """Tests that core profiles from a previous run are recomputable.
-
-    In this test we:
-    - Load up a reference file and build a sim from its config.
-    - Get profile values from either halfway or final time of the sim.
-    - Override the dynamic runtime params slice with values from the reference.
-    - Run the sim to the end and check core profiles against reference.
-
-    Args:
-      test_config: the config id under test.
-    """
-    profiles = [
-        output.T_I,
-        output.T_E,
-        output.N_E,
-        output.N_I,
-        output.PSI,
-        output.V_LOOP,
-        output.IP_PROFILE,
-        output.Q,
-        output.MAGNETIC_SHEAR,
-        output.J_BOOTSTRAP,
-        output.J_OHMIC,
-        output.J_EXTERNAL,
-        output.J_TOTAL,
-        output.SIGMA_PARALLEL,
-    ]
-    ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
+  def test_simulation_with_restart(self, test_config: str):
+    ref_name = test_config + '.nc'
+    output_file = os.path.join(paths.test_data_dir(), ref_name)
+    gt_output_xr = output.load_state_file(output_file)
+    profiles_dataset = gt_output_xr.children[output.PROFILES].dataset
+    ref_time = profiles_dataset[output.TIME].to_numpy()
     index = len(ref_time) // 2
     loading_time = ref_time[index]
 
-    # Build the sim and runtime params at t=`loading_time`.
+    # Override the config to restart from the halfway point of the reference.
     torax_config = self._get_torax_config(test_config + '.py')
     torax_config.update_fields({'numerics.t_initial': loading_time})
-
-    original_get_initial_state = initial_state._get_initial_state
-
-    def wrapped_get_initial_state(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice,
-        geo,
-        step_fn,
-    ):
-      # Load in the reference core profiles.
-      Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
-      # All profiles are on a grid with [left_face, cell_grid, right_face]
-      T_e = ref_profiles[output.T_E][index, 1:-1]
-      T_e_bc = ref_profiles[output.T_E][index, -1]
-      T_i = ref_profiles[output.T_I][index, 1:-1]
-      T_i_bc = ref_profiles[output.T_I][index, -1]
-      n_e = ref_profiles[output.N_E][index, 1:-1]
-      n_e_right_bc = ref_profiles[output.N_E][index, -1]
-      psi = ref_profiles[output.PSI][index, 1:-1]
-
-      # Override the dynamic runtime params with the loaded values.
-      dynamic_runtime_params_slice.profile_conditions.Ip = Ip_total
-      dynamic_runtime_params_slice.profile_conditions.T_e = T_e
-      dynamic_runtime_params_slice.profile_conditions.T_e_right_bc = T_e_bc
-      dynamic_runtime_params_slice.profile_conditions.T_i = T_i
-      dynamic_runtime_params_slice.profile_conditions.T_i_right_bc = T_i_bc
-      dynamic_runtime_params_slice.profile_conditions.n_e = n_e
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc = (
-          n_e_right_bc
-      )
-      dynamic_runtime_params_slice.profile_conditions.psi = psi
-      # When loading from file we want n_e not to have transformations.
-      # Both n_e and the boundary condition are given in absolute values
-      # (not fGW).
-      # Additionally we want to avoid normalizing to nbar.
-      dynamic_runtime_params_slice.profile_conditions.n_e_right_bc_is_fGW = (
-          False
-      )
-      dynamic_runtime_params_slice.profile_conditions.n_e_nbar_is_fGW = False
-      static_runtime_params_slice = dataclasses.replace(
-          static_runtime_params_slice,
-          profile_conditions=dataclasses.replace(
-              static_runtime_params_slice.profile_conditions,
-              n_e_right_bc_is_absolute=True,
-              normalize_n_e_to_nbar=False,
-          ),
-      )
-      return original_get_initial_state(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          step_fn,
-      )
-
-    with mock.patch.object(
-        initial_state, '_get_initial_state', wraps=wrapped_get_initial_state
-    ):
-      _, sim_outputs = run_simulation.run_simulation(
-          torax_config, progress_bar=False
-      )
-
-    initial_core_profiles = tree.map(
-        lambda x: x[0] if x is not None else None,
-        sim_outputs._stacked_core_profiles,
+    file_restart = file_restart_pydantic.FileRestart.from_dict(
+        dict(
+            filename=output_file,
+            time=loading_time,
+            do_restart=True,
+            stitch=True,
+        )
     )
-    core_profile_helpers.verify_core_profiles(
-        ref_profiles, index, initial_core_profiles
-    )
+    torax_config.update_fields({'restart': file_restart})
 
-    final_core_profiles = tree.map(
-        lambda x: x[-1] if x is not None else None,
-        sim_outputs._stacked_core_profiles,
+    output_xr, _ = run_simulation.run_simulation(
+        torax_config, progress_bar=False
     )
-    core_profile_helpers.verify_core_profiles(
-        ref_profiles, -1, final_core_profiles
-    )
-    # pylint: enable=invalid-name
+    xr.map_over_datasets(xr.testing.assert_allclose, output_xr, gt_output_xr)
 
   def test_ip_bc_v_loop_bc_equivalence(self):
     """Tests the equivalence of the Ip BC and the VLoop BC.
@@ -559,6 +493,85 @@ class SimTest(sim_test_case.SimTestCase):
 
     # pylint: enable=invalid-name
 
+  def test_prescribed_psidot(self):
+    """Tests that a prescribed psidot is used when current is not evolved."""
+    # Base config for a simple run.
+    base_config_dict = {
+        'profile_conditions': {},
+        'plasma_composition': {},
+        'numerics': {
+            't_final': 3.0,
+            'evolve_ion_heat': True,
+            'evolve_electron_heat': True,
+            'evolve_density': False,
+        },
+        'geometry': {
+            'geometry_type': 'circular',
+            'n_rho': 10,
+        },
+        'sources': {
+            'ohmic': {},
+            'generic_current': {},
+        },
+        'transport': {},
+        'pedestal': {},
+        'solver': {},
+    }
+
+    # --- Run 1: Reference run with current evolution to generate psidot ---
+    ref_config_dict = copy.deepcopy(base_config_dict)
+    ref_config_dict['numerics']['evolve_current'] = True
+    ref_torax_config = model_config.ToraxConfig.from_dict(ref_config_dict)
+    ref_output_xr, _ = run_simulation.run_simulation(
+        ref_torax_config, progress_bar=False
+    )
+    # Extract the psidot profile and time array
+    ref_psidot = ref_output_xr.profiles.v_loop.values
+    ref_time = ref_output_xr.time.values
+    ref_rho_norm = ref_output_xr.rho_norm.values
+
+    # --- Run 2: Test run without current evolution ---
+    # We expect this to be different from Run 1.
+    test_config_dict = copy.deepcopy(base_config_dict)
+    test_config_dict['numerics']['evolve_current'] = False
+    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_output_xr_different, _ = run_simulation.run_simulation(
+        test_torax_config, progress_bar=False
+    )
+
+    # --- Run 3: Test run without current evolution, using prescribed psidot ---
+    # We expect this to be identical to Run 1.
+    test_config_dict = copy.deepcopy(base_config_dict)
+    test_config_dict['numerics']['evolve_current'] = False
+    # Provide psidot as a time-varying array
+    test_config_dict['profile_conditions']['psidot'] = (
+        ref_time,
+        ref_rho_norm,
+        ref_psidot,
+    )
+    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_output_xr_same, _ = run_simulation.run_simulation(
+        test_torax_config, progress_bar=False
+    )
+
+    # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
+    # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
+    # and it is correct that v_loop_lcfs is different between psi-evolving and
+    # psi-fixed simulations.
+    np.testing.assert_allclose(
+        ref_output_xr.profiles.v_loop.values[:, :-1],
+        test_output_xr_same.profiles.v_loop.values[:, :-1],
+        rtol=1e-6,
+    )
+
+    # Compare Runs 1 and 2 - v_loop (cell grid) should be different
+    with self.assertRaises(AssertionError):
+      np.testing.assert_allclose(
+          ref_output_xr.profiles.v_loop.values[:, :-1],
+          test_output_xr_different.profiles.v_loop.values[:, :-1],
+          rtol=1e-6,
+      )
+
   def test_nans_trigger_error(self):
     """Verify that NaNs in profile evolution triggers early stopping and an error."""
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
@@ -566,6 +579,19 @@ class SimTest(sim_test_case.SimTestCase):
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
+  def test_full_output_matches_reference(self):
+    """Check for complete output match with reference."""
+    torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+    _, state_history = run_simulation.run_simulation(torax_config)
+    sim_data_tree = state_history.simulation_output_to_xr()
+    expected_results_path = self._expected_results_path(
+        'test_iterhybrid_rampup.nc'
+    )
+    ref_data_tree = output.load_state_file(expected_results_path)
+    xr.map_over_datasets(
+        xr.testing.assert_allclose, sim_data_tree, ref_data_tree
+    )
 
 
 if __name__ == '__main__':

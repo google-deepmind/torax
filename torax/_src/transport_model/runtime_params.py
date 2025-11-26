@@ -15,7 +15,7 @@
 """Dataclass representing runtime parameter inputs to the transport models.
 
 This is the dataclass runtime config exposed to the user. The actual model gets
-a time-interpolated version of this config via the DynamicRuntimeParams.
+a time-interpolated version of this config via the RuntimeParams.
 """
 import dataclasses
 
@@ -26,7 +26,7 @@ from torax._src import array_typing
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams:
+class RuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
   chi_min: float
@@ -35,19 +35,19 @@ class DynamicRuntimeParams:
   D_e_max: float
   V_e_min: float
   V_e_max: float
-  rho_min: array_typing.ScalarFloat
-  rho_max: array_typing.ScalarFloat
-  apply_inner_patch: array_typing.ScalarBool
-  D_e_inner: array_typing.ScalarFloat
-  V_e_inner: array_typing.ScalarFloat
-  chi_i_inner: array_typing.ScalarFloat
-  chi_e_inner: array_typing.ScalarFloat
-  rho_inner: array_typing.ScalarFloat
-  apply_outer_patch: array_typing.ScalarBool
-  D_e_outer: array_typing.ScalarFloat
-  V_e_outer: array_typing.ScalarFloat
-  chi_i_outer: array_typing.ScalarFloat
-  chi_e_outer: array_typing.ScalarFloat
-  rho_outer: array_typing.ScalarFloat
+  rho_min: array_typing.FloatScalar
+  rho_max: array_typing.FloatScalar
+  apply_inner_patch: array_typing.BoolScalar
+  D_e_inner: array_typing.FloatScalar
+  V_e_inner: array_typing.FloatScalar
+  chi_i_inner: array_typing.FloatScalar
+  chi_e_inner: array_typing.FloatScalar
+  rho_inner: array_typing.FloatScalar
+  apply_outer_patch: array_typing.BoolScalar
+  D_e_outer: array_typing.FloatScalar
+  V_e_outer: array_typing.FloatScalar
+  chi_i_outer: array_typing.FloatScalar
+  chi_e_outer: array_typing.FloatScalar
+  rho_outer: array_typing.FloatScalar
   smoothing_width: float
   smooth_everywhere: bool

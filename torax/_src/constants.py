@@ -48,26 +48,43 @@ class IonProperties:
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class Constants:
-  keV2J: chex.Numeric  # pylint: disable=invalid-name
-  mp: chex.Numeric
-  qe: chex.Numeric
-  me: chex.Numeric
-  epsilon0: chex.Numeric
-  mu0: chex.Numeric
+  """Physical constants.
+
+  Attributes:
+    keV_to_J: Conversion factor from keV to J.
+    eV_to_J: Conversion factor from eV to J.
+    m_amu: Atomic mass unit in kg, defined as 1/12 the mass of a C12 nucleus.
+    q_e: Elementary charge in Coulombs.
+    m_e: Electron mass in kg.
+    epsilon_0: Vacuum permittivity in Henry per meter (H/m).
+    mu_0: Vacuum permeability in N/A^2.
+    k_B: Boltzman constant in J/K.
+    eps: A small epsilon value used for numerical stability.
+  """
+  keV_to_J: chex.Numeric
+  eV_to_J: chex.Numeric
+  m_amu: chex.Numeric
+  q_e: chex.Numeric
+  m_e: chex.Numeric
+  epsilon_0: chex.Numeric
+  mu_0: chex.Numeric
+  k_B: chex.Numeric
   eps: chex.Numeric
 
 
 CONSTANTS: Final[Constants] = Constants(
-    keV2J=1e3 * 1.6e-19,
-    mp=1.67e-27,
-    qe=1.6e-19,
-    me=9.11e-31,
-    epsilon0=8.854e-12,
-    mu0=4 * jnp.pi * 1e-7,
+    keV_to_J=1e3 * 1.602176634e-19,
+    eV_to_J=1.602176634e-19,
+    m_amu=1.6605390666e-27,
+    q_e=1.602176634e-19,
+    m_e=9.1093837e-31,
+    epsilon_0=8.85418782e-12,
+    mu_0=4 * jnp.pi * 1e-7,
+    k_B=1.380649e-23,
     eps=1e-7,
 )
 
-# Taken from
+# In amu. Taken from
 # https://www.nist.gov/pml/periodic-table-elements and https://ciaaw.org.
 ION_PROPERTIES: Final[tuple[IonProperties, ...]] = (
     IonProperties(symbol='H', name='Hydrogen', A=1.008, Z=1.0),
@@ -92,3 +109,5 @@ ION_PROPERTIES_DICT: Final[Mapping[str, IonProperties]] = (
 )
 
 ION_SYMBOLS = frozenset(ION_PROPERTIES_DICT.keys())
+
+HYDROGENIC_IONS: Final[frozenset[str]] = frozenset(['H', 'D', 'T'])

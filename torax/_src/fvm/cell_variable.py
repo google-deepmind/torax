@@ -26,17 +26,20 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
-import typing_extensions
 
 
-def _zero() -> array_typing.ScalarFloat:
+def _zero() -> array_typing.FloatScalar:
   """Returns a scalar zero as a jax Array."""
   return jnp.zeros(())
 
 
-@chex.dataclass(frozen=True)
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class CellVariable:
   """A variable representing values of the cells along the radius.
+
+  This class may be used as a pytree argument to jitted Jax functions.
+  Its hash and comparison functions should not be used.
 
   Attributes:
     value: A jax.Array containing the value of this variable at each cell.
@@ -259,10 +262,3 @@ class CellVariable:
         [left_value, self.value, right_value],
         axis=-1,
     )
-
-  def __eq__(self, other: typing_extensions.Self) -> bool:
-    try:
-      chex.assert_trees_all_equal(self, other)
-      return True
-    except AssertionError:
-      return False

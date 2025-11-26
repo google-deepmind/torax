@@ -12,29 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Surrogate model for ion-cyclotron resonance heating (ICRH) model."""
+
 import dataclasses
 import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Any, ClassVar, Final, Literal, Sequence
+from typing import Annotated, Any, ClassVar, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
-import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -75,28 +75,28 @@ class ToricNNInputs:
   """Inputs to the ToricNN model."""
 
   # ICRF wave frequency in MHz, training range = 119 to 121.
-  frequency: array_typing.ScalarFloat
+  frequency: array_typing.FloatScalar
   # Volume average temperature in keV, training range = 1.5 to 8.5.
-  volume_average_temperature: array_typing.ScalarFloat
+  volume_average_temperature: array_typing.FloatScalar
   # Volume average density in 10^20 m^-3, training range = 1.1 to 5.1.
-  volume_average_density: array_typing.ScalarFloat
+  volume_average_density: array_typing.FloatScalar
   # He3 minority concentration relative to the electron density in %,
   # training range = 1 to 5.
-  minority_concentration: array_typing.ScalarFloat
+  minority_concentration: array_typing.FloatScalar
   # Distance from last closed flux surface (LCFS) to the inner wall in m,
   # training range = 0 to 0.03.
-  gap_inner: array_typing.ScalarFloat
+  gap_inner: array_typing.FloatScalar
   # Distance from LCFS to the outer midplane limiter in m,
   # training range = 0 to 0.05.
-  gap_outer: array_typing.ScalarFloat
+  gap_outer: array_typing.FloatScalar
   # Vertical position of magnetic axis in m, training range = -0.05 to 0.05.
-  z0: array_typing.ScalarFloat
+  z0: array_typing.FloatScalar
   # Temperature profile peaking factor, training range = 2 to 3.
-  temperature_peaking_factor: array_typing.ScalarFloat
+  temperature_peaking_factor: array_typing.FloatScalar
   # Density profile peaking factor, training range = 1.15 to 1.65.
-  density_peaking_factor: array_typing.ScalarFloat
+  density_peaking_factor: array_typing.FloatScalar
   # Toroidal magnetic field on axis in T, training range = 11.8 to 12.5.
-  B_0: array_typing.ScalarFloat
+  B_0: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -105,11 +105,11 @@ class ToricNNOutputs:
   """Outputs from the ToricNN model."""
 
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
-  power_deposition_He3: array_typing.ArrayFloat
+  power_deposition_He3: array_typing.FloatVector
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
-  power_deposition_2T: array_typing.ArrayFloat
+  power_deposition_2T: array_typing.FloatVector
   # Power deposition on electrons in MW/m^3/MW_{abs}.
-  power_deposition_e: array_typing.ArrayFloat
+  power_deposition_e: array_typing.FloatVector
 
 
 class _ToricNN(nn.Module):
@@ -266,7 +266,7 @@ class ToricNNWrapper:
     return isinstance(other, ToricNNWrapper)
 
 
-@functools.partial(jax_utils.jit, static_argnames='toric_nn')
+@jax.jit(static_argnames='toric_nn')
 def _toric_nn_predict(
     toric_nn: ToricNNWrapper,
     inputs: ToricNNInputs,
@@ -305,11 +305,11 @@ def _toric_nn_predict(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  frequency: array_typing.ScalarFloat
-  minority_concentration: array_typing.ScalarFloat
-  P_total: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+  frequency: array_typing.FloatScalar
+  minority_concentration: array_typing.FloatScalar
+  P_total: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
 
@@ -338,20 +338,17 @@ def _helium3_tail_temperature(
 
 
 def icrh_model_func(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
     toric_nn: ToricNNWrapper,
-) -> tuple[chex.Array, ...]:
+) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
   """Compute ion/electron heat source terms."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
@@ -366,19 +363,19 @@ def icrh_model_func(
       core_profiles.T_e.value[0] / volume_average_temperature
   )
   density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
-  Router = geo.R_major + geo.a_minor
-  Rinner = geo.R_major - geo.a_minor
+  Router = geo.R_out_face[-1]  # Use LCFS outboard radius
+  Rinner = geo.R_in_face[-1]   # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
   # This is a good assumption for the inner gap but perhaps less good for the
   # outer gap where there is significant curvature to the outer limiter.
-  gap_inner = Rinner - dynamic_source_runtime_params.wall_inner
-  gap_outer = dynamic_source_runtime_params.wall_outer - Router
+  gap_inner = Rinner - source_params.wall_inner
+  gap_outer = source_params.wall_outer - Router
   toric_inputs = ToricNNInputs(
-      frequency=dynamic_source_runtime_params.frequency,
+      frequency=source_params.frequency,
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=dynamic_source_runtime_params.minority_concentration
+      minority_concentration=source_params.minority_concentration
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
@@ -422,8 +419,8 @@ def icrh_model_func(
   helium3_birth_energy = _helium3_tail_temperature(
       power_deposition_he3,
       core_profiles,
-      dynamic_source_runtime_params.minority_concentration,
-      dynamic_source_runtime_params.P_total / 1e6,  # required in MW.
+      source_params.minority_concentration,
+      source_params.P_total / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
@@ -431,10 +428,7 @@ def icrh_model_func(
       core_profiles.T_e.value,
       helium3_mass,
   )
-  absorbed_power = (
-      dynamic_source_runtime_params.P_total
-      * dynamic_source_runtime_params.absorption_fraction
-  )
+  absorbed_power = source_params.P_total * source_params.absorption_fraction
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
   source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
 
@@ -447,7 +441,7 @@ def icrh_model_func(
   return (source_ion, source_el)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
@@ -472,9 +466,10 @@ class IonCyclotronSource(source.Source):
 # is provided. This is not expected to happen very often.
 @functools.lru_cache(maxsize=1)
 def _icrh_model_func_with_toric_nn(
-    toric_nn: ToricNNWrapper,
+    model_path: str,
 ) -> source.SourceProfileFunction:
   """Returns a function that computes the ICRH source terms given a ToricNN."""
+  toric_nn = ToricNNWrapper(model_path)
   return functools.partial(
       icrh_model_func,
       toric_nn=toric_nn,
@@ -497,8 +492,10 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
     absorption_fraction: Fraction of absorbed power.
   """
 
-  model_name: Literal['toric_nn'] = 'toric_nn'
-  model_path: str | None = None
+  model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
+      'toric_nn'
+  )
+  model_path: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
@@ -513,25 +510,24 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @pydantic.model_validator(mode='after')
-  def _load_toric_nn(self) -> typing_extensions.Self:
-    self._toric_nn = ToricNNWrapper(self.model_path)
-    return self
+  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      source_runtime_params_lib.Mode.MODEL_BASED
+  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return _icrh_model_func_with_toric_nn(self._toric_nn)
+    return _icrh_model_func_with_toric_nn(self.model_path)
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
+  ) -> RuntimeParams:
+    return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),

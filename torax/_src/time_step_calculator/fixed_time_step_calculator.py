@@ -20,40 +20,24 @@ Steps through time using a constant time step.
 import jax
 from jax import numpy as jnp
 from torax._src import state as state_module
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.time_step_calculator import time_step_calculator
 
 
-# TODO(b/337844885). Make this a time dependent calculator.
 class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
-  """TimeStepCalculator based on constant time steps.
-
-  Attributes:
-    config: General configuration parameters.
-  """
+  """TimeStepCalculator based on constant time steps."""
 
   def _next_dt(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       core_transport: state_module.CoreTransport,
   ) -> jax.Array:
-    """Calculates the next time step duration.
-
-    Args:
-      dynamic_runtime_params_slice: Input runtime parameters that can change
-        without triggering a JAX recompilation.
-      geo: Geometry for the tokamak being simulated.
-      core_profiles: Current core plasma profiles.
-      core_transport: Used to calculate chi, which determines maximum step size.
-
-    Returns:
-      dt: Scalar time step duration.
-    """
-
-    return jnp.array(dynamic_runtime_params_slice.numerics.fixed_dt)
+    """Returns the fixed time step duration."""
+    del geo, core_profiles, core_transport
+    return jnp.array(runtime_params.numerics.fixed_dt)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, type(self))

@@ -16,7 +16,7 @@
 
 import copy
 import os
-from typing import Any, Final, Optional, Sequence
+from typing import Any, Final, Sequence
 
 from absl.testing import parameterized
 import chex
@@ -75,7 +75,7 @@ class SimTestCase(parameterized.TestCase):
     """Gets reference values for the requested state profiles."""
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
-    data_tree = output.safe_load_dataset(expected_results_path)
+    data_tree = output.load_state_file(expected_results_path)
     profiles_dataset = data_tree.children[output.PROFILES].dataset
     self.assertNotEmpty(profiles)
     ref_profiles = {
@@ -119,7 +119,7 @@ class SimTestCase(parameterized.TestCase):
             .to_numpy()[step, :]
         )
         ref_value = ref_profile[step, :]
-        with self.subTest(step=step, ref_profile=ref_profile):
+        with self.subTest(step=step):
           self.assertEqual(actual_value.shape, ref_value.shape)
         actual.append(actual_value)
         ref.append(ref_value)
@@ -195,9 +195,9 @@ class SimTestCase(parameterized.TestCase):
       self,
       config_name: str,
       profiles: Sequence[str],
-      ref_name: Optional[str] = None,
-      rtol: Optional[float] = None,
-      atol: Optional[float] = None,
+      ref_name: str | None = None,
+      rtol: float | None = None,
+      atol: float | None = None,
       write_output: bool = True,
   ):
     """Integration test comparing to TORAX reference output."""

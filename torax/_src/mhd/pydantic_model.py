@@ -40,13 +40,13 @@ class MHD(torax_pydantic.BaseModelFrozen):
     )
     return base.MHDModels(sawtooth_models=sawtooth_model)
 
-  def build_dynamic_params(
+  def build_runtime_params(
       self, t: chex.Numeric
-  ) -> mhd_runtime_params.DynamicMHDParams:
-    """Builds and returns a container with dynamic runtime params for MHD models."""
+  ) -> mhd_runtime_params.RuntimeParams:
+    """Builds and returns a container with runtime params for MHD models."""
 
-    return mhd_runtime_params.DynamicMHDParams(**{
-        mhd_model_name: mhd_model_config.build_dynamic_params(t)
+    return mhd_runtime_params.RuntimeParams(**{
+        mhd_model_name: mhd_model_config.build_runtime_params(t)
         for mhd_model_name, mhd_model_config in self.__dict__.items()
         if mhd_model_config is not None
     })

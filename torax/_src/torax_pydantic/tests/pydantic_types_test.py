@@ -79,6 +79,25 @@ class PydanticTypesTest(parameterized.TestCase):
 
     array.validate_python(np.array([0.0, 1.0, 2.0, 4.0]))
 
+  @parameterized.named_parameters(
+      dict(testcase_name='valid_1', value=1, should_raise=False),
+      dict(testcase_name='valid_8', value=8, should_raise=False),
+      dict(testcase_name='valid_11', value=11, should_raise=False),
+      dict(testcase_name='valid_18', value=18, should_raise=False),
+      dict(testcase_name='invalid_0', value=0, should_raise=True),
+      dict(testcase_name='invalid_9', value=9, should_raise=True),
+      dict(testcase_name='invalid_10', value=10, should_raise=True),
+      dict(testcase_name='invalid_19', value=19, should_raise=True),
+      dict(testcase_name='invalid_negative', value=-1, should_raise=True),
+  )
+  def test_cocos_int_validation(self, value, should_raise):
+    adapter = pydantic.TypeAdapter(pydantic_types.COCOSInt)
+    if should_raise:
+      with self.assertRaisesRegex(pydantic.ValidationError, 'Invalid COCOS'):
+        adapter.validate_python(value)
+    else:
+      self.assertEqual(adapter.validate_python(value), value)
+
 
 if __name__ == '__main__':
   absltest.main()

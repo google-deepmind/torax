@@ -18,7 +18,7 @@ from typing import Any
 
 import pydantic
 from torax._src.neoclassical import neoclassical_models
-from torax._src.neoclassical import runtime_params
+from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
@@ -45,26 +45,27 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
+    # Set zero models if model not in config dict.
     if "bootstrap_current" not in configurable_data:
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
-    if "model_name" not in configurable_data["bootstrap_current"]:
-      configurable_data["bootstrap_current"]["model_name"] = "sauter"
     if "transport" not in configurable_data:
       configurable_data["transport"] = {"model_name": "zeros"}
+    # Set default model names.
+    if "model_name" not in configurable_data["bootstrap_current"]:
+      configurable_data["bootstrap_current"]["model_name"] = "sauter"
     if "model_name" not in configurable_data["transport"]:
-      configurable_data["transport"]["model_name"] = "zeros"
+      configurable_data["transport"]["model_name"] = "angioni_sauter"
 
     return configurable_data
 
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
-        bootstrap_current=self.bootstrap_current.build_dynamic_params(),
-        conductivity=self.conductivity.build_dynamic_params(),
-        transport=self.transport.build_dynamic_params(),
+  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    return runtime_params_lib.RuntimeParams(
+        bootstrap_current=self.bootstrap_current.build_runtime_params(),
+        conductivity=self.conductivity.build_runtime_params(),
+        transport=self.transport.build_runtime_params(),
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:
-    """Builds and returns a container with instantiated neoclassical model objects."""
     return neoclassical_models.NeoclassicalModels(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),

@@ -20,17 +20,16 @@ coefficients.
 
 import abc
 import dataclasses
-from typing import Optional
 
 import jax
 from jax import numpy as jnp
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-import typing_extensions
 
 
 @jax.tree_util.register_dataclass
@@ -56,76 +55,29 @@ class TurbulentTransport:
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_face_el_bohm: Optional[jax.Array] = None
-  chi_face_el_gyrobohm: Optional[jax.Array] = None
-  chi_face_ion_bohm: Optional[jax.Array] = None
-  chi_face_ion_gyrobohm: Optional[jax.Array] = None
-
-  def __post_init__(self):
-    # Use the array size of chi_face_el as a reference.
-    if self.chi_face_el_bohm is None:
-      self.chi_face_el_bohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_face_el_gyrobohm is None:
-      self.chi_face_el_gyrobohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_face_ion_bohm is None:
-      self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_face_ion_gyrobohm is None:
-      self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    """Returns a CoreTransport with all zeros. Useful for initializing."""
-    shape = geo.rho_face.shape
-    return cls(
-        chi_face_ion=jnp.zeros(shape),
-        chi_face_el=jnp.zeros(shape),
-        d_face_el=jnp.zeros(shape),
-        v_face_el=jnp.zeros(shape),
-    )
+  chi_face_el_bohm: jax.Array | None = None
+  chi_face_el_gyrobohm: jax.Array | None = None
+  chi_face_ion_bohm: jax.Array | None = None
+  chi_face_ion_gyrobohm: jax.Array | None = None
 
 
-class TransportModel(abc.ABC):
-  """Calculates various coefficients related to heat and particle transport.
-
-  Subclass responsbilities:
-  - Must implement __hash__, __eq__, and be immutable, so that the class can
-    be used as a static argument (or a subcomponent of a larger static
-    argument) to jax.jit
-  - Must set _frozen = True at the end of the subclass __init__ method to
-    activate immutability.
-  """
-
-  def __setattr__(self, attr, value):
-    # pylint: disable=g-doc-args
-    # pylint: disable=g-doc-return-or-yield
-    """Override __setattr__ to make the class (sort of) immutable.
-
-    Note that you can still do obj.field.subfield = x, so it is not true
-    immutability, but this to helps to avoid some careless errors.
-    """
-    if getattr(self, "_frozen", False):
-      raise AttributeError("TransportModels are immutable.")
-    return super().__setattr__(attr, value)
+@dataclasses.dataclass(frozen=True, eq=False)
+class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Calculates various coefficients related to heat and particle transport."""
 
   def __call__(
       self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
-    if not getattr(self, "_frozen", False):
-      raise RuntimeError(
-          f"Subclass implementation {type(self)} forgot to "
-          "freeze at the end of __init__."
-      )
-
-    transport_runtime_params = dynamic_runtime_params_slice.transport
+    transport_runtime_params = runtime_params.transport
 
     # Calculate the transport coefficients
     transport_coeffs = self._call_implementation(
         transport_runtime_params,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         core_profiles,
         pedestal_model_output,
@@ -148,7 +100,7 @@ class TransportModel(abc.ABC):
     # Apply inner and outer transport patch
     transport_coeffs = self._apply_transport_patches(
         transport_runtime_params,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         transport_coeffs,
     )
@@ -156,7 +108,7 @@ class TransportModel(abc.ABC):
     # Return smoothed coefficients if smoothing is enabled
     return self._smooth_coeffs(
         transport_runtime_params,
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         transport_coeffs,
         pedestal_model_output,
@@ -165,34 +117,17 @@ class TransportModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     pass
 
-  @abc.abstractmethod
-  def __hash__(self) -> int:
-    """Returns a hash of the transport model.
-
-    Should be implemented to support jax.jit caching.
-    """
-
-  @abc.abstractmethod
-  def __eq__(self, other) -> bool:
-    """Returns whether the transport model is equal to the other.
-
-    Should be implemented to support jax.jit caching.
-
-    Args:
-      other: The object to compare to.
-    """
-
   def _apply_domain_restriction(
       self,
-      transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -228,7 +163,7 @@ class TransportModel(abc.ABC):
 
   def _apply_clipping(
       self,
-      transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       transport_coeffs: TurbulentTransport,
   ) -> TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
@@ -263,8 +198,8 @@ class TransportModel(abc.ABC):
 
   def _apply_transport_patches(
       self,
-      transport_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
   ) -> TurbulentTransport:
@@ -315,7 +250,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.pedestal.set_pedestal
+                    runtime_params.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
@@ -328,7 +263,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.pedestal.set_pedestal
+                    runtime_params.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
@@ -341,7 +276,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.pedestal.set_pedestal
+                    runtime_params.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
@@ -354,7 +289,7 @@ class TransportModel(abc.ABC):
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
                 jnp.logical_not(
-                    dynamic_runtime_params_slice.pedestal.set_pedestal
+                    runtime_params.pedestal.set_pedestal
                 ),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
@@ -373,16 +308,16 @@ class TransportModel(abc.ABC):
 
   def _smooth_coeffs(
       self,
-      transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
-        transport_dynamic_runtime_params,
-        dynamic_runtime_params_slice,
+        transport_runtime_params,
+        runtime_params,
         geo,
         pedestal_model_output,
     )
@@ -400,8 +335,8 @@ class TransportModel(abc.ABC):
 
 
 def _build_smoothing_matrix(
-    transport_dynamic_runtime_params: transport_runtime_params_lib.DynamicRuntimeParams,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
 ) -> jax.Array:
@@ -410,10 +345,8 @@ def _build_smoothing_matrix(
   Uses a Gaussian kernel of HWHM defined in the transport config.
 
   Args:
-    transport_dynamic_runtime_params:  Input runtime parameters of this model
-      that can change without triggering a JAX recompilation.
-    dynamic_runtime_params_slice: Input runtime parameters of the simulation
-      that can change without triggering a JAX recompilation.
+    transport_runtime_params: Runtime parameters for this transport model.
+    runtime_params: Input runtime parameters of the simulation.
     geo: Geometry of the torus.
     pedestal_model_output: Output of the pedestal model.
 
@@ -432,7 +365,7 @@ def _build_smoothing_matrix(
   kernel = jnp.exp(
       -jnp.log(2)
       * (geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm) ** 2
-      / (transport_dynamic_runtime_params.smoothing_width**2 + consts.eps)
+      / (transport_runtime_params.smoothing_width**2 + consts.eps)
   )
 
   # 2. Masking: we do not want transport coefficients calculated in pedestal
@@ -446,22 +379,22 @@ def _build_smoothing_matrix(
   # If set pedestal is True, we want to mask according to rho_norm_ped_top.
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
-          jnp.logical_not(dynamic_runtime_params_slice.pedestal.set_pedestal),
-          transport_dynamic_runtime_params.apply_outer_patch,
+          jnp.logical_not(runtime_params.pedestal.set_pedestal),
+          transport_runtime_params.apply_outer_patch,
       ),
-      lambda: transport_dynamic_runtime_params.rho_outer - consts.eps,
+      lambda: transport_runtime_params.rho_outer - consts.eps,
       lambda: pedestal_model_output.rho_norm_ped_top - consts.eps,
   )
 
   mask_inner_edge = jax.lax.cond(
-      transport_dynamic_runtime_params.apply_inner_patch,
-      lambda: transport_dynamic_runtime_params.rho_inner + consts.eps,
+      transport_runtime_params.apply_inner_patch,
+      lambda: transport_runtime_params.rho_inner + consts.eps,
       lambda: 0.0,
   )
 
   mask = jnp.where(
       jnp.logical_or(
-          transport_dynamic_runtime_params.smooth_everywhere,
+          transport_runtime_params.smooth_everywhere,
           jnp.logical_and(
               geo.rho_face_norm > mask_inner_edge,
               geo.rho_face_norm < mask_outer_edge,

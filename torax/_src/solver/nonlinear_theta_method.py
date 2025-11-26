@@ -18,7 +18,7 @@ import dataclasses
 
 import jax
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -26,39 +26,29 @@ from torax._src.fvm import enums
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
-from torax._src.solver import runtime_params
+from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
 from torax._src.sources import source_profiles
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
+class OptimizerRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   n_max_iterations: int
   loss_tol: float
+  initial_guess_mode: int = dataclasses.field(metadata={'static': True})
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class StaticOptimizerRuntimeParams(runtime_params.StaticRuntimeParams):
-  initial_guess_mode: int
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
+class NewtonRaphsonRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   maxiter: int
   residual_tol: float
   residual_coarse_tol: float
   delta_reduction_factor: float
   tau_min: float
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class StaticNewtonRaphsonRuntimeParams(runtime_params.StaticRuntimeParams):
-  initial_guess_mode: int
-  log_iterations: bool
+  initial_guess_mode: int = dataclasses.field(metadata={'static': True})
+  log_iterations: bool = dataclasses.field(metadata={'static': True})
 
 
 class NonlinearThetaMethod(solver.Solver):
@@ -67,9 +57,8 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -83,7 +72,6 @@ class NonlinearThetaMethod(solver.Solver):
     """See Solver._x_new docstring."""
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=self.physics_models,
         evolving_names=evolving_names,
     )
@@ -92,9 +80,8 @@ class NonlinearThetaMethod(solver.Solver):
         solver_numeric_outputs,
     ) = self._x_new_helper(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=runtime_params_t,
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
@@ -113,9 +100,8 @@ class NonlinearThetaMethod(solver.Solver):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -136,12 +122,10 @@ class NonlinearThetaMethod(solver.Solver):
 
     Args:
       dt: Time step duration.
-      static_runtime_params_slice: Static runtime parameters. Changes to these
-        runtime params will trigger recompilation.
-      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
-        time of the step).
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
-        dt, used for implicit calculations in the solver.
+      runtime_params_t: Runtime parameters for time t (the start time of the
+        step).
+      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
+        implicit calculations in the solver.
       geo_t: Magnetic geometry at time t.
       geo_t_plus_dt: Magnetic geometry at time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
@@ -152,8 +136,8 @@ class NonlinearThetaMethod(solver.Solver):
       explicit_source_profiles: Pre-calculated sources implemented as explicit
         sources in the PDE.
       coeffs_callback: Calculates diffusion, convection etc. coefficients given
-        a core_profiles, geometry, dynamic_runtime_params. Repeatedly called by
-        the iterative solvers.
+        a core_profiles, geometry, runtime_params. Repeatedly called by the
+        iterative solvers.
       evolving_names: The names of variables within the core profiles that
         should evolve.
 
@@ -171,9 +155,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -186,18 +169,15 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       state.SolverNumericOutputs,
   ]:
     """See abstract method docstring in NonlinearThetaMethod."""
-    solver_params = dynamic_runtime_params_slice_t.solver
-    assert isinstance(solver_params, DynamicOptimizerRuntimeParams)
-    static_solver_params = static_runtime_params_slice.solver
-    assert isinstance(static_solver_params, StaticOptimizerRuntimeParams)
+    solver_params = runtime_params_t.solver
+    assert isinstance(solver_params, OptimizerRuntimeParams)
     (
         x_new,
         solver_numeric_outputs,
     ) = optimizer_solve_block.optimizer_solve_block(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=runtime_params_t,
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=convertors.core_profiles_to_solver_x_tuple(
@@ -210,7 +190,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
-            static_solver_params.initial_guess_mode,
+            solver_params.initial_guess_mode,
         ),
         maxiter=solver_params.n_max_iterations,
         tol=solver_params.loss_tol,
@@ -227,9 +207,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
@@ -242,19 +221,16 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       state.SolverNumericOutputs,
   ]:
     """See abstract method docstring in NonlinearThetaMethod."""
-    solver_params = dynamic_runtime_params_slice_t.solver
-    assert isinstance(solver_params, DynamicNewtonRaphsonRuntimeParams)
-    static_solver_params = static_runtime_params_slice.solver
-    assert isinstance(static_solver_params, StaticNewtonRaphsonRuntimeParams)
+    solver_params = runtime_params_t.solver
+    assert isinstance(solver_params, NewtonRaphsonRuntimeParams)
 
     (
         x_new,
         solver_numeric_outputs,
     ) = newton_raphson_solve_block.newton_raphson_solve_block(
         dt=dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
-        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        runtime_params_t=runtime_params_t,
+        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t=geo_t,
         geo_t_plus_dt=geo_t_plus_dt,
         x_old=convertors.core_profiles_to_solver_x_tuple(
@@ -266,9 +242,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         physics_models=self.physics_models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
-        log_iterations=static_solver_params.log_iterations,
+        log_iterations=solver_params.log_iterations,
         initial_guess_mode=enums.InitialGuessMode(
-            static_solver_params.initial_guess_mode
+            solver_params.initial_guess_mode
         ),
         maxiter=solver_params.maxiter,
         tol=solver_params.residual_tol,

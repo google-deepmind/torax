@@ -14,13 +14,11 @@
 
 """Pydantic config for Solver."""
 import abc
-import dataclasses
 import functools
-from typing import Literal
+from typing import Annotated, Any, Literal
 
 import pydantic
 from torax._src import physics_models as physics_models_lib
-from torax._src.config import runtime_params_slice
 from torax._src.fvm import enums
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -51,36 +49,31 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
   """
 
-  theta_implicit: torax_pydantic.UnitInterval = 1.0
-  use_predictor_corrector: bool = False
-  n_corrector_steps: pydantic.PositiveInt = 10
-  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
-      'ghost'
-  )
-  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
-  use_pereverzev: bool = False
+  theta_implicit: Annotated[
+      torax_pydantic.UnitInterval, torax_pydantic.JAX_STATIC
+  ] = 1.0
+  use_predictor_corrector: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  n_corrector_steps: Annotated[
+      pydantic.PositiveInt, torax_pydantic.JAX_STATIC
+  ] = 10
+  convection_dirichlet_mode: Annotated[
+      Literal['ghost', 'direct', 'semi-implicit'], torax_pydantic.JAX_STATIC
+  ] = 'ghost'
+  convection_neumann_mode: Annotated[
+      Literal['ghost', 'semi-implicit'], torax_pydantic.JAX_STATIC
+  ] = 'ghost'
+  use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
 
   @property
   @abc.abstractmethod
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    """Builds dynamic runtime params from the config."""
-
-  def build_static_params(self) -> runtime_params.StaticRuntimeParams:
-    """Builds static runtime params from the config."""
-    return runtime_params.StaticRuntimeParams(
-        theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
-        use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
-    )
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    """Builds runtime params from the config."""
 
   @abc.abstractmethod
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
@@ -93,11 +86,27 @@ class LinearThetaMethod(BaseSolver):
     solver_type: The type of solver to use, hardcoded to 'linear'.
   """
 
-  solver_type: Literal['linear'] = 'linear'
+  solver_type: Annotated[Literal['linear'], torax_pydantic.JAX_STATIC] = (
+      'linear'
+  )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def scrub_log_iterations(cls, x: dict[str, Any]) -> dict[str, Any]:
+    # Both of the other solver configs have a `log_iterations` field, to enable
+    # easier switching by users in configs we check for this field and scrub it.
+    if 'log_iterations' in x:
+      del x['log_iterations']
+    return x
 
   @functools.cached_property
-  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
@@ -105,11 +114,9 @@ class LinearThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 
@@ -130,31 +137,29 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     tau_min: The minimum value of tau for the Newton-Raphson solver.
   """
 
-  solver_type: Literal['newton_raphson'] = 'newton_raphson'
-  log_iterations: bool = False
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
+  solver_type: Annotated[
+      Literal['newton_raphson'], torax_pydantic.JAX_STATIC
+  ] = 'newton_raphson'
+  log_iterations: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  initial_guess_mode: Annotated[
+      enums.InitialGuessMode, torax_pydantic.JAX_STATIC
+  ] = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 30
   residual_tol: float = 1e-5
   residual_coarse_tol: float = 1e-2
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
 
-  def build_static_params(
-      self,
-  ) -> nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams:
-    """Builds static runtime params from the config."""
-    base_params = super().build_static_params()
-    return nonlinear_theta_method.StaticNewtonRaphsonRuntimeParams(
-        **dataclasses.asdict(base_params),
-        initial_guess_mode=self.initial_guess_mode.value,
-        log_iterations=self.log_iterations,
-    )
-
   @functools.cached_property
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
-  ) -> nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams:
-    return nonlinear_theta_method.DynamicNewtonRaphsonRuntimeParams(
+  ) -> nonlinear_theta_method.NewtonRaphsonRuntimeParams:
+    return nonlinear_theta_method.NewtonRaphsonRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         maxiter=self.n_max_iterations,
@@ -163,15 +168,15 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         n_corrector_steps=self.n_corrector_steps,
         delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,
+        initial_guess_mode=self.initial_guess_mode.value,
+        log_iterations=self.log_iterations,
     )
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 
@@ -186,40 +191,38 @@ class OptimizerThetaMethod(BaseSolver):
     residual_tol: The tolerance for the optimizer.
   """
 
-  solver_type: Literal['optimizer'] = 'optimizer'
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
+  solver_type: Annotated[Literal['optimizer'], torax_pydantic.JAX_STATIC] = (
+      'optimizer'
+  )
+  initial_guess_mode: Annotated[
+      enums.InitialGuessMode, torax_pydantic.JAX_STATIC
+  ] = enums.InitialGuessMode.LINEAR
   n_max_iterations: pydantic.NonNegativeInt = 100
   loss_tol: float = 1e-10
 
-  def build_static_params(
-      self,
-  ) -> nonlinear_theta_method.StaticOptimizerRuntimeParams:
-    """Builds static runtime params from the config."""
-    base_params = super().build_static_params()
-    return nonlinear_theta_method.StaticOptimizerRuntimeParams(
-        **dataclasses.asdict(base_params),
-        initial_guess_mode=self.initial_guess_mode.value,
-    )
-
   @functools.cached_property
-  def build_dynamic_params(
+  def build_runtime_params(
       self,
-  ) -> nonlinear_theta_method.DynamicOptimizerRuntimeParams:
-    return nonlinear_theta_method.DynamicOptimizerRuntimeParams(
+  ) -> nonlinear_theta_method.OptimizerRuntimeParams:
+    return nonlinear_theta_method.OptimizerRuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
+        initial_guess_mode=self.initial_guess_mode.value,
     )
 
   def build_solver(
       self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       physics_models: physics_models_lib.PhysicsModels,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
-        static_runtime_params_slice=static_runtime_params_slice,
         physics_models=physics_models,
     )
 

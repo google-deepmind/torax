@@ -17,6 +17,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 import scipy
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -38,8 +39,8 @@ class PostProcessingTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['sources'] = default_sources.get_default_source_config()
     torax_config = model_config.ToraxConfig.from_dict(config)
-    self.dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider.from_config(
+    self.runtime_params = (
+        build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
         )(t=0.0)
     )
@@ -68,14 +69,10 @@ class PostProcessingTest(parameterized.TestCase):
         },
         n_e={},
     )
-    static_slice = build_runtime_params.build_static_params_from_config(
-        torax_config
-    )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
+        runtime_params=self.runtime_params,
         geo=self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
@@ -88,7 +85,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
-        self.dynamic_runtime_params_slice,
+        self.runtime_params,
     )
     # pylint: enable=protected-access
 
@@ -104,6 +101,8 @@ class PostProcessingTest(parameterized.TestCase):
         'P_ohmic_e',
         'P_bremsstrahlung_e',
         'P_ecrh_e',
+        'P_external_total',
+        'P_fusion',
         'P_icrh_i',
         'P_icrh_e',
         'P_icrh_total',
@@ -206,11 +205,20 @@ class PostProcessingTest(parameterized.TestCase):
         core_transport=state.CoreTransport.zeros(self.geo),
         core_sources=source_profiles,
         geometry=self.geo,
-        solver_numeric_outputs=state.SolverNumericOutputs(),
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
     )
     self.assertEqual(
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR
@@ -229,22 +237,44 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
 
     _, state_history = run_simulation.run_simulation(torax_config)
     p_fusion = state_history._stacked_post_processed_outputs.P_alpha_total
-    p_external = state_history._stacked_post_processed_outputs.P_aux_total
+    p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
+    p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e
+    p_external_injected = (
+        state_history._stacked_post_processed_outputs.P_external_injected)
+    p_external_total = (
+        state_history._stacked_post_processed_outputs.P_external_total)
     e_fusion = state_history._stacked_post_processed_outputs.E_fusion
-    e_external = state_history._stacked_post_processed_outputs.E_aux
+    e_aux_total = state_history._stacked_post_processed_outputs.E_aux_total
+    e_ohmic_e = state_history._stacked_post_processed_outputs.E_ohmic_e
+    e_external_injected = (
+        state_history._stacked_post_processed_outputs.E_external_injected)
+    e_external_total = (
+        state_history._stacked_post_processed_outputs.E_external_total)
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.
     e_fusion_expected = scipy.integrate.cumulative_trapezoid(
         p_fusion * 5, t, initial=0.0
     )
-
-    e_external_expected = scipy.integrate.cumulative_trapezoid(
-        p_external, t, initial=0.0
+    e_aux_total_expected = scipy.integrate.cumulative_trapezoid(
+        p_aux_total, t, initial=0.0
+    )
+    e_ohmic_e_expected = scipy.integrate.cumulative_trapezoid(
+        p_ohmic_e, t, initial=0.0
+    )
+    e_external_injected_expected = scipy.integrate.cumulative_trapezoid(
+        p_external_injected, t, initial=0.0
+    )
+    e_external_total_expected = scipy.integrate.cumulative_trapezoid(
+        p_external_total, t, initial=0.0
     )
 
     np.testing.assert_allclose(e_fusion, e_fusion_expected)
-    np.testing.assert_allclose(e_external, e_external_expected)
+    np.testing.assert_allclose(e_aux_total, e_aux_total_expected)
+    np.testing.assert_allclose(e_ohmic_e, e_ohmic_e_expected)
+    np.testing.assert_allclose(e_external_injected,
+                               e_external_injected_expected)
+    np.testing.assert_allclose(e_external_total, e_external_total_expected)
 
 
 if __name__ == '__main__':
