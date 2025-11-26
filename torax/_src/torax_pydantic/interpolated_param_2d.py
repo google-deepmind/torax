@@ -74,7 +74,7 @@ class Grid1D(model_base.BaseModelFrozen):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class TimeVaryingArrayReplace:
+class TimeVaryingArrayUpdate:
   """Replacements for TimeVaryingArray."""
 
   value: jt.Float[jax.Array, 't rhon'] | None = None
@@ -205,7 +205,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         raise ValueError(f'Unknown grid type: {grid_type}')
 
   def update(
-      self, replace_value: TimeVaryingArrayReplace
+      self, replace_value: TimeVaryingArrayUpdate
   ) -> typing_extensions.Self:
     """This method can be used under `jax.jit`."""
     assert self.grid is not None, 'grid must be set to update.'

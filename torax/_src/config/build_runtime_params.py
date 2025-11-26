@@ -58,9 +58,9 @@ ReplaceablePytreeNodes: TypeAlias = (
     | interpolated_param_2d.TimeVaryingArray
     | chex.Numeric
 )
-ValidReplacements: TypeAlias = (
-    interpolated_param_1d.TimeVaryingScalarReplace
-    | interpolated_param_2d.TimeVaryingArrayReplace
+ValidUpdates: TypeAlias = (
+    interpolated_param_1d.TimeVaryingScalarUpdate
+    | interpolated_param_2d.TimeVaryingArrayUpdate
     | chex.Numeric
 )
 
@@ -142,7 +142,7 @@ class RuntimeParamsProvider:
           [typing_extensions.Self],
           Sequence[ReplaceablePytreeNodes],
       ],
-      replacement_values: Sequence[ValidReplacements],
+      replacement_values: Sequence[ValidUpdates],
   ) -> typing_extensions.Self:
     """Updates a provider with new values. Works under `jax.jit`.
 
@@ -196,7 +196,7 @@ class RuntimeParamsProvider:
     return x
 
   def update_provider_from_mapping(
-      self, replacements: Mapping[str, ValidReplacements]
+      self, replacements: Mapping[str, ValidUpdates]
   ) -> typing_extensions.Self:
     """Update a provider from a mapping of replacements.
 
@@ -245,13 +245,13 @@ class RuntimeParamsProvider:
 
 def _get_provider_value_from_replace_value(
     leaf: ReplaceablePytreeNodes,
-    replace_value: ValidReplacements,
+    replace_value: ValidUpdates,
 ) -> ReplaceablePytreeNodes:
   """Validate and convert any replacement value to the correct type."""
   match leaf:
     case interpolated_param_1d.TimeVaryingScalar():
       if not isinstance(
-          replace_value, interpolated_param_1d.TimeVaryingScalarReplace
+          replace_value, interpolated_param_1d.TimeVaryingScalarUpdate
       ):
         raise ValueError(
             "To replace a `TimeVaryingScalar` use a"
@@ -260,7 +260,7 @@ def _get_provider_value_from_replace_value(
       return leaf.update(replace_value)
     case interpolated_param_2d.TimeVaryingArray():
       if not isinstance(
-          replace_value, interpolated_param_2d.TimeVaryingArrayReplace
+          replace_value, interpolated_param_2d.TimeVaryingArrayUpdate
       ):
         raise ValueError(
             "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"

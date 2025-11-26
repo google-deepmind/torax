@@ -366,7 +366,7 @@ class StepFunctionTest(parameterized.TestCase):
 
     @jax.jit
     def f(override_value):
-      ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+      ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
           value=override_value
       )
       runtime_params_overrides = params_provider.update_provider(
@@ -399,7 +399,7 @@ class StepFunctionTest(parameterized.TestCase):
     ) = run_simulation.prepare_simulation(cfg)
 
     # Run a step with overriden Ip.
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=params_provider.profile_conditions.Ip.value * 2.0
     )
     runtime_params_overrides = params_provider.update_provider(

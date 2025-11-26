@@ -473,7 +473,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='update_values',
-          new_values=interpolated_param_2d.TimeVaryingArrayReplace(
+          new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
               value=np.array([[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]),
               rho_norm=np.array([0.0, 0.5, 1.0,])
           ),
@@ -483,7 +483,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='update_time',
-          new_values=interpolated_param_2d.TimeVaryingArrayReplace(
+          new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
               time=np.array([-1.0, 0.0,]),
           ),
           # expect to receive the previous t=1 values.
@@ -537,7 +537,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     @jax.jit
     def f(
         base_tva: interpolated_param_2d.TimeVaryingArray,
-        replacements: interpolated_param_2d.TimeVaryingArrayReplace,
+        replacements: interpolated_param_2d.TimeVaryingArrayUpdate,
         t: chex.Numeric,
     ):
       new_tva = base_tva.update(replacements)
@@ -551,7 +551,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         [[1.0, 2.0, 3.0, 4.0, 5.0], [6.0, 7.0, 8.0, 9.0, 10.0]]
     )
     new_grid = jnp.linspace(0.0, 1.0, 5)
-    replacements = interpolated_param_2d.TimeVaryingArrayReplace(
+    replacements = interpolated_param_2d.TimeVaryingArrayUpdate(
         value=new_values,
         rho_norm=new_grid,
     )
@@ -563,7 +563,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
 
     # second call with same shape
     new_values2 = new_values * 2
-    replacements2 = interpolated_param_2d.TimeVaryingArrayReplace(
+    replacements2 = interpolated_param_2d.TimeVaryingArrayUpdate(
         value=new_values2,
         rho_norm=new_grid,
     )
