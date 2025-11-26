@@ -311,6 +311,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_imas_profiles_and_geo',
           'test_imas_profiles_and_geo.py',
       ),
+      # Tests STEP scenario with Bohm-GyroBohm transport
+      (
+          'test_step_flattop_bgb',
+          'test_step_flattop_bgb.py',
+      ),
   )
   def test_run_simulation(
       self,

@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ CONFIG = {
         # IMAS writer that makes them incompatible
         "geometry_type": "EQDSK",
         "geometry_file": "STEP_SPP_001_ECHD_ftop.eqdsk",
-        "cocos": 11,
+        "cocos": 1,
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",
