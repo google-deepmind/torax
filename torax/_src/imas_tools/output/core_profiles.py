@@ -19,7 +19,6 @@ import datetime
 
 import imas
 from imas import ids_toplevel
-import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
@@ -45,7 +44,7 @@ def core_profiles_to_IMAS(
     ),
     geometry: geometry.Geometry | list[geometry.Geometry],
     times: float | array_typing.FloatVector,
-    ids: ids_toplevel.IDSToplevel = imas.IDSFactory().core_profiles(),
+    ids: ids_toplevel.IDSToplevel = None,
 ) -> ids_toplevel.IDSToplevel:
   """Save TORAX profiles into an IMAS core_profiles IDS.
 
@@ -77,6 +76,9 @@ def core_profiles_to_IMAS(
       arg = arg.tolist()
     return arg if isinstance(arg, Iterable) else [arg]
 
+  if ids is None:
+    ids = imas.IDSFactory().core_profiles()
+
   times = times.tolist()
   times = _ensure_list(times)
   core_profiles = _ensure_list(core_profiles)
@@ -103,48 +105,6 @@ def core_profiles_to_IMAS(
       times,
   )
   return ids
-
-
-def _calculate_impurity_density_scaling_and_charge_states(
-    core_profiles: state.CoreProfiles,
-    runtime_params: runtime_params.RuntimeParams,
-) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
-  """Computes the impurity_density_scaling factor to compute "True" impurity density.
-
-  Reproduces what is done in impurity_radiation_mavrin_fit in
-  sources/impurity_radiation_heat_sink/impurity_radiation_mavrin_fit.py
-  Also outputs Z_per_species to avoid calculating them again.
-
-  Returns:
-      FloatVector of impurity density scaling Z_imp_eff / <Z> on and
-      FloatVector of avg Z_per_specie for all impurities on
-      cell_plus_boundaries grid.
-  """
-  ion_symbols = runtime_params.plasma_composition.impurity_names
-  # Extend fractions to cell_plus_boundaries grid to compute everything on this
-  # grid directly.
-  impurity_fractions = {
-      symbol: np.concatenate([
-          [core_profiles.impurity_fractions[symbol][0]],
-          core_profiles.impurity_fractions[symbol],
-          [core_profiles.impurity_fractions[symbol][-1]],
-      ])
-      for symbol in ion_symbols
-  }
-
-  charge_state_info = charge_states.get_average_charge_state(
-      T_e=core_profiles.T_e.cell_plus_boundaries(),
-      fractions=impurity_fractions,
-      Z_override=runtime_params.plasma_composition.impurity.Z_override,
-  )
-  Z_avg = charge_state_info.Z_avg
-  Z_impurity = np.concatenate([
-      [core_profiles.Z_impurity_face[0]],
-      core_profiles.Z_impurity,
-      [core_profiles.Z_impurity_face[-1]],
-  ])
-  impurity_density_scaling = Z_impurity / Z_avg
-  return impurity_density_scaling, charge_state_info.Z_per_species
 
 
 def _fill_metadata(ids: ids_toplevel.IDSToplevel) -> None:
@@ -176,41 +136,41 @@ def _fill_global_quantities(
   ids.vacuum_toroidal_field.b0 = [
       geometry_slice.B_0 for geometry_slice in geometry
   ]  # TODO: Check sign(s) once TORAX COCOS will be defined.
-  ids.global_quantities.ip = [
-      -1 * cp_slice.Ip_profile_face[-1] for cp_slice in core_profiles
-  ]
-  ids.global_quantities.current_bootstrap = [
-      -1 * ppo_slice.I_bootstrap for ppo_slice in post_processed_outputs
-  ]
-  ids.global_quantities.v_loop = [
-      cp_slice.v_loop_lcfs for cp_slice in core_profiles
-  ]
-  ids.global_quantities.li_3 = [
-      ppo_slice.li3 for ppo_slice in post_processed_outputs
-  ]
-  ids.global_quantities.beta_pol = [
-      ppo_slice.beta_pol for ppo_slice in post_processed_outputs
-  ]
-  ids.global_quantities.beta_tor = [
-      ppo_slice.beta_tor for ppo_slice in post_processed_outputs
-  ]
-  ids.global_quantities.beta_tor_norm = [
-      ppo_slice.beta_N for ppo_slice in post_processed_outputs
-  ]
-  # Temperatures are converted from eV (IMAS standard unit) to keV.
-  ids.global_quantities.t_e_volume_average = [
-      ppo_slice.T_e_volume_avg * 1e3 for ppo_slice in post_processed_outputs
-  ]
-  ids.global_quantities.n_e_volume_average = [
-      ppo_slice.n_e_volume_avg for ppo_slice in post_processed_outputs
-  ]
+  ip = []
+  v_loop = []
+  I_bs = []
+  li_3 = []
+  beta_pol = []
+  beta_tor = []
+  beta_tor_norm = []
+  t_e_volume_average = []
+  n_e_volume_average = []
+  for cp_slice in core_profiles:
+    ip.append(-1 * cp_slice.Ip_profile_face[-1])
+    v_loop.append(cp_slice.v_loop_lcfs)
+  for ppo_slice in post_processed_outputs:
+    I_bs.append(-1 * ppo_slice.I_bootstrap)
+    li_3.append(ppo_slice.li3)
+    beta_pol.append(ppo_slice.beta_pol)
+    beta_tor.append(ppo_slice.beta_tor)
+    beta_tor_norm.append(ppo_slice.beta_N)
+    t_e_volume_average.append(ppo_slice.T_e_volume_avg * 1e3)
+    n_e_volume_average.append(ppo_slice.n_e_volume_avg)
+  ids.global_quantities.ip = ip
+  ids.global_quantities.current_bootstrap = I_bs
+  ids.global_quantities.v_loop = v_loop
+  ids.global_quantities.li_3 = li_3
+  ids.global_quantities.beta_pol = beta_pol
+  ids.global_quantities.beta_tor = beta_tor
+  ids.global_quantities.beta_tor_norm = beta_tor_norm
+  # Temperatures are converted from keV to eV(IMAS standard unit).
+  ids.global_quantities.t_e_volume_average = t_e_volume_average
+  ids.global_quantities.n_e_volume_average = n_e_volume_average
   ids.global_quantities.ion_time_slice = times[0]
   main_ion = runtime_params_provider(
       times[0]
   ).plasma_composition.main_ion.fractions
-  impurities = runtime_params_provider(
-      times[0]
-  ).plasma_composition.impurity_names
+  impurities = post_processed_outputs[0].impurity_species.keys()
   num_ions = len(main_ion) + len(impurities)
   ids.global_quantities.ion.resize(num_ions)
   for ion in range(num_ions):
@@ -268,6 +228,48 @@ def _fill_profiles_1d(
         [[cp_state.Z_eff_face[0]], cp_state.Z_eff, [cp_state.Z_eff_face[-1]]]
     )
     ids.profiles_1d[i].zeff = Z_eff
+
+
+def _calculate_impurity_density_scaling_and_charge_states(
+    core_profiles: state.CoreProfiles,
+    runtime_params: runtime_params.RuntimeParams,
+) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
+  """Computes the impurity_density_scaling factor to compute "True" impurity density.
+
+  Reproduces what is done in impurity_radiation_mavrin_fit in
+  sources/impurity_radiation_heat_sink/impurity_radiation_mavrin_fit.py
+  Also outputs Z_per_species to avoid calculating them again.
+
+  Returns:
+      FloatVector of impurity density scaling Z_imp_eff / <Z> on and
+      FloatVector of avg Z_per_specie for all impurities on
+      cell_plus_boundaries grid.
+  """
+  ion_symbols = runtime_params.plasma_composition.impurity_names
+  # Extend fractions to cell_plus_boundaries grid to compute everything on this
+  # grid directly.
+  impurity_fractions = {
+      symbol: np.concatenate([
+          [core_profiles.impurity_fractions[symbol][0]],
+          core_profiles.impurity_fractions[symbol],
+          [core_profiles.impurity_fractions[symbol][-1]],
+      ])
+      for symbol in ion_symbols
+  }
+
+  charge_state_info = charge_states.get_average_charge_state(
+      T_e=core_profiles.T_e.cell_plus_boundaries(),
+      fractions=impurity_fractions,
+      Z_override=runtime_params.plasma_composition.impurity.Z_override,
+  )
+  Z_avg = charge_state_info.Z_avg
+  Z_impurity = np.concatenate([
+      [core_profiles.Z_impurity_face[0]],
+      core_profiles.Z_impurity,
+      [core_profiles.Z_impurity_face[-1]],
+  ])
+  impurity_density_scaling = Z_impurity / Z_avg
+  return impurity_density_scaling, charge_state_info.Z_per_species
 
 
 def _fill_ions(
@@ -388,7 +390,7 @@ def _fill_ions(
 
   main_ion = runtime_params.plasma_composition.main_ion.fractions
   impurity_symbols = runtime_params.plasma_composition.impurity_names
-  impurity_fractions_arr = jnp.stack(
+  impurity_fractions_arr = np.stack(
       [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
   )
   impurities = list(zip(impurity_symbols, impurity_fractions_arr))
