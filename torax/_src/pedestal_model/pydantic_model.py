@@ -13,31 +13,118 @@
 # limitations under the License.
 
 """Pydantic config for Pedestal."""
+from __future__ import annotations
+
 import abc
-from typing import Annotated, Literal
+from typing import Annotated, Any, Dict, Literal, Union
 
 import chex
+import jax.numpy as jnp
+import pydantic
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
+from torax._src.pedestal_policy import constant
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_lib
+from torax._src.pedestal_policy import runtime_params as pedestal_policy_runtime_params
+from torax._src.pedestal_policy import time_varying
+from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
-class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base class for pedestal models.
+class SetPedestalConstant(torax_pydantic.BaseModelFrozen):
+  """Policy to control pedestal on/off state with constant values."""
 
-  Attributes:
-    set_pedestal: Whether to use the pedestal model and set the pedestal. Can be
-      time varying.
-  """
-
-  set_pedestal: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
+  use_pedestal: bool
+  scale_pedestal: float | None = None
+  policy_type: Annotated[Literal['constant'], torax_pydantic.JAX_STATIC] = (
+      'constant'
   )
+
+  def build_pedestal_policy(self) -> constant.Constant:
+    return constant.Constant()
+
+  def build_pedestal_policy_runtime_params(
+      self,
+  ) -> pedestal_policy_runtime_params.ConstantRP:
+    return pedestal_policy_runtime_params.ConstantRP(
+        use_pedestal=jnp.array(self.use_pedestal),
+        scale_pedestal=jnp.array(self.scale_pedestal)
+        if self.scale_pedestal is not None
+        else None,
+    )
+
+
+class SetPedestalTimeVarying(torax_pydantic.BaseModelFrozen):
+  """Policy to control pedestal on/off state, can be constant or time-varying."""
+
+  value: interpolated_param_1d.TimeVaryingScalar
+  policy_type: Annotated[Literal['time_varying'], torax_pydantic.JAX_STATIC] = (
+      'time_varying'
+  )
+
+  def build_pedestal_policy(self) -> time_varying.TimeVarying:
+    return time_varying.TimeVarying()
+
+  def build_pedestal_policy_runtime_params(
+      self,
+  ) -> pedestal_policy_runtime_params.TimeVaryingRP:
+    if not self.value.is_bool_param:
+      raise ValueError('TimeVarying policy for set_pedestal must be boolean')
+    return pedestal_policy_runtime_params.TimeVaryingRP(
+        time=jnp.array(self.value.time),
+        value=jnp.array(self.value.value),
+        is_bool_param=self.value.is_bool_param,
+        interpolation_mode=self.value.interpolation_mode,
+    )
+
+
+# Union of all configurable pedestal policy types
+SetPedestalPolicy = Annotated[
+    Union[SetPedestalConstant, SetPedestalTimeVarying],
+    pydantic.Field(discriminator='policy_type'),
+]
+
+
+class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base class for pedestal models."""
+
+  set_pedestal: SetPedestalPolicy = torax_pydantic.ValidatedDefault(
+      {'policy_type': 'constant', 'use_pedestal': False}
+  )
+
+  @pydantic.field_validator('set_pedestal', mode='before')
+  @classmethod
+  def _validate_set_pedestal_policy(cls, v: Any) -> Dict[str, Any]:
+    if isinstance(v, dict) and 'policy_type' in v:
+      return v
+
+    # Intercept simple (non-policy) types of set_pedestal and upgrade them
+    # to policies
+    if isinstance(v, bool):
+      return {'policy_type': 'constant', 'use_pedestal': v}
+    elif isinstance(v, (dict, tuple)):
+      return {'policy_type': 'time_varying', 'value': v}
+    elif isinstance(v, interpolated_param_1d.TimeVaryingScalar):
+      return {'policy_type': 'time_varying', 'value': v.model_dump()}
+    elif v is None:
+      return {'policy_type': 'constant', 'use_pedestal': False}
+    else:
+      raise TypeError(
+          f'Invalid type or format for set_pedestal: {type(v)}, value: {v}'
+      )
+
+  def build_pedestal_policy(self) -> pedestal_policy_lib.PedestalPolicy:
+    return self.set_pedestal.build_pedestal_policy()
+
+  def build_pedestal_policy_runtime_params(
+      self,
+  ) -> pedestal_policy_runtime_params.PedestalPolicyRuntimeParams:
+    return self.set_pedestal.build_pedestal_policy_runtime_params()
 
   @abc.abstractmethod
   def build_pedestal_model(self) -> pedestal_model.PedestalModel:
@@ -47,7 +134,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
-    """Builds the runtime params."""
+    """Builds the runtime params for the pedestal model itself."""
 
 
 class SetPpedTpedRatioNped(BasePedestal):
@@ -83,15 +170,15 @@ class SetPpedTpedRatioNped(BasePedestal):
   ) -> (
       set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
   ):
-    return (
-        set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
+    pedestal_policy = self.set_pedestal.build_pedestal_policy()
+    return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel(
+        pedestal_policy=pedestal_policy,
     )
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_pped_tpedratio_nped.RuntimeParams:
     return set_pped_tpedratio_nped.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -132,13 +219,15 @@ class SetTpedNped(BasePedestal):
   def build_pedestal_model(
       self,
   ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
-    return set_tped_nped.SetTemperatureDensityPedestalModel()
+    pedestal_policy = self.set_pedestal.build_pedestal_policy()
+    return set_tped_nped.SetTemperatureDensityPedestalModel(
+        pedestal_policy=pedestal_policy,
+    )
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_tped_nped.RuntimeParams:
     return set_tped_nped.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -150,24 +239,34 @@ class SetTpedNped(BasePedestal):
 class NoPedestal(BasePedestal):
   """A pedestal model for when there is no pedestal.
 
-  Note that setting `set_pedestal` to True with a NoPedestal model is the
-  equivalent of setting it to False.
+  If any pedestal policy is specified using the `set_pedestal` field,
+  it is ignored.
   """
 
   model_name: Annotated[Literal['no_pedestal'], torax_pydantic.JAX_STATIC] = (
       'no_pedestal'
   )
+  # Override the default policy to ensure it's always off for this model.
+  set_pedestal: SetPedestalPolicy = torax_pydantic.ValidatedDefault(
+      {'policy_type': 'constant', 'use_pedestal': False}
+  )
 
   def build_pedestal_model(
       self,
   ) -> no_pedestal.NoPedestal:
-    return no_pedestal.NoPedestal()
+    return no_pedestal.NoPedestal(pedestal_policy=constant.Constant())
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
-    return runtime_params.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
+    return runtime_params.RuntimeParams()
+
+  def build_pedestal_policy_runtime_params(
+      self,
+  ) -> pedestal_policy_runtime_params.ConstantRP:
+    return pedestal_policy_runtime_params.ConstantRP(
+        use_pedestal=jnp.array(False),
+        scale_pedestal=None,
     )
 
 

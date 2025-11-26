@@ -103,19 +103,32 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
             set_pedestal={0.0: True, 1.0: False},
         )
     )
+    pedestal_policy = pedestal.build_pedestal_model().pedestal_policy
     # Check at time 0.
 
     pedestal_params = pedestal.build_runtime_params(t=0.0)
+    pedestal_policy_rp = pedestal.build_pedestal_policy_runtime_params()
     assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
-    np.testing.assert_allclose(pedestal_params.set_pedestal, True)
+    np.testing.assert_allclose(
+        pedestal_policy.initial_state(
+            t=0.0, runtime_params=pedestal_policy_rp
+        ).use_pedestal,
+        True,
+    )
     np.testing.assert_allclose(pedestal_params.T_i_ped, 0.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0e20)
     np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 3.0)
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.0)
+    # Note: pedestal_policy_rp does not depend on time for its structure
     assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
-    np.testing.assert_allclose(pedestal_params.set_pedestal, False)
+    np.testing.assert_allclose(
+        pedestal_policy.initial_state(
+            t=1.0, runtime_params=pedestal_policy_rp
+        ).use_pedestal,
+        False,
+    )
     np.testing.assert_allclose(pedestal_params.T_i_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0e20)

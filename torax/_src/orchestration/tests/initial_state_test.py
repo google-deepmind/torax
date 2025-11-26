@@ -131,7 +131,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     runtime_params.profile_conditions.normalize_n_e_to_nbar = False
     runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
-    result = initial_state._get_initial_state(runtime_params, geo, step_fn)
+    result = initial_state._get_initial_state(runtime_params, geo, step_fn, t=t)
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )

@@ -28,6 +28,7 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
@@ -47,6 +48,7 @@ def predictor_corrector_method(
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
     coeffs_callback: calc_coeffs.CoeffsCallback,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
@@ -68,6 +70,7 @@ def predictor_corrector_method(
       recalculated at time t+plus_dt with updated state during the solver
       iterations. For sources that are implicit, their explicit profiles are set
       to all zeros.
+    pedestal_policy_state_t_plus_dt: Pedestal state at next time step
     coeffs_callback: coefficient callback function.
 
   Returns:
@@ -84,6 +87,7 @@ def predictor_corrector_method(
         core_profiles_t_plus_dt,
         x_new_guess,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_policy_state=pedestal_policy_state_t_plus_dt,
         allow_pereverzev=True,
     )
 

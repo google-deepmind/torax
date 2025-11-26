@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -50,6 +51,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
 
@@ -83,9 +85,9 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # smooth_everywhere is True.
     return self._smooth_coeffs(
         transport_runtime_params,
-        runtime_params,
         geo,
         transport_coeffs,
+        pedestal_policy_state,
         pedestal_model_output,
     )
 

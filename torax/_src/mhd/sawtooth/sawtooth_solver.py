@@ -24,6 +24,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.solver import solver
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -46,6 +47,8 @@ class SawtoothSolver(solver.Solver):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_policy_state_t: pedestal_policy.PedestalPolicyState,
+      pedestal_policy_state_t_plus_dt: pedestal_policy.PedestalPolicyState,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -70,6 +73,9 @@ class SawtoothSolver(solver.Solver):
       core_profiles_t_plus_dt: Core profiles containing boundary conditions and
         prescribed profiles at time t + crash_dt.
       explicit_source_profiles: Explicit source profiles at time t.
+      pedestal_policy_state_t: Pedestal policy state at time t
+      pedestal_policy_state_t_plus_dt: Pedestal policy state at time t +
+        crash_dt
       evolving_names: Names of evolving variables.
 
     Returns:

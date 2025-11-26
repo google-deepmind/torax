@@ -69,6 +69,9 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(time)
     runtime_params = provider(t=time)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
+    pedestal_policy_state = pedestal_model.pedestal_policy.initial_state(
+        t=0.0, runtime_params=runtime_params.pedestal_policy
+    )
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
@@ -79,6 +82,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        pedestal_policy_state=pedestal_policy_state,
     )
 
     if isinstance(T_i_ped, (float, int)):

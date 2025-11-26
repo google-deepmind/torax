@@ -103,6 +103,14 @@ def compute_state(
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=input_state.core_profiles,
   )
+
+  pedestal_policy = solver.physics_models.pedestal_model.pedestal_policy
+  pedestal_policy_state_t = input_state.pedestal_policy_state
+  pedestal_policy_state_t_plus_dt = pedestal_policy.update(
+      t=input_state.t + dt,
+      runtime_params=runtime_params_t_plus_dt.pedestal_policy,
+  )
+
   # The solver returned state is still "intermediate" since the CoreProfiles
   # need to be updated by the evolved CellVariables in x_new
   x_new, solver_numeric_outputs = solver(
@@ -115,6 +123,8 @@ def compute_state(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state_t=pedestal_policy_state_t,
+      pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_dt,
   )
   loop_statistics[
       'inner_solver_iterations'

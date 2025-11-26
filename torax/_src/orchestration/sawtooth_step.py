@@ -31,6 +31,7 @@ from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_policy import pedestal_policy as pedestal_policy_lib
 from torax._src.physics import formulas
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -41,6 +42,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
     jax.jit,
     static_argnames=[
         'sawtooth_solver',
+        'pedestal_policy',
     ],
 )
 def sawtooth_step(
@@ -54,6 +56,7 @@ def sawtooth_step(
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.ToraxSimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    pedestal_policy: pedestal_policy_lib.PedestalPolicy,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
@@ -75,6 +78,7 @@ def sawtooth_step(
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
+    pedestal_policy: The pedestal policy.
 
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
@@ -100,6 +104,12 @@ def sawtooth_step(
       core_profiles_t=input_state.core_profiles,
   )
 
+  pedestal_policy_state_t = input_state.pedestal_policy_state
+  pedestal_policy_state_t_plus_crash_dt = pedestal_policy.update(
+      t=input_state.t + dt_crash,
+      runtime_params=runtime_params_t_plus_crash_dt.pedestal_policy,
+  )
+
   (
       x_candidate,
       solver_numeric_outputs,
@@ -113,6 +123,8 @@ def sawtooth_step(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_policy_state_t=pedestal_policy_state_t,
+      pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_crash_dt,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
@@ -137,6 +149,11 @@ def sawtooth_step(
         dt_crash=dt_crash,
     )
 
+    pedestal_policy_state_t_plus_dt = pedestal_policy.update(
+        t=input_state.t + dt_crash,
+        runtime_params=runtime_params_t_plus_crash_dt.pedestal_policy,
+    )
+
     return step_function_processing.finalize_outputs(
         t=input_state.t,
         dt=dt_crash,
@@ -148,6 +165,7 @@ def sawtooth_step(
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
         edge_outputs=edge_outputs,
+        pedestal_policy_state_t_plus_dt=pedestal_policy_state_t_plus_dt,
         physics_models=sawtooth_solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,

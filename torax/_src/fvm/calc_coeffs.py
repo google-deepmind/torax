@@ -27,6 +27,7 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_policy import pedestal_policy
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 import typing_extensions
@@ -63,6 +64,7 @@ class CoeffsCallback:
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_policy_state: pedestal_policy.PedestalPolicyState,
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
@@ -86,6 +88,7 @@ class CoeffsCallback:
         not recalculated at time t+plus_dt with updated state during the solver
         iterations. For sources that are implicit, their explicit profiles are
         set to all zeros.
+      pedestal_policy_state: State held by the pedestal policy.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
         or as part of calculating the initial guess for the nonlinear solver. In
@@ -100,6 +103,16 @@ class CoeffsCallback:
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.
     """
+
+    # There are cases where pytype fails to enforce this
+    if not isinstance(
+        pedestal_policy_state, pedestal_policy.PedestalPolicyState
+    ):
+      raise TypeError(
+          'Expected `pedestal_policy_state` to be of type '
+          '`pedestal_policy.PedestalPolicyState`',
+          f'got `{type(pedestal_policy_state)}`.',
+      )
 
     # Update core_profiles with the subset of new values of evolving variables
     core_profiles = updaters.update_core_profiles_during_step(
@@ -121,6 +134,7 @@ class CoeffsCallback:
         explicit_source_profiles=explicit_source_profiles,
         physics_models=self.physics_models,
         evolving_names=self.evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
     )
@@ -219,6 +233,7 @@ def calc_coeffs(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     use_pereverzev: bool = False,
     explicit_call: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
@@ -241,6 +256,7 @@ def calc_coeffs(
     physics_models: The physics models to use for the simulation.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
+    pedestal_policy_state: State held by the pedestal policy.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
@@ -250,6 +266,14 @@ def calc_coeffs(
   Returns:
     coeffs: Block1DCoeffs containing the coefficients at this time step.
   """
+
+  # There are cases where pytype fails to enforce this
+  if not isinstance(pedestal_policy_state, pedestal_policy.PedestalPolicyState):
+    raise TypeError(
+        'Expected `pedestal_policy_state` to be of type '
+        '`pedestal_policy.PedestalPolicyState`',
+        f'got `{type(pedestal_policy_state)}`.',
+    )
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
@@ -267,6 +291,7 @@ def calc_coeffs(
         explicit_source_profiles=explicit_source_profiles,
         physics_models=physics_models,
         evolving_names=evolving_names,
+        pedestal_policy_state=pedestal_policy_state,
         use_pereverzev=use_pereverzev,
     )
 
@@ -285,14 +310,26 @@ def _calc_coeffs_full(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
+    pedestal_policy_state: pedestal_policy.PedestalPolicyState,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
 
   consts = constants.CONSTANTS
 
+  # There are cases where pytype fails to enforce this
+  if not isinstance(pedestal_policy_state, pedestal_policy.PedestalPolicyState):
+    raise TypeError(
+        'Expected `pedestal_policy_state` to be of type '
+        '`pedestal_policy.PedestalPolicyState`',
+        f'got `{type(pedestal_policy_state)}`.',
+    )
+
   pedestal_model_output = physics_models.pedestal_model(
-      runtime_params, geo, core_profiles
+      runtime_params,
+      geo,
+      core_profiles,
+      pedestal_policy_state=pedestal_policy_state,
   )
 
   # Boolean mask for enforcing internal temperature boundary conditions to
@@ -352,7 +389,11 @@ def _calc_coeffs_full(
 
   # Diffusion term coefficients
   turbulent_transport = physics_models.transport_model(
-      runtime_params, geo, core_profiles, pedestal_model_output
+      runtime_params,
+      geo,
+      core_profiles,
+      pedestal_policy_state,
+      pedestal_model_output,
   )
   neoclassical_transport = physics_models.neoclassical_models.transport(
       runtime_params, geo, core_profiles
