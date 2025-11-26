@@ -42,21 +42,24 @@ logger = logging.getLogger()
 
 
 class ToraxMuscleRunner:
+    # first_run
     first_run: bool = True
     output_all_timeslices: bool = False
     db_out: Optional[IDSToplevel] = None
     torax_config = None
     dynamic_runtime_params_slice_provider = None
-    sim_state = None
-    post_processed_outputs = None
     step_fn = None
     time_step_calculator_dynamic_params = None
+    equilibrium_interval = None
+
+    # state
+    sim_state = None
+    post_processed_outputs = None
     extra_var_col = None
     t_cur = None
     t_next_inner = None
     t_next_outer = None
     finished = False
-    equilibrium_interval = None
     last_equilibrium_call = - np.inf
 
     def __init__(self):
@@ -79,11 +82,6 @@ class ToraxMuscleRunner:
                 self.run_o_i()
                 self.run_s()
                 self.run_timestep()
-                not_done = self.step_fn.time_step_calculator.not_done(
-                    self.t_cur,
-                    self.t_final,
-                    self.time_step_calculator_dynamic_params,
-                )
             self.run_o_f()
 
         self.finished = True
@@ -188,7 +186,7 @@ class ToraxMuscleRunner:
             self.db_out.put_slice(equilibrium_data)
 
         if sim_error != SimError.NO_ERROR:
-            raise Exception()
+            raise Exception(sim_error)
 
     def run_o_f(self):
         if self.output_all_timeslices:
@@ -220,6 +218,10 @@ class ToraxMuscleRunner:
             self.t_next_outer = t_next
         elif port_name == "s":
             self.t_next_inner = t_next
+        
+        if equilibrium_data.code.output_flag[0] == -1:
+            return
+
         geometry_configs = {}
         torax_config_dict = get_geometry_config_dict(self.torax_config)
         torax_config_dict["geometry_type"] = "imas"
