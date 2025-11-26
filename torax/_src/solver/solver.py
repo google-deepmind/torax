@@ -37,6 +37,7 @@ from torax._src.sources import source_profiles
 class Solver(static_dataclass.StaticDataclass, abc.ABC):
   """Solves for a single time step's update to State.
 
+
   Attributes:
     physics_models: Physics models.
   """
