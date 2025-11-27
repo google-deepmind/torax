@@ -282,56 +282,142 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-  def test_extended_lengyel_inverse_mode_validation_bad_impurity_mode(self):
-    """Tests validation logic for Extended Lengyel inverse mode."""
-    bad_config = default_configs.get_default_config_dict()
-    bad_config["geometry"] = {
+  def test_edge_core_impurity_consistency_overlap(self):
+    """Tests that overlapping fixed and seeded impurities raise an error."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
         "geometry_type": "chease",
         "geometry_file": "iterhybrid.mat2cols",
     }
-    # Configure Edge model in INVERSE mode
-    bad_config["edge"] = {
+    # Inverse mode logic checks that fixed and seed sets are disjoint.
+    config_dict["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 10.0,
+        # 'N' is present in both fixed and seed dictionaries.
+        "fixed_impurity_concentrations": {"N": 0.01},
+        "seed_impurity_weights": {"N": 1.0},
+        "enrichment_factor": {"N": 1.0},
+    }
+    config_dict["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"N": 0.01},
+        }
+    }
+
+    with self.assertRaisesRegex(
+        ValueError, "Edge fixed and seeded impurities must be disjoint"
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_edge_core_impurity_consistency_mismatch(self):
+    """Tests that mismatched core and edge species raise an error."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config_dict["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "target_electron_temp": 10.0,
+        # Edge has 'N' and 'Ar'
+        "fixed_impurity_concentrations": {"N": 0.01},
+        "seed_impurity_weights": {"Ar": 1.0},
+        "enrichment_factor": {"N": 1.0, "Ar": 1.0},
+    }
+
+    # Core has 'N', 'Ar', and 'Ne'. 'Ne' is missing from the edge config.
+    config_dict["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"N": 0.01, "Ar": 0.01, "Ne": 0.01},
+        }
+    }
+
+    with self.assertRaisesRegex(
+        ValueError, "Mismatch between core plasma composition impurities"
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+
+class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
+  """Tests validation logic for Extended Lengyel and impurity mode."""
+
+  def setUp(self):
+    super().setUp()
+    self.config = default_configs.get_default_config_dict()
+    self.config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+
+  def test_inverse_mode_bad_impurity_mode(self):
+    self.config["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
         "target_electron_temp": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
     }
-
     # Default plasma_composition uses 'fractions', which is incompatible
-    # with inverse mode extended lengyel.
+    # with extended lengyel.
     with self.assertRaisesRegex(
         ValueError,
-        "requires plasma_composition.impurity_mode to be 'n_e_ratios'",
+        "Extended Lengyel edge model requires"
+        " plasma_composition.impurity_mode to be 'n_e_ratios'",
     ):
-      model_config.ToraxConfig.from_dict(bad_config)
+      model_config.ToraxConfig.from_dict(self.config)
 
-  def test_extended_lengyel_inverse_mode_validation_good_impurity_mode(self):
-    """Tests validation logic for Extended Lengyel inverse mode."""
-    good_config = default_configs.get_default_config_dict()
-    good_config["geometry"] = {
-        "geometry_type": "chease",
-        "geometry_file": "iterhybrid.mat2cols",
-    }
-    # Configure Edge model in INVERSE mode
-    good_config["edge"] = {
+  def test_inverse_mode_good_impurity_mode(self):
+    self.config["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
         "target_electron_temp": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
     }
-
-    # Explicitly set impurity mode to 'n_e_ratios'.
-    good_config["plasma_composition"] = {
+    self.config["plasma_composition"] = {
         "impurity": {
             "impurity_mode": "n_e_ratios",
             "species": {"Ne": 0.01},
         }
     }
-
     # Should not raise
-    model_config.ToraxConfig.from_dict(good_config)
+    model_config.ToraxConfig.from_dict(self.config)
+
+  def test_forward_mode_bad_impurity_mode(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "forward",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+    # Default plasma_composition uses 'fractions', which is incompatible
+    # with extended lengyel.
+    with self.assertRaisesRegex(
+        ValueError,
+        "Extended Lengyel edge model requires"
+        " plasma_composition.impurity_mode to be 'n_e_ratios'",
+    ):
+      model_config.ToraxConfig.from_dict(self.config)
+
+  def test_forward_mode_good_impurity_mode(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "forward",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "enrichment_factor": {"Ne": 1.0},
+    }
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": 0.01},
+        }
+    }
+    # Should not raise
+    model_config.ToraxConfig.from_dict(self.config)
 
 
 if __name__ == "__main__":

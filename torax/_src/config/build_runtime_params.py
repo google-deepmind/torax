@@ -27,6 +27,7 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
@@ -34,7 +35,6 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
-from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -338,19 +338,13 @@ def _update_runtime_params_from_edge(
       runtime_params,
   )
 
-  # Conditionally update impurities based on being in inverse mode and the
-  # update_impurities flag.
-  is_inverse_mode = (
-      runtime_params.edge.computation_mode
-      == extended_lengyel_enums.ComputationMode.INVERSE
+  # Conditionally update impurities based on the update_impurities flag.
+  runtime_params = jax.lax.cond(
+      runtime_params.edge.update_impurities,
+      lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
+      lambda runtime_params: runtime_params,
+      runtime_params,
   )
-  if is_inverse_mode:
-    runtime_params = jax.lax.cond(
-        runtime_params.edge.update_impurities,
-        lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
-        lambda runtime_params: runtime_params,
-        runtime_params,
-    )
 
   return runtime_params
 
@@ -373,6 +367,25 @@ def _update_temperatures(
   )
 
 
+def _calculate_impurity_scaling_factor(
+    conc: array_typing.FloatScalar,
+    species: str,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    impurity_params: electron_density_ratios.RuntimeParams,
+) -> chex.Numeric:
+  """Calculates the scaling factor for impurity profiles."""
+  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  # Enrichment factor is ratio of divertor to upstream concentration.
+  # c_core = c_edge / enrichment.
+  enrichment = runtime_params.edge.enrichment_factor[species]
+  # Concentration at the LCFS reduced by enrichment factor.
+  conc_lcfs = conc / enrichment
+  # Calculate scaling from the current value of the profile at the lcfs.
+  # This scales the whole profile shape to match the edge value.
+  current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
+  return conc_lcfs / (current_val_at_edge + constants.CONSTANTS.eps)
+
+
 def _update_impurities(
     runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs,
@@ -390,22 +403,26 @@ def _update_impurities(
   new_n_e_ratios, new_n_e_ratios_face = {}, {}
 
   for species, n_e_ratio in impurity_params.n_e_ratios.items():
-    # Default scaling factor is 1.0 for unseeded impurities.
-    scaling_factor = 1.0
+    # Case 1: Seeded impurity (Inverse Mode).
     if species in edge_outputs.seed_impurity_concentrations:
       conc = edge_outputs.seed_impurity_concentrations[species]
-      # enrichment factor keys already validated to match impurity keys
-      # in pydantic model
-      enrichment = runtime_params.edge.enrichment_factor[species]
-
-      # Concentration at the (LCFS) reduced by enrichment factor
-      conc_lcfs = conc / enrichment
-
-      # Calculate scaling from the current value of the profile at the lcfs.
-      current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
-      scaling_factor = conc_lcfs / (
-          current_val_at_edge + constants.CONSTANTS.eps
+      scaling_factor = _calculate_impurity_scaling_factor(
+          conc, species, runtime_params, impurity_params
       )
+
+    # Case 2: Fixed impurity with EDGE source of truth.
+    elif (
+        species in runtime_params.edge.fixed_impurity_concentrations
+        and runtime_params.edge.impurity_sot
+        == extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE
+    ):
+      conc = runtime_params.edge.fixed_impurity_concentrations[species]
+      scaling_factor = _calculate_impurity_scaling_factor(
+          conc, species, runtime_params, impurity_params
+      )
+    # Case 3: This species is not updated from the edge model. Leave untouched.
+    else:
+      scaling_factor = 1.0
 
     new_n_e_ratios[species] = n_e_ratio * scaling_factor
     new_n_e_ratios_face[species] = (

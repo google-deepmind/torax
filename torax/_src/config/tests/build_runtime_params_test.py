@@ -15,6 +15,7 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -591,6 +592,165 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         updated_n_e_ratios_face,
         initial_n_e_ratios_face * scaling_factor,
         rtol=1e-5,
+    )
+
+
+class UpdateFixedImpuritiesTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self._ENRICHMENT_FACTOR = 2.0
+    self._INITIAL_EDGE_RATIO = 0.02
+    self._INITIAL_AXIS_RATIO = 0.01
+    self._EDGE_CONCENTRATION = 0.05
+    self.config_dict = default_configs.get_default_config_dict()
+    # Common config parts
+    self.config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {
+            'N': {0: self._INITIAL_AXIS_RATIO, 1: self._INITIAL_EDGE_RATIO},
+            'Ne': {0: 0.0, 1: 0.0},  # Dummy values in setup
+        },
+    }
+    self.config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    # Base edge config, to be modified in each test
+    self.config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'update_impurities': True,
+        'enrichment_factor': {
+            'N': self._ENRICHMENT_FACTOR,
+            'Ne': self._ENRICHMENT_FACTOR,
+        },
+        # Dummy values
+        'parallel_connection_length': 1.0,
+        'divertor_parallel_length': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'target_angle_of_incidence': 1.0,
+    }
+
+  def test_update_fixed_impurities_edge_truth_forward_mode(self):
+    self.config_dict['edge']['impurity_sot'] = 'edge'
+    self.config_dict['edge']['computation_mode'] = 'forward'
+    self.config_dict['edge']['seed_impurity_weights'] = None
+    self.config_dict['edge']['target_electron_temp'] = None
+    self.config_dict['edge']['fixed_impurity_concentrations'] = {
+        'N': self._EDGE_CONCENTRATION,
+        'Ne': 0.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.seed_impurity_concentrations = {}  # No seeded impurity update
+    initial_impurity_params = runtime_params.plasma_composition.impurity
+    assert isinstance(
+        initial_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    initial_n_e_ratios = initial_impurity_params.n_e_ratios['N']
+    updated_runtime_params = build_runtime_params._update_impurities(
+        runtime_params, edge_outputs
+    )
+    updated_impurity_params = updated_runtime_params.plasma_composition.impurity
+    assert isinstance(
+        updated_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    updated_n_e_ratios = updated_impurity_params.n_e_ratios['N']
+    # Expected scaling logic:
+    conc_lcfs = self._EDGE_CONCENTRATION / self._ENRICHMENT_FACTOR
+    scaling_factor = conc_lcfs / self._INITIAL_EDGE_RATIO
+    np.testing.assert_allclose(
+        updated_n_e_ratios, initial_n_e_ratios * scaling_factor, rtol=1e-5
+    )
+
+  def test_update_fixed_impurities_edge_truth_inverse_mode(self):
+    self.config_dict['edge']['impurity_sot'] = 'edge'
+    self.config_dict['edge']['computation_mode'] = 'inverse'
+    self.config_dict['edge']['seed_impurity_weights'] = {'Ne': 1.0}
+    self.config_dict['edge']['target_electron_temp'] = 1.0
+    self.config_dict['edge']['fixed_impurity_concentrations'] = {
+        'N': self._EDGE_CONCENTRATION
+    }
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.seed_impurity_concentrations = {}  # No seeded impurity update
+    initial_impurity_params = runtime_params.plasma_composition.impurity
+    assert isinstance(
+        initial_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    initial_n_e_ratios = initial_impurity_params.n_e_ratios['N']
+    updated_runtime_params = build_runtime_params._update_impurities(
+        runtime_params, edge_outputs
+    )
+    updated_impurity_params = updated_runtime_params.plasma_composition.impurity
+    assert isinstance(
+        updated_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    updated_n_e_ratios = updated_impurity_params.n_e_ratios['N']
+    # Expected scaling logic:
+    conc_lcfs = self._EDGE_CONCENTRATION / self._ENRICHMENT_FACTOR
+    scaling_factor = conc_lcfs / self._INITIAL_EDGE_RATIO
+    np.testing.assert_allclose(
+        updated_n_e_ratios, initial_n_e_ratios * scaling_factor, rtol=1e-5
+    )
+
+  def test_update_fixed_impurities_core_truth_forward_mode(self):
+    self.config_dict['edge']['impurity_sot'] = 'core'
+    self.config_dict['edge']['computation_mode'] = 'forward'
+    self.config_dict['edge']['seed_impurity_weights'] = None
+    self.config_dict['edge']['target_electron_temp'] = None
+    self.config_dict['edge']['fixed_impurity_concentrations'] = {
+        'N': self._EDGE_CONCENTRATION,
+        'Ne': 0.0,
+    }  # Dummy Edge value (should be ignored for core update)
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.seed_impurity_concentrations = {}
+    updated_runtime_params = build_runtime_params._update_impurities(
+        runtime_params, edge_outputs
+    )
+    updated_impurity_params = updated_runtime_params.plasma_composition.impurity
+    initial_impurity_params = runtime_params.plasma_composition.impurity
+    # Should be identical
+    chex.assert_trees_all_equal(
+        updated_impurity_params, initial_impurity_params
+    )
+
+  def test_update_fixed_impurities_core_truth_inverse_mode(self):
+    self.config_dict['edge']['impurity_sot'] = 'core'
+    self.config_dict['edge']['computation_mode'] = 'inverse'
+    self.config_dict['edge']['seed_impurity_weights'] = {'Ne': 1.0}
+    self.config_dict['edge']['target_electron_temp'] = 1.0
+    self.config_dict['edge']['fixed_impurity_concentrations'] = {
+        'N': self._EDGE_CONCENTRATION
+    }  # Dummy Edge value (should be ignored for core update)
+    torax_config = model_config.ToraxConfig.from_dict(self.config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.seed_impurity_concentrations = {}
+    updated_runtime_params = build_runtime_params._update_impurities(
+        runtime_params, edge_outputs
+    )
+    updated_impurity_params = updated_runtime_params.plasma_composition.impurity
+    initial_impurity_params = runtime_params.plasma_composition.impurity
+    # Should be identical
+    chex.assert_trees_all_equal(
+        updated_impurity_params, initial_impurity_params
     )
 
 

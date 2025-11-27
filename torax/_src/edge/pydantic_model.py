@@ -44,6 +44,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   solver_mode: Annotated[
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
+  impurity_sot: Annotated[
+      extended_lengyel_model.FixedImpuritySourceOfTruth,
+      torax_pydantic.JAX_STATIC,
+  ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
   update_temperatures: bool = True
@@ -64,10 +68,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
       )
   )
-  ratio_bpol_omp_to_bpol_avg: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
+  ratio_bpol_omp_to_bpol_avg: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
+      )
   )
   sheath_heat_transmission_factor: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
@@ -278,6 +282,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     return extended_lengyel_model.RuntimeParams(
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
+        impurity_sot=self.impurity_sot,
         update_temperatures=self.update_temperatures,
         update_impurities=self.update_impurities,
         fixed_step_iterations=self.fixed_step_iterations,
@@ -285,9 +290,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         newton_raphson_tol=self.newton_raphson_tol,
         ne_tau=self.ne_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
-        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(
-            t
-        ),
+        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(t),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(
             t
         ),

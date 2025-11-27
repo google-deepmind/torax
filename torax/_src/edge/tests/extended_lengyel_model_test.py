@@ -17,10 +17,13 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax.numpy as jnp
 import numpy as np
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
@@ -150,6 +153,7 @@ class ExtendedLengyelModelTest(absltest.TestCase):
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
         solver_mode=extended_lengyel_enums.SolverMode.FIXED_STEP,
+        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
         target_electron_temp=2.34,
         parallel_connection_length=20.0,
         divertor_parallel_length=5.0,
@@ -162,6 +166,19 @@ class ExtendedLengyelModelTest(absltest.TestCase):
     # Mock full RuntimeParams to hold the edge params
     mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
     mock_runtime_params.edge = edge_runtime_params
+    mock_plasma_composition = mock.MagicMock(
+        spec=plasma_composition_lib.RuntimeParams
+    )
+    mock_impurity_params = mock.MagicMock(
+        spec=electron_density_ratios.RuntimeParams
+    )
+    # The standalone test has fixed He concentration of 0.01.
+    # With enrichment=1.0, the core ratio at the edge should be 0.01.
+    mock_impurity_params.n_e_ratios_face = {
+        'He': np.array([0.01] * (n_rho + 1))
+    }
+    mock_plasma_composition.impurity = mock_impurity_params
+    mock_runtime_params.plasma_composition = mock_plasma_composition
 
     # --- 3. Run Model and Assert ---
     model = edge_config.build_edge_model()
@@ -210,6 +227,112 @@ class ExtendedLengyelModelTest(absltest.TestCase):
       else:
         np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)
 
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_fixed_impurity_update_from_core(self, mock_run_standalone):
+    """Tests that fixed impurities are updated from core when source_of_truth is CORE."""
+    # Setup parameters
+    n_rho = 10
+    c_core_edge = 0.01
+    enrichment = 2.0
+    expected_c_edge = c_core_edge * enrichment
+
+    # 1. Mock Geometry
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))
+    mock_geo.rho_norm = np.linspace(0, 1, n_rho)
+    mock_geo.drho_norm = np.ones(n_rho) / n_rho
+    # Need minimal attributes for _resolve_geometric_parameters
+    mock_geo.connection_length_target = None
+    mock_geo.connection_length_divertor = None
+    mock_geo.target_angle_of_incidence = None
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = True
+    # Need attributes for calcs
+    mock_geo.R_major = np.array(1.65)
+    mock_geo.a_minor = np.array(0.5)
+    mock_geo.B_0 = np.array(2.5)
+    mock_geo.elongation_face = np.array([1.6] * (n_rho + 1))
+    mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
+    mock_geo.vpr = np.ones(n_rho)
+
+    # 2. Mock CoreProfiles
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_e = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_i = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_n_impurity = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.linspace(0, 1.0, n_rho + 1)
+    mock_n_e.face_value.return_value = np.ones(n_rho + 1) * 1e19
+    mock_n_i.face_value.return_value = np.ones(n_rho + 1) * 1e19
+    mock_n_impurity.face_value.return_value = np.zeros(n_rho + 1)
+    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.n_e = mock_n_e
+    mock_core_profiles.n_i = mock_n_i
+    mock_core_profiles.n_impurity = mock_n_impurity
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 4.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    # 3. Mock CoreSources
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.zeros(n_rho)
+
+    # 4. Configure Edge params
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        fixed_impurity_concentrations={
+            'He': 0.05
+        },  # Stale value, should be ignored
+        enrichment_factor={'He': enrichment},
+        seed_impurity_weights={},
+        # Other required fields
+        parallel_connection_length=10.0,
+        divertor_parallel_length=5.0,
+        target_angle_of_incidence=1.0,
+        toroidal_flux_expansion=1.0,
+    )
+    edge_params = edge_config.build_runtime_params(t=0.0)
+
+    # 5. Construct RuntimeParams with plasma composition
+    # We use a real dataclass for impurity params to satisfy isinstance check
+    impurity_params = electron_density_ratios.RuntimeParams(
+        n_e_ratios={},  # Only face used in the logic
+        n_e_ratios_face={'He': jnp.linspace(0, c_core_edge, n_rho + 1)},
+        A_avg=mock.MagicMock(),
+        A_avg_face=mock.MagicMock(),
+        Z_override=None,
+    )
+
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    mock_plasma_composition = mock.MagicMock(
+        spec=plasma_composition_lib.RuntimeParams
+    )
+    mock_plasma_composition.impurity = impurity_params
+    mock_runtime_params.plasma_composition = mock_plasma_composition
+    mock_runtime_params.edge = edge_params
+
+    # 6. Run
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(mock_runtime_params, mock_geo, mock_core_profiles, mock_core_sources)
+
+    # 7. Assert
+    _, kwargs = mock_run_standalone.call_args
+    passed_fixed_impurities = kwargs['fixed_impurity_concentrations']
+
+    self.assertIn('He', passed_fixed_impurities)
+    np.testing.assert_allclose(
+        passed_fixed_impurities['He'],
+        expected_c_edge,
+        err_msg='Fixed impurity concentration was not updated from core.',
+    )
+
 
 class ExtendedLengyelModelValidationTest(absltest.TestCase):
 
@@ -232,6 +355,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     defaults = {
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
+        'impurity_sot': extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
         'update_temperatures': True,
         'update_impurities': True,
         'fixed_step_iterations': 1,
@@ -393,6 +517,10 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         'test_iterhybrid_predictor_corrector.py'
     )
     torax_config.update_fields({
+        'plasma_composition.impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'Ne': 0.01},
+        },
         'edge': {
             'model_name': 'extended_lengyel',
             'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
@@ -445,6 +573,10 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         'test_iterhybrid_predictor_corrector.py'
     )
     torax_config.update_fields({
+        'plasma_composition.impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'Ne': 0.01},
+        },
         'profile_conditions.T_e_right_bc': initial_Te_bc,
         'profile_conditions.T_i_right_bc': initial_Ti_bc,
         'edge': {

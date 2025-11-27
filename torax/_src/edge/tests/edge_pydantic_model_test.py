@@ -217,6 +217,53 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     self.assertIsNone(runtime_params.divertor_parallel_length)
     self.assertIsNone(runtime_params.target_electron_temp)
 
+  def test_species_consistency_validation_failure(self):
+    """Tests failure when species sets do not match between core and edge."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'fixed_impurity_concentrations': {'Ne': 0.01},
+        'enrichment_factor': {'Ne': 1.0},
+    }
+    config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {'Ar': 0.01},  # Ar vs Ne mismatch
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        'Mismatch between core plasma composition impurities and edge'
+        ' impurities',
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_species_overlap_validation_failure(self):
+    """Tests failure when seeded and fixed impurities overlap."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'computation_mode': 'inverse',
+        'target_electron_temp': 10.0,
+        'fixed_impurity_concentrations': {'Ne': 0.01},
+        'seed_impurity_weights': {'Ne': 1.0},  # Ne is in both
+        'enrichment_factor': {'Ne': 1.0},
+    }
+    config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {'Ne': 0.01},
+    }
+    with self.assertRaisesRegex(
+        ValueError, 'Edge fixed and seeded impurities must be disjoint'
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
   def test_run_standalone_from_pydantic_config(self):
     """Tests that standalone can be run from a pydantic config."""
     # This test is based on
@@ -271,6 +318,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     runtime_params_dict.pop('enrichment_factor')
     runtime_params_dict.pop('update_temperatures')
     runtime_params_dict.pop('update_impurities')
+    runtime_params_dict.pop('impurity_sot')
     kwargs = {**dynamic_inputs, **runtime_params_dict}
     # Run the model
     outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
