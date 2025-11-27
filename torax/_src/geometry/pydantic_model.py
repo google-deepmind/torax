@@ -14,9 +14,8 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 import functools
-import inspect
 import logging
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 
@@ -29,6 +28,7 @@ from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.imas_tools.input import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -358,13 +358,22 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-
-    return standard_geometry.build_standard_geometry(
-        _apply_relevant_kwargs(
-            standard_geometry.StandardGeometryIntermediates.from_IMAS,
-            self.__dict__,
-        )
+    inputs = imas_geometry.geometry_from_IMAS(
+        geometry_directory=self.geometry_directory,
+        equilibrium_object=self.equilibrium_object,
+        imas_uri=self.imas_uri,
+        imas_filepath=self.imas_filepath,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
+        slice_time=self.slice_time,
+        slice_index=self.slice_index,
     )
+    intermediates = standard_geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.IMAS, **inputs
+    )
+
+    return standard_geometry.build_standard_geometry(intermediates)
 
 
 class GeometryConfig(torax_pydantic.BaseModelFrozen):
@@ -481,10 +490,3 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
     constructor_args['geometry_configs'] = {'config': data_copy}
 
   return constructor_args
-
-
-def _apply_relevant_kwargs(f: Callable[..., T], kwargs: Mapping[str, Any]) -> T:
-  """Apply only the kwargs actually used by the function."""
-  relevant_kwargs = [i.name for i in inspect.signature(f).parameters.values()]
-  kwargs = {k: kwargs[k] for k in relevant_kwargs}
-  return f(**kwargs)
