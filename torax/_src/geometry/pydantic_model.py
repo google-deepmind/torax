@@ -24,6 +24,7 @@ from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 from imas import ids_toplevel
 import pydantic
 from torax._src.geometry import circular_geometry
+from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
@@ -254,12 +255,17 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-    return standard_geometry.build_standard_geometry(
-        _apply_relevant_kwargs(
-            standard_geometry.StandardGeometryIntermediates.from_eqdsk,
-            self.__dict__,
-        )
+    intermediates = eqdsk.from_eqdsk(
+        geometry_directory=self.geometry_directory,
+        geometry_file=self.geometry_file,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
+        cocos=self.cocos,
+        n_surfaces=self.n_surfaces,
+        last_surface_factor=self.last_surface_factor,
     )
+    return standard_geometry.build_standard_geometry(intermediates)
 
 
 class IMASConfig(torax_pydantic.BaseModelFrozen):
