@@ -22,7 +22,7 @@ import numpy as np
 from torax._src import state
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 
 
 # pylint: disable=invalid-name
@@ -30,7 +30,7 @@ class ConvertersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
 
     T_i = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 1.0,

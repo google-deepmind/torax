@@ -17,7 +17,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src import state
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.conductivity import sauter
 
 
@@ -25,7 +25,7 @@ class SauterTest(absltest.TestCase):
 
   def test_sauter_bootstrap_current_is_correct_shape(self):
     n_rho = 10
-    geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         T_i=cell_variable.CellVariable(

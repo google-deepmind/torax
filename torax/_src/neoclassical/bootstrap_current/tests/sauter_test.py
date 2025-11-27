@@ -18,7 +18,7 @@ import numpy as np
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter
 
@@ -27,7 +27,7 @@ class SauterTest(absltest.TestCase):
 
   def test_sauter_bootstrap_current_is_correct_shape(self):
     n_rho = 10
-    geo = geometry_pydantic_model.CircularConfig(n_rho=n_rho).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
     bootstrap_params = sauter.RuntimeParams(bootstrap_multiplier=1.0)
     runtime_params = mock.create_autospec(
         runtime_params_lib.RuntimeParams,

@@ -20,7 +20,7 @@ import numpy as np
 import pydantic
 from torax._src import interpolated_param
 from torax._src import jax_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
@@ -98,7 +98,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     )
     tva = scalar.to_time_varying_array()
     self.assertIsInstance(tva, torax_pydantic.TimeVaryingArray)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(tva, geo.torax_mesh)
 
     self.assertEqual(tva.time_interpolation_mode, scalar.interpolation_mode)

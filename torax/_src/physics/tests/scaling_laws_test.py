@@ -20,7 +20,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.physics import scaling_laws
 
 
@@ -28,7 +28,7 @@ from torax._src.physics import scaling_laws
 class ScalingLawsTest(parameterized.TestCase):
 
   def test_calculate_plh_scaling_factor(self):
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
         hires_factor=4,
@@ -96,7 +96,7 @@ class ScalingLawsTest(parameterized.TestCase):
       dict(elongation_LCFS=1.5),
   ])
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=25,
         elongation_LCFS=elongation_LCFS,
         hires_factor=4,

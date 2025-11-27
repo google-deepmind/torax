@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax._src import constants
 from torax._src.core_profiles import initialization
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
@@ -149,7 +149,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Small inverse aspect ratio limit of circular geometry, such that we
     # approximate the simplest form of circular geometry where the analytical
     # Bpol formula is applicable.
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
         R_major=100.0,

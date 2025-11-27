@@ -16,7 +16,7 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
@@ -30,7 +30,7 @@ from torax._src.torax_pydantic import torax_pydantic
 class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_T_i_profiles_dont_change_when_jitting(self):
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
 
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)

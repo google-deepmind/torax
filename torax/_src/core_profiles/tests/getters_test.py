@@ -27,6 +27,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.orchestration import run_simulation
 from torax._src.physics import charge_states
@@ -44,7 +45,7 @@ class GettersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
 
   def test_updated_ion_temperature(self):
     bound = np.array(42.0)
@@ -463,7 +464,7 @@ class GettersTest(parameterized.TestCase):
         + n_e_ratio_w * z_w[0] ** 2
         + n_e_ratio_he3 * z_he3**2
     )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     dilution = n_d / n_e
 
     # 2. Set up TORAX to use an effective impurity mixture.

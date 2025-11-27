@@ -20,7 +20,7 @@ from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import jax_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 import xarray as xr
@@ -328,7 +328,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     m2 = Test2(
         x=m1, y=interpolated_param_2d.TimeVaryingArray.model_validate(2.0), z=5
     )
-    grid = geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
+    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
 
     with self.subTest('set_grid_success'):
       interpolated_param_2d.set_grid(m2, grid)
@@ -355,7 +355,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     array_1 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
     array_2 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
 
-    grid = geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
+    grid = circular_geometry.CircularConfig().build_geometry().torax_mesh
     interpolated_param_2d.set_grid(array_1, grid)
     interpolated_param_2d.set_grid(array_2, grid)
 

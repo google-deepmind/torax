@@ -17,7 +17,7 @@ from absl.testing import absltest
 import chex
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
@@ -78,7 +78,7 @@ class ImpurityRadiationConstantFractionTest(
         model_func=generic_ion_el_heat_source.default_formula,
     )
 
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
         runtime_params,
         geo,

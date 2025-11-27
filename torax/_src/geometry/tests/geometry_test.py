@@ -19,8 +19,8 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
 
 
 class GeometryTest(parameterized.TestCase):
@@ -49,7 +49,7 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(cell_jax, cell_np)
 
   def test_none_z_magnetic_axis_raises_an_error(self):
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     geo = dataclasses.replace(geo, _z_magnetic_axis=None)
 
     with self.subTest('non_jitted_function'):
@@ -68,13 +68,13 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_circular_geometries(self):
     """Test stack_geometries for circular geometries."""
     # Create a few different geometries
-    geo0 = geometry_pydantic_model.CircularConfig(
+    geo0 = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
-    geo1 = geometry_pydantic_model.CircularConfig(
+    geo1 = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
     ).build_geometry()
-    geo2 = geometry_pydantic_model.CircularConfig(
+    geo2 = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=2.0, B_0=3.0, n_rho=10
     ).build_geometry()
 
@@ -124,10 +124,10 @@ class GeometryTest(parameterized.TestCase):
 
   def test_stack_geometries_error_handling_different_mesh_sizes(self):
     """Test error handling for stack_geometries with different mesh sizes."""
-    geo0 = geometry_pydantic_model.CircularConfig(
+    geo0 = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
-    geo_diff_mesh = geometry_pydantic_model.CircularConfig(
+    geo_diff_mesh = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=20
     ).build_geometry()  # Different n_rho
     with self.assertRaisesRegex(
@@ -137,7 +137,7 @@ class GeometryTest(parameterized.TestCase):
 
   def test_stack_geometries_error_handling_different_geometry_types(self):
     """Test different geometry type error handling for stack_geometries."""
-    geo0 = geometry_pydantic_model.CircularConfig(
+    geo0 = circular_geometry.CircularConfig(
         a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
     ).build_geometry()
     geo_diff_geometry_type = dataclasses.replace(
@@ -150,7 +150,7 @@ class GeometryTest(parameterized.TestCase):
 
   def test_update_phibdot(self):
     """Test update_phibdot for circular geometries."""
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     geo0 = dataclasses.replace(geo, Phi_face=np.array([1.0]))
     geo1 = dataclasses.replace(geo, Phi_face=np.array([2.0]))
     geo0_updated, geo1_updated = geometry.update_geometries_with_Phibdot(
@@ -160,8 +160,8 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.0)
 
   def test_geometry_eq(self):
-    geo1 = geometry_pydantic_model.CircularConfig().build_geometry()
-    geo2 = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo1 = circular_geometry.CircularConfig().build_geometry()
+    geo2 = circular_geometry.CircularConfig().build_geometry()
     with self.subTest('same_geometries_are_equal'):
       self.assertEqual(geo1, geo2)
 

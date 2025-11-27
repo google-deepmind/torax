@@ -26,7 +26,7 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
 from torax._src.edge import extended_lengyel_model
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
@@ -183,7 +183,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         temperatures
     )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
     profile_condition_params = profile_conditions.build_runtime_params(t=0.0)
 

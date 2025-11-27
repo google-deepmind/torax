@@ -13,8 +13,9 @@
 # limitations under the License.
 """Pydantic model for geometry."""
 import functools
-from typing import Annotated, Any, Literal, TypeVar
-
+from typing import Annotated
+from typing import Any
+from typing import TypeVar
 import pydantic
 from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
@@ -25,60 +26,15 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 T = TypeVar('T')
-
-
-# pylint: disable=invalid-name
-class CircularConfig(torax_pydantic.BaseModelFrozen):
-  """Pydantic model for the circular geometry config.
-
-  Attributes:
-    geometry_type: Always set to 'circular'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
-    R_major: Major radius (R) in meters.
-    a_minor: Minor radius (a) in meters.
-    B_0: Vacuum toroidal magnetic field on axis [T].
-    elongation_LCFS: Sets the plasma elongation used for volume, area and
-      q-profile corrections.
-  """
-
-  geometry_type: Annotated[
-      Literal['circular'], torax_pydantic.TIME_INVARIANT
-  ] = 'circular'
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
-  R_major: torax_pydantic.Meter = 6.2
-  a_minor: torax_pydantic.Meter = 2.0
-  B_0: torax_pydantic.Tesla = 5.3
-  elongation_LCFS: pydantic.PositiveFloat = 1.72
-
-  @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
-    if not self.R_major >= self.a_minor:
-      raise ValueError('a_minor must be less than or equal to R_major.')
-    return self
-
-  def build_geometry(self) -> geometry.Geometry:
-    return circular_geometry.build_circular_geometry(
-        n_rho=self.n_rho,
-        elongation_LCFS=self.elongation_LCFS,
-        R_major=self.R_major,
-        a_minor=self.a_minor,
-        B_0=self.B_0,
-        hires_factor=self.hires_factor,
-    )
 
 
 class GeometryConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for a single geometry config."""
 
   config: (
-      CircularConfig
+      circular_geometry.CircularConfig
       | chease.CheaseConfig
       | fbt.FBTConfig
       | eqdsk.EQDSKConfig

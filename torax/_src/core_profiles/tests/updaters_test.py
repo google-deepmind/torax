@@ -24,7 +24,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -35,7 +35,7 @@ class UpdatersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Build a default geo object for convenience.
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
 
     T_e = cell_variable.CellVariable(
         value=jnp.ones_like(self.geo.rho_norm),
