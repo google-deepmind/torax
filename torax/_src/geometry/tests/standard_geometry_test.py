@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 from torax._src import array_typing
+from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -222,7 +223,7 @@ class GeometryTest(parameterized.TestCase):
     LY[invalid_key] = np.zeros(invalid_shape)
 
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      standard_geometry._validate_fbt_data(LY, L)
+      fbt._validate_fbt_data(LY, L)
 
   @parameterized.parameters(
       'rBt',
@@ -259,7 +260,7 @@ class GeometryTest(parameterized.TestCase):
       errmsg = 'LY data is missing the'
 
     with self.assertRaisesRegex(ValueError, errmsg):
-      standard_geometry._validate_fbt_data(LY, L)
+      fbt._validate_fbt_data(LY, L)
 
   def test_validate_fbt_data_missing_L_key(self):
     len_psinorm = 20
@@ -267,7 +268,7 @@ class GeometryTest(parameterized.TestCase):
     L, LY = _get_example_L_LY_data(len_psinorm, len_times)
     del L['pQ']
     with self.assertRaisesRegex(ValueError, 'L data is missing'):
-      standard_geometry._validate_fbt_data(LY, L)
+      fbt ._validate_fbt_data(LY, L)
 
   def test_validate_fbt_data_incorrect_L_pQ_shape(self):
     len_psinorm = 20
@@ -275,7 +276,7 @@ class GeometryTest(parameterized.TestCase):
     L, LY = _get_example_L_LY_data(len_psinorm, len_times)
     L['pQ'] = np.zeros((len_psinorm + 1,))
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      standard_geometry._validate_fbt_data(LY, L)
+      fbt._validate_fbt_data(LY, L)
 
   def test_stack_geometries_standard_geometries(self):
     """Test stack_geometries for standard geometries."""
@@ -283,20 +284,14 @@ class GeometryTest(parameterized.TestCase):
     L, LY0 = _get_example_L_LY_data(10, 1, prefactor=1.0)
     _, LY1 = _get_example_L_LY_data(10, 1, prefactor=2.0)
     _, LY2 = _get_example_L_LY_data(10, 1, prefactor=3.0)
-    geo0_intermediate = (
-        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_directory=None, LY_object=LY0, L_object=L
-        )
+    geo0_intermediate = fbt.from_fbt_single_slice(
+        geometry_directory=None, LY_object=LY0, L_object=L
     )
-    geo1_intermediate = (
-        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_directory=None, LY_object=LY1, L_object=L
-        )
+    geo1_intermediate = fbt.from_fbt_single_slice(
+        geometry_directory=None, LY_object=LY1, L_object=L
     )
-    geo2_intermediate = (
-        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
-            geometry_directory=None, LY_object=LY2, L_object=L
-        )
+    geo2_intermediate = fbt.from_fbt_single_slice(
+        geometry_directory=None, LY_object=LY2, L_object=L
     )
     geo0 = standard_geometry.build_standard_geometry(geo0_intermediate)
     geo1 = standard_geometry.build_standard_geometry(geo1_intermediate)

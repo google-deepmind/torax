@@ -25,6 +25,7 @@ import pydantic
 from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import eqdsk
+from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
@@ -200,13 +201,16 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-
-    return standard_geometry.build_standard_geometry(
-        _apply_relevant_kwargs(
-            standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice,
-            self.__dict__,
-        )
+    intermediates = fbt.from_fbt_single_slice(
+        geometry_directory=self.geometry_directory,
+        LY_object=self.LY_object,
+        L_object=self.L_object,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
     )
+
+    return standard_geometry.build_standard_geometry(intermediates)
 
   # TODO(b/398191165): Remove this branch once the FBT bundle logic is
   # redesigned.
@@ -214,9 +218,14 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
       self, calcphibdot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a `GeometryProvider` from the input config."""
-    intermediates = _apply_relevant_kwargs(
-        standard_geometry.StandardGeometryIntermediates.from_fbt_bundle,
-        self.__dict__,
+    intermediates = fbt.from_fbt_bundle(
+        geometry_directory=self.geometry_directory,
+        LY_bundle_object=self.LY_bundle_object,
+        L_object=self.L_object,
+        LY_to_torax_times=self.LY_to_torax_times,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
     )
     geometries = {
         t: standard_geometry.build_standard_geometry(intermediates[t])
