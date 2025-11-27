@@ -7,16 +7,16 @@ from typing import Optional
 
 from imas import DBEntry
 from libmuscle import Instance
-from torax._src.config.build_runtime_params import DynamicRuntimeParamsSliceProvider
-from torax._src.config.build_runtime_params import get_consistent_dynamic_runtime_params_slice_and_geometry
+from torax._src.config.build_runtime_params import RuntimeParamsProvider
+from torax._src.config.build_runtime_params import get_consistent_runtime_params_and_geometry
 from torax._src.config.config_loader import build_torax_config_from_file
-from torax._src.config.runtime_params_slice import DynamicRuntimeParamsSlice
+from torax._src.config.runtime_params import RuntimeParams
 from torax._src.geometry.geometry_provider import GeometryProvider
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.orchestration.step_function import SimulationStepFn
-from torax._src.output_tools.imas import torax_state_to_imas_equilibrium
+from torax._src.imas_tools.output.equilibrium import torax_state_to_imas_equilibrium
 from torax._src.state import SimError
 from ymmsl import Operator
 from ymmsl import SettingValue

@@ -21,7 +21,7 @@ from libmuscle import Instance
 from libmuscle import Message
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config.build_runtime_params import get_consistent_dynamic_runtime_params_slice_and_geometry
+from torax._src.config.build_runtime_params import get_consistent_runtime_params_and_geometry
 from torax._src.config.config_loader import build_torax_config_from_file
 from torax._src.geometry import geometry
 from torax._src.geometry.pydantic_model import Geometry
@@ -29,12 +29,13 @@ from torax._src.geometry.pydantic_model import GeometryConfig
 from torax._src.geometry.pydantic_model import IMASConfig
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
+from torax._src.orchestration import step_function
 from torax._src.orchestration.muscle3_utils import ExtraVarCollection
 from torax._src.orchestration.muscle3_utils import get_geometry_config_dict
 from torax._src.orchestration.muscle3_utils import get_setting_optional
 from torax._src.orchestration.muscle3_utils import merge_extra_vars
 from torax._src.orchestration.run_simulation import prepare_simulation
-from torax._src.output_tools.imas import torax_state_to_imas_equilibrium
+from torax._src.imas_tools.output.equilibrium import torax_state_to_imas_equilibrium
 from torax._src.state import SimError
 from ymmsl import Operator
 
@@ -47,7 +48,7 @@ class ToraxMuscleRunner:
     output_all_timeslices: bool = False
     db_out: Optional[IDSToplevel] = None
     torax_config = None
-    dynamic_runtime_params_slice_provider = None
+    runtime_params_provider = None
     step_fn = None
     time_step_calculator_dynamic_params = None
     equilibrium_interval = None
@@ -74,10 +75,8 @@ class ToraxMuscleRunner:
             if self.first_run:
                 self.run_prep()
             self.run_f_init()
-            while self.step_fn.time_step_calculator.not_done(
+            while not self.step_fn.is_done(
                 self.t_cur,
-                self.t_final,
-                self.time_step_calculator_dynamic_params,
             ):
                 self.run_o_i()
                 self.run_s()
@@ -101,46 +100,34 @@ class ToraxMuscleRunner:
             path=config_module_str,
         )
         (
-            self.dynamic_runtime_params_slice_provider,
+            self.runtime_params_provider,
             self.sim_state,
             self.post_processed_outputs,
             self.step_fn,
         ) = prepare_simulation(self.torax_config)
 
         self.time_step_calculator_dynamic_params = (
-            self.dynamic_runtime_params_slice_provider(
+            self.runtime_params_provider(
                 self.sim_state.t
             ).time_step_calculator
         )
 
     def run_f_init(self):
         self.receive_equilibrium(port_name="f_init")
-        self.sim_state.t = self.t_cur
+        # self.sim_state.t = self.t_cur
         if self.first_run or self.instance.is_connected("equilibrium_f_init"):
-            static_runtime_params_slice = (
-                build_runtime_params.build_static_params_from_config(self.torax_config)
+            self.runtime_params_provider = (
+                build_runtime_params.RuntimeParamsProvider.from_config(self.torax_config)
             )
-            dynamic_runtime_params_slice, _ = (
-                get_consistent_dynamic_runtime_params_slice_and_geometry(
-                    t=self.sim_state.t,
-                    dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
-                    geometry_provider=self.step_fn._geometry_provider,
-                )
-            )
-            # next function loses sim_state.t information so readd it
-            self.t_cur = self.sim_state.t
             self.sim_state, self.post_processed_outputs = (
                 initial_state_lib.get_initial_state_and_post_processed_outputs(
-                    t=self.sim_state.t,
-                    static_runtime_params_slice=static_runtime_params_slice,
-                    dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
+                    t=self.t_cur,
+                    runtime_params_provider=self.runtime_params_provider,
                     geometry_provider=self.step_fn._geometry_provider,
                     step_fn=self.step_fn,
                 )
             )
-            self.sim_state.t = self.t_cur
-            self.sim_state.geometry = self.step_fn._geometry_provider(self.sim_state.t)
-            self.t_final = dynamic_runtime_params_slice.numerics.t_final
+            self.t_final = self.runtime_params_provider.numerics.t_final
         self.first_run = False
 
         equilibrium_data = torax_state_to_imas_equilibrium(
@@ -169,7 +156,12 @@ class ToraxMuscleRunner:
             self.receive_equilibrium(port_name="s")
 
     def run_timestep(self):
-        self.sim_state, self.post_processed_outputs, sim_error = self.step_fn(
+        self.sim_state, self.post_processed_outputs = self.step_fn(
+            self.sim_state,
+            self.post_processed_outputs,
+        )
+        sim_error = step_function.check_for_errors(
+            self.runtime_params_provider.numerics,
             self.sim_state,
             self.post_processed_outputs,
         )
@@ -284,16 +276,16 @@ class ToraxMuscleRunner:
         self.instance.send(f"{ids_name}_{port_name}", msg)
 
     def get_t_next(self):
-        dynamic_runtime_params_slice_t, geo_t = (
-            get_consistent_dynamic_runtime_params_slice_and_geometry(
+        runtime_params_t, geo_t = (
+            get_consistent_runtime_params_and_geometry(
                 t=self.sim_state.t,
-                dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
+                runtime_params_provider=self.runtime_params_provider,
                 geometry_provider=self.step_fn._geometry_provider,
             )
         )
         dt = self.step_fn.time_step_calculator.next_dt(
             self.sim_state.t,
-            dynamic_runtime_params_slice_t,
+            runtime_params_t,
             geo_t,
             self.sim_state.core_profiles,
             self.sim_state.core_transport,
