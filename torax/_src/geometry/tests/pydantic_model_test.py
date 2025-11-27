@@ -16,6 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.config import build_runtime_params
+from torax._src.geometry import chease
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
@@ -157,7 +158,7 @@ class PydanticModelTest(parameterized.TestCase):
     # pylint: enable=invalid-name
 
   @parameterized.parameters([
-      dict(config=pydantic_model.CheaseConfig),
+      dict(config=chease.CheaseConfig),
       dict(config=pydantic_model.CircularConfig),
   ])
   def test_rmin_rmax_ordering(self, config):

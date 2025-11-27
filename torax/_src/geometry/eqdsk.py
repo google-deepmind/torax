@@ -14,18 +14,71 @@
 """Classes for representing an EQDSK geometry."""
 from collections.abc import Mapping
 import logging
+from typing import Annotated, Literal
 
 import contourpy
 import numpy as np
+import pydantic
 import scipy
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import torax_pydantic
+
+
 # pylint: disable=invalid-name
+class EQDSKConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for the EQDSK geometry.
+
+  Attributes:
+    cocos: COCOS coordinate convention of the EQDSK file, specified as an
+      integer in the range 1-8 or 11-18 inclusive.
+    geometry_file: Name of the EQDSK file in the geometry directory.
+    geometry_type: Always set to 'eqdsk'.
+    n_rho: Number of radial grid points.
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
+      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
+      hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    geometry_directory: Optionally overrides the default geometry directory.
+    Ip_from_parameters: Toggles whether total plasma current is read from the
+      configuration file, or from the geometry file. If True, then the `psi`
+      calculated from the geometry file is scaled to match the desired `I_p`.
+    n_surfaces: Number of surfaces for which flux surface averages are
+      calculated.
+    last_surface_factor: Multiplication factor of the boundary poloidal flux,
+      used for the contour defining geometry terms at the LCFS on the TORAX
+      grid. Needed to avoid divergent integrations in diverted geometries.
+  """
+  cocos: torax_pydantic.COCOSInt
+  geometry_file: str
+  geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
+      'eqdsk'
+  )
+  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
+      None
+  )
+  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  n_surfaces: pydantic.PositiveInt = 100
+  last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+
+  def build_geometry(self) -> standard_geometry.StandardGeometry:
+    intermediates = _construct_intermediates_from_eqdsk(
+        geometry_directory=self.geometry_directory,
+        geometry_file=self.geometry_file,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
+        cocos=self.cocos,
+        n_surfaces=self.n_surfaces,
+        last_surface_factor=self.last_surface_factor,
+    )
+    return standard_geometry.build_standard_geometry(intermediates)
 
 
-def from_eqdsk(
+def _construct_intermediates_from_eqdsk(
     geometry_directory: str | None,
     geometry_file: str,
     hires_factor: int,

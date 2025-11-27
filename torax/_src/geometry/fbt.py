@@ -14,16 +14,133 @@
 """Classes for loading and representing a FBT geometry."""
 from collections.abc import Mapping
 import logging
-
+from typing import Annotated
+from typing import Any
+from typing import Literal, TypeAlias
 import numpy as np
+import pydantic
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
+from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
+
 # pylint: disable=invalid-name
+LY_OBJECT_TYPE: TypeAlias = (
+    str | Mapping[str, torax_pydantic.NumpyArray | float]
+)
 
 
-def from_fbt_single_slice(
+class FBTConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for the FBT geometry.
+
+  Attributes:
+    geometry_type: Always set to 'fbt'.
+    n_rho: Number of radial grid points.
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
+      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
+      hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    geometry_directory: Optionally overrides the default geometry directory.
+    Ip_from_parameters: Toggles whether total plasma current is read from the
+      configuration file, or from the geometry file. If True, then the `psi`
+      calculated from the geometry file is scaled to match the desired `I_p`.
+    hires_factor: Sets up a higher resolution mesh with ``nrho_hires = nrho *
+      hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
+      alternatively a dict directly containing a single time slice of LY data.
+    LY_bundle_object: Sets the FBT LY bundle file to be loaded, corresponding to
+      multiple time-slices, or alternatively a dict directly containing all
+      time-slices of LY data.
+    LY_to_torax_times: Sets the TORAX simulation times corresponding to the
+      individual slices in the FBT LY bundle file. If not provided, then the
+      times are taken from the LY_bundle_file itself. The length of the array
+      must match the number of slices in the bundle.
+    L_object: Sets the FBT L geometry file loaded, or alternatively a dict
+      directly containing the L data.
+  """
+
+  geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
+      'fbt'
+  )
+  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
+      None
+  )
+  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  LY_object: LY_OBJECT_TYPE | None = None
+  LY_bundle_object: LY_OBJECT_TYPE | None = None
+  LY_to_torax_times: torax_pydantic.NumpyArray | None = None
+  L_object: LY_OBJECT_TYPE | None = None
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
+    # Remove unused fields from the data dict that come from file loading.
+    for obj in ('L_object', 'LY_object'):
+      if obj in data and isinstance(data[obj], dict):
+        for k in ('__header__', '__version__', '__globals__', 'shot'):
+          data[obj].pop(k, None)
+    return data
+
+  @pydantic.model_validator(mode='after')
+  def _validate_model(self) -> typing_extensions.Self:
+    if self.LY_bundle_object is not None and self.LY_object is not None:
+      raise ValueError(
+          "Cannot use 'LY_object' together with a bundled FBT file"
+      )
+    if self.LY_to_torax_times is not None and self.LY_bundle_object is None:
+      raise ValueError(
+          'LY_bundle_object must be set when using LY_to_torax_times.'
+      )
+    logging.warning(
+        '<B^2> and <1/B^2> not currently supported by FBT geometry;'
+        ' approximating using analytical expressions for circular geometry.'
+        ' This might cause inaccuracies in neoclassical transport.'
+    )
+    return self
+
+  def build_geometry(self) -> standard_geometry.StandardGeometry:
+    intermediates = _from_fbt_single_slice(
+        geometry_directory=self.geometry_directory,
+        LY_object=self.LY_object,
+        L_object=self.L_object,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
+    )
+
+    return standard_geometry.build_standard_geometry(intermediates)
+
+  # TODO(b/398191165): Remove this branch once the FBT bundle logic is
+  # redesigned.
+  def build_fbt_geometry_provider_from_bundle(
+      self,
+      calcphibdot: bool,
+  ) -> geometry_provider.GeometryProvider:
+    """Builds a `GeometryProvider` from the input config."""
+    intermediates = _from_fbt_bundle(
+        geometry_directory=self.geometry_directory,
+        LY_bundle_object=self.LY_bundle_object,
+        L_object=self.L_object,
+        LY_to_torax_times=self.LY_to_torax_times,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        hires_factor=self.hires_factor,
+    )
+    geometries = {
+        t: standard_geometry.build_standard_geometry(intermediates[t])
+        for t in intermediates
+    }
+    return standard_geometry.StandardGeometryProvider.create_provider(
+        geometries,
+        calcphibdot=calcphibdot,
+    )
+
+
+def _from_fbt_single_slice(
     geometry_directory: str | None,
     LY_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
@@ -85,7 +202,7 @@ def from_fbt_single_slice(
   return _from_fbt(LY, L, Ip_from_parameters, n_rho, hires_factor)
 
 
-def from_fbt_bundle(
+def _from_fbt_bundle(
     geometry_directory: str | None,
     LY_bundle_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],

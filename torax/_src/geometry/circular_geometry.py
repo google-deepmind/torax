@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Classes for representing a circular geometry."""
 import numpy as np
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 
 
-# Using invalid-name because we are using the same naming convention as the
-# external physics implementations
 # pylint: disable=invalid-name
 def build_circular_geometry(
     n_rho: int,

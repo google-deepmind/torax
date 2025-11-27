@@ -12,15 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a CHEASE geometry."""
+from typing import Annotated, Literal
 import numpy as np
+import pydantic
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import torax_pydantic
+import typing_extensions
+
+
+# pylint: disable=invalid-name
+class CheaseConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for the CHEASE geometry.
+
+  Attributes:
+    geometry_type: Always set to 'chease'.
+    n_rho: Number of radial grid points.
+    hires_factor: Only used when the initial condition ``psi`` is from plasma
+      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
+      hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    geometry_directory: Optionally overrides the default geometry directory.
+    Ip_from_parameters: Toggles whether total plasma current is read from the
+      configuration file, or from the geometry file. If True, then the `psi`
+      calculated from the geometry file is scaled to match the desired `I_p`.
+    R_major: Major radius (R) in meters.
+    a_minor: Minor radius (a) in meters.
+    B_0: Vacuum toroidal magnetic field on axis [T].
+  """
+
+  geometry_type: Annotated[Literal['chease'], torax_pydantic.TIME_INVARIANT] = (
+      'chease'
+  )
+  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
+  hires_factor: pydantic.PositiveInt = 4
+  geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
+      None
+  )
+  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  geometry_file: str = 'iterhybrid.mat2cols'
+  R_major: torax_pydantic.Meter = 6.2
+  a_minor: torax_pydantic.Meter = 2.0
+  B_0: torax_pydantic.Tesla = 5.3
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    if not self.R_major >= self.a_minor:
+      raise ValueError('a_minor must be less than or equal to R_major.')
+    return self
+
+  def build_geometry(self) -> standard_geometry.StandardGeometry:
+    intermediates = _construct_intermediates_from_chease(
+        geometry_directory=self.geometry_directory,
+        geometry_file=self.geometry_file,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        R_major=self.R_major,
+        a_minor=self.a_minor,
+        B_0=self.B_0,
+        hires_factor=self.hires_factor,
+    )
+
+    return standard_geometry.build_standard_geometry(intermediates)
+
+
 # pylint: disable=invalid-name
 
 
-def from_chease(
+def _construct_intermediates_from_chease(
     geometry_directory: str | None,
     geometry_file: str,
     Ip_from_parameters: bool,
