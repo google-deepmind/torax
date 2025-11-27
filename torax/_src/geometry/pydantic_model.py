@@ -14,8 +14,7 @@
 
 """Pydantic model for geometry."""
 
-from collections.abc import Callable
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 import functools
 import inspect
 import logging
@@ -23,6 +22,7 @@ from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 
 from imas import ids_toplevel
 import pydantic
+from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry
@@ -30,6 +30,7 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
@@ -119,13 +120,18 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-
-    return standard_geometry.build_standard_geometry(
-        _apply_relevant_kwargs(
-            standard_geometry.StandardGeometryIntermediates.from_chease,
-            self.__dict__,
-        )
+    intermediates = chease.from_chease(
+        geometry_directory=self.geometry_directory,
+        geometry_file=self.geometry_file,
+        Ip_from_parameters=self.Ip_from_parameters,
+        n_rho=self.n_rho,
+        R_major=self.R_major,
+        a_minor=self.a_minor,
+        B_0=self.B_0,
+        hires_factor=self.hires_factor,
     )
+
+    return standard_geometry.build_standard_geometry(intermediates)
 
 
 class FBTConfig(torax_pydantic.BaseModelFrozen):
