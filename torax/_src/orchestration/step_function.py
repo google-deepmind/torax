@@ -50,17 +50,28 @@ def check_for_errors(
     post_processed_outputs: post_processing.PostProcessedOutputs,
 ) -> state.SimError:
   """Checks for errors in the simulation state."""
-  if numerics.adaptive_dt:
-    if output_state.solver_numeric_outputs.solver_error_state == 1:
-      # Only check for min dt if the solver did not converge. Else we may have
-      # converged at a dt > min_dt just before we reach min_dt.
-      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
-        return state.SimError.REACHED_MIN_DT
+
+  # Low-temperature collapse check 
+  if numerics.minimum_temperature_eV is not None:
+    if output_state.core_profiles.low_temperature_below(
+        numerics.minimum_temperature_eV
+    ):
+      return state.SimError.LOW_TEMPERATURE_COLLAPSE
+
+  # TORAX physical checks (negative temperature/density, NaNs)
   state_error = output_state.check_for_errors()
   if state_error != state.SimError.NO_ERROR:
     return state_error
-  else:
-    return post_processed_outputs.check_for_errors()
+
+  # Adaptive dt handling 
+  if numerics.adaptive_dt:
+    if output_state.solver_numeric_outputs.solver_error_state == 1:
+      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
+        return state.SimError.REACHED_MIN_DT
+
+  # Post-processing errors
+  return post_processed_outputs.check_for_errors()
+
 
 
 @jax.tree_util.register_pytree_node_class
