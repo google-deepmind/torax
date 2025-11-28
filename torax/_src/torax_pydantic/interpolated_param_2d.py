@@ -299,6 +299,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
             'rho_norm and values must be of the same length. Given: '
             f'{len(rho_norm)} and {len(values)}.'
         )
+      if np.any(rho_norm < 0.0) or np.any(rho_norm > 1.0):
+        raise ValueError(
+            f'rho_norm values must be in the range [0, 1], but got {rho_norm}.'
+        )
 
     return value
 
