@@ -33,6 +33,7 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
+from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
@@ -76,7 +77,7 @@ class PostProcessedOutputs:
     P_aux_total: Total auxiliary heating power [W]
     P_external_injected: Total external injected power before absorption [W]
     P_external_total: Total external power before absorption (
-        P_external_injected + P_ohmic_e) [W]
+      P_external_injected + P_ohmic_e) [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
     P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
@@ -103,14 +104,14 @@ class PostProcessedOutputs:
       [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
-    E_aux_total: Total auxiliary heating energy absorbed by the plasma (
-      time integral of P_aux_total) [J].
+    E_aux_total: Total auxiliary heating energy absorbed by the plasma ( time
+      integral of P_aux_total) [J].
     E_ohmic_e: Total Ohmic heating energy to electrons (time integral of
       P_ohmic_e) [J].
-    E_external_injected: Total external injected energy before absorption (
-      time integral of P_external_injected) [J].
-    E_external_total: Total external energy absorbed by the plasma (
-      time integral of P_external_total) [J].
+    E_external_injected: Total external injected energy before absorption ( time
+      integral of P_external_injected) [J].
+    E_external_total: Total external energy absorbed by the plasma ( time
+      integral of P_external_total) [J].
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
     n_e_volume_avg: Volume average electron density [m^-3]
@@ -152,6 +153,8 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
     impurity_species: Dictionary of outputs for each impurity species.
+    poloidal_velocity: Poloidal velocity [m/s]
+    radial_electric_field: Radial electric field [V/m]
     first_step: Whether the outputs are from the first step of the simulation.
   """
 
@@ -236,6 +239,8 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
+  poloidal_velocity: array_typing.FloatVector
+  radial_electric_field: array_typing.FloatVector
   first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
@@ -321,8 +326,10 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        first_step=jnp.array(True),
         impurity_species={},
+        poloidal_velocity=jnp.zeros(geo.rho_face.shape),
+        radial_electric_field=jnp.zeros(geo.rho_face.shape),
+        first_step=jnp.array(True),
     )
 
   def check_for_errors(self):
@@ -736,6 +743,18 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
 
+  _, radial_electric_field, poloidal_velocity = rotation.calculate_rotation(
+      T_i=sim_state.core_profiles.T_i,
+      psi=sim_state.core_profiles.psi,
+      n_i=sim_state.core_profiles.n_i,
+      q_face=sim_state.core_profiles.q_face,
+      Z_eff_face=sim_state.core_profiles.Z_eff_face,
+      Z_i_face=sim_state.core_profiles.Z_i_face,
+      toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
+      pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
+      geo=sim_state.geometry,
+  )
+
   return PostProcessedOutputs(
       pprime=pprime_face,
       W_thermal_i=W_thermal_ion,
@@ -786,5 +805,7 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
+      poloidal_velocity=poloidal_velocity,
+      radial_electric_field=radial_electric_field,
       first_step=jnp.array(False),
   )
