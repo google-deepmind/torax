@@ -24,6 +24,8 @@ from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
 from torax._src.torax_pydantic import model_config
+import json
+from torax._src import path_utils
 
 _NRHO = 10
 _CRASH_STEP_DURATION = 1e-3
@@ -112,6 +114,16 @@ class SawtoothModelTest(parameterized.TestCase):
         )
     )
 
+    # Load sawtooth crash reference values from JSON
+    json_path = path_utils.torax_path() / '_src' / 'test_utils' / 'references.json'
+    with open(json_path, 'r') as f:
+        all_refs = json.load(f)
+        sawtooth_refs = all_refs.get('sawtooth_references', {})
+    
+    self._post_crash_temperature = np.array(sawtooth_refs.get('post_crash_temperature', []))
+    self._post_crash_n = np.array(sawtooth_refs.get('post_crash_n', []))
+    self._post_crash_psi = np.array(sawtooth_refs.get('post_crash_psi', []))
+
   def test_sawtooth_crash(self):
     """Tests that default values lead to crash and compares post-crash to ref."""
     output_state, _ = self.step_fn(
@@ -135,14 +147,18 @@ class SawtoothModelTest(parameterized.TestCase):
 
     np.testing.assert_allclose(
         output_state.core_profiles.T_e.value,
-        _POST_CRASH_TEMPERATURE,
+        self._post_crash_temperature,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.n_e.value, _POST_CRASH_N, rtol=1e-6
+        output_state.core_profiles.n_e.value,
+        self._post_crash_n,
+        rtol=1e-6
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.psi.value, _POST_CRASH_PSI, rtol=1e-6
+        output_state.core_profiles.psi.value,
+        self._post_crash_psi,
+        rtol=1e-6
     )
 
   def test_no_sawtooth_crash(self):
@@ -247,44 +263,7 @@ class SawtoothModelTest(parameterized.TestCase):
       )
 
 
-_POST_CRASH_TEMPERATURE = np.array([
-    9.80214764,
-    9.77449557,
-    9.74682154,
-    9.71912539,
-    9.69140691,
-    8.17937075,
-    6.2258966,
-    4.5,
-    3.1,
-    1.7,
-])
 
-_POST_CRASH_N = np.array([
-    0.92905438e20,
-    0.92652621e20,
-    0.92399804e20,
-    0.92146987e20,
-    0.91894169e20,
-    0.88178024e20,
-    0.8345057e20,
-    0.79219014e20,
-    0.75698169e20,
-    0.72177324e20,
-])
-
-_POST_CRASH_PSI = np.array([
-    9.778742,
-    11.342102,
-    14.360384,
-    18.737049,
-    24.378128,
-    31.058185,
-    38.126174,
-    44.844899,
-    50.742815,
-    55.729866,
-])
 
 
 if __name__ == '__main__':
