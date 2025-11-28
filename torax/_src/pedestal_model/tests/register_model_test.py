@@ -23,6 +23,7 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import register_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
+from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 import jax.numpy as jnp
 
@@ -85,16 +86,31 @@ class RegisterModelTest(absltest.TestCase):
     # Register the model
     register_model.register_pedestal_model(TestPedestal)
 
-    # Verify it can be instantiated
-    config = TestPedestal(test_value=99.0)
-    self.assertEqual(config.test_value, 99.0)
-    self.assertEqual(config.model_name, 'test_pedestal')
+    # Verify it can be instantiated through the ModelConfig API
+    # Create a minimal ToraxConfig using from_dict to test the registration
+    minimal_config_dict = {
+        'profile_conditions': {},
+        'numerics': {},
+        'plasma_composition': {},
+        'geometry': {'geometry_type': 'circular'},
+        'sources': {},
+        'pedestal': {
+            'model_name': 'test_pedestal',
+            'test_value': 99.0,
+        },
+    }
+    torax_config = model_config.ToraxConfig.from_dict(minimal_config_dict)
+
+    # Verify the pedestal config is the correct type
+    self.assertIsInstance(torax_config.pedestal, TestPedestal)
+    self.assertEqual(torax_config.pedestal.test_value, 99.0)
+    self.assertEqual(torax_config.pedestal.model_name, 'test_pedestal')
 
     # Verify it can build the model and runtime params
-    model = config.build_pedestal_model()
+    model = torax_config.pedestal.build_pedestal_model()
     self.assertIsInstance(model, TestPedestalModel)
 
-    runtime_params = config.build_runtime_params(t=0.0)
+    runtime_params = torax_config.pedestal.build_runtime_params(t=0.0)
     self.assertEqual(runtime_params.test_value, 99.0)
 
 
@@ -163,12 +179,34 @@ class RegisterModelTest(absltest.TestCase):
     register_model.register_pedestal_model(Config1)
     register_model.register_pedestal_model(Config2)
 
-    # Verify both can be instantiated
-    config1 = Config1()
-    config2 = Config2()
+    # Verify both can be instantiated through the ModelConfig API
+    minimal_config_dict_1 = {
+        'profile_conditions': {},
+        'numerics': {},
+        'plasma_composition': {},
+        'geometry': {'geometry_type': 'circular'},
+        'sources': {},
+        'pedestal': {
+            'model_name': 'model1',
+        },
+    }
+    torax_config_1 = model_config.ToraxConfig.from_dict(minimal_config_dict_1)
+    self.assertIsInstance(torax_config_1.pedestal, Config1)
+    self.assertEqual(torax_config_1.pedestal.model_name, 'model1')
 
-    self.assertEqual(config1.model_name, 'model1')
-    self.assertEqual(config2.model_name, 'model2')
+    minimal_config_dict_2 = {
+        'profile_conditions': {},
+        'numerics': {},
+        'plasma_composition': {},
+        'geometry': {'geometry_type': 'circular'},
+        'sources': {},
+        'pedestal': {
+            'model_name': 'model2',
+        },
+    }
+    torax_config_2 = model_config.ToraxConfig.from_dict(minimal_config_dict_2)
+    self.assertIsInstance(torax_config_2.pedestal, Config2)
+    self.assertEqual(torax_config_2.pedestal.model_name, 'model2')
 
 
 if __name__ == '__main__':
