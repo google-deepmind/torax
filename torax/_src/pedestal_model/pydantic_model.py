@@ -171,4 +171,6 @@ class NoPedestal(BasePedestal):
     )
 
 
-PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+PedestalConfig = (
+    SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+)
