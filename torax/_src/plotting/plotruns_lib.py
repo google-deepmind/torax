@@ -323,10 +323,10 @@ def load_data(filename: str) -> PlotData:
     ds = ds.copy()
 
     transformations = {
-        output.J_TOTAL: 1e6,  # A/m^2 to MA/m^2
-        output.J_OHMIC: 1e6,  # A/m^2 to MA/m^2
-        output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.J_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
         'j_generic_current': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE: 1e6,  # A to MA
@@ -378,10 +378,10 @@ def load_data(filename: str) -> PlotData:
       Z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
       psi=profiles_dataset[output.PSI].to_numpy(),
       v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
-      j_total=profiles_dataset[output.J_TOTAL].to_numpy(),
-      j_ohmic=profiles_dataset[output.J_OHMIC].to_numpy(),
-      j_bootstrap=profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      j_external=profiles_dataset[output.J_EXTERNAL].to_numpy(),
+      j_total=profiles_dataset[output.J_TOROIDAL_TOTAL].to_numpy(),
+      j_ohmic=profiles_dataset[output.J_TOROIDAL_OHMIC].to_numpy(),
+      j_bootstrap=profiles_dataset[output.J_TOROIDAL_BOOTSTRAP].to_numpy(),
+      j_external=profiles_dataset[output.J_TOROIDAL_EXTERNAL].to_numpy(),
       j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
       j_generic_current=get_optional_data(
           profiles_dataset, 'j_generic_current', 'cell'

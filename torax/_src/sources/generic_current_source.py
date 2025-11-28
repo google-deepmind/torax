@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import psi_calculations
 from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
@@ -58,7 +59,7 @@ def calculate_generic_current(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
 ) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates the external current density profiles on the cell grid."""
+  """Calculates the external parallel current density profile on the cell grid."""
   source_params = runtime_params.sources[source_name]
   # pytype: enable=name-error
   assert isinstance(source_params, RuntimeParams)
@@ -73,8 +74,9 @@ def calculate_generic_current(
   )
 
   Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
-  generic_current_profile = Cext * generic_current_form
-  return (generic_current_profile,)
+  j_tor = Cext * generic_current_form
+
+  return (psi_calculations.j_toroidal_to_j_parallel(j_tor, geo),)
 
 
 def _calculate_I_generic(

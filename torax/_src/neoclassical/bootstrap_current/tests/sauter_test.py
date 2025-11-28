@@ -70,8 +70,8 @@ class SauterTest(absltest.TestCase):
     result = model.calculate_bootstrap_current(
         runtime_params, geo, core_profiles
     )
-    self.assertEqual(result.j_bootstrap.shape, (n_rho,))
-    self.assertEqual(result.j_bootstrap_face.shape, (n_rho + 1,))
+    self.assertEqual(result.j_parallel_bootstrap.shape, (n_rho,))
+    self.assertEqual(result.j_parallel_bootstrap_face.shape, (n_rho + 1,))
 
 
 if __name__ == '__main__':

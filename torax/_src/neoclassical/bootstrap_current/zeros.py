@@ -34,8 +34,8 @@ class ZerosModel(base.BootstrapCurrentModel):
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
     return base.BootstrapCurrent(
-        j_bootstrap=jnp.zeros_like(geometry.rho),
-        j_bootstrap_face=jnp.zeros_like(geometry.rho_face),
+        j_parallel_bootstrap=jnp.zeros_like(geometry.rho),
+        j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face),
     )
 
   def __eq__(self, other) -> bool:

@@ -13,25 +13,131 @@
 # limitations under the License.
 
 from typing import Callable
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src.core_profiles import initialization
 from torax._src.geometry import circular_geometry
+from torax._src.geometry import geometry
+from torax._src.geometry import imas as imas_geometry_pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.imas_tools.input import loader as imas_loader
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import torax_refs
+from torax._src.torax_pydantic import torax_pydantic
+
+# pylint: disable=invalid-name
 
 _trapz = jax.scipy.integrate.trapezoid
 
 
 class PsiCalculationsTest(parameterized.TestCase):
+
+  def _get_geo_and_j_profiles_from_IMAS(self, imas_filename: str) -> tuple[
+      standard_geometry.StandardGeometry,
+      jax.Array,
+      jax.Array,
+  ]:
+    # Load geo from IMAS
+    config = imas_geometry_pydantic_model.IMASConfig(
+        imas_filepath=imas_filename,
+        n_rho=200,
+    )
+    geo = config.build_geometry()
+
+    # Load profiles from IMAS
+    core_profiles_ids = imas_loader.load_imas_data(
+        imas_filename, 'core_profiles'
+    )
+    rho_norm_imas = core_profiles_ids.profiles_1d[0].grid.rho_tor_norm[:]
+    j_parallel_truth = jnp.interp(
+        geo.rho_norm, rho_norm_imas, core_profiles_ids.profiles_1d[0].j_total[:]
+    )
+    j_tor_truth = jnp.interp(
+        geo.rho_norm, rho_norm_imas, core_profiles_ids.profiles_1d[0].j_phi[:]
+    )
+
+    return geo, j_parallel_truth, j_tor_truth
+
+  def test_extrapolation_to_axis(self):
+    grid = torax_pydantic.Grid1D(nx=5)
+    rho_norm = grid.cell_centers
+    rho_face_norm = grid.face_centers
+    cell_profile = rho_norm
+    face_profile = rho_face_norm
+
+    geo = mock.Mock(
+        spec=geometry.Geometry,
+        rho_norm=rho_norm,
+        rho_face_norm=rho_face_norm,
+    )
+
+    # Check that the cell profile is extrapolated correctly
+    extrapolated_cell_profile = (
+        psi_calculations._extrapolate_cell_profile_to_axis(
+            cell_profile,
+            geo,
+            min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
+        )
+    )
+    np.testing.assert_equal(
+        extrapolated_cell_profile,
+        np.hstack([cell_profile[1], cell_profile[1:]]),
+    )
+
+    # Check that the face profile is extrapolated correctly in multiple cases
+    # 1. min_rho_norm has a cell point to the left and a face point to the right
+    # In this case, the face point to the right is also clamped
+    extrapolated_face_profile = (
+        psi_calculations._extrapolate_face_profile_to_axis(
+            face_profile,
+            cell_profile,
+            geo,
+            min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
+        )
+    )
+    np.testing.assert_equal(
+        extrapolated_face_profile,
+        np.hstack([cell_profile[1], cell_profile[1], face_profile[2:]]),
+    )
+
+    # 2. min_rho_norm has a face point to the left and a cell point to the right
+    # In this case, only the face points to the left are clamped
+    extrapolated_face_profile = (
+        psi_calculations._extrapolate_face_profile_to_axis(
+            face_profile,
+            cell_profile,
+            geo,
+            min_rho_norm=(rho_face_norm[1] + rho_norm[1]) / 2,
+        )
+    )
+    np.testing.assert_equal(
+        extrapolated_face_profile,
+        np.hstack([cell_profile[1], cell_profile[1], face_profile[2:]]),
+    )
+
+    # 3. min_rho_norm has the axis to the left and a cell point to the right
+    # In this case, only the axis value is changed
+    extrapolated_face_profile = (
+        psi_calculations._extrapolate_face_profile_to_axis(
+            face_profile,
+            cell_profile,
+            geo,
+            min_rho_norm=(rho_face_norm[0] + rho_norm[0]) / 2,
+        )
+    )
+    np.testing.assert_equal(
+        extrapolated_face_profile,
+        np.hstack([cell_profile[0], face_profile[1:]]),
+    )
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -189,6 +295,44 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Relatively low tolerance because the analytical formula is not exact for
     # our circular geometry, but approximates it at low inverse aspect ratio.
     np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
+
+  # pylint: enable=invalid-name
+
+  def test_calc_j_tor_from_j_parallel(self):
+    # Use a STEP case for the j profiles as the differences between j_tor and
+    # j_parallel are larger in a spherical tokamak
+    geo, j_parallel_truth, j_tor_truth = self._get_geo_and_j_profiles_from_IMAS(
+        'STEP_SPP_001_ECHD_ftop.nc'
+    )
+
+    j_tor_from_j_parallel = psi_calculations.j_parallel_to_j_toroidal(
+        j_parallel_truth, geo
+    )
+    np.testing.assert_allclose(j_tor_from_j_parallel, j_tor_truth, rtol=0.05)
+    np.testing.assert_allclose(
+        psi_calculations.j_toroidal_to_j_parallel(j_tor_from_j_parallel, geo),
+        j_parallel_truth,
+        rtol=0.05,
+    )
+
+  def test_calc_j_parallel_from_j_tor(self):
+    # Use a STEP case for the j profiles as the differences between j_tor and
+    # j_parallel are larger in a spherical tokamak
+    geo, j_parallel_truth, j_tor_truth = self._get_geo_and_j_profiles_from_IMAS(
+        'STEP_SPP_001_ECHD_ftop.nc'
+    )
+
+    j_parallel_from_j_tor = psi_calculations.j_toroidal_to_j_parallel(
+        j_tor_truth, geo
+    )
+    np.testing.assert_allclose(
+        j_parallel_from_j_tor, j_parallel_truth, rtol=0.05
+    )
+    np.testing.assert_allclose(
+        psi_calculations.j_parallel_to_j_toroidal(j_parallel_from_j_tor, geo),
+        j_tor_truth,
+        rtol=0.05,
+    )
 
 
 if __name__ == '__main__':

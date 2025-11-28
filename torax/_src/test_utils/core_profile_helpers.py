@@ -185,20 +185,22 @@ def verify_core_profiles(
   )
   np.testing.assert_allclose(
       core_profiles.j_total_face[0],
-      ref_profiles[output.J_TOTAL][index, 0],
+      ref_profiles[output.J_TOROIDAL_TOTAL][index, 0],
       err_msg=(
           "Mismatch for j_total_face[0]. Core profile:"
-          f" {core_profiles.j_total_face[0]}, Ref profile ({output.J_TOTAL}"
-          f" start val): {ref_profiles[output.J_TOTAL][index, 0]}"
+          f" {core_profiles.j_total_face[0]}, Ref profile"
+          f" ({output.J_TOROIDAL_TOTAL} start val):"
+          f" {ref_profiles[output.J_TOROIDAL_TOTAL][index, 0]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.j_total_face[-1],
-      ref_profiles[output.J_TOTAL][index, -1],
+      ref_profiles[output.J_TOROIDAL_TOTAL][index, -1],
       err_msg=(
           "Mismatch for j_total_face[-1]. Core profile:"
-          f" {core_profiles.j_total_face[-1]}, Ref profile ({output.J_TOTAL}"
-          f" end val): {ref_profiles[output.J_TOTAL][index, -1]}"
+          f" {core_profiles.j_total_face[-1]}, Ref profile"
+          f" ({output.J_TOROIDAL_TOTAL} end val):"
+          f" {ref_profiles[output.J_TOROIDAL_TOTAL][index, -1]}"
       ),
   )
   np.testing.assert_allclose(

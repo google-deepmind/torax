@@ -18,14 +18,12 @@ import dataclasses
 import functools
 import inspect
 import itertools
-
 import os
 
 from absl import logging
 import chex
 import jax
 import numpy as np
-import os
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
@@ -59,14 +57,18 @@ Z_IMPURITY = "Z_impurity"
 Z_EFF = "Z_eff"
 SIGMA_PARALLEL = "sigma_parallel"
 V_LOOP_LCFS = "v_loop_lcfs"
-J_TOTAL = "j_total"
 IP_PROFILE = "Ip_profile"
 IP = "Ip"
 
-# Calculated or derived currents.
-J_OHMIC = "j_ohmic"
-J_EXTERNAL = "j_external"
-J_BOOTSTRAP = "j_bootstrap"
+# Calculated or derived current densities (excluding sources)
+J_PARALLEL_TOTAL = "j_parallel_total"
+J_PARALLEL_OHMIC = "j_parallel_ohmic"
+J_PARALLEL_EXTERNAL = "j_parallel_external"
+J_PARALLEL_BOOTSTRAP = "j_parallel_bootstrap"
+J_TOROIDAL_TOTAL = "j_total"
+J_TOROIDAL_OHMIC = "j_ohmic"
+J_TOROIDAL_EXTERNAL = "j_external"
+J_TOROIDAL_BOOTSTRAP = "j_bootstrap"
 I_BOOTSTRAP = "I_bootstrap"
 
 # Core transport.
@@ -620,9 +622,9 @@ class StateHistory:
         )
     )
 
-    xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
-        self._stacked_core_sources.bootstrap_current.j_bootstrap,
-        self._stacked_core_sources.bootstrap_current.j_bootstrap_face,
+    xr_dict[J_PARALLEL_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
+        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
+        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
     )
 
     # Add source profiles with suffixes indicating which profile they affect.
@@ -637,7 +639,7 @@ class StateHistory:
       else:
         xr_dict[f"p_{profile}_e"] = self._stacked_core_sources.T_e[profile]
     for profile in self._stacked_core_sources.psi:
-      xr_dict[f"j_{profile}"] = self._stacked_core_sources.psi[profile]
+      xr_dict[f"j_parallel_{profile}"] = self._stacked_core_sources.psi[profile]
     for profile in self._stacked_core_sources.n_e:
       xr_dict[f"s_{profile}"] = self._stacked_core_sources.n_e[profile]
 
