@@ -66,14 +66,14 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         torax_config=torax_config,
     )
     # Save output profiles to IDS
-    post_processed_outputs = post_processed_outputs_history[-1]
+    post_processed_outputs = state_history.post_processed_outputs
     core_profiles = state_history.core_profiles
     core_sources = state_history.source_profiles
     geometry = state_history.geometries
     times = state_history.times
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
         runtime_params_provider,
-        post_processed_outputs_history,
+        post_processed_outputs,
         core_profiles,
         core_sources,
         geometry,
@@ -116,11 +116,11 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     # Fill an IDS with the output of the simulation, from the initial time step.
     sim_state = state_history[0]
-    core_profiles = sim_state.core_profiles
-    core_sources = sim_state.core_sources
-    geometry = sim_state.geometry
-    times = sim_state.t
-    post_processed_outputs = post_processed_outputs_history[0]
+    core_profiles = [sim_state.core_profiles]
+    core_sources = [sim_state.core_sources]
+    geometry = [sim_state.geometry]
+    times = [sim_state.t]
+    post_processed_outputs = [post_processed_outputs_history[0]]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
         runtime_params_provider,
         post_processed_outputs,

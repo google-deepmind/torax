@@ -14,7 +14,7 @@
 
 """Useful functions to save IMAS core_profiles or plasma_profiles IDSs from
 TORAX objects."""
-from collections.abc import Iterable
+from collections.abc import Sequence
 import datetime
 
 import imas
@@ -34,23 +34,20 @@ from torax._src.sources import source_profiles
 
 def core_profiles_to_IMAS(
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    post_processed_outputs: (
-        post_processing.PostProcessedOutputs
-        | list[post_processing.PostProcessedOutputs]
-    ),
-    core_profiles: state.CoreProfiles | list[state.CoreProfiles],
-    core_sources: (
-        source_profiles.SourceProfiles | list[source_profiles.SourceProfiles]
-    ),
-    geometry: geometry.Geometry | list[geometry.Geometry],
-    times: float | array_typing.FloatVector,
+    post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
+    core_profiles: Sequence[state.CoreProfiles],
+    core_sources: Sequence[source_profiles.SourceProfiles],
+    geometry: Sequence[geometry.Geometry],
+    times: array_typing.FloatVector,
     ids: ids_toplevel.IDSToplevel = None,
 ) -> ids_toplevel.IDSToplevel:
   """Save TORAX profiles into an IMAS core_profiles IDS.
 
   The output grid for all 1D quantities is the cell_plus_boundaries one. Values
   not available on boundaries are copied from neghbouring points. The function
-  can be used to save an entire StateHistory or a single time slice.
+  can be used to save an entire StateHistory or a single time slice. If you
+  want to use this function programatically and save a single time slice,
+  please make sure the inputs are Sequences.
 
   Args:
     runtime_params_provider: TORAX RuntimeParamsProvider to get the names of
@@ -69,22 +66,8 @@ def core_profiles_to_IMAS(
   Returns:
     Filled core_profiles or plasma_profiles IDS object.
   """
-
-  def _ensure_list(arg):
-    # Handle case receiving np.array with a single value
-    if isinstance(arg, np.ndarray):
-      arg = arg.tolist()
-    return arg if isinstance(arg, Iterable) else [arg]
-
   if ids is None:
     ids = imas.IDSFactory().core_profiles()
-
-  times = times.tolist()
-  times = _ensure_list(times)
-  core_profiles = _ensure_list(core_profiles)
-  core_sources = _ensure_list(core_sources)
-  geometry = _ensure_list(geometry)
-  post_processed_outputs = _ensure_list(post_processed_outputs)
 
   _fill_metadata(ids)
   _fill_global_quantities(
