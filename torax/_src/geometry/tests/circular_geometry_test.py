@@ -63,7 +63,29 @@ class CircularGeometryTest(absltest.TestCase):
     )
     # Make sure you can call the function with geo as an arg.
     foo(geo)
+  def test_build_circular_geometry_negative_radius_raises(self):
+    """Checks that negative radii raise a ValueError."""
+    # Test negative major radius
+    with self.assertRaisesRegex(ValueError, "R_major must be positive"):
+      circular_geometry.build_circular_geometry(
+          n_rho=10,
+          elongation_LCFS=1.0,
+          R_major=-5.0,
+          a_minor=1.0,
+          B_0=1.0,
+          hires_factor=1
+      )
 
+    # Test negative minor radius
+    with self.assertRaisesRegex(ValueError, "a_minor must be positive"):
+      circular_geometry.build_circular_geometry(
+          n_rho=10,
+          elongation_LCFS=1.0,
+          R_major=5.0,
+          a_minor=-1.0,
+          B_0=1.0,
+          hires_factor=1
+      )
 
 if __name__ == "__main__":
   absltest.main()

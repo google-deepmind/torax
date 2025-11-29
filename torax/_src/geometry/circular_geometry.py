@@ -87,6 +87,10 @@ def build_circular_geometry(
   Returns:
     A Geometry instance.
   """
+  if R_major <= 0:
+    raise ValueError(f"R_major must be positive, got {R_major}")
+  if a_minor <= 0:
+    raise ValueError(f"a_minor must be positive, got {a_minor}")
   # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
