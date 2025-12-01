@@ -26,7 +26,6 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
@@ -273,7 +272,7 @@ class SimulationStepFn:
 
   def fixed_time_step(
       self,
-      dt: jax.Array,
+      dt: chex.Array,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
@@ -311,6 +310,29 @@ class SimulationStepFn:
     # TODO(b/456188184): Add a return value for the number of steps, sawtooth
     # crashes, and solver error states etc.
     return output_state, post_processed_outputs
+
+  @jax.jit
+  def jitted_fixed_time_step(
+      self,
+      dt: chex.Array,
+      input_state: sim_state.ToraxSimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
+  ) -> tuple[
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+  ]:
+    """Runs the simulation until it has advanced by dt."""
+    return self.fixed_time_step(
+        dt,
+        input_state,
+        previous_post_processed_outputs,
+        runtime_params_overrides,
+        geo_overrides,
+    )
 
   def _sawtooth_step(
       self,
@@ -363,70 +385,6 @@ class SimulationStepFn:
         ),
         lambda *args: (input_state, previous_post_processed_outputs),
         _sawtooth_step_fn,
-    )
-
-  def step(
-      self,
-      dt: jax.Array,
-      runtime_params_t: runtime_params_lib.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-      geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
-      input_state: sim_state.ToraxSimState,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
-  ]:
-    """Performs a simulation step with given dt.
-
-    Solver may fail to converge in which case _adaptive_step() can be used to
-    try smaller time step durations.
-
-    Args:
-      dt: Time step duration.
-      runtime_params_t: Runtime parameters at time t.
-      runtime_params_t_plus_dt: Runtime parameters at time t + dt.
-      geo_t: The geometry of the torus during this time step of the simulation.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-      explicit_source_profiles: Explicit source profiles computed based on the
-        core profiles at the start of the time step.
-
-    Returns:
-      tuple:
-        tuple of CellVariables corresponding to the evolved state variables
-        SolverNumericOutputs containing error state and other solver-specific
-        outputs.
-    """
-
-    core_profiles_t = input_state.core_profiles
-
-    # Construct the CoreProfiles object for time t+dt with evolving boundary
-    # conditions and time-dependent prescribed profiles not directly solved by
-    # PDE system.
-    core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=core_profiles_t,
-    )
-
-    # Initial trial for solver. If did not converge (can happen for nonlinear
-    # step with large dt) we apply the adaptive time step routine if requested.
-    return self._solver(
-        t=input_state.t,
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t=geo_t,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
     )
 
   def _adaptive_step(
