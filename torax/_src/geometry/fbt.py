@@ -13,6 +13,7 @@
 # limitations under the License.
 """Classes for loading and representing a FBT geometry."""
 from collections.abc import Mapping
+import enum
 import logging
 from typing import Annotated
 from typing import Any
@@ -31,6 +32,14 @@ import typing_extensions
 LY_OBJECT_TYPE: TypeAlias = (
     str | Mapping[str, torax_pydantic.NumpyArray | float]
 )
+
+
+@enum.unique
+class DivertorDomain(enum.StrEnum):
+  """Enum for selecting the divertor domain in the extended Lengyel model."""
+
+  UPPER_NULL = 'upper_null'
+  LOWER_NULL = 'lower_null'
 
 
 class FBTConfig(torax_pydantic.BaseModelFrozen):
@@ -147,6 +156,7 @@ def _from_fbt_single_slice(
     Ip_from_parameters: bool = True,
     n_rho: int = 25,
     hires_factor: int = 4,
+    divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Returns StandardGeometryIntermediates from a single slice FBT LY file.
 
@@ -169,6 +179,8 @@ def _from_fbt_single_slice(
     n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
+    divertor_domain: The divertor domain (upper or lower null) for extracting
+      edge quantities when diverted.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input slice. This
@@ -199,7 +211,9 @@ def _from_fbt_single_slice(
 
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY, L)
-  return _from_fbt(LY, L, Ip_from_parameters, n_rho, hires_factor)
+  return _from_fbt(
+      LY, L, Ip_from_parameters, n_rho, hires_factor, divertor_domain
+  )
 
 
 def _from_fbt_bundle(
@@ -210,6 +224,7 @@ def _from_fbt_bundle(
     Ip_from_parameters: bool = True,
     n_rho: int = 25,
     hires_factor: int = 4,
+    divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> Mapping[float, standard_geometry.StandardGeometryIntermediates]:
   """Returns StandardGeometryIntermediates from a bundled FBT LY file.
 
@@ -238,6 +253,8 @@ def _from_fbt_bundle(
     n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
+    divertor_domain: The divertor domain (upper or lower null) for extracting
+      edge quantities when diverted.
 
   Returns:
     A mapping from user-provided (or inferred) times to
@@ -284,7 +301,12 @@ def _from_fbt_bundle(
   for idx, t in enumerate(LY_to_torax_times):
     data_slice = _get_LY_single_slice_from_bundle(LY_bundle, idx)
     intermediates[t] = _from_fbt(
-        data_slice, L, Ip_from_parameters, n_rho, hires_factor
+        data_slice,
+        L,
+        Ip_from_parameters,
+        n_rho,
+        hires_factor,
+        divertor_domain,
     )
 
   return intermediates
@@ -296,8 +318,8 @@ def _get_LY_single_slice_from_bundle(
 ) -> Mapping[str, np.ndarray]:
   """Returns a single LY slice from a bundled LY file, at index idx."""
 
-  # The keys below are the relevant LY keys for the FBT geometry provider.
-  relevant_keys = [
+  # The keys below are the required LY keys for the FBT geometry provider.
+  required_keys = [
       'rBt',
       'aminor',
       'rgeom',
@@ -318,7 +340,26 @@ def _get_LY_single_slice_from_bundle(
       'zA',
       'lX',
   ]
-  LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
+
+  # The keys below are the optional LY keys for the FBT geometry provider.
+  # They are used to extract edge quantities for extended Lengyel.
+  optional_keys = [
+      'z_div',
+      'Lpar_target',
+      'Lpar_div',
+      'alpha_target',
+      'r_OMP',
+      'r_target',
+      'Bp_OMP',
+  ]
+
+  LY_single_slice_required = {
+      key: LY_bundle[key][..., idx] for key in required_keys
+  }
+  LY_single_slice_optional = {
+      key: LY_bundle[key][..., idx] for key in optional_keys if key in LY_bundle
+  }
+  LY_single_slice = LY_single_slice_required | LY_single_slice_optional
 
   # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.
   if 'FtPVQ' in LY_bundle:
@@ -340,6 +381,7 @@ def _from_fbt(
     Ip_from_parameters: bool = True,
     n_rho: int = 25,
     hires_factor: int = 4,
+    divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
 
@@ -351,6 +393,8 @@ def _from_fbt(
     n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations on initialization.
+    divertor_domain: The divertor domain (upper or lower null) for extracting
+      edge quantities when diverted.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input slice. This
@@ -359,8 +403,10 @@ def _from_fbt(
   """
   # lX is a flag for diverted (1) or limited (0) geometry. Converted to
   # boolean when constructing the StandardGeometryIntermediates.
-  if LY['lX'] not in [0, 1]:
+  if np.squeeze(LY['lX']) not in [0, 1]:
     raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
+  # Convert to bool instead of dim 0 array of ints
+  is_diverted = bool(LY['lX'] == 1)
   R_major = LY['rgeom'][-1]  # Major radius
   B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
   a_minor = LY['aminor'][-1]  # Minor radius
@@ -389,7 +435,58 @@ def _from_fbt(
   # Approximate with analytical expressions for circular geometry.
   flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
   flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
-  # TODO(b/446608829): Add support for edge geometries once available in MEQ
+
+  # Edge/Divertor geometry
+  # These parameters are optional as older FBT files may not contain them.
+  connection_length_target = None
+  connection_length_divertor = None
+  target_angle_of_incidence = None
+  R_OMP = None
+  R_target = None
+  B_pol_OMP = None
+
+  if 'z_div' in LY:
+    # Ensure z_div is an array
+    z_div = np.squeeze(LY['z_div'])
+
+    # Find index corresponding to requested domain.
+    if is_diverted:
+      if divertor_domain == DivertorDomain.LOWER_NULL:
+        idx_array = np.where(z_div < 0)[0]
+      else:  # UPPER_NULL
+        idx_array = np.where(z_div > 0)[0]
+      if idx_array.size == 0:
+        raise ValueError(
+            f'{divertor_domain} not present in edge geometry data.'
+        )
+      # There should only be one entry per domain.
+      idx = idx_array[0]
+    else:
+      # Limited geometry: minor difference between directions.
+      idx = 0
+
+    # Helper to safe get and index
+    def _get_val(key):
+      if key not in LY:
+        return None
+      val = np.squeeze(LY[key])
+      if not val.shape:  # Scalar value
+        return val
+      else:
+        return val[idx]
+
+    # Lpar_target -> connection_length_target [m]
+    connection_length_target = _get_val('Lpar_target')
+    # Lpar_div -> connection_length_divertor [m]
+    connection_length_divertor = _get_val('Lpar_div')
+    # alpha_target -> target_angle_of_incidence [degrees]
+    target_angle_of_incidence = _get_val('alpha_target')
+    # r_OMP -> R_OMP [m]
+    R_OMP = _get_val('r_OMP')
+    # r_target -> R_target [m]
+    R_target = _get_val('r_target')
+    # Bp_OMP -> B_pol_OMP [T]
+    B_pol_OMP = _get_val('Bp_OMP')
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.FBT,
@@ -417,13 +514,13 @@ def _from_fbt(
       vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
       n_rho=n_rho,
       hires_factor=hires_factor,
-      diverted=bool(LY['lX']),
-      connection_length_target=None,
-      connection_length_divertor=None,
-      target_angle_of_incidence=None,
-      R_OMP=None,
-      R_target=None,
-      B_pol_OMP=None,
+      diverted=is_diverted,
+      connection_length_target=connection_length_target,
+      connection_length_divertor=connection_length_divertor,
+      target_angle_of_incidence=target_angle_of_incidence,
+      R_OMP=R_OMP,
+      R_target=R_target,
+      B_pol_OMP=B_pol_OMP,
       z_magnetic_axis=LY['zA'],
   )
 

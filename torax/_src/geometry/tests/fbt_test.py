@@ -1,3 +1,4 @@
+### FILEPATH ### torax/_src/geometry/tests/standard_geometry_test.py ###
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -152,7 +153,7 @@ class FBTGeometryTest(parameterized.TestCase):
     L, LY = _get_example_L_LY_data(len_psinorm, len_times)
     del L['pQ']
     with self.assertRaisesRegex(ValueError, 'L data is missing'):
-      fbt ._validate_fbt_data(LY, L)
+      fbt._validate_fbt_data(LY, L)
 
   def test_validate_fbt_data_incorrect_L_pQ_shape(self):
     len_psinorm = 20
@@ -161,6 +162,134 @@ class FBTGeometryTest(parameterized.TestCase):
     L['pQ'] = np.zeros((len_psinorm + 1,))
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
       fbt._validate_fbt_data(LY, L)
+
+  @parameterized.named_parameters(
+      (
+          'lower_null',
+          fbt.DivertorDomain.LOWER_NULL,
+          np.array([10.0, 20.0]),
+          np.array([1.0, 2.0]),
+          np.array([3.0, 4.0]),
+          np.array([6.0, 7.0]),
+          np.array([5.0, 6.0]),
+          np.array([0.5, 0.7]),
+      ),
+      (
+          'upper_null',
+          fbt.DivertorDomain.UPPER_NULL,
+          np.array([15.0, 25.0]),
+          np.array([1.5, 2.5]),
+          np.array([3.5, 4.5]),
+          np.array([6.5, 7.5]),
+          np.array([5.5, 6.5]),
+          np.array([0.6, 0.8]),
+      ),
+  )
+  def test_fbt_edge_parameters(
+      self,
+      divertor_domain,
+      expected_connection_length_target,
+      expected_connection_length_divertor,
+      expected_target_angle_of_incidence,
+      expected_r_omp,
+      expected_r_target,
+      expected_bp_omp,
+  ):
+    len_psinorm = 20
+    len_times = 2
+    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
+
+    # Add edge parameters to LY: (n_domains, n_times)
+    # Rows: domains, Cols: time.
+    # Domain 0 (Lower): [10, 20] over time for Lpar_target.
+    # Domain 1 (Upper): [15, 25] over time for Lpar_target.
+    LY['Lpar_target'] = np.array([[10.0, 20.0], [15.0, 25.0]])
+    LY['Lpar_div'] = np.array([[1.0, 2.0], [1.5, 2.5]])
+    LY['alpha_target'] = np.array([[3.0, 4.0], [3.5, 4.5]])
+    LY['r_OMP'] = np.array([[6.0, 7.0], [6.5, 7.5]])
+    LY['r_target'] = np.array([[5.0, 6.0], [5.5, 6.5]])
+    LY['Bp_OMP'] = np.array([[0.5, 0.7], [0.6, 0.8]])
+
+    # z_div to distinguish nulls.
+    # Index 0: lower null (<0), Index 1: upper null (>0) for ALL times.
+    LY['z_div'] = np.array([[-1.0, -1.0], [1.2, 1.2]])
+
+    # Set diverted flag to true to trigger the domain selection logic.
+    LY['lX'] = np.ones(len_times, dtype=int)
+
+    geo_intermediates = (
+        fbt._from_fbt_bundle(
+            geometry_directory=None,
+            LY_bundle_object=LY,
+            LY_to_torax_times=np.array([0.0, 1.0]),
+            L_object=L,
+            divertor_domain=divertor_domain,
+        )
+    )
+
+    # from_fbt_bundle returns a dictionary of StandardGeometryIntermediates
+    # objects, so we need to extract the values for each time slice.
+    intermediates_list = list(geo_intermediates.values())
+
+    np.testing.assert_allclose(
+        [i.connection_length_target for i in intermediates_list],
+        expected_connection_length_target,
+    )
+    np.testing.assert_allclose(
+        [i.connection_length_divertor for i in intermediates_list],
+        expected_connection_length_divertor,
+    )
+    np.testing.assert_allclose(
+        [i.target_angle_of_incidence for i in intermediates_list],
+        expected_target_angle_of_incidence,
+    )
+    np.testing.assert_allclose(
+        [i.R_OMP for i in intermediates_list], expected_r_omp
+    )
+    np.testing.assert_allclose(
+        [i.R_target for i in intermediates_list], expected_r_target
+    )
+    np.testing.assert_allclose(
+        [i.B_pol_OMP for i in intermediates_list], expected_bp_omp
+    )
+
+  def test_fbt_edge_parameters_missing_edge_parameters(self):
+    len_psinorm = 20
+    len_times = 2
+    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
+    geo_intermediates_no_z = (
+        fbt._from_fbt_bundle(
+            geometry_directory=None,
+            LY_bundle_object=LY,
+            LY_to_torax_times=np.array([0.0, 1.0]),
+            L_object=L,
+        )
+    )
+    for intermediate in geo_intermediates_no_z.values():
+      self.assertIsNone(intermediate.connection_length_target)
+      self.assertIsNone(intermediate.connection_length_divertor)
+      self.assertIsNone(intermediate.target_angle_of_incidence)
+      self.assertIsNone(intermediate.R_OMP)
+      self.assertIsNone(intermediate.R_target)
+      self.assertIsNone(intermediate.B_pol_OMP)
+
+  def test_fbt_edge_parameters_bad_domain_request(self):
+    len_psinorm = 20
+    len_times = 2
+    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
+    LY['z_div'] = np.array([[1.0, 1.2], [2.0, 2.2]])  # All upper null.
+    LY['lX'] = np.ones(len_times, dtype=int).squeeze()
+
+    with self.assertRaisesRegex(
+        ValueError, 'not present in edge geometry data'
+    ):
+      fbt._from_fbt_bundle(
+          geometry_directory=None,
+          LY_bundle_object=LY,
+          LY_to_torax_times=np.array([0.0, 1.0]),
+          L_object=L,
+          divertor_domain=fbt.DivertorDomain.LOWER_NULL,
+      )
 
 
 def _get_example_L_LY_data(
@@ -189,7 +318,7 @@ def _get_example_L_LY_data(
       'FtPQ': (
           np.array(
               [np.linspace(0, prefactor, len_psinorm) for _ in range(len_times)]
-          ).squeeze()
+          ).T.squeeze()
       ),
       'zA': np.zeros(len_times).squeeze(),
       't': np.zeros(len_times).squeeze(),

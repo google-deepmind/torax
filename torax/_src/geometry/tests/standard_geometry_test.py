@@ -32,7 +32,7 @@ class GeometryTest(parameterized.TestCase):
       return geo.R_major
 
     intermediate = standard_geometry.StandardGeometryIntermediates(
-        geometry_type=geometry.GeometryType.CIRCULAR,
+        geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=True,
         n_rho=25,
         R_major=6.2,
@@ -162,7 +162,7 @@ def _get_example_L_LY_data(
       'FtPQ': (
           np.array(
               [np.linspace(0, prefactor, len_psinorm) for _ in range(len_times)]
-          ).squeeze()
+          ).T.squeeze()
       ),
       'zA': np.zeros(len_times).squeeze(),
       't': np.zeros(len_times).squeeze(),
