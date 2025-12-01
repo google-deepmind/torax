@@ -16,6 +16,7 @@ from absl.testing import absltest
 import numpy as np
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import extended_lengyel_formulas
 from torax._src.edge import extended_lengyel_solvers
 from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import pydantic_model
@@ -70,6 +71,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'computation_mode': 'inverse',
         'target_electron_temp': 2.34,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'use_enrichment_model': False,
         'enrichment_factor': {
             'N': 1.0,
             'Ar': 1.0,
@@ -102,11 +104,12 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_enrichment_factor_key_validation_valid(self):
     pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=False,
         computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
         target_electron_temp=10.0,
         seed_impurity_weights={'N': 1.0},
-        fixed_impurity_concentrations={'He': 0.01},
-        enrichment_factor={'N': 2.0, 'He': 1.5},
+        fixed_impurity_concentrations={'He4': 0.01},
+        enrichment_factor={'N': 2.0, 'He4': 1.5},
     )
 
   def test_enrichment_factor_key_validation_missing_key(self):
@@ -115,10 +118,11 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'enrichment_factor is missing keys',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           target_electron_temp=10.0,
           seed_impurity_weights={'N': 1.0},
-          fixed_impurity_concentrations={'He': 0.01},
+          fixed_impurity_concentrations={'He4': 0.01},
           enrichment_factor={'N': 2.0},
       )
 
@@ -128,11 +132,12 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'enrichment_factor has extra keys',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           target_electron_temp=10.0,
           seed_impurity_weights={'N': 1.0},
-          fixed_impurity_concentrations={'He': 0.01},
-          enrichment_factor={'N': 2.0, 'He': 1.5, 'Ar': 2.0},
+          fixed_impurity_concentrations={'He4': 0.01},
+          enrichment_factor={'N': 2.0, 'He4': 1.5, 'Ar': 2.0},
       )
 
   def test_computation_mode_forward_valid_config(self):
@@ -160,6 +165,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ' mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode='forward',
           seed_impurity_weights={'N': 1.0},
           enrichment_factor={'N': 1.0},
@@ -168,6 +174,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_computation_mode_inverse_valid_config(self):
     # This should not raise an error.
     pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=False,
         computation_mode='inverse',
         target_electron_temp=10.0,
         seed_impurity_weights={'N': 1.0},
@@ -180,6 +187,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'target_electron_temp must be provided for inverse computation mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode='inverse',
           target_electron_temp=None,
           seed_impurity_weights={'N': 1.0},
@@ -192,6 +200,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'seed_impurity_weights must be provided for inverse computation mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode='inverse',
           target_electron_temp=10.0,
           seed_impurity_weights={},
@@ -204,11 +213,85 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'seed_impurity_weights must be provided for inverse computation mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
           computation_mode='inverse',
           target_electron_temp=10.0,
           seed_impurity_weights=None,
           enrichment_factor={},
       )
+
+  def test_warning_for_unused_enrichment_factor(self):
+    with self.assertLogs(level='WARNING') as cm:
+      pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=True,
+          enrichment_factor={'N': 1.0},
+          # Other required fields for validation to pass
+          computation_mode='inverse',
+          target_electron_temp=10.0,
+          seed_impurity_weights={'N': 1.0},
+      )
+    self.assertIn(
+        'enrichment_factor is provided but use_enrichment_model is True',
+        cm.output[0],
+    )
+
+  def test_raises_error_if_enrichment_factor_is_none_when_not_using_model(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'enrichment_factor must be provided when use_enrichment_model is'
+        ' False.',
+    ):
+      pydantic_model.ExtendedLengyelConfig(
+          use_enrichment_model=False,
+          enrichment_factor=None,
+          # Other required fields for validation to pass
+          computation_mode='inverse',
+          target_electron_temp=10.0,
+          seed_impurity_weights={'N': 1.0},
+      )
+
+  def test_build_runtime_params_with_enrichment_model(self):
+    config = pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=True,
+        enrichment_factor=None,  # Should be calculated
+        enrichment_model_multiplier=2.0,
+        # Other required fields
+        computation_mode='inverse',
+        target_electron_temp=10.0,
+        seed_impurity_weights={'N': 1.0},
+        fixed_impurity_concentrations={'He4': 0.01},
+    )
+    runtime_params = config.build_runtime_params(t=0.0)
+    expected_enrichment_N = (
+        extended_lengyel_formulas.calc_enrichment_kallenbach(1.0, 'N', 2.0)
+    )
+    expected_enrichment_He4 = (
+        extended_lengyel_formulas.calc_enrichment_kallenbach(1.0, 'He4', 2.0)
+    )
+    self.assertIn('N', runtime_params.enrichment_factor)
+    self.assertIn('He4', runtime_params.enrichment_factor)
+    np.testing.assert_allclose(
+        runtime_params.enrichment_factor['N'], expected_enrichment_N
+    )
+    np.testing.assert_allclose(
+        runtime_params.enrichment_factor['He4'], expected_enrichment_He4
+    )
+
+  def test_build_runtime_params_without_enrichment_model(self):
+    config = pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=False,
+        enrichment_factor={'N': 2.5, 'He4': 3.5},
+        # Other required fields
+        computation_mode='inverse',
+        target_electron_temp=10.0,
+        seed_impurity_weights={'N': 1.0},
+        fixed_impurity_concentrations={'He4': 0.01},
+    )
+    runtime_params = config.build_runtime_params(t=0.0)
+    self.assertIn('N', runtime_params.enrichment_factor)
+    self.assertIn('He4', runtime_params.enrichment_factor)
+    np.testing.assert_allclose(runtime_params.enrichment_factor['N'], 2.5)
+    np.testing.assert_allclose(runtime_params.enrichment_factor['He4'], 3.5)
 
   def test_optional_params_are_none_in_runtime_params_if_not_provided(self):
     config = pydantic_model.ExtendedLengyelConfig()
@@ -227,6 +310,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'fixed_impurity_concentrations': {'Ne': 0.01},
+        'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
     }
     config_dict['plasma_composition']['impurity'] = {
@@ -253,6 +337,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'target_electron_temp': 10.0,
         'fixed_impurity_concentrations': {'Ne': 0.01},
         'seed_impurity_weights': {'Ne': 1.0},  # Ne is in both
+        'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
     }
     config_dict['plasma_composition']['impurity'] = {
@@ -294,6 +379,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'divertor_parallel_length': 5.0,
         'computation_mode': 'inverse',
         'solver_mode': 'fixed_step',
+        'use_enrichment_model': False,
         'enrichment_factor': {'N': 1.0, 'Ar': 1.0, 'He': 1.0},
     }
     # Inputs that would come from the TORAX state at runtime.
@@ -318,6 +404,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     runtime_params_dict.pop('enrichment_factor')
     runtime_params_dict.pop('update_temperatures')
     runtime_params_dict.pop('update_impurities')
+    runtime_params_dict.pop('use_enrichment_model')
     runtime_params_dict.pop('impurity_sot')
     kwargs = {**dynamic_inputs, **runtime_params_dict}
     # Run the model

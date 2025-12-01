@@ -111,6 +111,8 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
   fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
   enrichment_factor: Mapping[str, array_typing.FloatScalar]
+  use_enrichment_model: bool = dataclasses.field(metadata={'static': True})
+  enrichment_model_multiplier: array_typing.FloatScalar
 
   # --- Optional parameter for inverse mode ---
   target_electron_temp: array_typing.FloatScalar | None
@@ -263,6 +265,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         fixed_step_iterations=edge_params.fixed_step_iterations,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
+        enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
     )
 
 

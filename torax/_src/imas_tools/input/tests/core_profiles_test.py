@@ -158,7 +158,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
           core_profiles_in,
           None,
           None,
-          ["He"],
+          ["He5"],
       )
     with self.subTest(name="Test config is properly built."):
       plasma_composition_data = core_profiles.plasma_composition_from_IMAS(

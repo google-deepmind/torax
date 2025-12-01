@@ -103,6 +103,7 @@ Q_FUSION = "Q_fusion"
 
 # Edge model outputs
 SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
+CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
 
 # Numerics.
@@ -812,17 +813,20 @@ class StateHistory:
         continue
       # Special handling for seed_impurity_concentrations
       # Only populate if the dict is not empty.
-      if name == SEED_IMPURITY_CONCENTRATIONS and value:
+      if (
+          name == SEED_IMPURITY_CONCENTRATIONS
+          or name == CALCULATED_ENRICHMENT
+      ) and value:
         # This is a dict of {impurity: array(time,)}, where (time,) is the shape
         # We want to convert it to an array of shape (n_impurities, time) with
         # impurity coord.
         impurities = sorted(list(value.keys()))
         data_array = np.stack([value[i] for i in impurities], axis=0)
-        xr_dict[SEED_IMPURITY_CONCENTRATIONS] = xr.DataArray(
+        xr_dict[name] = xr.DataArray(
             data_array,
             dims=[IMPURITY, TIME],
             coords={IMPURITY: impurities, TIME: self.times},
-            name=SEED_IMPURITY_CONCENTRATIONS,
+            name=name,
         )
         continue
     # Fields from SolverStatus which depend on the solver type

@@ -462,6 +462,7 @@ class StateHistoryTest(parameterized.TestCase):
             physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             numerics_outcome=extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
         ),
+        calculated_enrichment={'Ar': jnp.array(1.0)},
     )
 
     sim_state_with_edge = dataclasses.replace(
@@ -495,6 +496,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('separatrix_Z_eff', edge_dataset.data_vars)
     self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
+    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
     self.assertIn('fixed_step_outcome', edge_dataset.data_vars)
 
     # Verify values match
@@ -529,6 +531,7 @@ class StateHistoryTest(parameterized.TestCase):
                     last_tau=jnp.array(1.0),
                 ),
             ),
+            calculated_enrichment={'Ar': jnp.array(1.0)},
         )
     )
 
@@ -562,6 +565,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('alpha_t', edge_dataset.data_vars)
     self.assertIn('separatrix_Z_eff', edge_dataset.data_vars)
     self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
+    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
     self.assertIn('solver_iterations', edge_dataset.data_vars)
     self.assertIn('solver_residual', edge_dataset.data_vars)

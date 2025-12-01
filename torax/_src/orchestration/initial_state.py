@@ -92,6 +92,13 @@ def _get_initial_state(
   )
 
   if physics_models.edge_model is not None:
+    # If `runtime_params.edge.use_enrichment_model` is True, then the
+    # `runtime_params.edge.enrichment_factor`
+    # in this initialization step was calculated with a guess for the divertor
+    # neutral pressure. This is only used to set edge fixed impurities if
+    # PlasmaComposition.impurity_source_of_truth == CORE. All subsequent
+    # calls to the edge model will use the divertor neutral pressure from a
+    # previous calculation.
     edge_outputs = physics_models.edge_model(
         runtime_params,
         geo,

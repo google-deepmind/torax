@@ -41,12 +41,15 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     separatrix_Z_eff: Z_eff at the separatrix.
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
+    calculated_enrichment: A mapping from ion symbol to its enrichment factor
+      as calculated by the Kallenbach model.
   """
 
   alpha_t: jax.Array
   separatrix_Z_eff: jax.Array
   seed_impurity_concentrations: Mapping[str, jax.Array]
   solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
+  calculated_enrichment: Mapping[str, jax.Array]
 
 
 @functools.partial(
@@ -109,6 +112,7 @@ def run_extended_lengyel_standalone(
     fixed_step_iterations: int | None = None,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -160,6 +164,7 @@ def run_extended_lengyel_standalone(
       this argument is ignored and remains None if inputted as None.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
+    enrichment_model_multiplier: Multiplier for the Kallenbach enrichment model.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values and solver
@@ -371,6 +376,19 @@ def run_extended_lengyel_standalone(
       )
   )
 
+  calculated_enrichment = {}
+  all_impurities = set(fixed_impurity_concentrations.keys()) | set(
+      seed_impurity_weights.keys()
+  )
+  for species in all_impurities:
+    calculated_enrichment[species] = (
+        extended_lengyel_formulas.calc_enrichment_kallenbach(
+            neutral_pressure_in_divertor=neutral_pressure_in_divertor,
+            ion_symbol=species,
+            enrichment_multiplier=enrichment_model_multiplier,
+        )
+    )
+
   return ExtendedLengyelOutputs(
       target_electron_temp=output_sol_model.state.target_electron_temp,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
@@ -381,6 +399,7 @@ def run_extended_lengyel_standalone(
       separatrix_Z_eff=output_sol_model.separatrix_Z_eff,
       seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,
       solver_status=solver_status,
+      calculated_enrichment=calculated_enrichment,
   )
 
 
