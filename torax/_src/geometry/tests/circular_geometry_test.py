@@ -24,7 +24,7 @@ class CircularGeometryTest(absltest.TestCase):
 
   def test_build_geometry_provider_from_circular(self):
     """Test that the circular geometry provider can be built."""
-    geo_0 = circular_geometry.build_circular_geometry(
+    geo_0 = circular_geometry._build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
         R_major=6.2,
@@ -32,7 +32,7 @@ class CircularGeometryTest(absltest.TestCase):
         B_0=5.3,
         hires_factor=4,
     )
-    geo_1 = circular_geometry.build_circular_geometry(
+    geo_1 = circular_geometry._build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
         R_major=7.2,
@@ -53,7 +53,7 @@ class CircularGeometryTest(absltest.TestCase):
     def foo(geo: geometry.Geometry):
       return geo.R_major
 
-    geo = circular_geometry.build_circular_geometry(
+    geo = circular_geometry._build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.72,
         R_major=6.2,

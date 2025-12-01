@@ -55,7 +55,7 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   def build_geometry(self) -> geometry.Geometry:
-    return build_circular_geometry(
+    return _build_circular_geometry(
         n_rho=self.n_rho,
         elongation_LCFS=self.elongation_LCFS,
         R_major=self.R_major,
@@ -65,7 +65,7 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
     )
 
 
-def build_circular_geometry(
+def _build_circular_geometry(
     n_rho: int,
     elongation_LCFS: float,
     R_major: float,
