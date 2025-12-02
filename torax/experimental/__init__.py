@@ -16,6 +16,8 @@
 # pylint: disable=g-importing-member
 from torax._src.config.build_runtime_params import RuntimeParamsProvider
 from torax._src.config.build_runtime_params import ValidUpdates
+from torax._src.orchestration.jit_run_loop import run_loop_jit
+from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.orchestration.step_function import SimulationStepFn
 from torax._src.torax_pydantic.interpolated_param_1d import TimeVaryingScalarUpdate
 from torax._src.torax_pydantic.interpolated_param_2d import TimeVaryingArrayUpdate
@@ -24,6 +26,8 @@ from torax.experimental import geometry
 
 __all__ = [
     'geometry',
+    'prepare_simulation',
+    'run_loop_jit',
     'RuntimeParamsProvider',
     'ValidUpdates',
     'SimulationStepFn',
