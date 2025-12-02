@@ -451,12 +451,12 @@ class StateHistoryTest(parameterized.TestCase):
     # Create dummy ExtendedLengyelOutputs
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         q_parallel=jnp.array(1.0),
-        heat_flux_perp_to_target=jnp.array(2.0),
-        separatrix_electron_temp=jnp.array(3.0),
+        q_perpendicular_target=jnp.array(2.0),
+        T_e_separatrix=jnp.array(3.0),
         T_e_target=jnp.array(4.0),
-        neutral_pressure_in_divertor=jnp.array(5.0),
+        pressure_neutral_divertor=jnp.array(5.0),
         alpha_t=jnp.array(0.5),
-        separatrix_Z_eff=jnp.array(1.5),
+        Z_eff_separatrix=jnp.array(1.5),
         seed_impurity_concentrations={'Ar': jnp.array(0.01)},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
             physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -493,7 +493,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Check extended fields
     self.assertIn('alpha_t', edge_dataset.data_vars)
-    self.assertIn('separatrix_Z_eff', edge_dataset.data_vars)
+    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
     self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
     self.assertIn('calculated_enrichment', edge_dataset.data_vars)
@@ -513,12 +513,12 @@ class StateHistoryTest(parameterized.TestCase):
     extended_lengyel_outputs = (
         extended_lengyel_standalone.ExtendedLengyelOutputs(
             q_parallel=jnp.array(1.0),
-            heat_flux_perp_to_target=jnp.array(2.0),
-            separatrix_electron_temp=jnp.array(3.0),
+            q_perpendicular_target=jnp.array(2.0),
+            T_e_separatrix=jnp.array(3.0),
             T_e_target=jnp.array(4.0),
-            neutral_pressure_in_divertor=jnp.array(5.0),
+            pressure_neutral_divertor=jnp.array(5.0),
             alpha_t=jnp.array(0.5),
-            separatrix_Z_eff=jnp.array(1.5),
+            Z_eff_separatrix=jnp.array(1.5),
             seed_impurity_concentrations={'Ar': jnp.array(0.01)},
             solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
                 physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -561,7 +561,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Check extended fields
     self.assertIn('alpha_t', edge_dataset.data_vars)
-    self.assertIn('separatrix_Z_eff', edge_dataset.data_vars)
+    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
     self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
     self.assertIn('calculated_enrichment', edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)

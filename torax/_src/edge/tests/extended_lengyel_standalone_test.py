@@ -54,12 +54,12 @@ class ExtendedLengyelTest(absltest.TestCase):
     # Reference values from running the reference case in:
     # https://github.com/cfs-energy/extended-lengyel
     expected_outputs = {
-        'neutral_pressure_in_divertor': 1.737773924511501,
+        'pressure_neutral_divertor': 1.737773924511501,
         'alpha_t': 0.35908862950459736,
         'q_parallel': 3.64822996e8,
-        'heat_flux_perp_to_target': 7.92853e5,
-        'separatrix_electron_temp': 0.1028445648,  # in keV
-        'separatrix_Z_eff': 1.8621973566614212,
+        'q_perpendicular_target': 7.92853e5,
+        'T_e_separatrix': 0.1028445648,  # in keV
+        'Z_eff_separatrix': 1.8621973566614212,
         'seed_impurity_concentrations': {
             'N': 0.038397305226362526,
             'Ar': 0.0019198652613181264,
@@ -81,8 +81,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
     np.testing.assert_allclose(
-        outputs.neutral_pressure_in_divertor,
-        expected_outputs['neutral_pressure_in_divertor'],
+        outputs.pressure_neutral_divertor,
+        expected_outputs['pressure_neutral_divertor'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
@@ -96,18 +96,18 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.heat_flux_perp_to_target,
-        expected_outputs['heat_flux_perp_to_target'],
+        outputs.q_perpendicular_target,
+        expected_outputs['q_perpendicular_target'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_electron_temp,
-        expected_outputs['separatrix_electron_temp'],
+        outputs.T_e_separatrix,
+        expected_outputs['T_e_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_Z_eff,
-        expected_outputs['separatrix_Z_eff'],
+        outputs.Z_eff_separatrix,
+        expected_outputs['Z_eff_separatrix'],
         rtol=_RTOL,
     )
     for impurity, conc in expected_outputs[
@@ -157,12 +157,12 @@ class ExtendedLengyelTest(absltest.TestCase):
     # The rtol is lower here since we are comparing the forward mode to the
     # inverse mode reference case.
     expected_outputs = {
-        'neutral_pressure_in_divertor': 1.737773924511501,
+        'pressure_neutral_divertor': 1.737773924511501,
         'alpha_t': 0.35908862950459736,
         'q_parallel': 3.64822996e8,
-        'heat_flux_perp_to_target': 7.92853e5,
-        'separatrix_electron_temp': 0.1028445648,  # in keV
-        'separatrix_Z_eff': 1.8621973566614212,
+        'q_perpendicular_target': 7.92853e5,
+        'T_e_separatrix': 0.1028445648,  # in keV
+        'Z_eff_separatrix': 1.8621973566614212,
         'T_e_target': 2.34,  # in eV
     }
 
@@ -181,8 +181,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
     np.testing.assert_allclose(
-        outputs.neutral_pressure_in_divertor,
-        expected_outputs['neutral_pressure_in_divertor'],
+        outputs.pressure_neutral_divertor,
+        expected_outputs['pressure_neutral_divertor'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
@@ -196,18 +196,18 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.heat_flux_perp_to_target,
-        expected_outputs['heat_flux_perp_to_target'],
+        outputs.q_perpendicular_target,
+        expected_outputs['q_perpendicular_target'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_electron_temp,
-        expected_outputs['separatrix_electron_temp'],
+        outputs.T_e_separatrix,
+        expected_outputs['T_e_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_Z_eff,
-        expected_outputs['separatrix_Z_eff'],
+        outputs.Z_eff_separatrix,
+        expected_outputs['Z_eff_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
@@ -246,12 +246,12 @@ class ExtendedLengyelTest(absltest.TestCase):
     # Reference values from running the inverse mode reference case in:
     # https://github.com/cfs-energy/extended-lengyel
     expected_outputs = {
-        'neutral_pressure_in_divertor': 1.737773924511501,
+        'pressure_neutral_divertor': 1.737773924511501,
         'alpha_t': 0.35908862950459736,
         'q_parallel': 3.64822996e8,
-        'heat_flux_perp_to_target': 7.92853e5,
-        'separatrix_electron_temp': 0.1028445648,  # in keV
-        'separatrix_Z_eff': 1.8621973566614212,
+        'q_perpendicular_target': 7.92853e5,
+        'T_e_separatrix': 0.1028445648,  # in keV
+        'Z_eff_separatrix': 1.8621973566614212,
         'seed_impurity_concentrations': {
             'N': 0.038397305226362526,
             'Ar': 0.0019198652613181264,
@@ -273,8 +273,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         0,
     )
     np.testing.assert_allclose(
-        outputs.neutral_pressure_in_divertor,
-        expected_outputs['neutral_pressure_in_divertor'],
+        outputs.pressure_neutral_divertor,
+        expected_outputs['pressure_neutral_divertor'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
@@ -288,18 +288,18 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.heat_flux_perp_to_target,
-        expected_outputs['heat_flux_perp_to_target'],
+        outputs.q_perpendicular_target,
+        expected_outputs['q_perpendicular_target'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_electron_temp,
-        expected_outputs['separatrix_electron_temp'],
+        outputs.T_e_separatrix,
+        expected_outputs['T_e_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_Z_eff,
-        expected_outputs['separatrix_Z_eff'],
+        outputs.Z_eff_separatrix,
+        expected_outputs['Z_eff_separatrix'],
         rtol=_RTOL,
     )
     for impurity, conc in expected_outputs[
@@ -349,12 +349,12 @@ class ExtendedLengyelTest(absltest.TestCase):
 
     # Same outputs as fixed step solver.
     expected_outputs = {
-        'neutral_pressure_in_divertor': 1.737773924511501,
+        'pressure_neutral_divertor': 1.737773924511501,
         'alpha_t': 0.35908862950459736,
         'q_parallel': 3.64822996e8,
-        'heat_flux_perp_to_target': 7.92853e5,
-        'separatrix_electron_temp': 0.1028445648,  # in keV
-        'separatrix_Z_eff': 1.8621973566614212,
+        'q_perpendicular_target': 7.92853e5,
+        'T_e_separatrix': 0.1028445648,  # in keV
+        'Z_eff_separatrix': 1.8621973566614212,
         'T_e_target': 2.34,  # in eV
     }
 
@@ -373,8 +373,8 @@ class ExtendedLengyelTest(absltest.TestCase):
         0,
     )
     np.testing.assert_allclose(
-        outputs.neutral_pressure_in_divertor,
-        expected_outputs['neutral_pressure_in_divertor'],
+        outputs.pressure_neutral_divertor,
+        expected_outputs['pressure_neutral_divertor'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
@@ -388,18 +388,18 @@ class ExtendedLengyelTest(absltest.TestCase):
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.heat_flux_perp_to_target,
-        expected_outputs['heat_flux_perp_to_target'],
+        outputs.q_perpendicular_target,
+        expected_outputs['q_perpendicular_target'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_electron_temp,
-        expected_outputs['separatrix_electron_temp'],
+        outputs.T_e_separatrix,
+        expected_outputs['T_e_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(
-        outputs.separatrix_Z_eff,
-        expected_outputs['separatrix_Z_eff'],
+        outputs.Z_eff_separatrix,
+        expected_outputs['Z_eff_separatrix'],
         rtol=_RTOL,
     )
     np.testing.assert_allclose(

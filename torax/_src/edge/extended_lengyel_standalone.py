@@ -39,7 +39,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
 
   Attributes:
     alpha_t: Turbulence broadening factor alpha_t.
-    separatrix_Z_eff: Z_eff at the separatrix.
+    Z_eff_separatrix: Z_eff at the separatrix.
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
     calculated_enrichment: A mapping from ion symbol to its enrichment factor as
@@ -47,7 +47,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   """
 
   alpha_t: jax.Array
-  separatrix_Z_eff: jax.Array
+  Z_eff_separatrix: jax.Array
   seed_impurity_concentrations: Mapping[str, jax.Array]
   solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
   calculated_enrichment: Mapping[str, jax.Array]
@@ -266,10 +266,10 @@ def run_extended_lengyel_standalone(
   alpha_t_init = 0.1
   c_z_prefactor_init = 0.0
   kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
-  separatrix_electron_temp_init = 100.0  # [eV], needed to initialize q_parallel
+  T_e_separatrix_init = 100.0  # [eV], needed to initialize q_parallel
   q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
       params=params,
-      separatrix_electron_temp=separatrix_electron_temp_init,
+      T_e_separatrix=T_e_separatrix_init,
       alpha_t=alpha_t_init,
   )
 
@@ -377,7 +377,7 @@ def run_extended_lengyel_standalone(
   # -------- 3. Post-processing ----------- #
   # --------------------------------------- #
 
-  neutral_pressure_in_divertor, heat_flux_perp_to_target = (
+  pressure_neutral_divertor, q_perpendicular_target = (
       _calc_post_processed_outputs(
           sol_model=output_sol_model,
       )
@@ -392,7 +392,7 @@ def run_extended_lengyel_standalone(
     calculated_enrichment[species] = jnp.where(
         diverted,
         extended_lengyel_formulas.calc_enrichment_kallenbach(
-            neutral_pressure_in_divertor=neutral_pressure_in_divertor,
+            pressure_neutral_divertor=pressure_neutral_divertor,
             ion_symbol=species,
             enrichment_multiplier=enrichment_model_multiplier,
         ),
@@ -401,12 +401,12 @@ def run_extended_lengyel_standalone(
 
   return ExtendedLengyelOutputs(
       T_e_target=output_sol_model.state.T_e_target,
-      neutral_pressure_in_divertor=neutral_pressure_in_divertor,
+      pressure_neutral_divertor=pressure_neutral_divertor,
       alpha_t=output_sol_model.state.alpha_t,
       q_parallel=output_sol_model.state.q_parallel,
-      heat_flux_perp_to_target=heat_flux_perp_to_target,
-      separatrix_electron_temp=output_sol_model.separatrix_electron_temp / 1e3,
-      separatrix_Z_eff=output_sol_model.separatrix_Z_eff,
+      q_perpendicular_target=q_perpendicular_target,
+      T_e_separatrix=output_sol_model.T_e_separatrix / 1e3,
+      Z_eff_separatrix=output_sol_model.Z_eff_separatrix,
       seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,
       solver_status=solver_status,
       calculated_enrichment=calculated_enrichment,
@@ -482,13 +482,13 @@ def _calc_post_processed_outputs(
       jnp.deg2rad(sol_model.params.angle_of_incidence_target)
   )
 
-  neutral_pressure_in_divertor = (
+  pressure_neutral_divertor = (
       parallel_ion_flux_to_target
       * parallel_to_perp_factor
       / flux_density_to_pascals_factor
   )
 
-  heat_flux_perp_to_target = (
+  q_perpendicular_target = (
       sol_model.parallel_heat_flux_at_target * parallel_to_perp_factor
   )
-  return neutral_pressure_in_divertor, heat_flux_perp_to_target
+  return pressure_neutral_divertor, q_perpendicular_target

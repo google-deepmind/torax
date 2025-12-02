@@ -94,7 +94,7 @@ def inverse_mode_fixed_point_solver(
 
     current_sol_model.state.q_parallel = divertor_sol_1d_lib.calc_q_parallel(
         params=current_sol_model.params,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
+        T_e_separatrix=current_sol_model.T_e_separatrix,
         alpha_t=current_sol_model.state.alpha_t,
     )
 
@@ -108,8 +108,8 @@ def inverse_mode_fixed_point_solver(
     # Update alpha_t for the next loop iteration.
     current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
         params=current_sol_model.params,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
-        separatrix_Z_eff=current_sol_model.separatrix_Z_eff,
+        T_e_separatrix=current_sol_model.T_e_separatrix,
+        Z_eff_separatrix=current_sol_model.Z_eff_separatrix,
     )
 
     # Update kappa_e for the next loop iteration.
@@ -156,7 +156,7 @@ def forward_mode_fixed_point_solver(
     # Update q_parallel based on the current separatrix temperature and alpha_t.
     current_sol_model.state.q_parallel = divertor_sol_1d_lib.calc_q_parallel(
         params=current_sol_model.params,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
+        T_e_separatrix=current_sol_model.T_e_separatrix,
         alpha_t=current_sol_model.state.alpha_t,
     )
 
@@ -176,8 +176,8 @@ def forward_mode_fixed_point_solver(
 
     current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
         params=current_sol_model.params,
-        separatrix_electron_temp=current_sol_model.separatrix_electron_temp,
-        separatrix_Z_eff=current_sol_model.separatrix_Z_eff,
+        T_e_separatrix=current_sol_model.T_e_separatrix,
+        Z_eff_separatrix=current_sol_model.Z_eff_separatrix,
     )
 
     # Relaxation step after the first iteration
@@ -421,15 +421,15 @@ def _forward_residual(
   # a) q_parallel
   qp_calc = divertor_sol_1d_lib.calc_q_parallel(
       params=params,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp,
+      T_e_separatrix=temp_model.T_e_separatrix,
       alpha_t=current_state.alpha_t,
   )
 
   # b) alpha_t
   at_calc = divertor_sol_1d_lib.calc_alpha_t(
       params=temp_model.params,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp,
-      separatrix_Z_eff=temp_model.separatrix_Z_eff,
+      T_e_separatrix=temp_model.T_e_separatrix,
+      Z_eff_separatrix=temp_model.Z_eff_separatrix,
   )
 
   # c) kappa_e
@@ -481,15 +481,15 @@ def _inverse_residual(
   # a) q_parallel
   qp_calc = divertor_sol_1d_lib.calc_q_parallel(
       params=params,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp,
+      T_e_separatrix=temp_model.T_e_separatrix,
       alpha_t=current_state.alpha_t,
   )
 
   # b) alpha_t
   at_calc = divertor_sol_1d_lib.calc_alpha_t(
       params=temp_model.params,
-      separatrix_electron_temp=temp_model.separatrix_electron_temp,
-      separatrix_Z_eff=temp_model.separatrix_Z_eff,
+      T_e_separatrix=temp_model.T_e_separatrix,
+      Z_eff_separatrix=temp_model.Z_eff_separatrix,
   )
 
   # c) kappa_e
@@ -536,7 +536,7 @@ def _solve_for_c_z_prefactor(
   # Temperatures must be in keV for the L_INT calculation.
   cc_temp_keV = sol_model.electron_temp_at_cc_interface / 1000.0
   div_temp_keV = sol_model.divertor_entrance_electron_temp / 1000.0
-  sep_temp_keV = sol_model.separatrix_electron_temp / 1000.0
+  sep_temp_keV = sol_model.T_e_separatrix / 1000.0
 
   # Calculate integrated radiation terms (L_INT) for seeded impurities.
   # See Eq. 34 in Body et al. 2025.
@@ -595,7 +595,7 @@ def _solve_for_c_z_prefactor(
       * jnp.log(
           sol_model.params.separatrix_electron_density * _DENSITY_SCALE_FACTOR
       )
-      + 2.0 * jnp.log(sol_model.separatrix_electron_temp)
+      + 2.0 * jnp.log(sol_model.T_e_separatrix)
   )
 
   k = jnp.exp(log_k)
@@ -659,7 +659,7 @@ def _solve_for_qcc(
   # Temperatures must be in keV for the L_INT calculation.
   cc_temp_keV = sol_model.electron_temp_at_cc_interface / 1000.0
   div_temp_keV = sol_model.divertor_entrance_electron_temp / 1000.0
-  sep_temp_keV = sol_model.separatrix_electron_temp / 1000.0
+  sep_temp_keV = sol_model.T_e_separatrix / 1000.0
 
   # Calculate integrated radiation terms for fixed impurities.
   # See Eq. 34 in Body et al. 2025.
@@ -696,7 +696,7 @@ def _solve_for_qcc(
       * jnp.log(
           sol_model.params.separatrix_electron_density * _DENSITY_SCALE_FACTOR
       )
-      + 2.0 * jnp.log(sol_model.separatrix_electron_temp)
+      + 2.0 * jnp.log(sol_model.T_e_separatrix)
   )
 
   k = jnp.exp(log_k)

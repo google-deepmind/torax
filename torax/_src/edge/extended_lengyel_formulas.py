@@ -292,7 +292,7 @@ def calc_Z_eff(
 
 
 def calc_enrichment_kallenbach(
-    neutral_pressure_in_divertor: array_typing.FloatScalar,
+    pressure_neutral_divertor: array_typing.FloatScalar,
     ion_symbol: str,
     enrichment_multiplier: array_typing.FloatScalar = 1.0,
 ) -> jax.Array:
@@ -305,7 +305,7 @@ def calc_enrichment_kallenbach(
   enrichment = 41.0 * Z^-0.5 * p0^-0.4 * (E_ionization_z / E_ionization_D)^-5.8
 
   Args:
-    neutral_pressure_in_divertor: Divertor neutral pressure [Pa].
+    pressure_neutral_divertor: Divertor neutral pressure [Pa].
     ion_symbol: Symbol of the impurity ion.
     enrichment_multiplier: Multiplier to adjust the empirical scaling.
 
@@ -325,7 +325,7 @@ def calc_enrichment_kallenbach(
   E_ionization_D = constants.ION_PROPERTIES_DICT['D'].E_ionization
 
   # Avoid division by zero if pressure is very low
-  p0 = jnp.maximum(neutral_pressure_in_divertor, constants.CONSTANTS.eps)
+  p0 = jnp.maximum(pressure_neutral_divertor, constants.CONSTANTS.eps)
 
   enrichment = (
       41.0 * Z**-0.5 * p0**-0.4 * (E_ionization_Z / E_ionization_D) ** -5.8

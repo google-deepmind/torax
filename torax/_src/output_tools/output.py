@@ -796,12 +796,12 @@ class StateHistory:
 
     standard_output_fields = [
         "q_parallel",
-        "heat_flux_perp_to_target",
-        "separatrix_electron_temp",
+        "q_perpendicular_target",
+        "T_e_separatrix",
         "T_e_target",
-        "neutral_pressure_in_divertor",
+        "pressure_neutral_divertor",
         "alpha_t",
-        "separatrix_Z_eff",
+        "Z_eff_separatrix",
     ]
 
     edge_output_fields = dataclasses.fields(outputs)

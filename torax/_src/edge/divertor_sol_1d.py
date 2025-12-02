@@ -161,7 +161,7 @@ class DivertorSOL1D:
     ) ** (2.0 / 7.0)
 
   @property
-  def separatrix_electron_temp(self) -> jax.Array:
+  def T_e_separatrix(self) -> jax.Array:
     """Electron temperature at the separatrix [eV].
 
     This formula is derived from the heat conduction equation integrated
@@ -191,7 +191,7 @@ class DivertorSOL1D:
     return (
         (1.0 + self.params.mach_separatrix**2)
         * self.params.separatrix_electron_density
-        * self.separatrix_electron_temp
+        * self.T_e_separatrix
         * constants.CONSTANTS.eV_to_J
         * (
             1.0
@@ -275,10 +275,10 @@ class DivertorSOL1D:
     )
 
   @property
-  def separatrix_Z_eff(self) -> jax.Array:
+  def Z_eff_separatrix(self) -> jax.Array:
     return extended_lengyel_formulas.calc_Z_eff(
         c_z=self.state.c_z_prefactor,
-        T_e=self.separatrix_electron_temp / 1e3,  # to keV
+        T_e=self.T_e_separatrix / 1e3,  # to keV
         Z_i=self.params.main_ion_charge,
         ne_tau=self.params.ne_tau,
         seed_impurity_weights=self.params.seed_impurity_weights,
@@ -298,7 +298,7 @@ class DivertorSOL1D:
 def calc_q_parallel(
     *,
     params: ExtendedLengyelParameters,
-    separatrix_electron_temp: array_typing.FloatScalar,
+    T_e_separatrix: array_typing.FloatScalar,
     alpha_t: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the parallel heat flux density.
@@ -309,7 +309,7 @@ def calc_q_parallel(
 
   Args:
     params: fixed physics parameters in the divertor/SOL region.
-    separatrix_electron_temp: Electron temperature at the separatrix [eV].
+    T_e_separatrix: Electron temperature at the separatrix [eV].
     alpha_t: Turbulence broadening parameter alpha_t.
 
   Returns:
@@ -319,7 +319,7 @@ def calc_q_parallel(
   # Body NF 2025 Eq 53.
   separatrix_average_rho_s_pol = (
       jnp.sqrt(
-          separatrix_electron_temp
+          T_e_separatrix
           * params.average_ion_mass
           * constants.CONSTANTS.m_amu
           / constants.CONSTANTS.q_e
@@ -369,8 +369,8 @@ def calc_q_parallel(
 
 def calc_alpha_t(
     params: ExtendedLengyelParameters,
-    separatrix_electron_temp: array_typing.FloatScalar,
-    separatrix_Z_eff: array_typing.FloatScalar,
+    T_e_separatrix: array_typing.FloatScalar,
+    Z_eff_separatrix: array_typing.FloatScalar,
 ) -> array_typing.FloatScalar:
   """Calculate the turbulence broadening parameter alpha_t.
 
@@ -380,8 +380,8 @@ def calc_alpha_t(
 
   Args:
     params: fixed physics parameters in the divertor/SOL region.
-    separatrix_electron_temp: electron temperature at the separatrix [eV].
-    separatrix_Z_eff: effective ion charge at the separatrix [dimensionless].
+    T_e_separatrix: electron temperature at the separatrix [eV].
+    Z_eff_separatrix: effective ion charge at the separatrix [dimensionless].
 
   Returns:
     alpha_t: the turbulence parameter alpha_t.
@@ -393,14 +393,14 @@ def calc_alpha_t(
   coulomb_logarithm = (
       30.9
       - 0.5 * jnp.log(params.separatrix_electron_density)
-      + jnp.log(separatrix_electron_temp)
+      + jnp.log(T_e_separatrix)
   )
 
   # Plasma ion sound speed. Differs from that stated in Eich 2020 by the
   # inclusion of the mean ion charge state.
   ion_sound_speed = jnp.sqrt(
       params.mean_ion_charge_state
-      * separatrix_electron_temp
+      * T_e_separatrix
       * constants.CONSTANTS.eV_to_J
       / average_ion_mass_kg
   )
@@ -415,7 +415,7 @@ def calc_alpha_t(
       + jnp.log(coulomb_logarithm)
       - 2 * jnp.log(4.0 * jnp.pi * constants.CONSTANTS.epsilon_0)
       - 0.5 * jnp.log(constants.CONSTANTS.m_e)
-      - 1.5 * jnp.log(separatrix_electron_temp * constants.CONSTANTS.eV_to_J)
+      - 1.5 * jnp.log(T_e_separatrix * constants.CONSTANTS.eV_to_J)
   )
 
   nu_ee = jnp.exp(log_nu_ee)
@@ -423,10 +423,10 @@ def calc_alpha_t(
   # Z_eff correction to transform electron-electron collisions to ion-electron
   # collisions. Equation B2 in Eich 2020
   Z_eff_correction = (1.0 - 0.569) * jnp.exp(
-      -(((separatrix_Z_eff - 1.0) / 3.25) ** 0.85)
+      -(((Z_eff_separatrix - 1.0) / 3.25) ** 0.85)
   ) + 0.569
 
-  nu_ei = nu_ee * Z_eff_correction * separatrix_Z_eff
+  nu_ei = nu_ee * Z_eff_correction * Z_eff_separatrix
 
   # Equation 9 from Eich 2020, with an additional factor of an
   # ion_to_electron_temp_ratio.

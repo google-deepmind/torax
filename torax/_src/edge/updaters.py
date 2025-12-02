@@ -114,7 +114,7 @@ def _update_temperatures(
 ) -> runtime_params_lib.RuntimeParams:
   """Updates temperature boundary conditions based on edge model outputs."""
   assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
-  T_e_bc = edge_outputs.separatrix_electron_temp
+  T_e_bc = edge_outputs.T_e_separatrix
   T_i_bc = T_e_bc * runtime_params.edge.T_i_T_e_ratio_target
   return dataclasses.replace(
       runtime_params,

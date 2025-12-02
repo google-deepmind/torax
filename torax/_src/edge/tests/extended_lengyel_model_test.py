@@ -196,12 +196,12 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # https://github.com/cfs-energy/extended-lengyel
     _RTOL = 5e-4
     expected_outputs = {
-        'neutral_pressure_in_divertor': 1.737773924511501,
+        'pressure_neutral_divertor': 1.737773924511501,
         'alpha_t': 0.35908862950459736,
         'q_parallel': 3.64822996e8,
-        'heat_flux_perp_to_target': 7.92853e5,
-        'separatrix_electron_temp': 0.1028445648,  # in keV
-        'separatrix_Z_eff': 1.8621973566614212,
+        'q_perpendicular_target': 7.92853e5,
+        'T_e_separatrix': 0.1028445648,  # in keV
+        'Z_eff_separatrix': 1.8621973566614212,
         'seed_impurity_concentrations': {
             'N': 0.038397305226362526,
             'Ar': 0.0019198652613181264,
@@ -657,7 +657,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
       )
       # Basic sanity check that the target temperature did not converge
       # to near-zero values, which is a common failure mode.
-      self.assertGreater(edge_output.separatrix_electron_temp, 1e-2)
+      self.assertGreater(edge_output.T_e_separatrix, 1e-2)
 
   @parameterized.named_parameters(
       ('updates_enabled', True, 2.0),
@@ -717,7 +717,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     if update_temperatures:
       # BCs should match edge model output
-      expected_Te_bc = final_edge_output.separatrix_electron_temp
+      expected_Te_bc = final_edge_output.T_e_separatrix
       expected_Ti_bc = expected_Te_bc * ion_to_electron_ratio
       np.testing.assert_allclose(
           final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5

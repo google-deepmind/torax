@@ -36,17 +36,17 @@ class EdgeModelOutputs:
 
   Attributes:
     q_parallel: Parallel heat flux upstream [W/m^2].
-    heat_flux_perp_to_target: Heat flux perpendicular to the target [W/m^2].
-    separatrix_electron_temp: Electron temperature at the separatrix [keV].
+    q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
+    T_e_separatrix: Electron temperature at the separatrix [keV].
     T_e_target: Electron temperature at sheath entrance [eV].
-    neutral_pressure_in_divertor: Neutral pressure in the divertor [Pa].
+    pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
   """
 
   q_parallel: jax.Array
-  heat_flux_perp_to_target: jax.Array
-  separatrix_electron_temp: jax.Array
+  q_perpendicular_target: jax.Array
+  T_e_separatrix: jax.Array
   T_e_target: jax.Array
-  neutral_pressure_in_divertor: jax.Array
+  pressure_neutral_divertor: jax.Array
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

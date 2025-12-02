@@ -12,20 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copyright 2025 DeepMind Technologies Limited
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -107,10 +93,10 @@ class DivertorSOL1DInverseModeTest(parameterized.TestCase):
         rtol=self._RTOL,
     )
 
-  def test_separatrix_electron_temp(self):
+  def test_T_e_separatrix(self):
     expected_value = 103.58141942945846
     np.testing.assert_allclose(
-        self.divertor_sol_1d.separatrix_electron_temp,
+        self.divertor_sol_1d.T_e_separatrix,
         expected_value,
         rtol=self._RTOL,
     )
@@ -222,7 +208,7 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
 
     calculated_q_parallel = divertor_sol_1d.calc_q_parallel(
         params=self.divertor_sol_1d.params,
-        separatrix_electron_temp=separatrix_election_temp,
+        T_e_separatrix=separatrix_election_temp,
         alpha_t=alpha_t,
     )
 
@@ -237,15 +223,15 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
 
     # Inputs and output from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
-    separatrix_electron_temp = 106.2293618373  # eV
-    separatrix_Z_eff = 2.329589485913357  # dimensionless
+    T_e_separatrix = 106.2293618373  # eV
+    Z_eff_separatrix = 2.329589485913357  # dimensionless
 
     expected_alpha_t = 0.4020393753155751
 
     calculated_alpha_t = divertor_sol_1d.calc_alpha_t(
         params=self.divertor_sol_1d.params,
-        separatrix_electron_temp=separatrix_electron_temp,
-        separatrix_Z_eff=separatrix_Z_eff,
+        T_e_separatrix=T_e_separatrix,
+        Z_eff_separatrix=Z_eff_separatrix,
     )
 
     np.testing.assert_allclose(
