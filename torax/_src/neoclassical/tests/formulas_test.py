@@ -135,12 +135,13 @@ class FormulasTest(parameterized.TestCase):
         q=self.core_profiles.q_face,
         Z_eff=self.core_profiles.Z_eff_face,
         Z_i=self.core_profiles.Z_i_face,
-        psi=self.core_profiles.psi,
+        B_tor=np.ones_like(self.geo.rho_face_norm),
+        B_total_squared=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
     )
     np.testing.assert_allclose(
-        poloidal_velocity.face_value(),
         _POLOIDAL_VELOCITY_EXPECTED,
+        poloidal_velocity.face_value(),
         atol=_A_TOL,
         rtol=_R_TOL,
     )
@@ -149,6 +150,8 @@ class FormulasTest(parameterized.TestCase):
 # Reference values from running test code in a notebook.
 # The test thus does not directly test the implementation, but rather
 # guards against unexpected modifications.
+# If a change is expected to theese reference values, the new values can b
+# copied/pasted from the logs of a failing test.
 _L31_EXPECTED = np.array([
     0.0,
     0.25942749,
@@ -176,17 +179,17 @@ _L32_EXPECTED = np.array([
     0.16296924,
 ])
 _POLOIDAL_VELOCITY_EXPECTED = np.array([
-    -284.356618,
-    -479.676352,
-    -751.236159,
-    -863.379542,
-    -919.790045,
-    -949.993721,
-    -955.303271,
-    -912.527305,
-    -667.483933,
-    554.61331,
-    3251.649654,
+    -1485.871716,
+    -2507.496827,
+    -3933.755809,
+    -4537.621566,
+    -4854.858931,
+    -5031.592012,
+    -5073.608117,
+    -4858.248803,
+    -3559.941551,
+    3011.279478,
+    17562.499243,
 ])
 
 if __name__ == '__main__':

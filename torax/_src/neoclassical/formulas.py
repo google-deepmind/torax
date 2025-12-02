@@ -20,7 +20,6 @@ from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.physics import collisions
-from torax._src.physics import psi_calculations
 
 
 # pylint: disable=invalid-name
@@ -235,7 +234,8 @@ def calculate_poloidal_velocity(
     q: array_typing.FloatVectorFace,
     Z_eff: array_typing.FloatVectorFace,
     Z_i: array_typing.FloatVectorFace,
-    psi: cell_variable.CellVariable,
+    B_tor: array_typing.FloatVectorFace,
+    B_total_squared: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
     rotation_multiplier: array_typing.FloatScalar = 1.0,
 ) -> cell_variable.CellVariable:
@@ -256,7 +256,9 @@ def calculate_poloidal_velocity(
     q: Safety factor on the face grid.
     Z_eff: Effective charge on the face grid.
     Z_i: Main ion charge on the face grid.
-    psi: Poloidal flux profile as a cell variable.
+    B_tor: Toroidal magnetic field on the face grid [T].
+    B_total_squared: Total magnetic field (toroidal + poloidal) on the face grid
+      [T].
     geo : Geometry
     rotation_multiplier: A multiplier to apply to the poloidal velocity.
   Returns:
@@ -265,14 +267,7 @@ def calculate_poloidal_velocity(
   # Note: all computations are performed on the face grid.
 
   T_i_face = T_i.face_value()
-  # Geometry
-  R = geo.R_major_profile_face
-  eps = geo.epsilon_face
-
-  # Magnetic Fields
-  B_tor = geo.F_face / R
-  B_pol_squared = psi_calculations.calc_bpol_squared(geo, psi)
-  B_total_squared = B_pol_squared + B_tor**2
+  epsilon = geo.epsilon_face
 
   # Calculate Neoclassical Coefficient k_i
   log_lambda_ii = collisions.calculate_log_lambda_ii(
@@ -288,7 +283,7 @@ def calculate_poloidal_velocity(
       Z_eff=Z_eff,
       log_lambda_ii=log_lambda_ii,
   )
-  k_neo = _calculate_neoclassical_k_neo(nu_i_star, eps)
+  k_neo = _calculate_neoclassical_k_neo(nu_i_star, epsilon)
 
   # Calculate Radial Temperature Gradient (dT/dr)
   grad_Ti = T_i.face_grad(geo.r_mid) * constants.CONSTANTS.keV_to_J  # [J/m]

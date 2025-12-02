@@ -36,7 +36,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.physics import psi_calculations
+
 
 # pylint: disable=invalid-name
 
@@ -264,55 +264,3 @@ def calculate_betas(
   )
 
   return beta_tor, beta_pol, beta_N
-
-
-def calculate_radial_electric_field(
-    pressure_thermal_i: cell_variable.CellVariable,
-    psi: cell_variable.CellVariable,
-    n_i: cell_variable.CellVariable,
-    toroidal_velocity: cell_variable.CellVariable,
-    poloidal_velocity: cell_variable.CellVariable,
-    Z_i_face: array_typing.FloatVector,
-    geo: geometry.Geometry,
-) -> array_typing.FloatVector:
-  """Calculates the radial electric field Er.
-
-  Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
-
-  Args:
-    pressure_thermal_i: Pressure profile as a cell variable.
-    psi: Poloidal flux profile as a cell variable.
-    n_i: Main ion density profile as a cell variable.
-    toroidal_velocity: Toroidal velocity profile as a cell variable.
-    poloidal_velocity: Poloidal velocity profile as a cell variable.
-    Z_i_face: Main ion charge on the face grid.
-    geo: Geometry object.
-
-  Returns:
-    Er: Radial electric field [V/m] as a cell variable.
-  """
-  # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
-  dpi_dr = jnp.gradient(pressure_thermal_i.face_value(), geo.r_mid_face)
-
-  # Flux surface average of `B_phi (toroidal) = F/R`.
-  B_phi = geo.F_face / geo.R_major_profile_face  # Tesla
-
-  # flux-surface-averaged B_theta (poloidal).
-  B_theta_squared = psi_calculations.calc_bpol_squared(
-      geo, psi
-  )  # On the face grid.
-  B_theta = jnp.sqrt(B_theta_squared)  # Tesla
-
-  # Calculate Er
-  den = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
-  Er = (
-      (1.0 / den) * dpi_dr
-      - toroidal_velocity.face_value() * B_theta
-      + poloidal_velocity.face_value() * B_phi
-  )
-  return cell_variable.CellVariable(
-      value=geometry.face_to_cell(Er),
-      dr=geo.drho_norm,
-      right_face_constraint=Er[-1],
-      right_face_grad_constraint=None,
-  )

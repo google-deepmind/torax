@@ -18,7 +18,6 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import formulas
 from torax._src.test_utils import core_profile_helpers
@@ -105,43 +104,6 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(beta_tor, beta_tor_expected)
     np.testing.assert_allclose(beta_pol, beta_pol_expected)
     np.testing.assert_allclose(beta_N, beta_N_expected)
-
-  def test_calculate_radial_electric_field(self):
-    """Test that radial electric field is calculated correctly for constant profiles."""
-    core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
-    core_profiles = dataclasses.replace(
-        core_profiles,
-        T_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        T_e=core_profile_helpers.make_constant_core_profile(self.geo, 2.0),
-        n_e=core_profile_helpers.make_constant_core_profile(self.geo, 3.0e20),
-        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            self.geo, 0.25e20
-        ),
-        psi=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
-            self.geo, 0.0
-        ),
-        Z_i_face=1.0,
-    )
-
-    poloidal_velocity = cell_variable.CellVariable(
-        value=np.zeros_like(self.geo.rho_norm), dr=self.geo.drho_norm
-    )
-    E_r = formulas.calculate_radial_electric_field(
-        pressure_thermal_i=core_profiles.pressure_thermal_i,
-        psi=core_profiles.psi,
-        n_i=core_profiles.n_i,
-        toroidal_velocity=core_profiles.toroidal_velocity,
-        poloidal_velocity=poloidal_velocity,
-        Z_i_face=core_profiles.Z_i_face,
-        geo=self.geo,
-    )
-
-    # For constant profiles and zero velocities, E_r should be zero.
-    np.testing.assert_allclose(
-        E_r.value, np.zeros_like(self.geo.rho_norm), atol=1e-12
-    )
 
 
 if __name__ == '__main__':
