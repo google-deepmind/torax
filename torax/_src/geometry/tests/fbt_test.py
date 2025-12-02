@@ -63,7 +63,7 @@ class FBTGeometryTest(parameterized.TestCase):
         diverted=True,
         connection_length_target=np.array(10.0),
         connection_length_divertor=np.array(5.0),
-        target_angle_of_incidence=np.array(3.0),
+        angle_of_incidence_target=np.array(3.0),
         R_OMP=np.array(8.2),
         R_target=np.array(7.0),
         B_pol_OMP=np.array(0.5),
@@ -72,7 +72,7 @@ class FBTGeometryTest(parameterized.TestCase):
     self.assertTrue(geo.diverted)
     self.assertEqual(geo.connection_length_target, 10.0)
     self.assertEqual(geo.connection_length_divertor, 5.0)
-    self.assertEqual(geo.target_angle_of_incidence, 3.0)
+    self.assertEqual(geo.angle_of_incidence_target, 3.0)
     self.assertEqual(geo.R_OMP, 8.2)
     self.assertEqual(geo.R_target, 7.0)
     self.assertEqual(geo.B_pol_OMP, 0.5)
@@ -190,7 +190,7 @@ class FBTGeometryTest(parameterized.TestCase):
       divertor_domain,
       expected_connection_length_target,
       expected_connection_length_divertor,
-      expected_target_angle_of_incidence,
+      expected_angle_of_incidence_target,
       expected_r_omp,
       expected_r_target,
       expected_bp_omp,
@@ -238,8 +238,8 @@ class FBTGeometryTest(parameterized.TestCase):
         expected_connection_length_divertor,
     )
     np.testing.assert_allclose(
-        [i.target_angle_of_incidence for i in intermediates_list],
-        expected_target_angle_of_incidence,
+        [i.angle_of_incidence_target for i in intermediates_list],
+        expected_angle_of_incidence_target,
     )
     np.testing.assert_allclose(
         [i.R_OMP for i in intermediates_list], expected_r_omp
@@ -264,7 +264,7 @@ class FBTGeometryTest(parameterized.TestCase):
     for intermediate in geo_intermediates_no_z.values():
       self.assertIsNone(intermediate.connection_length_target)
       self.assertIsNone(intermediate.connection_length_divertor)
-      self.assertIsNone(intermediate.target_angle_of_incidence)
+      self.assertIsNone(intermediate.angle_of_incidence_target)
       self.assertIsNone(intermediate.R_OMP)
       self.assertIsNone(intermediate.R_target)
       self.assertIsNone(intermediate.B_pol_OMP)

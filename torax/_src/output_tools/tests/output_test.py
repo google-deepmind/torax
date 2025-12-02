@@ -445,7 +445,7 @@ class StateHistoryTest(parameterized.TestCase):
         total_impurity_radiation,
     )
 
-  def test_state_history_with_extended_lengyel_outputs_fixed_step(self):
+  def test_state_history_with_extended_lengyel_outputs_fixed_point(self):
     """Tests that extended Lengyel edge outputs are saved correctly."""
 
     # Create dummy ExtendedLengyelOutputs
@@ -453,14 +453,14 @@ class StateHistoryTest(parameterized.TestCase):
         q_parallel=jnp.array(1.0),
         heat_flux_perp_to_target=jnp.array(2.0),
         separatrix_electron_temp=jnp.array(3.0),
-        target_electron_temp=jnp.array(4.0),
+        T_e_target=jnp.array(4.0),
         neutral_pressure_in_divertor=jnp.array(5.0),
         alpha_t=jnp.array(0.5),
         separatrix_Z_eff=jnp.array(1.5),
         seed_impurity_concentrations={'Ar': jnp.array(0.01)},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
             physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-            numerics_outcome=extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
         ),
         calculated_enrichment={'Ar': jnp.array(1.0)},
     )
@@ -489,7 +489,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Check standard fields
     self.assertIn('q_parallel', edge_dataset.data_vars)
-    self.assertIn('target_electron_temp', edge_dataset.data_vars)
+    self.assertIn('T_e_target', edge_dataset.data_vars)
 
     # Check extended fields
     self.assertIn('alpha_t', edge_dataset.data_vars)
@@ -497,14 +497,12 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
     self.assertIn('calculated_enrichment', edge_dataset.data_vars)
-    self.assertIn('fixed_step_outcome', edge_dataset.data_vars)
+    self.assertIn('fixed_point_outcome', edge_dataset.data_vars)
 
     # Verify values match
     np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations']
-        .sel(impurity='Ar')
-        .values,
+        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
         np.array([0.01]),
     )
 
@@ -517,7 +515,7 @@ class StateHistoryTest(parameterized.TestCase):
             q_parallel=jnp.array(1.0),
             heat_flux_perp_to_target=jnp.array(2.0),
             separatrix_electron_temp=jnp.array(3.0),
-            target_electron_temp=jnp.array(4.0),
+            T_e_target=jnp.array(4.0),
             neutral_pressure_in_divertor=jnp.array(5.0),
             alpha_t=jnp.array(0.5),
             separatrix_Z_eff=jnp.array(1.5),
@@ -559,7 +557,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Check standard fields
     self.assertIn('q_parallel', edge_dataset.data_vars)
-    self.assertIn('target_electron_temp', edge_dataset.data_vars)
+    self.assertIn('T_e_target', edge_dataset.data_vars)
 
     # Check extended fields
     self.assertIn('alpha_t', edge_dataset.data_vars)
@@ -574,9 +572,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Verify values match
     np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations']
-        .sel(impurity='Ar')
-        .values,
+        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
         np.array([0.01]),
     )
     np.testing.assert_allclose(

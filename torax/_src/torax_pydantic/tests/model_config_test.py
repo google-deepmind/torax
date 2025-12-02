@@ -291,11 +291,11 @@ class ConfigTest(parameterized.TestCase):
           "bad_config",
           True,
           True,
-          "`is_diverted` must NOT be set when using FBT geometry",
+          "`diverted` must NOT be set when using FBT geometry",
       ),
   )
   def test_edge_diverted_status_validation_with_fbt(
-      self, is_diverted, expect_error, error_regex
+      self, diverted, expect_error, error_regex
   ):
     L, LY = get_example_L_LY_data.get_example_L_LY_data(10, 1)
     config_dict = default_configs.get_default_config_dict()
@@ -308,7 +308,7 @@ class ConfigTest(parameterized.TestCase):
         "computation_mode": "forward",
         "model_name": "extended_lengyel",
         "fixed_impurity_concentrations": {"Ne": 0.01},
-        "is_diverted": is_diverted,
+        "diverted": diverted,
     }
     # Need valid plasma composition for extended lengyel
     config_dict["plasma_composition"]["impurity"] = {
@@ -327,11 +327,11 @@ class ConfigTest(parameterized.TestCase):
           "bad_config",
           None,
           True,
-          "`is_diverted` MUST be set when using non-FBT geometry",
+          "`diverted` MUST be set when using non-FBT geometry",
       ),
   )
   def test_edge_diverted_status_validation_with_chease(
-      self, is_diverted, expect_error, error_regex
+      self, diverted, expect_error, error_regex
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
@@ -342,7 +342,7 @@ class ConfigTest(parameterized.TestCase):
         "model_name": "extended_lengyel",
         "computation_mode": "forward",
         "fixed_impurity_concentrations": {"Ne": 0.01},
-        "is_diverted": is_diverted,
+        "diverted": diverted,
     }
     # Need valid plasma composition for extended lengyel
     config_dict["plasma_composition"]["impurity"] = {
@@ -366,12 +366,12 @@ class ConfigTest(parameterized.TestCase):
     config_dict["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
-        "target_electron_temp": 10.0,
+        "T_e_target": 10.0,
         # 'N' is present in both fixed and seed dictionaries.
         "fixed_impurity_concentrations": {"N": 0.01},
         "seed_impurity_weights": {"N": 1.0},
         "enrichment_factor": {"N": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
     config_dict["plasma_composition"] = {
         "impurity": {
@@ -395,12 +395,12 @@ class ConfigTest(parameterized.TestCase):
     config_dict["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
-        "target_electron_temp": 10.0,
+        "T_e_target": 10.0,
         # Edge has 'N' and 'Ar'
         "fixed_impurity_concentrations": {"N": 0.01},
         "seed_impurity_weights": {"Ar": 1.0},
         "enrichment_factor": {"N": 1.0, "Ar": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
 
     # Core has 'N', 'Ar', and 'Ne'. 'Ne' is missing from the edge config.
@@ -432,10 +432,10 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     self.config["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
-        "target_electron_temp": 5.0,
+        "T_e_target": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
     # Default plasma_composition uses 'fractions', which is incompatible
     # with extended lengyel.
@@ -450,10 +450,10 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     self.config["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
-        "target_electron_temp": 5.0,
+        "T_e_target": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
     self.config["plasma_composition"] = {
         "impurity": {
@@ -470,7 +470,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "computation_mode": "forward",
         "fixed_impurity_concentrations": {"Ne": 0.01},
         "enrichment_factor": {"Ne": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
     # Default plasma_composition uses 'fractions', which is incompatible
     # with extended lengyel.
@@ -487,7 +487,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "computation_mode": "forward",
         "fixed_impurity_concentrations": {"Ne": 0.01},
         "enrichment_factor": {"Ne": 1.0},
-        "is_diverted": True,
+        "diverted": True,
     }
     self.config["plasma_composition"] = {
         "impurity": {

@@ -81,7 +81,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
   update_impurities: array_typing.BoolScalar
-  fixed_step_iterations: int
+  fixed_point_iterations: int
   newton_raphson_iterations: int
   newton_raphson_tol: float
 
@@ -93,20 +93,20 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   fraction_of_P_SOL_to_divertor: array_typing.FloatScalar
   SOL_conduction_fraction: array_typing.FloatScalar
   ratio_of_molecular_to_ion_mass: array_typing.FloatScalar
-  wall_temperature: array_typing.FloatScalar
-  separatrix_mach_number: array_typing.FloatScalar
-  separatrix_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  separatrix_ratio_of_electron_to_ion_density: array_typing.FloatScalar
-  target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  target_ratio_of_electron_to_ion_density: array_typing.FloatScalar
-  target_mach_number: array_typing.FloatScalar
+  T_wall: array_typing.FloatScalar
+  mach_separatrix: array_typing.FloatScalar
+  T_i_T_e_ratio_separatrix: array_typing.FloatScalar
+  n_e_n_i_ratio_separatrix: array_typing.FloatScalar
+  T_i_T_e_ratio_target: array_typing.FloatScalar
+  n_e_n_i_ratio_target: array_typing.FloatScalar
+  mach_target: array_typing.FloatScalar
 
   # --- Geometry Parameters ---
-  parallel_connection_length: array_typing.FloatScalar | None
-  divertor_parallel_length: array_typing.FloatScalar | None
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
   toroidal_flux_expansion: array_typing.FloatScalar
-  target_angle_of_incidence: array_typing.FloatScalar
-  is_diverted: array_typing.BoolScalar | None
+  angle_of_incidence_target: array_typing.FloatScalar
+  diverted: array_typing.BoolScalar | None
 
   # --- Impurity parameters ---
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
@@ -116,7 +116,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   enrichment_model_multiplier: array_typing.FloatScalar
 
   # --- Optional parameter for inverse mode ---
-  target_electron_temp: array_typing.FloatScalar | None
+  T_e_target: array_typing.FloatScalar | None
 
 
 @jax.tree_util.register_dataclass
@@ -124,10 +124,10 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
 class _ResolvedGeometricParams:
   """Container for parameters after resolution between geometry and edge config."""
 
-  parallel_connection_length: array_typing.FloatScalar
-  divertor_parallel_length: array_typing.FloatScalar
+  connection_length_target: array_typing.FloatScalar
+  connection_length_divertor: array_typing.FloatScalar
   toroidal_flux_expansion: array_typing.FloatScalar
-  target_angle_of_incidence: array_typing.FloatScalar
+  angle_of_incidence_target: array_typing.FloatScalar
   ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar
   divertor_broadening_factor: array_typing.FloatScalar
 
@@ -157,12 +157,12 @@ class ExtendedLengyelModel(base.EdgeModel):
     # geometry object. For other types, it must be provided in the config.
     # The config validation ensures that one and only one of these is valid.
 
-    is_diverted = _get_is_diverted(geo, edge_params)
+    diverted = _get_diverted(geo, edge_params)
 
     # Extract and resolve geometric parameters, handling precedence and
     # warnings.
     resolved_geo_params = _resolve_geometric_parameters(
-        geo, core_profiles, edge_params, is_diverted
+        geo, core_profiles, edge_params, diverted
     )
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
@@ -243,14 +243,14 @@ class ExtendedLengyelModel(base.EdgeModel):
         triangularity_psi95=triangularity_psi95,
         average_ion_mass=average_ion_mass,
         # Geometry parameters that may come from geometry or RuntimeParams
-        parallel_connection_length=resolved_geo_params.parallel_connection_length,
-        divertor_parallel_length=resolved_geo_params.divertor_parallel_length,
+        connection_length_target=resolved_geo_params.connection_length_target,
+        connection_length_divertor=resolved_geo_params.connection_length_divertor,
         toroidal_flux_expansion=resolved_geo_params.toroidal_flux_expansion,
-        target_angle_of_incidence=resolved_geo_params.target_angle_of_incidence,
+        angle_of_incidence_target=resolved_geo_params.angle_of_incidence_target,
         ratio_bpol_omp_to_bpol_avg=resolved_geo_params.ratio_bpol_omp_to_bpol_avg,
         divertor_broadening_factor=resolved_geo_params.divertor_broadening_factor,
         # Configurable parameters from RuntimeParams
-        target_electron_temp=edge_params.target_electron_temp,
+        T_e_target=edge_params.T_e_target,
         seed_impurity_weights=edge_params.seed_impurity_weights,
         fixed_impurity_concentrations=fixed_impurity_concentrations,
         computation_mode=edge_params.computation_mode,
@@ -260,18 +260,18 @@ class ExtendedLengyelModel(base.EdgeModel):
         fraction_of_P_SOL_to_divertor=edge_params.fraction_of_P_SOL_to_divertor,
         SOL_conduction_fraction=edge_params.SOL_conduction_fraction,
         ratio_of_molecular_to_ion_mass=edge_params.ratio_of_molecular_to_ion_mass,
-        wall_temperature=edge_params.wall_temperature,
-        separatrix_mach_number=edge_params.separatrix_mach_number,
-        separatrix_ratio_of_ion_to_electron_temp=edge_params.separatrix_ratio_of_ion_to_electron_temp,
-        separatrix_ratio_of_electron_to_ion_density=edge_params.separatrix_ratio_of_electron_to_ion_density,
-        target_ratio_of_ion_to_electron_temp=edge_params.target_ratio_of_ion_to_electron_temp,
-        target_ratio_of_electron_to_ion_density=edge_params.target_ratio_of_electron_to_ion_density,
-        target_mach_number=edge_params.target_mach_number,
-        fixed_step_iterations=edge_params.fixed_step_iterations,
+        T_wall=edge_params.T_wall,
+        mach_separatrix=edge_params.mach_separatrix,
+        T_i_T_e_ratio_separatrix=edge_params.T_i_T_e_ratio_separatrix,
+        n_e_n_i_ratio_separatrix=edge_params.n_e_n_i_ratio_separatrix,
+        T_i_T_e_ratio_target=edge_params.T_i_T_e_ratio_target,
+        n_e_n_i_ratio_target=edge_params.n_e_n_i_ratio_target,
+        mach_target=edge_params.mach_target,
+        fixed_point_iterations=edge_params.fixed_point_iterations,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
-        is_diverted=is_diverted,
+        diverted=diverted,
     )
 
 
@@ -279,14 +279,14 @@ def _resolve_geometric_parameters(
     geo: standard_geometry.StandardGeometry,
     core_profiles: state.CoreProfiles,
     edge_params: RuntimeParams,
-    is_diverted: array_typing.BoolScalar,
+    diverted: array_typing.BoolScalar,
 ) -> _ResolvedGeometricParams:
   """Resolves geometric parameters from Geometry or RuntimeParams."""
 
   # Extract potential values from Geometry if existing
   geo_L_par = geo.connection_length_target
   geo_L_div = geo.connection_length_divertor
-  geo_alpha = geo.target_angle_of_incidence
+  geo_alpha = geo.angle_of_incidence_target
   if geo.R_target is not None and geo.R_OMP is not None:
     geo_flux_exp = geo.R_target / geo.R_OMP
   else:
@@ -300,25 +300,23 @@ def _resolve_geometric_parameters(
     geo_ratio_bpol = None
 
   # If limited, set divertor broadening to 1.0.
-  broadening = jnp.where(
-      is_diverted, edge_params.divertor_broadening_factor, 1.0
-  )
+  broadening = jnp.where(diverted, edge_params.divertor_broadening_factor, 1.0)
 
   # Resolve basic geometric parameters
   L_par = _resolve_param(
-      'parallel_connection_length',
+      'connection_length_target',
       geo_L_par,
-      edge_params.parallel_connection_length,
+      edge_params.connection_length_target,
   )
   L_div = _resolve_param(
-      'divertor_parallel_length',
+      'connection_length_divertor',
       geo_L_div,
-      edge_params.divertor_parallel_length,
+      edge_params.connection_length_divertor,
   )
   alpha_incidence = _resolve_param(
-      'target_angle_of_incidence',
+      'angle_of_incidence_target',
       geo_alpha,
-      edge_params.target_angle_of_incidence,
+      edge_params.angle_of_incidence_target,
   )
   flux_expansion = _resolve_param(
       'toroidal_flux_expansion',
@@ -332,10 +330,10 @@ def _resolve_geometric_parameters(
   )
 
   return _ResolvedGeometricParams(
-      parallel_connection_length=L_par,
-      divertor_parallel_length=L_div,
+      connection_length_target=L_par,
+      connection_length_divertor=L_div,
       toroidal_flux_expansion=flux_expansion,
-      target_angle_of_incidence=alpha_incidence,
+      angle_of_incidence_target=alpha_incidence,
       ratio_bpol_omp_to_bpol_avg=ratio_bpol,
       divertor_broadening_factor=broadening,
   )
@@ -373,7 +371,7 @@ def _resolve_param(
       )
 
 
-def _get_is_diverted(
+def _get_diverted(
     geo: standard_geometry.StandardGeometry,
     edge_params: RuntimeParams,
 ) -> array_typing.BoolScalar:
@@ -383,7 +381,7 @@ def _get_is_diverted(
   # None are never used.
   safe_fbt_diverted = geo.diverted if geo.diverted is not None else False
   safe_params_diverted = (
-      edge_params.is_diverted if edge_params.is_diverted is not None else False
+      edge_params.diverted if edge_params.diverted is not None else False
   )
   is_fbt = geo.geometry_type == geometry.GeometryType.FBT
   return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)

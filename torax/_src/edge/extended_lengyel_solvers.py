@@ -54,8 +54,8 @@ class PhysicsOutcome(enum.IntEnum):
   Q_CC_SQUARED_NEGATIVE = 2
 
 
-class FixedStepOutcome(enum.IntEnum):
-  """Status of the fixed-step iterative solver.
+class FixedPointOutcome(enum.IntEnum):
+  """Status of the fixed-point iterative solver.
 
   Attributes:
     SUCCESS: The solver ran successfully. Currently this is the only possible
@@ -75,18 +75,18 @@ class ExtendedLengyelSolverStatus:
       `extended_lengyel_solvers.PhysicsOutcome` for details.
     numerics_outcome: Outcome of the numerical solver. This will be a
       `jax_root_finding.RootMetadata` for the Newton-Raphson solver, or a
-      `extended_lengyel_solvers.FixedStepOutcome` for the fixed-step solver.
+      `extended_lengyel_solvers.FixedPointOutcome` for the fixed-point solver.
   """
 
   physics_outcome: PhysicsOutcome
-  numerics_outcome: jax_root_finding.RootMetadata | FixedStepOutcome
+  numerics_outcome: jax_root_finding.RootMetadata | FixedPointOutcome
 
 
-def inverse_mode_fixed_step_solver(
+def inverse_mode_fixed_point_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+    iterations: int = extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
-  """Runs the fixed-step iterative solver for the inverse mode."""
+  """Runs the fixed-point iterative solver for the inverse mode."""
 
   def body_fun(_, carry):
 
@@ -129,17 +129,17 @@ def inverse_mode_fixed_step_solver(
 
   solver_status = ExtendedLengyelSolverStatus(
       physics_outcome=physics_outcome,
-      numerics_outcome=FixedStepOutcome.SUCCESS,
+      numerics_outcome=FixedPointOutcome.SUCCESS,
   )
 
   return final_sol_model, solver_status
 
 
-def forward_mode_fixed_step_solver(
+def forward_mode_fixed_point_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    iterations: int = extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+    iterations: int = extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
-  """Runs the fixed-step iterative solver for the forward mode."""
+  """Runs the fixed-point iterative solver for the forward mode."""
 
   # Relaxation function needed for fixed point iteration in forward mode for
   # stability.
@@ -164,11 +164,9 @@ def forward_mode_fixed_step_solver(
     new_q_cc, physics_outcome = _solve_for_qcc(sol_model=current_sol_model)
 
     # Calculate new target electron temperature with forward two-point model.
-    current_sol_model.state.target_electron_temp = (
-        divertor_sol_1d_lib.calc_target_electron_temp(
-            sol_model=current_sol_model,
-            parallel_heat_flux_at_cc_interface=new_q_cc,
-        )
+    current_sol_model.state.T_e_target = divertor_sol_1d_lib.calc_T_e_target(
+        sol_model=current_sol_model,
+        parallel_heat_flux_at_cc_interface=new_q_cc,
     )
 
     # Update kappa_e and alpha_t for the next iteration.
@@ -189,9 +187,9 @@ def forward_mode_fixed_step_solver(
             sol_model,
             state=dataclasses.replace(
                 sol_model.state,
-                target_electron_temp=_relax(
-                    sol_model.state.target_electron_temp,
-                    prev_sol_model.state.target_electron_temp,
+                T_e_target=_relax(
+                    sol_model.state.T_e_target,
+                    prev_sol_model.state.T_e_target,
                 ),
                 alpha_t=_relax(
                     sol_model.state.alpha_t, prev_sol_model.state.alpha_t
@@ -214,7 +212,7 @@ def forward_mode_fixed_step_solver(
 
   solver_status = ExtendedLengyelSolverStatus(
       physics_outcome=physics_outcome,
-      numerics_outcome=FixedStepOutcome.SUCCESS,
+      numerics_outcome=FixedPointOutcome.SUCCESS,
   )
 
   return final_sol_model, solver_status
@@ -227,7 +225,7 @@ def forward_mode_newton_solver(
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the forward mode.
 
-  Solves for {q_parallel, alpha_t, kappa_e, target_electron_temp} given fixed
+  Solves for {q_parallel, alpha_t, kappa_e, T_e_target} given fixed
   impurities.
 
   Args:
@@ -251,7 +249,7 @@ def forward_mode_newton_solver(
       jnp.log(initial_sol_model.state.q_parallel),
       initial_sol_model.state.alpha_t,
       jnp.log(initial_sol_model.state.kappa_e),
-      jnp.log(initial_sol_model.state.target_electron_temp),
+      jnp.log(initial_sol_model.state.T_e_target),
   ])
 
   # 2. Define residual function, closing over params and fixed c_z.
@@ -272,7 +270,7 @@ def forward_mode_newton_solver(
       q_parallel=jnp.exp(x_root[0]),
       alpha_t=jax.nn.softplus(x_root[1]),
       kappa_e=jnp.exp(x_root[2]),
-      target_electron_temp=jnp.exp(x_root[3]),
+      T_e_target=jnp.exp(x_root[3]),
       c_z_prefactor=fixed_cz,
   )
   final_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -327,7 +325,7 @@ def inverse_mode_newton_solver(
   ])
 
   # 2. Define residual function, closing over params and fixed T_t.
-  fixed_Tt = initial_sol_model.state.target_electron_temp
+  fixed_Tt = initial_sol_model.state.T_e_target
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
@@ -345,7 +343,7 @@ def inverse_mode_newton_solver(
       alpha_t=jax.nn.softplus(x_root[1]),
       kappa_e=jnp.exp(x_root[2]),
       c_z_prefactor=x_root[3],
-      target_electron_temp=fixed_Tt,
+      T_e_target=fixed_Tt,
   )
 
   final_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -364,14 +362,14 @@ def inverse_mode_newton_solver(
 
 def forward_mode_hybrid_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+    fixed_point_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the forward mode."""
-  intermediate_sol_model, _ = forward_mode_fixed_step_solver(
+  intermediate_sol_model, _ = forward_mode_fixed_point_solver(
       initial_sol_model=initial_sol_model,
-      iterations=fixed_step_iterations,
+      iterations=fixed_point_iterations,
   )
   final_sol_model, solver_status = forward_mode_newton_solver(
       initial_sol_model=intermediate_sol_model,
@@ -383,14 +381,14 @@ def forward_mode_hybrid_solver(
 
 def inverse_mode_hybrid_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    fixed_step_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+    fixed_point_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the inverse mode."""
-  intermediate_sol_model, _ = inverse_mode_fixed_step_solver(
+  intermediate_sol_model, _ = inverse_mode_fixed_point_solver(
       initial_sol_model=initial_sol_model,
-      iterations=fixed_step_iterations,
+      iterations=fixed_point_iterations,
   )
   final_sol_model, solver_status = inverse_mode_newton_solver(
       initial_sol_model=intermediate_sol_model,
@@ -411,7 +409,7 @@ def _forward_residual(
       q_parallel=jnp.exp(x_vec[0]),
       alpha_t=jax.nn.softplus(x_vec[1]),
       kappa_e=jnp.exp(x_vec[2]),
-      target_electron_temp=jnp.exp(x_vec[3]),
+      T_e_target=jnp.exp(x_vec[3]),
       c_z_prefactor=fixed_cz,
   )
   temp_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -439,7 +437,7 @@ def _forward_residual(
 
   # d) T_t
   q_cc_calc, _ = _solve_for_qcc(sol_model=temp_model)
-  Tt_calc = divertor_sol_1d_lib.calc_target_electron_temp(
+  Tt_calc = divertor_sol_1d_lib.calc_T_e_target(
       sol_model=temp_model,
       parallel_heat_flux_at_cc_interface=q_cc_calc,
   )
@@ -471,7 +469,7 @@ def _inverse_residual(
       alpha_t=jax.nn.softplus(x_vec[1]),
       kappa_e=jnp.exp(x_vec[2]),
       c_z_prefactor=x_vec[3],
-      target_electron_temp=fixed_Tt,
+      T_e_target=fixed_Tt,
   )
 
   temp_model = divertor_sol_1d_lib.DivertorSOL1D(

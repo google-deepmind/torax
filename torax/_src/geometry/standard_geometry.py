@@ -72,7 +72,7 @@ class StandardGeometry(geometry.Geometry):
     connection_length_divertor: Optional input. Parallel connection length from
       outboard midplane to X-point [m]. If not provided, same procedure holds as
       for `connection_length_target`.
-    target_angle_of_incidence: Optional input. Angle between magnetic field line
+    angle_of_incidence_target: Optional input. Angle between magnetic field line
       and divertor target [degrees]. If not provided, same procedure holds as
       for `connection_length_target`.
     R_OMP: Optional input. Major radius of the outboard midplane [m]. If not
@@ -100,7 +100,7 @@ class StandardGeometry(geometry.Geometry):
   # Optional parameters not present in all geometry sources.
   connection_length_target: array_typing.FloatScalar | None
   connection_length_divertor: array_typing.FloatScalar | None
-  target_angle_of_incidence: array_typing.FloatScalar | None
+  angle_of_incidence_target: array_typing.FloatScalar | None
   R_OMP: array_typing.FloatScalar | None
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
@@ -127,7 +127,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   connection_length_divertor: (
       interpolated_param.InterpolatedVarSingleAxis | None
   )
-  target_angle_of_incidence: interpolated_param.InterpolatedVarSingleAxis | None
+  angle_of_incidence_target: interpolated_param.InterpolatedVarSingleAxis | None
   R_OMP: interpolated_param.InterpolatedVarSingleAxis | None
   R_target: interpolated_param.InterpolatedVarSingleAxis | None
   B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
@@ -207,7 +207,7 @@ class StandardGeometryIntermediates:
       to target [m].
     connection_length_divertor: Parallel connection length from outboard
       midplane to X-point [m].
-    target_angle_of_incidence: Angle between magnetic field line and divertor
+    angle_of_incidence_target: Angle between magnetic field line and divertor
       target [degrees].
     R_OMP: Major radius of the outboard midplane [m].
     R_target: Major radius of the divertor target strike point [m].
@@ -244,7 +244,7 @@ class StandardGeometryIntermediates:
   diverted: bool | None
   connection_length_target: array_typing.FloatScalar | None
   connection_length_divertor: array_typing.FloatScalar | None
-  target_angle_of_incidence: array_typing.FloatScalar | None
+  angle_of_incidence_target: array_typing.FloatScalar | None
   R_OMP: array_typing.FloatScalar | None
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
@@ -560,7 +560,7 @@ def build_standard_geometry(
       diverted=intermediates.diverted,
       connection_length_target=intermediates.connection_length_target,
       connection_length_divertor=intermediates.connection_length_divertor,
-      target_angle_of_incidence=intermediates.target_angle_of_incidence,
+      angle_of_incidence_target=intermediates.angle_of_incidence_target,
       R_OMP=intermediates.R_OMP,
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,

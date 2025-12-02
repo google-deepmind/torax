@@ -57,12 +57,12 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         'enrichment_factor': {'N': _ENRICHMENT_FACTOR},
         'seed_impurity_weights': {'N': 1.0},
         # Dummy values for other required fields.
-        'target_electron_temp': 1.0,
-        'parallel_connection_length': 1.0,
-        'divertor_parallel_length': 1.0,
+        'T_e_target': 1.0,
+        'connection_length_target': 1.0,
+        'connection_length_divertor': 1.0,
         'toroidal_flux_expansion': 1.0,
-        'target_angle_of_incidence': 1.0,
-        'is_diverted': True,
+        'angle_of_incidence_target': 1.0,
+        'diverted': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -142,18 +142,18 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
             'Ne': self._ENRICHMENT_FACTOR,
         },
         # Dummy values
-        'parallel_connection_length': 1.0,
-        'divertor_parallel_length': 1.0,
+        'connection_length_target': 1.0,
+        'connection_length_divertor': 1.0,
         'toroidal_flux_expansion': 1.0,
-        'target_angle_of_incidence': 1.0,
-        'is_diverted': True,
+        'angle_of_incidence_target': 1.0,
+        'diverted': True,
     }
 
   def test_update_fixed_impurities_edge_truth_forward_mode(self):
     self.config_dict['edge']['impurity_sot'] = 'edge'
     self.config_dict['edge']['computation_mode'] = 'forward'
     self.config_dict['edge']['seed_impurity_weights'] = None
-    self.config_dict['edge']['target_electron_temp'] = None
+    self.config_dict['edge']['T_e_target'] = None
     self.config_dict['edge']['fixed_impurity_concentrations'] = {
         'N': self._EDGE_CONCENTRATION,
         'Ne': 0.0,
@@ -190,7 +190,7 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     self.config_dict['edge']['impurity_sot'] = 'edge'
     self.config_dict['edge']['computation_mode'] = 'inverse'
     self.config_dict['edge']['seed_impurity_weights'] = {'Ne': 1.0}
-    self.config_dict['edge']['target_electron_temp'] = 1.0
+    self.config_dict['edge']['T_e_target'] = 1.0
     self.config_dict['edge']['fixed_impurity_concentrations'] = {
         'N': self._EDGE_CONCENTRATION
     }
@@ -226,7 +226,7 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     self.config_dict['edge']['impurity_sot'] = 'core'
     self.config_dict['edge']['computation_mode'] = 'forward'
     self.config_dict['edge']['seed_impurity_weights'] = None
-    self.config_dict['edge']['target_electron_temp'] = None
+    self.config_dict['edge']['T_e_target'] = None
     self.config_dict['edge']['fixed_impurity_concentrations'] = {
         'N': self._EDGE_CONCENTRATION,
         'Ne': 0.0,
@@ -253,7 +253,7 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     self.config_dict['edge']['impurity_sot'] = 'core'
     self.config_dict['edge']['computation_mode'] = 'inverse'
     self.config_dict['edge']['seed_impurity_weights'] = {'Ne': 1.0}
-    self.config_dict['edge']['target_electron_temp'] = 1.0
+    self.config_dict['edge']['T_e_target'] = 1.0
     self.config_dict['edge']['fixed_impurity_concentrations'] = {
         'N': self._EDGE_CONCENTRATION
     }  # Dummy Edge value (should be ignored for core update)
@@ -304,12 +304,12 @@ class UpdateImpuritiesWithEnrichmentModelTest(parameterized.TestCase):
         'use_enrichment_model': True,
         'seed_impurity_weights': {'N': 1.0},
         # Dummy values for other required fields.
-        'target_electron_temp': 1.0,
-        'parallel_connection_length': 1.0,
-        'divertor_parallel_length': 1.0,
+        'T_e_target': 1.0,
+        'connection_length_target': 1.0,
+        'connection_length_divertor': 1.0,
         'toroidal_flux_expansion': 1.0,
-        'target_angle_of_incidence': 1.0,
-        'is_diverted': True,
+        'angle_of_incidence_target': 1.0,
+        'diverted': True,
     }
 
   def test_update_impurities_scales_profile_with_enrichment_model(self):

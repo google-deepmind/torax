@@ -49,16 +49,14 @@ class ExtendedLengyelParameters:
   # --- Geometric and Magnetic Parameters ---
   major_radius: array_typing.FloatScalar  # [m]
   minor_radius: array_typing.FloatScalar  # [m]
-  divertor_parallel_length: array_typing.FloatScalar  # [m]
-  parallel_connection_length: array_typing.FloatScalar  # [m]
+  connection_length_divertor: array_typing.FloatScalar  # [m]
+  connection_length_target: array_typing.FloatScalar  # [m]
   separatrix_average_poloidal_field: array_typing.FloatScalar  # [T]
-  ratio_bpol_omp_to_bpol_avg: (
-      array_typing.FloatScalar
-  )  # [dimensionless]
+  ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar  # [dimensionless]
   fieldline_pitch_at_omp: array_typing.FloatScalar  # [dimensionless]
   cylindrical_safety_factor: array_typing.FloatScalar  # [dimensionless]
   toroidal_flux_expansion: array_typing.FloatScalar  # [dimensionless]
-  target_angle_of_incidence: array_typing.FloatScalar  # [degrees]
+  angle_of_incidence_target: array_typing.FloatScalar  # [degrees]
 
   # --- Plasma and Physics Config ---
   power_crossing_separatrix: array_typing.FloatScalar  # [W]
@@ -72,15 +70,15 @@ class ExtendedLengyelParameters:
   divertor_broadening_factor: array_typing.FloatScalar  # [dimensionless]
   sheath_heat_transmission_factor: array_typing.FloatScalar  # [dimensionless]
   ratio_of_molecular_to_ion_mass: array_typing.FloatScalar  # [dimensionless]
-  wall_temperature: array_typing.FloatScalar  # [K]
+  T_wall: array_typing.FloatScalar  # [K]
 
   # --- Boundary Condition Data: all dimensionless ---
-  separatrix_mach_number: array_typing.FloatScalar
-  separatrix_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  separatrix_ratio_of_electron_to_ion_density: array_typing.FloatScalar
-  target_mach_number: array_typing.FloatScalar
-  target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  target_ratio_of_electron_to_ion_density: array_typing.FloatScalar
+  mach_separatrix: array_typing.FloatScalar
+  T_i_T_e_ratio_separatrix: array_typing.FloatScalar
+  n_e_n_i_ratio_separatrix: array_typing.FloatScalar
+  mach_target: array_typing.FloatScalar
+  T_i_T_e_ratio_target: array_typing.FloatScalar
+  n_e_n_i_ratio_target: array_typing.FloatScalar
 
   # --- Impurity Config ---
   seed_impurity_weights: Mapping[
@@ -99,7 +97,7 @@ class ExtendedLengyelState:
   q_parallel: array_typing.FloatScalar  # [W/m^2]
   alpha_t: array_typing.FloatScalar  # [dimensionless]
   kappa_e: array_typing.FloatScalar  # [W/(m*eV^3.5)]
-  target_electron_temp: array_typing.FloatScalar  # [eV]
+  T_e_target: array_typing.FloatScalar  # [eV]
   c_z_prefactor: array_typing.FloatScalar  # [m^-3]
 
 
@@ -131,15 +129,15 @@ class DivertorSOL1D:
     """
     momentum_loss = (
         extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
-            self.state.target_electron_temp
+            self.state.T_e_target
         )
     )
     density_ratio = (
         extended_lengyel_formulas.calc_density_ratio_in_convection_layer(
-            self.state.target_electron_temp
+            self.state.T_e_target
         )
     )
-    return self.state.target_electron_temp / (
+    return self.state.T_e_target / (
         (1.0 - momentum_loss) / (2.0 * density_ratio)
     )
 
@@ -158,7 +156,7 @@ class DivertorSOL1D:
         * self.params.SOL_conduction_fraction
         * self.state.q_parallel
         / self.params.divertor_broadening_factor
-        * self.params.divertor_parallel_length
+        * self.params.connection_length_divertor
         / self.state.kappa_e
     ) ** (2.0 / 7.0)
 
@@ -177,8 +175,8 @@ class DivertorSOL1D:
         * self.params.SOL_conduction_fraction
         * self.state.q_parallel
         * (
-            self.params.parallel_connection_length
-            - self.params.divertor_parallel_length
+            self.params.connection_length_target
+            - self.params.connection_length_divertor
         )
         / self.state.kappa_e
     ) ** (2.0 / 7.0)
@@ -191,14 +189,14 @@ class DivertorSOL1D:
     separatrix, including both electron and ion contributions.
     """
     return (
-        (1.0 + self.params.separatrix_mach_number**2)
+        (1.0 + self.params.mach_separatrix**2)
         * self.params.separatrix_electron_density
         * self.separatrix_electron_temp
         * constants.CONSTANTS.eV_to_J
         * (
             1.0
-            + self.params.separatrix_ratio_of_ion_to_electron_temp
-            / self.params.separatrix_ratio_of_electron_to_ion_density
+            + self.params.T_i_T_e_ratio_separatrix
+            / self.params.n_e_n_i_ratio_separatrix
         )
     )
 
@@ -212,11 +210,11 @@ class DivertorSOL1D:
     """
     momentum_loss = (
         extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
-            self.state.target_electron_temp
+            self.state.T_e_target
         )
     )
 
-    log_target_electron_temp_basic = (
+    log_T_e_target_basic = (
         jnp.log(8.0)
         + jnp.log(self.params.average_ion_mass)
         + jnp.log(constants.CONSTANTS.m_amu)
@@ -226,25 +224,25 @@ class DivertorSOL1D:
         - jnp.log(constants.CONSTANTS.q_e)
     )
 
-    target_electron_temp_basic = jnp.exp(log_target_electron_temp_basic)
+    T_e_target_basic = jnp.exp(log_T_e_target_basic)
 
-    f_other_target_electron_temp = (
+    f_other_T_e_target = (
         (
-            (1.0 + self.params.target_ratio_of_ion_to_electron_temp)
-            / (self.params.target_ratio_of_electron_to_ion_density * 2.0)
+            (1.0 + self.params.T_i_T_e_ratio_target)
+            / (self.params.n_e_n_i_ratio_target * 2.0)
         )
         * (
-            (1.0 + self.params.target_mach_number**2) ** 2
-            / (4.0 * self.params.target_mach_number**2)
+            (1.0 + self.params.mach_target**2) ** 2
+            / (4.0 * self.params.mach_target**2)
         )
         * self.params.toroidal_flux_expansion**-2
     )
 
     return 1.0 - jnp.sqrt(
-        self.state.target_electron_temp
-        / target_electron_temp_basic
+        self.state.T_e_target
+        / T_e_target_basic
         * (1.0 - momentum_loss) ** 2
-        / f_other_target_electron_temp
+        / f_other_T_e_target
     )
 
   @property
@@ -260,7 +258,7 @@ class DivertorSOL1D:
     """
     power_loss_conv_layer = (
         extended_lengyel_formulas.calc_power_loss_in_convection_layer(
-            self.state.target_electron_temp
+            self.state.T_e_target
         )
     )
     return self.parallel_heat_flux_at_target / (1.0 - power_loss_conv_layer)
@@ -439,17 +437,13 @@ def calc_alpha_t(
       * (1.0 * constants.CONSTANTS.m_e / average_ion_mass_kg)
       * params.cylindrical_safety_factor**2
       * params.major_radius
-      * (
-          1.0
-          + params.separatrix_ratio_of_ion_to_electron_temp
-          / params.mean_ion_charge_state
-      )
+      * (1.0 + params.T_i_T_e_ratio_separatrix / params.mean_ion_charge_state)
   )
 
   return alpha_t
 
 
-def calc_target_electron_temp(
+def calc_T_e_target(
     sol_model: DivertorSOL1D,
     parallel_heat_flux_at_cc_interface: array_typing.FloatScalar,
 ) -> jax.Array:
@@ -469,7 +463,7 @@ def calc_target_electron_temp(
   # See Section 4 of Body et al. 2025.
   momentum_loss = (
       extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
-          sol_model.state.target_electron_temp
+          sol_model.state.T_e_target
       )
   )
 
@@ -477,14 +471,14 @@ def calc_target_electron_temp(
   # See Section 4 of Body et al. 2025.
   power_loss_conv_layer = (
       extended_lengyel_formulas.calc_power_loss_in_convection_layer(
-          sol_model.state.target_electron_temp
+          sol_model.state.T_e_target
       )
   )
 
   # Calculate the basic target electron temperature from the two-point model,
   # which assumes no power or momentum loss.
   # In log space to avoid over/underflows in fp32.
-  log_target_electron_temp_basic = (
+  log_T_e_target_basic = (
       jnp.log(8.0)
       + jnp.log(sol_model.params.average_ion_mass)
       + jnp.log(constants.CONSTANTS.m_amu)
@@ -494,17 +488,17 @@ def calc_target_electron_temp(
       - jnp.log(constants.CONSTANTS.q_e)
   )
 
-  target_electron_temp_basic = jnp.exp(log_target_electron_temp_basic)
+  T_e_target_basic = jnp.exp(log_T_e_target_basic)
   # Correction factor for additional physics at the target, including
   # ion temperature, mach number, and flux expansion.
-  f_other_target_electron_temp = (
+  f_other_T_e_target = (
       (
-          (1.0 + sol_model.params.target_ratio_of_ion_to_electron_temp)
-          / (sol_model.params.target_ratio_of_electron_to_ion_density * 2.0)
+          (1.0 + sol_model.params.T_i_T_e_ratio_target)
+          / (sol_model.params.n_e_n_i_ratio_target * 2.0)
       )
       * (
-          (1.0 + sol_model.params.target_mach_number**2) ** 2
-          / (4.0 * sol_model.params.target_mach_number**2)
+          (1.0 + sol_model.params.mach_target**2) ** 2
+          / (4.0 * sol_model.params.mach_target**2)
       )
       * sol_model.params.toroidal_flux_expansion**-2
   )
@@ -518,7 +512,7 @@ def calc_target_electron_temp(
 
   f_vol_loss = (1.0 - SOL_power_loss_fraction) ** 2 / (1.0 - momentum_loss) ** 2
 
-  return target_electron_temp_basic * f_vol_loss * f_other_target_electron_temp
+  return T_e_target_basic * f_vol_loss * f_other_T_e_target
 
 
 def calc_kappa_e(Z_eff: array_typing.FloatScalar) -> jax.Array:

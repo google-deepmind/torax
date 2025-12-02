@@ -406,7 +406,7 @@ def _from_fbt(
   if np.squeeze(LY['lX']) not in [0, 1]:
     raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
   # Convert to bool instead of dim 0 array of ints
-  is_diverted = bool(LY['lX'] == 1)
+  diverted = bool(LY['lX'] == 1)
   R_major = LY['rgeom'][-1]  # Major radius
   B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
   a_minor = LY['aminor'][-1]  # Minor radius
@@ -440,7 +440,7 @@ def _from_fbt(
   # These parameters are optional as older FBT files may not contain them.
   connection_length_target = None
   connection_length_divertor = None
-  target_angle_of_incidence = None
+  angle_of_incidence_target = None
   R_OMP = None
   R_target = None
   B_pol_OMP = None
@@ -450,7 +450,7 @@ def _from_fbt(
     z_div = np.squeeze(LY['z_div'])
 
     # Find index corresponding to requested domain.
-    if is_diverted:
+    if diverted:
       if divertor_domain == DivertorDomain.LOWER_NULL:
         idx_array = np.where(z_div < 0)[0]
       else:  # UPPER_NULL
@@ -479,8 +479,8 @@ def _from_fbt(
     connection_length_target = _get_val('Lpar_target')
     # Lpar_div -> connection_length_divertor [m]
     connection_length_divertor = _get_val('Lpar_div')
-    # alpha_target -> target_angle_of_incidence [degrees]
-    target_angle_of_incidence = _get_val('alpha_target')
+    # alpha_target -> angle_of_incidence_target [degrees]
+    angle_of_incidence_target = _get_val('alpha_target')
     # r_OMP -> R_OMP [m]
     R_OMP = _get_val('r_OMP')
     # r_target -> R_target [m]
@@ -514,10 +514,10 @@ def _from_fbt(
       vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
       n_rho=n_rho,
       hires_factor=hires_factor,
-      diverted=is_diverted,
+      diverted=diverted,
       connection_length_target=connection_length_target,
       connection_length_divertor=connection_length_divertor,
-      target_angle_of_incidence=target_angle_of_incidence,
+      angle_of_incidence_target=angle_of_incidence_target,
       R_OMP=R_OMP,
       R_target=R_target,
       B_pol_OMP=B_pol_OMP,

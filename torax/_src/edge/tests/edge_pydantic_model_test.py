@@ -38,26 +38,26 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         config.solver_mode, extended_lengyel_enums.SolverMode.HYBRID
     )
 
-  def test_fixed_step_iterations_default(self):
+  def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID
     config_hybrid = pydantic_model.ExtendedLengyelConfig()
     self.assertEqual(
-        config_hybrid.fixed_step_iterations,
-        extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS,
+        config_hybrid.fixed_point_iterations,
+        extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     )
-    # Explicitly set solver_mode to FIXED_STEP
+    # Explicitly set solver_mode to FIXED_POINT
     config_fixed = pydantic_model.ExtendedLengyelConfig(
-        solver_mode=extended_lengyel_enums.SolverMode.FIXED_STEP
+        solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT
     )
     self.assertEqual(
-        config_fixed.fixed_step_iterations,
-        extended_lengyel_defaults.FIXED_STEP_ITERATIONS,
+        config_fixed.fixed_point_iterations,
+        extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
     )
     # User can override
     config_override = pydantic_model.ExtendedLengyelConfig(
-        fixed_step_iterations=100
+        fixed_point_iterations=100
     )
-    self.assertEqual(config_override.fixed_step_iterations, 100)
+    self.assertEqual(config_override.fixed_point_iterations, 100)
 
   def test_torax_config_integration(self):
     """Ensures ToraxConfig can parse the new edge field."""
@@ -69,14 +69,14 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'computation_mode': 'inverse',
-        'target_electron_temp': 2.34,
+        'T_e_target': 2.34,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
         'use_enrichment_model': False,
         'enrichment_factor': {
             'N': 1.0,
             'Ar': 1.0,
         },
-        'is_diverted': True,
+        'diverted': True,
     }
     config_dict['plasma_composition'] = {
         'impurity': {
@@ -107,7 +107,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     pydantic_model.ExtendedLengyelConfig(
         use_enrichment_model=False,
         computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-        target_electron_temp=10.0,
+        T_e_target=10.0,
         seed_impurity_weights={'N': 1.0},
         fixed_impurity_concentrations={'He4': 0.01},
         enrichment_factor={'N': 2.0, 'He4': 1.5},
@@ -121,7 +121,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       pydantic_model.ExtendedLengyelConfig(
           use_enrichment_model=False,
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights={'N': 1.0},
           fixed_impurity_concentrations={'He4': 0.01},
           enrichment_factor={'N': 2.0},
@@ -135,7 +135,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       pydantic_model.ExtendedLengyelConfig(
           use_enrichment_model=False,
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights={'N': 1.0},
           fixed_impurity_concentrations={'He4': 0.01},
           enrichment_factor={'N': 2.0, 'He4': 1.5, 'Ar': 2.0},
@@ -144,19 +144,18 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_computation_mode_forward_valid_config(self):
     pydantic_model.ExtendedLengyelConfig(
         computation_mode='forward',
-        target_electron_temp=None,
+        T_e_target=None,
         seed_impurity_weights={},
     )
 
   def test_computation_mode_forward_raises_on_target_temp(self):
     with self.assertRaisesRegex(
         ValueError,
-        'target_electron_temp must not be provided for forward computation'
-        ' mode.',
+        'T_e_target must not be provided for forward computation mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
           computation_mode='forward',
-          target_electron_temp=10.0,
+          T_e_target=10.0,
       )
 
   def test_computation_mode_forward_raises_on_seed_impurities(self):
@@ -177,7 +176,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     pydantic_model.ExtendedLengyelConfig(
         use_enrichment_model=False,
         computation_mode='inverse',
-        target_electron_temp=10.0,
+        T_e_target=10.0,
         seed_impurity_weights={'N': 1.0},
         enrichment_factor={'N': 1.0},
     )
@@ -185,12 +184,12 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_computation_mode_inverse_raises_on_missing_target_temp(self):
     with self.assertRaisesRegex(
         ValueError,
-        'target_electron_temp must be provided for inverse computation mode.',
+        'T_e_target must be provided for inverse computation mode.',
     ):
       pydantic_model.ExtendedLengyelConfig(
           use_enrichment_model=False,
           computation_mode='inverse',
-          target_electron_temp=None,
+          T_e_target=None,
           seed_impurity_weights={'N': 1.0},
           enrichment_factor={'N': 1.0},
       )
@@ -203,7 +202,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       pydantic_model.ExtendedLengyelConfig(
           use_enrichment_model=False,
           computation_mode='inverse',
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights={},
           enrichment_factor={},
       )
@@ -216,7 +215,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       pydantic_model.ExtendedLengyelConfig(
           use_enrichment_model=False,
           computation_mode='inverse',
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights=None,
           enrichment_factor={},
       )
@@ -228,7 +227,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
           enrichment_factor={'N': 1.0},
           # Other required fields for validation to pass
           computation_mode='inverse',
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights={'N': 1.0},
       )
     self.assertIn(
@@ -247,7 +246,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
           enrichment_factor=None,
           # Other required fields for validation to pass
           computation_mode='inverse',
-          target_electron_temp=10.0,
+          T_e_target=10.0,
           seed_impurity_weights={'N': 1.0},
       )
 
@@ -258,7 +257,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         enrichment_model_multiplier=2.0,
         # Other required fields
         computation_mode='inverse',
-        target_electron_temp=10.0,
+        T_e_target=10.0,
         seed_impurity_weights={'N': 1.0},
         fixed_impurity_concentrations={'He4': 0.01},
     )
@@ -284,7 +283,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         enrichment_factor={'N': 2.5, 'He4': 3.5},
         # Other required fields
         computation_mode='inverse',
-        target_electron_temp=10.0,
+        T_e_target=10.0,
         seed_impurity_weights={'N': 1.0},
         fixed_impurity_concentrations={'He4': 0.01},
     )
@@ -297,9 +296,9 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_optional_params_are_none_in_runtime_params_if_not_provided(self):
     config = pydantic_model.ExtendedLengyelConfig()
     runtime_params = config.build_runtime_params(t=0.0)
-    self.assertIsNone(runtime_params.parallel_connection_length)
-    self.assertIsNone(runtime_params.divertor_parallel_length)
-    self.assertIsNone(runtime_params.target_electron_temp)
+    self.assertIsNone(runtime_params.connection_length_target)
+    self.assertIsNone(runtime_params.connection_length_divertor)
+    self.assertIsNone(runtime_params.T_e_target)
 
   def test_species_consistency_validation_failure(self):
     """Tests failure when species sets do not match between core and edge."""
@@ -313,7 +312,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'fixed_impurity_concentrations': {'Ne': 0.01},
         'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
-        'is_diverted': True,
+        'diverted': True,
     }
     config_dict['plasma_composition']['impurity'] = {
         'impurity_mode': 'n_e_ratios',
@@ -336,12 +335,12 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'computation_mode': 'inverse',
-        'target_electron_temp': 10.0,
+        'T_e_target': 10.0,
         'fixed_impurity_concentrations': {'Ne': 0.01},
         'seed_impurity_weights': {'Ne': 1.0},  # Ne is in both
         'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
-        'is_diverted': True,
+        'diverted': True,
     }
     config_dict['plasma_composition']['impurity'] = {
         'impurity_mode': 'n_e_ratios',
@@ -355,7 +354,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_run_standalone_from_pydantic_config(self):
     """Tests that standalone can be run from a pydantic config."""
     # This test is based on
-    # extended_lengyel_standalone_test.test_run_extended_lengyel_model_inverse_mode_fixed_step
+    # extended_lengyel_standalone_test.test_run_extended_lengyel_model_inverse_mode_fixed_point
     # --- Expected output values ---
     # Reference values from running the reference case in:
     # https://github.com/cfs-energy/extended-lengyel
@@ -375,16 +374,16 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Inputs that would be configured in the TORAX config.
     config_dict_inputs = {
         'model_name': 'extended_lengyel',
-        'target_electron_temp': 2.34,
+        'T_e_target': 2.34,
         'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
         'fixed_impurity_concentrations': {'He': 0.01},
-        'parallel_connection_length': 20.0,
-        'divertor_parallel_length': 5.0,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
         'computation_mode': 'inverse',
-        'solver_mode': 'fixed_step',
+        'solver_mode': 'fixed_point',
         'use_enrichment_model': False,
         'enrichment_factor': {'N': 1.0, 'Ar': 1.0, 'He': 1.0},
-        'is_diverted': True,
+        'diverted': True,
     }
     # Inputs that would come from the TORAX state at runtime.
     dynamic_inputs = {
@@ -422,7 +421,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     )
     self.assertEqual(
         outputs.solver_status.numerics_outcome,
-        extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
+        extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
     for key, value in expected_outputs.items():
       if key == 'seed_impurity_concentrations':

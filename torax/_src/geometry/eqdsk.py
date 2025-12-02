@@ -50,6 +50,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
+
   cocos: torax_pydantic.COCOSInt
   geometry_file: str
   geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
@@ -434,7 +435,7 @@ def _construct_intermediates_from_eqdsk(
       diverted=None,
       connection_length_target=None,
       connection_length_divertor=None,
-      target_angle_of_incidence=None,
+      angle_of_incidence_target=None,
       R_OMP=None,
       R_target=None,
       B_pol_OMP=None,
@@ -442,9 +443,7 @@ def _construct_intermediates_from_eqdsk(
   )
 
 
-def _validate_eqdsk_cocos11(
-    eqfile: Mapping[str, np.ndarray | float]
-) -> None:
+def _validate_eqdsk_cocos11(eqfile: Mapping[str, np.ndarray | float]) -> None:
   """Validates that the EQDSK data complies with COCOS11 coordinate conventions."""
   COCOS_violations = ''
   if eqfile['bcentre'] < 0:

@@ -68,18 +68,18 @@ def run_extended_lengyel_standalone(
     main_ion_charge: array_typing.FloatScalar,
     magnetic_field_on_axis: array_typing.FloatScalar,
     plasma_current: array_typing.FloatScalar,
-    parallel_connection_length: array_typing.FloatScalar,
-    divertor_parallel_length: array_typing.FloatScalar,
+    connection_length_target: array_typing.FloatScalar,
+    connection_length_divertor: array_typing.FloatScalar,
     major_radius: array_typing.FloatScalar,
     minor_radius: array_typing.FloatScalar,
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
     average_ion_mass: array_typing.FloatScalar,
     mean_ion_charge_state: array_typing.FloatScalar,
-    target_electron_temp: array_typing.FloatScalar | None = None,
+    T_e_target: array_typing.FloatScalar | None = None,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None = None,
     computation_mode: extended_lengyel_enums.ComputationMode = extended_lengyel_enums.ComputationMode.FORWARD,
-    solver_mode: extended_lengyel_enums.SolverMode = extended_lengyel_enums.SolverMode.FIXED_STEP,
+    solver_mode: extended_lengyel_enums.SolverMode = extended_lengyel_enums.SolverMode.FIXED_POINT,
     divertor_broadening_factor: array_typing.FloatScalar = (
         extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
     ),
@@ -90,31 +90,31 @@ def run_extended_lengyel_standalone(
     sheath_heat_transmission_factor: array_typing.FloatScalar = (
         extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR
     ),
-    target_angle_of_incidence: array_typing.FloatScalar = extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE,
+    angle_of_incidence_target: array_typing.FloatScalar = extended_lengyel_defaults.ANGLE_OF_INCIDENCE_TARGET,
     fraction_of_P_SOL_to_divertor: array_typing.FloatScalar = extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR,
     SOL_conduction_fraction: array_typing.FloatScalar = extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
     ratio_of_molecular_to_ion_mass: array_typing.FloatScalar = extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS,
-    wall_temperature: array_typing.FloatScalar = extended_lengyel_defaults.WALL_TEMPERATURE,
-    separatrix_mach_number: array_typing.FloatScalar = extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
-    separatrix_ratio_of_ion_to_electron_temp: array_typing.FloatScalar = (
-        extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP
+    T_wall: array_typing.FloatScalar = extended_lengyel_defaults.T_WALL,
+    mach_separatrix: array_typing.FloatScalar = extended_lengyel_defaults.MACH_SEPARATRIX,
+    T_i_T_e_ratio_separatrix: array_typing.FloatScalar = (
+        extended_lengyel_defaults.T_I_T_E_RATIO_SEPARATRIX
     ),
-    separatrix_ratio_of_electron_to_ion_density: array_typing.FloatScalar = (
-        extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY
+    n_e_n_i_ratio_separatrix: array_typing.FloatScalar = (
+        extended_lengyel_defaults.N_E_N_I_RATIO_SEPARATRIX
     ),
-    target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar = (
-        extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP
+    T_i_T_e_ratio_target: array_typing.FloatScalar = (
+        extended_lengyel_defaults.T_I_T_E_RATIO_TARGET
     ),
-    target_ratio_of_electron_to_ion_density: array_typing.FloatScalar = (
-        extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY
+    n_e_n_i_ratio_target: array_typing.FloatScalar = (
+        extended_lengyel_defaults.N_E_N_I_RATIO_TARGET
     ),
-    target_mach_number: array_typing.FloatScalar = extended_lengyel_defaults.TARGET_MACH_NUMBER,
+    mach_target: array_typing.FloatScalar = extended_lengyel_defaults.MACH_TARGET,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
-    fixed_step_iterations: int | None = None,
+    fixed_point_iterations: int | None = None,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
-    is_diverted: bool = True,
+    diverted: bool = True,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -126,17 +126,17 @@ def run_extended_lengyel_standalone(
     main_ion_charge: Average main ion charge [dimensionless].
     magnetic_field_on_axis: B-field at magnetic axis [T].
     plasma_current: Plasma current [A].
-    parallel_connection_length: From target to outboard midplane [m].
-    divertor_parallel_length: From target to X-point [m].
+    connection_length_target: From target to outboard midplane [m].
+    connection_length_divertor: From target to X-point [m].
     major_radius: Major radius of magnetic axis [m].
     minor_radius: Minor radius from magnetic axis to outboard midplane [m].
-    elongation_psi95: Elongation at psiN=0.95.
-    triangularity_psi95: Triangularity at psiN=0.95.
+    elongation_psi95: Elongation at psiN=0.95 [dimensionless].
+    triangularity_psi95: Triangularity at psiN=0.95 [dimensionless]..
     average_ion_mass: Average main-ion mass [amu] defined as sum(m_i*n_i)/n_e.
     mean_ion_charge_state: Mean ion charge state [dimensionless]. Defined as
       n_e/(sum_i n_i).
-    target_electron_temp: For inverse mode, desired electron temperature at
-      sheath entrance [eV].
+    T_e_target: For inverse mode, desired electron temperature at sheath
+      entrance [eV].
     seed_impurity_weights: For inverse mode, Mapping from ion symbol to
       fractions of seeded impurities. Total impurity n_e_ratio (c_z) is
       calculated by the model. c_z_prefactor*seed_impurity_weights thus forms an
@@ -144,30 +144,34 @@ def run_extended_lengyel_standalone(
     computation_mode: The computation mode for the model. See ComputationMode
       for details.
     solver_mode: The solver mode for the model. See SolverMode for details.
-    divertor_broadening_factor: lambda_INT / lambda_q.
-    ratio_bpol_omp_to_bpol_avg: Bpol_omp / Bpol_avg.
+    divertor_broadening_factor: lambda_INT / lambda_q  [dimensionless].
+    ratio_bpol_omp_to_bpol_avg: Bpol_omp / Bpol_avg  [dimensionless].
     ne_tau: Product of electron density and ion residence time [s m^-3].
-    sheath_heat_transmission_factor: Sheath heat transmission factor gamma.
-    target_angle_of_incidence: Angle between fieldline and target [degrees].
-    fraction_of_P_SOL_to_divertor: Fraction of power to outer divertor.
-    SOL_conduction_fraction: Fraction of power carried by conduction.
-    ratio_of_molecular_to_ion_mass: Ratio of molecular to ion mass.
-    wall_temperature: Divertor wall temperature [K].
-    separatrix_mach_number: Mach number at separatrix.
-    separatrix_ratio_of_ion_to_electron_temp: Ti/Te at separatrix.
-    separatrix_ratio_of_electron_to_ion_density: ne/ni at separatrix.
-    target_ratio_of_ion_to_electron_temp: Ti/Te at target.
-    target_ratio_of_electron_to_ion_density: ne/ni at target.
-    target_mach_number: Mach number at target.
-    toroidal_flux_expansion: Toroidal flux expansion factor.
-    fixed_step_iterations: Number of iterations for fixed step solver. If None,
+    sheath_heat_transmission_factor: Sheath heat transmission factor gamma
+      [dimensionless].
+    angle_of_incidence_target: Angle between fieldline and target [degrees].
+    fraction_of_P_SOL_to_divertor: Fraction of power to outer divertor
+      [dimensionless].
+    SOL_conduction_fraction: Fraction of power carried by conduction
+      [dimensionless].
+    ratio_of_molecular_to_ion_mass: Ratio of molecular to ion mass
+      [dimensionless].
+    T_wall: Divertor wall temperature [K].
+    mach_separatrix: Mach number at separatrix [dimensionless].
+    T_i_T_e_ratio_separatrix: Ti/Te at separatrix [dimensionless].
+    n_e_n_i_ratio_separatrix: ne/ni at separatrix [dimensionless].
+    T_i_T_e_ratio_target: Ti/Te at target [dimensionless].
+    n_e_n_i_ratio_target: ne/ni at target [dimensionless].
+    mach_target: Mach number at target [dimensionless].
+    toroidal_flux_expansion: Toroidal flux expansion factor [dimensionless].
+    fixed_point_iterations: Number of iterations for fixed step solver. If None,
       then a default value is used based on the solver mode: different defaults
       for hybrid and fixed-step solvers. For Newton-Raphson, this argument is
       ignored and remains None if inputted as None.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
     enrichment_model_multiplier: Multiplier for the Kallenbach enrichment model.
-    is_diverted: Whether we are in diverted geometry or not.
+    diverted: Whether we are in diverted geometry or not.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values and solver
@@ -182,16 +186,16 @@ def run_extended_lengyel_standalone(
     seed_impurity_weights = {}
 
   _validate_inputs_for_computation_mode(
-      computation_mode, target_electron_temp, seed_impurity_weights
+      computation_mode, T_e_target, seed_impurity_weights
   )
 
-  if fixed_step_iterations is None:
+  if fixed_point_iterations is None:
     if solver_mode == extended_lengyel_enums.SolverMode.HYBRID:
-      fixed_step_iterations = (
-          extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS
+      fixed_point_iterations = (
+          extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS
       )
     else:
-      fixed_step_iterations = extended_lengyel_defaults.FIXED_STEP_ITERATIONS
+      fixed_point_iterations = extended_lengyel_defaults.FIXED_POINT_ITERATIONS
 
   shaping_factor = extended_lengyel_formulas.calc_shaping_factor(
       elongation_psi95=elongation_psi95,
@@ -235,26 +239,26 @@ def run_extended_lengyel_standalone(
       ratio_bpol_omp_to_bpol_avg=ratio_bpol_omp_to_bpol_avg,
       fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
       SOL_conduction_fraction=SOL_conduction_fraction,
-      target_angle_of_incidence=target_angle_of_incidence,
+      angle_of_incidence_target=angle_of_incidence_target,
       ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
-      wall_temperature=wall_temperature,
+      T_wall=T_wall,
       seed_impurity_weights=seed_impurity_weights,
       fixed_impurity_concentrations=fixed_impurity_concentrations,
       ne_tau=ne_tau,
       main_ion_charge=main_ion_charge,
       mean_ion_charge_state=mean_ion_charge_state,
       divertor_broadening_factor=divertor_broadening_factor,
-      divertor_parallel_length=divertor_parallel_length,
-      parallel_connection_length=parallel_connection_length,
-      separatrix_mach_number=separatrix_mach_number,
+      connection_length_divertor=connection_length_divertor,
+      connection_length_target=connection_length_target,
+      mach_separatrix=mach_separatrix,
       separatrix_electron_density=separatrix_electron_density,
-      separatrix_ratio_of_ion_to_electron_temp=separatrix_ratio_of_ion_to_electron_temp,
-      separatrix_ratio_of_electron_to_ion_density=separatrix_ratio_of_electron_to_ion_density,
+      T_i_T_e_ratio_separatrix=T_i_T_e_ratio_separatrix,
+      n_e_n_i_ratio_separatrix=n_e_n_i_ratio_separatrix,
       average_ion_mass=average_ion_mass,
       sheath_heat_transmission_factor=sheath_heat_transmission_factor,
-      target_mach_number=target_mach_number,
-      target_ratio_of_ion_to_electron_temp=target_ratio_of_ion_to_electron_temp,
-      target_ratio_of_electron_to_ion_density=target_ratio_of_electron_to_ion_density,
+      mach_target=mach_target,
+      T_i_T_e_ratio_target=T_i_T_e_ratio_target,
+      n_e_n_i_ratio_target=n_e_n_i_ratio_target,
       toroidal_flux_expansion=toroidal_flux_expansion,
   )
 
@@ -270,9 +274,9 @@ def run_extended_lengyel_standalone(
   )
 
   if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-    target_electron_temp_init = target_electron_temp  # from input
+    T_e_target_init = T_e_target  # from input
   elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-    target_electron_temp_init = 2.0  # eV. Typical value below sputtering limits
+    T_e_target_init = 2.0  # eV. Typical value below sputtering limits
   else:
     raise ValueError(f'Unknown computation mode: {computation_mode}')
 
@@ -281,7 +285,7 @@ def run_extended_lengyel_standalone(
       alpha_t=alpha_t_init,
       c_z_prefactor=c_z_prefactor_init,
       kappa_e=kappa_e_init,
-      target_electron_temp=target_electron_temp_init,
+      T_e_target=T_e_target_init,
   )
 
   initial_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -299,22 +303,22 @@ def run_extended_lengyel_standalone(
   match solver_key:
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
-        extended_lengyel_enums.SolverMode.FIXED_STEP,
+        extended_lengyel_enums.SolverMode.FIXED_POINT,
     ):
       output_sol_model, solver_status = (
-          extended_lengyel_solvers.inverse_mode_fixed_step_solver(
+          extended_lengyel_solvers.inverse_mode_fixed_point_solver(
               initial_sol_model=initial_sol_model,
-              iterations=fixed_step_iterations,
+              iterations=fixed_point_iterations,
           )
       )
     case (
         extended_lengyel_enums.ComputationMode.FORWARD,
-        extended_lengyel_enums.SolverMode.FIXED_STEP,
+        extended_lengyel_enums.SolverMode.FIXED_POINT,
     ):
       output_sol_model, solver_status = (
-          extended_lengyel_solvers.forward_mode_fixed_step_solver(
+          extended_lengyel_solvers.forward_mode_fixed_point_solver(
               initial_sol_model=initial_sol_model,
-              iterations=fixed_step_iterations,
+              iterations=fixed_point_iterations,
           )
       )
     case (
@@ -346,7 +350,7 @@ def run_extended_lengyel_standalone(
       output_sol_model, solver_status = (
           extended_lengyel_solvers.inverse_mode_hybrid_solver(
               initial_sol_model=initial_sol_model,
-              fixed_step_iterations=fixed_step_iterations,
+              fixed_point_iterations=fixed_point_iterations,
               newton_raphson_iterations=newton_raphson_iterations,
               newton_raphson_tol=newton_raphson_tol,
           )
@@ -358,7 +362,7 @@ def run_extended_lengyel_standalone(
       output_sol_model, solver_status = (
           extended_lengyel_solvers.forward_mode_hybrid_solver(
               initial_sol_model=initial_sol_model,
-              fixed_step_iterations=fixed_step_iterations,
+              fixed_point_iterations=fixed_point_iterations,
               newton_raphson_iterations=newton_raphson_iterations,
               newton_raphson_tol=newton_raphson_tol,
           )
@@ -386,7 +390,7 @@ def run_extended_lengyel_standalone(
   for species in all_impurities:
     # For limited geometry, enrichment factor is 1.0.
     calculated_enrichment[species] = jnp.where(
-        is_diverted,
+        diverted,
         extended_lengyel_formulas.calc_enrichment_kallenbach(
             neutral_pressure_in_divertor=neutral_pressure_in_divertor,
             ion_symbol=species,
@@ -396,7 +400,7 @@ def run_extended_lengyel_standalone(
     )
 
   return ExtendedLengyelOutputs(
-      target_electron_temp=output_sol_model.state.target_electron_temp,
+      T_e_target=output_sol_model.state.T_e_target,
       neutral_pressure_in_divertor=neutral_pressure_in_divertor,
       alpha_t=output_sol_model.state.alpha_t,
       q_parallel=output_sol_model.state.q_parallel,
@@ -411,12 +415,12 @@ def run_extended_lengyel_standalone(
 
 def _validate_inputs_for_computation_mode(
     computation_mode: extended_lengyel_enums.ComputationMode,
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
 ):
   """Validates inputs based on the specified computation mode."""
   if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-    if target_electron_temp is not None:
+    if T_e_target is not None:
       raise ValueError(
           'Target electron temperature must not be provided for forward'
           ' computation.'
@@ -426,7 +430,7 @@ def _validate_inputs_for_computation_mode(
           'Seed impurity weights must not be provided for forward computation.'
       )
   elif computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-    if target_electron_temp is None:
+    if T_e_target is None:
       raise ValueError(
           'Target electron temperature must be provided for inverse'
           ' computation.'
@@ -445,7 +449,7 @@ def _calc_post_processed_outputs(
   """Calculates post-processed outputs for the extended Lengyel model."""
   sound_speed_at_target = jnp.sqrt(
       2.0
-      * sol_model.state.target_electron_temp
+      * sol_model.state.T_e_target
       * constants.CONSTANTS.eV_to_J
       / (sol_model.params.average_ion_mass * constants.CONSTANTS.m_amu)
   )
@@ -453,7 +457,7 @@ def _calc_post_processed_outputs(
   # From equation 22 of Body NF 2025.
   electron_density_at_target = sol_model.parallel_heat_flux_at_target / (
       sol_model.params.sheath_heat_transmission_factor
-      * sol_model.state.target_electron_temp
+      * sol_model.state.T_e_target
       * constants.CONSTANTS.eV_to_J
       * sound_speed_at_target
   )
@@ -466,7 +470,7 @@ def _calc_post_processed_outputs(
       - jnp.log(sol_model.params.average_ion_mass)
       - jnp.log(constants.CONSTANTS.m_amu)
       - jnp.log(constants.CONSTANTS.k_B)
-      - jnp.log(sol_model.params.wall_temperature)
+      - jnp.log(sol_model.params.T_wall)
   )
 
   flux_density_to_pascals_factor = jnp.exp(log_flux_density_to_pascals_factor)
@@ -475,7 +479,7 @@ def _calc_post_processed_outputs(
       electron_density_at_target * sound_speed_at_target
   )
   parallel_to_perp_factor = jnp.sin(
-      jnp.deg2rad(sol_model.params.target_angle_of_incidence)
+      jnp.deg2rad(sol_model.params.angle_of_incidence_target)
   )
 
   neutral_pressure_in_divertor = (

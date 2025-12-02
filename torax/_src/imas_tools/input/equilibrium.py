@@ -226,7 +226,7 @@ def geometry_from_IMAS(
       "diverted": np.bool(IMAS_data.boundary.type),
       "connection_length_target": None,
       "connection_length_divertor": None,
-      "target_angle_of_incidence": None,
+      "angle_of_incidence_target": None,
       "R_OMP": None,
       "R_target": None,
       "B_pol_OMP": None,

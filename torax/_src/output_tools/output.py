@@ -798,7 +798,7 @@ class StateHistory:
         "q_parallel",
         "heat_flux_perp_to_target",
         "separatrix_electron_temp",
-        "target_electron_temp",
+        "T_e_target",
         "neutral_pressure_in_divertor",
         "alpha_t",
         "separatrix_Z_eff",
@@ -814,8 +814,7 @@ class StateHistory:
       # Special handling for seed_impurity_concentrations
       # Only populate if the dict is not empty.
       if (
-          name == SEED_IMPURITY_CONCENTRATIONS
-          or name == CALCULATED_ENRICHMENT
+          name == SEED_IMPURITY_CONCENTRATIONS or name == CALCULATED_ENRICHMENT
       ) and value:
         # This is a dict of {impurity: array(time,)}, where (time,) is the shape
         # We want to convert it to an array of shape (n_impurities, time) with
@@ -847,9 +846,9 @@ class StateHistory:
           "solver_error", numerics.error
       )
     else:
-      # FixedStepOutcome (fixed step solver)
-      xr_dict["fixed_step_outcome"] = self._pack_into_data_array(
-          "fixed_step_outcome", numerics
+      # FixedPointOutcome (fixed point solver)
+      xr_dict["fixed_point_outcome"] = self._pack_into_data_array(
+          "fixed_point_outcome", numerics
       )
 
     return xr.Dataset(xr_dict)

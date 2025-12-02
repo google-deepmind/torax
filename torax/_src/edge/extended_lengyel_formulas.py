@@ -37,7 +37,7 @@ from torax._src.edge import extended_lengyel_defaults
 
 
 def _temperature_fit_function(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
     params: extended_lengyel_defaults._FitParams,
 ) -> jax.Array:
   """A general form for divertor loss functions in terms of target temperature.
@@ -46,43 +46,43 @@ def _temperature_fit_function(
   https://doi.org/10.1088/1361-6587/aaacf6
 
   Args:
-    target_electron_temp: Electron temperature at the target [eV].
+    T_e_target: Electron temperature at the target [eV].
     params: Fit parameters for the function.
 
   Returns:
     The value of the fit function.
   """
   return 1.0 - params.amplitude * jnp.power(
-      1.0 - jnp.exp(-target_electron_temp / params.width), params.shape
+      1.0 - jnp.exp(-T_e_target / params.width), params.shape
   )
 
 
 def calc_momentum_loss_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the momentum loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['momentum_loss'],
   )
 
 
 def calc_density_ratio_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the ratio n_e_target/n_e_cc in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['density_ratio'],
   )
 
 
 def calc_power_loss_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the power loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['power_loss'],
   )
 

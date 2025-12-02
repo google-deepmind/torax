@@ -26,11 +26,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_momentum_loss = 0.5364587873343747
-    target_electron_temp = 2.34  # [eV]
+    T_e_target = 2.34  # [eV]
 
     calculated_momentum_loss = (
         extended_lengyel_formulas.calc_momentum_loss_in_convection_layer(
-            target_electron_temp=target_electron_temp
+            T_e_target=T_e_target
         )
     )
     np.testing.assert_allclose(
@@ -43,11 +43,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_density_ratio = 0.6108818435013572
-    target_electron_temp = 2.34  # [eV]
+    T_e_target = 2.34  # [eV]
 
     calculated_density_ratio = (
         extended_lengyel_formulas.calc_density_ratio_in_convection_layer(
-            target_electron_temp=target_electron_temp
+            T_e_target=T_e_target
         )
     )
     np.testing.assert_allclose(
@@ -60,11 +60,11 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
     # reference value from the first loop of the reference case in
     # https://github.com/cfs-energy/extended-lengyel
     expected_power_loss = 0.6791789837814304
-    target_electron_temp = 2.34  # [eV]
+    T_e_target = 2.34  # [eV]
 
     calculated_power_loss = (
         extended_lengyel_formulas.calc_power_loss_in_convection_layer(
-            target_electron_temp=target_electron_temp
+            T_e_target=T_e_target
         )
     )
     np.testing.assert_allclose(
@@ -186,6 +186,7 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         expected_Z_eff,
         rtol=1e-5,
     )
+
 
 if __name__ == '__main__':
   absltest.main()

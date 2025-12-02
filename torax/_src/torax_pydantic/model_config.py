@@ -218,24 +218,24 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   def _validate_edge_diverted_status(self) -> typing_extensions.Self:
     """Validates diverted status configuration in edge model.
 
-    Ensures that `is_diverted` is handled correctly based on geometry type:
-    - For FBT geometry: `is_diverted` must NOT be set (it's provided by FBT).
-    - For non-FBT geometry: `is_diverted` MUST be set if edge model is used.
+    Ensures that `diverted` is handled correctly based on geometry type:
+    - For FBT geometry: `diverted` must NOT be set (it's provided by FBT).
+    - For non-FBT geometry: `diverted` MUST be set if edge model is used.
     """
     if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
       is_fbt = self.geometry.geometry_type == geometry.GeometryType.FBT
-      is_diverted_configured = self.edge.is_diverted is not None
+      diverted = self.edge.diverted is not None
 
-      if is_fbt and is_diverted_configured:
+      if is_fbt and diverted:
         raise ValueError(
-            'Extended Lengyel edge model configuration error: `is_diverted`'
+            'Extended Lengyel edge model configuration error: `diverted`'
             ' must NOT be set when using FBT geometry. FBT geometry files'
             ' inherently provide diverted status information.'
         )
 
-      if not is_fbt and not is_diverted_configured:
+      if not is_fbt and not diverted:
         raise ValueError(
-            'Extended Lengyel edge model configuration error: `is_diverted`'
+            'Extended Lengyel edge model configuration error: `diverted`'
             ' MUST be set when using non-FBT geometry (e.g. CHEASE, EQDSK,'
             ' IMAS). These geometry sources do not reliably provide diverted'
             ' status, so it must be explicitly configured in the edge model.'

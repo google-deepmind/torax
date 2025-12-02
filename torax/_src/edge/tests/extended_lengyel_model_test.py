@@ -47,7 +47,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     """Tests that ExtendedLengyelModel.__call__ works correctly in inverse mode.
 
     This test uses the same physical parameters as the standalone test
-    `test_run_extended_lengyel_model_inverse_mode_fixed_step` in
+    `test_run_extended_lengyel_model_inverse_mode_fixed_point` in
     `extended_lengyel_standalone_test.py` and verifies it matches the expected
     outputs when called through the model adapter with TORAX state objects.
     """
@@ -85,7 +85,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.vpr = np.linspace(0, 100, n_rho)
     mock_geo.connection_length_target = None
     mock_geo.connection_length_divertor = None
-    mock_geo.target_angle_of_incidence = None
+    mock_geo.angle_of_incidence_target = None
     mock_geo.R_target = None
     mock_geo.R_OMP = None
     mock_geo.B_pol_OMP = None
@@ -154,11 +154,11 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     edge_config = pydantic_model.ExtendedLengyelConfig(
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-        solver_mode=extended_lengyel_enums.SolverMode.FIXED_STEP,
+        solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
         impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
-        target_electron_temp=2.34,
-        parallel_connection_length=20.0,
-        divertor_parallel_length=5.0,
+        T_e_target=2.34,
+        connection_length_target=20.0,
+        connection_length_divertor=5.0,
         seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
         fixed_impurity_concentrations={'He': 0.01},
         enrichment_factor={'N': 1.0, 'Ar': 1.0, 'He': 1.0},
@@ -214,7 +214,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     )
     self.assertEqual(
         outputs.solver_status.numerics_outcome,
-        extended_lengyel_solvers.FixedStepOutcome.SUCCESS,
+        extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
     for key, value in expected_outputs.items():
       if key == 'seed_impurity_concentrations':
@@ -250,7 +250,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # Need minimal attributes for _resolve_geometric_parameters
     mock_geo.connection_length_target = None
     mock_geo.connection_length_divertor = None
-    mock_geo.target_angle_of_incidence = None
+    mock_geo.angle_of_incidence_target = None
     mock_geo.R_target = None
     mock_geo.R_OMP = None
     mock_geo.B_pol_OMP = None
@@ -297,12 +297,12 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         enrichment_factor={'He': enrichment},
         seed_impurity_weights={},
         # Other required fields
-        parallel_connection_length=10.0,
-        divertor_parallel_length=5.0,
-        target_angle_of_incidence=1.0,
+        connection_length_target=10.0,
+        connection_length_divertor=5.0,
+        angle_of_incidence_target=1.0,
         toroidal_flux_expansion=1.0,
         use_enrichment_model=False,
-        is_diverted=True,
+        diverted=True,
     )
     edge_params = edge_config.build_runtime_params(t=0.0)
 
@@ -342,12 +342,12 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
   @parameterized.named_parameters(
       (
           'diverted',
-          True,  # is_diverted
+          True,  # diverted
           3.0,  # expected broadening
       ),
       (
           'limited',
-          False,  # is_diverted
+          False,  # diverted
           1.0,  # expected broadening
       ),
   )
@@ -356,7 +356,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
   )
   def test_broadening_limited_logic(
       self,
-      is_diverted,
+      diverted,
       expected_broadening,
       mock_run_standalone,
   ):
@@ -365,7 +365,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     _CONFIG_BROADENING = 3.0
 
     # 1. Mock Geometry
-    # We simulate a non-FBT geometry so that 'is_diverted' is read from
+    # We simulate a non-FBT geometry so that 'diverted' is read from
     # the edge configuration rather than the geometry object.
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
     mock_geo.geometry_type = geometry.GeometryType.CHEASE  # Not FBT
@@ -376,7 +376,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_geo.drho_norm = np.ones(n_rho) / n_rho
     mock_geo.connection_length_target = None
     mock_geo.connection_length_divertor = None
-    mock_geo.target_angle_of_incidence = None
+    mock_geo.angle_of_incidence_target = None
     mock_geo.R_target = None
     mock_geo.R_OMP = None
     mock_geo.B_pol_OMP = None
@@ -413,12 +413,12 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
         fixed_impurity_concentrations={'He': 0.05},
         seed_impurity_weights={},
-        parallel_connection_length=10.0,
-        divertor_parallel_length=5.0,
-        target_angle_of_incidence=1.0,
+        connection_length_target=10.0,
+        connection_length_divertor=5.0,
+        angle_of_incidence_target=1.0,
         toroidal_flux_expansion=1.0,
         use_enrichment_model=True,
-        is_diverted=is_diverted,
+        diverted=diverted,
         divertor_broadening_factor=_CONFIG_BROADENING,
     )
     edge_params = edge_config.build_runtime_params(t=0.0)
@@ -449,12 +449,12 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     _, kwargs = mock_run_standalone.call_args
 
     # Check divertor broadening factor logic.
-    # If limited (is_diverted=False), this should be forced to 1.0.
+    # If limited (diverted=False), this should be forced to 1.0.
     np.testing.assert_allclose(
         kwargs['divertor_broadening_factor'],
         expected_broadening,
         err_msg=(
-            f'Broadening factor mismatch. is_diverted={is_diverted}, '
+            f'Broadening factor mismatch. diverted={diverted}, '
             f'config={_CONFIG_BROADENING}, expected={expected_broadening}'
         ),
     )
@@ -480,11 +480,11 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     # Defaults for required fields to avoid clutter in tests
     defaults = {
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
-        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_STEP,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
         'impurity_sot': extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
         'update_temperatures': True,
         'update_impurities': True,
-        'fixed_step_iterations': 1,
+        'fixed_point_iterations': 1,
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
         'ne_tau': 0.0,
@@ -494,25 +494,25 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
         'fraction_of_P_SOL_to_divertor': 1.0,
         'SOL_conduction_fraction': 1.0,
         'ratio_of_molecular_to_ion_mass': 1.0,
-        'wall_temperature': 1.0,
-        'separatrix_mach_number': 1.0,
-        'separatrix_ratio_of_ion_to_electron_temp': 1.0,
-        'separatrix_ratio_of_electron_to_ion_density': 1.0,
-        'target_ratio_of_ion_to_electron_temp': 1.0,
-        'target_ratio_of_electron_to_ion_density': 1.0,
-        'target_mach_number': 1.0,
+        'T_wall': 1.0,
+        'mach_separatrix': 1.0,
+        'T_i_T_e_ratio_separatrix': 1.0,
+        'n_e_n_i_ratio_separatrix': 1.0,
+        'T_i_T_e_ratio_target': 1.0,
+        'n_e_n_i_ratio_target': 1.0,
+        'mach_target': 1.0,
         'seed_impurity_weights': {},
         'fixed_impurity_concentrations': {},
         'enrichment_factor': {},
-        'target_electron_temp': None,
+        'T_e_target': None,
         # Geometric params default to None to test validation
-        'parallel_connection_length': None,
-        'divertor_parallel_length': None,
+        'connection_length_target': None,
+        'connection_length_divertor': None,
         'toroidal_flux_expansion': None,
-        'target_angle_of_incidence': None,
+        'angle_of_incidence_target': None,
         'use_enrichment_model': False,
         'enrichment_model_multiplier': 1.0,
-        'is_diverted': None,
+        'diverted': None,
     }
     defaults.update(kwargs)
     return extended_lengyel_model.RuntimeParams(**defaults)
@@ -521,7 +521,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
     mock_geo.connection_length_target = 100.0
     mock_geo.connection_length_divertor = 10.0
-    mock_geo.target_angle_of_incidence = 5.0
+    mock_geo.angle_of_incidence_target = 5.0
     mock_geo.R_target = 4.0
     mock_geo.R_OMP = 2.0
     mock_geo.B_pol_OMP = 1.0
@@ -531,29 +531,29 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
 
     # Config also provides values (conflicting)
     edge_params = self._create_edge_params(
-        parallel_connection_length=30.0,
-        divertor_parallel_length=20.0,
-        target_angle_of_incidence=1.0,
+        connection_length_target=30.0,
+        connection_length_divertor=20.0,
+        angle_of_incidence_target=1.0,
         toroidal_flux_expansion=3.0,
     )
 
     with self.assertLogs(level='WARNING') as logs:
       resolved = extended_lengyel_model._resolve_geometric_parameters(
-          mock_geo, self.mock_core_profiles, edge_params, is_diverted=True
+          mock_geo, self.mock_core_profiles, edge_params, diverted=True
       )
 
     # Verify values from Geometry are used
-    self.assertEqual(resolved.parallel_connection_length, 100.0)
-    self.assertEqual(resolved.divertor_parallel_length, 10.0)
-    self.assertEqual(resolved.target_angle_of_incidence, 5.0)
+    self.assertEqual(resolved.connection_length_target, 100.0)
+    self.assertEqual(resolved.connection_length_divertor, 10.0)
+    self.assertEqual(resolved.angle_of_incidence_target, 5.0)
     self.assertEqual(resolved.toroidal_flux_expansion, 2.0)
 
     # Verify warnings were logged for overrides
     self.assertTrue(
-        any('parallel_connection_length' in r.message for r in logs.records)
+        any('connection_length_target' in r.message for r in logs.records)
     )
     self.assertTrue(
-        any('divertor_parallel_length' in r.message for r in logs.records)
+        any('connection_length_divertor' in r.message for r in logs.records)
     )
 
   def test_resolve_geo_params_fallback_to_config(self):
@@ -561,27 +561,27 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
     mock_geo.connection_length_target = None
     mock_geo.connection_length_divertor = None
-    mock_geo.target_angle_of_incidence = None
+    mock_geo.angle_of_incidence_target = None
     mock_geo.R_target = None
     mock_geo.R_OMP = None
     mock_geo.B_pol_OMP = None
     mock_geo.diverted = None
 
     edge_params = self._create_edge_params(
-        parallel_connection_length=50.0,
-        divertor_parallel_length=5.0,
-        target_angle_of_incidence=2.0,
+        connection_length_target=50.0,
+        connection_length_divertor=5.0,
+        angle_of_incidence_target=2.0,
         toroidal_flux_expansion=1.5,
     )
 
     with self.assertLogs(level='WARNING') as logs:
       resolved = extended_lengyel_model._resolve_geometric_parameters(
-          mock_geo, self.mock_core_profiles, edge_params, is_diverted=True
+          mock_geo, self.mock_core_profiles, edge_params, diverted=True
       )
 
     # Verify values from Config are used
-    self.assertEqual(resolved.parallel_connection_length, 50.0)
-    self.assertEqual(resolved.target_angle_of_incidence, 2.0)
+    self.assertEqual(resolved.connection_length_target, 50.0)
+    self.assertEqual(resolved.angle_of_incidence_target, 2.0)
 
     # Verify warnings were logged for fallbacks
     self.assertTrue(
@@ -593,7 +593,7 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
     mock_geo.connection_length_target = None
     mock_geo.connection_length_divertor = None
-    mock_geo.target_angle_of_incidence = None
+    mock_geo.angle_of_incidence_target = None
     mock_geo.R_target = None
     mock_geo.R_OMP = None
     mock_geo.B_pol_OMP = None
@@ -603,10 +603,10 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
     edge_params = self._create_edge_params()
 
     with self.assertRaisesRegex(
-        ValueError, "Parameter 'parallel_connection_length' must be provided"
+        ValueError, "Parameter 'connection_length_target' must be provided"
     ):
       extended_lengyel_model._resolve_geometric_parameters(
-          mock_geo, self.mock_core_profiles, edge_params, is_diverted=True
+          mock_geo, self.mock_core_profiles, edge_params, diverted=True
       )
 
 
@@ -627,12 +627,12 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
             'fixed_impurity_concentrations': {'Ne': 5e-2},
             'enrichment_factor': {'Ne': 1.0},
-            'parallel_connection_length': 50.0,
-            'divertor_parallel_length': 10.0,
+            'connection_length_target': 50.0,
+            'connection_length_divertor': 10.0,
             'toroidal_flux_expansion': 4.0,
-            'target_angle_of_incidence': 3.0,
+            'angle_of_incidence_target': 3.0,
             'use_enrichment_model': False,
-            'is_diverted': True,
+            'diverted': True,
         },
     })
 
@@ -687,15 +687,15 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
             'fixed_impurity_concentrations': {'Ne': 5e-2},
             'enrichment_factor': {'Ne': 1.0},
-            'parallel_connection_length': 50.0,
-            'divertor_parallel_length': 10.0,
+            'connection_length_target': 50.0,
+            'connection_length_divertor': 10.0,
             'toroidal_flux_expansion': 4.0,
-            'target_angle_of_incidence': 3.0,
+            'angle_of_incidence_target': 3.0,
             # Test parameters
             'update_temperatures': update_temperatures,
-            'target_ratio_of_ion_to_electron_temp': ion_to_electron_ratio,
+            'T_i_T_e_ratio_target': ion_to_electron_ratio,
             'use_enrichment_model': False,
-            'is_diverted': True,
+            'diverted': True,
         },
     })
 
@@ -781,16 +781,16 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         'edge': {
             'model_name': 'extended_lengyel',
             'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
-            'target_electron_temp': 2.5,
+            'T_e_target': 2.5,
             'seed_impurity_weights': {'N': 1.0},
             'fixed_impurity_concentrations': {'He3': 0.06},
             'enrichment_factor': {'N': enrichment, 'He3': 1.0},
-            'parallel_connection_length': 60.0,
-            'divertor_parallel_length': 15.0,
+            'connection_length_target': 60.0,
+            'connection_length_divertor': 15.0,
             'toroidal_flux_expansion': 4.0,
-            'target_angle_of_incidence': 3.0,
+            'angle_of_incidence_target': 3.0,
             'use_enrichment_model': False,
-            'is_diverted': True,
+            'diverted': True,
         },
     })
 
@@ -877,12 +877,12 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
                 'Ne': self._EDGE_NE_VALUE / self._N_E_VALUE
             },
             'enrichment_factor': {'Ne': self._CONFIG_ENRICHMENT},
-            'parallel_connection_length': 50.0,
-            'divertor_parallel_length': 10.0,
+            'connection_length_target': 50.0,
+            'connection_length_divertor': 10.0,
             'toroidal_flux_expansion': 4.0,
-            'target_angle_of_incidence': 3.0,
-            'is_diverted': True,
-            # 'use_enrichment_model' and 'is_diverted' are overridden in tests.
+            'angle_of_incidence_target': 3.0,
+            'diverted': True,
+            # 'use_enrichment_model' and 'diverted' are overridden in tests.
         },
     })
 
@@ -898,7 +898,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     """Enrichment from Kallenbach model for diverted geometry."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': True,
-        'edge.is_diverted': True,
+        'edge.diverted': True,
     })
     outputs, _ = run_simulation.run_simulation(self.torax_config)
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
@@ -923,7 +923,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     """Enrichment from config for diverted geometry."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': False,
-        'edge.is_diverted': True,
+        'edge.diverted': True,
     })
     outputs, _ = run_simulation.run_simulation(self.torax_config)
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
@@ -941,7 +941,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     """Enrichment is 1.0 for limited geometry when using model."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': True,
-        'edge.is_diverted': False,
+        'edge.diverted': False,
     })
     outputs, _ = run_simulation.run_simulation(self.torax_config)
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
@@ -961,7 +961,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     """Enrichment from config for limited geometry."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': False,
-        'edge.is_diverted': False,
+        'edge.diverted': False,
     })
     outputs, _ = run_simulation.run_simulation(self.torax_config)
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]

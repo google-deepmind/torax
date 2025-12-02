@@ -63,7 +63,7 @@ class GeometryTest(parameterized.TestCase):
         diverted=None,
         connection_length_target=None,
         connection_length_divertor=None,
-        target_angle_of_incidence=None,
+        angle_of_incidence_target=None,
         R_OMP=None,
         R_target=None,
         B_pol_OMP=None,
