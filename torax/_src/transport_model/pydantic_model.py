@@ -220,6 +220,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   # Quasilinear transport options
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
+  collisionality_multiplier: float = 1.0
 
   def build_transport_model(
       self,
@@ -237,6 +238,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
         An_min=self.An_min,
         rotation_multiplier=self.rotation_multiplier,
         use_rotation=self.use_rotation,
+        collisionality_multiplier=self.collisionality_multiplier,
         # From base
         **base_kwargs,
     )
@@ -415,6 +417,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 
 try:
   from torax._src.transport_model import qualikiz_transport_model  # pylint: disable=g-import-not-at-top
+  from torax._src.transport_model import tglf_transport_model  # pylint: disable=g-import-not-at-top
 
   # Since CombinedCompatibleTransportModel is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
@@ -426,6 +429,7 @@ try:
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
       | qualikiz_transport_model.QualikizTransportModelConfig
+      | tglf_transport_model.TGLFTransportModelConfig
   )
 
 except ImportError:

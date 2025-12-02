@@ -224,6 +224,7 @@ class TGLFBasedTransportModelConfig(
         An_min=0.05,
         use_rotation=True,
         rotation_multiplier=1.0,
+        collisionality_multiplier=1.0,
         **base_kwargs,
     )
 
