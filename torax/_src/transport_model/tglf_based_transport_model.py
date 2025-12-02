@@ -36,6 +36,9 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
 
+  DV_effective: bool
+  An_min: float
+
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
@@ -66,16 +69,21 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   """
 
   Ti_over_Te: array_typing.FloatVectorFace
+  ni0_over_ne: array_typing.FloatVectorFace
+  ni1_over_ne: array_typing.FloatVectorFace
   r_minor: array_typing.FloatVectorFace
+  r_major: array_typing.FloatVectorFace
   dr_major: array_typing.FloatVectorFace
   q: array_typing.FloatVectorFace
   q_prime: array_typing.FloatVectorFace
   nu_ee: array_typing.FloatVectorFace
+  debye: array_typing.FloatVectorFace
   kappa: array_typing.FloatVectorFace
   kappa_shear: array_typing.FloatVectorFace
   delta: array_typing.FloatVectorFace
   delta_shear: array_typing.FloatVectorFace
   beta_e: array_typing.FloatVectorFace
+  p_prime: array_typing.FloatVectorFace
   Zeff: array_typing.FloatVectorFace
   Q_GB: array_typing.FloatVectorFace
   Gamma_GB: array_typing.FloatVectorFace
@@ -85,6 +93,18 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   @property
   def TAUS_2(self) -> array_typing.FloatVectorFace:
     return self.Ti_over_Te
+
+  @property
+  def TAUS_3(self) -> array_typing.FloatVectorFace:
+    return self.Ti_over_Te
+
+  @property
+  def AS_2(self) -> array_typing.FloatVectorFace:
+    return self.ni0_over_ne
+
+  @property
+  def AS_3(self) -> array_typing.FloatVectorFace:
+    return self.ni1_over_ne
 
   @property
   def DRMAJDX_LOC(self) -> array_typing.FloatVectorFace:
@@ -101,6 +121,10 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   @property
   def XNUE(self) -> array_typing.FloatVectorFace:
     return self.nu_ee
+
+  @property
+  def DEBYE(self) -> array_typing.FloatVectorFace:
+    return self.debye
 
   @property
   def KAPPA_LOC(self) -> array_typing.FloatVectorFace:
@@ -131,6 +155,14 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     return self.lref_over_lne
 
   @property
+  def RLNS_2(self) -> array_typing.FloatVectorFace:
+    return self.lref_over_lni0
+
+  @property
+  def RLNS_3(self) -> array_typing.FloatVectorFace:
+    return self.lref_over_lni1
+
+  @property
   def RLTS_1(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lte
 
@@ -139,8 +171,20 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     return self.lref_over_lti
 
   @property
+  def RLTS_3(self) -> array_typing.FloatVectorFace:
+    return self.lref_over_lti
+
+  @property
+  def P_PRIME_LOC(self) -> array_typing.FloatVectorFace:
+    return self.p_prime
+
+  @property
   def RMIN_LOC(self) -> array_typing.FloatVectorFace:
     return self.r_minor
+
+  @property
+  def RMAJ_LOC(self) -> array_typing.FloatVectorFace:
+    return self.r_major
 
   @property
   def VEXB_SHEAR(self) -> array_typing.FloatVectorFace:
@@ -229,8 +273,20 @@ class TGLFBasedTransportModel(
     )
     rho_s = m_D * c_s / (constants.CONSTANTS.q_e * B_unit)  # Ion gyroradius
 
+    # Debye length
+    debye = (
+        (constants.CONSTANTS.epsilon_0 / constants.CONSTANTS.q_e)
+        * 1.0e3 * core_profiles.T_e.face_value()
+        / n_e
+    ) ** 0.5 / rho_s
+    debye = debye.at[0].set(2 * debye[1] - debye[2])
+
     # Temperature ratio
     Ti_over_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
+
+    # Main ion dilution
+    ni0_over_ne = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+    ni1_over_ne = core_profiles.n_impurity.face_value() / core_profiles.n_e.face_value()
 
     # Dimensionless gradients
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
@@ -283,6 +339,32 @@ class TGLFBasedTransportModel(
         * core_profiles.q_face**2
         * a**2
         / r**2
+    )
+    q_prime = jnp.where(
+        jnp.isfinite(q_prime),
+        q_prime,
+        0.0
+    )
+
+    #Dimensionless pressure gradient
+    p = constants.CONSTANTS.keV_to_J * (
+        core_profiles.n_e.face_value() * core_profiles.T_e.face_value()
+        + core_profiles.n_i.face_value() * core_profiles.T_i.face_value()
+        + core_profiles.n_impurity.face_value() * core_profiles.T_i.face_value()
+    )
+    p_prime = (
+        1.0e-7
+        #2.0 * constants.CONSTANTS.mu_0
+        * jnp.gradient(p, r)
+        * core_profiles.q_face
+        * a**2
+        / r
+        / B_unit**2
+    )
+    p_prime = jnp.where(
+        jnp.isfinite(p_prime),
+        p_prime,
+        0.0
     )
 
     # Electron beta
@@ -377,16 +459,21 @@ class TGLFBasedTransportModel(
         lref_over_lni1=normalized_log_gradients.lref_over_lni1,
         # From TGLFInputs
         Ti_over_Te=Ti_over_Te,
+        ni0_over_ne=ni0_over_ne,
+        ni1_over_ne=ni1_over_ne,
         r_minor=r / a,
+        r_major=r_major / a,
         dr_major=dr_major,
         q=core_profiles.q_face,
         q_prime=q_prime,
         nu_ee=normalized_nu_ee,
+        debye=debye,
         kappa=kappa,
         kappa_shear=kappa_shear,
         delta=geo.delta_face,
         delta_shear=delta_shear,
         beta_e=beta_e,
+        p_prime=p_prime,
         Zeff=core_profiles.Z_eff_face,
         Q_GB=Q_GB,
         Gamma_GB=Gamma_GB,
@@ -420,28 +507,32 @@ class TGLFBasedTransportModel(
     dT_e_drhon = core_profiles.T_e.face_grad() * constants.CONSTANTS.keV_to_J
     dT_i_drhon = core_profiles.T_i.face_grad() * constants.CONSTANTS.keV_to_J
     chi_e = -P_e / (
-        core_profiles.n_e.face_value() * dT_e_drhon * geo.g1_over_vpr_face
+        core_profiles.n_e.face_value() * dT_e_drhon * geo.g1_over_vpr_face + constants.CONSTANTS.eps
     )
     chi_i = -P_i / (
-        core_profiles.n_i.face_value() * dT_i_drhon * geo.g1_over_vpr_face
+        core_profiles.n_i.face_value() * dT_i_drhon * geo.g1_over_vpr_face + constants.CONSTANTS.eps
     )
 
     # Convert from particle rate to D, V using effective
     # diffusivity/convectivity method. This sets purely diffusive transport in
     # regions where the flux is with the temperature gradient, otherwise it
     # sets purely convective transport.
-    D_eff = -S_e / (core_profiles.n_e.face_grad() * geo.g1_over_vpr_face)
+    D_eff = -S_e / (core_profiles.n_e.face_grad() * geo.g1_over_vpr_face + constants.CONSTANTS.eps)
     V_eff = S_e / (core_profiles.n_e.face_value() * geo.g0_face)
-    D_eff_mask = ((S_e >= 0) & (tglf_inputs.lref_over_lne >= 0)) | (
-        (S_e < 0) & (tglf_inputs.lref_over_lne < 0)
+    D_eff = jnp.where(jnp.isfinite(D_eff), D_eff, 0.0)
+    V_eff = jnp.where(jnp.isfinite(V_eff), V_eff, 0.0)
+    D_eff_mask = (
+        ((S_e >= 0) & (tglf_inputs.lref_over_lne >= 0))
+        | ((S_e < 0) & (tglf_inputs.lref_over_lne < 0))
     )
     # For stability, we also set purely diffusive transport at some minimum
     # threshold of the temperature gradient.
-    D_eff_mask &= abs(tglf_inputs.lref_over_lne) >= transport.An_min
+    D_eff_mask &= (abs(tglf_inputs.lref_over_lne) >= (transport.An_min * geo.a_minor / geo.R_major))
+    V_eff_mask = jnp.invert(D_eff_mask)
 
     # Apply the mask.
     d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
-    v_face_el = jnp.where(D_eff_mask, 0.0, V_eff)
+    v_face_el = jnp.where(V_eff_mask, V_eff, 0.0)
 
     return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_i,
