@@ -13,14 +13,17 @@
 # limitations under the License.
 """Common formulas used in neoclassical models."""
 
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.physics import collisions
+from torax._src.physics import psi_calculations
+
 
 # pylint: disable=invalid-name
-
-
 def calculate_f_trap(
     geo: geometry_lib.Geometry,
 ) -> array_typing.FloatVectorFace:
@@ -179,4 +182,132 @@ def calculate_nu_i_star(
           ((T_i * 1e3) ** 2)
           * (geo.epsilon_face + constants.CONSTANTS.eps) ** 1.5
       )
+  )
+
+
+# Functions to calculate the neoclassical poloidal velocity.
+def _calculate_neoclassical_k_neo(
+    nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
+):
+  """Calculates the neoclassical coefficient k_neo.
+
+  Equation (6.135) from
+  Hinton, F. L., & Hazeltine, R. D.,
+  "Theory of plasma transport in toroidal confinement systems"
+  Rev. Mod. Phys. 48(2), 239–308. (1976)
+  https://doi.org/10.1103/RevModPhys.48.239
+
+  Limits:
+    - Banana regime (nu_star -> 0): ~1.17
+    - Pfirsch-Schluter regime (nu_star -> inf): ~ -2.1
+
+  Args:
+    nu_star : The normalized ion collisionality.
+    epsilon : The inverse aspect ratio.
+
+  Returns:
+    k_neo : The neoclassical coefficient.
+  """
+  # Calculate the first term (Banana-Plateau transition)
+  # (1.17 - 0.35 * sqrt(nu)) / (1 + 0.7 * sqrt(nu))
+  sqrt_nu = jnp.sqrt(nu_star)
+  term1 = (1.17 - 0.35 * sqrt_nu) / (1.0 + 0.7 * sqrt_nu)
+
+  # Calculate the second term (Pfirsch-Schluter driver)
+  # 2.1 * nu^2 * epsilon^3
+  ps_factor = (nu_star**2) * (epsilon**3)
+  term2 = 2.1 * ps_factor
+
+  # Calculate the final denominator (Switching function)
+  # 1 + nu^2 * epsilon^3
+  denominator = 1.0 + ps_factor
+
+  return (term1 - term2) / denominator
+
+# TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
+# See Sauter (1999) Eq. 17a-17b
+
+
+@jax.jit
+def calculate_poloidal_velocity(
+    T_i: cell_variable.CellVariable,
+    n_i: array_typing.FloatVectorFace,
+    q: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+    Z_i: array_typing.FloatVectorFace,
+    psi: cell_variable.CellVariable,
+    geo: geometry_lib.Geometry,
+    rotation_multiplier: array_typing.FloatScalar = 1.0,
+) -> cell_variable.CellVariable:
+  """Computes the neoclassical ion poloidal velocity profile.
+
+  Implementing eq.33 from
+  Y. B. Kim , P. H. Diamond , R. J. Groebner.
+  "Neoclassical poloidal and toroidal rotation in tokamaks"
+  Phys. Fluids B 3, 2050–2060 (1991)
+  https://doi.org/10.1063/1.859671
+
+  Eq. 33 can be simplified to the following form in SI units:
+  v_pol = k_neo * (dT/dr) * (B_tor / <B^2>) / (Z * e)
+
+  Args:
+    T_i: Ion temperature as a cell variable [keV].
+    n_i: Ion density on the face grid [m^-3].
+    q: Safety factor on the face grid.
+    Z_eff: Effective charge on the face grid.
+    Z_i: Main ion charge on the face grid.
+    psi: Poloidal flux profile as a cell variable.
+    geo : Geometry
+    rotation_multiplier: A multiplier to apply to the poloidal velocity.
+  Returns:
+    v_pol : Poloidal velocity profile [m/s].
+  """
+  # Note: all computations are performed on the face grid.
+
+  T_i_face = T_i.face_value()
+  # Geometry
+  R = geo.R_major_profile_face
+  eps = geo.epsilon_face
+
+  # Magnetic Fields
+  B_tor = geo.F_face / R
+  B_pol_squared = psi_calculations.calc_bpol_squared(geo, psi)
+  B_total_squared = B_pol_squared + B_tor**2
+
+  # Calculate Neoclassical Coefficient k_i
+  log_lambda_ii = collisions.calculate_log_lambda_ii(
+      T_i_face,
+      n_i,
+      Z_eff,
+  )
+  nu_i_star = calculate_nu_i_star(
+      q=q,
+      geo=geo,
+      n_i=n_i,
+      T_i=T_i_face,
+      Z_eff=Z_eff,
+      log_lambda_ii=log_lambda_ii,
+  )
+  k_neo = _calculate_neoclassical_k_neo(nu_i_star, eps)
+
+  # Calculate Radial Temperature Gradient (dT/dr)
+  grad_Ti = T_i.face_grad(geo.r_mid) * constants.CONSTANTS.keV_to_J  # [J/m]
+
+  # Calculate Poloidal Velocity
+  # v_pol = k_i * (dT/dr) * (B_tor / <B^2>) / (Z * e)
+  B_total_squared_safe = jnp.maximum(B_total_squared, constants.CONSTANTS.eps)
+  v_pol = (
+      k_neo
+      * grad_Ti
+      * (B_tor / B_total_squared_safe)
+      / (constants.CONSTANTS.q_e * Z_i)
+  )
+
+  v_pol = rotation_multiplier * v_pol
+
+  return cell_variable.CellVariable(
+      value=geometry_lib.face_to_cell(v_pol),
+      dr=geo.drho_norm,
+      right_face_constraint=v_pol[-1],
+      right_face_grad_constraint=None,
   )
