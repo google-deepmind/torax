@@ -21,6 +21,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src.edge import base
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
@@ -41,8 +42,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     separatrix_Z_eff: Z_eff at the separatrix.
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
-    calculated_enrichment: A mapping from ion symbol to its enrichment factor
-      as calculated by the Kallenbach model.
+    calculated_enrichment: A mapping from ion symbol to its enrichment factor as
+      calculated by the Kallenbach model.
   """
 
   alpha_t: jax.Array
@@ -113,6 +114,7 @@ def run_extended_lengyel_standalone(
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
+    is_diverted: bool = True,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -158,13 +160,14 @@ def run_extended_lengyel_standalone(
     target_ratio_of_electron_to_ion_density: ne/ni at target.
     target_mach_number: Mach number at target.
     toroidal_flux_expansion: Toroidal flux expansion factor.
-    fixed_step_iterations: Number of iterations for fixed step solver.
-      If None, then a default value is used based on the solver mode: different
-      defaults for hybrid and fixed-step solvers. For Newton-Raphson,
-      this argument is ignored and remains None if inputted as None.
+    fixed_step_iterations: Number of iterations for fixed step solver. If None,
+      then a default value is used based on the solver mode: different defaults
+      for hybrid and fixed-step solvers. For Newton-Raphson, this argument is
+      ignored and remains None if inputted as None.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
     enrichment_model_multiplier: Multiplier for the Kallenbach enrichment model.
+    is_diverted: Whether we are in diverted geometry or not.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values and solver
@@ -381,12 +384,15 @@ def run_extended_lengyel_standalone(
       seed_impurity_weights.keys()
   )
   for species in all_impurities:
-    calculated_enrichment[species] = (
+    # For limited geometry, enrichment factor is 1.0.
+    calculated_enrichment[species] = jnp.where(
+        is_diverted,
         extended_lengyel_formulas.calc_enrichment_kallenbach(
             neutral_pressure_in_divertor=neutral_pressure_in_divertor,
             ion_symbol=species,
             enrichment_multiplier=enrichment_model_multiplier,
-        )
+        ),
+        jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
 
   return ExtendedLengyelOutputs(

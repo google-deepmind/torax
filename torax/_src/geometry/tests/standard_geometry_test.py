@@ -17,6 +17,7 @@ import jax
 import numpy as np
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
+from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import standard_geometry
 
 # pylint: disable=invalid-name
@@ -73,9 +74,9 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_standard_geometries(self):
     """Test stack_geometries for standard geometries."""
     # Create a few different geometries
-    L, LY0 = _get_example_L_LY_data(10, 1, prefactor=1.0)
-    _, LY1 = _get_example_L_LY_data(10, 1, prefactor=2.0)
-    _, LY2 = _get_example_L_LY_data(10, 1, prefactor=3.0)
+    L, LY0 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=1.0)
+    _, LY1 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=2.0)
+    _, LY2 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=3.0)
     geo0_intermediate = fbt._from_fbt_single_slice(
         geometry_directory=None, LY_object=LY0, L_object=L
     )
@@ -134,42 +135,6 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         stacked_geo.g1_over_vpr2_face[:, 0], 1 / stacked_geo.rho_b**2
     )
-
-
-def _get_example_L_LY_data(
-    len_psinorm: int, len_times: int, prefactor: float = 0.0
-):
-  LY = {  # Squeeze when intended for a single time slice.
-      'rBt': np.full(len_times, prefactor).squeeze(),
-      'aminor': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'rgeom': np.full((len_psinorm, len_times), 2.0 * prefactor).squeeze(),
-      'TQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'FB': np.full(len_times, prefactor).squeeze(),
-      'FA': np.full(len_times, prefactor).squeeze(),
-      'Q0Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q1Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q2Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q3Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q4Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q5Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'ItQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'deltau': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'deltal': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'kappa': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'epsilon': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      # When prefactor != 0 (i.e. intended to generate a standard geometry),
-      # needs to be linspace to avoid drho_norm = 0.
-      'FtPQ': (
-          np.array(
-              [np.linspace(0, prefactor, len_psinorm) for _ in range(len_times)]
-          ).T.squeeze()
-      ),
-      'zA': np.zeros(len_times).squeeze(),
-      't': np.zeros(len_times).squeeze(),
-      'lX': np.zeros(len_times, dtype=int).squeeze(),
-  }
-  L = {'pQ': np.linspace(0, 1, len_psinorm)}
-  return L, LY
 
 
 if __name__ == '__main__':

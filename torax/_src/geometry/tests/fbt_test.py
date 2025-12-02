@@ -1,4 +1,3 @@
-### FILEPATH ### torax/_src/geometry/tests/standard_geometry_test.py ###
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +20,7 @@ import numpy as np
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
+from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
 
@@ -103,7 +103,7 @@ class FBTGeometryTest(parameterized.TestCase):
     len_psinorm = 20
     len_times = 3
 
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
 
     LY[invalid_key] = np.zeros(invalid_shape)
 
@@ -136,7 +136,7 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_validate_fbt_data_missing_LY_key(self, missing_key):
     len_psinorm = 20
     len_times = 3
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     del LY[missing_key]
 
     if missing_key == 'FtPQ':
@@ -150,7 +150,7 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_validate_fbt_data_missing_L_key(self):
     len_psinorm = 20
     len_times = 3
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     del L['pQ']
     with self.assertRaisesRegex(ValueError, 'L data is missing'):
       fbt._validate_fbt_data(LY, L)
@@ -158,7 +158,7 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_validate_fbt_data_incorrect_L_pQ_shape(self):
     len_psinorm = 20
     len_times = 3
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     L['pQ'] = np.zeros((len_psinorm + 1,))
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
       fbt._validate_fbt_data(LY, L)
@@ -197,7 +197,7 @@ class FBTGeometryTest(parameterized.TestCase):
   ):
     len_psinorm = 20
     len_times = 2
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
 
     # Add edge parameters to LY: (n_domains, n_times)
     # Rows: domains, Cols: time.
@@ -217,14 +217,12 @@ class FBTGeometryTest(parameterized.TestCase):
     # Set diverted flag to true to trigger the domain selection logic.
     LY['lX'] = np.ones(len_times, dtype=int)
 
-    geo_intermediates = (
-        fbt._from_fbt_bundle(
-            geometry_directory=None,
-            LY_bundle_object=LY,
-            LY_to_torax_times=np.array([0.0, 1.0]),
-            L_object=L,
-            divertor_domain=divertor_domain,
-        )
+    geo_intermediates = fbt._from_fbt_bundle(
+        geometry_directory=None,
+        LY_bundle_object=LY,
+        LY_to_torax_times=np.array([0.0, 1.0]),
+        L_object=L,
+        divertor_domain=divertor_domain,
     )
 
     # from_fbt_bundle returns a dictionary of StandardGeometryIntermediates
@@ -256,14 +254,12 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_fbt_edge_parameters_missing_edge_parameters(self):
     len_psinorm = 20
     len_times = 2
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
-    geo_intermediates_no_z = (
-        fbt._from_fbt_bundle(
-            geometry_directory=None,
-            LY_bundle_object=LY,
-            LY_to_torax_times=np.array([0.0, 1.0]),
-            L_object=L,
-        )
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
+    geo_intermediates_no_z = fbt._from_fbt_bundle(
+        geometry_directory=None,
+        LY_bundle_object=LY,
+        LY_to_torax_times=np.array([0.0, 1.0]),
+        L_object=L,
     )
     for intermediate in geo_intermediates_no_z.values():
       self.assertIsNone(intermediate.connection_length_target)
@@ -276,7 +272,7 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_fbt_edge_parameters_bad_domain_request(self):
     len_psinorm = 20
     len_times = 2
-    L, LY = _get_example_L_LY_data(len_psinorm, len_times, prefactor=1.0)
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     LY['z_div'] = np.array([[1.0, 1.2], [2.0, 2.2]])  # All upper null.
     LY['lX'] = np.ones(len_times, dtype=int).squeeze()
 
@@ -290,42 +286,6 @@ class FBTGeometryTest(parameterized.TestCase):
           L_object=L,
           divertor_domain=fbt.DivertorDomain.LOWER_NULL,
       )
-
-
-def _get_example_L_LY_data(
-    len_psinorm: int, len_times: int, prefactor: float = 0.0
-):
-  LY = {  # Squeeze when intended for a single time slice.
-      'rBt': np.full(len_times, prefactor).squeeze(),
-      'aminor': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'rgeom': np.full((len_psinorm, len_times), 2.0 * prefactor).squeeze(),
-      'TQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'FB': np.full(len_times, prefactor).squeeze(),
-      'FA': np.full(len_times, prefactor).squeeze(),
-      'Q0Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q1Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q2Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q3Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q4Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'Q5Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'ItQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'deltau': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'deltal': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'kappa': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      'epsilon': np.full((len_psinorm, len_times), prefactor).squeeze(),
-      # When prefactor != 0 (i.e. intended to generate a standard geometry),
-      # needs to be linspace to avoid drho_norm = 0.
-      'FtPQ': (
-          np.array(
-              [np.linspace(0, prefactor, len_psinorm) for _ in range(len_times)]
-          ).T.squeeze()
-      ),
-      'zA': np.zeros(len_times).squeeze(),
-      't': np.zeros(len_times).squeeze(),
-      'lX': np.zeros(len_times, dtype=int).squeeze(),
-  }
-  L = {'pQ': np.linspace(0, 1, len_psinorm)}
-  return L, LY
 
 
 if __name__ == '__main__':

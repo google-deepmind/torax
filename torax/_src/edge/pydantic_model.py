@@ -57,6 +57,11 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   newton_raphson_tol: pydantic.PositiveFloat = (
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
+
+  # Optional boolean to specify if the geometry is diverted.
+  # Required for non-FBT geometries. Not allowed for FBT geometries.
+  is_diverted: torax_pydantic.TimeVaryingScalar | None = None
+
   # --- Physical parameters ---
   ne_tau: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(extended_lengyel_defaults.NE_TAU)
@@ -338,6 +343,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,
+        is_diverted=_get_optional_value(self.is_diverted, t),
         update_temperatures=self.update_temperatures,
         update_impurities=self.update_impurities,
         fixed_step_iterations=self.fixed_step_iterations,

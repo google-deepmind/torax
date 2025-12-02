@@ -62,6 +62,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         'divertor_parallel_length': 1.0,
         'toroidal_flux_expansion': 1.0,
         'target_angle_of_incidence': 1.0,
+        'is_diverted': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -145,6 +146,7 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
         'divertor_parallel_length': 1.0,
         'toroidal_flux_expansion': 1.0,
         'target_angle_of_incidence': 1.0,
+        'is_diverted': True,
     }
 
   def test_update_fixed_impurities_edge_truth_forward_mode(self):
@@ -307,6 +309,7 @@ class UpdateImpuritiesWithEnrichmentModelTest(parameterized.TestCase):
         'divertor_parallel_length': 1.0,
         'toroidal_flux_expansion': 1.0,
         'target_angle_of_incidence': 1.0,
+        'is_diverted': True,
     }
 
   def test_update_impurities_scales_profile_with_enrichment_model(self):

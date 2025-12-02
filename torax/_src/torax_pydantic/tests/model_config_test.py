@@ -21,9 +21,12 @@ from absl.testing import parameterized
 import chex
 from torax._src import version
 from torax._src.config import config_loader
+from torax._src.geometry import get_example_L_LY_data
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+
+# pylint: disable=invalid-name
 
 
 def get_unique_objects(x: Any, object_ids: list[int]) -> list[int]:
@@ -282,6 +285,76 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
+  @parameterized.named_parameters(
+      ("good_config", None, False, ""),
+      (
+          "bad_config",
+          True,
+          True,
+          "`is_diverted` must NOT be set when using FBT geometry",
+      ),
+  )
+  def test_edge_diverted_status_validation_with_fbt(
+      self, is_diverted, expect_error, error_regex
+  ):
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(10, 1)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "fbt",
+        "L_object": L,
+        "LY_object": LY,
+    }
+    config_dict["edge"] = {
+        "computation_mode": "forward",
+        "model_name": "extended_lengyel",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "is_diverted": is_diverted,
+    }
+    # Need valid plasma composition for extended lengyel
+    config_dict["plasma_composition"]["impurity"] = {
+        "impurity_mode": "n_e_ratios",
+        "species": {"Ne": 0.01},
+    }
+    if expect_error:
+      with self.assertRaisesRegex(ValueError, error_regex):
+        model_config.ToraxConfig.from_dict(config_dict)
+    else:
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      ("good_config", True, False, ""),
+      (
+          "bad_config",
+          None,
+          True,
+          "`is_diverted` MUST be set when using non-FBT geometry",
+      ),
+  )
+  def test_edge_diverted_status_validation_with_chease(
+      self, is_diverted, expect_error, error_regex
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config_dict["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "forward",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "is_diverted": is_diverted,
+    }
+    # Need valid plasma composition for extended lengyel
+    config_dict["plasma_composition"]["impurity"] = {
+        "impurity_mode": "n_e_ratios",
+        "species": {"Ne": 0.01},
+    }
+    if expect_error:
+      with self.assertRaisesRegex(ValueError, error_regex):
+        model_config.ToraxConfig.from_dict(config_dict)
+    else:
+      model_config.ToraxConfig.from_dict(config_dict)
+
   def test_edge_core_impurity_consistency_overlap(self):
     """Tests that overlapping fixed and seeded impurities raise an error."""
     config_dict = default_configs.get_default_config_dict()
@@ -298,6 +371,7 @@ class ConfigTest(parameterized.TestCase):
         "fixed_impurity_concentrations": {"N": 0.01},
         "seed_impurity_weights": {"N": 1.0},
         "enrichment_factor": {"N": 1.0},
+        "is_diverted": True,
     }
     config_dict["plasma_composition"] = {
         "impurity": {
@@ -326,6 +400,7 @@ class ConfigTest(parameterized.TestCase):
         "fixed_impurity_concentrations": {"N": 0.01},
         "seed_impurity_weights": {"Ar": 1.0},
         "enrichment_factor": {"N": 1.0, "Ar": 1.0},
+        "is_diverted": True,
     }
 
     # Core has 'N', 'Ar', and 'Ne'. 'Ne' is missing from the edge config.
@@ -360,6 +435,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "target_electron_temp": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
+        "is_diverted": True,
     }
     # Default plasma_composition uses 'fractions', which is incompatible
     # with extended lengyel.
@@ -377,6 +453,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "target_electron_temp": 5.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
+        "is_diverted": True,
     }
     self.config["plasma_composition"] = {
         "impurity": {
@@ -393,6 +470,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "computation_mode": "forward",
         "fixed_impurity_concentrations": {"Ne": 0.01},
         "enrichment_factor": {"Ne": 1.0},
+        "is_diverted": True,
     }
     # Default plasma_composition uses 'fractions', which is incompatible
     # with extended lengyel.
@@ -409,6 +487,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "computation_mode": "forward",
         "fixed_impurity_concentrations": {"Ne": 0.01},
         "enrichment_factor": {"Ne": 1.0},
+        "is_diverted": True,
     }
     self.config["plasma_composition"] = {
         "impurity": {

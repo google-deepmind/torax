@@ -106,6 +106,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   divertor_parallel_length: array_typing.FloatScalar | None
   toroidal_flux_expansion: array_typing.FloatScalar
   target_angle_of_incidence: array_typing.FloatScalar
+  is_diverted: array_typing.BoolScalar | None
 
   # --- Impurity parameters ---
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
@@ -152,12 +153,16 @@ class ExtendedLengyelModel(base.EdgeModel):
         geo, standard_geometry.StandardGeometry
     ), 'Geometry must be of type StandardGeometry'
 
-    # Extract geometric parameters from TORAX geometry.
+    # Determine diverted status. For FBT geometries, this is provided by the
+    # geometry object. For other types, it must be provided in the config.
+    # The config validation ensures that one and only one of these is valid.
+
+    is_diverted = _get_is_diverted(geo, edge_params)
 
     # Extract and resolve geometric parameters, handling precedence and
     # warnings.
     resolved_geo_params = _resolve_geometric_parameters(
-        geo, core_profiles, edge_params
+        geo, core_profiles, edge_params, is_diverted
     )
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
@@ -266,6 +271,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
+        is_diverted=is_diverted,
     )
 
 
@@ -273,6 +279,7 @@ def _resolve_geometric_parameters(
     geo: standard_geometry.StandardGeometry,
     core_profiles: state.CoreProfiles,
     edge_params: RuntimeParams,
+    is_diverted: array_typing.BoolScalar,
 ) -> _ResolvedGeometricParams:
   """Resolves geometric parameters from Geometry or RuntimeParams."""
 
@@ -293,10 +300,9 @@ def _resolve_geometric_parameters(
     geo_ratio_bpol = None
 
   # If limited, set divertor broadening to 1.0.
-  if not geo.diverted:
-    broadening = 1.0
-  else:
-    broadening = edge_params.divertor_broadening_factor
+  broadening = jnp.where(
+      is_diverted, edge_params.divertor_broadening_factor, 1.0
+  )
 
   # Resolve basic geometric parameters
   L_par = _resolve_param(
@@ -365,3 +371,19 @@ def _resolve_param(
           f"ExtendedLengyelModel: Parameter '{name}' must be provided either"
           ' via the Geometry or the ExtendedLengyelConfig.'
       )
+
+
+def _get_is_diverted(
+    geo: standard_geometry.StandardGeometry,
+    edge_params: RuntimeParams,
+) -> array_typing.BoolScalar:
+  """Determines diverted status."""
+  # To avoid None values in the jnp.where, use safe defaults.
+  # The pydantic config validation ensures that the values that override the
+  # None are never used.
+  safe_fbt_diverted = geo.diverted if geo.diverted is not None else False
+  safe_params_diverted = (
+      edge_params.is_diverted if edge_params.is_diverted is not None else False
+  )
+  is_fbt = geo.geometry_type == geometry.GeometryType.FBT
+  return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)

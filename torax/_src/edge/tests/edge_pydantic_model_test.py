@@ -76,6 +76,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
             'N': 1.0,
             'Ar': 1.0,
         },
+        'is_diverted': True,
     }
     config_dict['plasma_composition'] = {
         'impurity': {
@@ -312,6 +313,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'fixed_impurity_concentrations': {'Ne': 0.01},
         'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
+        'is_diverted': True,
     }
     config_dict['plasma_composition']['impurity'] = {
         'impurity_mode': 'n_e_ratios',
@@ -339,6 +341,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'seed_impurity_weights': {'Ne': 1.0},  # Ne is in both
         'use_enrichment_model': False,
         'enrichment_factor': {'Ne': 1.0},
+        'is_diverted': True,
     }
     config_dict['plasma_composition']['impurity'] = {
         'impurity_mode': 'n_e_ratios',
@@ -381,6 +384,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'solver_mode': 'fixed_step',
         'use_enrichment_model': False,
         'enrichment_factor': {'N': 1.0, 'Ar': 1.0, 'He': 1.0},
+        'is_diverted': True,
     }
     # Inputs that would come from the TORAX state at runtime.
     dynamic_inputs = {

@@ -215,6 +215,35 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
+  def _validate_edge_diverted_status(self) -> typing_extensions.Self:
+    """Validates diverted status configuration in edge model.
+
+    Ensures that `is_diverted` is handled correctly based on geometry type:
+    - For FBT geometry: `is_diverted` must NOT be set (it's provided by FBT).
+    - For non-FBT geometry: `is_diverted` MUST be set if edge model is used.
+    """
+    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+      is_fbt = self.geometry.geometry_type == geometry.GeometryType.FBT
+      is_diverted_configured = self.edge.is_diverted is not None
+
+      if is_fbt and is_diverted_configured:
+        raise ValueError(
+            'Extended Lengyel edge model configuration error: `is_diverted`'
+            ' must NOT be set when using FBT geometry. FBT geometry files'
+            ' inherently provide diverted status information.'
+        )
+
+      if not is_fbt and not is_diverted_configured:
+        raise ValueError(
+            'Extended Lengyel edge model configuration error: `is_diverted`'
+            ' MUST be set when using non-FBT geometry (e.g. CHEASE, EQDSK,'
+            ' IMAS). These geometry sources do not reliably provide diverted'
+            ' status, so it must be explicitly configured in the edge model.'
+        )
+
+    return self
+
+  @pydantic.model_validator(mode='after')
   def _validate_edge_core_impurity_consistency(self) -> typing_extensions.Self:
     """Validates consistency between plasma composition and edge impurities."""
     if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
