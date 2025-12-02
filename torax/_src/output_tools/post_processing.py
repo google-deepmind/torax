@@ -33,6 +33,7 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
+from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
@@ -167,6 +168,8 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
     impurity_species: Dictionary of outputs for each impurity species.
+    poloidal_velocity: Poloidal velocity [m/s]
+    radial_electric_field: Radial electric field [V/m]
     first_step: Whether the outputs are from the first step of the simulation.
   """
 
@@ -259,6 +262,8 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
+  poloidal_velocity: array_typing.FloatVector
+  radial_electric_field: array_typing.FloatVector
   first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
@@ -350,8 +355,10 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        first_step=jnp.array(True),
         impurity_species={},
+        poloidal_velocity=jnp.zeros(geo.rho_face.shape),
+        radial_electric_field=jnp.zeros(geo.rho_face.shape),
+        first_step=jnp.array(True),
     )
 
   def check_for_errors(self):
@@ -804,6 +811,18 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
 
+  _, radial_electric_field, poloidal_velocity = rotation.calculate_rotation(
+      T_i=sim_state.core_profiles.T_i,
+      psi=sim_state.core_profiles.psi,
+      n_i=sim_state.core_profiles.n_i,
+      q_face=sim_state.core_profiles.q_face,
+      Z_eff_face=sim_state.core_profiles.Z_eff_face,
+      Z_i_face=sim_state.core_profiles.Z_i_face,
+      toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
+      pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
+      geo=sim_state.geometry,
+  )
+
   return PostProcessedOutputs(
       pprime=pprime_face,
       W_thermal_i=W_thermal_ion,
@@ -859,5 +878,7 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
+      poloidal_velocity=poloidal_velocity.face_value(),
+      radial_electric_field=radial_electric_field.face_value(),
       first_step=jnp.array(False),
   )
