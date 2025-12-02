@@ -371,6 +371,9 @@ These are called out in the list of profiles below, and generate relate to:
 ``T_i`` (time, rho_norm)
   Ion temperature [:math:`keV`].
 
+``toroidal_velocity`` (time, rho_norm)
+  Toroidal velocity [:math:`m/s`].
+
 ``v_loop`` (time, rho_norm)
   Loop voltage profile :math:`V_{loop}=\frac{\partial\psi}{\partial t}`
   [:math:`V`].

@@ -114,6 +114,9 @@ def get_prescribed_core_profile_values(
   n_i = ions.n_i.value
   n_impurity = ions.n_impurity.value
   impurity_fractions = ions.impurity_fractions
+  toroidal_velocity = getters.get_updated_toroidal_velocity(
+      runtime_params.profile_conditions, geo
+  ).value
 
   return {
       'T_i': T_i,
@@ -131,6 +134,7 @@ def get_prescribed_core_profile_values(
       'A_impurity_face': ions.A_impurity_face,
       'Z_eff': ions.Z_eff,
       'Z_eff_face': ions.Z_eff_face,
+      'toroidal_velocity': toroidal_velocity,
   }
 
 
@@ -279,6 +283,7 @@ def update_core_and_source_profiles_after_step(
       j_total=j_total,
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
+      toroidal_velocity=updated_core_profiles_t_plus_dt.toroidal_velocity,
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(

@@ -161,6 +161,24 @@ def get_updated_electron_density(
   return n_e
 
 
+def get_updated_toroidal_velocity(
+    profile_conditions_params: profile_conditions.RuntimeParams,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Gets initial and/or prescribed toroidal velocity profiles."""
+  if profile_conditions_params.toroidal_velocity is None:
+    value = jnp.zeros_like(geo.rho)
+  else:
+    value = profile_conditions_params.toroidal_velocity
+  toroidal_velocity = cell_variable.CellVariable(
+      value=value,
+      right_face_grad_constraint=None,
+      right_face_constraint=profile_conditions_params.toroidal_velocity_right_bc,
+      dr=geo.drho_norm,
+  )
+  return toroidal_velocity
+
+
 @dataclasses.dataclass(frozen=True)
 class _IonProperties:
   """Helper container for holding ion calculation outputs."""
