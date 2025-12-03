@@ -115,9 +115,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     core_profiles_in = loader.load_imas_data(path, "core_profiles")
     # Indivual ion info empty in the inital IDS so create fake ions data
-    core_profiles_in.profiles_1d[0].ion.resize(3)
-    core_profiles_in.profiles_1d[1].ion.resize(3)
-    core_profiles_in.global_quantities.ion.resize(3)
+    core_profiles_in.profiles_1d[0].ion.resize(4)
+    core_profiles_in.profiles_1d[1].ion.resize(4)
+    core_profiles_in.global_quantities.ion.resize(4)
     core_profiles_in.profiles_1d[0].ion[0].name = "D"
     core_profiles_in.profiles_1d[0].ion[0].density = [9e19, 3e19]
     core_profiles_in.profiles_1d[1].ion[0].density = [9e19, 3e19]
@@ -132,15 +132,22 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     core_profiles_in.profiles_1d[1].ion[2].density = (
         core_profiles_in.profiles_1d[1].electrons.density / 100
     )
+    core_profiles_in.profiles_1d[0].ion[3].name = "He5"
+    core_profiles_in.profiles_1d[1].ion[3].name = "He5"
+    core_profiles_in.profiles_1d[0].ion[3].density = (
+        core_profiles_in.profiles_1d[0].electrons.density / 100
+    )
+    core_profiles_in.profiles_1d[1].ion[3].density = (
+        core_profiles_in.profiles_1d[1].electrons.density / 100
+    )
 
-    with self.subTest(name="Missing expected impurity."):
+    with self.subTest(name="Unrecognized impurity not excluded."):
       self.assertRaises(
-          ValueError,
+          KeyError,
           core_profiles.plasma_composition_from_IMAS,
           core_profiles_in,
           None,
           None,
-          ["Xe"],
       )
     with self.subTest(name="Missing expected main ion."):
       self.assertRaises(
@@ -148,24 +155,24 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
           core_profiles.plasma_composition_from_IMAS,
           core_profiles_in,
           None,
+          ["He5"],
           ["H"],
-          None,
       )
-    with self.subTest(name="Invalid ion name."):
+    with self.subTest(name="Invalid main ion name."):
       self.assertRaises(
           KeyError,
           core_profiles.plasma_composition_from_IMAS,
           core_profiles_in,
           None,
-          None,
           ["He5"],
+          ["De"],
       )
     with self.subTest(name="Test config is properly built."):
       plasma_composition_data = core_profiles.plasma_composition_from_IMAS(
           core_profiles_in,
           t_initial=None,
           main_ions_symbols=["D", "T"],
-          expected_impurities=["Ne"],
+          excluded_impurities=["He5"],
       )
       config["plasma_composition"] = plasma_composition_data
       config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
