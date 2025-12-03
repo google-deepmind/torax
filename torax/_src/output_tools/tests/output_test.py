@@ -524,7 +524,8 @@ class StateHistoryTest(parameterized.TestCase):
                 physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
                 numerics_outcome=jax_root_finding.RootMetadata(
                     iterations=jnp.array(10),
-                    residual=jnp.array(1e-6),
+                    # Use a vector residual to test the reduction logic
+                    residual=jnp.array([1e-6, 3e-6]),
                     error=jnp.array(0),
                     last_tau=jnp.array(1.0),
                 ),
@@ -577,6 +578,14 @@ class StateHistoryTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         edge_dataset['solver_iterations'].values, np.array([10])
+    )
+    # Check that solver_residual is reduced to a scalar per time step
+    self.assertEqual(
+        edge_dataset['solver_residual'].dims, (output.TIME,)
+    )
+    # Mean of abs([1e-6, 3e-6]) is 2e-6
+    np.testing.assert_allclose(
+        edge_dataset['solver_residual'].values, np.array([2e-6])
     )
 
 
