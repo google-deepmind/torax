@@ -34,7 +34,7 @@ import typing_extensions
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class TimeVaryingScalarReplace:
+class TimeVaryingScalarUpdate:
   value: jt.Float[jax.Array, 't'] | None = None
   time: jt.Float[jax.Array, 't'] | None = None
 
@@ -94,7 +94,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     )
 
   def update(
-      self, replacements: TimeVaryingScalarReplace
+      self, replacements: TimeVaryingScalarUpdate
   ) -> typing_extensions.Self:
     """This method can be used under `jax.jit`."""
     value = replacements.value if replacements.value is not None else self.value

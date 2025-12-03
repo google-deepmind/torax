@@ -74,28 +74,35 @@ def calculate_mavrin_2017(
           f' {allowed_variables}'
       )
 
-  if ion_symbol not in cr_module.COEFFS.keys():
-    raise ValueError(
-        f'Invalid ion symbol: {ion_symbol}. Allowed symbols are:'
-        f' {cr_module.COEFFS.keys()}'
-    )
+  # Alias He3 and He4 to He as they are chemically identical
+  if ion_symbol in ('He3', 'He4'):
+    ion_symbol_lookup = 'He'
+  else:
+    ion_symbol_lookup = ion_symbol
+
+  if ion_symbol_lookup not in cr_module.COEFFS.keys():
+    # If the ion is not supported by the edge radiation model, we assume it
+    # negligibly contributes to the edge physics (radiation or Z_eff/dilution in
+    # the divertor). This is a good assumption for heavy impurities like W,
+    # which this case covers. This behaviour is silent to avoid log spam.
+    return jnp.zeros_like(T_e)
 
   # Mavrin 2017 formulas are constructed for [eV] temperature input
   T_e_ev = T_e * 1e3
 
   # Avoid extrapolating fitted polynomial out of bounds.
-  min_temp = cr_module.MIN_TEMPERATURES[ion_symbol]
-  max_temp = cr_module.MAX_TEMPERATURES[ion_symbol]
+  min_temp = cr_module.MIN_TEMPERATURES[ion_symbol_lookup]
+  max_temp = cr_module.MAX_TEMPERATURES[ion_symbol_lookup]
   T_e_ev = jnp.clip(T_e_ev, min_temp, max_temp)
   # Residence parameter capped at 10^19, which is the coronal limit.
   ne_tau = jnp.clip(ne_tau, a_max=_NE_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   interval_indices = jnp.searchsorted(
-      cr_module.TEMPERATURE_INTERVALS[ion_symbol], T_e_ev
+      cr_module.TEMPERATURE_INTERVALS[ion_symbol_lookup], T_e_ev
   )
   coeffs_in_range = jnp.take(
-      cr_module.COEFFS[ion_symbol], interval_indices, axis=1
+      cr_module.COEFFS[ion_symbol_lookup], interval_indices, axis=1
   )
 
   X = jnp.log10(T_e_ev)

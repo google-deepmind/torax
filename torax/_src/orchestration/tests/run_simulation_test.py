@@ -62,18 +62,18 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     )
 
     # Check equality for all time-dependent variables.
-    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
-      for var_name in ds1.data_vars:
-        if 'time' in ds1[var_name].dims:
+    def check_equality(actual: xr.Dataset, desired: xr.Dataset):
+      for var_name in actual.data_vars:
+        if 'time' in actual[var_name].dims:
           with self.subTest(var_name=var_name):
             np.testing.assert_allclose(
-                ds1[var_name].values,
-                ds2[var_name].values,
+                actual[var_name].values,
+                desired[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
                 rtol=1e-6,
             )
 
-    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
+    xr.map_over_datasets(check_equality, datatree_new, datatree_ref)
 
   @parameterized.named_parameters(
       ('static_geometry_QLKNN', 'test_iterhybrid_rampup.py'),

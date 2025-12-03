@@ -15,6 +15,7 @@
 """Implementation of extended_lengyel instance of EdgeModel."""
 
 import dataclasses
+import enum
 import logging
 from typing import Mapping
 import jax
@@ -23,7 +24,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_standalone
@@ -33,7 +35,30 @@ from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profiles as source_profiles_lib
 
+
 # pylint: disable=invalid-name
+class FixedImpuritySourceOfTruth(enum.StrEnum):
+  """Source of truth for fixed impurity concentrations when using an edge model.
+
+  Determines how impurity concentrations are handled between the core plasma
+  simulation and the edge model.
+
+  Attributes:
+    CORE: * The core impurity profiles are the source of truth. * The edge
+      model's impurity concentrations are derived from the core values at the
+      last closed flux surface: `c_edge = c_core_face[-1] * enrichment_factor`.
+    EDGE: * The edge model's `fixed_impurity_concentrations` are the source of
+      truth. * The core impurity profiles (n_e_ratios) are scaled to match the
+      values determined by the edge model. runtime_params still sets the profile
+        shape: `c_core = c_core / c_core_face[-1] * c_edge / enrichment_factor`.
+
+  Note: For seeded impurities in the extended Lengyel edge model, the source of
+  truth is always the edge model, regardless of this setting. This enum only
+  controls the behavior for fixed impurities in that case.
+  """
+
+  CORE = 'core'
+  EDGE = 'edge'
 
 
 @jax.tree_util.register_dataclass
@@ -50,8 +75,13 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
       metadata={'static': True}
   )
+  impurity_sot: FixedImpuritySourceOfTruth = dataclasses.field(
+      metadata={'static': FixedImpuritySourceOfTruth.CORE}
+  )
+  # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
-  fixed_step_iterations: int
+  update_impurities: array_typing.BoolScalar
+  fixed_point_iterations: int
   newton_raphson_iterations: int
   newton_raphson_tol: float
 
@@ -63,27 +93,30 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   fraction_of_P_SOL_to_divertor: array_typing.FloatScalar
   SOL_conduction_fraction: array_typing.FloatScalar
   ratio_of_molecular_to_ion_mass: array_typing.FloatScalar
-  wall_temperature: array_typing.FloatScalar
-  separatrix_mach_number: array_typing.FloatScalar
-  separatrix_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  separatrix_ratio_of_electron_to_ion_density: array_typing.FloatScalar
-  target_ratio_of_ion_to_electron_temp: array_typing.FloatScalar
-  target_ratio_of_electron_to_ion_density: array_typing.FloatScalar
-  target_mach_number: array_typing.FloatScalar
+  T_wall: array_typing.FloatScalar
+  mach_separatrix: array_typing.FloatScalar
+  T_i_T_e_ratio_separatrix: array_typing.FloatScalar
+  n_e_n_i_ratio_separatrix: array_typing.FloatScalar
+  T_i_T_e_ratio_target: array_typing.FloatScalar
+  n_e_n_i_ratio_target: array_typing.FloatScalar
+  mach_target: array_typing.FloatScalar
 
   # --- Geometry Parameters ---
-  parallel_connection_length: array_typing.FloatScalar | None
-  divertor_parallel_length: array_typing.FloatScalar | None
+  connection_length_target: array_typing.FloatScalar | None
+  connection_length_divertor: array_typing.FloatScalar | None
   toroidal_flux_expansion: array_typing.FloatScalar
-  target_angle_of_incidence: array_typing.FloatScalar
+  angle_of_incidence_target: array_typing.FloatScalar
+  diverted: array_typing.BoolScalar | None
 
   # --- Impurity parameters ---
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
   fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
   enrichment_factor: Mapping[str, array_typing.FloatScalar]
+  use_enrichment_model: bool = dataclasses.field(metadata={'static': True})
+  enrichment_model_multiplier: array_typing.FloatScalar
 
   # --- Optional parameter for inverse mode ---
-  target_electron_temp: array_typing.FloatScalar | None
+  T_e_target: array_typing.FloatScalar | None
 
 
 @jax.tree_util.register_dataclass
@@ -91,10 +124,10 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
 class _ResolvedGeometricParams:
   """Container for parameters after resolution between geometry and edge config."""
 
-  parallel_connection_length: array_typing.FloatScalar
-  divertor_parallel_length: array_typing.FloatScalar
+  connection_length_target: array_typing.FloatScalar
+  connection_length_divertor: array_typing.FloatScalar
   toroidal_flux_expansion: array_typing.FloatScalar
-  target_angle_of_incidence: array_typing.FloatScalar
+  angle_of_incidence_target: array_typing.FloatScalar
   ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar
   divertor_broadening_factor: array_typing.FloatScalar
 
@@ -105,7 +138,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
@@ -120,12 +153,16 @@ class ExtendedLengyelModel(base.EdgeModel):
         geo, standard_geometry.StandardGeometry
     ), 'Geometry must be of type StandardGeometry'
 
-    # Extract geometric parameters from TORAX geometry.
+    # Determine diverted status. For FBT geometries, this is provided by the
+    # geometry object. For other types, it must be provided in the config.
+    # The config validation ensures that one and only one of these is valid.
+
+    diverted = _get_diverted(geo, edge_params)
 
     # Extract and resolve geometric parameters, handling precedence and
     # warnings.
     resolved_geo_params = _resolve_geometric_parameters(
-        geo, core_profiles, edge_params
+        geo, core_profiles, edge_params, diverted
     )
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
@@ -166,6 +203,31 @@ class ExtendedLengyelModel(base.EdgeModel):
         P_SOL_total, constants.CONSTANTS.eps
     )
 
+    fixed_impurity_concentrations = edge_params.fixed_impurity_concentrations
+    # If the source of truth for fixed impurities is the core, calculate the
+    # edge concentrations from the core ratios.
+    if edge_params.impurity_sot == FixedImpuritySourceOfTruth.CORE:
+      # Initialization
+      fixed_impurity_concentrations = {}
+      impurity_params = runtime_params.plasma_composition.impurity
+      # Only support use of extended Lengyel for n_e_ratios impurity mode.
+      # TODO(b/446608829): Support other modes for forward mode core SoT.
+      assert isinstance(impurity_params, electron_density_ratios.RuntimeParams)
+
+      for species, ratio_face in impurity_params.n_e_ratios_face.items():
+        # Skip if it's a seeded impurity
+        if (
+            edge_params.seed_impurity_weights
+            and species in edge_params.seed_impurity_weights
+        ):
+          continue
+
+        # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
+        # Enrichment factor exists for all species (validated in config)
+        fixed_impurity_concentrations[species] = (
+            ratio_face[-1] * edge_params.enrichment_factor[species]
+        )
+
     # Call the standalone runner with combined parameters
     return extended_lengyel_standalone.run_extended_lengyel_standalone(
         # Dynamic state from TORAX
@@ -181,16 +243,16 @@ class ExtendedLengyelModel(base.EdgeModel):
         triangularity_psi95=triangularity_psi95,
         average_ion_mass=average_ion_mass,
         # Geometry parameters that may come from geometry or RuntimeParams
-        parallel_connection_length=resolved_geo_params.parallel_connection_length,
-        divertor_parallel_length=resolved_geo_params.divertor_parallel_length,
+        connection_length_target=resolved_geo_params.connection_length_target,
+        connection_length_divertor=resolved_geo_params.connection_length_divertor,
         toroidal_flux_expansion=resolved_geo_params.toroidal_flux_expansion,
-        target_angle_of_incidence=resolved_geo_params.target_angle_of_incidence,
+        angle_of_incidence_target=resolved_geo_params.angle_of_incidence_target,
         ratio_bpol_omp_to_bpol_avg=resolved_geo_params.ratio_bpol_omp_to_bpol_avg,
         divertor_broadening_factor=resolved_geo_params.divertor_broadening_factor,
         # Configurable parameters from RuntimeParams
-        target_electron_temp=edge_params.target_electron_temp,
+        T_e_target=edge_params.T_e_target,
         seed_impurity_weights=edge_params.seed_impurity_weights,
-        fixed_impurity_concentrations=edge_params.fixed_impurity_concentrations,
+        fixed_impurity_concentrations=fixed_impurity_concentrations,
         computation_mode=edge_params.computation_mode,
         solver_mode=edge_params.solver_mode,
         ne_tau=edge_params.ne_tau,
@@ -198,16 +260,18 @@ class ExtendedLengyelModel(base.EdgeModel):
         fraction_of_P_SOL_to_divertor=edge_params.fraction_of_P_SOL_to_divertor,
         SOL_conduction_fraction=edge_params.SOL_conduction_fraction,
         ratio_of_molecular_to_ion_mass=edge_params.ratio_of_molecular_to_ion_mass,
-        wall_temperature=edge_params.wall_temperature,
-        separatrix_mach_number=edge_params.separatrix_mach_number,
-        separatrix_ratio_of_ion_to_electron_temp=edge_params.separatrix_ratio_of_ion_to_electron_temp,
-        separatrix_ratio_of_electron_to_ion_density=edge_params.separatrix_ratio_of_electron_to_ion_density,
-        target_ratio_of_ion_to_electron_temp=edge_params.target_ratio_of_ion_to_electron_temp,
-        target_ratio_of_electron_to_ion_density=edge_params.target_ratio_of_electron_to_ion_density,
-        target_mach_number=edge_params.target_mach_number,
-        fixed_step_iterations=edge_params.fixed_step_iterations,
+        T_wall=edge_params.T_wall,
+        mach_separatrix=edge_params.mach_separatrix,
+        T_i_T_e_ratio_separatrix=edge_params.T_i_T_e_ratio_separatrix,
+        n_e_n_i_ratio_separatrix=edge_params.n_e_n_i_ratio_separatrix,
+        T_i_T_e_ratio_target=edge_params.T_i_T_e_ratio_target,
+        n_e_n_i_ratio_target=edge_params.n_e_n_i_ratio_target,
+        mach_target=edge_params.mach_target,
+        fixed_point_iterations=edge_params.fixed_point_iterations,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
+        enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
+        diverted=diverted,
     )
 
 
@@ -215,13 +279,14 @@ def _resolve_geometric_parameters(
     geo: standard_geometry.StandardGeometry,
     core_profiles: state.CoreProfiles,
     edge_params: RuntimeParams,
+    diverted: array_typing.BoolScalar,
 ) -> _ResolvedGeometricParams:
   """Resolves geometric parameters from Geometry or RuntimeParams."""
 
   # Extract potential values from Geometry if existing
   geo_L_par = geo.connection_length_target
   geo_L_div = geo.connection_length_divertor
-  geo_alpha = geo.target_angle_of_incidence
+  geo_alpha = geo.angle_of_incidence_target
   if geo.R_target is not None and geo.R_OMP is not None:
     geo_flux_exp = geo.R_target / geo.R_OMP
   else:
@@ -235,26 +300,23 @@ def _resolve_geometric_parameters(
     geo_ratio_bpol = None
 
   # If limited, set divertor broadening to 1.0.
-  if not geo.diverted:
-    broadening = 1.0
-  else:
-    broadening = edge_params.divertor_broadening_factor
+  broadening = jnp.where(diverted, edge_params.divertor_broadening_factor, 1.0)
 
   # Resolve basic geometric parameters
   L_par = _resolve_param(
-      'parallel_connection_length',
+      'connection_length_target',
       geo_L_par,
-      edge_params.parallel_connection_length,
+      edge_params.connection_length_target,
   )
   L_div = _resolve_param(
-      'divertor_parallel_length',
+      'connection_length_divertor',
       geo_L_div,
-      edge_params.divertor_parallel_length,
+      edge_params.connection_length_divertor,
   )
   alpha_incidence = _resolve_param(
-      'target_angle_of_incidence',
+      'angle_of_incidence_target',
       geo_alpha,
-      edge_params.target_angle_of_incidence,
+      edge_params.angle_of_incidence_target,
   )
   flux_expansion = _resolve_param(
       'toroidal_flux_expansion',
@@ -268,10 +330,10 @@ def _resolve_geometric_parameters(
   )
 
   return _ResolvedGeometricParams(
-      parallel_connection_length=L_par,
-      divertor_parallel_length=L_div,
+      connection_length_target=L_par,
+      connection_length_divertor=L_div,
       toroidal_flux_expansion=flux_expansion,
-      target_angle_of_incidence=alpha_incidence,
+      angle_of_incidence_target=alpha_incidence,
       ratio_bpol_omp_to_bpol_avg=ratio_bpol,
       divertor_broadening_factor=broadening,
   )
@@ -307,3 +369,19 @@ def _resolve_param(
           f"ExtendedLengyelModel: Parameter '{name}' must be provided either"
           ' via the Geometry or the ExtendedLengyelConfig.'
       )
+
+
+def _get_diverted(
+    geo: standard_geometry.StandardGeometry,
+    edge_params: RuntimeParams,
+) -> array_typing.BoolScalar:
+  """Determines diverted status."""
+  # To avoid None values in the jnp.where, use safe defaults.
+  # The pydantic config validation ensures that the values that override the
+  # None are never used.
+  safe_fbt_diverted = geo.diverted if geo.diverted is not None else False
+  safe_params_diverted = (
+      edge_params.diverted if edge_params.diverted is not None else False
+  )
+  is_fbt = geo.geometry_type == geometry.GeometryType.FBT
+  return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)

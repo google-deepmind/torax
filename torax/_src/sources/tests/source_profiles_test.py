@@ -16,7 +16,7 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
@@ -30,7 +30,7 @@ from torax._src.torax_pydantic import torax_pydantic
 class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_T_i_profiles_dont_change_when_jitting(self):
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
 
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
@@ -65,7 +65,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D(nx=10,)
+    torax_mesh = torax_pydantic.Grid1D(nx=10)
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )
@@ -131,8 +131,8 @@ def _build_source_profiles_with_single_value(
       n_e=profiles[source_lib.AffectedCoreProfile.NE],
       psi=profiles[source_lib.AffectedCoreProfile.PSI],
       bootstrap_current=bootstrap_current_base.BootstrapCurrent(
-          j_bootstrap=cell_1d_arr,
-          j_bootstrap_face=face_1d_arr,
+          j_parallel_bootstrap=cell_1d_arr,
+          j_parallel_bootstrap_face=face_1d_arr,
       ),
       qei=source_profiles_lib.QeiInfo(
           qei_coef=cell_1d_arr,

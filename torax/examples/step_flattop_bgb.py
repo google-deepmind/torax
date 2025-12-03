@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2025 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,20 +38,22 @@ from torax._src.imas_tools.input import loader
 
 # Load IDSs
 path = (
-    path_utils.torax_path() / "data" / "imas_data" / "STEP_SPP_001_ECHD_ftop.nc"
+    path_utils.torax_path()
+    / "data"
+    / "third_party"
+    / "imas"
+    / "STEP_SPP_001_ECHD_ftop.nc"
 )
 equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
 core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
 core_sources_ids = loader.load_imas_data(str(path), "core_sources")
 
-# Convert profile_conditions to TORAX dict
-core_profiles_xr = imas.util.to_xarray(core_profiles_ids)
-profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
-    core_profiles_ids,
-)
 # Replace Ip from profile conditions with Ip from equilibrium
 # TODO(b/323504363): can this be handled within the IMAS loader? e.g. if Ip
 # is not present in profile_conditions, pull from equilibrium automatically.
+profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
+    core_profiles_ids,
+)
 equilibrium_xr = imas.util.to_xarray(equilibrium_ids)
 profile_conditions_from_ids["Ip"] = equilibrium_xr[
     "time_slice.global_quantities.ip"
@@ -72,26 +74,20 @@ bgb_multiplier = 0.23
 
 
 CONFIG = {
-    # TODO(b/323504363): Switch to loading from IMAS
-    # https://github.com/google-deepmind/torax/pull/1619
-    "plasma_composition": {
-        "main_ion": {"D": 0.5, "T": 0.5},
-        "impurity": "Xe",
-        "Z_eff": core_profiles_xr["profiles_1d.zeff"][0][0].values.item(),
-    },
-    "profile_conditions": (
-        profile_conditions_from_ids
-        | {
-            "use_v_loop_lcfs_boundary_condition": True,
-            "v_loop_lcfs": 0.0,
-        }
+    "plasma_composition": core_profiles.plasma_composition_from_IMAS(
+        core_profiles_ids
     ),
+    "profile_conditions": profile_conditions_from_ids | {
+        "use_v_loop_lcfs_boundary_condition": True,
+        "v_loop_lcfs": 0.0,
+    },
     "geometry": {
         # TODO(b/323504363): Switch to loading from IMAS rather than eqdsk
         # Currently there is a bug in either the TORAX IMAS loader or the JETTO
         # IMAS writer that makes them incompatible
         "geometry_type": "EQDSK",
         "geometry_file": "STEP_SPP_001_ECHD_ftop.eqdsk",
+        "cocos": 1,
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",

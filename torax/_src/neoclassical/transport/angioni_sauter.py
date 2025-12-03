@@ -27,7 +27,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
 from torax._src.neoclassical.transport import base
@@ -61,7 +61,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
   @override
   def _call_implementation(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.NeoclassicalTransport:
@@ -80,7 +80,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 
 def _calculate_angioni_sauter_transport(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> base.NeoclassicalTransport:

@@ -22,25 +22,25 @@ KAPPA_E_0: Final[float] = (
     2390.0  # Spitzer parallel conductivity prefactor [W/ m (m * ev**3.5)]
 )
 DIVERTOR_BROADENING_FACTOR: Final[float] = 3.0
-TARGET_ANGLE_OF_INCIDENCE: Final[float] = 3.0
+ANGLE_OF_INCIDENCE_TARGET: Final[float] = 3.0
 RATIO_BPOL_OMP_TO_BPOL_AVG: Final[float] = 4.0 / 3.0
 NE_TAU: Final[float] = 0.5e17
 SHEATH_HEAT_TRANSMISSION_FACTOR: Final[float] = 8.0
 FRACTION_OF_PSOL_TO_DIVERTOR: Final[float] = 2.0 / 3.0
 SOL_CONDUCTION_FRACTION: Final[float] = 1.0
 RATIO_MOLECULAR_TO_ION_MASS: Final[float] = 2.0
-WALL_TEMPERATURE: Final[float] = 300.0
-SEPARATRIX_MACH_NUMBER: Final[float] = 0.0
-SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP: Final[float] = 1.0
-SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY: Final[float] = 1.0
-TARGET_RATIO_ION_TO_ELECTRON_TEMP: Final[float] = 1.0
-TARGET_RATIO_ELECTRON_TO_ION_DENSITY: Final[float] = 1.0
-TARGET_MACH_NUMBER: Final[float] = 1.0
+T_WALL: Final[float] = 300.0
+MACH_SEPARATRIX: Final[float] = 0.0
+T_I_T_E_RATIO_SEPARATRIX: Final[float] = 1.0
+N_E_N_I_RATIO_SEPARATRIX: Final[float] = 1.0
+T_I_T_E_RATIO_TARGET: Final[float] = 1.0
+N_E_N_I_RATIO_TARGET: Final[float] = 1.0
+MACH_TARGET: Final[float] = 1.0
 TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
-FIXED_STEP_ITERATIONS: Final[int] = 25
+FIXED_POINT_ITERATIONS: Final[int] = 25
 NEWTON_RAPHSON_ITERATIONS: Final[int] = 30
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
-HYBRID_FIXED_STEP_ITERATIONS: Final[int] = 5
+HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
 
 
 @dataclasses.dataclass(frozen=True)

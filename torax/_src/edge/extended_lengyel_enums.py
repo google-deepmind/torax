@@ -33,12 +33,12 @@ class SolverMode(enum.StrEnum):
   """Solver modes for the extended Lengyel model.
 
   Attributes:
-    FIXED_STEP: A simple fixed-step iterative solver.
+    FIXED_POINT: A simple fixed-point iterative solver.
     NEWTON_RAPHSON: A Newton-Raphson solver (not yet implemented).
-    HYBRID: A hybrid solver using a warm start from fixed-step, and then
+    HYBRID: A hybrid solver using a warm start from fixed-point, and then
       Newton-Raphson.
   """
 
-  FIXED_STEP = 'fixed_step'
+  FIXED_POINT = 'fixed_point'
   NEWTON_RAPHSON = 'newton_raphson'
   HYBRID = 'hybrid'

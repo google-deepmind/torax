@@ -126,11 +126,15 @@ def _calculate_new_references(
   )
   if not isinstance(geo, standard_geometry.StandardGeometry):
     external_current = sum(source_profiles.psi.values())
-    j_total_hires = initialization.get_j_total_hires_with_external_sources(
-        runtime_params=runtime_params,
-        geo=geo,
-        bootstrap_current=source_profiles.bootstrap_current,
-        external_current=sum(source_profiles.psi.values()),
+    j_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            bootstrap_current=source_profiles.bootstrap_current,
+            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+                sum(source_profiles.psi.values()), geo
+            ),
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,

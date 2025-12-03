@@ -29,12 +29,12 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
@@ -266,7 +266,7 @@ class ToricNNWrapper:
     return isinstance(other, ToricNNWrapper)
 
 
-@functools.partial(jax.jit, static_argnames='toric_nn')
+@jax.jit(static_argnames='toric_nn')
 def _toric_nn_predict(
     toric_nn: ToricNNWrapper,
     inputs: ToricNNInputs,
@@ -305,7 +305,7 @@ def _toric_nn_predict(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(source_runtime_params_lib.RuntimeParams):
   frequency: array_typing.FloatScalar
   minority_concentration: array_typing.FloatScalar
   P_total: array_typing.FloatScalar
@@ -338,7 +338,7 @@ def _helium3_tail_temperature(
 
 
 def icrh_model_func(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
@@ -510,8 +510,8 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params_lib.Mode.MODEL_BASED
+  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      source_runtime_params_lib.Mode.MODEL_BASED
   )
 
   @property

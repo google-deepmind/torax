@@ -18,7 +18,7 @@ import chex
 import jax
 from torax._src import jax_utils
 from torax._src.config import numerics
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -26,7 +26,7 @@ class NumericsTest(parameterized.TestCase):
 
   def test_numerics_build_runtime_params(self):
     nums = numerics.Numerics()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(nums, geo.torax_mesh)
     nums.build_runtime_params(t=0.0)
 
@@ -36,7 +36,7 @@ class NumericsTest(parameterized.TestCase):
     nums = numerics.Numerics(
         resistivity_multiplier=initial_resistivity_multiplier
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(nums, geo.torax_mesh)
 
     @jax.jit

@@ -19,8 +19,8 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
-from torax._src.config import runtime_params_slice
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.geometry import circular_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import simple_trigger
@@ -32,7 +32,7 @@ class SimpleTriggerTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = geometry_pydantic_model.CircularConfig(
+    self.geo = circular_geometry.CircularConfig(
         n_rho=_NRHO
     ).build_geometry()
     self.trigger = simple_trigger.SimpleTrigger()
@@ -117,7 +117,7 @@ class SimpleTriggerTest(parameterized.TestCase):
     mock_core_profiles = self._get_mock_core_profiles(q_profile, s_profile)
 
     mock_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         instance=True,
         mhd=mhd_runtime_params.RuntimeParams(
             sawtooth=mock.create_autospec(

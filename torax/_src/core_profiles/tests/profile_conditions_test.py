@@ -22,7 +22,7 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import profile_conditions
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -34,7 +34,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_profile_conditions_build_runtime_params_smoke_test(self):
     pc = profile_conditions.ProfileConditions()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     pc.build_runtime_params(t=0.0)
 
@@ -42,7 +42,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     initial_ip = 1e6
     updated_ip = 2e6
     pc = profile_conditions.ProfileConditions(Ip=initial_ip)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
@@ -72,7 +72,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         T_e={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_e_right_bc=T_e_right_bc,
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_e_right_bc, expected_initial_value)
@@ -91,7 +91,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         T_i={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         T_i_right_bc=T_i_right_bc,
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     dcs = pc.build_runtime_params(t=0.0)
     self.assertEqual(dcs.T_i_right_bc, expected_initial_value)
@@ -158,7 +158,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       self, psi, expected_initial_value, expected_second_value
   ):
     """Tests that psi is set correctly."""
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     pc = profile_conditions.ProfileConditions(
         psi=psi,
     )

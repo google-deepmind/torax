@@ -122,15 +122,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test_chease',
           'test_chease.py',
       ),
-      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
-      (
-          'test_eqdsk',
-          'test_eqdsk.py',
-          _ALL_PROFILES,
-          # higher rtol needed due to coincidental near-zero crossing of psi
-          # and larger relative errors in spite of small absolute errors.
-          1e-8,
-      ),
       # Tests Bremsstrahlung heat sink with time dependent Zimp and Z_eff.
       # CHEASE
       (
@@ -190,6 +181,10 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_eqdsk',
           'test_iterhybrid_predictor_corrector_eqdsk.py',
+          _ALL_PROFILES,
+          1e-6,
+          0,
+          'test_iterhybrid_predictor_corrector_eqdsk.nc',
       ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
@@ -230,6 +225,11 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios',
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios.py',
+      ),
+      # Predictor-corrector w/ Mavrin, n_e_ratios, forward lengyel
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel',
+          'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py',
       ),
       # Predictor-corrector with Mavrin and n_e_ratios_Z_eff impurity mode.
       (
@@ -309,6 +309,17 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_imas',
           'test_iterhybrid_predictor_corrector_imas.py',
+      ),
+      # Tests full integration for ITER-hybrid-based config with IMAS geometry
+      # and profiles.
+      (
+          'test_imas_profiles_and_geo',
+          'test_imas_profiles_and_geo.py',
+      ),
+      # Tests STEP scenario with Bohm-GyroBohm transport
+      (
+          'test_step_flattop_bgb',
+          'test_step_flattop_bgb.py',
       ),
   )
   def test_run_simulation(
@@ -415,7 +426,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_simulation_with_restart(self, test_config: str):
     ref_name = test_config + '.nc'
     output_file = os.path.join(paths.test_data_dir(), ref_name)
-    gt_output_xr = output.safe_load_dataset(output_file)
+    gt_output_xr = output.load_state_file(output_file)
     profiles_dataset = gt_output_xr.children[output.PROFILES].dataset
     ref_time = profiles_dataset[output.TIME].to_numpy()
     index = len(ref_time) // 2
@@ -587,7 +598,7 @@ class SimTest(sim_test_case.SimTestCase):
     expected_results_path = self._expected_results_path(
         'test_iterhybrid_rampup.nc'
     )
-    ref_data_tree = output.safe_load_dataset(expected_results_path)
+    ref_data_tree = output.load_state_file(expected_results_path)
     xr.map_over_datasets(
         xr.testing.assert_allclose, sim_data_tree, ref_data_tree
     )

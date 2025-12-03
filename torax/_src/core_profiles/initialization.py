@@ -24,7 +24,7 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.fvm import cell_variable
@@ -43,7 +43,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def initial_core_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -69,7 +69,9 @@ def initial_core_profiles(
       runtime_params.profile_conditions, geo
   )
   ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
-
+  toroidal_velocity = getters.get_updated_toroidal_velocity(
+      runtime_params.profile_conditions, geo
+  )
   # Set v_loop_lcfs. Two branches:
   # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
   # 2. Initialize v_loop_lcfs to 0 if using the Ip boundary condition for psi.
@@ -121,6 +123,7 @@ def initial_core_profiles(
       j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      toroidal_velocity=toroidal_velocity,
   )
 
   return _init_psi_and_psi_derived(
@@ -205,7 +208,7 @@ def update_psi_from_j(
 
 
 def _get_initial_psi_mode(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
 ) -> profile_conditions_lib.InitialPsiMode:
   """Returns the initial psi mode based on the runtime parameters.
@@ -243,7 +246,7 @@ def _get_initial_psi_mode(
 
 
 def _init_psi_and_psi_derived(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -405,7 +408,7 @@ def _init_psi_and_psi_derived(
 
 
 def _calculate_all_psi_dependent_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     core_profiles: state.CoreProfiles,
@@ -490,7 +493,7 @@ def _calculate_all_psi_dependent_profiles(
 
 
 def _get_bootstrap_and_standard_source_profiles(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -519,7 +522,7 @@ def _get_bootstrap_and_standard_source_profiles(
 
 
 def _iterate_psi_and_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
@@ -538,11 +541,13 @@ def _iterate_psi_and_sources(
         source_models,
         source_profiles,
     )
-    j_total_hires = get_j_total_hires_with_external_sources(
+    j_total_hires = get_j_toroidal_total_hires_with_external_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
-        sum(source_profiles.psi.values()),
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+            sum(source_profiles.psi.values()), geo
+        ),
     )
     psi = update_psi_from_j(
         runtime_params.profile_conditions.Ip,
@@ -560,7 +565,7 @@ def _iterate_psi_and_sources(
 
 
 def _get_j_total_hires_with_no_external_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates j_total hires when the total current is given by a formula."""
@@ -574,38 +579,48 @@ def _get_j_total_hires_with_no_external_sources(
   return j_total_hires
 
 
-def get_j_total_hires_with_external_sources(
-    runtime_params: runtime_params_slice.RuntimeParams,
+def get_j_toroidal_total_hires_with_external_sources(
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
-    external_current: jax.Array,
+    j_toroidal_external: jax.Array,
 ) -> jax.Array:
   """Calculates j_total hires when the Ohmic current is given by a formula."""
-  Ip = runtime_params.profile_conditions.Ip
-  psi_current = external_current + bootstrap_current.j_bootstrap
-
-  j_bootstrap_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, bootstrap_current.j_bootstrap_face
+  # Convert bootstrap current density to toroidal, and calculate high-resolution
+  # version
+  j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
+      bootstrap_current.j_parallel_bootstrap, geo
+  )
+  j_toroidal_bootstrap_hires = jnp.interp(
+      geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face
   )
 
-  # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
-  external_current_face = math_utils.cell_to_face(
-      external_current,
+  # Calculate high-resolution version of external (eg ECCD) current density
+  j_toroidal_external_face = math_utils.cell_to_face(
+      j_toroidal_external,
       geo,
       preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
-  external_current_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, external_current_face
+  j_toroidal_external_hires = jnp.interp(
+      geo.rho_hires, geo.rho_face, j_toroidal_external_face
   )
 
-  # calculate high resolution j_total and Ohmic current profile
-  jformula_hires = (
+  # Calculate high resolution j_total and j_ohmic
+  j_toroidal_ohmic_formula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** runtime_params.profile_conditions.current_profile_nu
-  denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
-  I_non_inductive = math_utils.area_integration(psi_current, geo)
-  Iohm = Ip - I_non_inductive
-  Cohm_hires = Iohm / denom
-  j_ohmic_hires = jformula_hires * Cohm_hires
-  j_total_hires = j_ohmic_hires + external_current_hires + j_bootstrap_hires
-  return j_total_hires
+  denom = _trapz(
+      j_toroidal_ohmic_formula_hires * geo.spr_hires, geo.rho_hires_norm
+  )
+  I_non_inductive = math_utils.area_integration(
+      j_toroidal_external + j_toroidal_bootstrap, geo
+  )
+  I_ohmic = runtime_params.profile_conditions.Ip - I_non_inductive
+  C_ohm_hires = I_ohmic / denom
+  j_toroidal_ohmic_hires = j_toroidal_ohmic_formula_hires * C_ohm_hires
+  j_toroidal_total_hires = (
+      j_toroidal_ohmic_hires
+      + j_toroidal_external_hires
+      + j_toroidal_bootstrap_hires
+  )
+  return j_toroidal_total_hires

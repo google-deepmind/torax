@@ -20,7 +20,7 @@ import chex
 import jax
 from torax._src import state
 from torax._src import static_dataclass
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -36,17 +36,17 @@ class EdgeModelOutputs:
 
   Attributes:
     q_parallel: Parallel heat flux upstream [W/m^2].
-    heat_flux_perp_to_target: Heat flux perpendicular to the target [W/m^2].
-    separatrix_electron_temp: Electron temperature at the separatrix [keV].
-    target_electron_temp: Electron temperature at sheath entrance [eV].
-    neutral_pressure_in_divertor: Neutral pressure in the divertor [Pa].
+    q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
+    T_e_separatrix: Electron temperature at the separatrix [keV].
+    T_e_target: Electron temperature at sheath entrance [eV].
+    pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
   """
 
   q_parallel: jax.Array
-  heat_flux_perp_to_target: jax.Array
-  separatrix_electron_temp: jax.Array
-  target_electron_temp: jax.Array
-  neutral_pressure_in_divertor: jax.Array
+  q_perpendicular_target: jax.Array
+  T_e_separatrix: jax.Array
+  T_e_target: jax.Array
+  pressure_neutral_divertor: jax.Array
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -56,7 +56,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
@@ -76,4 +76,3 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_edge_model(self) -> EdgeModel:
     """Builds an edge model from the config."""
-

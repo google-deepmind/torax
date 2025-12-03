@@ -26,7 +26,8 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
-from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_solvers
+from torax._src.edge import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
@@ -34,6 +35,7 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from torax._src.solver import jax_root_finding
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
@@ -85,6 +87,8 @@ class StateHistoryTest(parameterized.TestCase):
             'bremsstrahlung': -ones,
             'ohmic': ones * 5,
             'fusion': ones,
+            'generic_heat': 3 * ones,
+            'ecrh': 7 * ones,
         },
         n_e={},
         psi={},
@@ -122,7 +126,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     self.history = output.StateHistory(
         sim_error=sim_error,
-        state_history=(self.sim_state,),
+        state_history=[self.sim_state],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )
@@ -149,7 +153,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(self.sim_state, self.sim_state_t2),
+        state_history=[self.sim_state, self.sim_state_t2],
         post_processed_outputs_history=(
             self._output_state,
             self._output_state,
@@ -212,7 +216,7 @@ class StateHistoryTest(parameterized.TestCase):
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
     data_tree_to_save.to_netcdf(path)
 
-    loaded_data_tree = output.safe_load_dataset(path)
+    loaded_data_tree = output.load_state_file(path)
     xr.testing.assert_equal(loaded_data_tree, data_tree_to_save)
 
   def test_expected_keys_in_child_nodes(self):
@@ -332,7 +336,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(torax_state, torax_state),
+        state_history=[torax_state, torax_state],
         post_processed_outputs_history=(
             post_processed_outputs,
             post_processed_outputs,
@@ -441,35 +445,139 @@ class StateHistoryTest(parameterized.TestCase):
         total_impurity_radiation,
     )
 
-  def test_state_history_with_edge_outputs(self):
+  def test_state_history_with_extended_lengyel_outputs_fixed_point(self):
+    """Tests that extended Lengyel edge outputs are saved correctly."""
 
-    edge_outputs = edge_base.EdgeModelOutputs(
+    # Create dummy ExtendedLengyelOutputs
+    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         q_parallel=jnp.array(1.0),
-        heat_flux_perp_to_target=jnp.array(2.0),
-        separatrix_electron_temp=jnp.array(3.0),
-        target_electron_temp=jnp.array(4.0),
-        neutral_pressure_in_divertor=jnp.array(5.0),
+        q_perpendicular_target=jnp.array(2.0),
+        T_e_separatrix=jnp.array(3.0),
+        T_e_target=jnp.array(4.0),
+        pressure_neutral_divertor=jnp.array(5.0),
+        alpha_t=jnp.array(0.5),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations={'Ar': jnp.array(0.01)},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
+        ),
+        calculated_enrichment={'Ar': jnp.array(1.0)},
     )
 
     sim_state_with_edge = dataclasses.replace(
         self.sim_state,
-        edge_outputs=edge_outputs,
+        edge_outputs=extended_lengyel_outputs,
     )
 
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=(sim_state_with_edge,),
+        state_history=[sim_state_with_edge],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )
 
     # Verify edge outputs are stored in the history object
-    self.assertEqual(history._edge_outputs[0], edge_outputs)
+    self.assertEqual(history._edge_outputs[0], extended_lengyel_outputs)
 
-    # Verify that conversion to xarray works. This ensures no regressions in the
-    # output pipeline when edge outputs are present
+    # Verify that conversion to xarray works and contains edge data
     output_xr = history.simulation_output_to_xr()
     self.assertIsNotNone(output_xr)
+
+    self.assertIn(output.EDGE, output_xr.children)
+    edge_dataset = output_xr.children[output.EDGE].dataset
+
+    # Check standard fields
+    self.assertIn('q_parallel', edge_dataset.data_vars)
+    self.assertIn('T_e_target', edge_dataset.data_vars)
+
+    # Check extended fields
+    self.assertIn('alpha_t', edge_dataset.data_vars)
+    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
+    self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
+    self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
+    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
+    self.assertIn('fixed_point_outcome', edge_dataset.data_vars)
+
+    # Verify values match
+    np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
+    np.testing.assert_allclose(
+        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
+        np.array([0.01]),
+    )
+
+  def test_state_history_with_extended_lengyel_outputs_newton(self):
+    """Tests that extended Lengyel edge outputs are saved correctly."""
+
+    # Create dummy ExtendedLengyelOutputs
+    extended_lengyel_outputs = (
+        extended_lengyel_standalone.ExtendedLengyelOutputs(
+            q_parallel=jnp.array(1.0),
+            q_perpendicular_target=jnp.array(2.0),
+            T_e_separatrix=jnp.array(3.0),
+            T_e_target=jnp.array(4.0),
+            pressure_neutral_divertor=jnp.array(5.0),
+            alpha_t=jnp.array(0.5),
+            Z_eff_separatrix=jnp.array(1.5),
+            seed_impurity_concentrations={'Ar': jnp.array(0.01)},
+            solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+                physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+                numerics_outcome=jax_root_finding.RootMetadata(
+                    iterations=jnp.array(10),
+                    residual=jnp.array(1e-6),
+                    error=jnp.array(0),
+                    last_tau=jnp.array(1.0),
+                ),
+            ),
+            calculated_enrichment={'Ar': jnp.array(1.0)},
+        )
+    )
+
+    sim_state_with_edge = dataclasses.replace(
+        self.sim_state,
+        edge_outputs=extended_lengyel_outputs,
+    )
+
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=[sim_state_with_edge],
+        post_processed_outputs_history=(self._output_state,),
+        torax_config=self.torax_config,
+    )
+
+    # Verify edge outputs are stored in the history object
+    self.assertEqual(history._edge_outputs[0], extended_lengyel_outputs)
+
+    # Verify that conversion to xarray works and contains edge data
+    output_xr = history.simulation_output_to_xr()
+    self.assertIsNotNone(output_xr)
+
+    self.assertIn(output.EDGE, output_xr.children)
+    edge_dataset = output_xr.children[output.EDGE].dataset
+
+    # Check standard fields
+    self.assertIn('q_parallel', edge_dataset.data_vars)
+    self.assertIn('T_e_target', edge_dataset.data_vars)
+
+    # Check extended fields
+    self.assertIn('alpha_t', edge_dataset.data_vars)
+    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
+    self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
+    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
+    self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
+    self.assertIn('solver_iterations', edge_dataset.data_vars)
+    self.assertIn('solver_residual', edge_dataset.data_vars)
+    self.assertIn('solver_error', edge_dataset.data_vars)
+
+    # Verify values match
+    np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
+    np.testing.assert_allclose(
+        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
+        np.array([0.01]),
+    )
+    np.testing.assert_allclose(
+        edge_dataset['solver_iterations'].values, np.array([10])
+    )
 
 
 if __name__ == '__main__':

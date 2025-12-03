@@ -339,6 +339,15 @@ time-dependence of temperature, density, and current.
   This setting is ignored for the ad-hoc circular geometry, which has no
   numerical geometry.
 
+``toroidal_velocity`` (**time-varying-array** | None [default = None])
+  Toroidal velocity profile. If not provided, the velocity will be set to zero.
+
+``toroidal_velocity_right_bc`` (**time-varying-scalar** | None [default = None])
+  Toroidal velocity boundary condition for r=a_minor. If this is ``None`` the
+  boundary condition will instead be taken from ``toroidal_velocity`` at
+  :math:`\hat{\rho}=1`. If ``toroidal_velocity`` is also ``None``, then the
+  boundary condition will be set to zero.
+
 .. _numerics_dataclass:
 
 numerics
@@ -801,8 +810,8 @@ additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
-  The default is set to ``‘ITER_hybrid_citrin_equil_cheasedata.mat2cols’`` for
-  CHEASE geometry and ``EQDSK_ITERhybrid_COCOS02.eqdsk``` for EQDSK geometry.
+  The default is set to ``iterhybrid.mat2cols’`` for
+  CHEASE geometry and ``iterhybrid_cocos02.eqdsk``` for EQDSK geometry.
 
 ``geometry_directory`` (str | None [default = None])
   Optionally set the geometry directory. This should be set to an absolute path.
@@ -2154,7 +2163,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'geometry': {
           'geometry_type': 'chease',
-          'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+          'geometry_file': 'iterhybrid.mat2cols',
           'Ip_from_parameters': True,
           'R_major': 6.2,
           'a_minor': 2.0,

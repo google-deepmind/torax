@@ -21,7 +21,7 @@ from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.physics import psi_calculations
 
@@ -32,7 +32,7 @@ class FlattenProfileTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = geometry_pydantic_model.CircularConfig(
+    self.geo = circular_geometry.CircularConfig(
         n_rho=_NRHO
     ).build_geometry()
 

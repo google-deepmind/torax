@@ -19,9 +19,9 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source
@@ -36,7 +36,7 @@ class SourceModelsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
@@ -101,7 +101,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),
@@ -158,7 +158,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(
@@ -245,7 +245,7 @@ class SourceModelsTest(parameterized.TestCase):
         psi_sources={},
     )
     dynamic_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
                 prescribed_values=(jnp.ones(self.geo.rho.shape),),

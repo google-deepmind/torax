@@ -79,10 +79,10 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         fraction_of_P_SOL_to_divertor=(
             extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR
         ),
-        target_angle_of_incidence=(
-            extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE
+        angle_of_incidence_target=(
+            extended_lengyel_defaults.ANGLE_OF_INCIDENCE_TARGET
         ),
-        wall_temperature=extended_lengyel_defaults.WALL_TEMPERATURE,
+        T_wall=extended_lengyel_defaults.T_WALL,
         ratio_of_molecular_to_ion_mass=(
             extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS
         ),
@@ -93,17 +93,17 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         ne_tau=extended_lengyel_defaults.NE_TAU,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
-        divertor_parallel_length=5.0,
-        parallel_connection_length=20.0,
-        separatrix_mach_number=extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
+        connection_length_divertor=5.0,
+        connection_length_target=20.0,
+        mach_separatrix=extended_lengyel_defaults.MACH_SEPARATRIX,
         separatrix_electron_density=3.3e19,
-        separatrix_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP,
-        separatrix_ratio_of_electron_to_ion_density=extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY,
+        T_i_T_e_ratio_separatrix=extended_lengyel_defaults.T_I_T_E_RATIO_SEPARATRIX,
+        n_e_n_i_ratio_separatrix=extended_lengyel_defaults.N_E_N_I_RATIO_SEPARATRIX,
         average_ion_mass=2.0,
         sheath_heat_transmission_factor=extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR,
-        target_mach_number=extended_lengyel_defaults.TARGET_MACH_NUMBER,
-        target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
-        target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
+        mach_target=extended_lengyel_defaults.MACH_TARGET,
+        T_i_T_e_ratio_target=extended_lengyel_defaults.T_I_T_E_RATIO_TARGET,
+        n_e_n_i_ratio_target=extended_lengyel_defaults.N_E_N_I_RATIO_TARGET,
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
 
@@ -113,7 +113,7 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         c_z_prefactor=0.059314229517142096,
         kappa_e=1751.6010938527386,
         alpha_t=0.0,
-        target_electron_temp=2.34,
+        T_e_target=2.34,
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -143,7 +143,7 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         c_z_prefactor=0.059314229517142096,
         kappa_e=1751.6010938527386,
         alpha_t=0.0,
-        target_electron_temp=2.34,
+        T_e_target=2.34,
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -172,7 +172,7 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
         c_z_prefactor=0.0,
         kappa_e=1751.6010938527386,
         alpha_t=0.1,
-        target_electron_temp=2.34,
+        T_e_target=2.34,
     )
     initial_sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -260,10 +260,10 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         fraction_of_P_SOL_to_divertor=(
             extended_lengyel_defaults.FRACTION_OF_PSOL_TO_DIVERTOR
         ),
-        target_angle_of_incidence=(
-            extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE
+        angle_of_incidence_target=(
+            extended_lengyel_defaults.ANGLE_OF_INCIDENCE_TARGET
         ),
-        wall_temperature=extended_lengyel_defaults.WALL_TEMPERATURE,
+        T_wall=extended_lengyel_defaults.T_WALL,
         ratio_of_molecular_to_ion_mass=(
             extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS
         ),
@@ -279,17 +279,17 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         ne_tau=extended_lengyel_defaults.NE_TAU,
         SOL_conduction_fraction=extended_lengyel_defaults.SOL_CONDUCTION_FRACTION,
         divertor_broadening_factor=extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR,
-        divertor_parallel_length=5.0,
-        parallel_connection_length=20.0,
-        separatrix_mach_number=extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER,
+        connection_length_divertor=5.0,
+        connection_length_target=20.0,
+        mach_separatrix=extended_lengyel_defaults.MACH_SEPARATRIX,
         separatrix_electron_density=3.3e19,
-        separatrix_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP,
-        separatrix_ratio_of_electron_to_ion_density=extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY,
+        T_i_T_e_ratio_separatrix=extended_lengyel_defaults.T_I_T_E_RATIO_SEPARATRIX,
+        n_e_n_i_ratio_separatrix=extended_lengyel_defaults.N_E_N_I_RATIO_SEPARATRIX,
         average_ion_mass=2.0,
         sheath_heat_transmission_factor=extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR,
-        target_mach_number=extended_lengyel_defaults.TARGET_MACH_NUMBER,
-        target_ratio_of_ion_to_electron_temp=extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP,
-        target_ratio_of_electron_to_ion_density=extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY,
+        mach_target=extended_lengyel_defaults.MACH_TARGET,
+        T_i_T_e_ratio_target=extended_lengyel_defaults.T_I_T_E_RATIO_TARGET,
+        n_e_n_i_ratio_target=extended_lengyel_defaults.N_E_N_I_RATIO_TARGET,
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
 
@@ -299,7 +299,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         c_z_prefactor=0.0,
         kappa_e=1931.8277173925928,
         alpha_t=0.0,
-        target_electron_temp=2.34,
+        T_e_target=2.34,
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -325,7 +325,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         c_z_prefactor=0.0,
         kappa_e=1931.8277173925928,
         alpha_t=0.0,
-        target_electron_temp=2.34,
+        T_e_target=2.34,
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -338,7 +338,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     self.assertEqual(
         status, extended_lengyel_solvers.PhysicsOutcome.Q_CC_SQUARED_NEGATIVE
     )
-    np.testing.assert_allclose(calculated_qcc, 0.0)
+    np.testing.assert_allclose(calculated_qcc, 1e-7)
 
   def test_forward_unsuccessful_newton_solve_but_successful_hybrid_solve(self):
     # The initial guess state is deliberately set far from the solution, by
@@ -349,7 +349,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         c_z_prefactor=0.0,
         kappa_e=1751.6010938527386,
         alpha_t=0.1,
-        target_electron_temp=2.0,
+        T_e_target=2.0,
     )
     initial_sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -369,7 +369,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     assert isinstance(status.numerics_outcome, jax_root_finding.RootMetadata)
     self.assertEqual(status.numerics_outcome.error, 0)
     np.testing.assert_allclose(
-        final_sol_model.state.target_electron_temp,
+        final_sol_model.state.T_e_target,
         2.34,
         rtol=1e-3,
     )

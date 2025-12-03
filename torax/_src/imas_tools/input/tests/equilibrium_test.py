@@ -19,7 +19,8 @@ from absl.testing import parameterized
 import imas
 import numpy as np
 from torax._src import path_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import chease
+from torax._src.geometry import imas as imas_config
 from torax._src.imas_tools.input import loader
 
 
@@ -34,13 +35,13 @@ class EquilibriumTest(parameterized.TestCase):
   ):
     """Test to compare CHEASE and IMAS methods for the same equilibrium."""
     # Loading the equilibrium and constructing geometry object
-    config = geometry_pydantic_model.IMASConfig(
+    config = imas_config.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
         Ip_from_parameters=True,
     )
     geo_IMAS = config.build_geometry()
 
-    geo_CHEASE = geometry_pydantic_model.CheaseConfig().build_geometry()
+    geo_CHEASE = chease.CheaseConfig().build_geometry()
 
     # Comparison of the fields
     diverging_fields = []
@@ -78,19 +79,20 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_filepath(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    config = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
+    config = imas_config.IMASConfig(imas_filepath=filename)
     config.build_geometry()
 
   def test_IMAS_input_with_uri(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    imas_directory = os.path.join(path_utils.torax_path(), 'data/imas_data')
+    relative_dir = 'data/third_party/imas'
+    imas_directory = os.path.join(path_utils.torax_path(), relative_dir)
     full_path = os.path.join(imas_directory, filename)
     mock_value = imas.DBEntry(uri=full_path, mode='r')
     # imas_core not available for CI so just check if loader is called
     with mock.patch('imas.DBEntry') as mocked_class:
       mocked_class.return_value = mock_value
       imas_uri = f'imas:hdf5?path={full_path}'
-      config = geometry_pydantic_model.IMASConfig(
+      config = imas_config.IMASConfig(
           imas_uri=imas_uri, imas_filepath=None
       )
       config.build_geometry()
@@ -98,7 +100,7 @@ class EquilibriumTest(parameterized.TestCase):
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
     equilibrium_in = loader.load_imas_data(filename, 'equilibrium')
-    config = geometry_pydantic_model.IMASConfig(
+    config = imas_config.IMASConfig(
         equilibrium_object=equilibrium_in, imas_filepath=None
     )
     config.build_geometry()
@@ -132,11 +134,11 @@ class EquilibriumTest(parameterized.TestCase):
             )
 
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
-    config_at_0 = geometry_pydantic_model.IMASConfig(imas_filepath=filename)
-    config_at_slice_from_time = geometry_pydantic_model.IMASConfig(
+    config_at_0 = imas_config.IMASConfig(imas_filepath=filename)
+    config_at_slice_from_time = imas_config.IMASConfig(
         imas_filepath=filename, slice_time=40
     )
-    config_at_slice_from_index = geometry_pydantic_model.IMASConfig(
+    config_at_slice_from_index = imas_config.IMASConfig(
         imas_filepath=filename, slice_index=5
     )
 
@@ -158,7 +160,7 @@ class EquilibriumTest(parameterized.TestCase):
         IndexError,
         'out of range',
     ):
-      config = geometry_pydantic_model.IMASConfig(
+      config = imas_config.IMASConfig(
           imas_filepath=filename,
           slice_index=100,
       )

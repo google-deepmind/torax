@@ -26,13 +26,14 @@ from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
+from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
 import typing_extensions
@@ -76,7 +77,7 @@ class PostProcessedOutputs:
     P_aux_total: Total auxiliary heating power [W]
     P_external_injected: Total external injected power before absorption [W]
     P_external_total: Total external power before absorption (
-        P_external_injected + P_ohmic_e) [W]
+      P_external_injected + P_ohmic_e) [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
     P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
@@ -103,14 +104,14 @@ class PostProcessedOutputs:
       [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
     E_fusion: Total cumulative fusion energy [J]
-    E_aux_total: Total auxiliary heating energy absorbed by the plasma (
-      time integral of P_aux_total) [J].
+    E_aux_total: Total auxiliary heating energy absorbed by the plasma ( time
+      integral of P_aux_total) [J].
     E_ohmic_e: Total Ohmic heating energy to electrons (time integral of
       P_ohmic_e) [J].
-    E_external_injected: Total external injected energy before absorption (
-      time integral of P_external_injected) [J].
-    E_external_total: Total external energy absorbed by the plasma (
-      time integral of P_external_total) [J].
+    E_external_injected: Total external injected energy before absorption ( time
+      integral of P_external_injected) [J].
+    E_external_total: Total external energy absorbed by the plasma ( time
+      integral of P_external_total) [J].
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
     n_e_volume_avg: Volume average electron density [m^-3]
@@ -141,9 +142,24 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
-    j_external: Total current density from psi sources which are external to the
-      plasma (aka not bootstrap) [A m^-2]
-    j_ohmic: Ohmic current density [A/m^2]
+    j_total: Total toroidal current density [Am^-2]
+    j_parallel_total: Total parallel current density [Am^-2]
+    j_bootstrap: Toroidal bootstrap current density [Am^-2]
+    j_parallel_bootstrap: Parallel bootstrap current density [Am^-2]
+    j_external: Toroidal current density from external psi sources (i.e.,
+      excluding bootstrap) [A m^-2]
+    j_parallel_external: Parallel current density from external psi sources
+      (i.e., excluding bootstrap) [A m^-2]
+    j_ohmic: Toroidal ohmic current density [Am^-2]
+    j_parallel_ohmic: Parallel ohmic current density [Am^-2]
+    j_generic_current: Toroidal current density from generic current source
+      [Am^-2]
+    j_parallel_generic_current: Parallel current density from generic current
+      source [Am^-2]
+    j_ecrh: Toroidal current density from electron cyclotron heating and current
+      source [Am^-2]
+    j_parallel_ecrh: Toroidal current density from electron cyclotron heating
+      and current source [Am^-2]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
@@ -152,6 +168,8 @@ class PostProcessedOutputs:
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
     impurity_species: Dictionary of outputs for each impurity species.
+    poloidal_velocity: Poloidal velocity [m/s]
+    radial_electric_field: Radial electric field [V/m]
     first_step: Whether the outputs are from the first step of the simulation.
   """
 
@@ -226,8 +244,16 @@ class PostProcessedOutputs:
   rho_q_3_1_first: array_typing.FloatScalar
   rho_q_3_1_second: array_typing.FloatScalar
   I_bootstrap: array_typing.FloatScalar
+  # Note: The default j profiles (j_total, j_parallel_bootstrap, j_parallel_*
+  # for * in sources) are saved elsewhere
+  # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
+  j_parallel_total: array_typing.FloatVector
   j_external: array_typing.FloatVector
   j_ohmic: array_typing.FloatVector
+  j_parallel_ohmic: array_typing.FloatVector
+  j_bootstrap: array_typing.FloatVector
+  j_generic_current: array_typing.FloatVector
+  j_ecrh: array_typing.FloatVector
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
@@ -236,6 +262,8 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
+  poloidal_velocity: array_typing.FloatVector
+  radial_electric_field: array_typing.FloatVector
   first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
@@ -312,8 +340,14 @@ class PostProcessedOutputs:
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        j_external=jnp.zeros(geo.rho_face.shape),
+        # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
+        j_parallel_total=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_ohmic=jnp.zeros(geo.rho_face.shape),
+        j_parallel_ohmic=jnp.zeros(geo.rho_face.shape),
+        j_external=jnp.zeros(geo.rho_face.shape),
+        j_generic_current=jnp.zeros(geo.rho_face.shape),
+        j_ecrh=jnp.zeros(geo.rho_face.shape),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -321,8 +355,10 @@ class PostProcessedOutputs:
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        first_step=jnp.array(True),
         impurity_species={},
+        poloidal_velocity=jnp.zeros(geo.rho_face.shape),
+        radial_electric_field=jnp.zeros(geo.rho_face.shape),
+        first_step=jnp.array(True),
     )
 
   def check_for_errors(self):
@@ -387,7 +423,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -489,8 +525,14 @@ def _calculate_integrated_sources(
       integrated['P_external_injected'] += integrated[f'{value}']
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
-    integrated[f'{value}'] = _get_integrated_source_value(
-        core_sources.psi, key, geo, math_utils.area_integration
+    integrated[value] = _get_integrated_source_value(
+        core_sources.psi,
+        key,
+        geo,
+        # Convert current sources to toroidal current before integrating
+        lambda x, geo: math_utils.area_integration(
+            psi_calculations.j_parallel_to_j_toroidal(x, geo), geo
+        ),
     )
 
   for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
@@ -512,7 +554,7 @@ def _calculate_integrated_sources(
 @jax.jit
 def make_post_processed_outputs(
     sim_state: sim_state_lib.ToraxSimState,
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
@@ -524,8 +566,8 @@ def make_post_processed_outputs(
     previous_post_processed_outputs: The previous outputs, used to calculate
       cumulative quantities. If no previous outputs exist, then the
       `PostProcessedOutputs.zeros()` method can be used to create an object that
-      can be used. In this case cumulative quantities will be set to zero.
-      This is used for the first time step of a simulation.
+      can be used. In this case cumulative quantities will be set to zero. This
+      is used for the first time step of a simulation.
 
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
@@ -560,10 +602,9 @@ def make_post_processed_outputs(
       runtime_params,
   )
   # Calculate fusion gain with a zero division guard.
-  Q_fusion = (
-      integrated_sources['P_fusion']
-      / (integrated_sources['P_external_total']
-         + constants.CONSTANTS.eps))
+  Q_fusion = integrated_sources['P_fusion'] / (
+      integrated_sources['P_external_total'] + constants.CONSTANTS.eps
+  )
 
   P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
       scaling_laws.calculate_plh_scaling_factor(
@@ -722,18 +763,64 @@ def make_post_processed_outputs(
       )
   )
 
-  I_bootstrap = math_utils.area_integration(
-      sim_state.core_sources.bootstrap_current.j_bootstrap, sim_state.geometry
+  # Parallel current densities
+  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # Core sources psi are all <j.B>/B0
+  j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
+      sim_state.core_profiles.j_total, sim_state.geometry
+  )
+  j_parallel_bootstrap = (
+      sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
+  )
+  j_parallel_external = sum(sim_state.core_sources.psi.values())
+  j_parallel_ohmic = (
+      j_parallel_total - j_parallel_external - j_parallel_bootstrap
   )
 
-  j_external = sum(sim_state.core_sources.psi.values())
-  psi_current = (
-      j_external + sim_state.core_sources.bootstrap_current.j_bootstrap
+  # Toroidal current densities
+  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # Core sources psi are all <j.B>/B0
+  j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
+      j_parallel_bootstrap, sim_state.geometry
   )
-  j_ohmic = sim_state.core_profiles.j_total - psi_current
+  j_toroidal_ohmic = psi_calculations.j_parallel_to_j_toroidal(
+      j_parallel_ohmic, sim_state.geometry
+  )
+  j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
+      j_parallel_external, sim_state.geometry
+  )
+  j_toroidal_sources = {}
+  for source_name in ['ecrh', 'generic_current']:
+    if source_name in sim_state.core_sources.psi.keys():
+      # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
+      j_toroidal_sources[f'j_{source_name}'] = (
+          psi_calculations.j_parallel_to_j_toroidal(
+              sim_state.core_sources.psi[source_name], sim_state.geometry
+          )
+      )
+    else:
+      j_toroidal_sources[f'j_{source_name}'] = jnp.zeros_like(
+          sim_state.geometry.rho
+      )
+
+  I_bootstrap = math_utils.area_integration(
+      j_toroidal_bootstrap, sim_state.geometry
+  )
 
   beta_tor, beta_pol, beta_N = formulas.calculate_betas(
       sim_state.core_profiles, sim_state.geometry
+  )
+
+  _, radial_electric_field, poloidal_velocity = rotation.calculate_rotation(
+      T_i=sim_state.core_profiles.T_i,
+      psi=sim_state.core_profiles.psi,
+      n_i=sim_state.core_profiles.n_i,
+      q_face=sim_state.core_profiles.q_face,
+      Z_eff_face=sim_state.core_profiles.Z_eff_face,
+      Z_i_face=sim_state.core_profiles.Z_i_face,
+      toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
+      pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
+      geo=sim_state.geometry,
   )
 
   return PostProcessedOutputs(
@@ -780,11 +867,18 @@ def make_post_processed_outputs(
       rho_q_2_1_second=safety_factor_fit_outputs.rho_q_2_1_second,
       rho_q_3_1_second=safety_factor_fit_outputs.rho_q_3_1_second,
       I_bootstrap=I_bootstrap,
-      j_external=j_external,
-      j_ohmic=j_ohmic,
+      j_parallel_total=j_parallel_total,
+      j_parallel_ohmic=j_parallel_ohmic,
+      j_ohmic=j_toroidal_ohmic,
+      j_bootstrap=j_toroidal_bootstrap,
+      j_external=j_toroidal_external,
+      j_ecrh=j_toroidal_sources['j_ecrh'],
+      j_generic_current=j_toroidal_sources['j_generic_current'],
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
+      poloidal_velocity=poloidal_velocity.face_value(),
+      radial_electric_field=radial_electric_field.face_value(),
       first_step=jnp.array(False),
   )

@@ -23,7 +23,7 @@ import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
@@ -49,8 +49,8 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 )
 def optimizer_solve_block(
     dt: jax.Array,
-    runtime_params_t: runtime_params_slice.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
@@ -167,18 +167,11 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  solver_numeric_outputs = state.SolverNumericOutputs(
-      inner_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
-      solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
-      sawtooth_crash=False,
-  )
-
   # Advance jaxopt_solver by one timestep
   (
       x_new_vec,
       final_loss,
-      solver_numeric_outputs.inner_solver_iterations,
+      inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
@@ -202,10 +195,17 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  solver_numeric_outputs.solver_error_state = jax.lax.cond(
+  solver_error_state = jax.lax.cond(
       final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
+  )
+
+  solver_numeric_outputs = state.SolverNumericOutputs(
+      inner_solver_iterations=inner_solver_iterations,
+      outer_solver_iterations=jnp.array(0, jax_utils.get_int_dtype()),
+      solver_error_state=solver_error_state,
+      sawtooth_crash=False,
   )
 
   return x_new, solver_numeric_outputs

@@ -37,9 +37,9 @@ class CoreProfiles:
 
   This dataclass is inspired by the IMAS `core_profiles` IDS.
 
-  Many of the profiles in this class are evolved by the PDE system in TORAX, and
-  therefore are stored as CellVariables. Other profiles are computed outside the
-  internal PDE system, and are simple JAX arrays.
+  Profiles are stored as `CellVariable` or JAX arrays. Array-based profiles
+  are on either the cell or face grid; those on the face grid are denoted with a
+  `_face` suffix.
 
   Attributes:
       T_i: Ion temperature [keV].
@@ -69,6 +69,7 @@ class CoreProfiles:
       j_total: Total current density on the cell grid [A/m^2].
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
+      toroidal_velocity: Toroidal velocity [m/s].
   """
 
   T_i: cell_variable.CellVariable
@@ -96,6 +97,7 @@ class CoreProfiles:
   j_total: array_typing.FloatVectorCell
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
+  toroidal_velocity: cell_variable.CellVariable
 
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
@@ -257,7 +259,7 @@ class CoreTransport:
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SolverNumericOutputs:
   """Numerical quantities related to the solver.
 

@@ -14,7 +14,7 @@
 from unittest import mock
 
 from absl.testing import absltest
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources.tests import test_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -37,7 +37,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         instance=True,
         sources={self._source_name: source_config.build_runtime_params(t=0.0)},
     )
@@ -62,7 +62,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     source_config = self._source_config_class.from_dict({})
     torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         instance=True,
         sources={self._source_name: source_config.build_runtime_params(t=0.0)},
     )

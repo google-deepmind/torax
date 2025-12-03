@@ -18,7 +18,7 @@ from fusion_surrogates.qlknn.models import registry
 import jax
 import pydantic
 from torax._src import jax_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import constant
@@ -66,7 +66,7 @@ class PydanticModelTest(parameterized.TestCase):
 
     # Any TimeVaryingArrays in the transport model must have a grid set, so we
     # need to define a geometry. We use a circular geometry for convenience.
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(transport, geo.torax_mesh)
 
     runtime_params = transport.build_runtime_params(t=0.0)
@@ -264,7 +264,7 @@ class PydanticModelTest(parameterized.TestCase):
       param_name,
   ):
     transport = pydantic_model(**{param_to_update: initial_value})
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(transport, geo.torax_mesh)
 
     @jax.jit

@@ -20,9 +20,9 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import set_tped_nped
@@ -179,7 +179,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         temperatures
     )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
     torax_pydantic.set_grid(profile_conditions, geo.torax_mesh)
     profile_condition_params = profile_conditions.build_runtime_params(t=0.0)
 
@@ -274,7 +274,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
       # Check to make sure it's a valid object.
       self.assertIsInstance(
           runtime_params,
-          runtime_params_slice.RuntimeParams,
+          runtime_params_lib.RuntimeParams,
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
@@ -307,7 +307,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     params_provider = self._params_provider
     # Create updates for a `TimeVaryingScalar`, `TimeVaryingArray` and `float`.
     ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 2.0,
     )
     T_e_cell_value = (
@@ -315,7 +315,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     )
     # Needed for pylint.
     assert params_provider.profile_conditions.T_e.grid is not None
-    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+    T_e_update = interpolated_param_2d.TimeVaryingArrayUpdate(
         value=T_e_cell_value * 3.0,
         rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,
     )
@@ -345,7 +345,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         ip_update, T_e_update, qei_update
     )
     num_compiles1 = jax_utils.get_number_of_compiles(f)
-    ip_update_new = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 4.0,
     )
     ip_value_2, T_e_value_2, qei_value_2 = f(
@@ -374,7 +374,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
       ),
       (
           lambda x: (x.profile_conditions.T_e,),
-          (interpolated_param_1d.TimeVaryingScalarReplace(np.array([1.0])),),
+          (interpolated_param_1d.TimeVaryingScalarUpdate(np.array([1.0])),),
           'To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`',
       ),
       (
@@ -391,7 +391,10 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         ValueError,
         msg=expected_error_message,
     ):
-      params_provider.update_provider(get_node, replacement,)
+      params_provider.update_provider(
+          get_node,
+          replacement,
+      )
 
   def test_update_runtime_params_provider_raises_for_invalid_node(self):
     params_provider = self._params_provider
@@ -405,10 +408,10 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
   def test_update_runtime_params_provider_result_can_be_updated_again(self):
     params_provider = self._params_provider
     ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 2.0,
     )
-    ip_second_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_second_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 4.0,
     )
     updated_provider = params_provider.update_provider(
@@ -426,14 +429,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
   def test_update_runtime_params_provider_mapping(self):
     params_provider = self._params_provider
     ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 2.0,
     )
     T_e_value = (
         params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
     )
     assert params_provider.profile_conditions.T_e.grid is not None
-    T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
+    T_e_update = interpolated_param_2d.TimeVaryingArrayUpdate(
         value=T_e_value * 3.0,
         rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,
     )
@@ -480,7 +483,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         Qei_multiplier_new, original_Qei_multiplier * 4.0
     )
 
-    ip_update_new = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=ip_value * 4.0,
     )
     ip_value_new, T_e_value_new, Qei_multiplier_new = f(
@@ -495,7 +498,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   def test_update_runtime_params_provider_mapping_raises_for_invalid_key(self):
     value = self._params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
+    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=value * 2.0,
     )
 

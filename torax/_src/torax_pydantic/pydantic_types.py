@@ -96,3 +96,15 @@ NumpyArray1DUnitInterval = Annotated[
     NumpyArray1D,
     pydantic.AfterValidator(_array_is_unit_interval),
 ]
+
+
+def _validate_cocos_int(v: int) -> int:
+  """Validates that the integer is a valid COCOS convention number."""
+  allowed = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18})
+  if v not in allowed:
+    raise ValueError(
+        f'Invalid COCOS integer: {v}. Must be one of {sorted(list(allowed))}.'
+    )
+  return v
+
+COCOSInt = Annotated[int, pydantic.AfterValidator(_validate_cocos_int)]

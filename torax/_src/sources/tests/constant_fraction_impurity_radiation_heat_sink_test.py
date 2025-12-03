@@ -16,10 +16,10 @@ from unittest import mock
 from absl.testing import absltest
 import chex
 from torax._src import math_utils
-from torax._src.config import runtime_params_slice
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.geometry import circular_geometry
 from torax._src.sources import generic_ion_el_heat_source
-from torax._src.sources import runtime_params as runtime_params_lib
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
@@ -49,7 +49,7 @@ class ImpurityRadiationConstantFractionTest(
     impurity_radiation_params = (
         impurity_radiation_constant_fraction.RuntimeParams(
             prescribed_values=mock.ANY,
-            mode=runtime_params_lib.Mode.MODEL_BASED,
+            mode=sources_runtime_params_lib.Mode.MODEL_BASED,
             is_explicit=False,
             fraction_P_heating=0.5,
         )
@@ -62,12 +62,12 @@ class ImpurityRadiationConstantFractionTest(
         P_total=120e6,
         electron_heat_fraction=0.66666,
         absorption_fraction=1.0,
-        mode=runtime_params_lib.Mode.MODEL_BASED,
+        mode=sources_runtime_params_lib.Mode.MODEL_BASED,
         is_explicit=False,
     )
 
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         sources={
             heat_name: heat_params,
             impurity_name: impurity_radiation_params,
@@ -78,7 +78,7 @@ class ImpurityRadiationConstantFractionTest(
         model_func=generic_ion_el_heat_source.default_formula,
     )
 
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
         runtime_params,
         geo,

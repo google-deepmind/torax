@@ -20,7 +20,7 @@ import numpy as np
 import pydantic
 from torax._src import interpolated_param
 from torax._src import jax_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
@@ -98,7 +98,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     )
     tva = scalar.to_time_varying_array()
     self.assertIsInstance(tva, torax_pydantic.TimeVaryingArray)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(tva, geo.torax_mesh)
 
     self.assertEqual(tva.time_interpolation_mode, scalar.interpolation_mode)
@@ -338,7 +338,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='update_value',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               value=np.array([2.0, 3.0, 5.0])
           ),
           expected_value=np.array([2.0, 3.0, 5.0]),
@@ -347,7 +347,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='update_time',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               time=np.array([0.0, 1.5, 2.5])
           ),
           # time=[0, 1.5, 2.5], value=[1, 2, 4]. at t=1.0, interp is
@@ -358,7 +358,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='update_time_and_value',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               time=np.array([0.0, 1.5, 2.5]), value=np.array([2.0, 3.0, 5.0])
           ),
           # time=[0, 1.5, 2.5], value=[2, 3, 5]. at t=1.0, interp is
@@ -389,23 +389,23 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     @jax.jit
     def f(
         scalar: torax_pydantic.TimeVaryingScalar,
-        replacements: interpolated_param_1d.TimeVaryingScalarReplace,
+        replacements: interpolated_param_1d.TimeVaryingScalarUpdate,
         t: chex.Numeric,
     ):
       new_scalar = scalar.update(replacements)
       return new_scalar.get_value(t=t)
 
-    replacements1 = interpolated_param_1d.TimeVaryingScalarReplace(
+    replacements1 = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=jax.numpy.array([2.0, 3.0, 5.0])
     )
     output1 = f(scalar, replacements1, 1.0)
     num_compiles1 = jax_utils.get_number_of_compiles(f)
-    replacements2 = interpolated_param_1d.TimeVaryingScalarReplace(
+    replacements2 = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=jax.numpy.array([3.0, 4.0, 6.0])
     )
     output2 = f(scalar, replacements2, 1.0)
     num_compiles2 = jax_utils.get_number_of_compiles(f)
-    replacements3 = interpolated_param_1d.TimeVaryingScalarReplace(
+    replacements3 = interpolated_param_1d.TimeVaryingScalarUpdate(
         time=jax.numpy.array([0.0, 2.0]), value=jax.numpy.array([2.0, 5.0])
     )
     output3 = f(scalar, replacements3, 1.0)
@@ -426,19 +426,19 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='wrong_shape_value',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               value=np.array([2.0, 3.0])
           ),
       ),
       dict(
           testcase_name='wrong_shape_time',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               time=np.array([0.0, 1.5])
           ),
       ),
       dict(
           testcase_name='wrong_shape_time_and_value',
-          replacements=interpolated_param_1d.TimeVaryingScalarReplace(
+          replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
               time=np.array([0.0,]), value=np.array([2.0, 3.0])
           ),
       ),

@@ -28,6 +28,7 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import psi_calculations
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profile_builders
@@ -42,11 +43,11 @@ from torax._src.torax_pydantic import model_config
 class _Currents:
   """Container for the various currents used in tests."""
 
-  j_total: jax.Array
-  j_total_face: jax.Array
-  j_external: jax.Array
-  j_bootstrap: jax.Array
-  j_ohmic: jax.Array
+  j_toroidal_total: jax.Array
+  j_toroidal_total_face: jax.Array
+  j_toroidal_external: jax.Array
+  j_toroidal_bootstrap: jax.Array
+  j_toroidal_ohmic: jax.Array
 
 
 class InitializationTest(parameterized.TestCase):
@@ -62,7 +63,7 @@ class InitializationTest(parameterized.TestCase):
     # Turn on the external current source.
     runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-    external_current = generic_current_source.calculate_generic_current(
+    j_parallel_external = generic_current_source.calculate_generic_current(
         runtime_params=runtime_params,
         geo=geo,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
@@ -70,11 +71,16 @@ class InitializationTest(parameterized.TestCase):
         unused_calculated_source_profiles=mock.ANY,
         unused_conductivity=mock.ANY,
     )[0]
-    j_total_hires = initialization.get_j_total_hires_with_external_sources(
-        bootstrap_current=bootstrap,
-        external_current=external_current,
-        runtime_params=runtime_params,
-        geo=geo,
+    j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
+        j_parallel_external, geo
+    )
+    j_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            bootstrap_current=bootstrap,
+            runtime_params=runtime_params,
+            geo=geo,
+            j_toroidal_external=j_toroidal_external,
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
@@ -82,6 +88,33 @@ class InitializationTest(parameterized.TestCase):
         j_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
+
+  def test_initial_core_profiles_toroidal_velocity(self):
+    config = default_configs.get_default_config_dict()
+    # Test default initialization (zeros)
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    core_profiles, geo, _ = _get_initial_state(torax_config)
+    np.testing.assert_allclose(
+        core_profiles.toroidal_velocity.value, np.zeros_like(geo.rho)
+    )
+
+  def test_initial_toroidal_velocity_from_profile_conditions(self):
+    config = default_configs.get_default_config_dict()
+    toroidal_velocity_test = np.array([10.0, 20.0, 30.0, 40.0])
+    _, geo, _ = _get_initial_state(
+        model_config.ToraxConfig.from_dict(config)
+    )
+    config['profile_conditions']['toroidal_velocity'] = {
+        0.0: {
+            rho: value
+            for rho, value in zip(geo.rho_norm, toroidal_velocity_test)
+        }
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    core_profiles, _, _ = _get_initial_state(torax_config)
+    np.testing.assert_allclose(
+        core_profiles.toroidal_velocity.value, toroidal_velocity_test
+    )
 
   @parameterized.parameters(
       (
@@ -197,14 +230,14 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(currents1.j_total),
-        np.mean(currents2.j_total),
+        np.mean(currents1.j_toroidal_total),
+        np.mean(currents2.j_toroidal_total),
         rtol=_TOL,
     )
 
     # Check that the total current agrees with the expected reference formula.
     np.testing.assert_allclose(
-        np.mean(currents1.j_total),
+        np.mean(currents1.j_toroidal_total),
         np.mean(j_total1_expected),
         rtol=_TOL,
     )
@@ -212,8 +245,8 @@ class InitializationTest(parameterized.TestCase):
     # The only non-inductive current is the external current. Therefore the
     # sum of Ohmic + external current should be equal to the total current.
     np.testing.assert_allclose(
-        np.mean(currents1.j_external + currents1.j_ohmic),
-        np.mean(currents1.j_total),
+        np.mean(currents1.j_toroidal_external + currents1.j_toroidal_ohmic),
+        np.mean(currents1.j_toroidal_total),
         rtol=_TOL,
     )
 
@@ -221,14 +254,14 @@ class InitializationTest(parameterized.TestCase):
     # initial_j_is_total_current=False as in Case 2. It is the "nu" formula
     # scaled down to compensate for the external current.
     np.testing.assert_allclose(
-        np.mean(currents2.j_ohmic),
+        np.mean(currents2.j_toroidal_ohmic),
         np.mean(j_ohmic2_expected),
         rtol=_TOL,
     )
 
     # Check that the face conversions agree with the expected reference.
     np.testing.assert_allclose(
-        np.mean(currents1.j_total_face),
+        np.mean(currents1.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
                 j_total1_expected,
@@ -242,7 +275,7 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(currents2.j_total_face),
+        np.mean(currents2.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
                 j_total1_expected,
@@ -315,8 +348,8 @@ class InitializationTest(parameterized.TestCase):
 
     # In Case 1, all the current should be Ohmic current.
     np.testing.assert_allclose(
-        np.mean(currents1.j_ohmic),
-        np.mean(currents1.j_total),
+        np.mean(currents1.j_toroidal_ohmic),
+        np.mean(currents1.j_toroidal_total),
         rtol=_TOL,
     )
 
@@ -325,8 +358,8 @@ class InitializationTest(parameterized.TestCase):
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        np.mean(currents1.j_ohmic),
-        np.mean(currents2.j_ohmic),
+        np.mean(currents1.j_toroidal_ohmic),
+        np.mean(currents2.j_toroidal_ohmic),
         rtol=_TOL,
     )
 
@@ -334,8 +367,8 @@ class InitializationTest(parameterized.TestCase):
     # Thus, the sum of Ohmic and booststrap currents should be equal to the
     # total (ohmic) current in Case 1.
     np.testing.assert_allclose(
-        np.mean(currents1.j_total),
-        np.mean(currents2.j_ohmic + currents2.j_bootstrap),
+        np.mean(currents1.j_toroidal_total),
+        np.mean(currents2.j_toroidal_ohmic + currents2.j_toroidal_bootstrap),
         rtol=_TOL,
     )
 
@@ -347,11 +380,11 @@ class InitializationTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     _, _, currents1 = _get_initial_state(torax_config)
-    jtotal1 = currents1.j_total
+    jtotal1 = currents1.j_toroidal_total
 
     torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
     _, _, currents2 = _get_initial_state(torax_config)
-    jtotal2 = currents2.j_total
+    jtotal2 = currents2.j_toroidal_total
 
     np.testing.assert_allclose(jtotal1, jtotal2)
 
@@ -496,17 +529,23 @@ def _get_initial_state(
       neoclassical_models=neoclassical_models,
       conductivity=conductivity,
   )
-  j_total = core_profiles.j_total
-  j_total_face = core_profiles.j_total_face
-  j_external = sum(core_sources.psi.values())
-  j_bootstrap = core_sources.bootstrap_current.j_bootstrap
-  j_ohmic = j_total - j_external - j_bootstrap
+  j_toroidal_total = core_profiles.j_total
+  j_toroidal_total_face = core_profiles.j_total_face
+  j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
+      sum(core_sources.psi.values()), geo
+  )
+  j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
+      core_sources.bootstrap_current.j_parallel_bootstrap, geo
+  )
+  j_toroidal_ohmic = (
+      j_toroidal_total - j_toroidal_external - j_toroidal_bootstrap
+  )
   currents = _Currents(
-      j_total=j_total,
-      j_total_face=j_total_face,
-      j_external=j_external,
-      j_bootstrap=j_bootstrap,
-      j_ohmic=j_ohmic,
+      j_toroidal_total=j_toroidal_total,
+      j_toroidal_total_face=j_toroidal_total_face,
+      j_toroidal_external=j_toroidal_external,
+      j_toroidal_bootstrap=j_toroidal_bootstrap,
+      j_toroidal_ohmic=j_toroidal_ohmic,
   )
   return core_profiles, geo, currents
 

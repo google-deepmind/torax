@@ -22,6 +22,7 @@ This includes:
 - Empirical fits for momentum, density, and power loss in the convection layer.
 - Formulas related to magnetic geometry (e.g., shaping factor, safety factor).
 - Calculation of effective ion charge (Z_eff) based on impurity concentrations.
+- Empirical scaling for divertor enrichment.
 """
 
 from typing import Mapping
@@ -36,7 +37,7 @@ from torax._src.edge import extended_lengyel_defaults
 
 
 def _temperature_fit_function(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
     params: extended_lengyel_defaults._FitParams,
 ) -> jax.Array:
   """A general form for divertor loss functions in terms of target temperature.
@@ -45,43 +46,43 @@ def _temperature_fit_function(
   https://doi.org/10.1088/1361-6587/aaacf6
 
   Args:
-    target_electron_temp: Electron temperature at the target [eV].
+    T_e_target: Electron temperature at the target [eV].
     params: Fit parameters for the function.
 
   Returns:
     The value of the fit function.
   """
   return 1.0 - params.amplitude * jnp.power(
-      1.0 - jnp.exp(-target_electron_temp / params.width), params.shape
+      1.0 - jnp.exp(-T_e_target / params.width), params.shape
   )
 
 
 def calc_momentum_loss_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the momentum loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['momentum_loss'],
   )
 
 
 def calc_density_ratio_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the ratio n_e_target/n_e_cc in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['density_ratio'],
   )
 
 
 def calc_power_loss_in_convection_layer(
-    target_electron_temp: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the power loss in the convection layer."""
   return _temperature_fit_function(
-      target_electron_temp,
+      T_e_target,
       extended_lengyel_defaults.TEMPERATURE_FIT_PARAMS['power_loss'],
   )
 
@@ -214,8 +215,7 @@ def calc_fieldline_pitch_at_omp(
   )
 
   upstream_poloidal_field = (
-      ratio_bpol_omp_to_bpol_avg
-      * separatrix_average_poloidal_field
+      ratio_bpol_omp_to_bpol_avg * separatrix_average_poloidal_field
   )
 
   # Using 1/R dependence of toroidal field.
@@ -289,3 +289,46 @@ def calc_Z_eff(
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
   return Z_eff[0]  # Return scalar for extended-lengyel.
+
+
+def calc_enrichment_kallenbach(
+    pressure_neutral_divertor: array_typing.FloatScalar,
+    ion_symbol: str,
+    enrichment_multiplier: array_typing.FloatScalar = 1.0,
+) -> jax.Array:
+  """Calculate divertor enrichment according to regression from Kallenbach 2024.
+
+  A. Kallenbach et al 2024 Nucl. Fusion 64 056003
+  DOI: 10.1088/1741-4326/ad3139
+  See figure 8.
+
+  enrichment = 41.0 * Z^-0.5 * p0^-0.4 * (E_ionization_z / E_ionization_D)^-5.8
+
+  Args:
+    pressure_neutral_divertor: Divertor neutral pressure [Pa].
+    ion_symbol: Symbol of the impurity ion.
+    enrichment_multiplier: Multiplier to adjust the empirical scaling.
+
+  Returns:
+    Enrichment factor (c_divertor / c_core).
+  """
+
+  if ion_symbol not in constants.ION_PROPERTIES_DICT:
+    raise ValueError(
+        f'Invalid ion symbol in enrichment calculation: {ion_symbol}.'
+        f' Allowed symbols are: {constants.ION_SYMBOLS}'
+    )
+
+  properties = constants.ION_PROPERTIES_DICT[ion_symbol]
+  Z = properties.Z
+  E_ionization_Z = properties.E_ionization
+  E_ionization_D = constants.ION_PROPERTIES_DICT['D'].E_ionization
+
+  # Avoid division by zero if pressure is very low
+  p0 = jnp.maximum(pressure_neutral_divertor, constants.CONSTANTS.eps)
+
+  enrichment = (
+      41.0 * Z**-0.5 * p0**-0.4 * (E_ionization_Z / E_ionization_D) ** -5.8
+  )
+
+  return enrichment * enrichment_multiplier

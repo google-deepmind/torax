@@ -35,7 +35,7 @@ CONFIG = {
     },
     'geometry': {
         'geometry_type': 'chease',
-        'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+        'geometry_file': 'iterhybrid.mat2cols',
         'Ip_from_parameters': True,
     },
     'neoclassical': {

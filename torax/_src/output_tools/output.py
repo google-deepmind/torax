@@ -25,9 +25,10 @@ from absl import logging
 import chex
 import jax
 import numpy as np
-import os
 from torax._src import array_typing
 from torax._src import state
+from torax._src.edge import base as edge_base
+from torax._src.edge import extended_lengyel_standalone
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
@@ -44,6 +45,7 @@ import xarray as xr
 PROFILES = "profiles"
 SCALARS = "scalars"
 NUMERICS = "numerics"
+EDGE = "edge"
 
 # Core profiles.
 T_E = "T_e"
@@ -59,14 +61,18 @@ Z_IMPURITY = "Z_impurity"
 Z_EFF = "Z_eff"
 SIGMA_PARALLEL = "sigma_parallel"
 V_LOOP_LCFS = "v_loop_lcfs"
-J_TOTAL = "j_total"
 IP_PROFILE = "Ip_profile"
 IP = "Ip"
 
-# Calculated or derived currents.
-J_OHMIC = "j_ohmic"
-J_EXTERNAL = "j_external"
-J_BOOTSTRAP = "j_bootstrap"
+# Calculated or derived current densities (excluding sources)
+J_PARALLEL_TOTAL = "j_parallel_total"
+J_PARALLEL_OHMIC = "j_parallel_ohmic"
+J_PARALLEL_EXTERNAL = "j_parallel_external"
+J_PARALLEL_BOOTSTRAP = "j_parallel_bootstrap"
+J_TOROIDAL_TOTAL = "j_total"
+J_TOROIDAL_OHMIC = "j_ohmic"
+J_TOROIDAL_EXTERNAL = "j_external"
+J_TOROIDAL_BOOTSTRAP = "j_bootstrap"
 I_BOOTSTRAP = "I_bootstrap"
 
 # Core transport.
@@ -95,6 +101,11 @@ TIME = "time"
 # Post processed outputs
 Q_FUSION = "Q_fusion"
 
+# Edge model outputs
+SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
+CALCULATED_ENRICHMENT = "calculated_enrichment"
+IMPURITY = "impurity"
+
 # Numerics.
 # Simulation error state.
 SIM_ERROR = "sim_error"
@@ -121,20 +132,14 @@ EXCLUDED_GEOMETRY_NAMES = frozenset({
 })
 
 
-def safe_load_dataset(filepath: str) -> xr.DataTree:
-  with open(filepath, "rb") as f:
-    with xr.open_datatree(f) as dt_open:
-      data_tree = dt_open.compute()
-  return data_tree
-
-
-def load_state_file(
-    filepath: str,
-) -> xr.DataTree:
+def load_state_file(filepath: str) -> xr.DataTree:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
-    data_tree = safe_load_dataset(filepath)
-    logging.info("Loading state file %s", filepath)
+    # necessary to use open here to work reliably in colab.
+    with open(filepath, "rb") as f:
+      dt_open = xr.open_datatree(f)
+      data_tree = dt_open.compute()
+    logging.info("Loaded state file %s", filepath)
     return data_tree
   else:
     raise ValueError(f"File {filepath} does not exist.")
@@ -211,25 +216,13 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: tuple[sim_state.ToraxSimState, ...],
+      state_history: list[sim_state.ToraxSimState],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],
       sim_error: state.SimError,
       torax_config: model_config.ToraxConfig,
   ):
-    if (
-        not torax_config.restart
-        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
-        and len(state_history) >= 2
-    ):
-      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
-      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
-      # underconstrained
-      state_history[0].core_profiles = dataclasses.replace(
-          state_history[0].core_profiles,
-          v_loop_lcfs=state_history[1].core_profiles.v_loop_lcfs,
-      )
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._post_processed_outputs = post_processed_outputs_history
@@ -237,6 +230,18 @@ class StateHistory:
         state.solver_numeric_outputs for state in state_history
     ]
     self._core_profiles = [state.core_profiles for state in state_history]
+    if (
+        not torax_config.restart
+        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and len(state_history) >= 2
+    ):
+      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+      # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
+      # underconstrained.
+      self._core_profiles[0] = dataclasses.replace(
+          self._core_profiles[0],
+          v_loop_lcfs=self._core_profiles[1].v_loop_lcfs,
+      )
     self._core_sources = [state.core_sources for state in state_history]
     self._edge_outputs = [state.edge_outputs for state in state_history]
     self._transport = [state.core_transport for state in state_history]
@@ -258,6 +263,12 @@ class StateHistory:
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
         jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
     )
+    # If self._edge_outputs is a list of Nones, stacked_edge_outputs will just
+    # be None, since jax.tree_util.tree_map treats None as a node with no leaves
+    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = (
+        jax.tree_util.tree_map(stack, *self._edge_outputs)
+    )
+
     self._times = np.array([state.t for state in state_history])
     chex.assert_rank(self.times, 1)
     # The rho grid does not change in time so we can just take the first one.
@@ -344,6 +355,7 @@ class StateHistory:
             the simulation.
         - profiles: Contains data variables for 1D profiles.
         - scalars: Contains data variables for scalars.
+        - edge: Contains data variables for the edge model, if one is active.
     """
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
@@ -370,17 +382,17 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    all_dicts = [
+    all_core_data = [
         self._save_core_profiles(),
         self._save_core_transport(),
         self._save_core_sources(),
         self._save_post_processed_outputs(),
         self._save_geometry(),
     ]
-    flat_dict = {}
-    for key, value in itertools.chain(*(d.items() for d in all_dicts)):
-      if key not in flat_dict:
-        flat_dict[key] = value
+    flattened_all_core_data = {}
+    for key, value in itertools.chain(*(d.items() for d in all_core_data)):
+      if key not in flattened_all_core_data:
+        flattened_all_core_data[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
     numerics_dict = {
@@ -404,29 +416,31 @@ class StateHistory:
     numerics = xr.Dataset(numerics_dict)
     profiles_dict = {
         k: v
-        for k, v in flat_dict.items()
+        for k, v in flattened_all_core_data.items()
         if v is not None and v.values.ndim > 1  # pytype: disable=attribute-error
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
         k: v
-        for k, v in flat_dict.items()
+        for k, v in flattened_all_core_data.items()
         if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
     }
     scalars = xr.Dataset(scalars_dict)
+    children = {
+        NUMERICS: xr.DataTree(dataset=numerics),
+        PROFILES: xr.DataTree(dataset=profiles),
+        SCALARS: xr.DataTree(dataset=scalars),
+    }
+    if self._stacked_edge_outputs is not None:
+      children[EDGE] = xr.DataTree(dataset=self._save_edge_outputs())
     data_tree = xr.DataTree(
-        children={
-            NUMERICS: xr.DataTree(dataset=numerics),
-            PROFILES: xr.DataTree(dataset=profiles),
-            SCALARS: xr.DataTree(dataset=scalars),
-        },
+        children=children,
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,
             attrs={CONFIG: self.torax_config.model_dump_json()},
         ),
     )
-
     if (
         self.torax_config.restart is not None
         and self.torax_config.restart.stitch
@@ -626,9 +640,9 @@ class StateHistory:
         )
     )
 
-    xr_dict[J_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
-        self._stacked_core_sources.bootstrap_current.j_bootstrap,
-        self._stacked_core_sources.bootstrap_current.j_bootstrap_face,
+    xr_dict[J_PARALLEL_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
+        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
+        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
     )
 
     # Add source profiles with suffixes indicating which profile they affect.
@@ -643,7 +657,7 @@ class StateHistory:
       else:
         xr_dict[f"p_{profile}_e"] = self._stacked_core_sources.T_e[profile]
     for profile in self._stacked_core_sources.psi:
-      xr_dict[f"j_{profile}"] = self._stacked_core_sources.psi[profile]
+      xr_dict[f"j_parallel_{profile}"] = self._stacked_core_sources.psi[profile]
     for profile in self._stacked_core_sources.n_e:
       xr_dict[f"s_{profile}"] = self._stacked_core_sources.n_e[profile]
 
@@ -766,3 +780,86 @@ class StateHistory:
           xr_dict[name] = data_array
 
     return xr_dict
+
+  def _save_edge_outputs(self) -> xr.Dataset:
+    """Saves the edge outputs to a dataset."""
+    xr_dict = {}
+    outputs = self._stacked_edge_outputs
+
+    # Fields from ExtendedLengyelOutputs
+    # TODO(b/446608829): generalize when additional edge models are added
+    if not isinstance(
+        outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
+    ):
+      # Return empty dataset for non-extended-lengyel edge outputs.
+      return xr.Dataset(xr_dict)
+
+    standard_output_fields = [
+        "q_parallel",
+        "q_perpendicular_target",
+        "T_e_separatrix",
+        "T_e_target",
+        "pressure_neutral_divertor",
+        "alpha_t",
+        "Z_eff_separatrix",
+    ]
+
+    edge_output_fields = dataclasses.fields(outputs)
+    for field in edge_output_fields:
+      name = field.name
+      value = getattr(outputs, name)
+      if field.name in standard_output_fields:
+        xr_dict[name] = self._pack_into_data_array(name, value)
+        continue
+      # Special handling for seed_impurity_concentrations
+      # Only populate if the dict is not empty.
+      if (
+          name == SEED_IMPURITY_CONCENTRATIONS or name == CALCULATED_ENRICHMENT
+      ) and value:
+        # This is a dict of {impurity: array(time,)}, where (time,) is the shape
+        # We want to convert it to an array of shape (n_impurities, time) with
+        # impurity coord.
+        impurities = sorted(list(value.keys()))
+        data_array = np.stack([value[i] for i in impurities], axis=0)
+        xr_dict[name] = xr.DataArray(
+            data_array,
+            dims=[IMPURITY, TIME],
+            coords={IMPURITY: impurities, TIME: self.times},
+            name=name,
+        )
+        continue
+    # Fields from SolverStatus which depend on the solver type
+    xr_dict["solver_physics_outcome"] = self._pack_into_data_array(
+        "solver_physics_outcome", outputs.solver_status.physics_outcome
+    )
+    numerics = outputs.solver_status.numerics_outcome
+    # Check for RootMetadata structure (newton solver)
+    # TODO(b/446608829): make numerics itself parse its contents for outputs.
+    if hasattr(numerics, "iterations"):
+      xr_dict["solver_iterations"] = self._pack_into_data_array(
+          "solver_iterations", numerics.iterations
+      )
+      # Handle solver_residual explicitly because it is a vector
+      # (time, n_unknowns) which _pack_into_data_array doesn't support
+      # automatically.
+      if numerics.residual is not None and numerics.residual.ndim == 2:
+        xr_dict["solver_residual"] = xr.DataArray(
+            numerics.residual,
+            dims=[TIME, "solver_unknown_idx"],
+            name="solver_residual",
+        )
+      else:
+        xr_dict["solver_residual"] = self._pack_into_data_array(
+            "solver_residual", numerics.residual
+        )
+
+      xr_dict["solver_error"] = self._pack_into_data_array(
+          "solver_error", numerics.error
+      )
+    else:
+      # FixedPointOutcome (fixed point solver)
+      xr_dict["fixed_point_outcome"] = self._pack_into_data_array(
+          "fixed_point_outcome", numerics
+      )
+
+    return xr.Dataset(xr_dict)

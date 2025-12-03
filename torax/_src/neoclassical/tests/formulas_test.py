@@ -64,7 +64,7 @@ class FormulasTest(parameterized.TestCase):
             torax_config
         )
     )
-    runtime_params, geo = (
+    runtime_params, self.geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
             runtime_params_provider=params_provider,
@@ -75,7 +75,7 @@ class FormulasTest(parameterized.TestCase):
     neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params,
-        geo,
+        self.geo,
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
@@ -85,14 +85,14 @@ class FormulasTest(parameterized.TestCase):
     )
     self.nu_e_star = formulas.calculate_nu_e_star(
         q=self.core_profiles.q_face,
-        geo=geo,
+        geo=self.geo,
         n_e=self.core_profiles.n_e.face_value(),
         T_e=self.core_profiles.T_e.face_value(),
         Z_eff=self.core_profiles.Z_eff_face,
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(geo)
+    self.f_trap = formulas.calculate_f_trap(self.geo)
 
   def test_calculate_f_trap_positive_triangularity(self):
     geo = mock.create_autospec(
@@ -128,10 +128,30 @@ class FormulasTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(L32, _L32_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
 
+  def test_calculate_poloidal_velocity_values_are_correct(self):
+    poloidal_velocity = formulas.calculate_poloidal_velocity(
+        T_i=self.core_profiles.T_i,
+        n_i=self.core_profiles.n_i.face_value(),
+        q=self.core_profiles.q_face,
+        Z_eff=self.core_profiles.Z_eff_face,
+        Z_i=self.core_profiles.Z_i_face,
+        B_tor=np.ones_like(self.geo.rho_face_norm),
+        B_total_squared=np.ones_like(self.geo.rho_face_norm),
+        geo=self.geo,
+    )
+    np.testing.assert_allclose(
+        _POLOIDAL_VELOCITY_EXPECTED,
+        poloidal_velocity.face_value(),
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+
 
 # Reference values from running test code in a notebook.
 # The test thus does not directly test the implementation, but rather
 # guards against unexpected modifications.
+# If a change is expected to theese reference values, the new values can b
+# copied/pasted from the logs of a failing test.
 _L31_EXPECTED = np.array([
     0.0,
     0.25942749,
@@ -157,6 +177,19 @@ _L32_EXPECTED = np.array([
     0.01149523,
     0.08557197,
     0.16296924,
+])
+_POLOIDAL_VELOCITY_EXPECTED = np.array([
+    -1485.871716,
+    -2507.496827,
+    -3933.755809,
+    -4537.621566,
+    -4854.858931,
+    -5031.592012,
+    -5073.608117,
+    -4858.248803,
+    -3559.941551,
+    3011.279478,
+    17562.499243,
 ])
 
 if __name__ == '__main__':

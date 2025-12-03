@@ -1,4 +1,3 @@
-### FILEPATH: torax/mhd/sawtooth/tests/sawtooth_model_test.py
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -274,15 +273,15 @@ _POST_CRASH_N = np.array([
 ])
 
 _POST_CRASH_PSI = np.array([
-    9.778742,
-    11.342102,
-    14.360384,
-    18.737049,
-    24.378128,
-    31.058185,
-    38.126174,
-    44.844899,
-    50.742815,
+    8.245389,
+    9.864265,
+    12.989683,
+    17.52163,
+    23.362746,
+    30.278108,
+    37.587465,
+    44.522205,
+    50.597804,
     55.729866,
 ])
 

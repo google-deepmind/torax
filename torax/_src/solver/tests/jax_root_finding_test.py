@@ -52,7 +52,7 @@ class NewtonRaphsonSolveBlockTest(parameterized.TestCase):
     x_init = np.array([0.0, 0.0], dtype=dtype)
     sol_np = optimize.root(f_closed, [0, 0], tol=tol)
 
-    @functools.partial(jax.jit, static_argnames=['tol', 'maxiter'])
+    @jax.jit(static_argnames=['tol', 'maxiter'])
     def root_jax(x, tol, maxiter):
       return jax_root_finding.root_newton_raphson(
           f_closed, x, tol=tol, maxiter=maxiter

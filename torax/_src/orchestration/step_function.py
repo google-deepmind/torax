@@ -23,10 +23,9 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
@@ -148,12 +147,23 @@ class SimulationStepFn:
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
 
+  def is_done(self, t: jax.Array) -> bool | jax.Array:
+    return self._time_step_calculator.is_done(
+        t=t,
+        t_final=self._runtime_params_provider.numerics.t_final,
+        tolerance=self._runtime_params_provider.time_step_calculator.tolerance,
+    )
+
   @jax.jit
   def __call__(
       self,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       max_dt: chex.Numeric = jnp.inf,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -174,6 +184,10 @@ class SimulationStepFn:
         set this will override the properties set in the numerics config. If
         this is infinite, the time step duration will be chosen based on the
         values set in the numerics config.
+      runtime_params_overrides: Runtime parameters to override the ones set in
+        the runtime params provider.
+      geo_overrides: Geometry provider to override the one set in the step
+        function's geometry provider.
 
     Returns:
       ToraxSimState containing:
@@ -191,11 +205,15 @@ class SimulationStepFn:
         - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
+    runtime_params_provider = (
+        runtime_params_overrides or self.runtime_params_provider
+    )
+    geometry_provider = geo_overrides or self._geometry_provider
     runtime_params_t, geo_t, explicit_source_profiles, edge_outputs = (
         step_function_processing.pre_step(
             input_state=input_state,
-            runtime_params_provider=self._runtime_params_provider,
-            geometry_provider=self._geometry_provider,
+            runtime_params_provider=runtime_params_provider,
+            geometry_provider=geometry_provider,
             physics_models=self._solver.physics_models,
         )
     )
@@ -210,10 +228,12 @@ class SimulationStepFn:
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
+          runtime_params_provider,
+          geometry_provider,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
-      if self._runtime_params_provider.numerics.adaptive_dt:
+      if runtime_params_provider.numerics.adaptive_dt:
         return jax.lax.cond(
             max_dt > runtime_params_t.numerics.min_dt,
             self._adaptive_step,
@@ -232,6 +252,8 @@ class SimulationStepFn:
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
+          runtime_params_provider,
+          geometry_provider,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -250,9 +272,13 @@ class SimulationStepFn:
 
   def fixed_time_step(
       self,
-      dt: jax.Array,
+      dt: chex.Array,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -270,6 +296,8 @@ class SimulationStepFn:
           prev_state,
           prev_post_processed,
           max_dt=remaining_dt,
+          runtime_params_overrides=runtime_params_overrides,
+          geo_overrides=geo_overrides,
       )
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
@@ -283,15 +311,40 @@ class SimulationStepFn:
     # crashes, and solver error states etc.
     return output_state, post_processed_outputs
 
+  @jax.jit
+  def jitted_fixed_time_step(
+      self,
+      dt: chex.Array,
+      input_state: sim_state.ToraxSimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_overrides: (
+          build_runtime_params.RuntimeParamsProvider | None
+      ) = None,
+      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
+  ) -> tuple[
+      sim_state.ToraxSimState,
+      post_processing.PostProcessedOutputs,
+  ]:
+    """Runs the simulation until it has advanced by dt."""
+    return self.fixed_time_step(
+        dt,
+        input_state,
+        previous_post_processed_outputs,
+        runtime_params_overrides,
+        geo_overrides,
+    )
+
   def _sawtooth_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -314,9 +367,9 @@ class SimulationStepFn:
       return sawtooth_step.sawtooth_step(
           sawtooth_solver=self._sawtooth_solver,
           runtime_params_t=runtime_params_t,
-          runtime_params_provider=self._runtime_params_provider,
+          runtime_params_provider=runtime_params_provider,
           geo_t=geo_t,
-          geometry_provider=self._geometry_provider,
+          geometry_provider=geometry_provider,
           explicit_source_profiles=explicit_source_profiles,
           edge_outputs=edge_outputs,
           input_state=input_state,
@@ -334,79 +387,17 @@ class SimulationStepFn:
         _sawtooth_step_fn,
     )
 
-  def step(
-      self,
-      dt: jax.Array,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_slice.RuntimeParams,
-      geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
-      input_state: sim_state.ToraxSimState,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
-  ]:
-    """Performs a simulation step with given dt.
-
-    Solver may fail to converge in which case _adaptive_step() can be used to
-    try smaller time step durations.
-
-    Args:
-      dt: Time step duration.
-      runtime_params_t: Runtime parameters at time t.
-      runtime_params_t_plus_dt: Runtime parameters at time t + dt.
-      geo_t: The geometry of the torus during this time step of the simulation.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-      explicit_source_profiles: Explicit source profiles computed based on the
-        core profiles at the start of the time step.
-
-    Returns:
-      tuple:
-        tuple of CellVariables corresponding to the evolved state variables
-        SolverNumericOutputs containing error state and other solver-specific
-        outputs.
-    """
-
-    core_profiles_t = input_state.core_profiles
-
-    # Construct the CoreProfiles object for time t+dt with evolving boundary
-    # conditions and time-dependent prescribed profiles not directly solved by
-    # PDE system.
-    core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=core_profiles_t,
-    )
-
-    # Initial trial for solver. If did not converge (can happen for nonlinear
-    # step with large dt) we apply the adaptive time step routine if requested.
-    return self._solver(
-        t=input_state.t,
-        dt=dt,
-        runtime_params_t=runtime_params_t,
-        runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-        geo_t=geo_t,
-        geo_t_plus_dt=geo_t_plus_dt,
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
-    )
-
   def _adaptive_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -445,8 +436,8 @@ class SimulationStepFn:
         input_state,
         explicit_source_profiles,
         edge_outputs,
-        self.runtime_params_provider,
-        self.geometry_provider,
+        runtime_params_provider,
+        geometry_provider,
     )
     assert isinstance(
         result.state, adaptive_step.AdaptiveStepState
@@ -488,12 +479,14 @@ class SimulationStepFn:
   def _fixed_step(
       self,
       max_dt: chex.Numeric,
-      runtime_params_t: runtime_params_slice.RuntimeParams,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.ToraxSimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
       sim_state.ToraxSimState,
       post_processing.PostProcessedOutputs,
@@ -511,8 +504,8 @@ class SimulationStepFn:
     runtime_params_t_plus_dt, geo_t_plus_dt = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=input_state.t + dt,
-            runtime_params_provider=self._runtime_params_provider,
-            geometry_provider=self._geometry_provider,
+            runtime_params_provider=runtime_params_provider,
+            geometry_provider=geometry_provider,
             edge_outputs=edge_outputs,
         )
     )

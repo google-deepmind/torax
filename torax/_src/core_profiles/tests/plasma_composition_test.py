@@ -23,7 +23,7 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios_
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.physics import charge_states
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -41,7 +41,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
   def test_plasma_composition_build_runtime_params_smoke_test(self):
     pc = plasma_composition.PlasmaComposition()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     pc.build_runtime_params(t=0.0)
 
@@ -51,7 +51,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       (2.5,),
   )
   def test_zeff_accepts_float_input(self, Z_eff: float):
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     runtime_params = pc.build_runtime_params(t=0.0)
@@ -73,7 +73,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         1.0: {0.0: 1.8, 0.5: 2.1, 1.0: 2.4},
     }
 
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
@@ -128,7 +128,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     pc = plasma_composition.PlasmaComposition(
         Z_eff=initial_zeff, A_i_override=A_override
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
@@ -250,7 +250,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       expected_impurity_model_type,
   ):
     pc = plasma_composition.PlasmaComposition(**config)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     self.assertIsInstance(pc.impurity, expected_impurity_model_type)
     self.assertEqual(pc.get_impurity_names(), expected_impurity_names)
@@ -403,7 +403,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     fractions_species = {'C': 1 / 3, 'N': 2 / 3}
     t = 0.0
 
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     pc_ne_ratios = plasma_composition.PlasmaComposition(
         impurity={
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
@@ -422,7 +422,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': fractions_species,
         }
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc_fractions, geo.torax_mesh)
     fractions_params = pc_fractions.impurity.build_runtime_params(t)
     assert isinstance(fractions_params, impurity_fractions.RuntimeParams)
@@ -440,7 +440,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
             'species': {'C': {0.0: 0.01}, 'N': {0.0: 0.02}},
         }
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
@@ -466,7 +466,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         },
         Z_eff=2.0,
     )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit

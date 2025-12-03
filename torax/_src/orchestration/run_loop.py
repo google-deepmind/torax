@@ -35,7 +35,7 @@ def run_loop(
     log_timestep_info: bool = False,
     progress_bar: bool = True,
 ) -> tuple[
-    tuple[sim_state.ToraxSimState, ...],
+    list[sim_state.ToraxSimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -101,11 +101,6 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # Some of the runtime params are not time-dependent, so we can get them once
-  # before the loop.
-  initial_runtime_params = runtime_params_provider(initial_state.t)
-  time_step_calculator_params = initial_runtime_params.time_step_calculator
-
   with tqdm.tqdm(
       total=100,  # This makes it so that the progress bar measures a percentage
       desc='Simulating',
@@ -113,11 +108,7 @@ def run_loop(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
-    while step_fn.time_step_calculator.not_done(
-        current_state.t,
-        runtime_params_provider.numerics.t_final,
-        time_step_calculator_params,
-    ):
+    while not step_fn.is_done(current_state.t):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
       if log_timestep_info:
@@ -187,7 +178,7 @@ def run_loop(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return tuple(state_history), tuple(post_processing_history), sim_error
+  return state_history, tuple(post_processing_history), sim_error
 
 
 def _log_timestep(

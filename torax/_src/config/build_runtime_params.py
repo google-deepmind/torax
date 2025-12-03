@@ -28,11 +28,11 @@ import equinox as eqx
 import jax
 from jax import numpy as jnp
 from torax._src.config import numerics as numerics_lib
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
-from torax._src.edge import extended_lengyel_model
+from torax._src.edge import updaters as edge_updaters
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
@@ -55,9 +55,9 @@ ReplaceablePytreeNodes: TypeAlias = (
     | interpolated_param_2d.TimeVaryingArray
     | chex.Numeric
 )
-ValidReplacements: TypeAlias = (
-    interpolated_param_1d.TimeVaryingScalarReplace
-    | interpolated_param_2d.TimeVaryingArrayReplace
+ValidUpdates: TypeAlias = (
+    interpolated_param_1d.TimeVaryingScalarUpdate
+    | interpolated_param_2d.TimeVaryingArrayUpdate
     | chex.Numeric
 )
 
@@ -113,9 +113,9 @@ class RuntimeParamsProvider:
   def __call__(
       self,
       t: chex.Numeric,
-  ) -> runtime_params_slice.RuntimeParams:
+  ) -> runtime_params_lib.RuntimeParams:
     """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
-    return runtime_params_slice.RuntimeParams(
+    return runtime_params_lib.RuntimeParams(
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
         sources={
@@ -139,7 +139,7 @@ class RuntimeParamsProvider:
           [typing_extensions.Self],
           Sequence[ReplaceablePytreeNodes],
       ],
-      replacement_values: Sequence[ValidReplacements],
+      replacement_values: Sequence[ValidUpdates],
   ) -> typing_extensions.Self:
     """Updates a provider with new values. Works under `jax.jit`.
 
@@ -160,10 +160,10 @@ class RuntimeParamsProvider:
     ```
 
     Args:
-      get_nodes_to_replace: A function that takes a provider and returns a
-        tuple of nodes to replace. See above for an example. The returned nodes
-        must be one of the following types: `TimeVaryingScalar`,
-        `TimeVaryingArray`, `chex.Numeric`.
+      get_nodes_to_replace: A function that takes a provider and returns a tuple
+        of nodes to replace. See above for an example. The returned nodes must
+        be one of the following types: `TimeVaryingScalar`, `TimeVaryingArray`,
+        `chex.Numeric`.
       replacement_values: A tuple of values to replace the nodes with.
 
     Returns:
@@ -179,7 +179,7 @@ class RuntimeParamsProvider:
           _get_provider_value_from_replace_value(leaf, replace_value)
       )
 
-    return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values,)
+    return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values)
 
   def get_node_from_path(self, path: str) -> Any:
     """Iteratively call `getattr` on `self` from dot-separated path of attrs."""
@@ -193,7 +193,7 @@ class RuntimeParamsProvider:
     return x
 
   def update_provider_from_mapping(
-      self, replacements: Mapping[str, ValidReplacements]
+      self, replacements: Mapping[str, ValidUpdates]
   ) -> typing_extensions.Self:
     """Update a provider from a mapping of replacements.
 
@@ -225,8 +225,9 @@ class RuntimeParamsProvider:
     Returns:
       A new provider with the updated values.
     """
+
     def get_replacements(
-        provider: typing_extensions.Self
+        provider: typing_extensions.Self,
     ) -> list[ReplaceablePytreeNodes]:
       """Returns the nodes to replace."""
       nodes_to_replace: list[ReplaceablePytreeNodes] = []
@@ -241,13 +242,13 @@ class RuntimeParamsProvider:
 
 def _get_provider_value_from_replace_value(
     leaf: ReplaceablePytreeNodes,
-    replace_value: ValidReplacements,
+    replace_value: ValidUpdates,
 ) -> ReplaceablePytreeNodes:
   """Validate and convert any replacement value to the correct type."""
   match leaf:
     case interpolated_param_1d.TimeVaryingScalar():
       if not isinstance(
-          replace_value, interpolated_param_1d.TimeVaryingScalarReplace
+          replace_value, interpolated_param_1d.TimeVaryingScalarUpdate
       ):
         raise ValueError(
             "To replace a `TimeVaryingScalar` use a"
@@ -256,7 +257,7 @@ def _get_provider_value_from_replace_value(
       return leaf.update(replace_value)
     case interpolated_param_2d.TimeVaryingArray():
       if not isinstance(
-          replace_value, interpolated_param_2d.TimeVaryingArrayReplace
+          replace_value, interpolated_param_2d.TimeVaryingArrayUpdate
       ):
         raise ValueError(
             "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"
@@ -292,60 +293,12 @@ def get_consistent_runtime_params_and_geometry(
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,
-) -> tuple[runtime_params_slice.RuntimeParams, geometry.Geometry]:
+) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
   runtime_params_from_provider = runtime_params_provider(t=t)
-  runtime_params = _update_runtime_params_from_edge(
+  runtime_params = edge_updaters.update_runtime_params(
       runtime_params_from_provider, edge_outputs
   )
-  return runtime_params_slice.make_ip_consistent(runtime_params, geo)
+  return runtime_params_lib.make_ip_consistent(runtime_params, geo)
 
-
-def _update_runtime_params_from_edge(
-    runtime_params: runtime_params_slice.RuntimeParams,
-    edge_outputs: edge_base.EdgeModelOutputs | None,
-) -> runtime_params_slice.RuntimeParams:
-  """Updates runtime parameters based on edge model outputs.
-
-  This function takes the outputs from the edge model and updates the
-  runtime parameters. This allows the edge model to dynamically control boundary
-  conditions (like temperatures at the LCFS) and impurity concentrations.
-
-  Args:
-    runtime_params: The current runtime parameters.
-    edge_outputs: The outputs from the edge model execution, or None if no edge
-      model is active, or if it's the first step of the simulation.
-
-  Returns:
-    Updated runtime parameters.
-  """
-  # TODO(b/446608829): Implement coupling of impurity outputs to runtime params.
-
-  # If there is no edge model, there is nothing to update.
-  if edge_outputs is None:
-    return runtime_params
-
-  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
-
-  def _update_temperatures(
-      runtime_params: runtime_params_slice.RuntimeParams,
-  ) -> runtime_params_slice.RuntimeParams:
-    T_e_bc = edge_outputs.separatrix_electron_temp
-    T_i_bc = T_e_bc * runtime_params.edge.target_ratio_of_ion_to_electron_temp
-    return dataclasses.replace(
-        runtime_params,
-        profile_conditions=dataclasses.replace(
-            runtime_params.profile_conditions,
-            T_e_right_bc=T_e_bc,
-            T_i_right_bc=T_i_bc,
-        ),
-    )
-
-  # Conditionally update temperatures based on the update_temperatures flag.
-  return jax.lax.cond(
-      runtime_params.edge.update_temperatures,
-      _update_temperatures,
-      lambda runtime_params: runtime_params,
-      runtime_params,
-  )

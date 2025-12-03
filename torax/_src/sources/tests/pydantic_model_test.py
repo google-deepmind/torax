@@ -19,7 +19,7 @@ import chex
 import jax
 import numpy as np
 from torax._src import jax_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source
@@ -340,7 +340,7 @@ class PydanticModelTest(parameterized.TestCase):
     if model_name is not None:
       config_dict[source_name]['model_name'] = model_name
     sm = pydantic_model.Sources.from_dict(config_dict)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(sm, geo.torax_mesh)
 
     @jax.jit

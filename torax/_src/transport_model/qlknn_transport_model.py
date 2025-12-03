@@ -22,14 +22,14 @@ from typing import Final
 import jax
 from jax import numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import base_qlknn_model
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
-from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -93,8 +93,8 @@ class QLKNNRuntimeConfigInputs:
 
   @staticmethod
   def from_runtime_params_slice(
-      transport_runtime_params: runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':
     # Required for pytype
@@ -173,7 +173,7 @@ class QLKNNTransportModel(
   def _call_implementation(
       self,
       transport_runtime_params: RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,

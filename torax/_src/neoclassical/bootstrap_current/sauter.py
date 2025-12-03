@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import formulas
@@ -44,7 +44,7 @@ class SauterModel(base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> base.BootstrapCurrent:
@@ -66,8 +66,8 @@ class SauterModel(base.BootstrapCurrentModel):
         geo=geometry,
     )
     return base.BootstrapCurrent(
-        j_bootstrap=result.j_bootstrap,
-        j_bootstrap_face=result.j_bootstrap_face,
+        j_parallel_bootstrap=result.j_parallel_bootstrap,
+        j_parallel_bootstrap_face=result.j_parallel_bootstrap_face,
     )
 
   def __eq__(self, other) -> bool:
@@ -110,7 +110,7 @@ def _calculate_bootstrap_current(
     q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> base.BootstrapCurrent:
-  """Calculates j_bootstrap and j_bootstrap_face using the Sauter model."""
+  """Calculates j_parallel_bootstrap using the Sauter model."""
   # pylint: disable=invalid-name
 
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
@@ -169,17 +169,17 @@ def _calculate_bootstrap_current(
   tecoeff = (L31 + L32) * pe
   ticoeff = (L31 + alpha * L34) * pi
 
-  j_bootstrap_face = global_coeff * (
+  j_parallel_bootstrap_face = global_coeff * (
       necoeff * dlnne_drnorm
       + nicoeff * dlnni_drnorm
       + tecoeff * dlnte_drnorm
       + ticoeff * dlnti_drnorm
   )
-  j_bootstrap = geometry_lib.face_to_cell(j_bootstrap_face)
+  j_parallel_bootstrap = geometry_lib.face_to_cell(j_parallel_bootstrap_face)
 
   return base.BootstrapCurrent(
-      j_bootstrap=j_bootstrap,
-      j_bootstrap_face=j_bootstrap_face,
+      j_parallel_bootstrap=j_parallel_bootstrap,
+      j_parallel_bootstrap_face=j_parallel_bootstrap_face,
   )
 
 

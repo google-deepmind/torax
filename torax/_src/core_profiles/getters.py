@@ -19,7 +19,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
@@ -159,6 +159,24 @@ def get_updated_electron_density(
       right_face_constraint=n_e_right_bc,
   )
   return n_e
+
+
+def get_updated_toroidal_velocity(
+    profile_conditions_params: profile_conditions.RuntimeParams,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Gets initial and/or prescribed toroidal velocity profiles."""
+  if profile_conditions_params.toroidal_velocity is None:
+    value = jnp.zeros_like(geo.rho)
+  else:
+    value = profile_conditions_params.toroidal_velocity
+  toroidal_velocity = cell_variable.CellVariable(
+      value=value,
+      right_face_grad_constraint=None,
+      right_face_constraint=profile_conditions_params.toroidal_velocity_right_bc,
+      dr=geo.drho_norm,
+  )
+  return toroidal_velocity
 
 
 @dataclasses.dataclass(frozen=True)
@@ -474,7 +492,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
 # jitted since also used outside the solver
 @jax.jit
 def get_updated_ions(
-    runtime_params: runtime_params_slice.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,

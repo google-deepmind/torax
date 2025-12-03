@@ -18,7 +18,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
@@ -94,7 +94,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
 
     runtime_params = mock.create_autospec(
-        runtime_params_slice.RuntimeParams,
+        runtime_params_lib.RuntimeParams,
         instance=True,
         transport=transport_mock,
         plasma_composition=plasma_composition_mock,

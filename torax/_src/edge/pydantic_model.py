@@ -14,12 +14,14 @@
 
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
+import logging
 from typing import Annotated, Any, Literal, Mapping
 import chex
 import pydantic
 from torax._src.edge import base
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import extended_lengyel_formulas
 from torax._src.edge import extended_lengyel_model
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
@@ -27,10 +29,6 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
-# TODO(b/446608829) - consider splitting into separate configs for inverse
-# and forward modes inheriting from a base extended_lengyel config.
-# TODO(b/446608829) - decide on final version of namings, possibly more
-# consistent with the rest of TORAX
 class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
@@ -44,16 +42,26 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   solver_mode: Annotated[
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
-  # Flag allowing user to test simulation sensitivity to boundary condition
+  impurity_sot: Annotated[
+      extended_lengyel_model.FixedImpuritySourceOfTruth,
+      torax_pydantic.JAX_STATIC,
+  ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
+  # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
   update_temperatures: bool = True
-  fixed_step_iterations: pydantic.PositiveInt | None = None
+  update_impurities: bool = True
+  fixed_point_iterations: pydantic.PositiveInt | None = None
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
   )
   newton_raphson_tol: pydantic.PositiveFloat = (
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
+
+  # Optional boolean to specify if the geometry is diverted.
+  # Required for non-FBT geometries. Not allowed for FBT geometries.
+  diverted: torax_pydantic.TimeVaryingScalar | None = None
+
   # --- Physical parameters ---
   ne_tau: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(extended_lengyel_defaults.NE_TAU)
@@ -62,11 +70,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       torax_pydantic.ValidatedDefault(
           extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
       )
-  )
-  ratio_bpol_omp_to_bpol_avg: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
   )
   sheath_heat_transmission_factor: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
@@ -88,68 +91,59 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           extended_lengyel_defaults.RATIO_MOLECULAR_TO_ION_MASS
       )
   )
-  wall_temperature: torax_pydantic.PositiveTimeVaryingScalar = (
+  T_wall: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(extended_lengyel_defaults.T_WALL)
+  )
+  mach_separatrix: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(extended_lengyel_defaults.MACH_SEPARATRIX)
+  )
+  T_i_T_e_ratio_separatrix: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.WALL_TEMPERATURE
+          extended_lengyel_defaults.T_I_T_E_RATIO_SEPARATRIX
       )
   )
-  separatrix_mach_number: torax_pydantic.NonNegativeTimeVaryingScalar = (
+  n_e_n_i_ratio_separatrix: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.SEPARATRIX_MACH_NUMBER
+          extended_lengyel_defaults.N_E_N_I_RATIO_SEPARATRIX
       )
   )
-  separatrix_ratio_of_ion_to_electron_temp: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.SEPARATRIX_RATIO_ION_TO_ELECTRON_TEMP
-  )
-  separatrix_ratio_of_electron_to_ion_density: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.SEPARATRIX_RATIO_ELECTRON_TO_ION_DENSITY
-  )
-  target_ratio_of_ion_to_electron_temp: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.TARGET_RATIO_ION_TO_ELECTRON_TEMP
-  )
-  target_ratio_of_electron_to_ion_density: (
-      torax_pydantic.PositiveTimeVaryingScalar
-  ) = torax_pydantic.ValidatedDefault(
-      extended_lengyel_defaults.TARGET_RATIO_ELECTRON_TO_ION_DENSITY
-  )
-  target_mach_number: torax_pydantic.NonNegativeTimeVaryingScalar = (
+  T_i_T_e_ratio_target: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.TARGET_MACH_NUMBER
+          extended_lengyel_defaults.T_I_T_E_RATIO_TARGET
       )
+  )
+  n_e_n_i_ratio_target: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.N_E_N_I_RATIO_TARGET
+      )
+  )
+  mach_target: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(extended_lengyel_defaults.MACH_TARGET)
   )
 
   # Optional inputs that may not be available for all geometry types, but if so
   # will be overridden by TORAX state.
-  parallel_connection_length: (
-      torax_pydantic.PositiveTimeVaryingScalar | None
-  ) = None
-  divertor_parallel_length: torax_pydantic.PositiveTimeVaryingScalar | None = (
+  connection_length_target: torax_pydantic.PositiveTimeVaryingScalar | None = (
       None
   )
-  target_angle_of_incidence: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.TARGET_ANGLE_OF_INCIDENCE
-      )
+  connection_length_divertor: (
+      torax_pydantic.PositiveTimeVaryingScalar | None
+  ) = None
+  angle_of_incidence_target: torax_pydantic.PositiveTimeVaryingScalar | None = (
+      None
   )
-  toroidal_flux_expansion: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION
-      )
+  toroidal_flux_expansion: torax_pydantic.PositiveTimeVaryingScalar | None = (
+      None
   )
+  ratio_bpol_omp_to_bpol_avg: (
+      torax_pydantic.PositiveTimeVaryingScalar | None
+  ) = None
 
   # Optional input for inverse mode
-  target_electron_temp: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  T_e_target: torax_pydantic.PositiveTimeVaryingScalar | None = None
 
   # --- Impurity Configuration ---
   # Will be validated for consistency with plasma_composition impurity symbols.
-  # TODO(b/446608829) - add validation on the ToraxConfig level following full
-  # integration.
   seed_impurity_weights: (
       Mapping[str, torax_pydantic.PositiveTimeVaryingScalar] | None
   ) = None
@@ -157,40 +151,65 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       str, torax_pydantic.NonNegativeTimeVaryingScalar
   ] = {}
   # Enrichment is the ratio between divertor impurity concentration and the
-  # upstream impurity concentration. It is used to set boundary condition
-  # impurity density for the core, in inverse mode. It is species-dependent.
-  # Later we will implement a semi-empirical model for enrichment. For now, we
-  # will use a user-provided fixed enrichment value for each species.
-  # TODO(b/446608829) - add validation that impurity symbol strings are
-  # consistent.
-  # TODO(b/446608829) - add option for model-based enrichment based on
-  # Kallenbach 2024.
-  enrichment_factor: Mapping[str, torax_pydantic.PositiveTimeVaryingScalar] = {}
+  # upstream impurity concentration. It is species-dependent.
+  # If `use_enrichment_model` is True, then it does not need to be provided
+  # and its value will be calculated from the enrichment model.
+  enrichment_factor: (
+      Mapping[str, torax_pydantic.PositiveTimeVaryingScalar] | None
+  ) = None
+
+  use_enrichment_model: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  enrichment_model_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _set_default_fixed_step_iterations(cls, data: Any) -> Any:
+  def _set_default_fixed_point_iterations(cls, data: Any) -> Any:
     if isinstance(data, dict):
-      if 'fixed_step_iterations' not in data:
+      if 'fixed_point_iterations' not in data:
         # Get solver_mode, defaulting to the class default if not in data
         solver_mode = data.get(
             'solver_mode', cls.model_fields['solver_mode'].default
         )
         if solver_mode == extended_lengyel_enums.SolverMode.HYBRID:
-          data['fixed_step_iterations'] = (
-              extended_lengyel_defaults.HYBRID_FIXED_STEP_ITERATIONS
+          data['fixed_point_iterations'] = (
+              extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS
           )
-        else:  # FIXED_STEP or NEWTON_RAPHSON
-          data['fixed_step_iterations'] = (
-              extended_lengyel_defaults.FIXED_STEP_ITERATIONS
+        else:  # FIXED_POINT or NEWTON_RAPHSON
+          data['fixed_point_iterations'] = (
+              extended_lengyel_defaults.FIXED_POINT_ITERATIONS
           )
     return data
+
+  @pydantic.model_validator(mode='after')
+  def _log_warning_for_unused_enrichment_factor(
+      self,
+  ) -> typing_extensions.Self:
+    """Logs a warning if enrichment_factor is provided when use_enrichment_model is True."""
+    if self.use_enrichment_model and self.enrichment_factor is not None:
+      logging.warning(
+          'enrichment_factor is provided but use_enrichment_model is True. '
+          'The provided enrichment_factor will be ignored and values will be '
+          'calculated from the enrichment model.'
+      )
+    return self
 
   @pydantic.model_validator(mode='after')
   def _validate_enrichment_factor_keys(
       self,
   ) -> typing_extensions.Self:
     """Validates that enrichment_factor keys are the same as impurity keys."""
+
+    if self.use_enrichment_model:
+      # No need to validate if enrichment model is used.
+      return self
+
+    if self.enrichment_factor is None:
+      raise ValueError(
+          'enrichment_factor must be provided when use_enrichment_model is'
+          ' False.'
+      )
 
     if self.seed_impurity_weights is None:
       impurity_keys = set(self.fixed_impurity_concentrations.keys())
@@ -226,10 +245,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ) -> typing_extensions.Self:
     """Validates inputs based on the specified computation mode."""
     if self.computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-      if self.target_electron_temp is not None:
+      if self.T_e_target is not None:
         raise ValueError(
-            'target_electron_temp must not be provided for forward'
-            ' computation mode.'
+            'T_e_target must not be provided for forward computation mode.'
         )
       if (
           self.seed_impurity_weights is not None
@@ -242,10 +260,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     elif (
         self.computation_mode == extended_lengyel_enums.ComputationMode.INVERSE
     ):
-      if self.target_electron_temp is None:
+      if self.T_e_target is None:
         raise ValueError(
-            'target_electron_temp must be provided for inverse computation'
-            ' mode.'
+            'T_e_target must be provided for inverse computation mode.'
         )
       if not self.seed_impurity_weights:
         raise ValueError(
@@ -274,18 +291,52 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         k: v.get_value(t) for k, v in self.fixed_impurity_concentrations.items()
     }
 
+    enrichment_model_multiplier = self.enrichment_model_multiplier.get_value(t)
+
+    if self.use_enrichment_model:
+      # * if True, the user does not need to provide enrichment_factor in config
+      # * However, a `runtime_params.edge.enrichment_factor`` still needs to be
+      #   present if `PlasmaComposition.impurity_source_of_truth == CORE`.
+      #   It will be used to set the edge fixed impurity concentrations.
+      # * Therefore we populate runtime_params.edge.enrichment_factor with
+      #   calculated enrichment factors for this case.
+      # * For the first timestep, when an EdgeOutputs is not available, we make
+      #   an assumption p0=1.0 [Pa] for the divertor neutral pressure.
+      enrichment_factor = {}
+      if self.seed_impurity_weights is None:
+        all_impurities = set(self.fixed_impurity_concentrations.keys())
+      else:
+        all_impurities = set(self.seed_impurity_weights.keys()) | set(
+            self.fixed_impurity_concentrations.keys()
+        )
+      for species in all_impurities:
+        enrichment_factor[species] = (
+            extended_lengyel_formulas.calc_enrichment_kallenbach(
+                1.0, species, enrichment_model_multiplier
+            )
+        )
+    else:
+      if self.enrichment_factor is None:
+        raise ValueError(
+            'edge model: enrichment_factor must be provided when'
+            ' use_enrichment_model is False.'
+        )
+      enrichment_factor = {
+          k: v.get_value(t) for k, v in self.enrichment_factor.items()
+      }
+
     return extended_lengyel_model.RuntimeParams(
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
+        impurity_sot=self.impurity_sot,
+        diverted=_get_optional_value(self.diverted, t),
         update_temperatures=self.update_temperatures,
-        fixed_step_iterations=self.fixed_step_iterations,
+        update_impurities=self.update_impurities,
+        fixed_point_iterations=self.fixed_point_iterations,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
         ne_tau=self.ne_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
-        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(
-            t
-        ),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(
             t
         ),
@@ -296,33 +347,34 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         ratio_of_molecular_to_ion_mass=self.ratio_of_molecular_to_ion_mass.get_value(
             t
         ),
-        wall_temperature=self.wall_temperature.get_value(t),
-        separatrix_mach_number=self.separatrix_mach_number.get_value(t),
-        separatrix_ratio_of_ion_to_electron_temp=self.separatrix_ratio_of_ion_to_electron_temp.get_value(
-            t
+        T_wall=self.T_wall.get_value(t),
+        mach_separatrix=self.mach_separatrix.get_value(t),
+        T_i_T_e_ratio_separatrix=self.T_i_T_e_ratio_separatrix.get_value(t),
+        n_e_n_i_ratio_separatrix=self.n_e_n_i_ratio_separatrix.get_value(t),
+        T_i_T_e_ratio_target=self.T_i_T_e_ratio_target.get_value(t),
+        n_e_n_i_ratio_target=self.n_e_n_i_ratio_target.get_value(t),
+        mach_target=self.mach_target.get_value(t),
+        connection_length_target=_get_optional_value(
+            self.connection_length_target, t
         ),
-        separatrix_ratio_of_electron_to_ion_density=self.separatrix_ratio_of_electron_to_ion_density.get_value(
-            t
+        connection_length_divertor=_get_optional_value(
+            self.connection_length_divertor, t
         ),
-        target_ratio_of_ion_to_electron_temp=self.target_ratio_of_ion_to_electron_temp.get_value(
-            t
+        angle_of_incidence_target=_get_optional_value(
+            self.angle_of_incidence_target, t
         ),
-        target_ratio_of_electron_to_ion_density=self.target_ratio_of_electron_to_ion_density.get_value(
-            t
+        toroidal_flux_expansion=_get_optional_value(
+            self.toroidal_flux_expansion, t
         ),
-        target_mach_number=self.target_mach_number.get_value(t),
-        parallel_connection_length=_get_optional_value(
-            self.parallel_connection_length, t
+        ratio_bpol_omp_to_bpol_avg=_get_optional_value(
+            self.ratio_bpol_omp_to_bpol_avg, t
         ),
-        divertor_parallel_length=_get_optional_value(
-            self.divertor_parallel_length, t
-        ),
-        target_angle_of_incidence=self.target_angle_of_incidence.get_value(t),
-        toroidal_flux_expansion=self.toroidal_flux_expansion.get_value(t),
         seed_impurity_weights=seed_impurity_weights,
         fixed_impurity_concentrations=fixed_impurity_concentrations,
-        enrichment_factor=self.enrichment_factor,
-        target_electron_temp=_get_optional_value(self.target_electron_temp, t),
+        enrichment_factor=enrichment_factor,
+        T_e_target=_get_optional_value(self.T_e_target, t),
+        use_enrichment_model=self.use_enrichment_model,
+        enrichment_model_multiplier=enrichment_model_multiplier,
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:

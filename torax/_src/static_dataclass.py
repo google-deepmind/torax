@@ -144,19 +144,26 @@ class StaticDataclass:
     bad_hashes = tuple(
         (
             id(v) // 16,  # Python 2.7-3.2 default hash
-            hash(id(v)),
-        )  # Naive user-provided hash by id
+            hash(id(v)),  # Naive user-provided hash by id
+        )
         for v in values
+    )
+    bad_hash_explanations = (
+        "This hash is id // 16, which is the default hash in Python 2.7--3.2. ",
+        (
+            "This hash is hash(id), which is a common pattern for a naive "
+            "user-provided hash. "
+        ),
     )
     fields = dataclasses.fields(self)
     for i, field in enumerate(fields):
-      v = values[i]
-      h = hashes[i]
-      bh = bad_hashes[i]
+      cur_value = values[i]
+      cur_hash = hashes[i]
+      cur_bad_hashes = bad_hashes[i]
       n = field.name
 
       # Singletons may hash by id.
-      if v in _known_singletons:
+      if cur_value in _known_singletons:
         continue
 
       # Search for metadata in the MRO
@@ -174,9 +181,14 @@ class StaticDataclass:
             continue
       if hash_by_id:
         continue
-      if h in bh:
+      if cur_hash in cur_bad_hashes:
+        idx = cur_bad_hashes.index(cur_hash)
+        bad_hash_msg = bad_hash_explanations[idx]
         raise TypeError(
             f"{type(self)}.{n} hashes by id when it should hash by value. "
+            f"This field is of type {type(cur_value)}. "
+            f"Its id is {id(cur_value)}, its hash is {hash(cur_value)}. "
+            f"{bad_hash_msg}"
             "If you're confident that this is correct, allow it by "
             "adding metadata to the field, e.g., "
             "my_field: Any = dataclasses.field(metadata={'hash_by_id': True})"
@@ -185,7 +197,8 @@ class StaticDataclass:
     # Make sure nested dataclasses are StaticDataclass
     for v, field in zip(values, fields):
       n = field.name
-      if dataclasses.is_dataclass(v) and not isinstance(v, StaticDataclass):
+      if (dataclasses.is_dataclass(cur_value) and
+          not isinstance(cur_value, StaticDataclass)):
         raise TypeError(
             f"{self}.{n} is a dataclass but not a "
             "StaticDataclass. The whole hierarchy must be "

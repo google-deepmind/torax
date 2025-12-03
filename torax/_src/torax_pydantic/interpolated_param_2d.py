@@ -74,7 +74,7 @@ class Grid1D(model_base.BaseModelFrozen):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class TimeVaryingArrayReplace:
+class TimeVaryingArrayUpdate:
   """Replacements for TimeVaryingArray."""
 
   value: jt.Float[jax.Array, 't rhon'] | None = None
@@ -205,7 +205,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         raise ValueError(f'Unknown grid type: {grid_type}')
 
   def update(
-      self, replace_value: TimeVaryingArrayReplace
+      self, replace_value: TimeVaryingArrayUpdate
   ) -> typing_extensions.Self:
     """This method can be used under `jax.jit`."""
     assert self.grid is not None, 'grid must be set to update.'
@@ -298,6 +298,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         raise ValueError(
             'rho_norm and values must be of the same length. Given: '
             f'{len(rho_norm)} and {len(values)}.'
+        )
+      if np.any(rho_norm < 0.0) or np.any(rho_norm > 1.0):
+        raise ValueError(
+            f'rho_norm values must be in the range [0, 1], but got {rho_norm}.'
         )
 
     return value

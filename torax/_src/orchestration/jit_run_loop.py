@@ -13,33 +13,40 @@
 # limitations under the License.
 
 """JITted run_loop for iterating over the simulation step function."""
-import functools
-
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
+from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 
 
-@functools.partial(jax.jit, static_argnames=['max_steps'])
+@jax.jit(static_argnames='max_steps')
 def run_loop_jit(
-    initial_state: sim_state.ToraxSimState,
-    initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,
     max_steps: int,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
 ) -> tuple[
     sim_state.ToraxSimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
   """Runs the simulation loop under jax.jit."""
-  # Some of the runtime params are not time-dependent, so we can get them once
-  # before the loop.
-  initial_runtime_params = step_fn.runtime_params_provider(initial_state.t)
-  time_step_calculator_params = initial_runtime_params.time_step_calculator
+  runtime_params_provider = (
+      runtime_params_overrides or step_fn.runtime_params_provider
+  )
+  initial_state, initial_post_processed_outputs = (
+      initial_state_lib.get_initial_state_and_post_processed_outputs(
+          t=runtime_params_provider.numerics.t_initial,
+          runtime_params_provider=runtime_params_provider,
+          geometry_provider=step_fn.geometry_provider,
+          step_fn=step_fn,
+      )
+  )
 
   # Pre-allocate history buffers
   states_history = jax.tree_util.tree_map(
@@ -63,12 +70,8 @@ def run_loop_jit(
 
   def _cond_fun(inputs):
     i, current_state, _, _, _ = inputs
-    not_done = step_fn.time_step_calculator.not_done(
-        current_state.t,
-        step_fn.runtime_params_provider.numerics.t_final,
-        time_step_calculator_params,
-    )
-    return jnp.logical_and(i < max_steps, not_done)
+    is_done = step_fn.is_done(current_state.t)
+    return jnp.logical_and(i < max_steps, jnp.logical_not(is_done))
 
   def _step_fn(inputs):
     (
@@ -79,7 +82,9 @@ def run_loop_jit(
         post_processed_outputs_hist,
     ) = inputs
     current_state, post_processed_outputs = step_fn(
-        previous_state, previous_post_processed_outputs
+        previous_state,
+        previous_post_processed_outputs,
+        runtime_params_overrides=runtime_params_overrides,
     )
     states_hist = jax.tree_util.tree_map(
         lambda hist, val: hist.at[i + 1].set(val), states_hist, current_state
@@ -151,14 +156,12 @@ def _unstack_pytree_history(
 
 
 def run_loop(
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    initial_state: sim_state.ToraxSimState,
-    initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,
-    log_timestep_info: bool = False,
-    progress_bar: bool = True,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
 ) -> tuple[
-    tuple[sim_state.ToraxSimState, ...],
+    list[sim_state.ToraxSimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -167,20 +170,11 @@ def run_loop(
   Unlike the `run_loop` function, This does not support logging or progress bar.
 
   Args:
-    runtime_params_provider: Provides a RuntimeParams to use as input for each
-      time step.
-    initial_state: The starting state of the simulation. This includes both the
-      state variables which the solver.Solver will evolve (like ion temp, psi,
-      etc.) as well as other states that need to be be tracked, like time.
-    initial_post_processed_outputs: The post-processed outputs at the start of
-      the simulation. This is used to calculate cumulative quantities.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
       ToraxSimState objects.
-    log_timestep_info: If True, logs basic timestep info, like time, dt, on
-      every step.
-    progress_bar: If True, displays a progress bar.
+    runtime_params_overrides: Optional runtime params overrides to use.
 
   Returns:
     A tuple of:
@@ -197,27 +191,25 @@ def run_loop(
         the last valid timestep.
       - The sim error state.
   """
-  del log_timestep_info, progress_bar
-  numerics = runtime_params_provider.numerics
+  numerics = step_fn.runtime_params_provider.numerics
   max_steps = int(
       ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
   )
   states_history, post_processed_outputs_history, final_i = run_loop_jit(
-      initial_state,
-      initial_post_processed_outputs,
       step_fn,
       max_steps,
+      runtime_params_overrides=runtime_params_overrides,
   )
   unstacked_states, unstacked_post_processed_outputs = _unstack_pytree_history(
       states_history, post_processed_outputs_history, final_i
   )
   sim_error = step_function.check_for_errors(
-      runtime_params_provider.numerics,
+      step_fn.runtime_params_provider.numerics,
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
   )
   return (
-      tuple(unstacked_states),
+      unstacked_states,
       tuple(unstacked_post_processed_outputs),
       sim_error,
   )

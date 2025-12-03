@@ -20,8 +20,8 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
 from torax._src import math_utils
+from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
 
 jax.config.update('jax_enable_x64', True)
 
@@ -71,7 +71,7 @@ class MathUtilsTest(parameterized.TestCase):
     x = jax.random.uniform(
         jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
     )
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=num_cell_grid_points
     ).build_geometry()
 
@@ -83,7 +83,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_area_integration(self):
     """Test that area_integration is equivalent to an analytical formula."""
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=200,
         elongation_LCFS=1.0,
     ).build_geometry()
@@ -100,7 +100,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_volume_integration(self):
     """Test that volume_integration is equivalent to an analytical formula."""
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=200,
         elongation_LCFS=1.0,
     ).build_geometry()
@@ -120,7 +120,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_line_average(self):
     """Test that line_average is equivalent to an analytical formula."""
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=200,
         elongation_LCFS=1.0,
     ).build_geometry()
@@ -136,7 +136,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_volume_average(self):
     """Test that volume_average is equivalent to an analytical formula."""
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=200,
         elongation_LCFS=1.0,
     ).build_geometry()
@@ -155,7 +155,7 @@ class MathUtilsTest(parameterized.TestCase):
   def test_cell_integration_raises_when_shape_mismatch(
       self,
   ):
-    geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     with self.assertRaises(ValueError):
       math_utils.cell_to_face(jnp.array([1.0]), geo)
 
@@ -221,7 +221,7 @@ class MathUtilsTest(parameterized.TestCase):
       expected_face_values_except_right: np.ndarray,
       preserved_quantity: math_utils.IntegralPreservationQuantity,
   ):
-    geo = geometry_pydantic_model.CircularConfig(
+    geo = circular_geometry.CircularConfig(
         n_rho=len(cell_values)
     ).build_geometry()
     cell_values = jnp.array(cell_values, dtype=jnp.float32)
@@ -253,6 +253,63 @@ class MathUtilsTest(parameterized.TestCase):
                 face_values * geo.vpr_face, geo.rho_face_norm
             ),
         )
+
+  @parameterized.parameters(5, 50)
+  def test_cumulative_cell_integration(self, num_cell_grid_points: int):
+    """Tests cumulative_cell_integration against cell_integration."""
+    geo = circular_geometry.CircularConfig(
+        n_rho=num_cell_grid_points
+    ).build_geometry()
+    x = jax.random.uniform(jax.random.PRNGKey(1), shape=(num_cell_grid_points,))
+
+    cumulative_result = math_utils.cumulative_cell_integration(x, geo)
+    expected = np.zeros(num_cell_grid_points)
+
+    for i in range(len(cumulative_result)):
+      expected[i] = np.sum(x[: i + 1] * geo.drho_norm)
+
+    np.testing.assert_allclose(
+        cumulative_result,
+        expected,
+    )
+
+  @parameterized.parameters(5, 50)
+  def test_cumulative_area_integration(self, num_cell_grid_points: int):
+    """Tests cumulative_area_integration against area_integration."""
+    geo = circular_geometry.CircularConfig(
+        n_rho=num_cell_grid_points
+    ).build_geometry()
+    x = jax.random.uniform(jax.random.PRNGKey(2), shape=(num_cell_grid_points,))
+
+    cumulative_result = math_utils.cumulative_area_integration(x, geo)
+    expected = np.zeros(num_cell_grid_points)
+
+    for i in range(len(cumulative_result)):
+      expected[i] = np.sum(x[: i + 1] * geo.spr[: i + 1] * geo.drho_norm)
+
+    np.testing.assert_allclose(
+        cumulative_result,
+        expected,
+    )
+
+  @parameterized.parameters(5, 50)
+  def test_cumulative_volume_integration(self, num_cell_grid_points: int):
+    """Tests cumulative_volume_integration against volume_integration."""
+    geo = circular_geometry.CircularConfig(
+        n_rho=num_cell_grid_points
+    ).build_geometry()
+    x = jax.random.uniform(jax.random.PRNGKey(3), shape=(num_cell_grid_points,))
+
+    cumulative_result = math_utils.cumulative_volume_integration(x, geo)
+    expected = np.zeros(num_cell_grid_points)
+
+    for i in range(len(cumulative_result)):
+      expected[i] = np.sum(x[: i + 1] * geo.vpr[: i + 1] * geo.drho_norm)
+
+    np.testing.assert_allclose(
+        cumulative_result,
+        expected,
+    )
 
 
 if __name__ == '__main__':

@@ -255,14 +255,14 @@ class BaseModelFrozen(pydantic.BaseModel):
       mutated_models.append(model)
 
       if not isinstance(model, BaseModelFrozen) or (
-          value_name not in model.model_fields
+          value_name not in model.__class__.model_fields
       ):
         raise ValueError(
-            f'The path {path} is does not refer to a field of a Pydantic'
+            f'The path {path} does not refer to a field of a Pydantic'
             ' BaseModelFrozen model.'
         )
       assert value_name in model.__dict__
-      field_type = model.model_fields[value_name].annotation
+      field_type = model.__class__.model_fields[value_name].annotation
 
       # TypeAdapter does not allow a config arg if the value is a Pydantic
       # model, as this has its own config.
@@ -288,9 +288,9 @@ class BaseModelFrozen(pydantic.BaseModel):
     value = self
     for path in paths:
       if isinstance(value, BaseModelFrozen):
-        if path not in value.model_fields:
+        if path not in value.__class__.model_fields:
           raise ValueError(
-              f'The path {".".join(paths)} is does not refer to a field of a'
+              f'The path {".".join(paths)} does not refer to a field of a'
               ' Pydantic BaseModelFrozen model.'
           )
         value = getattr(value, path)

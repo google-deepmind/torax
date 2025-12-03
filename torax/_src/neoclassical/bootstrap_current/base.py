@@ -15,11 +15,12 @@
 """Base class for bootstrap current models."""
 import abc
 import dataclasses
+import logging
 
 import jax
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
@@ -32,15 +33,34 @@ from torax._src.torax_pydantic import torax_pydantic
 class BootstrapCurrent:
   """Values returned by a bootstrap current model."""
 
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
+  j_parallel_bootstrap: jax.Array
+  j_parallel_bootstrap_face: jax.Array
+
+  # TODO(b/434175938). Remove these deprecated properties in V2.
+  @property
+  def j_bootstrap(self) -> jax.Array:
+    """DEPRECATED: use j_parallel_bootstrap."""
+    logging.warning(
+        '`j_bootstrap` is deprecated, use `j_parallel_bootstrap` instead.'
+        ' `j_bootstrap` will be removed in a future version.'
+    )
+    return self.j_parallel_bootstrap
+
+  @property
+  def j_bootstrap_face(self) -> jax.Array:
+    """DEPRECATED: use j_parallel_bootstrap_face."""
+    logging.warning(
+        '`j_bootstrap_face` is deprecated, use `j_parallel_bootstrap_face`'
+        ' instead. `j_bootstrap_face` will be removed in a future version.'
+    )
+    return self.j_parallel_bootstrap_face
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
     """Returns a BootstrapCurrent with all values set to zero."""
     return cls(
-        j_bootstrap=jnp.zeros_like(geometry.rho_norm),
-        j_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
+        j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
+        j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
     )
 
 
@@ -50,7 +70,7 @@ class BootstrapCurrentModel(abc.ABC):
   @abc.abstractmethod
   def calculate_bootstrap_current(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> BootstrapCurrent:

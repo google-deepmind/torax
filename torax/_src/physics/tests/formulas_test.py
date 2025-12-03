@@ -18,7 +18,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import jax_utils
 from torax._src import math_utils
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import circular_geometry
 from torax._src.physics import formulas
 from torax._src.test_utils import core_profile_helpers
 
@@ -29,7 +29,7 @@ class FormulasTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry_pydantic_model.CircularConfig(
+    self.geo = circular_geometry.CircularConfig(
         n_rho=10, a_minor=1.0
     ).build_geometry()
     self.core_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)

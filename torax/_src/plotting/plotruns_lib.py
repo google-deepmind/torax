@@ -22,6 +22,7 @@ from os import path
 from typing import Any, List
 
 import matplotlib
+from matplotlib import figure
 from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
@@ -322,10 +323,10 @@ def load_data(filename: str) -> PlotData:
     ds = ds.copy()
 
     transformations = {
-        output.J_TOTAL: 1e6,  # A/m^2 to MA/m^2
-        output.J_OHMIC: 1e6,  # A/m^2 to MA/m^2
-        output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.J_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+        output.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
         'j_generic_current': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE: 1e6,  # A to MA
@@ -377,10 +378,10 @@ def load_data(filename: str) -> PlotData:
       Z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
       psi=profiles_dataset[output.PSI].to_numpy(),
       v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
-      j_total=profiles_dataset[output.J_TOTAL].to_numpy(),
-      j_ohmic=profiles_dataset[output.J_OHMIC].to_numpy(),
-      j_bootstrap=profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      j_external=profiles_dataset[output.J_EXTERNAL].to_numpy(),
+      j_total=profiles_dataset[output.J_TOROIDAL_TOTAL].to_numpy(),
+      j_ohmic=profiles_dataset[output.J_TOROIDAL_OHMIC].to_numpy(),
+      j_bootstrap=profiles_dataset[output.J_TOROIDAL_BOOTSTRAP].to_numpy(),
+      j_external=profiles_dataset[output.J_TOROIDAL_EXTERNAL].to_numpy(),
       j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
       j_generic_current=get_optional_data(
           profiles_dataset, 'j_generic_current', 'cell'
@@ -453,8 +454,11 @@ def load_data(filename: str) -> PlotData:
 
 
 def plot_run(
-    plot_config: FigureProperties, outfile: str, outfile2: str | None = None
-):
+    plot_config: FigureProperties,
+    outfile: str,
+    outfile2: str | None = None,
+    interactive: bool = True,
+) -> figure.Figure:
   """Plots a single run or comparison of two runs."""
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
@@ -509,8 +513,10 @@ def plot_run(
 
     timeslider.on_changed(update)
 
-  fig.canvas.draw()
-  plt.show()
+  if interactive:
+    fig.canvas.draw()
+    plt.show()
+  return fig
 
 
 def _update(

@@ -19,10 +19,10 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
-from torax._src.pedestal_model import runtime_params as runtime_params_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.physics import formulas
 from typing_extensions import override
 
@@ -30,7 +30,7 @@ from typing_extensions import override
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
   """Runtime params for the SetPressureTemperatureRatioAndDensityPedestalModel."""
 
   P_ped: array_typing.FloatScalar
@@ -49,7 +49,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
   @override
   def _call_implementation(
       self,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:

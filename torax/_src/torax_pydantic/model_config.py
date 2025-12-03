@@ -24,6 +24,7 @@ from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
@@ -198,6 +199,90 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       raise ValueError(
           'Edge models are not supported for use with CircularGeometry.'
       )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_extended_lengyel_and_impurity_mode(
+      self,
+  ) -> typing_extensions.Self:
+    """Ensures Extended Lengyel uses n_e_ratios impurity mode."""
+    if (
+        isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig)
+        and self.plasma_composition.impurity.impurity_mode != 'n_e_ratios'
+    ):
+      raise ValueError(
+          'Extended Lengyel edge model requires'
+          " plasma_composition.impurity_mode to be 'n_e_ratios'."
+          f" Got '{self.plasma_composition.impurity.impurity_mode}'."
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_edge_diverted_status(self) -> typing_extensions.Self:
+    """Validates diverted status configuration in edge model.
+
+    Ensures that `diverted` is handled correctly based on geometry type:
+    - For FBT geometry: `diverted` must NOT be set (it's provided by FBT).
+    - For non-FBT geometry: `diverted` MUST be set if edge model is used.
+    """
+    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+      is_fbt = self.geometry.geometry_type == geometry.GeometryType.FBT
+      diverted = self.edge.diverted is not None
+
+      if is_fbt and diverted:
+        raise ValueError(
+            'Extended Lengyel edge model configuration error: `diverted`'
+            ' must NOT be set when using FBT geometry. FBT geometry files'
+            ' inherently provide diverted status information.'
+        )
+
+      if not is_fbt and not diverted:
+        raise ValueError(
+            'Extended Lengyel edge model configuration error: `diverted`'
+            ' MUST be set when using non-FBT geometry (e.g. CHEASE, EQDSK,'
+            ' IMAS). These geometry sources do not reliably provide diverted'
+            ' status, so it must be explicitly configured in the edge model.'
+        )
+
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_edge_core_impurity_consistency(self) -> typing_extensions.Self:
+    """Validates consistency between plasma composition and edge impurities."""
+    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+      core_species = set(self.plasma_composition.impurity.species.keys())
+      edge_fixed = set(self.edge.fixed_impurity_concentrations.keys())
+
+      if (
+          self.edge.computation_mode
+          == extended_lengyel_enums.ComputationMode.INVERSE
+      ):
+        if self.edge.seed_impurity_weights is not None:
+          edge_seed = set(self.edge.seed_impurity_weights.keys())
+        else:
+          edge_seed = set()
+
+        # Intersection check (should be empty)
+        if not edge_fixed.isdisjoint(edge_seed):
+          raise ValueError(
+              'Edge fixed and seeded impurities must be disjoint. Overlap:'
+              f' {edge_fixed.intersection(edge_seed)}'
+          )
+
+        edge_species = edge_fixed.union(edge_seed)
+      else:  # FORWARD mode
+        edge_species = edge_fixed
+
+      if core_species != edge_species:
+        raise ValueError(
+            'Mismatch between core plasma composition impurities and edge'
+            f' impurities. Core: {core_species}, Edge: {edge_species}.'
+            f' Difference: {core_species.symmetric_difference(edge_species)}.'
+            ' Likely reason: edge.fixed_impurity_concentrations and/or'
+            ' edge.seed_impurity_weights do not match plasma_composition.'
+            'impurity.species.'
+        )
+
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
