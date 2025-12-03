@@ -338,7 +338,7 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     self.assertEqual(
         status, extended_lengyel_solvers.PhysicsOutcome.Q_CC_SQUARED_NEGATIVE
     )
-    np.testing.assert_allclose(calculated_qcc, 0.0)
+    np.testing.assert_allclose(calculated_qcc, 1e-7)
 
   def test_forward_unsuccessful_newton_solve_but_successful_hybrid_solve(self):
     # The initial guess state is deliberately set far from the solution, by

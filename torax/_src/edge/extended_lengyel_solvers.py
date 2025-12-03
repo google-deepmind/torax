@@ -164,9 +164,13 @@ def forward_mode_fixed_point_solver(
     new_q_cc, physics_outcome = _solve_for_qcc(sol_model=current_sol_model)
 
     # Calculate new target electron temperature with forward two-point model.
-    current_sol_model.state.T_e_target = divertor_sol_1d_lib.calc_T_e_target(
-        sol_model=current_sol_model,
-        parallel_heat_flux_at_cc_interface=new_q_cc,
+    # Clip to small positive value to avoid NaNs.
+    current_sol_model.state.T_e_target = jnp.maximum(
+        divertor_sol_1d_lib.calc_T_e_target(
+            sol_model=current_sol_model,
+            parallel_heat_flux_at_cc_interface=new_q_cc,
+        ),
+        constants.CONSTANTS.eps,
     )
 
     # Update kappa_e and alpha_t for the next iteration.
@@ -708,11 +712,17 @@ def _solve_for_qcc(
 
   # Check for unphysical result.
   status = jnp.where(
-      qcc_squared < 0.0,
+      qcc_squared <= constants.CONSTANTS.eps,
       PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
       PhysicsOutcome.SUCCESS,
   )
 
-  qcc = jnp.where(status == PhysicsOutcome.SUCCESS, jnp.sqrt(qcc_squared), 0.0)
+  # Clip qcc to a low but positive value to avoid NaNs. Still corresponds to
+  # near total detachment.
+  qcc = jnp.where(
+      status == PhysicsOutcome.SUCCESS,
+      jnp.sqrt(qcc_squared),
+      constants.CONSTANTS.eps,
+  )
 
   return qcc, status
