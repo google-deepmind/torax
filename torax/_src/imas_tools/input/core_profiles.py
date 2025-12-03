@@ -114,7 +114,7 @@ def profile_conditions_from_IMAS(
 def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-    expected_impurities: Collection[str] | None = None,
+    excluded_impurities: Collection[str] | None = None,
     main_ions_symbols: Collection[str] = constants.HYDROGENIC_IONS,
 ) -> Mapping[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
@@ -137,9 +137,8 @@ def plasma_composition_from_IMAS(
       initial time will be the time of the first time slice of the ids. Else all
       time slices will be shifted such that the first time slice has time =
       t_initial.
-    expected_impurities: Optional arg to check that the input IDS contains the
-      wanted impurity species and raise and error if not, or if its density is
-      empty.
+    excluded_impurities: Optional arg to specify which impurities from the IDS 
+      should not be parsed. 
     main_ions_symbols: collection of ions to be used to define the main_ion
       mixture. If value is not the default one, will check that the given ions
       exist in the IDS and their density is filled. Default are hydrogenic ions
@@ -152,13 +151,17 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
-  # Check that the expected ions are present in the IDS
-  ids_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
-  if expected_impurities:
-    _check_expected_ions_presence(ids_ions, expected_impurities)
-  if main_ions_symbols is not constants.HYDROGENIC_IONS:
-    _check_expected_ions_presence(ids_ions, main_ions_symbols)
+  # Parse only ions with non empty density and not in excluded_impurities.
+  if excluded_impurities:
+    parsed_ions = [
+        ion.name
+        for ion in profiles_1d[0].ion
+        if ion.density and ion.name not in excluded_impurities
+    ]
+  else:
+    parsed_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
 
+  _validate_ids_ions(parsed_ions, main_ions_symbols)
   Z_eff = (
       time_array,
       rhon_array,
@@ -221,19 +224,35 @@ def _get_time_and_radial_arrays(
   return profiles_1d, rhon_array, time_array
 
 
-def _check_expected_ions_presence(
-    ids_ions: list[str],
-    expected_ions: Collection[str],
+def _validate_ids_ions(
+    parsed_ions: list[str],
+    main_ion_symbols: Collection[str],
 ) -> None:
-  """Checks that the expected_ions symbols are in the ids_ions."""
-  for ion in expected_ions:
-    if ion not in constants.ION_PROPERTIES_DICT.keys():
-      raise (KeyError(f"{ion} is not a valid symbol of a TORAX valid ion."))
-    if ion not in ids_ions:
+  """Check if all ions are recognized and expected_main_ions present in the IDS."""
+  # Check if IDS ion symbol is valid.
+  for ion in parsed_ions:
+    if str(ion) not in constants.ION_PROPERTIES_DICT.keys():
       raise (
-          ValueError(
-              f"The expected ion {ion} cannot be found in the input"
-              " IDS or has no valid data. \n Please check that the IDS is"
-              " properly filled"
+          KeyError(
+              f"{ion} is present in the IDS but not a valid symbol of a TORAX"
+              " ion. Check typing or add the ion to the excluded_impurities."
           )
       )
+  # Check presence of main_ion_symbols in the IDS if not default value.
+  if main_ion_symbols is not constants.HYDROGENIC_IONS:
+    for ion in main_ion_symbols:
+      if ion not in constants.ION_PROPERTIES_DICT.keys():
+        raise (
+            KeyError(
+                f"{ion} is not a valid symbol of a TORAX valid ion. Please"
+                " check typing of main_ion_symbols."
+            )
+        )
+      if ion not in parsed_ions:
+        raise (
+            ValueError(
+                f"The expected main ion {ion} cannot be found in the input"
+                " IDS or has no valid data. \n Please check that the IDS is"
+                " properly filled"
+            )
+        )
