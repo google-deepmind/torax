@@ -821,6 +821,7 @@ def make_post_processed_outputs(
       toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
       pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
       geo=sim_state.geometry,
+      poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )
 
   return PostProcessedOutputs(

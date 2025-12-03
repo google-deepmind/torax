@@ -237,7 +237,7 @@ def calculate_poloidal_velocity(
     B_tor: array_typing.FloatVectorFace,
     B_total_squared: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
-    rotation_multiplier: array_typing.FloatScalar = 1.0,
+    poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
 ) -> cell_variable.CellVariable:
   """Computes the neoclassical ion poloidal velocity profile.
 
@@ -259,8 +259,10 @@ def calculate_poloidal_velocity(
     B_tor: Toroidal magnetic field on the face grid [T].
     B_total_squared: Total magnetic field (toroidal + poloidal) on the face grid
       [T].
-    geo : Geometry
-    rotation_multiplier: A multiplier to apply to the poloidal velocity.
+    geo: Geometry
+    poloidal_velocity_multiplier: A multiplier to apply to the poloidal
+      velocity.
+
   Returns:
     v_pol : Poloidal velocity profile [m/s].
   """
@@ -298,7 +300,7 @@ def calculate_poloidal_velocity(
       / (constants.CONSTANTS.q_e * Z_i)
   )
 
-  v_pol = rotation_multiplier * v_pol
+  v_pol = poloidal_velocity_multiplier * v_pol
 
   return cell_variable.CellVariable(
       value=geometry_lib.face_to_cell(v_pol),

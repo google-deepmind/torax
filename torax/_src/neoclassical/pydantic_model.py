@@ -17,6 +17,7 @@ import copy
 from typing import Any
 
 import pydantic
+from torax._src import array_typing
 from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
@@ -40,6 +41,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   transport: (
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
+  poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0
 
   @pydantic.model_validator(mode="before")
   @classmethod
@@ -63,6 +65,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
         bootstrap_current=self.bootstrap_current.build_runtime_params(),
         conductivity=self.conductivity.build_runtime_params(),
         transport=self.transport.build_runtime_params(),
+        poloidal_velocity_multiplier=self.poloidal_velocity_multiplier,
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:

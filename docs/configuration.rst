@@ -1979,6 +1979,9 @@ transport
   Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
   and :math:`V_\mathrm{neo, ware}` separately.
 
+``poloidal_velocity_multiplier`` (float [default = 1.0])
+  Multiplier for the poloidal velocity.
+
 restart
 -------
 
