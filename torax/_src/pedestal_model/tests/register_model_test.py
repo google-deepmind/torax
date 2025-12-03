@@ -17,12 +17,13 @@
 from typing import Annotated, Literal
 from absl.testing import absltest
 import chex
-from torax._src import geometry
+from torax._src.geometry import geometry
 from torax._src import state
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import register_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 import jax.numpy as jnp
@@ -87,19 +88,12 @@ class RegisterModelTest(absltest.TestCase):
     register_model.register_pedestal_model(TestPedestal)
 
     # Verify it can be instantiated through the ModelConfig API
-    # Create a minimal ToraxConfig using from_dict to test the registration
-    minimal_config_dict = {
-        'profile_conditions': {},
-        'numerics': {},
-        'plasma_composition': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': {},
-        'pedestal': {
-            'model_name': 'test_pedestal',
-            'test_value': 99.0,
-        },
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
+        'model_name': 'test_pedestal',
+        'test_value': 99.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(minimal_config_dict)
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
     # Verify the pedestal config is the correct type
     self.assertIsInstance(torax_config.pedestal, TestPedestal)
@@ -180,31 +174,19 @@ class RegisterModelTest(absltest.TestCase):
     register_model.register_pedestal_model(Config2)
 
     # Verify both can be instantiated through the ModelConfig API
-    minimal_config_dict_1 = {
-        'profile_conditions': {},
-        'numerics': {},
-        'plasma_composition': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': {},
-        'pedestal': {
-            'model_name': 'model1',
-        },
+    config_dict_1 = default_configs.get_default_config_dict()
+    config_dict_1['pedestal'] = {
+        'model_name': 'model1',
     }
-    torax_config_1 = model_config.ToraxConfig.from_dict(minimal_config_dict_1)
+    torax_config_1 = model_config.ToraxConfig.from_dict(config_dict_1)
     self.assertIsInstance(torax_config_1.pedestal, Config1)
     self.assertEqual(torax_config_1.pedestal.model_name, 'model1')
 
-    minimal_config_dict_2 = {
-        'profile_conditions': {},
-        'numerics': {},
-        'plasma_composition': {},
-        'geometry': {'geometry_type': 'circular'},
-        'sources': {},
-        'pedestal': {
-            'model_name': 'model2',
-        },
+    config_dict_2 = default_configs.get_default_config_dict()
+    config_dict_2['pedestal'] = {
+        'model_name': 'model2',
     }
-    torax_config_2 = model_config.ToraxConfig.from_dict(minimal_config_dict_2)
+    torax_config_2 = model_config.ToraxConfig.from_dict(config_dict_2)
     self.assertIsInstance(torax_config_2.pedestal, Config2)
     self.assertEqual(torax_config_2.pedestal.model_name, 'model2')
 
