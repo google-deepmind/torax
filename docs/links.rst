@@ -21,6 +21,9 @@
 .. _albajar2001_link: https://doi.org/10.1088/0029-5515/41/6/301
 .. _artaud2018_link: https://doi.org/10.1088/1741-4326/aad5b1
 .. _wallace2024_link: https://meetings.aps.org/Meeting/DPP24/Session/NP12.106
+.. _body2025_link: https://doi.org/10.1088/1741-4326/ade4d9
+.. _kallenbach2024_link: https://doi.org/10.1088/1741-4326/ad3139
+.. _mavrin2017_link: https://doi.org/10.1007/s10894-017-0136-z
 
 .. Define substitutions using link targets
 .. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
@@ -45,3 +48,6 @@
 .. |albajar2001| replace:: `Albajar NF 2001 <albajar2001_link_>`_
 .. |artaud2018| replace:: `Artaud NF 2018 <artaud2018_link_>`_
 .. |wallace2024| replace:: `[Wallace et al, APS 2024] <wallace2024_link_>`_
+.. |body2025| replace:: `[Body et al, NF 2025] <body2025_link_>`_
+.. |kallenbach2024| replace:: `[Kallenbach et al, NF 2024] <kallenbach2024_link_>`_
+.. |mavrin2017| replace:: `[Mavrin, J Fusion Energ 2017] <mavrin2017_link_>`_
