@@ -274,7 +274,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         raise ValueError(
             'Mismatch between core plasma composition impurities and edge'
             f' impurities. Core: {core_species}, Edge: {edge_species}.'
-            f' Difference: {core_species.symmetric_difference(edge_species)}'
+            f' Difference: {core_species.symmetric_difference(edge_species)}.'
+            ' Likely reason: edge.fixed_impurity_concentrations and/or'
+            ' edge.seed_impurity_weights do not match plasma_composition.'
+            'impurity.species.'
         )
 
     return self

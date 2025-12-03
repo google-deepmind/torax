@@ -205,7 +205,7 @@ class FBTGeometryTest(parameterized.TestCase):
     # Domain 1 (Upper): [15, 25] over time for Lpar_target.
     LY['Lpar_target'] = np.array([[10.0, 20.0], [15.0, 25.0]])
     LY['Lpar_div'] = np.array([[1.0, 2.0], [1.5, 2.5]])
-    LY['alpha_target'] = np.array([[3.0, 4.0], [3.5, 4.5]])
+    LY['alpha_target'] = np.deg2rad(np.array([[3.0, 4.0], [3.5, 4.5]]))
     LY['r_OMP'] = np.array([[6.0, 7.0], [6.5, 7.5]])
     LY['r_target'] = np.array([[5.0, 6.0], [5.5, 6.5]])
     LY['Bp_OMP'] = np.array([[0.5, 0.7], [0.6, 0.8]])

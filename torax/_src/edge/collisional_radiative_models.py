@@ -81,10 +81,11 @@ def calculate_mavrin_2017(
     ion_symbol_lookup = ion_symbol
 
   if ion_symbol_lookup not in cr_module.COEFFS.keys():
-    raise ValueError(
-        f'Invalid ion symbol: {ion_symbol}. Allowed symbols are:'
-        f' {cr_module.COEFFS.keys()}'
-    )
+    # If the ion is not supported by the edge radiation model, we assume it
+    # negligibly contributes to the edge physics (radiation or Z_eff/dilution in
+    # the divertor). This is a good assumption for heavy impurities like W,
+    # which this case covers. This behaviour is silent to avoid log spam.
+    return jnp.zeros_like(T_e)
 
   # Mavrin 2017 formulas are constructed for [eV] temperature input
   T_e_ev = T_e * 1e3

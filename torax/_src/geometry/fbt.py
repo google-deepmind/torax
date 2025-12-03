@@ -479,8 +479,8 @@ def _from_fbt(
     connection_length_target = _get_val('Lpar_target')
     # Lpar_div -> connection_length_divertor [m]
     connection_length_divertor = _get_val('Lpar_div')
-    # alpha_target -> angle_of_incidence_target [degrees]
-    angle_of_incidence_target = _get_val('alpha_target')
+    # alpha_target [radians] -> angle_of_incidence_target [degrees]
+    angle_of_incidence_target = np.rad2deg(_get_val('alpha_target'))
     # r_OMP -> R_OMP [m]
     R_OMP = _get_val('r_OMP')
     # r_target -> R_target [m]

@@ -839,9 +839,20 @@ class StateHistory:
       xr_dict["solver_iterations"] = self._pack_into_data_array(
           "solver_iterations", numerics.iterations
       )
-      xr_dict["solver_residual"] = self._pack_into_data_array(
-          "solver_residual", numerics.residual
-      )
+      # Handle solver_residual explicitly because it is a vector
+      # (time, n_unknowns) which _pack_into_data_array doesn't support
+      # automatically.
+      if numerics.residual is not None and numerics.residual.ndim == 2:
+        xr_dict["solver_residual"] = xr.DataArray(
+            numerics.residual,
+            dims=[TIME, "solver_unknown_idx"],
+            name="solver_residual",
+        )
+      else:
+        xr_dict["solver_residual"] = self._pack_into_data_array(
+            "solver_residual", numerics.residual
+        )
+
       xr_dict["solver_error"] = self._pack_into_data_array(
           "solver_error", numerics.error
       )

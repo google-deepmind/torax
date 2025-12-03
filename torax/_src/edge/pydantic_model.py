@@ -71,11 +71,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           extended_lengyel_defaults.DIVERTOR_BROADENING_FACTOR
       )
   )
-  ratio_bpol_omp_to_bpol_avg: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
-      )
-  )
   sheath_heat_transmission_factor: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
           extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR
@@ -134,16 +129,15 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   connection_length_divertor: (
       torax_pydantic.PositiveTimeVaryingScalar | None
   ) = None
-  angle_of_incidence_target: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.ANGLE_OF_INCIDENCE_TARGET
-      )
+  angle_of_incidence_target: torax_pydantic.PositiveTimeVaryingScalar | None = (
+      None
   )
-  toroidal_flux_expansion: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(
-          extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION
-      )
+  toroidal_flux_expansion: torax_pydantic.PositiveTimeVaryingScalar | None = (
+      None
   )
+  ratio_bpol_omp_to_bpol_avg: (
+      torax_pydantic.PositiveTimeVaryingScalar | None
+  ) = None
 
   # Optional input for inverse mode
   T_e_target: torax_pydantic.PositiveTimeVaryingScalar | None = None
@@ -343,7 +337,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         newton_raphson_tol=self.newton_raphson_tol,
         ne_tau=self.ne_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
-        ratio_bpol_omp_to_bpol_avg=self.ratio_bpol_omp_to_bpol_avg.get_value(t),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(
             t
         ),
@@ -367,8 +360,15 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         connection_length_divertor=_get_optional_value(
             self.connection_length_divertor, t
         ),
-        angle_of_incidence_target=self.angle_of_incidence_target.get_value(t),
-        toroidal_flux_expansion=self.toroidal_flux_expansion.get_value(t),
+        angle_of_incidence_target=_get_optional_value(
+            self.angle_of_incidence_target, t
+        ),
+        toroidal_flux_expansion=_get_optional_value(
+            self.toroidal_flux_expansion, t
+        ),
+        ratio_bpol_omp_to_bpol_avg=_get_optional_value(
+            self.ratio_bpol_omp_to_bpol_avg, t
+        ),
         seed_impurity_weights=seed_impurity_weights,
         fixed_impurity_concentrations=fixed_impurity_concentrations,
         enrichment_factor=enrichment_factor,
