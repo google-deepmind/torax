@@ -30,6 +30,8 @@ from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
+from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
@@ -312,6 +314,91 @@ class RuntimeParams(source_runtime_params_lib.RuntimeParams):
   absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
+  minority_species: str | None = dataclasses.field(
+      default=None, metadata={'static': True}
+  )
+
+
+def _get_minority_concentration_from_composition(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    core_profiles: state.CoreProfiles,
+    minority_species: str,
+) -> jax.Array:
+  """Extract minority species concentration from plasma composition.
+
+  Args:
+    runtime_params: Runtime parameters containing plasma composition.
+    core_profiles: Core plasma profiles.
+    minority_species: Symbol of the minority species (e.g., 'He3', 'D', 'T').
+
+  Returns:
+    Minority species fractional concentration relative to electron density.
+
+  Raises:
+    ValueError: If minority_species is not found in plasma composition.
+  """
+  plasma_comp = runtime_params.plasma_composition
+
+  # Check if species is in main ions
+  if minority_species in plasma_comp.main_ion_names:
+    # For main ions, concentration is fraction * n_i / n_e
+    fraction = plasma_comp.main_ion.fractions[minority_species]
+    return core_profiles.n_i.value * fraction / core_profiles.n_e.value
+
+  # Check if species is in impurities
+  elif minority_species in plasma_comp.impurity_names:
+    # For impurities, need to get the species-specific density
+    # The impurity concentration depends on the impurity mode
+    if isinstance(
+        plasma_comp.impurity,
+        (
+            electron_density_ratios.RuntimeParams,
+            electron_density_ratios_zeff.RuntimeParams,
+        ),
+    ):
+      # In n_e_ratios modes, density ratio is directly available
+      if hasattr(plasma_comp.impurity, 'n_e_ratios'):
+        n_e_ratio = plasma_comp.impurity.n_e_ratios.get(minority_species)
+        if n_e_ratio is None:
+          # This is the unknown species constrained by Z_eff
+          # We need to compute it from the core_profiles
+          # For now, extract from impurity_fractions
+          if minority_species in core_profiles.impurity_fractions:
+            total_impurity_concentration = (
+                core_profiles.n_impurity.value / core_profiles.n_e.value
+            )
+            species_fraction = core_profiles.impurity_fractions[
+                minority_species
+            ]
+            return total_impurity_concentration * species_fraction
+          else:
+            raise ValueError(
+                f'Minority species {minority_species} not found in'
+                ' impurity_fractions.'
+            )
+        else:
+          return n_e_ratio
+    else:
+      # In fractions mode, impurities are bundled
+      # Extract from core_profiles.impurity_fractions
+      if minority_species in core_profiles.impurity_fractions:
+        total_impurity_concentration = (
+            core_profiles.n_impurity.value / core_profiles.n_e.value
+        )
+        species_fraction = core_profiles.impurity_fractions[minority_species]
+        return total_impurity_concentration * species_fraction
+      else:
+        raise ValueError(
+            f'Minority species {minority_species} not found in'
+            ' impurity_fractions.'
+        )
+
+  else:
+    raise ValueError(
+        f'Minority species {minority_species} not found in plasma composition.'
+        f' Available main ions: {plasma_comp.main_ion_names},'
+        f' impurities: {plasma_comp.impurity_names}'
+    )
 
 
 def _helium3_tail_temperature(
@@ -350,6 +437,24 @@ def icrh_model_func(
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
 
+  # Get minority concentration: either from plasma composition or from params
+  if source_params.minority_species is not None:
+    # Extract minority concentration from plasma composition
+    minority_concentration_profile = (
+        _get_minority_concentration_from_composition(
+            runtime_params, core_profiles, source_params.minority_species
+        )
+    )
+    # Use volume average for ToricNN input (scalar)
+    minority_concentration_scalar = math_utils.volume_average(
+        minority_concentration_profile, geo
+    )
+  else:
+    # Use legacy parameter (backward compatibility)
+    minority_concentration_scalar = source_params.minority_concentration
+    # For profile-dependent calculations, use constant value
+    minority_concentration_profile = source_params.minority_concentration
+
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
       core_profiles.T_e.value, geo
@@ -375,7 +480,7 @@ def icrh_model_func(
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=source_params.minority_concentration
+      minority_concentration=minority_concentration_scalar
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
@@ -419,7 +524,7 @@ def icrh_model_func(
   helium3_birth_energy = _helium3_tail_temperature(
       power_deposition_he3,
       core_profiles,
-      source_params.minority_concentration,
+      minority_concentration_profile,
       source_params.P_total / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
@@ -487,7 +592,14 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       [m].
     frequency: ICRF wave frequency [Hz].
     minority_concentration: He3 minority fractional concentration relative to
-      the electron density.
+      the electron density. This parameter is used when minority_species is not
+      specified (legacy mode). When minority_species is set, the concentration
+      is automatically extracted from plasma_composition.
+    minority_species: Optional symbol of the minority species (e.g., 'He3',
+      'D', 'T'). When specified, the minority concentration is extracted from
+      the plasma_composition instead of using minority_concentration parameter.
+      The species can be either a main ion (if hydrogenic) or an impurity (if
+      helium).
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
@@ -504,6 +616,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   minority_concentration: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.03)
   )
+  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       10e6
   )
@@ -532,6 +645,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),
         minority_concentration=self.minority_concentration.get_value(t),
+        minority_species=self.minority_species,
         P_total=self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )
