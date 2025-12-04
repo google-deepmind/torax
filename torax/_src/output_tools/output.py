@@ -840,13 +840,12 @@ class StateHistory:
           "solver_iterations", numerics.iterations
       )
       # Handle solver_residual explicitly because it is a vector
-      # (time, n_unknowns) which _pack_into_data_array doesn't support
-      # automatically.
+      # (time, n_unknowns). We want to output the scalar metric used for
+      # convergence checking (mean absolute error).
       if numerics.residual is not None and numerics.residual.ndim == 2:
-        xr_dict["solver_residual"] = xr.DataArray(
-            numerics.residual,
-            dims=[TIME, "solver_unknown_idx"],
-            name="solver_residual",
+        residual_scalar = np.mean(np.abs(numerics.residual), axis=-1)
+        xr_dict["solver_residual"] = self._pack_into_data_array(
+            "solver_residual", residual_scalar
         )
       else:
         xr_dict["solver_residual"] = self._pack_into_data_array(
