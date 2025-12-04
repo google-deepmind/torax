@@ -130,7 +130,7 @@ For loading weights from a PyTorch checkpoint, you might do something like:
           state_dict[f"model.{i*2}.weight"]
         ).T,
         "bias": jnp.array(
-          pytorch_state_dict[f"model.{j*2}.bias"]
+          pytorch_state_dict[f"model.{i*2}.bias"]
         ).T,
       }
       params[f"Dense_{i}"] = layer_dict

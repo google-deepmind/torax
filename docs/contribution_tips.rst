@@ -130,7 +130,7 @@ Further filtering is possible, for example running only the ``test_face_to_cell`
 
 Which runs any test containing the string expression ``face_to_cell``.
 
-Where appropiate, please add tests for your changes.
+Where appropriate, please add tests for your changes.
 
 An important class of test is the sim test. These are integration tests running
 the configs in the ``torax/tests/test_data/`` directory, and comparing to the ground-truth
@@ -152,7 +152,7 @@ to the ground-truth files, run the following command from the TORAX root directo
 
   python3 torax/tests/scripts/compare_sim_tests.py
 
-These command has the optional flag ``--failed_test_output_dir <dir>`` which
+This command has the optional flag ``--failed_test_output_dir <dir>`` which
 takes a directory containing the failed test outputs, instead of the default
 directory ``/tmp/torax_failed_sim_test_outputs``.
 
