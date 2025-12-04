@@ -160,8 +160,8 @@ def plasma_composition_from_IMAS(
     ]
   else:
     parsed_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
-
   _validate_ids_ions(parsed_ions, main_ions_symbols)
+
   Z_eff = (
       time_array,
       rhon_array,
@@ -177,7 +177,7 @@ def plasma_composition_from_IMAS(
       # that instead of using a try-except.
       # Case ids is plasma_profiles in early DDv4 releases.
       symbol = str(profiles_1d[0].ion[ion].label)
-    if symbol in constants.ION_PROPERTIES_DICT.keys():
+    if symbol in parsed_ions:
       # Fill main ions
       if symbol in main_ions_symbols:
         main_ion_density[symbol] = [
