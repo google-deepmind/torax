@@ -161,7 +161,8 @@ following menu.
 
 For both the **mc** and **cc** options (see :ref:`trigger_recompilation`) for
 discussion on whether a recompilation is required or not. In general things
-that modify the simulation problem will trigger recompile, for example changing:
+that modify the simulation problem will trigger recompilation, for example
+changing:
 
   * Grid resolution
   * Evolved variables (equations being solved)
