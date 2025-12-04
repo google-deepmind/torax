@@ -14,24 +14,37 @@
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 from collections.abc import Collection, Mapping
 import logging
-from typing import Any, Mapping
+from typing import Any, Mapping, Final, Literal
 
-from imas import ids_toplevel
+from imas import ids_toplevel, ids_structure
 import numpy as np
 from torax._src import constants
 
-_PROFILE_CONDITIONS_REQUIRED_FIELDS = {
+_PROFILE_CONDITIONS_VALIDATION_FIELDS: Final[dict[str, object]]= {
     "global_quantities": ["ip", "v_loop"],
-    "profiles_1d": [
+    "profiles_1d": {"required":[
         "time",
-        "grid.rho_tor_norm",
+        "grid.rho_tor_norm",],
+        "optional": [
         "grid.psi",
         "electrons.temperature",
         "t_i_average",
         "electrons.density",
-    ],
+    ],},
 }
 
+_PLASMA_COMPOSITION_VALIDATION_FIELDS: Final[dict[str, object]]= {
+    "global_quantities": [],
+    "profiles_1d": {"required":[
+        "time",
+        "grid.rho_tor_norm",
+        "electrons.density"
+        ],
+        "optional": [
+        "zeff",
+    ],},
+}
+_VALIDATED_FUNCTIONS = Literal["profile_conditions", "plasma_composition"]
 
 # pylint: disable=invalid-name
 def profile_conditions_from_IMAS(
@@ -252,32 +265,52 @@ def _check_expected_ions_presence(
       )
 
 
-def _validate_core_profiles_ids_for_profile_conditions(
+def _validate_core_profiles_ids(
     ids: ids_toplevel.IDSToplevel,
+    strict: bool, 
+    target: str,
 ):
   """Checks that all expected attributes exist in the IDS."""
   profiles_1d = ids.profiles_1d
   global_quantities = ids.global_quantities
-  logged_fields = []
-  for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["global_quantities"]:
-    if not getattr(global_quantities, field):
-      # Warning or critical ?
-      logging.critical(
-          f"The IDS is missing global_quantities.{field} to build"
-          " profile_conditions. \n Please Check that your IDS is properly"
-          " filled."
-      )
+  logged_fields = set()
+  if target == "profiles_conditions":
+    validation_fields = _PROFILE_CONDITIONS_VALIDATION_FIELDS
+  if target == "plasma_composition":
+    validation_fields = _PLASMA_COMPOSITION_VALIDATION_FIELDS
+  # Validate global_quantities
+  for field in validation_fields["global_quantities"]:
+    leaf = getattr(global_quantities,field)
+    if not leaf.has_value:
+      if strict: 
+        raise ValueError(f"The IDS is missing global_quantities.{field} required to build"
+            " profile_conditions. \n Please Check that your IDS is properly"
+            " filled.")
+      else:
+        logging.warning(
+            f"The IDS is missing global_quantities.{field} which may cause undesired behavior when building profile_conditions. \n Please Check that your IDS is properly"
+            " filled."
+        )
+  # Validate profiles_1d 
   for profile in profiles_1d:
-    for field in _PROFILE_CONDITIONS_REQUIRED_FIELDS["profiles_1d"]:
-      leaf = profile
-      for node in field.split("."):
-        leaf = getattr(leaf, node)
-      if not leaf:
+    for field in validation_fields["profiles_1d"]["required"]:
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict=True)
+    for field in validation_fields["profiles_1d"]["optional"]:
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict)
+
+def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure, logged_fields:set, strict: bool):
+   leaf = profile
+   for node in field.split("."):
+    leaf = getattr(leaf, node)
+   if not leaf.has_value:
         if field not in logged_fields:
-          # Warning or critical ?
-          logging.critical(
-              f"The IDS is missing profiles_1d.{field} to build"
-              " profile_conditions. \n Please Check that your IDS is properly"
-              " filled."
-          )
-          logged_fields.append(field)
+          if strict:
+            raise ValueError(f"The IDS is missing profiles_1d.{field} to build"
+            " profile_conditions. \n Please Check that your IDS is properly"
+            " filled.")
+          else:
+            logging.warning(
+                f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building profile_conditions. \n Please Check that your IDS is properly"
+                " filled."
+            )
+            logged_fields.add(field)
