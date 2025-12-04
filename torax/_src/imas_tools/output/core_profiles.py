@@ -47,11 +47,10 @@ def core_profiles_to_IMAS(
 ) -> ids_toplevel.IDSToplevel:
   """Save TORAX profiles into an IMAS core_profiles IDS.
 
-  The output grid for all 1D quantities is the cell_plus_boundaries one. Values
-  not available on boundaries are copied from neghbouring points. The function
-  can be used to save an entire StateHistory or a single time slice. If you
-  want to use this function programatically and save a single time slice,
-  please make sure the inputs are Sequences.
+  The output grid for all 1D quantities is the cell_plus_boundaries one. The 
+  function can be used to save an entire StateHistory or a single time slice.
+  If you want to use this function programatically and save a single time 
+  slice, please make sure the inputs are Sequences.
 
   Args:
     runtime_params_provider: TORAX RuntimeParamsProvider to get the names of
