@@ -12,15 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""STEP SPP-001 Power Plant Scenario.
+"""STEP SPP-001 'ECHD' Power Plant Scenario.
 
 This is a *fully non-inductive* flat-top (steady state) scenario for the STEP
 tokamak. Key points of interest:
 - Zero loop voltage boundary condition on current equation, signifying no use of
-the central solenoid. Relies on high bootstrap fraction, thanks to high beta.
-- Bohm-gyrobohm transport tuned to give the desired H98.
-- Pellet fuelling tuned to give the desired Greenwald fraction.
+the central solenoid. Relies on high bootstrap fraction (≈ 0.9) to achieve
+target plasma current, which is achievable thanks to high beta (≈ 4.5).
+- Bohm-gyrobohm transport tuned to give the desired H98y (≈ 1.1).
+- Pellet fuelling tuned to give the desired Greenwald fraction (≈ 0.95).
 - Loading profiles, sources, and geometry from IMAS.
+
+Tuning of this scenario should be done as follows:
+  1. Disable all transport equations and set ECCD efficiency to get target A/W
+    efficiency (≈ 12.5).
+  2. Enable current and heat transport equations and adjust `bgb_multiplier` to
+    achieve H98 ≈ 1.1.
+  3. Enable all transport equations and adjust pellet fuelling rate to achieve
+    fGW ≈ 0.95.
 
 Based on:
  1. T.A. Brown, F.J. Casson et al., "OpenSTEP: public data release of the STEP
@@ -70,7 +79,7 @@ electron_heating_ec = core_sources_xr["source.profiles_1d.electrons.energy"][
 
 # Set BgB multiplier to achieve desired confinement
 # Lower -> better confinement
-bgb_multiplier = 0.23
+bgb_multiplier = 0.15
 
 
 CONFIG = {
@@ -82,12 +91,8 @@ CONFIG = {
         "v_loop_lcfs": 0.0,
     },
     "geometry": {
-        # TODO(b/323504363): Switch to loading from IMAS rather than eqdsk
-        # Currently there is a bug in either the TORAX IMAS loader or the JETTO
-        # IMAS writer that makes them incompatible
-        "geometry_type": "EQDSK",
-        "geometry_file": "STEP_SPP_001_ECHD_ftop.eqdsk",
-        "cocos": 1,
+        "geometry_type": "IMAS",
+        "imas_filepath": "STEP_SPP_001_ECHD_ftop.nc",
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",
@@ -99,10 +104,10 @@ CONFIG = {
     },
     "sources": {
         # Physics-based sources
+        # Note: Bremsstrahlung is not included in [1,2]
         "ohmic": {},
         "fusion": {},
         "ei_exchange": {},
-        "bremsstrahlung": {},
         "impurity_radiation": {
             "model_name": "P_in_scaled_flat_profile",
             "fraction_P_heating": 0.7,
@@ -113,13 +118,14 @@ CONFIG = {
                 rho_norm_ec.values,
                 np.clip(electron_heating_ec.values, a_min=0, a_max=None),
             ),
+            # Tuned to match A/W efficiency in [2] Table 5
             "current_drive_efficiency": 0.14,
         },
         "pellet": {
             # TODO(b/323504363): load from IDS?
             "pellet_deposition_location": 0.8,  # from [2] sec 3.4
             "pellet_width": 0.17,  # from [2] sec 3.4
-            "S_total": 40e20,  # [s^-1], manually tuned to get desired fGW
+            "S_total": 3e21,  # [s^-1], tuned to get desired fGW in Table 5
         },
     },
     "transport": {
@@ -157,15 +163,22 @@ CONFIG = {
         "smoothing_width": 0.05,
     },
     "neoclassical": {
-        "bootstrap_current": {"model_name": "sauter"},
-        "transport": {"model_name": "angioni_sauter"},
+        "bootstrap_current": {
+            "model_name": "sauter",
+        },
+        # Note: neoclassical transport is currently being verified for this case
+        # "transport": {
+        #   "model_name": "angioni_sauter",
+        # }
     },
     "numerics": {
         "t_initial": 0.0,
-        "t_final": 500.0,
-        "fixed_dt": 50.0,
-        "min_dt": 1e-4,
+        "t_final": 400.0,
+        "fixed_dt": 10.0,
+        "min_dt": 1e-3,
         "dt_reduction_factor": 2.0,
+        # Current diffusion time in STEP plasmas is very long, so artificially
+        # boost the resistivity to decrease simulation time
         "resistivity_multiplier": 10.0,
         "evolve_current": True,
         "evolve_ion_heat": True,
