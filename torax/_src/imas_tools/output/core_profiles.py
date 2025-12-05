@@ -362,7 +362,9 @@ def _fill_currents(
   # TODO: Add j_ni and j_ohmic to output. Requires discussion on extending
   # values to cell_plus_boundaries grid.
   ids.profiles_1d[i].conductivity_parallel = (
-      output.extend_cell_grid_to_boundaries([cp_state.sigma], np.array([cp_state.sigma_face]))[0]
+      output.extend_cell_grid_to_boundaries(
+          [cp_state.sigma], np.array([cp_state.sigma_face])
+      )[0]
   )
 
 
