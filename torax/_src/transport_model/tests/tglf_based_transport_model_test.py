@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -98,6 +99,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=runtime_params.transport,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     vector_keys = [
@@ -142,9 +144,12 @@ class FakeTGLFBasedTransportModel(
       transport: tglf_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> tglf_based_transport_model.TGLFInputs:
     """Exposing prepare_tglf_inputs for testing."""
-    return self._prepare_tglf_inputs(transport, geo, core_profiles)
+    return self._prepare_tglf_inputs(
+        transport, geo, core_profiles, poloidal_velocity_multiplier
+    )
 
   # pylint: enable=invalid-name
 
@@ -166,6 +171,7 @@ class FakeTGLFBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
     return self._make_core_transport(
         ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
@@ -200,6 +206,8 @@ class TGLFBasedTransportModelConfig(
         # DV_effective and An_min are inherited from QuasilinearTransportModel
         DV_effective=False,
         An_min=0.05,
+        use_rotation=True,
+        rotation_multiplier=1.0,
         **base_kwargs,
     )
 
