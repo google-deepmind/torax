@@ -29,6 +29,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry as geometry_module
+from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.physics import charge_states
 from torax._src.sources import source_profiles
@@ -47,9 +48,9 @@ def core_profiles_to_IMAS(
 ) -> ids_toplevel.IDSToplevel:
   """Save TORAX profiles into an IMAS core_profiles IDS.
 
-  The output grid for all 1D quantities is the cell_plus_boundaries one. The 
+  The output grid for all 1D quantities is the cell_plus_boundaries one. The
   function can be used to save an entire StateHistory or a single time slice.
-  If you want to use this function programatically and save a single time 
+  If you want to use this function programatically and save a single time
   slice, please make sure the inputs are Sequences.
 
   Args:
@@ -227,9 +228,9 @@ def _fill_profiles_1d(
         n_impurity,
         pressure_thermal_i,
     )
-    Z_eff = np.concatenate(
-        [[cp_state.Z_eff_face[0]], cp_state.Z_eff, [cp_state.Z_eff_face[-1]]]
-    )
+    Z_eff = output.extend_cell_grid_to_boundaries(
+        [cp_state.Z_eff], np.array([cp_state.Z_eff_face])
+    )[0]
     ids.profiles_1d[i].zeff = Z_eff
 
 
@@ -245,7 +246,12 @@ def _fill_ions(
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
 ) -> None:
   def _fill_main_ion_quantities(
-      i, ion, symbol, frac, T_i, n_i,
+      i,
+      ion,
+      symbol,
+      frac,
+      T_i,
+      n_i,
   ) -> None:
     ion_properties = constants.ION_PROPERTIES_DICT[symbol]
     # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
@@ -275,7 +281,9 @@ def _fill_ions(
     )
 
   def _fill_impurity_quantities(
-      i, ion, T_i,
+      i,
+      ion,
+      T_i,
   ) -> None:
     symbol, _ = impurities[ion]
     index = num_of_main_ions + ion
@@ -310,15 +318,13 @@ def _fill_ions(
       [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
   )
   impurities = list(zip(impurity_symbols, impurity_fractions_arr))
- 
+
   num_of_main_ions = len(main_ion)
   num_ions = num_of_main_ions + len(impurities)
   ids.profiles_1d[i].ion.resize(num_ions)
   # Fill main ions quantities
   for ion, (symbol, frac) in enumerate(main_ion.items()):
-    _fill_main_ion_quantities(
-        i, ion, symbol, frac, T_i, n_i
-    )
+    _fill_main_ion_quantities(i, ion, symbol, frac, T_i, n_i)
 
   # Fill impurity quantities.
   # Helper function is called when impurities array is defined to access
@@ -335,33 +341,29 @@ def _fill_currents(
 ) -> None:
   q_cell = geometry_module.face_to_cell(cp_state.q_face)
   s_cell = geometry_module.face_to_cell(cp_state.s_face)
-  ids.profiles_1d[i].q = np.concatenate(
-      [[cp_state.q_face[0]], q_cell, [cp_state.q_face[-1]]]
-  )
-  ids.profiles_1d[i].magnetic_shear = np.concatenate(
-      [[cp_state.s_face[0]], s_cell, [cp_state.s_face[-1]]]
-  )
-  j_total = np.concatenate([
-      [cp_state.j_total_face[0]],
-      cp_state.j_total,
-      [cp_state.j_total_face[-1]],
-  ])
-  j_bootstrap = np.concatenate([
-      [cs_state.bootstrap_current.j_bootstrap_face[0]],
-      cs_state.bootstrap_current.j_bootstrap,
-      [cs_state.bootstrap_current.j_bootstrap_face[-1]],
-  ])
+  ids.profiles_1d[i].q = output.extend_cell_grid_to_boundaries(
+      [q_cell], np.array([cp_state.q_face])
+  )[0]
+  ids.profiles_1d[i].magnetic_shear = output.extend_cell_grid_to_boundaries(
+      [s_cell], np.array([cp_state.s_face])
+  )[0]
+  j_total = output.extend_cell_grid_to_boundaries(
+      [cp_state.j_total], np.array([cp_state.j_total_face])
+  )[0]
+  j_bootstrap = output.extend_cell_grid_to_boundaries(
+      [cs_state.bootstrap_current.j_bootstrap],
+      np.array([cs_state.bootstrap_current.j_bootstrap_face]),
+  )[0]
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
   ids.profiles_1d[i].j_total = -1 * j_total
-  # TODO: Add j_ni and j_ohmic to output. Requires discussion on extending 
-  # values to cell_plus_boundaries grid.
   ids.profiles_1d[i].j_bootstrap = -1 * j_bootstrap
-  sigma = np.concatenate(
-      [[cp_state.sigma_face[0]], cp_state.sigma, [cp_state.sigma_face[-1]]]
+  # TODO: Add j_ni and j_ohmic to output. Requires discussion on extending
+  # values to cell_plus_boundaries grid.
+  ids.profiles_1d[i].conductivity_parallel = (
+      output.extend_cell_grid_to_boundaries([cp_state.sigma], np.array([cp_state.sigma_face]))[0]
   )
-  ids.profiles_1d[i].conductivity_parallel = sigma
 
 
 def _fill_grid(
@@ -381,20 +383,11 @@ def _fill_grid(
   ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value()[0]
   ids.profiles_1d[i].grid.rho_pol_norm = np.sqrt(
       (cp_state.psi.cell_plus_boundaries() - cp_state.psi.left_face_value()[0])
-      / (
-          cp_state.psi.right_face_value()[0]
-          - cp_state.psi.left_face_value()[0]
-      )
+      / (cp_state.psi.right_face_value()[0] - cp_state.psi.left_face_value()[0])
   )
-  volume = np.concatenate([
-      [geometry_slice.volume_face[0]],
-      geometry_slice.volume,
-      [geometry_slice.volume_face[-1]],
-  ])
-  area = np.concatenate([
-      [geometry_slice.area_face[0]],
-      geometry_slice.area,
-      [geometry_slice.area_face[-1]],
-  ])
-  ids.profiles_1d[i].grid.volume = volume
-  ids.profiles_1d[i].grid.area = area
+  ids.profiles_1d[i].grid.volume = output.extend_cell_grid_to_boundaries(
+      [geometry_slice.volume], np.array([geometry_slice.volume_face])
+  )[0]
+  ids.profiles_1d[i].grid.area = output.extend_cell_grid_to_boundaries(
+      [geometry_slice.area], np.array([geometry_slice.area_face])
+  )[0]

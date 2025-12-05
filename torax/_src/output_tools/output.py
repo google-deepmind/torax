@@ -178,7 +178,7 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
-def _extend_cell_grid_to_boundaries(
+def extend_cell_grid_to_boundaries(
     cell_var: array_typing.FloatVectorCell,
     face_var: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorCellPlusBoundaries:
@@ -559,7 +559,7 @@ class StateHistory:
         else:
           # Save as a profile.
           face_value = getattr(stacked_core_profiles, "A_impurity_face")
-          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         xr_dict[output_key] = self._pack_into_data_array(
             output_key, data_to_save
         )
@@ -573,7 +573,7 @@ class StateHistory:
         if face_attr_name in core_profile_field_names:
           # Combine cell and edge face values.
           face_value = getattr(stacked_core_profiles, face_attr_name)
-          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
@@ -640,7 +640,7 @@ class StateHistory:
         )
     )
 
-    xr_dict[J_PARALLEL_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
+    xr_dict[J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
     )
@@ -727,7 +727,7 @@ class StateHistory:
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:
-        data = _extend_cell_grid_to_boundaries(
+        data = extend_cell_grid_to_boundaries(
             data, geometry_attributes[f"{field_name}_face"]
         )
       # Remap to avoid outputting _face suffix in output.
@@ -768,7 +768,7 @@ class StateHistory:
         # If so, extend the data to the cell+boundaries grid.
         if f"{name}_face" in property_names:
           face_data = getattr(self._stacked_geometry, f"{name}_face")
-          property_data = _extend_cell_grid_to_boundaries(
+          property_data = extend_cell_grid_to_boundaries(
               property_data, face_data
           )
         data_array = self._pack_into_data_array(name, property_data)
