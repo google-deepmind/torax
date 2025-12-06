@@ -19,6 +19,7 @@ import io
 import os
 import re
 import subprocess
+import sys
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -51,7 +52,7 @@ class PersistentCacheTest(parameterized.TestCase):
         torax.__path__[0], 'run_simulation_main.py'
     )
     assert os.path.exists(run_simulation_main_path)
-    command = ['python3', run_simulation_main_path]
+    command = ['sys.executable', run_simulation_main_path]
 
     subprocess_args = command + flags
 

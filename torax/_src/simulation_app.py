@@ -109,7 +109,7 @@ def _write_simulation_output_to_dir(
 
 
 def write_output_to_file(path: str, data_tree: xr.DataTree):
-  directory = '/'.join(path.split('/')[:-1])
+  directory = os.path.dirname(path)
   if not os.path.exists(directory):
     os.makedirs(directory)
   data_tree.to_netcdf(path)
