@@ -52,7 +52,7 @@ class PersistentCacheTest(parameterized.TestCase):
         torax.__path__[0], 'run_simulation_main.py'
     )
     assert os.path.exists(run_simulation_main_path)
-    command = ['sys.executable', run_simulation_main_path]
+    command = [sys.executable, run_simulation_main_path]
 
     subprocess_args = command + flags
 
