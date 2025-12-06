@@ -133,39 +133,86 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles_in.profiles_1d[1].electrons.density / 100
     )
 
-    with self.subTest(name="Missing expected impurity."):
-      self.assertRaises(
-          ValueError,
-          core_profiles.plasma_composition_from_IMAS,
-          core_profiles_in,
-          None,
-          None,
-          ["Xe"],
-      )
     with self.subTest(name="Missing expected main ion."):
       self.assertRaises(
           ValueError,
           core_profiles.plasma_composition_from_IMAS,
           core_profiles_in,
           None,
+          None,
           ["H"],
-          None,
       )
-    with self.subTest(name="Invalid ion name."):
+    with self.subTest(name="Unidentified impurity not excluded."):
+      # Create a copy for this test to avoid side effects
+      core_profiles_test = loader.load_imas_data(path, "core_profiles")
+      core_profiles_test.profiles_1d[0].ion.resize(4)
+      core_profiles_test.profiles_1d[1].ion.resize(4)
+      core_profiles_test.global_quantities.ion.resize(4)
+      core_profiles_test.profiles_1d[0].ion[0].name = "D"
+      core_profiles_test.profiles_1d[0].ion[0].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[1].ion[0].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[0].ion[1].name = "T"
+      core_profiles_test.profiles_1d[0].ion[1].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[1].ion[1].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[0].ion[2].name = "Ne"
+      core_profiles_test.profiles_1d[1].ion[2].name = "Ne"
+      core_profiles_test.profiles_1d[0].ion[2].density = (
+          core_profiles_test.profiles_1d[0].electrons.density / 100
+      )
+      core_profiles_test.profiles_1d[1].ion[2].density = (
+          core_profiles_test.profiles_1d[1].electrons.density / 100
+      )
+      # Add an unidentified impurity to the IDS
+      core_profiles_test.profiles_1d[0].ion[3].name = "UnknownIon"
+      core_profiles_test.profiles_1d[1].ion[3].name = "UnknownIon"
+      core_profiles_test.profiles_1d[0].ion[3].density = [1e18, 1e18]
+      core_profiles_test.profiles_1d[1].ion[3].density = [1e18, 1e18]
       self.assertRaises(
-          KeyError,
+          ValueError,
           core_profiles.plasma_composition_from_IMAS,
-          core_profiles_in,
+          core_profiles_test,
           None,
           None,
-          ["He5"],
+          None,
       )
+    with self.subTest(name="Excluded unidentified impurity."):
+      # Create a copy for this test to avoid side effects
+      core_profiles_test = loader.load_imas_data(path, "core_profiles")
+      core_profiles_test.profiles_1d[0].ion.resize(4)
+      core_profiles_test.profiles_1d[1].ion.resize(4)
+      core_profiles_test.global_quantities.ion.resize(4)
+      core_profiles_test.profiles_1d[0].ion[0].name = "D"
+      core_profiles_test.profiles_1d[0].ion[0].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[1].ion[0].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[0].ion[1].name = "T"
+      core_profiles_test.profiles_1d[0].ion[1].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[1].ion[1].density = [9e19, 3e19]
+      core_profiles_test.profiles_1d[0].ion[2].name = "Ne"
+      core_profiles_test.profiles_1d[1].ion[2].name = "Ne"
+      core_profiles_test.profiles_1d[0].ion[2].density = (
+          core_profiles_test.profiles_1d[0].electrons.density / 100
+      )
+      core_profiles_test.profiles_1d[1].ion[2].density = (
+          core_profiles_test.profiles_1d[1].electrons.density / 100
+      )
+      # Add an unidentified impurity to the IDS
+      core_profiles_test.profiles_1d[0].ion[3].name = "UnknownIon"
+      core_profiles_test.profiles_1d[1].ion[3].name = "UnknownIon"
+      core_profiles_test.profiles_1d[0].ion[3].density = [1e18, 1e18]
+      core_profiles_test.profiles_1d[1].ion[3].density = [1e18, 1e18]
+      # Exclude the unknown impurity
+      plasma_composition_data = core_profiles.plasma_composition_from_IMAS(
+          core_profiles_test,
+          t_initial=None,
+          excluded_impurities=["UnknownIon"],
+      )
+      # Should work without error
+      self.assertIsNotNone(plasma_composition_data)
     with self.subTest(name="Test config is properly built."):
       plasma_composition_data = core_profiles.plasma_composition_from_IMAS(
           core_profiles_in,
           t_initial=None,
           main_ions_symbols=["D", "T"],
-          expected_impurities=["Ne"],
       )
       config["plasma_composition"] = plasma_composition_data
       config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
