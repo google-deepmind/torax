@@ -33,6 +33,7 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import post_processing
+from torax._src.solver import jax_root_finding
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
@@ -835,23 +836,17 @@ class StateHistory:
     numerics = outputs.solver_status.numerics_outcome
     # Check for RootMetadata structure (newton solver)
     # TODO(b/446608829): make numerics itself parse its contents for outputs.
-    if hasattr(numerics, "iterations"):
+    if isinstance(numerics, jax_root_finding.RootMetadata):
       xr_dict["solver_iterations"] = self._pack_into_data_array(
           "solver_iterations", numerics.iterations
       )
       # Handle solver_residual explicitly because it is a vector
-      # (time, n_unknowns) which _pack_into_data_array doesn't support
-      # automatically.
-      if numerics.residual is not None and numerics.residual.ndim == 2:
-        xr_dict["solver_residual"] = xr.DataArray(
-            numerics.residual,
-            dims=[TIME, "solver_unknown_idx"],
-            name="solver_residual",
-        )
-      else:
-        xr_dict["solver_residual"] = self._pack_into_data_array(
-            "solver_residual", numerics.residual
-        )
+      # (time, n_unknowns). We want to output the scalar metric used for
+      # convergence checking (mean absolute error).
+      residual_scalar = np.mean(np.abs(numerics.residual), axis=-1)
+      xr_dict["solver_residual"] = self._pack_into_data_array(
+          "solver_residual", residual_scalar
+      )
 
       xr_dict["solver_error"] = self._pack_into_data_array(
           "solver_error", numerics.error
