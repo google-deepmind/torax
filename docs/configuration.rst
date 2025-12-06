@@ -19,6 +19,7 @@ dictionary, where the top level keys are:
 * **plasma_composition**: Configures the distribution of ion species.
 * **geometry**: Configures geometry setup and constructs the Geometry object.
 * **pedestal**: Configures the pedestal for the simulation.
+* **edge**: Selects and configures the edge physics model.
 * **sources**: Selects and configures parameters of the various heat source,
   particle source, and non-inductive current models.
 * **solver**: Selects and configures the PDE solver.
@@ -763,6 +764,57 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 ``rho_norm_ped_top`` (**time-varying-scalar** [default = 0.91])
   Location of pedestal top, in units of :math:`\hat{\rho}`.
 
+edge
+----
+
+Configures the edge physics model used to determine boundary conditions for the
+core transport solver. If not provided, no edge model is run, and boundary
+conditions are determined solely by the ``profile_conditions`` settings.
+
+See :ref:`edge_models` for a detailed description of the available models,
+their physics validation, and numerical implementation.
+
+``model_name`` (str [default = 'extended_lengyel'])
+  Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
+
+extended_lengyel
+^^^^^^^^^^^^^^^^
+
+Configuration for the Extended Lengyel model. This model calculates the target
+electron temperature and heat flux based on upstream conditions and impurity
+radiation.
+
+See :ref:`extended_lengyel_config` for the complete list of physical and
+control parameters.
+
+**Key Control Parameters:**
+
+``computation_mode`` (str [default = 'forward'])
+  * ``'forward'``: Calculate target conditions from upstream inputs.
+  * ``'inverse'``: Calculate required seeded impurity concentration to achieve
+    a specific target :math:`T_e`.
+
+``solver_mode`` (str [default = 'hybrid'])
+  Strategy for solving the non-linear edge equations
+  (``'fixed_point'``, ``'newton_raphson'``, or ``'hybrid'``).
+
+``impurity_sot`` (str [default = 'core'])
+  Defines the Source of Truth (``'core'`` or ``'edge'``) for fixed background
+  impurities. Determines whether the core profile ratios drive the edge
+  concentration or vice versa.
+
+**Key Physical Inputs:**
+
+``T_e_target``, ``seed_impurity_weights``, ``fixed_impurity_concentrations``,
+``enrichment_factor``, ``use_enrichment_model``.
+
+**Geometry:**
+
+Presently only the ``fbt`` geometry type supports edge geometry terms. For other
+geometry types, these terms must be provided in the edge configuration, e.g.
+``connection_length_target``, ``connection_length_divertor``,
+``flux_expansion``.
+
 .. _geometry_doc:
 
 geometry
@@ -851,9 +903,16 @@ denormalization.
 
 Geometry dicts for FBT geometry require the following additional keys.
 
+``divertor_domain`` (str [default = 'lower_null'])
+  Selects the divertor domain used to extract edge geometry parameters used
+  by the :ref:`extended_lengyel` edge model.
+  Either ``'lower_null'`` or ``'upper_null'``.
+
 ``LY_object`` (dict[str, np.ndarray | float] | str | None [default = None])
   Sets a single-slice FBT LY geometry file to be loaded, or alternatively a dict
   directly containing a single time slice of LY data.
+  **Note:** FBT files can optionally contain edge geometry parameters
+  (e.g., ``Lpar_target``) used by the :ref:`extended_lengyel` edge model.
 
 ``LY_bundle_object`` (dict[str, np.ndarray | float] | str | None
   [default = None]) Sets the FBT LY bundle file to be loaded, corresponding to
