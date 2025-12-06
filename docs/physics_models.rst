@@ -446,7 +446,7 @@ is the Coulomb logarithm for electron-ion collisions given by:
 Fusion power
 ------------
 TORAX optionally calculates the fusion power density assuming a 50-50
-deuturium-tritium (D-T) fuel mixture using the |bosch-hale| parameterization
+deuterium-tritium (D-T) fuel mixture using the |bosch-hale| parameterization
 for the D-T fusion reactivity :math:`\langle \sigma v \rangle`:
 
 .. math::

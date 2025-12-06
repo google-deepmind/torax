@@ -3,8 +3,8 @@
 Running simulations programmatically
 ####################################
 
-This short guide describes how to integrate Torax into you codebase and allows you
-to run it multiple times efficiently.
+This short guide describes how to integrate Torax into your codebase and allows
+you to run it multiple times efficiently.
 
 First, we need a ``torax.ToraxConfig`` object representing the simulation config.
 In this example, we will use the ``torax/examples/iterhybrid_rampup.py`` config:

@@ -35,7 +35,7 @@
 .. |pereverzev-corrigan-method| replace:: `Pereverzev-Corrigan method <pereverzev-corrigan_link_>`_
 .. |chease| replace:: `CHEASE <chease_link_>`_
 .. |fbt| replace:: `FBT <fbt_link_>`_
-.. |mavrin| replace:: `[Mavrin REDS 2018] <Mavrin_link_>`_
+.. |mavrin| replace:: `[Mavrin REDS 2018] <mavrin_link_>`_
 .. |guo-romanelli| replace:: `Guo-Romanelli <guo-romanelli_link_>`_
 .. |bohm-gyrobohm| replace:: `[Erba et al, 1998] <erba_link_>`_
 .. |garzotti2003| replace:: `[Garzotti et al, 2003] <garzotti2003_link_>`_

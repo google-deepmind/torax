@@ -280,7 +280,7 @@ time-dependence of temperature, density, and current.
 ``psi`` (**time-varying-array** | None [default = None])
   Initial values for poloidal flux. If provided, the initial ``psi`` will be
   taken from here. Otherwise, the initial ``psi`` will be calculated from either
-  the geometry or the "current_profile_nu formula" dependant on the
+  the geometry or the "current_profile_nu formula" dependent on the
   ``initial_psi_from_j`` field.
 
 ``psidot`` (**time-varying-array** | None [default = None])
@@ -862,8 +862,8 @@ additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
-  The default is set to ``iterhybrid.mat2cols’`` for
-  CHEASE geometry and ``iterhybrid_cocos02.eqdsk``` for EQDSK geometry.
+  The default is set to ``iterhybrid.mat2cols`` for
+  CHEASE geometry and ``iterhybrid_cocos02.eqdsk`` for EQDSK geometry.
 
 ``geometry_directory`` (str | None [default = None])
   Optionally set the geometry directory. This should be set to an absolute path.
@@ -1356,7 +1356,7 @@ be overlapping or non-overlapping; in regions of overlap, the total
 transport coefficients are computed by adding the contributions from
 component models active at those coordinates.
 For individual core transport models defined in ``transport_models``, the active
-domain (where transport coefficients are non-zero) is set by ``rho_min``` and
+domain (where transport coefficients are non-zero) is set by ``rho_min`` and
 ``rho_max``. If a pedestal is active, the active domain is then limited by
 ``rho_norm_ped_top`` if ``rho_norm_ped_top`` is less than ``rho_max``.
 ``rho_norm_ped_top`` is set in the ``pedestal`` section of the config.
@@ -2206,11 +2206,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'n_e_nbar_is_fGW': True,
           'nbar': 1,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-          'T_i_ped': 1.0,
-          'T_e_ped': 1.0,
-          'n_e_ped_is_fGW': True,
-          'n_e_ped': {0: 0.3, 80: 0.7},
-          'Ped_top': 0.9,
       },
       'numerics': {
           't_final': 80,
@@ -2231,8 +2226,12 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'a_minor': 2.0,
           'B_0': 5.3,
       },
+      'neoclassical': {
+          'bootstrap_current': {
+              'bootstrap_multiplier': 1.0,
+          },
+      },
       'sources': {
-          'j_bootstrap': {},
           'generic_current': {
               'fraction_of_total_current': 0.15,
               'gaussian_width': 0.075,
@@ -2274,19 +2273,19 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'V_e_min': -10,
           'V_e_max': 10,
           'smoothing_width': 0.1,
-          'qlknn_params': {
-              'DV_effective': True,
-              'avoid_big_negative_s': True,
-              'An_min': 0.05,
-              'ITG_flux_ratio_correction': 1,
-          },
+          'DV_effective': True,
+          'avoid_big_negative_s': True,
+          'An_min': 0.05,
+          'ITG_flux_ratio_correction': 1,
       },
       'pedestal': {
           'model_name': 'set_T_ped_n_ped',
           'set_pedestal': True,
           'T_i_ped': 1.0,
           'T_e_ped': 1.0,
+          'n_e_ped': {0: 0.3, 80: 0.7},
           'rho_norm_ped_top': 0.95,
+          'n_e_ped_is_fGW': True,
       },
       'solver': {
           'solver_type': 'newton_raphson',

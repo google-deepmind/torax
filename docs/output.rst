@@ -124,7 +124,7 @@ that the output structure is dependent on the input config for the
 ``geometry``, ``transport`` and ``sources`` fields.
 
 Note that certain profiles are only output for specific input configurations.
-These are called out in the list of profiles below, and generate relate to:
+These are called out in the list of profiles below, and generally relate to:
 
 * ``sources`` profiles which are only output if the source is active.
 
@@ -340,7 +340,7 @@ These are called out in the list of profiles below, and generate relate to:
 ``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   Impurity radiation power density per species [:math:`W/m^3`]. Only output
   if the ``mavrin_fit`` model is active for ``impurity_radiation``. In this
-  case, the radiation corresonds to combined line radiation and Bremsstrahlung,
+  case, the radiation corresponds to combined line radiation and Bremsstrahlung,
   and both ``p_bremsstrahlung_e`` and ``P_bremsstrahlung_e`` will be zero.
 
 ``R_in`` (time, rho_norm)
