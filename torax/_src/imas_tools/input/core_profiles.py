@@ -114,7 +114,7 @@ def profile_conditions_from_IMAS(
 def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
-    expected_impurities: Collection[str] | None = None,
+    excluded_impurities: Collection[str] | None = None,
     main_ions_symbols: Collection[str] = constants.HYDROGENIC_IONS,
 ) -> Mapping[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
@@ -129,7 +129,7 @@ def plasma_composition_from_IMAS(
   Note that if the input ids does not contain info for the different ion
   species, the function will not raise an error but return an empty dict for
   `main_ion` and `species` plasma_composition keys unless the expected species
-  are specified using the expected_impurities and main_ion_symbols args.
+  are specified using the main_ion_symbols arg.
 
   Args:
     ids: A core_profiles IDS object. The IDS can contain multiple time slices.
@@ -137,9 +137,12 @@ def plasma_composition_from_IMAS(
       initial time will be the time of the first time slice of the ids. Else all
       time slices will be shifted such that the first time slice has time =
       t_initial.
-    expected_impurities: Optional arg to check that the input IDS contains the
-      wanted impurity species and raise and error if not, or if its density is
-      empty.
+    excluded_impurities: Optional collection of ion symbols to exclude from
+      processing. Useful for filtering out impurities that TORAX cannot handle
+      but are present in the IDS. If an ion is found in the IDS that is not in
+      constants.ION_PROPERTIES_DICT and not in excluded_impurities, an error
+      will be raised. Excluded ions will be skipped during processing, even if
+      they are also listed in main_ions_symbols.
     main_ions_symbols: collection of ions to be used to define the main_ion
       mixture. If value is not the default one, will check that the given ions
       exist in the IDS and their density is filled. Default are hydrogenic ions
@@ -152,12 +155,38 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
-  # Check that the expected ions are present in the IDS
-  ids_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
-  if expected_impurities:
-    _check_expected_ions_presence(ids_ions, expected_impurities)
+  # Track all ions found in the IDS
+  ids_ions = []
+  for ion in range(len(profiles_1d[0].ion)):
+    if profiles_1d[0].ion[ion].density:
+      try:
+        symbol = str(profiles_1d[0].ion[ion].name)
+      except AttributeError:
+        # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
+        # that instead of using a try-except.
+        # Case ids is plasma_profiles in early DDv4 releases.
+        symbol = str(profiles_1d[0].ion[ion].label)
+      ids_ions.append(symbol)
+
+  # Check that main ions are present if custom main_ions_symbols are specified
   if main_ions_symbols is not constants.HYDROGENIC_IONS:
     _check_expected_ions_presence(ids_ions, main_ions_symbols)
+
+  # Check for unidentified impurities (not in ION_PROPERTIES_DICT and not excluded)
+  excluded_impurities_set = set(excluded_impurities) if excluded_impurities else set()
+  unidentified_ions = []
+  for symbol in ids_ions:
+    if symbol not in constants.ION_PROPERTIES_DICT.keys():
+      if symbol not in excluded_impurities_set:
+        unidentified_ions.append(symbol)
+
+  if unidentified_ions:
+    raise ValueError(
+        f"Found ions in IDS that are not recognized by TORAX: {unidentified_ions}. "
+        f"These ions are not in constants.ION_PROPERTIES_DICT. "
+        f"If you want to exclude these impurities from processing, add them to the "
+        f"excluded_impurities argument."
+    )
 
   Z_eff = (
       time_array,
@@ -174,6 +203,11 @@ def plasma_composition_from_IMAS(
       # that instead of using a try-except.
       # Case ids is plasma_profiles in early DDv4 releases.
       symbol = str(profiles_1d[0].ion[ion].label)
+
+    # Skip excluded impurities
+    if excluded_impurities and symbol in excluded_impurities_set:
+      continue
+
     if symbol in constants.ION_PROPERTIES_DICT.keys():
       # Fill main ions
       if symbol in main_ions_symbols:
