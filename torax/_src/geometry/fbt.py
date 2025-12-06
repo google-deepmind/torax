@@ -68,6 +68,8 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
       must match the number of slices in the bundle.
     L_object: Sets the FBT L geometry file loaded, or alternatively a dict
       directly containing the L data.
+    divertor_domain: The divertor domain (upper or lower null) for extracting
+      edge quantities when diverted.
   """
 
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
@@ -83,6 +85,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   LY_bundle_object: LY_OBJECT_TYPE | None = None
   LY_to_torax_times: torax_pydantic.NumpyArray | None = None
   L_object: LY_OBJECT_TYPE | None = None
+  divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -119,6 +122,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         Ip_from_parameters=self.Ip_from_parameters,
         n_rho=self.n_rho,
         hires_factor=self.hires_factor,
+        divertor_domain=self.divertor_domain,
     )
 
     return standard_geometry.build_standard_geometry(intermediates)
@@ -138,6 +142,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         Ip_from_parameters=self.Ip_from_parameters,
         n_rho=self.n_rho,
         hires_factor=self.hires_factor,
+        divertor_domain=self.divertor_domain,
     )
     geometries = {
         t: standard_geometry.build_standard_geometry(intermediates[t])
