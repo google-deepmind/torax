@@ -33,7 +33,7 @@ imas_profiles2 = loader.load_imas_data(
 )
 imas_data1 = core_profiles.profile_conditions_from_IMAS(imas_profiles1)
 imas_data2 = core_profiles.plasma_composition_from_IMAS(
-    imas_profiles2, t_initial=0.0, expected_impurities=["He3", "Be"]
+    imas_profiles2, t_initial=0.0
 )
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)

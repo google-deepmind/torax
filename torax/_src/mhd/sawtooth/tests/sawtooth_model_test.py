@@ -22,6 +22,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
+from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import model_config
 
 _NRHO = 10
@@ -132,16 +133,23 @@ class SawtoothModelTest(parameterized.TestCase):
         output_state.t, self.initial_state.t + np.array(_CRASH_STEP_DURATION)
     )
 
+    # Load reference values from references.json
+    sawtooth_refs = torax_refs.sawtooth_references()
+
     np.testing.assert_allclose(
         output_state.core_profiles.T_e.value,
-        _POST_CRASH_TEMPERATURE,
+        sawtooth_refs['T_e'],
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.n_e.value, _POST_CRASH_N, rtol=1e-6
+        output_state.core_profiles.n_e.value,
+        sawtooth_refs['n_e'],
+        rtol=1e-6
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.psi.value, _POST_CRASH_PSI, rtol=1e-6
+        output_state.core_profiles.psi.value,
+        sawtooth_refs['psi'],
+        rtol=1e-6
     )
 
   def test_no_sawtooth_crash(self):
@@ -244,46 +252,6 @@ class SawtoothModelTest(parameterized.TestCase):
           output_state_should_crash.t,
           self.initial_state.t + np.array(2 * _CRASH_STEP_DURATION),
       )
-
-
-_POST_CRASH_TEMPERATURE = np.array([
-    9.80214764,
-    9.77449557,
-    9.74682154,
-    9.71912539,
-    9.69140691,
-    8.17937075,
-    6.2258966,
-    4.5,
-    3.1,
-    1.7,
-])
-
-_POST_CRASH_N = np.array([
-    0.92905438e20,
-    0.92652621e20,
-    0.92399804e20,
-    0.92146987e20,
-    0.91894169e20,
-    0.88178024e20,
-    0.8345057e20,
-    0.79219014e20,
-    0.75698169e20,
-    0.72177324e20,
-])
-
-_POST_CRASH_PSI = np.array([
-    8.245389,
-    9.864265,
-    12.989683,
-    17.52163,
-    23.362746,
-    30.278108,
-    37.587465,
-    44.522205,
-    50.597804,
-    55.729866,
-])
 
 
 if __name__ == '__main__':

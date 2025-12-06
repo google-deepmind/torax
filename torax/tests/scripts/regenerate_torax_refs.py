@@ -188,6 +188,105 @@ def _calculate_new_references(
   }
 
 
+def _calculate_sawtooth_references() -> dict[str, Any]:
+  """Calculates sawtooth post-crash reference values.
+
+  This replicates the test setup from sawtooth_model_test.py and runs
+  a single step to trigger a sawtooth crash, then returns the post-crash
+  T_e, n_e, and psi values.
+  """
+  from torax._src.config import build_runtime_params
+  from torax._src.orchestration import initial_state as initial_state_lib
+  from torax._src.orchestration import step_function
+  from torax._src.torax_pydantic import model_config
+
+  _NRHO = 10
+  _CRASH_STEP_DURATION = 1e-3
+  _FIXED_DT = 0.1
+
+  test_config_dict = {
+      'numerics': {
+          'evolve_current': True,
+          'evolve_density': True,
+          'evolve_ion_heat': True,
+          'evolve_electron_heat': True,
+          'fixed_dt': _FIXED_DT,
+      },
+      'profile_conditions': {
+          'Ip': 13e6,
+          'initial_j_is_total_current': True,
+          'initial_psi_from_j': True,
+          'current_profile_nu': 3,
+          'n_e_nbar_is_fGW': True,
+          'normalize_n_e_to_nbar': True,
+          'nbar': 0.85,
+          'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
+      },
+      'plasma_composition': {},
+      'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},
+      'pedestal': {},
+      'sources': {'ohmic': {}},
+      'solver': {
+          'solver_type': 'linear',
+          'use_pereverzev': False,
+      },
+      'time_step_calculator': {'calculator_type': 'fixed'},
+      'transport': {'model_name': 'constant'},
+      'mhd': {
+          'sawtooth': {
+              'trigger_model': {
+                  'model_name': 'simple',
+                  'minimum_radius': 0.2,
+                  's_critical': 0.2,
+              },
+              'redistribution_model': {
+                  'model_name': 'simple',
+                  'flattening_factor': 1.01,
+                  'mixing_radius_multiplier': 1.5,
+              },
+              'crash_step_duration': _CRASH_STEP_DURATION,
+          }
+      },
+  }
+
+  torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+  solver = torax_config.solver.build_solver(
+      physics_models=torax_config.build_physics_models(),
+  )
+  geometry_provider = torax_config.geometry.build_provider
+  runtime_params_provider = (
+      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+  )
+
+  step_fn = step_function.SimulationStepFn(
+      solver=solver,
+      time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
+      geometry_provider=geometry_provider,
+      runtime_params_provider=runtime_params_provider,
+  )
+
+  initial_state, initial_post_processed_outputs = (
+      initial_state_lib.get_initial_state_and_post_processed_outputs(
+          t=torax_config.numerics.t_initial,
+          runtime_params_provider=runtime_params_provider,
+          geometry_provider=geometry_provider,
+          step_fn=step_fn,
+      )
+  )
+
+  # Run one step to trigger sawtooth crash
+  output_state, _ = step_fn(
+      input_state=initial_state,
+      previous_post_processed_outputs=initial_post_processed_outputs,
+  )
+
+  return {
+      'T_e': output_state.core_profiles.T_e.value.tolist(),
+      'n_e': output_state.core_profiles.n_e.value.tolist(),
+      'psi': output_state.core_profiles.psi.value.tolist(),
+  }
+
+
 def _print_full_summary(case_name: str, new_values: dict[str, np.ndarray]):
   """Prints the full regenerated reference values for inspection."""
   pretty_printer = pprint.PrettyPrinter(indent=4, width=100)
@@ -202,7 +301,9 @@ def main(argv: Sequence[str]) -> None:
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
-  cases_to_run = _CASE.value or torax_refs.REFERENCES_REGISTRY.keys()
+  # Include sawtooth_references in available cases
+  all_available_cases = list(torax_refs.REFERENCES_REGISTRY.keys()) + ['sawtooth_references']
+  cases_to_run = _CASE.value or all_available_cases
   if _OUTPUT_DIR is not None and _OUTPUT_DIR.value is not None:
     output_dir = pathlib.Path(_OUTPUT_DIR.value).expanduser()
     output_path = output_dir / torax_refs.JSON_FILENAME
@@ -229,19 +330,27 @@ def main(argv: Sequence[str]) -> None:
 
   # Regenerate data for the selected cases and update the dictionary.
   for case_name in cases_to_run:
-    if case_name not in torax_refs.REFERENCES_REGISTRY:
+    logging.info('Regenerating references for: %s...', case_name)
+
+    if case_name == 'sawtooth_references':
+      # Special handling for sawtooth references
+      new_values = _calculate_sawtooth_references()
+      all_data[case_name] = new_values
+      if _PRINT_SUMMARY.value:
+        logging.info('Sawtooth references:')
+        for key, value in new_values.items():
+          logging.info('  %s: %s', key, value)
+    elif case_name in torax_refs.REFERENCES_REGISTRY:
+      config_generator_func = torax_refs.REFERENCES_REGISTRY[case_name]
+      new_values = _calculate_new_references(config_generator_func)
+      all_data[case_name] = new_values
+      if _PRINT_SUMMARY.value:
+        _print_full_summary(case_name, new_values)
+    else:
       raise ValueError(
           f"Case '{case_name}' not found. Available cases:"
-          f" {', '.join(torax_refs.REFERENCES_REGISTRY.keys())}"
+          f" {', '.join(list(torax_refs.REFERENCES_REGISTRY.keys()) + ['sawtooth_references'])}"
       )
-
-    logging.info('Regenerating references for: %s...', case_name)
-    config_generator_func = torax_refs.REFERENCES_REGISTRY[case_name]
-    new_values = _calculate_new_references(config_generator_func)
-    all_data[case_name] = new_values
-
-    if _PRINT_SUMMARY.value:
-      _print_full_summary(case_name, new_values)
 
   if _WRITE_TO_FILE.value:
     logging.info('Writing all regenerated data to %s...', output_path)

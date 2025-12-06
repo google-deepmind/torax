@@ -15,7 +15,7 @@
 """Reference values used throughout TORAX unit tests."""
 import dataclasses
 import json
-from typing import Callable, Final, Literal, Mapping
+from typing import Any, Callable, Final, Literal, Mapping
 
 import immutabledict
 import jax
@@ -184,6 +184,23 @@ def chease_references_Ip_from_runtime_params() -> References:
   return _build_references_from_case_data(
       'chease_references_Ip_from_runtime_params', torax_config
   )
+
+
+def sawtooth_references() -> dict[str, Any]:
+  """Reference values for sawtooth post-crash state.
+
+  Returns a dict with 'T_e', 'n_e', and 'psi' arrays representing the
+  post-crash state after a sawtooth crash is triggered.
+  """
+  # This function will be implemented in regenerate_torax_refs.py
+  # to calculate the actual values. Here we just load from JSON.
+  all_references = _load_all_references()
+  case_data = all_references.get('sawtooth_references', {})
+  return {
+      'T_e': np.array(case_data.get('T_e', [])),
+      'n_e': np.array(case_data.get('n_e', [])),
+      'psi': np.array(case_data.get('psi', [])),
+  }
 
 
 REFERENCES_REGISTRY: Final[Mapping[str, Callable[[], References]]] = (
