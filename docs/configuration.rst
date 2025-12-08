@@ -1303,6 +1303,11 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``rotation_multiplier`` (float [default = 1.0])
+  Multiplier for :math:`v_{ExB}_shear`.
+
+``use_rotation`` (bool [default = False])
+  If ``True``, use the rotation term :math:`v_{ExB}_shear` in the model.
 
 qualikiz
 ^^^^^^^^

@@ -186,6 +186,8 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   machine: Annotated[
       Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
   ] = 'multimachine'
+  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # Quasilinear transport options
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
@@ -204,6 +206,8 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
     return tglfnn_ukaea_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        rotation_multiplier=self.rotation_multiplier,
+        use_rotation=self.use_rotation,
         # From base
         **base_kwargs,
     )
