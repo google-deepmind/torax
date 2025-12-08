@@ -189,74 +189,6 @@ def _calculate_new_references(
   }
 
 
-def _calculate_sawtooth_crash_references(
-    config_generator_func: Callable[[], torax_refs.References],
-) -> dict[str, Any]:
-  """Calculates sawtooth crash reference values by running a simulation step.
-  
-  This is different from _calculate_new_references because it needs to:
-  1. Run a full simulation step
-  2. Trigger a sawtooth crash
-  3. Capture post-crash profiles
-  """
-  from torax._src.orchestration import initial_state as initial_state_lib
-  from torax._src.orchestration import step_function
-  
-  reference = config_generator_func()
-  torax_config = reference.config
-  
-  # Build solver and step function
-  solver = torax_config.solver.build_solver(
-      physics_models=torax_config.build_physics_models(),
-  )
-  geometry_provider = torax_config.geometry.build_provider
-  runtime_params_provider = (
-      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-  )
-  
-  step_fn = step_function.SimulationStepFn(
-      solver=solver,
-      time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-      geometry_provider=geometry_provider,
-      runtime_params_provider=runtime_params_provider,
-  )
-  
-  # Get initial state
-  initial_state, initial_post_processed_outputs = (
-      initial_state_lib.get_initial_state_and_post_processed_outputs(
-          t=torax_config.numerics.t_initial,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
-          step_fn=step_fn,
-      )
-  )
-  
-  # Run one step - this should trigger sawtooth crash
-  output_state, _ = step_fn(
-      input_state=initial_state,
-      previous_post_processed_outputs=initial_post_processed_outputs,
-  )
-  
-  # Verify sawtooth crash occurred
-  if not output_state.solver_numeric_outputs.sawtooth_crash:
-      raise ValueError(
-          "Sawtooth crash did not occur! Check sawtooth model configuration."
-      )
-  
-  # Extract post-crash profiles
-  return {
-      'psi': np.asarray(initial_state.core_profiles.psi.value),
-      'psi_face_grad': np.asarray(initial_state.core_profiles.psi.face_grad()),
-      'psidot': np.zeros(len(initial_state.core_profiles.psi.value)),
-      'j_total': np.zeros(len(initial_state.core_profiles.psi.value)),
-      'q': np.asarray(initial_state.core_profiles.q_face),
-      's': np.asarray(initial_state.core_profiles.s_face),
-      # The values the test actually uses:
-      'post_crash_temperature': np.asarray(output_state.core_profiles.T_e.value),
-      'post_crash_n': np.asarray(output_state.core_profiles.n_e.value),
-      'post_crash_psi': np.asarray(output_state.core_profiles.psi.value),
-  }
-
 
 def _print_full_summary(case_name: str, new_values: dict[str, np.ndarray]):
   """Prints the full regenerated reference values for inspection."""
@@ -307,12 +239,7 @@ def main(argv: Sequence[str]) -> None:
 
     logging.info('Regenerating references for: %s...', case_name)
     config_generator_func = torax_refs.REFERENCES_REGISTRY[case_name]
-    
-    # Special handling for sawtooth references
-    if case_name == 'sawtooth_references':
-        new_values = _calculate_sawtooth_crash_references(config_generator_func)
-    else:
-        new_values = _calculate_new_references(config_generator_func)
+    new_values = _calculate_new_references(config_generator_func)
     
     all_data[case_name] = new_values
 
