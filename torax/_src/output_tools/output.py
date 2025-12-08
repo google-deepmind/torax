@@ -434,12 +434,22 @@ class StateHistory:
     }
     if self._stacked_edge_outputs is not None:
       children[EDGE] = xr.DataTree(dataset=self._save_edge_outputs())
+
+    # Determine simulation status based on error state
+    if self.sim_error == state.SimError.NO_ERROR:
+      sim_status = state.SimStatus.COMPLETED
+    else:
+      sim_status = state.SimStatus.ERROR
+
     data_tree = xr.DataTree(
         children=children,
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,
-            attrs={CONFIG: self.torax_config.model_dump_json()},
+            attrs={
+                CONFIG: self.torax_config.model_dump_json(),
+                "status": sim_status.value,
+            },
         ),
     )
     if (

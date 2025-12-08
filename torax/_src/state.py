@@ -323,3 +323,15 @@ class SimError(enum.Enum):
         pass
       case _:
         raise ValueError(f"Unknown SimError: {self}")
+
+
+@enum.unique
+class SimStatus(str, enum.Enum):
+  """String enum for simulation output file status.
+
+  This indicates the state of the simulation when the output file was written.
+  """
+
+  COMPLETED = "completed"  # Simulation completed successfully to t_final
+  CHECKPOINT = "checkpoint"  # Intermediate checkpoint (not yet used in MVP)
+  ERROR = "error"  # Simulation stopped due to an error condition
