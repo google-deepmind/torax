@@ -13,3 +13,4 @@ underlying libraries, and API.
    fvm
    model_integration
    jax_classes
+   jitted_simulation
