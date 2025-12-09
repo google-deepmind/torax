@@ -449,6 +449,7 @@ class StateHistory:
             attrs={
                 CONFIG: self.torax_config.model_dump_json(),
                 "status": sim_status.value,
+                "sim_error": state.sim_error,
             },
         ),
     )
