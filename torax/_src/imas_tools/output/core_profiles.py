@@ -248,7 +248,7 @@ def _fill_profiles_1d(
 # grid to get rid of this function.
 def _calculate_impurity_density_scaling_and_charge_states(
     core_profiles: state.CoreProfiles,
-    runtime_params: runtime_params.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
 ) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
   """Computes the impurity_density_scaling factor to compute "True" impurity density.
 
