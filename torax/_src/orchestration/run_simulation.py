@@ -60,7 +60,6 @@ def make_step_fn(
 def prepare_simulation(
     torax_config: model_config.ToraxConfig,
 ) -> tuple[
-    build_runtime_params.RuntimeParamsProvider,
     sim_state.SimState,
     post_processing.PostProcessedOutputs,
     step_function.SimulationStepFn,
@@ -72,8 +71,6 @@ def prepare_simulation(
 
   Returns:
     A tuple containing:
-
-      - The runtime parameters slice provider.
       - The initial state.
       - The initial post processed outputs.
       - The simulation step function.
@@ -95,7 +92,6 @@ def prepare_simulation(
     )
 
   return (
-      step_fn.runtime_params_provider,
       initial_state,
       post_processed_outputs,
       step_fn,
@@ -122,7 +118,6 @@ def run_simulation(
   """
 
   (
-      _,
       initial_state,
       post_processed_outputs,
       step_fn,

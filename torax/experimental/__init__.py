@@ -19,7 +19,6 @@ from torax._src.config.build_runtime_params import ValidUpdates
 from torax._src.orchestration.initial_state import get_initial_state_and_post_processed_outputs
 from torax._src.orchestration.jit_run_loop import run_loop_jit
 from torax._src.orchestration.run_simulation import make_step_fn
-from torax._src.orchestration.run_simulation import prepare_simulation
 from torax._src.orchestration.sim_state import SimState
 from torax._src.orchestration.step_function import SimulationStepFn
 from torax._src.torax_pydantic.interpolated_param_1d import TimeVaryingScalarUpdate
@@ -30,7 +29,6 @@ from torax.experimental import geometry
 __all__ = [
     'geometry',
     'make_step_fn',
-    'prepare_simulation',
     'run_loop_jit',
     'RuntimeParamsProvider',
     'ValidUpdates',

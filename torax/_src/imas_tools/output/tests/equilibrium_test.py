@@ -56,7 +56,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     # Set the current to be consistent with the input psi.
     config_dict['profile_conditions']['Ip'] = 11.75e6
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    _, sim_state, post_processed_outputs, _ = run_simulation.prepare_simulation(
+    sim_state, post_processed_outputs, _ = run_simulation.prepare_simulation(
         torax_config
     )
 

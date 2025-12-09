@@ -33,7 +33,6 @@ class AdaptiveStepTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     (
-        _,
         self.sim_state,
         self.post_processed_outputs,
         self.step_fn,

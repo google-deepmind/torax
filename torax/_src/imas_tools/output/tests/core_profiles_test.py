@@ -52,7 +52,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     config = self._get_config_dict('test_iterhybrid_rampup_short.py')
     torax_config = model_config.ToraxConfig.from_dict(config)
     (
-        runtime_params_provider,
         initial_state,
         post_processed_outputs,
         step_fn,
@@ -80,7 +79,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     geometry = state_history.geometries
     times = state_history.times
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        runtime_params_provider,
+        step_fn.runtime_params_provider,
         torax_config,
         post_processed_outputs,
         core_profiles,
@@ -109,7 +108,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     # Run Sim
     (
-        runtime_params_provider,
         initial_state,
         post_processed_outputs,
         step_fn,
@@ -130,7 +128,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     times = [sim_state.t]
     post_processed_outputs = [post_processed_outputs_history[0]]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        runtime_params_provider,
+        step_fn.runtime_params_provider,
         torax_config,
         post_processed_outputs,
         core_profiles,

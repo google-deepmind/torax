@@ -65,7 +65,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Init sim from config
-    _, sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
+    sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
 
     # Read output values
     torax_mesh = torax_config.geometry.build_provider.torax_mesh
