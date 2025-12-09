@@ -16,6 +16,7 @@
 # pylint: disable=g-importing-member
 from torax._src.config.build_runtime_params import RuntimeParamsProvider
 from torax._src.config.build_runtime_params import ValidUpdates
+from torax._src.orchestration.initial_state import get_initial_state_and_post_processed_outputs
 from torax._src.orchestration.jit_run_loop import run_loop_jit
 from torax._src.orchestration.run_simulation import make_step_fn
 from torax._src.orchestration.run_simulation import prepare_simulation
@@ -35,4 +36,5 @@ __all__ = [
     'SimulationStepFn',
     'TimeVaryingScalarUpdate',
     'TimeVaryingArrayUpdate',
+    'get_initial_state_and_post_processed_outputs',
 ]
