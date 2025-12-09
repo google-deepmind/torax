@@ -24,6 +24,8 @@
 .. _body2025_link: https://doi.org/10.1088/1741-4326/ade4d9
 .. _kallenbach2024_link: https://doi.org/10.1088/1741-4326/ad3139
 .. _mavrin2017_link: https://doi.org/10.1007/s10894-017-0136-z
+.. _kim1991_link: https://doi.org/10.1063/1.859671
+.. _hinton1976_link: https://doi.org/10.1103/RevModPhys.48.239
 
 .. Define substitutions using link targets
 .. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
@@ -51,3 +53,5 @@
 .. |body2025| replace:: `[Body et al, NF 2025] <body2025_link_>`_
 .. |kallenbach2024| replace:: `[Kallenbach et al, NF 2024] <kallenbach2024_link_>`_
 .. |mavrin2017| replace:: `[Mavrin, J Fusion Energ 2017] <mavrin2017_link_>`_
+.. |kim1991| replace:: `[Kim et al, Phys. Fluids B 1991] <kim1991_link_>`_
+.. |hinton1976| replace:: `[Hinton & Hazeltine, Rev. Mod. Phys. 1976] <hinton1976_link_>`_
