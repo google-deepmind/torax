@@ -203,8 +203,7 @@ def run_loop(
   unstacked_states, unstacked_post_processed_outputs = _unstack_pytree_history(
       states_history, post_processed_outputs_history, final_i
   )
-  sim_error = step_function.check_for_errors(
-      step_fn.runtime_params_provider.numerics,
+  sim_error = step_fn.check_for_errors(
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
   )

@@ -20,7 +20,6 @@ from absl import logging
 import jax
 import numpy as np
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -28,7 +27,6 @@ import tqdm
 
 
 def run_loop(
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     initial_state: sim_state.ToraxSimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,
@@ -47,8 +45,6 @@ def run_loop(
   Performs logging and updates the progress bar if requested.
 
   Args:
-    runtime_params_provider: Provides a RuntimeParams to use as input for each
-      time step.
     initial_state: The starting state of the simulation. This includes both the
       state variables which the solver.Solver will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
@@ -101,6 +97,8 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
+  numerics = step_fn.runtime_params_provider.numerics
+
   with tqdm.tqdm(
       total=100,  # This makes it so that the progress bar measures a percentage
       desc='Simulating',
@@ -118,8 +116,7 @@ def run_loop(
           current_state,
           post_processing_history[-1],
       )
-      sim_error = step_function.check_for_errors(
-          runtime_params_provider.numerics,
+      sim_error = step_fn.check_for_errors(
           current_state,
           post_processed_outputs,
       )
@@ -137,10 +134,10 @@ def run_loop(
         post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
-            float(current_state.t) - runtime_params_provider.numerics.t_initial
+            float(current_state.t) - numerics.t_initial
         ) / (
-            runtime_params_provider.numerics.t_final
-            - runtime_params_provider.numerics.t_initial
+            numerics.t_final
+            - numerics.t_initial
         )
         pbar.n = int(progress_ratio * pbar.total)
         pbar.set_description(f'Simulating (t={current_state.t:.5f})')

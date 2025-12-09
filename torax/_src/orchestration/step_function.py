@@ -22,7 +22,6 @@ from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
@@ -41,25 +40,6 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 
 
 # pylint: disable=invalid-name
-
-
-def check_for_errors(
-    numerics: numerics_lib.Numerics,
-    output_state: sim_state.ToraxSimState,
-    post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> state.SimError:
-  """Checks for errors in the simulation state."""
-  if numerics.adaptive_dt:
-    if output_state.solver_numeric_outputs.solver_error_state == 1:
-      # Only check for min dt if the solver did not converge. Else we may have
-      # converged at a dt > min_dt just before we reach min_dt.
-      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
-        return state.SimError.REACHED_MIN_DT
-  state_error = output_state.check_for_errors()
-  if state_error != state.SimError.NO_ERROR:
-    return state_error
-  else:
-    return post_processed_outputs.check_for_errors()
 
 
 @jax.tree_util.register_pytree_node_class
@@ -153,6 +133,28 @@ class SimulationStepFn:
         t_final=self._runtime_params_provider.numerics.t_final,
         tolerance=self._runtime_params_provider.time_step_calculator.tolerance,
     )
+
+  def check_for_errors(
+      self,
+      output_state: sim_state.ToraxSimState,
+      post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> state.SimError:
+    """Checks for errors in the simulation state."""
+    if self._runtime_params_provider.numerics.adaptive_dt:
+      if output_state.solver_numeric_outputs.solver_error_state == 1:
+        # Only check for min dt if the solver did not converge. Else we may have
+        # converged at a dt > min_dt just before we reach min_dt.
+        if (
+            output_state.dt
+            / self._runtime_params_provider.numerics.dt_reduction_factor
+            < self._runtime_params_provider.numerics.min_dt
+        ):
+          return state.SimError.REACHED_MIN_DT
+    state_error = output_state.check_for_errors()
+    if state_error != state.SimError.NO_ERROR:
+      return state_error
+    else:
+      return post_processed_outputs.check_for_errors()
 
   @jax.jit
   def __call__(

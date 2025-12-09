@@ -24,7 +24,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -105,7 +104,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     def _fake_run_loop(
-        runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
         initial_state: sim_state.ToraxSimState,
         initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
@@ -139,8 +137,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       np.testing.assert_allclose(
           output_state.core_profiles.T_i.value[0], expected_combined_value
       )
-      sim_error = step_function.check_for_errors(
-          runtime_params_provider.numerics,
+      sim_error = step_fn.check_for_errors(
           output_state,
           post_processed_outputs,
       )

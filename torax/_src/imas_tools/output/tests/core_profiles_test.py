@@ -60,7 +60,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
 
     state_history, post_processed_outputs_history, sim_error = (
         run_loop.run_loop(
-            runtime_params_provider=runtime_params_provider,
             initial_state=initial_state,
             initial_post_processed_outputs=post_processed_outputs,
             step_fn=step_fn,
@@ -117,7 +116,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     ) = run_simulation.prepare_simulation(torax_config)
 
     state_history, post_processed_outputs_history, _ = run_loop.run_loop(
-        runtime_params_provider=runtime_params_provider,
         initial_state=initial_state,
         initial_post_processed_outputs=post_processed_outputs,
         step_fn=step_fn,

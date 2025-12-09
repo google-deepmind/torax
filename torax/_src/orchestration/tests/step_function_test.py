@@ -22,7 +22,6 @@ import jax.numpy as jnp
 import jax.test_util as jtu
 import numpy as np
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
@@ -33,10 +32,10 @@ from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import model_config
 
 
-def get_provider_sim_state_and_post_processed_outputs(
+def get_step_fn_sim_state_and_post_processed_outputs(
     config_dict: dict[str, Any] | None = None,
 ) -> tuple[
-    build_runtime_params.RuntimeParamsProvider,
+    step_function.SimulationStepFn,
     sim_state_lib.ToraxSimState,
     post_processing.PostProcessedOutputs,
 ]:
@@ -44,30 +43,29 @@ def get_provider_sim_state_and_post_processed_outputs(
     config_dict = default_configs.get_default_config_dict()
   torax_config = model_config.ToraxConfig.from_dict(config_dict)
   (
-      params_provider,
+      _,
       sim_state,
       post_processed_outputs,
-      _,
+      step_fn,
   ) = run_simulation.prepare_simulation(torax_config)
-  return params_provider, sim_state, post_processed_outputs
+  return step_fn, sim_state, post_processed_outputs
 
 
 class StepFunctionTest(parameterized.TestCase):
 
   def test_no_error(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         sim_state,
         post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NO_ERROR)
 
   def test_nan_in_bc(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     core_profiles = dataclasses.replace(
         sim_state.core_profiles,
@@ -79,31 +77,29 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state_core_profiles = dataclasses.replace(
         sim_state, core_profiles=core_profiles
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state_core_profiles,
         post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_nan_in_post_processed_outputs(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     new_post_processed_outputs = dataclasses.replace(
         post_processed_outputs,
         P_aux_total=jnp.array(jnp.nan),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         sim_state,
         new_post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_nan_in_source_array(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     nan_array = np.zeros_like(sim_state.geometry.rho)
     nan_array[-1] = np.nan
@@ -117,8 +113,7 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state_sources = dataclasses.replace(
         sim_state, core_sources=new_core_sources
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state_sources,
         post_processed_outputs,
     )
@@ -130,8 +125,8 @@ class StepFunctionTest(parameterized.TestCase):
         'min_dt': 2.0,
         'dt_reduction_factor': 2.0,
     }
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs(config_dict)
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs(config_dict)
     )
 
     new_sim_state = dataclasses.replace(
@@ -144,8 +139,7 @@ class StepFunctionTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state,
         post_processed_outputs,
     )
@@ -159,8 +153,8 @@ class StepFunctionTest(parameterized.TestCase):
         'exact_t_final': True,
         't_final': 5.0,
     }
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs(config_dict)
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs(config_dict)
     )
     new_sim_state = dataclasses.replace(
         sim_state,
@@ -173,8 +167,7 @@ class StepFunctionTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state,
         post_processed_outputs,
     )
