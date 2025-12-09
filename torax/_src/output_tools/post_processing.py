@@ -553,7 +553,7 @@ def _calculate_integrated_sources(
 
 @jax.jit
 def make_post_processed_outputs(
-    sim_state: sim_state_lib.ToraxSimState,
+    sim_state: sim_state_lib.SimState,
     runtime_params: runtime_params_lib.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:

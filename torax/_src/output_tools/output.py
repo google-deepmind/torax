@@ -217,7 +217,7 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: list[sim_state.ToraxSimState],
+      state_history: list[sim_state.SimState],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],

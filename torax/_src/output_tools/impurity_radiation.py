@@ -52,7 +52,7 @@ class ImpuritySpeciesOutput:
 
 
 def calculate_impurity_species_output(
-    sim_state: sim_state_lib.ToraxSimState,
+    sim_state: sim_state_lib.SimState,
     runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, ImpuritySpeciesOutput]:
   """Calculates the output for each impurity species.

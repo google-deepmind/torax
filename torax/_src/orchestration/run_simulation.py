@@ -61,7 +61,7 @@ def prepare_simulation(
     torax_config: model_config.ToraxConfig,
 ) -> tuple[
     build_runtime_params.RuntimeParamsProvider,
-    sim_state.ToraxSimState,
+    sim_state.SimState,
     post_processing.PostProcessedOutputs,
     step_function.SimulationStepFn,
 ]:

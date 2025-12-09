@@ -33,7 +33,7 @@ def run_loop_jit(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    sim_state.ToraxSimState, post_processing.PostProcessedOutputs, chex.Numeric
+    sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
   """Runs the simulation loop under jax.jit."""
   initial_state, initial_post_processed_outputs = (
@@ -156,7 +156,7 @@ def run_loop(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    list[sim_state.ToraxSimState],
+    list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:

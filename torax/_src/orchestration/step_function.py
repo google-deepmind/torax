@@ -136,7 +136,7 @@ class SimulationStepFn:
 
   def check_for_errors(
       self,
-      output_state: sim_state.ToraxSimState,
+      output_state: sim_state.SimState,
       post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> state.SimError:
     """Checks for errors in the simulation state."""
@@ -159,7 +159,7 @@ class SimulationStepFn:
   @jax.jit
   def __call__(
       self,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       max_dt: chex.Numeric = jnp.inf,
       runtime_params_overrides: (
@@ -167,7 +167,7 @@ class SimulationStepFn:
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Advances the simulation state one time step.
@@ -275,14 +275,14 @@ class SimulationStepFn:
   def fixed_time_step(
       self,
       dt: chex.Array,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Runs the simulation until it has advanced by dt."""
@@ -317,14 +317,14 @@ class SimulationStepFn:
   def jitted_fixed_time_step(
       self,
       dt: chex.Array,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Runs the simulation until it has advanced by dt."""
@@ -343,12 +343,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
@@ -396,12 +396,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a (possibly) adaptive simulation step."""
@@ -485,12 +485,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a single simulation step."""

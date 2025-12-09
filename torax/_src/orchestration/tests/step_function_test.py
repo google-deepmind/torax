@@ -36,7 +36,7 @@ def get_step_fn_sim_state_and_post_processed_outputs(
     config_dict: dict[str, Any] | None = None,
 ) -> tuple[
     step_function.SimulationStepFn,
-    sim_state_lib.ToraxSimState,
+    sim_state_lib.SimState,
     post_processing.PostProcessedOutputs,
 ]:
   if config_dict is None:

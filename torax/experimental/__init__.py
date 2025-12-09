@@ -20,6 +20,7 @@ from torax._src.orchestration.initial_state import get_initial_state_and_post_pr
 from torax._src.orchestration.jit_run_loop import run_loop_jit
 from torax._src.orchestration.run_simulation import make_step_fn
 from torax._src.orchestration.run_simulation import prepare_simulation
+from torax._src.orchestration.sim_state import SimState
 from torax._src.orchestration.step_function import SimulationStepFn
 from torax._src.torax_pydantic.interpolated_param_1d import TimeVaryingScalarUpdate
 from torax._src.torax_pydantic.interpolated_param_2d import TimeVaryingArrayUpdate
@@ -37,4 +38,5 @@ __all__ = [
     'TimeVaryingScalarUpdate',
     'TimeVaryingArrayUpdate',
     'get_initial_state_and_post_processed_outputs',
+    'SimState',
 ]

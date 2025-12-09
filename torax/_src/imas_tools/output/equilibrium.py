@@ -25,7 +25,7 @@ from torax._src.output_tools import post_processing
 
 # pylint: disable=invalid-name
 def torax_state_to_imas_equilibrium(
-    sim_state: sim_state_lib.ToraxSimState,
+    sim_state: sim_state_lib.SimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     equilibrium_in: ids_toplevel.IDSToplevel | None = None,
 ) -> ids_toplevel.IDSToplevel:

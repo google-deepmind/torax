@@ -34,7 +34,7 @@ from torax._src.transport_model import transport_coefficients_builder
 
 
 def pre_step(
-    input_state: sim_state.ToraxSimState,
+    input_state: sim_state.SimState,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     physics_models: physics_models_lib.PhysicsModels,
@@ -117,7 +117,7 @@ def finalize_outputs(
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles, final_source_profiles = (
       updaters.update_core_and_source_profiles_after_step(
@@ -144,7 +144,7 @@ def finalize_outputs(
       )
   )
 
-  output_state = sim_state.ToraxSimState(
+  output_state = sim_state.SimState(
       t=t + dt,
       dt=dt,
       core_profiles=final_core_profiles,

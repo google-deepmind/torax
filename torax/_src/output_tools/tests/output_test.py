@@ -106,7 +106,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
-    self.sim_state = sim_state.ToraxSimState(
+    self.sim_state = sim_state.SimState(
         core_profiles=self.core_profiles,
         core_transport=self.core_transport,
         core_sources=self.source_profiles,

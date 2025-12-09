@@ -27,15 +27,8 @@ from torax._src.sources import source_profiles
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class ToraxSimState:
-  """Full simulator state.
-
-  The simulation stepping in sim.py evolves core_profiles which includes all
-  the attributes the simulation is advancing. But beyond those, there are
-  additional stateful elements which may evolve on each simulation step, such
-  as sources and transport.
-
-  This class includes both core_profiles and these additional elements.
+class SimState:
+  """Full simulator state produced by an individual step of the simulation.
 
   Attributes:
     t: time coordinate.
@@ -82,7 +75,7 @@ class ToraxSimState:
 
 
 def _log_nans(
-    inputs: ToraxSimState,
+    inputs: SimState,
 ) -> None:
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   nan_count = 0

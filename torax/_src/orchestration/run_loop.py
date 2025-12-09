@@ -27,13 +27,13 @@ import tqdm
 
 
 def run_loop(
-    initial_state: sim_state.ToraxSimState,
+    initial_state: sim_state.SimState,
     initial_post_processed_outputs: post_processing.PostProcessedOutputs,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
 ) -> tuple[
-    list[sim_state.ToraxSimState],
+    list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -179,7 +179,7 @@ def run_loop(
 
 
 def _log_timestep(
-    current_state: sim_state.ToraxSimState,
+    current_state: sim_state.SimState,
 ) -> None:
   """Logs basic timestep info."""
   log_str = (

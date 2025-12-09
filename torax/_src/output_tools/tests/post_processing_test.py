@@ -198,7 +198,7 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
     )
-    input_state = sim_state.ToraxSimState(
+    input_state = sim_state.SimState(
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
         core_profiles=self.core_profiles,

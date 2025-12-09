@@ -44,7 +44,7 @@ def get_initial_state_and_post_processed_outputs(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
     geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs.
 
   Args:
@@ -93,7 +93,7 @@ def _get_initial_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     step_fn: step_function.SimulationStepFn,
-) -> sim_state.ToraxSimState:
+) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
   physics_models = step_fn.solver.physics_models
   initial_core_profiles = initialization.initial_core_profiles(
@@ -142,7 +142,7 @@ def _get_initial_state(
       )
   )
 
-  return sim_state.ToraxSimState(
+  return sim_state.SimState(
       t=jnp.array(
           runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
       ),
@@ -169,7 +169,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
     geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the initial state and post processed outputs from a file.
 
   Args:

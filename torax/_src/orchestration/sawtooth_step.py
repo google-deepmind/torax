@@ -52,9 +52,9 @@ def sawtooth_step(
     geometry_provider: geometry_provider_lib.GeometryProvider,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     edge_outputs: edge_base.EdgeModelOutputs | None,
-    input_state: sim_state.ToraxSimState,
+    input_state: sim_state.SimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
   If a sawtooth model is provided and a crash is triggered, this method
