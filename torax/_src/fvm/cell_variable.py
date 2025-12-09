@@ -253,12 +253,3 @@ class CellVariable:
       )
     output_string += ')'
     return output_string
-
-  def cell_plus_boundaries(self) -> jt.Float[jax.Array, 't* cell+2']:
-    """Returns the value of this variable plus left and right boundaries."""
-    right_value = self.right_face_value()
-    left_value = self.left_face_value()
-    return jnp.concatenate(
-        [left_value, self.value, right_value],
-        axis=-1,
-    )
