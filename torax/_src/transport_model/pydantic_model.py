@@ -31,6 +31,7 @@ from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 import typing_extensions
 
@@ -103,6 +104,8 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    rotation_multiplier: Multiplier for rotation.
+    rotation_mode: Mode for rotation, either HALF_RADIUS, FULL_RADIUS or OFF.
   """
 
   model_name: Annotated[Literal['qlknn'], torax_pydantic.JAX_STATIC] = 'qlknn'
@@ -121,6 +124,10 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
+  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_mode: Annotated[
+      qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
+  ] = qualikiz_based_transport_model.RotationMode.OFF
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -168,6 +175,8 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        rotation_multiplier=self.rotation_multiplier,
+        rotation_mode=self.rotation_mode,
         **base_kwargs,
     )
 

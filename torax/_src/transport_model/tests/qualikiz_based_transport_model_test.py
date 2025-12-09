@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import pydantic
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -105,6 +106,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=runtime_params.transport,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     # 1D array qualikiz_inputs
@@ -145,9 +147,12 @@ class FakeQualikizBasedTransportModel(
       transport: qualikiz_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> qualikiz_based_transport_model.QualikizInputs:
     """Exposing prepare_qualikiz_inputs for testing."""
-    return self._prepare_qualikiz_inputs(transport, geo, core_profiles)
+    return self._prepare_qualikiz_inputs(
+        transport, geo, core_profiles, poloidal_velocity_multiplier
+    )
 
   # pylint: enable=invalid-name
 
@@ -169,6 +174,7 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
     return self._make_core_transport(
         qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
@@ -212,6 +218,10 @@ class QualikizBasedTransportModelConfig(
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
+  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_mode: Annotated[
+      qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
+  ] = qualikiz_based_transport_model.RotationMode.HALF_RADIUS
 
   # pylint: disable=undefined-variable
   def build_transport_model(
@@ -228,6 +238,8 @@ class QualikizBasedTransportModelConfig(
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        rotation_multiplier=self.rotation_multiplier,
+        rotation_mode=self.rotation_mode,
         **base_kwargs,
     )
 

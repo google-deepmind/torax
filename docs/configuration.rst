@@ -1281,6 +1281,16 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``rotation_multiplier`` (float [default = 1.0])
+  Multiplier for :math:`v_ExB`` in the rotation correction factor.
+
+``rotation_mode`` (str [default = 'off'])
+  Defines how the rotation correction is applied. Options are:
+  * ``off``: No rotation correction is applied.
+  * ``half_radius``: The rotation correction is only applied to the outer
+    half of the radius (:math:`rhon > 0.5`).
+  * ``full_radius``: The rotation correction is applied everywhere.
+
 tglfnn-ukaea
 ^^^^^^^^^^^^
 

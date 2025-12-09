@@ -61,6 +61,15 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         torax_config.restart, data_tree_restart
     )
 
+    # Check that time coordinates agree.
+    with self.subTest(var_name='time'):
+      np.testing.assert_allclose(
+          datatree_new.time.values,
+          datatree_ref.time.values,
+          err_msg='Time coordinates do not agree',
+          rtol=1e-6,
+      )
+
     # Check equality for all time-dependent variables.
     def check_equality(actual: xr.Dataset, desired: xr.Dataset):
       for var_name in actual.data_vars:
