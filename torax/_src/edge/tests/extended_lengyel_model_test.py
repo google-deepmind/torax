@@ -160,7 +160,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         connection_length_target=20.0,
         connection_length_divertor=5.0,
         angle_of_incidence_target=3.0,
-        ratio_bpol_omp_to_bpol_avg=4.0/3.0,
+        ratio_bpol_omp_to_bpol_avg=4.0 / 3.0,
         toroidal_flux_expansion=1.0,
         seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
         fixed_impurity_concentrations={'He': 0.01},
@@ -465,7 +465,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     )
 
 
-class ExtendedLengyelModelValidationTest(absltest.TestCase):
+class ExtendedLengyelModelValidationTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -524,13 +524,13 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
 
   def test_resolve_geo_params_precedence_geo_over_config(self):
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
-    mock_geo.connection_length_target = 100.0
-    mock_geo.connection_length_divertor = 10.0
-    mock_geo.angle_of_incidence_target = 5.0
-    mock_geo.R_target = 4.0
-    mock_geo.R_OMP = 2.0
-    mock_geo.B_pol_OMP = 1.0
-    mock_geo.diverted = True
+    mock_geo.connection_length_target = jnp.array(100.0)
+    mock_geo.connection_length_divertor = jnp.array(10.0)
+    mock_geo.angle_of_incidence_target = jnp.array(5.0)
+    mock_geo.R_target = jnp.array(4.0)
+    mock_geo.R_OMP = jnp.array(2.0)
+    mock_geo.B_pol_OMP = jnp.array(1.0)
+    mock_geo.diverted = jnp.array(True)
     mock_geo.g2_face = np.array([0.0, 0.5, 1.0])
     mock_geo.vpr_face = np.array([0.0, 0.5, 1.0])
 
@@ -542,24 +542,15 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
         toroidal_flux_expansion=3.0,
     )
 
-    with self.assertLogs(level='WARNING') as logs:
-      resolved = extended_lengyel_model._resolve_geometric_parameters(
-          mock_geo, self.mock_core_profiles, edge_params, diverted=True
-      )
+    resolved = extended_lengyel_model._resolve_geometric_parameters(
+        mock_geo, self.mock_core_profiles, edge_params, diverted=True
+    )
 
     # Verify values from Geometry are used
     self.assertEqual(resolved.connection_length_target, 100.0)
     self.assertEqual(resolved.connection_length_divertor, 10.0)
     self.assertEqual(resolved.angle_of_incidence_target, 5.0)
     self.assertEqual(resolved.toroidal_flux_expansion, 2.0)
-
-    # Verify warnings were logged for overrides
-    self.assertTrue(
-        any('connection_length_target' in r.message for r in logs.records)
-    )
-    self.assertTrue(
-        any('connection_length_divertor' in r.message for r in logs.records)
-    )
 
   def test_resolve_geo_params_fallback_to_config(self):
     """Test fallback to Config values when Geometry values are missing, with warning."""
@@ -609,6 +600,66 @@ class ExtendedLengyelModelValidationTest(absltest.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, "Parameter 'connection_length_target' must be provided"
+    ):
+      extended_lengyel_model._resolve_geometric_parameters(
+          mock_geo, self.mock_core_profiles, edge_params, diverted=True
+      )
+
+  @parameterized.named_parameters(
+      ('zero_value', 0.0),
+      ('nan_value', np.nan),
+  )
+  def test_resolve_geo_params_fallback_on_invalid_geo(self, invalid_value):
+    """Test fallback to Config when Geometry value is invalid (0 or NaN)."""
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.connection_length_target = jnp.array(invalid_value)
+    mock_geo.connection_length_divertor = jnp.array(10.0)  # Valid
+    # Other geo params None to trigger other paths (or minimal path)
+    mock_geo.angle_of_incidence_target = jnp.array(5.0)
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = jnp.array(True)
+
+    edge_params = self._create_edge_params(
+        connection_length_target=50.0,
+        toroidal_flux_expansion=1.5,
+    )
+
+    resolved = extended_lengyel_model._resolve_geometric_parameters(
+        mock_geo, self.mock_core_profiles, edge_params, diverted=True
+    )
+
+    # Verify fallback to config value for invalid geo param
+    self.assertEqual(resolved.connection_length_target, 50.0)
+    # Verify valid geo param is still used
+    self.assertEqual(resolved.connection_length_divertor, 10.0)
+
+  @parameterized.named_parameters(
+      ('zero_value', 0.0),
+      ('nan_value', np.nan),
+  )
+  def test_resolve_geo_params_raises_on_invalid_geo_no_fallback(
+      self, invalid_value
+  ):
+    """Test Error is raised when Geometry value is invalid and no Config fallback."""
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.connection_length_target = jnp.array(invalid_value)
+    # Other params to satisfy requirements or just fail on the first one
+    mock_geo.connection_length_divertor = jnp.array(10.0)
+    mock_geo.angle_of_incidence_target = jnp.array(5.0)
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = jnp.array(True)
+
+    edge_params = self._create_edge_params(
+        # connection_length_target is None by default in _create_edge_params
+        toroidal_flux_expansion=1.5,
+    )
+
+    with self.assertRaisesRegex(
+        RuntimeError, "Geometry parameter 'connection_length_target' is invalid"
     ):
       extended_lengyel_model._resolve_geometric_parameters(
           mock_geo, self.mock_core_profiles, edge_params, diverted=True

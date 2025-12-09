@@ -238,8 +238,11 @@ Physical Parameters
 Geometry Parameters
 -------------------
 
-These must be provided if not using FBT geometry, or if using an FBT geometry
-provider that does not include edge data.
+These must be provided if not using MEQ geometry, or if using an MEQ geometry
+provider that does not include edge data. Even when using MEQ geometry, it is
+recommended to include fallback value in case the MEQ provider does not succeed
+in extracting the required data for specific geometries.
+
 
 ``diverted`` (**time-varying-scalar** | None [default = None])
   Boolean flag indicating if the geometry is diverted.
