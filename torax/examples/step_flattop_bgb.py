@@ -164,8 +164,6 @@ CONFIG = {
         "transport": {
             "model_name": "angioni_sauter",
             "use_shaing_ion_correction": True,
-            "V_e_min": -1e-6,
-            "V_e_max": 1e-6,
         },
     },
     "numerics": {
