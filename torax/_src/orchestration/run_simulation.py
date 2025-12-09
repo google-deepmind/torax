@@ -83,19 +83,13 @@ def prepare_simulation(
   if torax_config.restart and torax_config.restart.do_restart:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
-            t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            runtime_params_provider=step_fn.runtime_params_provider,
-            geometry_provider=step_fn.geometry_provider,
             step_fn=step_fn,
         )
     )
   else:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=step_fn.runtime_params_provider,
-            geometry_provider=step_fn.geometry_provider,
             step_fn=step_fn,
         )
     )

@@ -36,15 +36,10 @@ def run_loop_jit(
     sim_state.ToraxSimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
   """Runs the simulation loop under jax.jit."""
-  runtime_params_provider = (
-      runtime_params_overrides or step_fn.runtime_params_provider
-  )
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(
-          t=runtime_params_provider.numerics.t_initial,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=step_fn.geometry_provider,
           step_fn=step_fn,
+          runtime_params_overrides=runtime_params_overrides,
       )
   )
 

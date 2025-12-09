@@ -38,12 +38,35 @@ import xarray as xr
 
 @jax.jit
 def get_initial_state_and_post_processed_outputs(
-    t: float,
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
+    t: float | None = None,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
+    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
-  """Returns the initial state and post processed outputs."""
+  """Returns the initial state and post processed outputs.
+
+  Args:
+    step_fn: The step function to use for the simulation, this contains the
+      physics models, default geometry provider and default runtime params
+      provider to use.
+    t: The time to use for the simulation. If not provided, the time will be
+      chosen based on the values set in the numerics config.
+    runtime_params_overrides: Optional runtime params provider to override the
+      one set in the step function.
+    geometry_overrides: Optional geometry provider to override the one set in
+      the step function.
+
+  Returns:
+    A tuple of the initial state and post processed outputs.
+  """
+  runtime_params_provider = (
+      runtime_params_overrides or step_fn.runtime_params_provider
+  )
+  geometry_provider = geometry_overrides or step_fn.geometry_provider
+  t = t or runtime_params_provider.numerics.t_initial
+
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=t,
@@ -139,20 +162,44 @@ def _get_initial_state(
 
 
 def get_initial_state_and_post_processed_outputs_from_file(
-    t_initial: float,
     file_restart: file_restart_pydantic_model.FileRestart,
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
+    t: float | None = None,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
+    geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
 ) -> tuple[sim_state.ToraxSimState, post_processing.PostProcessedOutputs]:
-  """Returns the initial state and post processed outputs from a file."""
+  """Returns the initial state and post processed outputs from a file.
+
+  Args:
+    file_restart: The file restart config to use for the simulation.
+    step_fn: The step function to use for the simulation, this contains the
+      physics models, default geometry provider and default runtime params
+      provider to use.
+    t: The time to use for the simulation. If not provided, the time will be
+      chosen based on the values set in the numerics config.
+    runtime_params_overrides: Optional runtime params provider to override the
+      one set in the step function.
+    geometry_overrides: Optional geometry provider to override the one set in
+      the step function.
+
+  Returns:
+    A tuple of the initial state and post processed outputs.
+  """
+  runtime_params_provider = (
+      runtime_params_overrides or step_fn.runtime_params_provider
+  )
+  geometry_provider = geometry_overrides or step_fn.geometry_provider
+  t = t or runtime_params_provider.numerics.t_initial
+
   data_tree = output.load_state_file(file_restart.filename)
   # Find the closest time in the given dataset.
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
   profiles_dataset = data_tree.children[output.PROFILES].dataset
   profiles_dataset = profiles_dataset.squeeze()
-  if t_restart != t_initial:
+  if t_restart != t:
     logging.warning(
         'Requested restart time %f not exactly available in state file %s.'
         ' Restarting from closest available time %f instead.',
@@ -164,7 +211,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   # No need for edge_outputs since file will contain all needed overrides.
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=t_initial,
+          t=t,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
       )
