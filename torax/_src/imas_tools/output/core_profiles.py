@@ -25,6 +25,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
+from torax._src import math_utils
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
@@ -46,11 +47,13 @@ def core_profiles_to_IMAS(
 ) -> ids_toplevel.IDSToplevel:
   """Save TORAX profiles into an IMAS IDS.
 
-  The output grid for all 1D quantities is the "cell_plus_boundaries". Values
-  not available on boundaries are copied from neghbouring points.
+  The output grid for all 1D quantities is the "cell_plus_boundaries".
+  Quantities not available on boundaries are extrapolated by copying the values
+  of the neighbouring points.
   The function can be used to save an entire trajectory or a single time slice.
   If you want to use this function programatically and save a single time
   slice, please make sure the inputs are `Sequence`s of length 1.
+  
 
   Args:
     torax_config: ToraxConfig object to get number of main ions.
@@ -224,8 +227,9 @@ def _fill_profiles_1d(
         ids,
         i,
         post_processed_outputs_slice,
+        geometry_slice,
         cp_state,
-        runtime_params
+        runtime_params,
         T_i,
         n_i,
         n_impurity,
@@ -360,6 +364,7 @@ def _fill_profiles_1d_ions(
     ids: ids_toplevel.IDSToplevel,
     i: int,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
+    geometry_slice: geometry_lib.Geometry,
     cp_state: state.CoreProfiles,
     runtime_params: runtime_params_lib.RuntimeParams,
     T_i: jt.Float[jax.Array, 't* cell+2'],
@@ -374,6 +379,7 @@ def _fill_profiles_1d_ions(
   impurity_fractions_arr = np.stack(
       [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
   )
+  impurities = list(zip(impurity_symbols, impurity_fractions_arr, strict=True))
   impurity_density_scaling, Z_avg_per_species = (
       _calculate_impurity_density_scaling_and_charge_states(
           cp_state, runtime_params
@@ -414,8 +420,8 @@ def _fill_profiles_1d_ions(
         impurity_density_scaling,
         num_of_main_ions,
         post_processed_outputs_slice,
-        impurity_symbols,
-        cp_state,
+        geometry_slice,
+        impurities,
     )
 
 
@@ -485,16 +491,12 @@ def _fill_impurities(
     impurity_density_scaling: jt.Float[jax.Array, 't* cell+2'],
     num_of_main_ions: int,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
-    impurity_symbols: Sequence[str],
-    cp_state: state.CoreProfiles,
+    geometry_slice: geometry_lib.Geometry,
+    impurities: Sequence[tuple[str, jt.Float[jax.Array, 't* cell+2']]],
 ) -> None:
   """Fills impurity quantities for the IDS."""
   # TODO(b/459479939): i/1660) - We can directly use the impurity densities
-  # from profiles.n_impurity_species here.
-  impurity_fractions_arr = np.stack(
-      [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
-  )
-  impurities = list(zip(impurity_symbols, impurity_fractions_arr, strict=True))
+  # from profiles.n_impurity_species here.  
   symbol, individual_frac = impurities[ion]
   index = num_of_main_ions + ion
   # Extend to cell_plus_boundaries_grid by copying neighbouring values.
@@ -541,4 +543,6 @@ def _fill_impurities(
   ids.global_quantities.ion[index].t_i_volume_average[i] = (
       post_processed_outputs_slice.T_i_volume_avg * 1e3
   )
-  # TODO(b/459479939): i/1814) - Compute n_i_volume_average for impurities
+  n_impurity_cell = post_processed_outputs_slice.impurity_species[symbol].n_impurity 
+  ids.global_quantities.ion[index].n_i_volume_average[i] = math_utils.volume_average(
+      n_impurity_cell, geometry_slice)
