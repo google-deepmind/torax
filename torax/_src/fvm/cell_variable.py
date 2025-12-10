@@ -234,8 +234,7 @@ class CellVariable:
 
   def grad(self) -> jt.Float[jax.Array, 't* face']:
     """Returns the gradient of this variable wrt cell centers."""
-    face = self.face_value()
-    return jnp.diff(face) / jnp.expand_dims(self.dr, axis=-1)
+    return jnp.gradient(self.value, self.dr)
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
