@@ -13,12 +13,13 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
-
+import dataclasses
 import functools
 
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -290,7 +291,7 @@ class SimulationStepFn:
 
     def cond(args):
       remaining_dt, _, _ = args
-      return remaining_dt > 0.0
+      return remaining_dt > constants.CONSTANTS.eps
 
     def body(args):
       remaining_dt, prev_state, prev_post_processed = args
@@ -311,6 +312,13 @@ class SimulationStepFn:
     )
     # TODO(b/456188184): Add a return value for the number of steps, sawtooth
     # crashes, and solver error states etc.
+    # Set the dt to the original dt passed to the function, and the t to the
+    # final time.
+    output_state = dataclasses.replace(
+        output_state,
+        t=input_state.t + dt,
+        dt=dt,
+    )
     return output_state, post_processed_outputs
 
   @jax.jit
