@@ -18,6 +18,8 @@ import logging
 from typing import Annotated
 from typing import Any
 from typing import Literal, TypeAlias
+
+import jax
 import numpy as np
 import pydantic
 from torax._src import constants
@@ -214,6 +216,8 @@ def _from_fbt_single_slice(
     if not isinstance(LY[key], np.ndarray):
       LY[key] = np.array(LY[key])
 
+  LY, L = jax.tree_util.tree_map(np.squeeze, (LY, L))
+
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY, L)
   return _from_fbt(
@@ -288,6 +292,8 @@ def _from_fbt_bundle(
     L = L_object
   else:
     raise ValueError('L_object must be a string (file path) or a dictionary.')
+
+  LY_bundle, L = jax.tree_util.tree_map(np.squeeze, (LY_bundle, L))
 
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY_bundle, L)
@@ -408,7 +414,7 @@ def _from_fbt(
   """
   # lX is a flag for diverted (1) or limited (0) geometry. Converted to
   # boolean when constructing the StandardGeometryIntermediates.
-  if np.squeeze(LY['lX']) not in [0, 1]:
+  if LY['lX'] not in [0, 1]:
     raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
   # Convert to bool instead of dim 0 array of ints
   diverted = bool(LY['lX'] == 1)
@@ -452,7 +458,7 @@ def _from_fbt(
 
   if 'z_div' in LY:
     # Ensure z_div is an array
-    z_div = np.squeeze(LY['z_div'])
+    z_div = LY['z_div']
 
     # Find index corresponding to requested domain.
     if diverted:
@@ -474,7 +480,7 @@ def _from_fbt(
     def _get_val(key):
       if key not in LY:
         return None
-      val = np.squeeze(LY[key])
+      val = np.asarray(LY[key])
       if not val.shape:  # Scalar value
         return val
       else:
@@ -583,6 +589,7 @@ def _validate_fbt_data(
       'FtPVQ': psi_and_time_shape,
       'FtPQ': psi_and_time_shape,
   }
+  # TODO(b/467942568): Add validation for optional edge model inputs.
 
   missing_LY_keys = required_LY_spec.keys() - LY.keys()
   if missing_LY_keys:

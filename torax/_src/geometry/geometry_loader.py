@@ -61,7 +61,7 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
 def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
   """Loads data into a dictionary from an FBT-LY file or file path."""
 
-  meq_data = scipy.io.loadmat(file_path, squeeze_me=True)
+  meq_data = scipy.io.loadmat(file_path)
 
   if "LY" not in meq_data:
     # L file or LY file not the output of MEQ meqlpack. Return as is.
