@@ -53,6 +53,7 @@ class CellVariable:
       face, see left_face_constraint.
     right_face_grad_constraint: A jax scalar specifying the undetermined value
       of the gradient on the rightmost face variable.
+    rho_norm: The rho_norm coordinates of the cell centers.
   """
   value: jt.Float[chex.Array, 't cell']
   dr: jt.Float[chex.Array, '']
@@ -66,6 +67,15 @@ class CellVariable:
   )
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
+
+  @property
+  def rho_norm(self) -> jt.Float[chex.Array, 'cell']:
+    half_cell_spacing = self.dr / 2
+    return jnp.linspace(
+        start=half_cell_spacing,
+        stop=1-half_cell_spacing,
+        num=self.value.shape[-1]
+    )
 
   def __post_init__(self):
     """Check that the CellVariable is valid.
@@ -135,7 +145,7 @@ class CellVariable:
       A jax.Array of shape (num_faces,) containing the gradient.
     """
     if x is None:
-      forward_difference = jnp.diff(self.value) / self.dr
+      forward_difference = jnp.diff(self.value) / jnp.diff(self.rho_norm)
     else:
       forward_difference = jnp.diff(self.value) / jnp.diff(x)
 
@@ -154,9 +164,10 @@ class CellVariable:
               'a face variable.'
           )
         if x is None:
-          dx = self.dr
+          coords = self.rho_norm
         else:
-          dx = x[-1] - x[-2] if right else x[1] - x[0]
+          coords = x
+        dx = coords[-1] - coords[-2] if right else coords[1] - coords[0]
         sign = -1 if right else 1
         return sign * (cell - face) / (0.5 * dx)
       else:
@@ -204,7 +215,7 @@ class CellVariable:
       value = (
           self.value[..., -1:]
           + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)
-          * jnp.expand_dims(self.dr, axis=-1)
+          * jnp.diff(self.rho_norm)
           / 2
       )
     return value
@@ -219,7 +230,13 @@ class CellVariable:
   def grad(self) -> jt.Float[jax.Array, 't cell']:
     """Returns the gradient of this variable wrt cell centers."""
     face = self.face_value()
-    return jnp.diff(face) / jnp.expand_dims(self.dr, axis=-1)
+    internal_faces = (self.rho_norm[:-1] + self.rho_norm[1:]) / 2.0
+    face_points = jnp.concatenate([
+        jnp.array([0.0]),
+        internal_faces,
+        jnp.array([1.0])
+    ])
+    return jnp.diff(face) / jnp.diff(face_points)
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
