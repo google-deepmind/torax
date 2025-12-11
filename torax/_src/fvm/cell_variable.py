@@ -14,8 +14,7 @@
 
 """The CellVariable class.
 
-A jax_utils.jax_dataclass used to represent variables on meshes for the 1D fvm
-solver.
+A dataclass used to represent variables on meshes for the 1D fvm solver.
 Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
@@ -55,16 +54,14 @@ class CellVariable:
     right_face_grad_constraint: A jax scalar specifying the undetermined value
       of the gradient on the rightmost face variable.
   """
-
-  # t* means match 0 or more leading time dimensions.
-  value: jt.Float[chex.Array, 't* cell']
-  dr: jt.Float[chex.Array, 't*']
-  left_face_constraint: jt.Float[chex.Array, 't*'] | None = None
-  right_face_constraint: jt.Float[chex.Array, 't*'] | None = None
-  left_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
+  value: jt.Float[chex.Array, 't cell']
+  dr: jt.Float[chex.Array, '']
+  left_face_constraint: jt.Float[chex.Array, 't'] | None = None
+  right_face_constraint: jt.Float[chex.Array, 't'] | None = None
+  left_face_grad_constraint: jt.Float[chex.Array, 't'] | None = (
       dataclasses.field(default_factory=_zero)
   )
-  right_face_grad_constraint: jt.Float[chex.Array, 't*'] | None = (
+  right_face_grad_constraint: jt.Float[chex.Array, 't'] | None = (
       dataclasses.field(default_factory=_zero)
   )
   # Can't make the above default values be jax zeros because that would be a
@@ -122,18 +119,6 @@ class CellVariable:
           'right_face_grad_constraint must be set.'
       )
 
-  def _assert_unbatched(self):
-    if len(self.value.shape) != 1:
-      raise AssertionError(
-          'CellVariable must be unbatched, but has `value` shape '
-          f'{self.value.shape}. Consider using vmap to batch the function call.'
-      )
-    if self.dr.shape:
-      raise AssertionError(
-          'CellVariable must be unbatched, but has `dr` shape '
-          f'{self.dr.shape}. Consider using vmap to batch the function call.'
-      )
-
   def face_grad(
       self, x: jt.Float[chex.Array, 'cell'] | None = None
   ) -> jt.Float[chex.Array, 'face']:
@@ -149,7 +134,6 @@ class CellVariable:
     Returns:
       A jax.Array of shape (num_faces,) containing the gradient.
     """
-    self._assert_unbatched()
     if x is None:
       forward_difference = jnp.diff(self.value) / self.dr
     else:
@@ -197,7 +181,7 @@ class CellVariable:
     right = jnp.expand_dims(right_grad, axis=0)
     return jnp.concatenate([left, forward_difference, right])
 
-  def left_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def left_face_value(self) -> jt.Float[chex.Array, 't']:
     """Calculates the value of the leftmost face."""
     if self.left_face_constraint is not None:
       value = self.left_face_constraint
@@ -209,7 +193,7 @@ class CellVariable:
       value = self.value[..., 0:1]
     return value
 
-  def right_face_value(self) -> jt.Float[chex.Array, '#t']:
+  def right_face_value(self) -> jt.Float[chex.Array, 't']:
     """Calculates the value of the rightmost face."""
     if self.right_face_constraint is not None:
       value = self.right_face_constraint
@@ -225,14 +209,14 @@ class CellVariable:
       )
     return value
 
-  def face_value(self) -> jt.Float[jax.Array, 't* face']:
+  def face_value(self) -> jt.Float[jax.Array, 't face']:
     """Calculates values of this variable on the face grid."""
     inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
     return jnp.concatenate(
         [self.left_face_value(), inner, self.right_face_value()], axis=-1
     )
 
-  def grad(self) -> jt.Float[jax.Array, 't* face']:
+  def grad(self) -> jt.Float[jax.Array, 't cell']:
     """Returns the gradient of this variable wrt cell centers."""
     face = self.face_value()
     return jnp.diff(face) / jnp.expand_dims(self.dr, axis=-1)
@@ -254,7 +238,7 @@ class CellVariable:
     output_string += ')'
     return output_string
 
-  def cell_plus_boundaries(self) -> jt.Float[jax.Array, 't* cell+2']:
+  def cell_plus_boundaries(self) -> jt.Float[jax.Array, 't cell+2']:
     """Returns the value of this variable plus left and right boundaries."""
     right_value = self.right_face_value()
     left_value = self.left_face_value()
