@@ -23,9 +23,9 @@ from torax._src import constants
 _PROFILE_CONDITIONS_VALIDATION_FIELDS: Final[dict[str, object]]= {
     "global_quantities": ["ip", "v_loop"],
     "profiles_1d": {"required":[
-        "time",
         "grid.rho_tor_norm",],
         "optional": [
+        "time", # Not necessary when building from a single time slice.
         "grid.psi",
         "electrons.temperature",
         "t_i_average",
@@ -36,12 +36,12 @@ _PROFILE_CONDITIONS_VALIDATION_FIELDS: Final[dict[str, object]]= {
 _PLASMA_COMPOSITION_VALIDATION_FIELDS: Final[dict[str, object]]= {
     "global_quantities": [],
     "profiles_1d": {"required":[
-        "time",
         "grid.rho_tor_norm",
         "electrons.density",
         "ion.density",
         ],
         "optional": [
+        "time", # Not necessary when building from a single time slice.
         "zeff",
     ],},
 }
