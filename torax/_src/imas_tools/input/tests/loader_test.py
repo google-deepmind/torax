@@ -54,7 +54,7 @@ class IMASLoaderTest(parameterized.TestCase):
 
   def test_load_older_dd_version_without_explicit_convert_raises(self):
     directory = pathlib.Path(__file__).parent
-    with self.assertRaises(AttributeError):
+    with self.assertRaises(RuntimeError):
       loader.load_imas_data(
           "core_profiles_ddv3.nc",
           "core_profiles",
