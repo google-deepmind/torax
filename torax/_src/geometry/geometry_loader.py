@@ -59,13 +59,55 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
 
 
 def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
-  """Loads data into a dictionary from an FBT-LY file or file path."""
+  """Loads data from an FBT-LY file or file path.
 
+  Handles MEQ nesting patterns such as L['L'] and LY['LY'].
+  """
   meq_data = scipy.io.loadmat(file_path)
 
   if "LY" not in meq_data:
-    # L file or LY file not the output of MEQ meqlpack. Return as is.
-    return meq_data
+    # L file or LY file not the output of MEQ meqlpack.
+    # Generalize MEQ loader to handle L nesting: some .mat files have nested
+    # structures where the value is a dict or object array containing the key
+    # itself (e.g., meq_data["foo"]["foo"]). We unwrap these cases here.
+    cleaned = {}
+    for key, value in meq_data.items():
+      # Skip scipy.io.loadmat metadata.
+      if key.startswith("__"):
+        continue
+      # Handle dict nesting: value is a dict containing the same key.
+      if isinstance(value, dict) and key in value:
+        cleaned[key] = value[key]
+        continue
+      # Handle object-array nesting produced by some MEQ workflows.
+      if isinstance(value, np.ndarray) and value.dtype == object:
+        try:
+          obj = value.item()
+          if isinstance(obj, dict) and key in obj:
+            cleaned[key] = obj[key]
+          else:
+            cleaned[key] = obj
+          continue
+        except Exception:  # pylint: disable=broad-exception-caught
+          pass
+      # Handle structured array with nested dict (from scipy.io.savemat).
+      if isinstance(value, np.ndarray) and value.dtype.names:
+        try:
+          inner = value[key].item()
+          if isinstance(inner, dict) and key in inner:
+            cleaned[key] = inner[key]
+          else:
+            cleaned[key] = inner
+          continue
+        except Exception:  # pylint: disable=broad-exception-caught
+          pass
+      # Plain ndarray: keep as-is.
+      if isinstance(value, np.ndarray):
+        cleaned[key] = value
+        continue
+      # Scalar fallback.
+      cleaned[key] = np.array(value)
+    return cleaned
   else:
     # LY bundle file. numpy structured array likely resulting from
     # scipy.io.loadmat returning the output of MEQ meqlpack.m.
