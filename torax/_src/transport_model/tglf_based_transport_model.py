@@ -268,6 +268,7 @@ class TGLFBasedTransportModel(
         / (2 * jnp.pi * r)  # Note: psi_TGLF is psi_TORAX/2π
         * jnp.gradient(core_profiles.psi.face_value(), r)
     )
+    B_unit = B_unit.at[0].set(2 * B_unit[1] - B_unit[2])
     rho_s = m_D * c_s / (constants.CONSTANTS.q_e * B_unit)  # Ion gyroradius
 
     # Debye length
