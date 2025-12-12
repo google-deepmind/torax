@@ -181,7 +181,7 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
-  _validate_core_profiles_ids(ids, strict=True, target="plasma_composition")
+  _validate_core_profiles_ids(ids, strict=False, target="plasma_composition")
   # Check that the expected ions are present in the IDS
   ids_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
   if expected_impurities:
@@ -288,21 +288,21 @@ def _validate_core_profiles_ids(
     if not leaf.has_value:
       if strict: 
         raise ValueError(f"The IDS is missing global_quantities.{field} required to build"
-            " profile_conditions. \n Please Check that your IDS is properly"
+            " {target}. \n Please Check that your IDS is properly"
             " filled.")
       else:
         logging.warning(
-            f"The IDS is missing global_quantities.{field} which may cause undesired behavior when building profile_conditions. \n Please Check that your IDS is properly"
+            f"The IDS is missing global_quantities.{field} which may cause undesired behavior when building {target}. \n Please Check that your IDS is properly"
             " filled."
         )
   # Validate profiles_1d 
   for profile in profiles_1d:
     for field in validation_fields["profiles_1d"]["required"]:
-      _check_profiles_1d_attribute(field, profile, logged_fields, strict=True)
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict=True, target=target)
     for field in validation_fields["profiles_1d"]["optional"]:
-      _check_profiles_1d_attribute(field, profile, logged_fields, strict)
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict, target=target)
 
-def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure, logged_fields:set, strict: bool):
+def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure, logged_fields:set, strict: bool, target: str):
   leaves = [profile]
   # Explore the IDS tree to recover the attribute to validate.
   for node in field.split("."):
@@ -322,11 +322,11 @@ def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure
       if field not in logged_fields:
         if strict:
           raise ValueError(f"The IDS is missing profiles_1d.{field} to build"
-          " profile_conditions. \n Please Check that your IDS is properly"
+          " {target}. \n Please Check that your IDS is properly"
           " filled.")
         else:
           logging.warning(
-              f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building profile_conditions. \n Please Check that your IDS is properly"
+              f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building {target}. \n Please Check that your IDS is properly"
               " filled."
           )
           logged_fields.add(field)
