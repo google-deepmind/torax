@@ -16,7 +16,7 @@ from collections.abc import Collection, Mapping
 import logging
 from typing import Any, Mapping, Final, Literal
 
-from imas import ids_toplevel, ids_structure
+from imas import ids_toplevel, ids_structure, ids_struct_array
 import numpy as np
 from torax._src import constants
 
@@ -38,7 +38,8 @@ _PLASMA_COMPOSITION_VALIDATION_FIELDS: Final[dict[str, object]]= {
     "profiles_1d": {"required":[
         "time",
         "grid.rho_tor_norm",
-        "electrons.density"
+        "electrons.density",
+        "ion.density",
         ],
         "optional": [
         "zeff",
@@ -64,6 +65,8 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
+  # Set to false as the IDS as no global_quantities.v_loop
+  _validate_core_profiles_ids(ids, strict=False, target="profiles_conditions")
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
@@ -178,6 +181,7 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
+  _validate_core_profiles_ids(ids, strict=True, target="plasma_composition")
   # Check that the expected ions are present in the IDS
   ids_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
   if expected_impurities:
@@ -299,18 +303,30 @@ def _validate_core_profiles_ids(
       _check_profiles_1d_attribute(field, profile, logged_fields, strict)
 
 def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure, logged_fields:set, strict: bool):
-   leaf = profile
-   for node in field.split("."):
-    leaf = getattr(leaf, node)
-   if not leaf.has_value:
-        if field not in logged_fields:
-          if strict:
-            raise ValueError(f"The IDS is missing profiles_1d.{field} to build"
-            " profile_conditions. \n Please Check that your IDS is properly"
-            " filled.")
-          else:
-            logging.warning(
-                f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building profile_conditions. \n Please Check that your IDS is properly"
-                " filled."
-            )
-            logged_fields.add(field)
+  leaves = [profile]
+  # Explore the IDS tree to recover the attribute to validate.
+  for node in field.split("."):
+    next_leaves = []
+    for leaf in leaves:
+      # Case when the attribute exists on the current object.
+      if hasattr(leaf, node):
+        next_leaves.append(getattr(leaf, node))
+      # AoS case: the current object is an IDS array of structure. e.g. profiles_1d[i].ion
+      elif isinstance(leaf, ids_struct_array.IDSStructArray):
+        for sub_leaf in leaf:
+          next_leaves.append(getattr(sub_leaf, node))
+    leaves = next_leaves
+  # Validate that all retrieved attributes have a value.  
+  for leaf in leaves:
+    if not leaf.has_value:
+      if field not in logged_fields:
+        if strict:
+          raise ValueError(f"The IDS is missing profiles_1d.{field} to build"
+          " profile_conditions. \n Please Check that your IDS is properly"
+          " filled.")
+        else:
+          logging.warning(
+              f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building profile_conditions. \n Please Check that your IDS is properly"
+              " filled."
+          )
+          logged_fields.add(field)
