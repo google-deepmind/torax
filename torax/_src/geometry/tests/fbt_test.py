@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+import io
 import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import scipy.io
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
@@ -286,6 +288,69 @@ class FBTGeometryTest(parameterized.TestCase):
           L_object=L,
           divertor_domain=fbt.DivertorDomain.LOWER_NULL,
       )
+
+
+class FBTLoaderTest(parameterized.TestCase):
+  """Tests for the FBT geometry loader handling nested L structures."""
+
+  def test_load_fbt_data_handles_nested_L_dict(self):
+    """Tests that _load_fbt_data unwraps nested dict structures (L['L'])."""
+    nested_data = {'pQ': {'pQ': np.linspace(0, 1, 10)}}
+    buffer = io.BytesIO()
+    scipy.io.savemat(buffer, nested_data)
+    buffer.seek(0)
+
+    result = geometry_loader._load_fbt_data(buffer)
+
+    self.assertIn('pQ', result)
+    np.testing.assert_allclose(result['pQ'].squeeze(), np.linspace(0, 1, 10))
+
+  def test_load_fbt_data_handles_nested_L_object_array(self):
+    """Tests that _load_fbt_data unwraps nested object array structures."""
+    # Simulate scipy.io.loadmat returning object arrays with nested dicts.
+    # This mimics the L['L'] nesting pattern from certain MEQ workflows.
+    inner_dict = {'pQ': np.linspace(0, 1, 10)}
+    nested_obj = np.empty((1,), dtype=object)
+    nested_obj[0] = inner_dict
+    nested_data = {'pQ': nested_obj}
+    buffer = io.BytesIO()
+    scipy.io.savemat(buffer, nested_data)
+    buffer.seek(0)
+
+    result = geometry_loader._load_fbt_data(buffer)
+
+    self.assertIn('pQ', result)
+    # The loader should unwrap the nested structure.
+    self.assertIsInstance(result['pQ'], np.ndarray)
+
+  def test_load_fbt_data_handles_flat_L_data(self):
+    """Tests that _load_fbt_data handles flat (non-nested) L data correctly."""
+    flat_data = {'pQ': np.linspace(0, 1, 10), 'other_key': np.array([1, 2, 3])}
+    buffer = io.BytesIO()
+    scipy.io.savemat(buffer, flat_data)
+    buffer.seek(0)
+
+    result = geometry_loader._load_fbt_data(buffer)
+
+    self.assertIn('pQ', result)
+    self.assertIn('other_key', result)
+    # scipy.io.savemat/loadmat adds an extra dimension, so we squeeze.
+    np.testing.assert_allclose(result['pQ'].squeeze(), np.linspace(0, 1, 10))
+    np.testing.assert_allclose(result['other_key'].squeeze(), np.array([1, 2, 3]))
+
+  def test_load_fbt_data_skips_dunder_keys(self):
+    """Tests that _load_fbt_data skips keys starting with '__'."""
+    data = {'pQ': np.linspace(0, 1, 10)}
+    buffer = io.BytesIO()
+    scipy.io.savemat(buffer, data)
+    buffer.seek(0)
+
+    result = geometry_loader._load_fbt_data(buffer)
+
+    # scipy.io.loadmat adds __header__, __version__, __globals__ keys.
+    # These should be filtered out.
+    for key in result:
+      self.assertFalse(key.startswith('__'))
 
 
 if __name__ == '__main__':
