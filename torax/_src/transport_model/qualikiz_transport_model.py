@@ -65,9 +65,22 @@ class QualikizTransportModel(
 
   def __init__(self):
     self._qlkrun_parentdir = tempfile.TemporaryDirectory()
+    # Include microseconds and process ID to prevent collisions when multiple
+    # simulations start simultaneously (e.g., in SLURM distributed systems)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    process_id = os.getpid()
+    # Check for SLURM job ID if available (common in distributed computing)
+    slurm_job_id = os.environ.get('SLURM_JOB_ID')
+    if slurm_job_id:
+      unique_suffix = f'job_{slurm_job_id}_pid_{process_id}'
+    else:
+      unique_suffix = f'pid_{process_id}'
     self._qlkrun_name = (
         _DEFAULT_QLKRUN_NAME_PREFIX
-        + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        + '_'
+        + timestamp
+        + '_'
+        + unique_suffix
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
 
