@@ -588,6 +588,25 @@ class StateHistoryTest(parameterized.TestCase):
         edge_dataset['solver_residual'].values, np.array([2e-6])
     )
 
+  def test_status_attribute_completed(self):
+    """Test that status attribute is set to 'completed' for successful runs."""
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertIn('status', output_xr.attrs)
+    self.assertEqual(output_xr.attrs['status'], state.SimStatus.COMPLETED.value)
+
+  def test_status_attribute_error(self):
+    """Test that status attribute is set to 'error' when sim has errors."""
+    # Create a history with an error state
+    history_with_error = output.StateHistory(
+        state_history=[self.sim_state],
+        post_processed_outputs_history=(self._output_state,),
+        sim_error=state.SimError.NAN_DETECTED,
+        torax_config=self.torax_config,
+    )
+    output_xr = history_with_error.simulation_output_to_xr()
+    self.assertIn('status', output_xr.attrs)
+    self.assertEqual(output_xr.attrs['status'], state.SimStatus.ERROR.value)
+
 
 if __name__ == '__main__':
   absltest.main()

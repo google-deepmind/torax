@@ -188,7 +188,15 @@ def main(
       log_sim_progress,
       progress_bar=log_sim_progress_bar,
   )
-  log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
+
+  # Check if simulation encountered an error
+  if state_history.sim_error != state.SimError.NO_ERROR:
+    log_to_stdout(
+        f'Simulation stopped with error: {state_history.sim_error.name}',
+        color=AnsiColors.YELLOW,
+    )
+  else:
+    log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
   if plot_sim_progress:
     raise NotImplementedError('Plotting progress is temporarily disabled.')
