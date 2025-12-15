@@ -23,7 +23,7 @@ from torax._src.neoclassical.conductivity import sauter
 
 class SauterTest(absltest.TestCase):
 
-  def test_sauter_bootstrap_current_is_correct_shape(self):
+  def test_sauter_conductivity_current_is_correct_shape(self):
     n_rho = 10
     geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
     core_profiles = mock.create_autospec(

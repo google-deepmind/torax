@@ -20,6 +20,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src.neoclassical import neoclassical_models
 from torax._src.neoclassical import runtime_params as runtime_params_lib
+from torax._src.neoclassical.bootstrap_current import redl as redl_current
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
@@ -34,6 +35,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
   bootstrap_current: (
       bootstrap_current_zeros.ZerosModelConfig
       | sauter_current.SauterModelConfig
+      | redl_current.RedlModelConfig
   ) = pydantic.Field(discriminator="model_name")
   conductivity: sauter_conductivity.SauterModelConfig = (
       torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())

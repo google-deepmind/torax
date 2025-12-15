@@ -11,7 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Sauter model for bootstrap current."""
+"""Redl model for bootstrap current.
+
+Based on Redl et al., Physics of Plasmas 28, 022502 (2021).
+"A new set of analytical formulae for the computation of the bootstrap
+current and the neoclassical conductivity in tokamaks"
+https://doi.org/10.1063/5.0012664
+
+This model provides improved accuracy over the Sauter model, particularly
+at higher collisionalities typical of tokamak edge pedestals and in the
+presence of impurities.
+"""
 import dataclasses
 from typing import Annotated, Literal
 
@@ -22,7 +32,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import common as common_formulas
-from torax._src.neoclassical.formulas import sauter as sauter_formulas
+from torax._src.neoclassical.formulas import redl as redl_formulas
 from torax._src.neoclassical import bootstrap_current
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
@@ -31,11 +41,11 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(bootstrap_current.runtime_params.RuntimeParams):
-  """Runtime params for the Sauter model."""
+  """Runtime params for the Redl model."""
 
 
-class SauterModel(bootstrap_current.base.BootstrapCurrentModel):
-  """Sauter model for bootstrap current."""
+class RedlModel(bootstrap_current.base.BootstrapCurrentModel):
+  """Redl model for bootstrap current."""
 
   def calculate_bootstrap_current(
       self,
@@ -43,7 +53,7 @@ class SauterModel(bootstrap_current.base.BootstrapCurrentModel):
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> bootstrap_current.base.BootstrapCurrent:
-    """Calculates bootstrap current according to the Sauter model."""
+    """Calculates bootstrap current using the Redl model."""
     bootstrap_params = runtime_params.neoclassical.bootstrap_current
     assert isinstance(bootstrap_params, RuntimeParams)
     return _calculate_bootstrap_current(
@@ -68,20 +78,16 @@ class SauterModel(bootstrap_current.base.BootstrapCurrentModel):
     return hash(self.__class__)
 
 
-class SauterModelConfig(bootstrap_current.base.BootstrapCurrentModelConfig):
-  """Config for the Sauter model implementation of bootstrap current.
+class RedlModelConfig(bootstrap_current.base.BootstrapCurrentModelConfig):
+  """Config for the Redl model implementation of bootstrap current."""
 
-  Attributes:
-    bootstrap_multiplier: Multiplication factor for bootstrap current.
-  """
-
-  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
+  model_name: Annotated[Literal['redl'], torax_pydantic.JAX_STATIC] = 'redl'
 
   def build_runtime_params(self) -> RuntimeParams:
     return RuntimeParams(bootstrap_multiplier=self.bootstrap_multiplier)
 
-  def build_model(self) -> SauterModel:
-    return SauterModel()
+  def build_model(self) -> RedlModel:
+    return RedlModel()
 
 
 @jax.jit
@@ -100,16 +106,19 @@ def _calculate_bootstrap_current(
     q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
 ) -> bootstrap_current.base.BootstrapCurrent:
-  """Calculates j_parallel_bootstrap using the Sauter model."""
-  # pylint: disable=invalid-name
+  """Calculates j_parallel_bootstrap using the Redl model.
 
-  # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
-  # corrections.
+  Implements the analytical formulae from Redl et al., PoP 28, 022502 (2021).
+  These formulae were derived by fitting the NEO code results using the same
+  methodology as Sauter, but with improved accuracy particularly at high
+  collisionality and for multi-species plasmas.
+  """
+  # pylint: disable=invalid-name
 
   # Effective trapped particle fraction
   f_trap = common_formulas.calculate_f_trap(geo)
 
-  # Spitzer conductivity
+  # Collision frequencies
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()
   )
@@ -133,17 +142,14 @@ def _calculate_bootstrap_current(
       log_lambda_ii=log_lambda_ii,
   )
 
-  # Terms for analytical fit
-  L31 = sauter_formulas.calculate_L31(
-      f_trap, nu_e_star, Z_eff_face
+  # Calculate terms needed for bootstrap current using Redl formulae
+  L31 = redl_formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
+  L32 = redl_formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
+  # In Redl model, L34 is set equal to L31 (Eq. 19)
+  L34 = L31
+  alpha = redl_formulas.calculate_alpha(
+      f_trap, nu_i_star, Z_eff_face
   )
-  L32 = sauter_formulas.calculate_L32(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  L34 = sauter_formulas.calculate_L34(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  alpha = sauter_formulas.calculate_alpha(f_trap, nu_i_star)
 
   return common_formulas.calculate_analytic_bootstrap_current(
       bootstrap_multiplier=bootstrap_multiplier,
