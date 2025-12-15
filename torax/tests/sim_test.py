@@ -22,18 +22,16 @@ import copy
 import os
 from typing import Final, Sequence
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import numpy as np
+import xarray as xr
+from absl.testing import absltest, parameterized
+
 from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
-from torax._src.test_utils import paths
-from torax._src.test_utils import sim_test_case
+from torax._src.test_utils import paths, sim_test_case
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic
 from torax._src.torax_pydantic import model_config
-import xarray as xr
-
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output.T_I,
@@ -315,6 +313,12 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_imas_profiles_and_geo',
           'test_imas_profiles_and_geo.py',
+      ),
+      # Tests full integration for ITER-hybrid-based config with Redl bootstrap
+      # formula.
+      (
+          'test_iterhybrid_predictor_corrector_redl',
+          'test_iterhybrid_predictor_corrector_redl.py',
       ),
       # Tests STEP scenario with Bohm-GyroBohm transport
       (
