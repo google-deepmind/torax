@@ -13,3 +13,12 @@
 # limitations under the License.
 
 """This package contains functionality related to geometry."""
+
+# Export custom exception classes for external use
+from torax._src.geometry.geometry_errors import (
+    GeometryFileError,
+    GeometryFileNotFoundError,
+    GeometryFileFormatError,
+    GeometryFilePermissionError,
+    GeometryDataValidationError,
+)
