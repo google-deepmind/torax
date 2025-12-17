@@ -65,7 +65,7 @@ def _calculate_psi_value_constraint_from_v_loop(
 
 
 @jax.jit
-def get_prescribed_core_profile_values(
+def _get_prescribed_core_profile_values(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -104,6 +104,16 @@ def get_prescribed_core_profile_values(
     )
   else:
     n_e_cell_variable = core_profiles.n_e
+
+  # Update psi if not evolved and is prescribed
+  if (
+      not runtime_params.numerics.evolve_current
+      and runtime_params.profile_conditions.psi is not None
+  ):
+    psi = runtime_params.profile_conditions.psi
+  else:
+    psi = core_profiles.psi.value
+
   ions = getters.get_updated_ions(
       runtime_params,
       geo,
@@ -121,6 +131,7 @@ def get_prescribed_core_profile_values(
   return {
       'T_i': T_i,
       'T_e': T_e,
+      'psi': psi,
       'n_e': n_e,
       'n_i': n_i,
       'n_impurity': n_impurity,
@@ -310,13 +321,10 @@ def update_core_and_source_profiles_after_step(
 
   if (
       not runtime_params_t_plus_dt.numerics.evolve_current
-      and runtime_params_t_plus_dt.profile_conditions.psidot
-      is not None
+      and runtime_params_t_plus_dt.profile_conditions.psidot is not None
   ):
     # If psidot is prescribed and current does not evolve, use prescribed value
-    psidot_value = (
-        runtime_params_t_plus_dt.profile_conditions.psidot
-    )
+    psidot_value = runtime_params_t_plus_dt.profile_conditions.psidot
   else:
     # Otherwise, calculate psidot from psi sources.
     psi_sources = total_source_profiles.total_psi_sources(geo)
@@ -353,22 +361,20 @@ def compute_boundary_conditions_for_t_plus_dt(
   Args:
     dt: Size of the next timestep
     runtime_params_t: Runtime parameters for the current timestep. Will not be
-      used if runtime_params_t.profile_conditions.v_loop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is used
+      used if runtime_params_t.profile_conditions.v_loop_lcfs is None, i.e. if
+      the dirichlet psi boundary condition based on Ip is used
     runtime_params_t_plus_dt: Runtime parameters for the next timestep
     geo_t_plus_dt: Geometry object for the next timestep
     core_profiles_t: Core profiles at the current timestep. Will not be used if
-      runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is used
+      runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs is None, i.e. if
+      the dirichlet psi boundary condition based on Ip is used
 
   Returns:
     Mapping from State attribute names to dictionaries updating attributes of
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  profile_conditions_t_plus_dt = (
-      runtime_params_t_plus_dt.profile_conditions
-  )
+  profile_conditions_t_plus_dt = runtime_params_t_plus_dt.profile_conditions
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   n_e = getters.get_updated_electron_density(
@@ -471,7 +477,7 @@ def provide_core_profiles_t_plus_dt(
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=core_profiles_t,
   )
-  updated_values = get_prescribed_core_profile_values(
+  updated_values = _get_prescribed_core_profile_values(
       runtime_params=runtime_params_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t,
@@ -487,7 +493,9 @@ def provide_core_profiles_t_plus_dt(
       **updated_boundary_conditions['T_e'],
   )
   psi = dataclasses.replace(
-      core_profiles_t.psi, **updated_boundary_conditions['psi']
+      core_profiles_t.psi,
+      value=updated_values['psi'],
+      **updated_boundary_conditions['psi'],
   )
   n_e = dataclasses.replace(
       core_profiles_t.n_e,

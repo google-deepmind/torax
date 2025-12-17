@@ -400,9 +400,12 @@ be enabled through the transport model configuration.
     This rule effectively suppresses turbulent transport when :math:`E \times B`
     shear is strong. The application of this rule is controlled by the
     `rotation_mode` configuration parameter. Options for `rotation_mode` are:
+
   * ``off``: No rotation correction is applied.
+
   * ``half_radius``: The rotation correction is only applied to the outer
-    half of the radius (:math:`rhon > 0.5`).
+    half of the radius (:math:`\hat{\rho} > 0.5`).
+
   * ``full_radius``: The rotation correction is applied everywhere.
 
 **Tuning Rotation Effects:**
