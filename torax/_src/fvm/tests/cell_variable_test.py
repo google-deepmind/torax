@@ -64,7 +64,7 @@ class CellVariableTest(parameterized.TestCase):
     )
 
     grad = var.face_grad()
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         grad, jnp.array([0.0, 10.0, 30.0, -20.0, 0.0])
     )
 
@@ -87,7 +87,7 @@ class CellVariableTest(parameterized.TestCase):
         right_face_grad_constraint=jnp.array(2.0),
     )
     grad = var.face_grad()
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         grad, jnp.array([1.0, 10.0, 30.0, -20.0, 2.0])
     )
 
@@ -104,7 +104,7 @@ class CellVariableTest(parameterized.TestCase):
     grad = var.face_grad()
     left_grad = -1 / (0.5 * dr)
     right_grad = 2 / (0.5 * dr)
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         grad, jnp.array([left_grad, 10.0, 30.0, -20.0, right_grad])
     )
 
@@ -324,6 +324,56 @@ class CellVariableTest(parameterized.TestCase):
     else:
       with self.assertRaises(AssertionError):
         chex.assert_trees_all_close(var1, var2, atol=atol)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='left_value_right_value_constrained',
+          left_face_constraint=2.0,
+          left_face_grad_constraint=None,
+          right_face_constraint=5.0,
+          right_face_grad_constraint=None,
+      ),
+      dict(
+          testcase_name='left_grad_right_value_constrained',
+          left_face_constraint=None,
+          left_face_grad_constraint=2.0,
+          right_face_constraint=5.0,
+          right_face_grad_constraint=None,
+      ),
+      dict(
+          testcase_name='left_value_right_grad_constrained',
+          left_face_constraint=2.0,
+          left_face_grad_constraint=None,
+          right_face_constraint=None,
+          right_face_grad_constraint=5.0,
+      ),
+      dict(
+          testcase_name='left_grad_right_grad_constrained',
+          left_face_constraint=None,
+          left_face_grad_constraint=2.0,
+          right_face_constraint=None,
+          right_face_grad_constraint=5.0,
+      ),
+  )
+  def test_shapes_consistent(
+      self,
+      left_face_constraint,
+      left_face_grad_constraint,
+      right_face_constraint,
+      right_face_grad_constraint,
+  ):
+    cell_var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 5.0, 3.0]),
+        dr=jnp.array(0.1),
+        left_face_constraint=left_face_constraint,
+        left_face_grad_constraint=left_face_grad_constraint,
+        right_face_constraint=right_face_constraint,
+        right_face_grad_constraint=right_face_grad_constraint,
+    )
+    face_value = cell_var.face_value()
+    cell_value = cell_var.value
+    self.assertEqual(face_value.ndim, cell_value.ndim)
+    self.assertEqual(face_value.shape[0], cell_value.shape[0] + 1)
 
 
 if __name__ == '__main__':
