@@ -52,14 +52,138 @@ def sources_from_IMAS(
   sources_output = {}
   for source in ids.source:
     source_name = str(source.identifier.name)
-    # TODO(b/459479939): i/1897) Basic output structure to be replaced by
-    # parsing of the different sources building the expected structure for TORAX
-    # sources runtime_params.
-    sources_output[source_name] = _extract_source_profiles(
-        source,
-        t_initial=t_initial,
-        affected_profiles=_ALL_AFFECTED_PROFILES,
-    )
+
+    # External fuelling sources.
+    if "pellet" in source_name:
+      # Pellet: particle source.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["ne"]
+      )
+
+      sources_output["pellet"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["particle"]),
+          ),
+      }
+
+    elif "gas_puff" in source_name:
+      # Gas puff: particle source.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["ne"]
+      )
+
+      sources_output["gas_puff"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["particle"]),
+          ),
+      }
+    # External HCD sources.
+    elif "ec" in source_name:
+      # ECRH: electron heating and current drive.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_el", "current"]
+      )
+
+      sources_output["ecrh"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+              (profiles["time"], profiles["rhon"], profiles["current"]),
+          ),
+      }
+
+    elif "ic" in source_name:
+      # ICRH: ion heating and current drive.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_ion", "temp_el"]
+      )
+
+      sources_output["icrh"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["ion_heat"]),
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+    # Physics-based sources
+    elif "ohmic" in source_name:
+      # Ohmic: electron heating
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_el"]
+      )
+
+      sources_output["ohmic"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+
+    elif "fusion" in source_name:
+      # Fusion: ion and electron heating
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_ion", "temp_el"]
+      )
+
+      sources_output["fusion"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["ion_heat"]),
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+
+    elif "collisional_equipartition" in source_name:
+      # Collisional equipartition: ion and electron heating
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_ion", "temp_el"]
+      )
+      sources_output["ei_exchange"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["ion_heat"]),
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+    # Radiation sources
+    elif "cyclotron_radiation" in source_name:
+      # cyclotron radiation sink.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_el"]
+      )
+
+      sources_output["cyclotron_radiation"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+    elif "bremsstrahlung" in source_name:
+      # bremsstrahlung radiation sink.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_el"]
+      )
+
+      sources_output["bremsstrahlung"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
+    elif "impurity_radiation" in source_name:
+      # impurity radiation sink.
+      profiles = _extract_source_profiles(
+          source, t_initial, affected_profiles=["temp_el"]
+      )
+
+      sources_output["impurity_radiation"] = {
+          "mode": "PRESCRIBED",
+          "prescribed_values": (
+              (profiles["time"], profiles["rhon"], profiles["elec_heat"]),
+          ),
+      }
   return sources_output
 
 
@@ -68,7 +192,16 @@ def _extract_source_profiles(
     t_initial: float | None = None,
     affected_profiles: Sequence[str] = _ALL_AFFECTED_PROFILES,
 ) -> Mapping[str, Any]:
-  """Extract profiles for a given source from a core_sources IDS."""
+  """
+  Extract profiles for a given source from a core_sources IDS.
+
+  Args:
+      source: individual source from the core_sources IDS.
+      t_initial: Initial time used to map the profiles in the dicts
+      affected_profiles: List of profiles to extract.
+        Possible values: ['psi', 'ne', 'temp_ion', 'temp_el']. If None, extract
+        all profiles.
+  """
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       source, t_initial
   )
