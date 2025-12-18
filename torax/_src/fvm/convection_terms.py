@@ -150,13 +150,12 @@ def make_convection_terms(
       ) / var.dr
     elif dirichlet_mode == 'direct':
       vec_value = v_face[0] * var.left_face_constraint / var.dr
-      mat_value = -v_face[1] * right_alpha[0]
+      mat_value = -v_face[1] * right_alpha[0] / var.dr
     elif dirichlet_mode == 'semi-implicit':
       vec_value = (
           v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
       ) / var.dr
       mat_value = mat[0, 0]
-      print('left vec_value: ', vec_value)
     else:
       raise ValueError(dirichlet_mode)
   else:
