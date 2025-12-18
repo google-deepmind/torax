@@ -22,13 +22,13 @@ a specific key.
 import copy
 
 from torax._src.imas_tools.input import core_profiles
-from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import utils
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
-imas_profiles1 = loader.load_imas_data(
+imas_profiles1 = utils.load_imas_data(
     "core_profiles_ddv4_iterhybrid_rampup_conditions.nc", "core_profiles"
 )
-imas_profiles2 = loader.load_imas_data(
+imas_profiles2 = utils.load_imas_data(
     "core_profiles_15MA_DT_50_50_flat_top_slice.nc", "core_profiles"
 )
 imas_data1 = core_profiles.profile_conditions_from_IMAS(imas_profiles1)

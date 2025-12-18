@@ -65,3 +65,15 @@ def load_imas_data(
       ids = db.get(ids_name=ids_name, autoconvert=False)
       ids = imas.convert_ids(ids, _TORAX_IMAS_DD_VERSION)
   return ids
+
+
+def get_time_and_radial_arrays(
+    ids: ids_toplevel.IDSToplevel,
+    t_initial: float | None = None,
+) -> tuple[ids_toplevel.IDSStructure, list[list[float]], list[float]]:
+  profiles_1d = ids.profiles_1d
+  time_array = [profile.time for profile in profiles_1d]
+  if t_initial:
+    time_array = [t - time_array[0] + t_initial for t in time_array]
+  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  return profiles_1d, rhon_array, time_array
