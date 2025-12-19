@@ -265,7 +265,7 @@ def _get_provider_value_from_replace_value(
         )
       return leaf.update(replace_value)
     case _ if isinstance(leaf, (chex.Array, float)):
-      if not isinstance(replace_value, (chex.Array, float)):
+      if not isinstance(replace_value, (chex.Array, float, jax.core.Tracer)):
         raise ValueError(
             "To replace a scalar or `Array` pass a scalar or `Array`,"
             f" got {type(replace_value)} instead."
