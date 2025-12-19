@@ -457,8 +457,9 @@ def _from_fbt(
   B_pol_OMP = None
 
   if 'z_div' in LY:
-    # Ensure z_div is an array
-    z_div = LY['z_div']
+    # Ensure z_div is a 1D array, even if it contains a single element, e.g.
+    # if only a single direction was traced.
+    z_div = np.atleast_1d(LY['z_div'])
 
     # Find index corresponding to requested domain.
     if diverted:
