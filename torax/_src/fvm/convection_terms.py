@@ -25,6 +25,7 @@ from torax._src import math_utils
 from torax._src.fvm import cell_variable
 
 
+# TODO(b/469726859): Once non-uniform grid is supported add in testing.
 def make_convection_terms(
     v_face: jax.Array,
     d_face: jax.Array,
@@ -76,7 +77,14 @@ def make_convection_terms(
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
 
-  ratio = scale * var.dr * v_face / d_face
+  distance_to_left_ghost_cell_center = var.cell_widths[0]
+  distance_to_right_ghost_cell_center = var.cell_widths[-1]
+  cell_spacings = jnp.concat([
+      jnp.array([distance_to_left_ghost_cell_center]),
+      var.cell_spacings,
+      jnp.array([distance_to_right_ghost_cell_center]),
+  ])
+  ratio = scale * cell_spacings * v_face / d_face
 
   # left_peclet[i] gives the Péclet number of cell i's left face
   left_peclet = -ratio[:-1]
@@ -144,23 +152,23 @@ def make_convection_terms(
     if dirichlet_mode == 'ghost':
       mat_value = (
           v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
-      ) / var.dr
+      ) / cell_spacings[0]
       vec_value = (
           2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-      ) / var.dr
+      ) / cell_spacings[0]
     elif dirichlet_mode == 'direct':
-      vec_value = v_face[0] * var.left_face_constraint / var.dr
-      mat_value = -v_face[1] * right_alpha[0] / var.dr
+      vec_value = v_face[0] * var.left_face_constraint / cell_spacings[0]
+      mat_value = -v_face[1] * right_alpha[0] / cell_spacings[0]
     elif dirichlet_mode == 'semi-implicit':
       vec_value = (
           v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-      ) / var.dr
+      ) / cell_spacings[0]
       mat_value = mat[0, 0]
     else:
       raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at leftmost face
-    mat_value = (v_face[0] - right_alpha[0] * v_face[1]) / var.dr
+    mat_value = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
     vec_value = (
         -v_face[0] * (1.0 - left_alpha[0]) * var.left_face_grad_constraint
     )
@@ -180,27 +188,27 @@ def make_convection_terms(
       mat_value = (
           v_face[-2] * left_alpha[-1]
           + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
-      ) / var.dr
+      ) / cell_spacings[-1]
       vec_value = (
           -2.0
           * v_face[-1]
           * (1.0 - right_alpha[-1])
           * var.right_face_constraint
-      ) / var.dr
+      ) / cell_spacings[-1]
     elif dirichlet_mode == 'direct':
-      mat_value = v_face[-2] * left_alpha[-1] / var.dr
-      vec_value = -v_face[-1] * var.right_face_constraint / var.dr
+      mat_value = v_face[-2] * left_alpha[-1] / cell_spacings[-1]
+      vec_value = -v_face[-1] * var.right_face_constraint / cell_spacings[-1]
     elif dirichlet_mode == 'semi-implicit':
       mat_value = mat[-1, -1]
       vec_value = (
           -(v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_constraint)
-          / var.dr
+          / cell_spacings[-1]
       )
     else:
       raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at rightmost face
-    mat_value = -(v_face[-1] - v_face[-2] * left_alpha[-1]) / var.dr
+    mat_value = -(v_face[-1] - v_face[-2] * left_alpha[-1]) / cell_spacings[-1]
     vec_value = (
         -v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_grad_constraint
     )
