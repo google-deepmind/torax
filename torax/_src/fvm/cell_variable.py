@@ -79,6 +79,16 @@ class CellVariable:
     """Locations of the cell centers."""
     return (self.face_centers[1:] + self.face_centers[:-1]) / 2.0
 
+  @property
+  def cell_widths(self) -> jt.Float[chex.Array, 'cell']:
+    """Size of each cell."""
+    return jnp.diff(self.face_centers)
+
+  @property
+  def cell_spacings(self) -> jt.Float[chex.Array, 'cell-1']:
+    """Spacing between each cell."""
+    return jnp.diff(self.cell_centers)
+
   def __post_init__(self):
     """Check that the CellVariable is valid."""
     for field in dataclasses.fields(self):
