@@ -115,7 +115,7 @@ def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
     excluded_impurities: Collection[str] | None = None,
-    main_ions_symbols: Collection[str] = constants.HYDROGENIC_IONS,
+    main_ions_symbols: Collection[str] | None = None,
 ) -> Mapping[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
 
@@ -137,12 +137,12 @@ def plasma_composition_from_IMAS(
       initial time will be the time of the first time slice of the ids. Else all
       time slices will be shifted such that the first time slice has time =
       t_initial.
-    excluded_impurities: Optional arg to specify which impurities from the IDS 
-      should not be parsed. 
+    excluded_impurities: Optional arg to specify which impurities from the IDS
+      should not be parsed.
     main_ions_symbols: collection of ions to be used to define the main_ion
-      mixture. If value is not the default one, will check that the given ions
-      exist in the IDS and their density is filled. Default are hydrogenic ions
-      H, D, T.
+      mixture. If value is not None, will check that the given ions
+      exist in the IDS and their density is filled. If not explicitly provided,
+      will parse H, D, T as main ions.
 
   Returns:
     The updated fields read from the IDS that can be used to completely or
@@ -160,7 +160,14 @@ def plasma_composition_from_IMAS(
     ]
   else:
     parsed_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
-  _validate_ids_ions(parsed_ions, main_ions_symbols)
+  # main_ions_symbols not explicitly provided: no validation of main ions and
+  # value set to hydrogenic ions.
+  if main_ions_symbols is None:
+    main_ions_symbols = constants.HYDROGENIC_IONS
+    validate_main_ions = False
+  else:
+    validate_main_ions = True
+  _validate_ids_ions(parsed_ions, main_ions_symbols, validate_main_ions)
 
   Z_eff = (
       time_array,
@@ -227,6 +234,7 @@ def _get_time_and_radial_arrays(
 def _validate_ids_ions(
     parsed_ions: list[str],
     main_ion_symbols: Collection[str],
+    validate_main_ions: bool,
 ) -> None:
   """Check if all ions are recognized and expected_main_ions present in the IDS."""
   # Check if IDS ion symbol is valid.
@@ -239,8 +247,8 @@ def _validate_ids_ions(
               "typing or add the ion to the excluded_impurities."
           )
       )
-  # Check presence of main_ion_symbols in the IDS if not default value.
-  if main_ion_symbols is not constants.HYDROGENIC_IONS:
+  # Check presence of main_ion_symbols in the IDS if explicitly provided.
+  if validate_main_ions:
     for ion in main_ion_symbols:
       if ion not in constants.ION_PROPERTIES_DICT.keys():
         raise (
