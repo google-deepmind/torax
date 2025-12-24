@@ -26,6 +26,75 @@ from torax._src.torax_pydantic import torax_pydantic
 
 _TOLERANCE: Final[float] = 1e-6
 
+def _check_q_profile(config: Any) -> None:  # Replace Any with ToraxConfig when possible
+    """Checks if the q-profile is unphysically low and raises a warning."""
+    try:
+        if hasattr(config, "profile_conditions") and hasattr(config, "geometry"):
+            ip = getattr(config.profile_conditions.Ip, "value", None)
+            bt = getattr(config.geometry.geometry_configs.config, "B_0", None)
+            a = getattr(config.geometry.geometry_configs.config, "a_minor", None)
+            r0 = getattr(config.geometry.geometry_configs.config, "R_major", None)
+            if hasattr(config.geometry, "R_major") and hasattr(config.geometry, "a_minor"):
+                r0 = getattr(config.geometry, "R_major", r0)
+                a = getattr(config.geometry, "a_minor", a)
+        else:
+            gp = config.get("global_parameters", {}) if isinstance(config, dict) else {}
+            geo = config.get("geometry", {}) if isinstance(config, dict) else {}
+            ip = gp.get("plasma_current", {}).get("value") if isinstance(gp, dict) else None
+            bt = gp.get("toroidal_field", {}).get("value") if isinstance(gp, dict) else None
+            a = geo.get("a_minor", geo.get("minor_radius")) if isinstance(geo, dict) else None
+            r0 = geo.get("R_major", geo.get("major_radius")) if isinstance(geo, dict) else None
+
+        if ip is None or bt is None or a is None or r0 is None:
+            return
+
+        if hasattr(ip, "__len__") and getattr(ip, "shape", ()):
+            ip_val = float(ip[0])
+        else:
+            ip_val = float(ip)
+        bt_val = float(bt)
+        a_val = float(a)
+        r0_val = float(r0)
+
+        q_estimate = (bt_val * a_val**2) / (ip_val * r0_val)
+
+        if q_estimate < 1.0:
+            logging.warning(
+                f"Q-profile estimate is very low (q ~ {q_estimate:.2f}). "
+                "This might indicate an unphysical configuration with too high "
+                "plasma current and too low toroidal field."
+            )
+    except Exception:
+        return
+
+def _check_source_densities(config: Any) -> None:  # Replace Any with ToraxConfig when possible
+    sources = None
+    if isinstance(config, dict):
+        sources = config.get("sources")
+    else:
+        sources = getattr(config, "sources", None)
+    if sources is None:
+        return
+    try:
+        if isinstance(sources, dict):
+            power = sources.get("power_source_density", {}).get("value")
+        else:
+            power = getattr(getattr(sources, "power_source_density", None), "value", None)
+        if power is not None and float(power) > 1e8:
+            logging.warning("Power source density is very high (value=%s).", power)
+    except Exception:
+        pass
+    try:
+        if isinstance(sources, dict):
+            particle = sources.get("particle_source_density", {}).get("value")
+        else:
+            particle = getattr(getattr(sources, "particle_source_density", None), "value", None)
+        if particle is not None and float(particle) > 1e20:
+            logging.warning(
+                "Particle source density is very high (value=%s).", particle
+            )
+    except Exception:
+        pass
 
 def time_varying_array_defined_at_1(
     time_varying_array: torax_pydantic.TimeVaryingArray,
