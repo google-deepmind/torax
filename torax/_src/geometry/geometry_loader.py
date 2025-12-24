@@ -59,24 +59,29 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
 
 
 def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
-  """Loads data into a dictionary from an FBT-LY file or file path."""
+  """Loads data into a dictionary from an MEQ LY or L file or file path."""
 
   meq_data = scipy.io.loadmat(file_path)
 
-  if "LY" not in meq_data:
-    # L file or LY file not the output of MEQ meqlpack. Return as is.
-    return meq_data
-  else:
-    # LY bundle file. numpy structured array likely resulting from
-    # scipy.io.loadmat returning the output of MEQ meqlpack.m.
-    # Reformat to return a dict. Shapes of 2D arrays are (radius, time)
-    LY_bundle_dict = {}  # pylint: disable=invalid-name
-    LY_bundle_array = meq_data["LY"]  # pylint: disable=invalid-name
-    field_names = LY_bundle_array.dtype.names
-    for name in field_names:
-      LY_bundle_dict[name] = LY_bundle_array[name].item()
-
-    return LY_bundle_dict
+  # Check for nested structured arrays common in MEQ outputs from MEQ meqlpack.
+  # The actual data is often wrapped in a top-level "LY" or "L" key.
+  for key in ("LY", "L"):
+    if key in meq_data:
+      data_array = meq_data[key]
+      # Check if the array is a structured array (has field names).
+      if data_array.dtype.names is None:
+        raise ValueError(f"Provided MEQ {key} data not in expected format.")
+      extracted_dict = {}
+      for name in data_array.dtype.names:
+        # structured_array[name] returns an array; .item() retrieves the
+        # inner array object for that specific field.
+        item = data_array[name].item()
+        if not isinstance(item, np.ndarray):
+          raise ValueError(f"MEQ data field '{name}' is not a numpy array.")
+        extracted_dict[name] = item
+      return extracted_dict
+  # If no nested structured array is found, return the loaded mat dict as is.
+  return meq_data
 
 
 def _load_eqdsk_data(file_path: str, cocos: int) -> dict[str, np.ndarray]:
