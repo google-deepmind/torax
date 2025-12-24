@@ -27,7 +27,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import imas as imas_geometry_pydantic_model
 from torax._src.geometry import standard_geometry
-from torax._src.imas_tools.input import loader as imas_loader
+from torax._src.imas_tools.input import utils as imas_loader
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders

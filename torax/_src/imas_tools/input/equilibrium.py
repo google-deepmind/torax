@@ -19,7 +19,7 @@ from typing import Any
 from imas import ids_toplevel
 import numpy as np
 import scipy
-from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import utils
 
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
@@ -67,11 +67,11 @@ def geometry_from_IMAS(
   if equilibrium_object is not None:
     equilibrium = equilibrium_object
   elif imas_uri is not None:
-    equilibrium = loader.load_imas_data(
+    equilibrium = utils.load_imas_data(
         imas_uri, "equilibrium", geometry_directory
     )
   elif imas_filepath is not None:
-    equilibrium = loader.load_imas_data(
+    equilibrium = utils.load_imas_data(
         imas_filepath, "equilibrium", geometry_directory
     )
   else:

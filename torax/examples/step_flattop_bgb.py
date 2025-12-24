@@ -43,7 +43,7 @@ import imas
 import numpy as np
 from torax._src import path_utils
 from torax._src.imas_tools.input import core_profiles
-from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import utils
 
 # Load IDSs
 path = (
@@ -53,9 +53,9 @@ path = (
     / "imas"
     / "STEP_SPP_001_ECHD_ftop.nc"
 )
-equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
-core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
-core_sources_ids = loader.load_imas_data(str(path), "core_sources")
+equilibrium_ids = utils.load_imas_data(str(path), "equilibrium")
+core_profiles_ids = utils.load_imas_data(str(path), "core_profiles")
+core_sources_ids = utils.load_imas_data(str(path), "core_sources")
 
 # Replace Ip from profile conditions with Ip from equilibrium
 # TODO(b/323504363): can this be handled within the IMAS loader? e.g. if Ip

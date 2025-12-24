@@ -21,7 +21,7 @@ import numpy as np
 from torax._src import path_utils
 from torax._src.geometry import chease
 from torax._src.geometry import imas as imas_config
-from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import utils
 
 
 # pylint: disable=invalid-name
@@ -99,7 +99,7 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_input_with_equilibrium_object(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    equilibrium_in = loader.load_imas_data(filename, 'equilibrium')
+    equilibrium_in = utils.load_imas_data(filename, 'equilibrium')
     config = imas_config.IMASConfig(
         equilibrium_object=equilibrium_in, imas_filepath=None
     )

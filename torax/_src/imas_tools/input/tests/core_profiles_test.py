@@ -14,7 +14,7 @@
 from absl.testing import absltest
 import numpy as np
 from torax._src.imas_tools.input import core_profiles
-from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import utils
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
@@ -27,7 +27,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
   def test_offset_time(self):
     offset = 100.0
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
-    ids_in = loader.load_imas_data(path, "core_profiles")
+    ids_in = utils.load_imas_data(path, "core_profiles")
     core_profiles_conditions = core_profiles.profile_conditions_from_IMAS(
         ids_in,
         t_initial=offset,
@@ -52,7 +52,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Input core_profiles reading and config loading
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
     path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
-    ids_in = loader.load_imas_data(path, "core_profiles")
+    ids_in = utils.load_imas_data(path, "core_profiles")
     rhon_in = ids_in.profiles_1d[0].grid.rho_tor_norm
 
     # Modifying the input config profiles_conditions class
@@ -113,7 +113,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
-    core_profiles_in = loader.load_imas_data(path, "core_profiles")
+    core_profiles_in = utils.load_imas_data(path, "core_profiles")
     # Indivual ion info empty in the inital IDS so create fake ions data
     core_profiles_in.profiles_1d[0].ion.resize(3)
     core_profiles_in.profiles_1d[1].ion.resize(3)
