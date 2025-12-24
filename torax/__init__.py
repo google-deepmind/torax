@@ -19,6 +19,7 @@ import os
 
 # pylint: disable=g-importing-member
 import jax
+from torax import pedestal
 from torax import experimental
 from torax import transport
 from torax._src import version
@@ -49,6 +50,7 @@ __version__ = version.TORAX_VERSION
 __version_info__ = version.TORAX_VERSION_INFO
 
 __all__ = [
+    'pedestal',
     'experimental',
     'transport',
     'build_torax_config_from_file',
