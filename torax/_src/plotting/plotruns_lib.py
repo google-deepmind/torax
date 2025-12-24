@@ -94,11 +94,13 @@ class FigureProperties:
 
 
 # pylint: disable=invalid-name
-@dataclasses.dataclass
 class PlotData:
-  r"""Dataclass for all plot related data.
+  r"""Class for all plot related data with support for dynamic variable access.
 
-  Attributes:
+  This class provides access to both hardcoded variables (for backward compatibility)
+  and any variable available in the output file through dynamic attribute access.
+
+  Hardcoded Attributes (for backward compatibility):
     T_i: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
     T_e: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
     n_e: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
@@ -210,6 +212,13 @@ class PlotData:
     V_neo_total_e: Neoclassical electron particle convection
       [:math:`\mathrm{m^2/s}`] on the face grid. Contains all components
       including the Ware pinch.
+
+  Dynamic Attributes:
+    Any variable available in the output file can be accessed by name. The class
+    will automatically search through the profiles, scalars, numerics, and
+    top-level datasets to find the requested variable. This allows users to plot
+    any variable from the output file without needing to add it to the hardcoded
+    list of attributes.
   """
 
   T_i: np.ndarray
@@ -295,6 +304,112 @@ class PlotData:
   def V_total_e(self) -> np.ndarray:
     return self.V_turb_e + self.V_neo_total_e
 
+  def __init__(
+      self,
+      profiles_dataset: xr.Dataset | None = None,
+      scalars_dataset: xr.Dataset | None = None,
+      dataset: xr.Dataset | None = None,
+      numerics_dataset: xr.Dataset | None = None,
+      **kwargs,
+  ):
+    """Initialize PlotData with datasets and hardcoded attributes.
+
+    Args:
+      profiles_dataset: Dataset containing profile variables.
+      scalars_dataset: Dataset containing scalar variables.
+      dataset: Top-level dataset containing coordinates.
+      numerics_dataset: Dataset containing numeric variables (optional).
+      **kwargs: Hardcoded attribute values for backward compatibility.
+    """
+    self._profiles_dataset = profiles_dataset
+    self._scalars_dataset = scalars_dataset
+    self._dataset = dataset
+    self._numerics_dataset = numerics_dataset
+    # Store hardcoded attributes
+    for key, value in kwargs.items():
+      setattr(self, key, value)
+
+  def __getattr__(self, name: str) -> np.ndarray:
+    """Dynamically access variables from the output datasets.
+
+    This method allows access to any variable in the output file, not just
+    the hardcoded ones. It searches through profiles, scalars, numerics,
+    and top-level datasets to find the requested variable.
+
+    Args:
+      name: Name of the variable to access.
+
+    Returns:
+      numpy array containing the variable data.
+
+    Raises:
+      AttributeError: If the variable is not found in any dataset.
+    """
+    # Search in profiles dataset
+    if self._profiles_dataset is not None and name in self._profiles_dataset:
+      return self._profiles_dataset[name].to_numpy()
+
+    # Search in scalars dataset
+    if self._scalars_dataset is not None and name in self._scalars_dataset:
+      return self._scalars_dataset[name].to_numpy()
+
+    # Search in top-level dataset (for coordinates and other top-level vars)
+    if self._dataset is not None and name in self._dataset:
+      return self._dataset[name].to_numpy()
+
+    # Check numerics dataset if it exists
+    if self._numerics_dataset is not None and name in self._numerics_dataset:
+      return self._numerics_dataset[name].to_numpy()
+
+    raise AttributeError(
+        f"'{type(self).__name__}' object has no attribute '{name}'. "
+        f"Variable '{name}' not found in output file datasets."
+    )
+
+  def __dataclass_fields__(self):
+    """Return dataclass fields for backward compatibility."""
+    # Return a dict-like object that mimics dataclass fields
+    # This is used by code that checks for dataclass fields
+    class FieldsDict:
+      def __init__(self, plotdata):
+        self._plotdata = plotdata
+
+      def keys(self):
+        # Return all available attributes (hardcoded + dynamic)
+        hardcoded = {
+            'T_i', 'T_e', 'n_e', 'n_i', 'n_impurity', 'Z_impurity', 'psi',
+            'v_loop', 'j_total', 'j_ohmic', 'j_bootstrap', 'j_ecrh',
+            'j_generic_current', 'j_external', 'q', 'magnetic_shear',
+            'chi_turb_i', 'chi_neo_i', 'chi_turb_e', 'chi_neo_e',
+            'D_turb_e', 'D_neo_e', 'V_turb_e', 'V_neo_e', 'V_neo_ware_e',
+            'p_icrh_i', 'p_icrh_e', 'p_generic_heat_i', 'p_generic_heat_e',
+            'p_ecrh_e', 'p_alpha_i', 'p_alpha_e', 'p_ohmic_e',
+            'p_bremsstrahlung_e', 'p_cyclotron_radiation_e', 'ei_exchange',
+            'p_impurity_radiation_e', 'Q_fusion', 's_gas_puff',
+            's_generic_particle', 's_pellet', 'Ip_profile', 'I_bootstrap',
+            'I_aux_generic', 'I_ecrh', 'P_auxiliary', 'P_ohmic_e',
+            'P_alpha_total', 'P_sink', 'P_bremsstrahlung_e', 'P_cyclotron_e',
+            'P_radiation_e', 't', 'rho_norm', 'rho_cell_norm', 'rho_face_norm',
+            'T_e_volume_avg', 'T_i_volume_avg', 'n_e_volume_avg',
+            'n_i_volume_avg', 'W_thermal_total', 'q95'
+        }
+        # Add dynamic variables from datasets
+        dynamic = set()
+        if self._plotdata._profiles_dataset is not None:
+          dynamic.update(self._plotdata._profiles_dataset.data_vars.keys())
+        if self._plotdata._scalars_dataset is not None:
+          dynamic.update(self._plotdata._scalars_dataset.data_vars.keys())
+        if self._plotdata._dataset is not None:
+          dynamic.update(self._plotdata._dataset.data_vars.keys())
+        if self._plotdata._numerics_dataset is not None:
+          dynamic.update(self._plotdata._numerics_dataset.data_vars.keys())
+        return hardcoded.union(dynamic)
+
+      def __contains__(self, key):
+        return key in self.keys()
+
+    return FieldsDict(self)
+
 
 def load_data(filename: str) -> PlotData:
   """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
@@ -368,8 +483,17 @@ def load_data(filename: str) -> PlotData:
   profiles_dataset = data_tree.children[output.PROFILES].dataset
   scalars_dataset = data_tree.children[output.SCALARS].dataset
   dataset = data_tree.dataset
+  numerics_dataset = (
+      data_tree.children[output.NUMERICS].dataset
+      if output.NUMERICS in data_tree.children
+      else None
+  )
 
   return PlotData(
+      profiles_dataset=profiles_dataset,
+      scalars_dataset=scalars_dataset,
+      dataset=dataset,
+      numerics_dataset=numerics_dataset,
       T_i=profiles_dataset[output.T_I].to_numpy(),
       T_e=profiles_dataset[output.T_E].to_numpy(),
       n_e=profiles_dataset[output.N_E].to_numpy(),
@@ -468,7 +592,17 @@ def plot_run(
   plotdata2 = load_data(outfile2) if outfile2 else None
 
   # Attribute check. Sufficient to check one PlotData object.
-  plotdata_fields = set(plotdata1.__dataclass_fields__)
+  # Get available attributes (hardcoded + dynamic)
+  if hasattr(plotdata1, '__dataclass_fields__'):
+    # Handle both method and dict-like access for backward compatibility
+    fields = plotdata1.__dataclass_fields__()
+    if callable(fields):
+      plotdata_fields = set(fields.keys())
+    else:
+      plotdata_fields = set(fields.keys() if hasattr(fields, 'keys') else fields)
+  else:
+    plotdata_fields = set()
+
   plotdata_properties = {
       name
       for name, _ in inspect.getmembers(
@@ -476,12 +610,21 @@ def plot_run(
       )
   }
   plotdata_attrs = plotdata_fields.union(plotdata_properties)
+
+  # Validate attributes - try dynamic access for any not in hardcoded list
   for cfg in plot_config.axes:
     for attr in cfg.attrs:
       if attr not in plotdata_attrs:
-        raise ValueError(
-            f"Attribute '{attr}' in plot_config does not exist in PlotData"
-        )
+        # Try to access the attribute dynamically
+        try:
+          _ = getattr(plotdata1, attr)
+          # If successful, add it to the set for future checks
+          plotdata_attrs.add(attr)
+        except AttributeError:
+          raise ValueError(
+              f"Attribute '{attr}' in plot_config does not exist in PlotData "
+              f"and was not found in the output file datasets."
+          )
 
   fig, axes, slider_ax = create_figure(plot_config)
 
