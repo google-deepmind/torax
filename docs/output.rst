@@ -112,8 +112,25 @@ The ``numerics`` dataset contains the following data variables.
   indicating whether the state at that timestep corresponds to a
   post-sawtooth-crash state.
 
+``sim_status`` ()
+  String indicating if the simulation completed successfully:
+
+  * "completed" if successful.
+
+  * "error" if in an error state.
+
 ``sim_error`` ()
-  Indicator if the simulation completed successfully, 0 if successful, 1 if not.
+  Integer providing further information on the simulation error state:
+
+  * 0 if no error.
+
+  * 1 if a NaN is detected in the state or post-processed outputs.
+
+  * 2 if quasineutrality is violated.
+
+  * 3 if negative temperatures or densities are detected.
+
+  * 4 if the minimum timestep, as set by ``numerics.min_dt`` is reached.
 
 profiles
 --------

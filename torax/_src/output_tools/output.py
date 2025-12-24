@@ -109,7 +109,7 @@ CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
 
 # Numerics.
-# Simulation error state.
+SIM_STATUS = "sim_status"
 SIM_ERROR = "sim_error"
 OUTER_SOLVER_ITERATIONS = "outer_solver_iterations"
 INNER_SOLVER_ITERATIONS = "inner_solver_iterations"
@@ -397,7 +397,16 @@ class StateHistory:
         flattened_all_core_data[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
+
+    # Determine simulation status based on error state
+    sim_status = (
+        state.SimStatus.COMPLETED
+        if self.sim_error is state.SimError.NO_ERROR
+        else state.SimStatus.ERROR
+    )
+
     numerics_dict = {
+        SIM_STATUS: sim_status.value,
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
             self._stacked_solver_numeric_outputs.sawtooth_crash,
