@@ -13,12 +13,39 @@
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 from collections.abc import Collection, Mapping
-from typing import Any
+import logging
+from typing import Any, Mapping, Final, Literal
 
-from imas import ids_toplevel
+from imas import ids_toplevel, ids_structure, ids_struct_array
 import numpy as np
 from torax._src import constants
 
+_PROFILE_CONDITIONS_VALIDATION_FIELDS: Final[dict[str, object]]= {
+    "global_quantities": ["ip", "v_loop"],
+    "profiles_1d": {"required":[
+        "grid.rho_tor_norm",],
+        "optional": [
+        "time", # Not necessary when building from a single time slice.
+        "grid.psi",
+        "electrons.temperature",
+        "t_i_average",
+        "electrons.density",
+    ],},
+}
+
+_PLASMA_COMPOSITION_VALIDATION_FIELDS: Final[dict[str, object]]= {
+    "global_quantities": [],
+    "profiles_1d": {"required":[
+        "grid.rho_tor_norm",
+        "electrons.density",
+        "ion.density",
+        ],
+        "optional": [
+        "time", # Not necessary when building from a single time slice.
+        "zeff",
+    ],},
+}
+_VALIDATED_FUNCTIONS = Literal["profile_conditions", "plasma_composition"]
 
 # pylint: disable=invalid-name
 def profile_conditions_from_IMAS(
@@ -38,6 +65,8 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
+  # Set to false as the IDS as no global_quantities.v_loop
+  _validate_core_profiles_ids(ids, strict=False, target="profiles_conditions")
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
@@ -152,6 +181,7 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
       ids, t_initial
   )
+  _validate_core_profiles_ids(ids, strict=False, target="plasma_composition")
   # Check that the expected ions are present in the IDS
   ids_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
   if expected_impurities:
@@ -237,3 +267,66 @@ def _check_expected_ions_presence(
               " properly filled"
           )
       )
+
+
+def _validate_core_profiles_ids(
+    ids: ids_toplevel.IDSToplevel,
+    strict: bool, 
+    target: str,
+):
+  """Checks that all expected attributes exist in the IDS."""
+  profiles_1d = ids.profiles_1d
+  global_quantities = ids.global_quantities
+  logged_fields = set()
+  if target == "profiles_conditions":
+    validation_fields = _PROFILE_CONDITIONS_VALIDATION_FIELDS
+  if target == "plasma_composition":
+    validation_fields = _PLASMA_COMPOSITION_VALIDATION_FIELDS
+  # Validate global_quantities
+  for field in validation_fields["global_quantities"]:
+    leaf = getattr(global_quantities,field)
+    if not leaf.has_value:
+      if strict: 
+        raise ValueError(f"The IDS is missing global_quantities.{field} required to build"
+            " {target}. \n Please Check that your IDS is properly"
+            " filled.")
+      else:
+        logging.warning(
+            f"The IDS is missing global_quantities.{field} which may cause undesired behavior when building {target}. \n Please Check that your IDS is properly"
+            " filled."
+        )
+  # Validate profiles_1d 
+  for profile in profiles_1d:
+    for field in validation_fields["profiles_1d"]["required"]:
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict=True, target=target)
+    for field in validation_fields["profiles_1d"]["optional"]:
+      _check_profiles_1d_attribute(field, profile, logged_fields, strict, target=target)
+
+def _check_profiles_1d_attribute(field: str, profile: ids_structure.IDSStructure, logged_fields:set, strict: bool, target: str):
+  leaves = [profile]
+  # Explore the IDS tree to recover the attribute to validate.
+  for node in field.split("."):
+    next_leaves = []
+    for leaf in leaves:
+      # Case when the attribute exists on the current object.
+      if hasattr(leaf, node):
+        next_leaves.append(getattr(leaf, node))
+      # AoS case: the current object is an IDS array of structure. e.g. profiles_1d[i].ion
+      elif isinstance(leaf, ids_struct_array.IDSStructArray):
+        for sub_leaf in leaf:
+          next_leaves.append(getattr(sub_leaf, node))
+    leaves = next_leaves
+  # Validate that all retrieved attributes have a value.  
+  for leaf in leaves:
+    if not leaf.has_value:
+      if field not in logged_fields:
+        if strict:
+          raise ValueError(f"The IDS is missing profiles_1d.{field} to build"
+          " {target}. \n Please Check that your IDS is properly"
+          " filled.")
+        else:
+          logging.warning(
+              f"The IDS is missing profiles_1d.{field} which may cause undesired behavior in building {target}. \n Please Check that your IDS is properly"
+              " filled."
+          )
+          logged_fields.add(field)
