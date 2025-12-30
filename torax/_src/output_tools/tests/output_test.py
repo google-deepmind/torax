@@ -510,28 +510,26 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that extended Lengyel edge outputs are saved correctly."""
 
     # Create dummy ExtendedLengyelOutputs
-    extended_lengyel_outputs = (
-        extended_lengyel_standalone.ExtendedLengyelOutputs(
-            q_parallel=jnp.array(1.0),
-            q_perpendicular_target=jnp.array(2.0),
-            T_e_separatrix=jnp.array(3.0),
-            T_e_target=jnp.array(4.0),
-            pressure_neutral_divertor=jnp.array(5.0),
-            alpha_t=jnp.array(0.5),
-            Z_eff_separatrix=jnp.array(1.5),
-            seed_impurity_concentrations={'Ar': jnp.array(0.01)},
-            solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-                physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-                numerics_outcome=jax_root_finding.RootMetadata(
-                    iterations=jnp.array(10),
-                    # Use a vector residual to test the reduction logic
-                    residual=jnp.array([1e-6, 3e-6]),
-                    error=jnp.array(0),
-                    last_tau=jnp.array(1.0),
-                ),
+    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        q_parallel=jnp.array(1.0),
+        q_perpendicular_target=jnp.array(2.0),
+        T_e_separatrix=jnp.array(3.0),
+        T_e_target=jnp.array(4.0),
+        pressure_neutral_divertor=jnp.array(5.0),
+        alpha_t=jnp.array(0.5),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations={'Ar': jnp.array(0.01)},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=jax_root_finding.RootMetadata(
+                iterations=jnp.array(10),
+                # Use a vector residual to test the reduction logic
+                residual=jnp.array([1e-6, 3e-6]),
+                error=jnp.array(0),
+                last_tau=jnp.array(1.0),
             ),
-            calculated_enrichment={'Ar': jnp.array(1.0)},
-        )
+        ),
+        calculated_enrichment={'Ar': jnp.array(1.0)},
     )
 
     sim_state_with_edge = dataclasses.replace(
@@ -580,12 +578,39 @@ class StateHistoryTest(parameterized.TestCase):
         edge_dataset['solver_iterations'].values, np.array([10])
     )
     # Check that solver_residual is reduced to a scalar per time step
-    self.assertEqual(
-        edge_dataset['solver_residual'].dims, (output.TIME,)
-    )
+    self.assertEqual(edge_dataset['solver_residual'].dims, (output.TIME,))
     # Mean of abs([1e-6, 3e-6]) is 2e-6
     np.testing.assert_allclose(
         edge_dataset['solver_residual'].values, np.array([2e-6])
+    )
+
+  def test_status_attribute_completed(self):
+    """Test that status attribute is set to 'completed' for successful runs."""
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertIn('sim_status', output_xr.numerics)
+    self.assertEqual(
+        output_xr.numerics.sim_status, state.SimStatus.COMPLETED.value
+    )
+    self.assertIn('sim_error', output_xr.numerics)
+    self.assertEqual(
+        output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
+    )
+
+  def test_status_attribute_error(self):
+    """Test that status attribute is set to 'error' when sim has errors."""
+    # Create a history with an error state
+    history_with_error = output.StateHistory(
+        state_history=[self.sim_state],
+        post_processed_outputs_history=(self._output_state,),
+        sim_error=state.SimError.NAN_DETECTED,
+        torax_config=self.torax_config,
+    )
+    output_xr = history_with_error.simulation_output_to_xr()
+    self.assertIn('sim_status', output_xr.numerics)
+    self.assertEqual(output_xr.numerics.sim_status, state.SimStatus.ERROR.value)
+    self.assertIn('sim_error', output_xr.numerics)
+    self.assertEqual(
+        output_xr.numerics.sim_error, state.SimError.NAN_DETECTED.value
     )
 
 

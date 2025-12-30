@@ -28,6 +28,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
+from torax._src.physics import psi_calculations
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -56,10 +57,21 @@ class Ions:
 def get_updated_ion_temperature(
     profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
+    only_boundary_condition: bool = False,
+    original_T_i_value: cell_variable.CellVariable | None = None,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed ion temperature profiles."""
+  if only_boundary_condition:
+    if original_T_i_value is None:
+      raise ValueError(
+          'original_T_i_value must be provided when only updating the boundary'
+          ' condition.'
+      )
+    value = original_T_i_value.value
+  else:
+    value = profile_conditions_params.T_i
   T_i = cell_variable.CellVariable(
-      value=profile_conditions_params.T_i,
+      value=value,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_i_right_bc,
@@ -71,10 +83,22 @@ def get_updated_ion_temperature(
 def get_updated_electron_temperature(
     profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
+    only_boundary_condition: bool = False,
+    original_T_e_value: cell_variable.CellVariable | None = None,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron temperature profiles."""
+  if only_boundary_condition:
+    if original_T_e_value is None:
+      raise ValueError(
+          'original_T_e_value must be provided when only updating the boundary'
+          ' condition.'
+      )
+    value = original_T_e_value.value
+  else:
+    value = profile_conditions_params.T_e
+
   T_e = cell_variable.CellVariable(
-      value=profile_conditions_params.T_e,
+      value=value,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_e_right_bc,
@@ -86,9 +110,10 @@ def get_updated_electron_temperature(
 def get_updated_electron_density(
     profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
+    only_boundary_condition: bool = False,
+    original_n_e_value: cell_variable.CellVariable | None = None,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""
-
   # Greenwald density in m^-3.
   # Ip in MA. a_minor in m.
   nGW = (
@@ -97,16 +122,18 @@ def get_updated_electron_density(
       / (jnp.pi * geo.a_minor**2)
       * 1e20
   )
-  n_e_value = jnp.where(
-      profile_conditions_params.n_e_nbar_is_fGW,
-      profile_conditions_params.n_e * nGW,
-      profile_conditions_params.n_e,
-  )
+
   # Calculate n_e_right_bc.
   n_e_right_bc = jnp.where(
       profile_conditions_params.n_e_right_bc_is_fGW,
       profile_conditions_params.n_e_right_bc * nGW,
       profile_conditions_params.n_e_right_bc,
+  )
+
+  n_e_value = jnp.where(
+      profile_conditions_params.n_e_nbar_is_fGW,
+      profile_conditions_params.n_e * nGW,
+      profile_conditions_params.n_e,
   )
 
   if profile_conditions_params.normalize_n_e_to_nbar:
@@ -152,13 +179,64 @@ def get_updated_electron_density(
 
   n_e_value = C * n_e_value
 
+  if only_boundary_condition:
+    if original_n_e_value is None:
+      raise ValueError(
+          'original_n_e_value must be provided when only updating the boundary'
+          ' condition.'
+      )
+    value = original_n_e_value.value
+  else:
+    value = n_e_value
+
   n_e = cell_variable.CellVariable(
-      value=n_e_value,
+      value=value,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_e_right_bc,
   )
   return n_e
+
+
+def get_updated_psi(
+    profile_conditions_params: profile_conditions.RuntimeParams,
+    geo: geometry.Geometry,
+    dt: array_typing.FloatScalar,
+    theta: array_typing.FloatScalar,
+    only_boundary_condition: bool,
+    original_psi: cell_variable.CellVariable,
+) -> cell_variable.CellVariable:
+  """Gets psi boundary conditions and maybe the prescribed profile."""
+  if only_boundary_condition or profile_conditions_params.psi is None:
+    value = original_psi.value
+  else:
+    value = profile_conditions_params.psi
+
+  right_face_grad_constraint = (
+      psi_calculations.calculate_psi_grad_constraint_from_Ip(  # pylint: disable=g-long-ternary
+          Ip=profile_conditions_params.Ip,
+          geo=geo,
+      )
+      if not profile_conditions_params.use_v_loop_lcfs_boundary_condition
+      else None
+  )
+  right_face_constraint = (
+      psi_calculations.calculate_psi_value_constraint_from_v_loop(  # pylint: disable=g-long-ternary
+          dt=dt,
+          v_loop_lcfs_t=profile_conditions_params.v_loop_lcfs,
+          v_loop_lcfs_t_plus_dt=profile_conditions_params.v_loop_lcfs,
+          psi_lcfs_t=original_psi.right_face_constraint,
+          theta=theta,
+      )
+      if profile_conditions_params.use_v_loop_lcfs_boundary_condition
+      else None
+  )
+  return cell_variable.CellVariable(
+      value=value,
+      dr=geo.drho_norm,
+      right_face_grad_constraint=right_face_grad_constraint,
+      right_face_constraint=right_face_constraint,
+  )
 
 
 def get_updated_toroidal_velocity(
@@ -573,7 +651,7 @@ def get_updated_ions(
       )
     case _:
       # Not expected to be reached but needed to avoid linter errors.
-      raise ValueError("Unknown impurity mode.")
+      raise ValueError('Unknown impurity mode.')
 
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,

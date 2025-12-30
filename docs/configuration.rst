@@ -264,40 +264,47 @@ time-dependence of temperature, density, and current.
 ``T_i_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary
   condition will instead be taken from ``T_i`` at :math:`\hat{\rho}=1`.
+  In units of :math:`keV`.
 
 ``T_e_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary
   condition will instead be taken from ``T_e`` at :math:`\hat{\rho}=1`.
+  In units of :math:`keV`.
 
 ``T_i`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for ion temperature at different times in units
-  of keV.
+  If ``numerics.evolve_ion_heat`` is True, then the initial value of ion
+  temperature is taken from here. If ``numerics.evolve_ion_heat`` is False,
+  then the prescribed ion temperature for all times is taken from here. In units
+  of :math:`keV`.
 
 ``T_e`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for electron temperature at different times in
-  units of keV.
+  If ``numerics.evolve_electron_heat`` is True, then the initial value of
+  electron temperature is taken from here. If ``numerics.evolve_electron_heat``
+  is False, then the prescribed electron temperature for all times is taken from
+  here. In units of :math:`keV`.
 
 ``psi`` (**time-varying-array** | None [default = None])
-  Initial values for poloidal flux. If provided, the initial ``psi`` will be
-  taken from here. Otherwise, the initial ``psi`` will be calculated from either
-  the geometry or the "current_profile_nu formula" dependent on the
-  ``initial_psi_from_j`` field.
+  If provided, the initial ``psi`` will be taken from here. Otherwise, the
+  initial ``psi`` will be calculated from either the geometry or the
+  "current_profile_nu formula" dependent on the ``initial_psi_from_j`` field.
+  If ``numerics.evolve_current`` is False and ``psi`` is provided here, then
+  the prescribed ``psi`` for all times is taken from here.
 
 ``psidot`` (**time-varying-array** | None [default = None])
   Prescribed values for the time derivative of poloidal flux (loop voltage).
-  If provided, and if ``evolve_current`` is False, this prescribed ``psidot``
-  will be used instead of the internally calculated one. The motivation for
-  this feature is that sometimes the initial ``psi`` condition leads to
-  unphysical transient ``psidot`` and thus transiently unphysical
+  If provided, and if ``numerics.evolve_current`` is False, this prescribed
+  ``psidot`` will be used instead of the internally calculated one. The
+  motivation for this feature is that sometimes the initial ``psi`` condition
+  leads to unphysical transient ``psidot`` and thus transiently unphysical
   (e.g. too high) ohmic power. For such cases, it is useful to override a static
   non-physical ``psidot`` with a more physical value, e.g., one obtained from
   another similar simulation with current evolution enabled.
 
 ``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
-  Prescribed or evolving values for electron density at different times.
-
-  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then
-  time-dependent ``n_e`` is ignored, and only the initial value is used.
+  If ``numerics.evolve_density`` is True, then the initial value of electron
+  density is taken from here. If ``numerics.evolve_density`` is False, then the
+  prescribed electron density for all times is taken from here. In units of
+  :math:`m^{-3}`.
 
 ``normalize_n_e_to_nbar`` (bool = False)
   Whether to renormalize the density profile to have the desired line averaged
@@ -1286,9 +1293,12 @@ It is recommended to not set ``qlknn_model_name``,  or
 
 ``rotation_mode`` (str [default = 'off'])
   Defines how the rotation correction is applied. Options are:
+
   * ``off``: No rotation correction is applied.
+
   * ``half_radius``: The rotation correction is only applied to the outer
-    half of the radius (:math:`rhon > 0.5`).
+    half of the radius (:math:`\hat{\rho} > 0.5`).
+
   * ``full_radius``: The rotation correction is applied everywhere.
 
 tglfnn-ukaea

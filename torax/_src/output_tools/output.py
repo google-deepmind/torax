@@ -29,6 +29,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.edge import extended_lengyel_standalone
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
@@ -108,7 +109,7 @@ CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
 
 # Numerics.
-# Simulation error state.
+SIM_STATUS = "sim_status"
 SIM_ERROR = "sim_error"
 OUTER_SOLVER_ITERATIONS = "outer_solver_iterations"
 INNER_SOLVER_ITERATIONS = "inner_solver_iterations"
@@ -396,7 +397,16 @@ class StateHistory:
         flattened_all_core_data[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
+
+    # Determine simulation status based on error state
+    sim_status = (
+        state.SimStatus.COMPLETED
+        if self.sim_error is state.SimError.NO_ERROR
+        else state.SimStatus.ERROR
+    )
+
     numerics_dict = {
+        SIM_STATUS: sim_status.value,
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
             self._stacked_solver_numeric_outputs.sawtooth_crash,
@@ -566,9 +576,15 @@ class StateHistory:
         )
         continue
 
-      if hasattr(attr_value, "cell_plus_boundaries"):
+      if isinstance(attr_value, cell_variable.CellVariable):
         # Handles stacked CellVariable-like objects.
-        data_to_save = attr_value.cell_plus_boundaries()
+        data_to_save = []
+        for core_profile in self.core_profiles:
+          cell_var: cell_variable.CellVariable = getattr(
+              core_profile, attr_name
+          )
+          data_to_save.append(cell_var.cell_plus_boundaries())
+        data_to_save = np.stack(data_to_save)
       else:
         face_attr_name = f"{attr_name}_face"
         if face_attr_name in core_profile_field_names:

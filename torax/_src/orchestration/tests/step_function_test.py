@@ -302,6 +302,7 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_fixed_time_step_correct_time(self):
     config_dict = default_configs.get_default_config_dict()
+    control_dt = 0.01
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -311,11 +312,14 @@ class StepFunctionTest(parameterized.TestCase):
 
     t_initial = sim_state.t
     output_state, _ = step_fn.fixed_time_step(
-        jnp.array(0.01),
+        jnp.array(control_dt),
         sim_state,
         post_processed_outputs,
     )
-    np.testing.assert_allclose(output_state.t, t_initial + 0.01, atol=1e-7)
+    np.testing.assert_allclose(
+        output_state.t, t_initial + control_dt, atol=1e-7
+    )
+    np.testing.assert_allclose(output_state.dt, control_dt, atol=1e-7)
 
   def test_fixed_time_step_t_less_than_min_dt(self):
     config_dict = default_configs.get_default_config_dict()

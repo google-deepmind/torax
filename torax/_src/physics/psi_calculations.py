@@ -353,6 +353,54 @@ def calculate_psi_grad_constraint_from_Ip(
   )
 
 
+def calculate_psi_value_constraint_from_v_loop(
+    dt: array_typing.FloatScalar,
+    theta: array_typing.FloatScalar,
+    v_loop_lcfs_t: array_typing.FloatScalar,
+    v_loop_lcfs_t_plus_dt: array_typing.FloatScalar,
+    psi_lcfs_t: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
+  theta_weighted_v_loop_lcfs = (
+      1 - theta
+  ) * v_loop_lcfs_t + theta * v_loop_lcfs_t_plus_dt
+  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
+
+
+# TODO(b/406173731): Find robust solution for underdetermination and solve this
+# for general theta_implicit values.
+def calculate_v_loop_lcfs_from_psi(
+    psi_t: cell_variable.CellVariable,
+    psi_t_plus_dt: cell_variable.CellVariable,
+    dt: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates the v_loop_lcfs for the next timestep.
+
+  For the Ip boundary condition case, the v_loop_lcfs formula is in principle
+  calculated from:
+
+  (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
+    v_loop_lcfs_t_plus_dt*theta_implicit - v_loop_lcfs_t*(1-theta_implicit)
+
+  However this set of equations is underdetermined. We thus restrict this
+  calculation assuming a fully implicit system, i.e. theta_implicit=1, which is
+  the TORAX default. Be cautious when interpreting the results of this function
+  when theta_implicit != 1 (non-standard usage).
+
+  Args:
+    psi_t: The psi CellVariable at the beginning of the timestep interval.
+    psi_t_plus_dt: The updated psi CellVariable for the next timestep.
+    dt: The size of the last timestep.
+
+  Returns:
+    The updated v_loop_lcfs for the next timestep.
+  """
+  psi_lcfs_t = psi_t.face_value()[-1]
+  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
+  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
+  return v_loop_lcfs_t_plus_dt
+
+
 def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,

@@ -193,7 +193,17 @@ class RunSimulationMainTest(parameterized.TestCase):
             ov = result[key].to_numpy()
             gv = ground_truth[key].to_numpy()
 
-            if not np.allclose(
+            is_string = ov.dtype.kind in ("U", "S", "O") or gv.dtype.kind in (
+                "U",
+                "S",
+                "O",
+            )
+            if is_string:
+              if not np.array_equal(ov, gv):
+                raise AssertionError(
+                    f"{key} does not match. Output: {ov}. Ground truth: {gv}."
+                )
+            elif not np.allclose(
                 ov,
                 gv,
                 # GitHub CI behaves very differently from Google internal for

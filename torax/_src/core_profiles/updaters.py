@@ -30,7 +30,6 @@ Includes:
 import dataclasses
 
 import jax
-from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -39,103 +38,12 @@ from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 
-_trapz = jax.scipy.integrate.trapezoid
-
 # pylint: disable=invalid-name
-
-
-def _calculate_psi_value_constraint_from_v_loop(
-    dt: array_typing.FloatScalar,
-    theta: array_typing.FloatScalar,
-    v_loop_lcfs_t: array_typing.FloatScalar,
-    v_loop_lcfs_t_plus_dt: array_typing.FloatScalar,
-    psi_lcfs_t: array_typing.FloatScalar,
-) -> jax.Array:
-  """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
-  theta_weighted_v_loop_lcfs = (
-      1 - theta
-  ) * v_loop_lcfs_t + theta * v_loop_lcfs_t_plus_dt
-  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
-
-
-@jax.jit
-def get_prescribed_core_profile_values(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> dict[str, array_typing.FloatVector]:
-  """Updates core profiles which are not being evolved by PDE.
-
-  Uses same functions as for profile initialization.
-
-  Args:
-    runtime_params: Runtime parameters at t=t_initial.
-    geo: Torus geometry.
-    core_profiles: Core profiles dataclass to be updated
-
-  Returns:
-    Updated core profiles values on the cell grid.
-  """
-  # If profiles are not evolved, they can still potential be time-evolving,
-  # depending on the runtime params. If so, they are updated below.
-  if not runtime_params.numerics.evolve_ion_heat:
-    T_i = getters.get_updated_ion_temperature(
-        runtime_params.profile_conditions, geo
-    ).value
-  else:
-    T_i = core_profiles.T_i.value
-  if not runtime_params.numerics.evolve_electron_heat:
-    T_e_cell_variable = getters.get_updated_electron_temperature(
-        runtime_params.profile_conditions, geo
-    )
-    T_e = T_e_cell_variable.value
-  else:
-    T_e_cell_variable = core_profiles.T_e
-    T_e = T_e_cell_variable.value
-  if not runtime_params.numerics.evolve_density:
-    n_e_cell_variable = getters.get_updated_electron_density(
-        runtime_params.profile_conditions, geo
-    )
-  else:
-    n_e_cell_variable = core_profiles.n_e
-  ions = getters.get_updated_ions(
-      runtime_params,
-      geo,
-      n_e_cell_variable,
-      T_e_cell_variable,
-  )
-  n_e = n_e_cell_variable.value
-  n_i = ions.n_i.value
-  n_impurity = ions.n_impurity.value
-  impurity_fractions = ions.impurity_fractions
-  toroidal_velocity = getters.get_updated_toroidal_velocity(
-      runtime_params.profile_conditions, geo
-  ).value
-
-  return {
-      'T_i': T_i,
-      'T_e': T_e,
-      'n_e': n_e,
-      'n_i': n_i,
-      'n_impurity': n_impurity,
-      'impurity_fractions': impurity_fractions,
-      'Z_i': ions.Z_i,
-      'Z_i_face': ions.Z_i_face,
-      'Z_impurity': ions.Z_impurity,
-      'Z_impurity_face': ions.Z_impurity_face,
-      'A_i': ions.A_i,
-      'A_impurity': ions.A_impurity,
-      'A_impurity_face': ions.A_impurity_face,
-      'Z_eff': ions.Z_eff,
-      'Z_eff_face': ions.Z_eff_face,
-      'toroidal_velocity': toroidal_velocity,
-  }
 
 
 @jax.jit(static_argnames='evolving_names')
@@ -239,7 +147,7 @@ def update_core_and_source_profiles_after_step(
   v_loop_lcfs = (
       runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
       if runtime_params_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else _update_v_loop_lcfs_from_psi(
+      else psi_calculations.calculate_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
           updated_core_profiles_t_plus_dt.psi,
           dt,
@@ -310,13 +218,10 @@ def update_core_and_source_profiles_after_step(
 
   if (
       not runtime_params_t_plus_dt.numerics.evolve_current
-      and runtime_params_t_plus_dt.profile_conditions.psidot
-      is not None
+      and runtime_params_t_plus_dt.profile_conditions.psidot is not None
   ):
     # If psidot is prescribed and current does not evolve, use prescribed value
-    psidot_value = (
-        runtime_params_t_plus_dt.profile_conditions.psidot
-    )
+    psidot_value = runtime_params_t_plus_dt.profile_conditions.psidot
   else:
     # Otherwise, calculate psidot from psi sources.
     psi_sources = total_source_profiles.total_psi_sources(geo)
@@ -341,121 +246,6 @@ def update_core_and_source_profiles_after_step(
   return core_profiles_t_plus_dt, total_source_profiles
 
 
-def compute_boundary_conditions_for_t_plus_dt(
-    dt: array_typing.FloatScalar,
-    runtime_params_t: runtime_params_lib.RuntimeParams,
-    runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-    geo_t_plus_dt: geometry.Geometry,
-    core_profiles_t: state.CoreProfiles,
-) -> dict[str, dict[str, jax.Array | None]]:
-  """Computes boundary conditions for the next timestep and returns updates to State.
-
-  Args:
-    dt: Size of the next timestep
-    runtime_params_t: Runtime parameters for the current timestep. Will not be
-      used if runtime_params_t.profile_conditions.v_loop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is used
-    runtime_params_t_plus_dt: Runtime parameters for the next timestep
-    geo_t_plus_dt: Geometry object for the next timestep
-    core_profiles_t: Core profiles at the current timestep. Will not be used if
-      runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs is
-      None, i.e. if the dirichlet psi boundary condition based on Ip is used
-
-  Returns:
-    Mapping from State attribute names to dictionaries updating attributes of
-    each CellVariable in the state. This dict can in theory recursively replace
-    values in a State object.
-  """
-  profile_conditions_t_plus_dt = (
-      runtime_params_t_plus_dt.profile_conditions
-  )
-  # TODO(b/390143606): Separate out the boundary condition calculation from the
-  # core profile calculation.
-  n_e = getters.get_updated_electron_density(
-      profile_conditions_t_plus_dt, geo_t_plus_dt
-  )
-  n_e_right_bc = n_e.right_face_constraint
-
-  # Used for edge calculations and input arguments have correct edge BCs.
-  ions_edge = getters.get_updated_ions(
-      runtime_params_t_plus_dt,
-      geo_t_plus_dt,
-      dataclasses.replace(
-          core_profiles_t.n_e,
-          right_face_constraint=profile_conditions_t_plus_dt.n_e_right_bc,
-      ),
-      dataclasses.replace(
-          core_profiles_t.T_e,
-          right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
-      ),
-  )
-
-  Z_i_edge = ions_edge.Z_i_face[-1]
-  Z_impurity_edge = ions_edge.Z_impurity_face[-1]
-
-  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Z_i_edge,
-      Z_impurity_edge,
-      runtime_params_t_plus_dt.plasma_composition.Z_eff_face[-1],
-  )
-
-  n_i_bound_right = n_e_right_bc * dilution_factor_edge
-  n_impurity_bound_right = (
-      n_e_right_bc - n_i_bound_right * Z_i_edge
-  ) / Z_impurity_edge
-
-  return {
-      'T_i': dict(
-          left_face_grad_constraint=jnp.zeros(()),
-          right_face_grad_constraint=None,
-          right_face_constraint=profile_conditions_t_plus_dt.T_i_right_bc,
-      ),
-      'T_e': dict(
-          left_face_grad_constraint=jnp.zeros(()),
-          right_face_grad_constraint=None,
-          right_face_constraint=profile_conditions_t_plus_dt.T_e_right_bc,
-      ),
-      'n_e': dict(
-          left_face_grad_constraint=jnp.zeros(()),
-          right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(n_e_right_bc),
-      ),
-      'n_i': dict(
-          left_face_grad_constraint=jnp.zeros(()),
-          right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(n_i_bound_right),
-      ),
-      'n_impurity': dict(
-          left_face_grad_constraint=jnp.zeros(()),
-          right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(n_impurity_bound_right),
-      ),
-      'psi': dict(
-          right_face_grad_constraint=(
-              psi_calculations.calculate_psi_grad_constraint_from_Ip(  # pylint: disable=g-long-ternary
-                  Ip=profile_conditions_t_plus_dt.Ip,
-                  geo=geo_t_plus_dt,
-              )
-              if not runtime_params_t.profile_conditions.use_v_loop_lcfs_boundary_condition
-              else None
-          ),
-          right_face_constraint=(
-              _calculate_psi_value_constraint_from_v_loop(  # pylint: disable=g-long-ternary
-                  dt=dt,
-                  v_loop_lcfs_t=runtime_params_t.profile_conditions.v_loop_lcfs,
-                  v_loop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.v_loop_lcfs,
-                  psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
-                  theta=runtime_params_t.solver.theta_implicit,
-              )
-              if runtime_params_t.profile_conditions.use_v_loop_lcfs_boundary_condition
-              else None
-          ),
-      ),
-      'Z_i_edge': Z_i_edge,
-      'Z_impurity_edge': Z_impurity_edge,
-  }
-
-
 def provide_core_profiles_t_plus_dt(
     dt: jax.Array,
     runtime_params_t: runtime_params_lib.RuntimeParams,
@@ -464,62 +254,43 @@ def provide_core_profiles_t_plus_dt(
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
-  updated_boundary_conditions = compute_boundary_conditions_for_t_plus_dt(
+  numerics = runtime_params_t.numerics
+  profile_conditions_t_plus_dt = runtime_params_t_plus_dt.profile_conditions
+  # In each of the following if the profile condition is being evolved then we
+  # only need to update the boundary condition and can get the value from the
+  # previous timestep. Otherwise, we need to update the value and boundary
+  # condition.
+  psi = getters.get_updated_psi(
+      profile_conditions_t_plus_dt,
+      geo_t_plus_dt,
       dt=dt,
-      runtime_params_t=runtime_params_t,
-      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-      geo_t_plus_dt=geo_t_plus_dt,
-      core_profiles_t=core_profiles_t,
+      theta=runtime_params_t_plus_dt.solver.theta_implicit,
+      only_boundary_condition=numerics.evolve_current,
+      original_psi=core_profiles_t.psi,
   )
-  updated_values = get_prescribed_core_profile_values(
-      runtime_params=runtime_params_t_plus_dt,
-      geo=geo_t_plus_dt,
-      core_profiles=core_profiles_t,
+  T_i = getters.get_updated_ion_temperature(
+      profile_conditions_t_plus_dt,
+      geo_t_plus_dt,
+      only_boundary_condition=numerics.evolve_ion_heat,
+      original_T_i_value=core_profiles_t.T_i,
   )
-  T_i = dataclasses.replace(
-      core_profiles_t.T_i,
-      value=updated_values['T_i'],
-      **updated_boundary_conditions['T_i'],
+  T_e = getters.get_updated_electron_temperature(
+      profile_conditions_t_plus_dt,
+      geo_t_plus_dt,
+      only_boundary_condition=numerics.evolve_electron_heat,
+      original_T_e_value=core_profiles_t.T_e,
   )
-  T_e = dataclasses.replace(
-      core_profiles_t.T_e,
-      value=updated_values['T_e'],
-      **updated_boundary_conditions['T_e'],
+  n_e = getters.get_updated_electron_density(
+      profile_conditions_t_plus_dt,
+      geo_t_plus_dt,
+      only_boundary_condition=numerics.evolve_density,
+      original_n_e_value=core_profiles_t.n_e,
   )
-  psi = dataclasses.replace(
-      core_profiles_t.psi, **updated_boundary_conditions['psi']
-  )
-  n_e = dataclasses.replace(
-      core_profiles_t.n_e,
-      value=updated_values['n_e'],
-      **updated_boundary_conditions['n_e'],
-  )
-  n_i = dataclasses.replace(
-      core_profiles_t.n_i,
-      value=updated_values['n_i'],
-      **updated_boundary_conditions['n_i'],
-  )
-  n_impurity = dataclasses.replace(
-      core_profiles_t.n_impurity,
-      value=updated_values['n_impurity'],
-      **updated_boundary_conditions['n_impurity'],
+  toroidal_velocity = getters.get_updated_toroidal_velocity(
+      profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
-  # pylint: disable=invalid-name
-  # Update Z_face with boundary condition Z, needed for cases where T_e
-  # is evolving and updated_prescribed_core_profiles is a no-op.
-  Z_i_face = jnp.concatenate(
-      [
-          updated_values['Z_i_face'][:-1],
-          jnp.array([updated_boundary_conditions['Z_i_edge']]),
-      ],
-  )
-  Z_impurity_face = jnp.concatenate(
-      [
-          updated_values['Z_impurity_face'][:-1],
-          jnp.array([updated_boundary_conditions['Z_impurity_edge']]),
-      ],
-  )
+  # Update Z_face with boundary condition Z, needed for cases where T_
   # pylint: enable=invalid-name
   core_profiles_t_plus_dt = dataclasses.replace(
       core_profiles_t,
@@ -527,51 +298,6 @@ def provide_core_profiles_t_plus_dt(
       T_e=T_e,
       psi=psi,
       n_e=n_e,
-      n_i=n_i,
-      n_impurity=n_impurity,
-      impurity_fractions=updated_values['impurity_fractions'],
-      Z_i=updated_values['Z_i'],
-      Z_i_face=Z_i_face,
-      Z_impurity=updated_values['Z_impurity'],
-      Z_impurity_face=Z_impurity_face,
-      A_i=updated_values['A_i'],
-      A_impurity=updated_values['A_impurity'],
-      A_impurity_face=updated_values['A_impurity_face'],
-      Z_eff=updated_values['Z_eff'],
-      Z_eff_face=updated_values['Z_eff_face'],
+      toroidal_velocity=toroidal_velocity,
   )
   return core_profiles_t_plus_dt
-
-
-# TODO(b/406173731): Find robust solution for underdetermination and solve this
-# for general theta_implicit values.
-def _update_v_loop_lcfs_from_psi(
-    psi_t: cell_variable.CellVariable,
-    psi_t_plus_dt: cell_variable.CellVariable,
-    dt: array_typing.FloatScalar,
-) -> jax.Array:
-  """Updates the v_loop_lcfs for the next timestep.
-
-  For the Ip boundary condition case, the v_loop_lcfs formula is in principle
-  calculated from:
-
-  (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
-    v_loop_lcfs_t_plus_dt*theta_implicit - v_loop_lcfs_t*(1-theta_implicit)
-
-  However this set of equations is underdetermined. We thus restrict this
-  calculation assuming a fully implicit system, i.e. theta_implicit=1, which is
-  the TORAX default. Be cautious when interpreting the results of this function
-  when theta_implicit != 1 (non-standard usage).
-
-  Args:
-    psi_t: The psi CellVariable at the beginning of the timestep interval.
-    psi_t_plus_dt: The updated psi CellVariable for the next timestep.
-    dt: The size of the last timestep.
-
-  Returns:
-    The updated v_loop_lcfs for the next timestep.
-  """
-  psi_lcfs_t = psi_t.face_value()[-1]
-  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
-  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
-  return v_loop_lcfs_t_plus_dt

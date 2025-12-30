@@ -34,12 +34,10 @@ GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
 KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
 Meter: TypeAlias = pydantic.PositiveFloat
 MeterPerSecond: TypeAlias = float
-MeterSquaredPerSecond: TypeAlias = pydantic.NonNegativeFloat
-Pascal: TypeAlias = pydantic.PositiveFloat
-PositiveMeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
-# Time can sometimes be 0, eg. for the start of an interval.
-Second: TypeAlias = pydantic.NonNegativeFloat
-Tesla: TypeAlias = pydantic.PositiveFloat
+MeterSquaredPerSecond: TypeAlias = float
+Pascal: TypeAlias = float
+Second: TypeAlias = float
+Tesla: TypeAlias = float
 # keep-sorted end
 Density: TypeAlias = CubicMeter | GreenwaldFraction
 

@@ -22,6 +22,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src.core_profiles import initialization
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import imas as imas_geometry_pydantic_model
@@ -377,6 +378,48 @@ class PsiCalculationsTest(parameterized.TestCase):
         psi_calculations.j_parallel_to_j_toroidal(j_parallel_from_j_tor, geo),
         j_tor_truth,
         rtol=0.05,
+    )
+
+  def test_update_v_loop_lcfs_from_psi(self):
+    """Consistency check for _update_v_loop_lcfs_from_psi.
+
+    Check the output inverts _calculate_psi_value_constraint_from_v_loop
+    as expected.
+    """
+    mesh = torax_pydantic.Grid1D(nx=4)
+
+    dt = 1.0
+    theta = 1.0
+    v_loop_lcfs_t = 0.1
+    v_loop_lcfs_t_plus_dt_expected = 0.2
+    psi_lcfs_t = 0.5
+    psi_lcfs_t_plus_dt = (
+        psi_calculations.calculate_psi_value_constraint_from_v_loop(
+            dt,
+            theta,
+            v_loop_lcfs_t,
+            v_loop_lcfs_t_plus_dt_expected,
+            psi_lcfs_t,
+        )
+    )
+
+    psi_t = cell_variable.CellVariable(
+        value=np.ones_like(mesh.cell_centers) * 0.5,
+        dr=mesh.dx,
+        right_face_grad_constraint=0.0,
+    )
+    psi_t_plus_dt = cell_variable.CellVariable(
+        value=np.ones_like(mesh.cell_centers) * psi_lcfs_t_plus_dt,
+        dr=mesh.dx,
+        right_face_grad_constraint=0.0,
+    )
+
+    v_loop_lcfs_t_plus_dt = psi_calculations.calculate_v_loop_lcfs_from_psi(
+        psi_t, psi_t_plus_dt, dt
+    )
+
+    np.testing.assert_allclose(
+        v_loop_lcfs_t_plus_dt, v_loop_lcfs_t_plus_dt_expected
     )
 
 
