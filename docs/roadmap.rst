@@ -3,21 +3,14 @@
 Development Roadmap
 ###################
 
-Short term development plans include:
-
-* Neoclassical transport with simple parameterized models
-* Coupling to parameterized boundary models
-* Implementation of forward sensitivity calculations w.r.t. control inputs and
-  parameters
-
-Longer term plans include:
+A subset of planned upgrades includes:
 
 * Multi-ion transport, with a focus on heavy impurities and neoclassical
   transport
 * IMAS coupling
-* Stationary-state solver
 * Momentum transport
 * Neoclassical tearing modes (modified Rutherford equation)
+* Coupling to wider range of ML-surrogates for physics models
 
 Contributions in line with the roadmap are welcome. In particular, TORAX
 is envisaged as a natural framework for coupling of various ML-surrogates of
