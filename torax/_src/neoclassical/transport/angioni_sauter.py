@@ -296,52 +296,66 @@ def _calculate_angioni_sauter_transport(
 
   # Q_e = - chi_e * n_e * dT/drho = B_e2 * T_e / dpsi/drho
   # Q_i = - chi_i * n_i * dT/drho = B_i2 * T_i / dpsi/drho
-  chi_neo_e = -Be2 / (
-      core_profiles.n_e.face_value()
-      * dlnte_dpsi
-      * (dpsi_drhon / geometry.rho_b) ** 2
+
+  # All transport quantities have constant extrapolation to the magnetic axis
+  # to avoid division by near-zero and unphysical values.
+
+  chi_neo_e_bulk = -Be2[1:] / (
+      core_profiles.n_e.face_value()[1:]
+      * dlnte_dpsi[1:]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
-  chi_neo_i = -Bi2 / (
-      core_profiles.n_i.face_value()
-      * dlnti_dpsi
-      * (dpsi_drhon / geometry.rho_b) ** 2
+  chi_neo_e = jnp.concatenate([chi_neo_e_bulk[0:1], chi_neo_e_bulk])
+
+  chi_neo_i_bulk = -Bi2[1:] / (
+      core_profiles.n_i.face_value()[1:]
+      * dlnti_dpsi[1:]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
+  chi_neo_i = jnp.concatenate([chi_neo_i_bulk[0:1], chi_neo_i_bulk])
 
   # Decomposition of particle flux Be1 = Gamma * dpsi_drho. Page 1232+1233.
 
   # Diffusive part of particle flux
   # D_e * dn_e/drho  = - L00 *dlog(n_e)/dpsi / dpsi/drho
-  D_neo_e = -Lmn_e[:, 0, 0] / (
-      core_profiles.n_e.face_value() * (dpsi_drhon / geometry.rho_b) ** 2
+  D_neo_e_bulk = -Lmn_e[1:, 0, 0] / (
+      core_profiles.n_e.face_value()[1:]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
+  D_neo_e = jnp.concatenate([D_neo_e_bulk[0:1], D_neo_e_bulk])
 
   # Convective part of particle flux, apart from the Ware Pinch term
   # V*n*dpsi/rho = (L00+L01)*dlog(Te)/dpsi + (1-Rpe)/Rpe*L00*dlog(ni)/dpsi +
   # (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
-  V_neo_e = (
-      (Lmn_e[:, 0, 0] + Lmn_e[:, 0, 1]) * dlnte_dpsi
-      + (1 - Rpe) / Rpe * Lmn_e[:, 0, 0] * dlnni_dpsi
-      + (1 - Rpe) / Rpe * (Lmn_e[:, 0, 0] + alpha * Lmn_e[:, 0, 3]) * dlnti_dpsi
+  V_neo_e_bulk = (
+      (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]
+      + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]
+      + (1 - Rpe[1:])
+      / Rpe[1:]
+      * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
+      * dlnti_dpsi[1:]
   ) / (
-      dpsi_drhon / geometry.rho_b * core_profiles.n_e.face_value()
+      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]
       + constants.CONSTANTS.eps
   )
+  V_neo_e = jnp.concatenate([V_neo_e_bulk[0:1], V_neo_e_bulk])
 
   # Ware pinch term component of particle convection
   # V_ware*n*dpsi/rho = L02*<E_parallel * B>/<B^2>
-  V_neo_ware_e = (
-      Lmn_e[:, 0, 2]
-      * E_parallel
+  V_neo_ware_e_bulk = (
+      Lmn_e[1:, 0, 2]
+      * E_parallel[1:]
       / (
           geometry.B_0
-          * (dpsi_drhon / geometry.rho_b)
-          * core_profiles.n_e.face_value()
+          * (dpsi_drhon[1:] / geometry.rho_b)
+          * core_profiles.n_e.face_value()[1:]
           + constants.CONSTANTS.eps
       )
   )
+  V_neo_ware_e = jnp.concatenate([V_neo_ware_e_bulk[0:1], V_neo_ware_e_bulk])
 
   return base.NeoclassicalTransport(
       chi_neo_i=chi_neo_i,
