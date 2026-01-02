@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 from typing import Annotated
 from typing import Literal
+import uuid
 
 import chex
 import jax
@@ -65,9 +66,18 @@ class QualikizTransportModel(
 
   def __init__(self):
     self._qlkrun_parentdir = tempfile.TemporaryDirectory()
+    # Include UUID to prevent collisions when multiple simulations start
+    # simultaneously (e.g., in SLURM distributed systems)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    short_uuid = uuid.uuid4().hex[:8]
+    # Check for SLURM job ID if available (common in distributed computing)
+    slurm_job_id = os.environ.get('SLURM_JOB_ID')
+    if slurm_job_id:
+      unique_suffix = f'job_{slurm_job_id}_uuid_{short_uuid}'
+    else:
+      unique_suffix = f'uuid_{short_uuid}'
     self._qlkrun_name = (
-        _DEFAULT_QLKRUN_NAME_PREFIX
-        + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        _DEFAULT_QLKRUN_NAME_PREFIX + '_' + timestamp + '_' + unique_suffix
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
 
@@ -82,10 +92,10 @@ class QualikizTransportModel(
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model.
-      runtime_params: Input runtime parameters for all components
-        of the simulation at the current time.
+      transport_runtime_params: Input runtime parameters for this transport
+        model.
+      runtime_params: Input runtime parameters for all components of the
+        simulation at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
@@ -107,7 +117,7 @@ class QualikizTransportModel(
 
     def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
       # Qualikiz expects numpy arrays, but the callback passes jax.Array.
-      (qualikiz_inputs, transport_runtime_params, geo, core_profiles) = (
+      qualikiz_inputs, transport_runtime_params, geo, core_profiles = (
           jax.tree.map(
               np.asarray,
               (qualikiz_inputs, transport_runtime_params, geo, core_profiles),
@@ -131,7 +141,7 @@ class QualikizTransportModel(
       return core_transport
 
     face_array_shape_dtype = jax.ShapeDtypeStruct(
-        shape=(geo.torax_mesh.nx+1,), dtype=jax_utils.get_dtype()
+        shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
     )
     result_shape_dtypes = transport_model.TurbulentTransport(
         chi_face_ion=face_array_shape_dtype,
