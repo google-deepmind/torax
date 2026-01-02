@@ -87,7 +87,7 @@ def calculate_rotation(
     toroidal_velocity: cell_variable.CellVariable,
     pressure_thermal_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
-    rotation_multiplier: float = 1.0,
+    poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
 ):
   """Calculates quantities related to the rotation of the plasma.
 
@@ -101,7 +101,8 @@ def calculate_rotation(
     toroidal_velocity: Toroidal velocity profile as a cell variable.
     pressure_thermal_i: Pressure profile as a cell variable.
     geo: Geometry object.
-    rotation_multiplier: A multiplier to apply to the poloidal velocity.
+    poloidal_velocity_multiplier: A multiplier to apply to the poloidal
+      velocity.
 
   Returns:
     v_ExB: ExB velocity profile on the face grid [m/s].
@@ -129,7 +130,7 @@ def calculate_rotation(
       B_tor=B_tor_face,
       B_total_squared=B_total_squared_face,
       geo=geo,
-      rotation_multiplier=rotation_multiplier,
+      poloidal_velocity_multiplier=poloidal_velocity_multiplier,
   )
 
   Er = _calculate_radial_electric_field(

@@ -36,9 +36,9 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         'exact_t_final': exact_t_final,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    provider, sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
+    sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
 
-    runtime_params_t = provider(t=t)
+    runtime_params_t = step_fn.runtime_params_provider(t=t)
     dt = time_step_calculator_instance.next_dt(
         t=t,
         runtime_params=runtime_params_t,
@@ -74,9 +74,9 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         'exact_t_final': exact_t_final,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    provider, sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
+    sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
 
-    runtime_params_t = provider(t=t)
+    runtime_params_t = step_fn.runtime_params_provider(t=t)
     dt = time_step_calculator_instance.next_dt(
         t=t,
         runtime_params=runtime_params_t,

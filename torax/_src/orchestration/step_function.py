@@ -13,16 +13,16 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
-
+import dataclasses
 import functools
 
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
@@ -41,25 +41,6 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 
 
 # pylint: disable=invalid-name
-
-
-def check_for_errors(
-    numerics: numerics_lib.Numerics,
-    output_state: sim_state.ToraxSimState,
-    post_processed_outputs: post_processing.PostProcessedOutputs,
-) -> state.SimError:
-  """Checks for errors in the simulation state."""
-  if numerics.adaptive_dt:
-    if output_state.solver_numeric_outputs.solver_error_state == 1:
-      # Only check for min dt if the solver did not converge. Else we may have
-      # converged at a dt > min_dt just before we reach min_dt.
-      if output_state.dt / numerics.dt_reduction_factor < numerics.min_dt:
-        return state.SimError.REACHED_MIN_DT
-  state_error = output_state.check_for_errors()
-  if state_error != state.SimError.NO_ERROR:
-    return state_error
-  else:
-    return post_processed_outputs.check_for_errors()
 
 
 @jax.tree_util.register_pytree_node_class
@@ -154,10 +135,32 @@ class SimulationStepFn:
         tolerance=self._runtime_params_provider.time_step_calculator.tolerance,
     )
 
+  def check_for_errors(
+      self,
+      output_state: sim_state.SimState,
+      post_processed_outputs: post_processing.PostProcessedOutputs,
+  ) -> state.SimError:
+    """Checks for errors in the simulation state."""
+    if self._runtime_params_provider.numerics.adaptive_dt:
+      if output_state.solver_numeric_outputs.solver_error_state == 1:
+        # Only check for min dt if the solver did not converge. Else we may have
+        # converged at a dt > min_dt just before we reach min_dt.
+        if (
+            output_state.dt
+            / self._runtime_params_provider.numerics.dt_reduction_factor
+            < self._runtime_params_provider.numerics.min_dt
+        ):
+          return state.SimError.REACHED_MIN_DT
+    state_error = output_state.check_for_errors()
+    if state_error != state.SimError.NO_ERROR:
+      return state_error
+    else:
+      return post_processed_outputs.check_for_errors()
+
   @jax.jit
   def __call__(
       self,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       max_dt: chex.Numeric = jnp.inf,
       runtime_params_overrides: (
@@ -165,7 +168,7 @@ class SimulationStepFn:
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Advances the simulation state one time step.
@@ -273,14 +276,14 @@ class SimulationStepFn:
   def fixed_time_step(
       self,
       dt: chex.Array,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Runs the simulation until it has advanced by dt."""
@@ -288,7 +291,7 @@ class SimulationStepFn:
 
     def cond(args):
       remaining_dt, _, _ = args
-      return remaining_dt > 0.0
+      return remaining_dt > constants.CONSTANTS.eps
 
     def body(args):
       remaining_dt, prev_state, prev_post_processed = args
@@ -309,20 +312,27 @@ class SimulationStepFn:
     )
     # TODO(b/456188184): Add a return value for the number of steps, sawtooth
     # crashes, and solver error states etc.
+    # Set the dt to the original dt passed to the function, and the t to the
+    # final time.
+    output_state = dataclasses.replace(
+        output_state,
+        t=input_state.t + dt,
+        dt=dt,
+    )
     return output_state, post_processed_outputs
 
   @jax.jit
   def jitted_fixed_time_step(
       self,
       dt: chex.Array,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
       geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Runs the simulation until it has advanced by dt."""
@@ -341,12 +351,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a simulation step if a sawtooth crash is triggered."""
@@ -394,12 +404,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a (possibly) adaptive simulation step."""
@@ -483,12 +493,12 @@ class SimulationStepFn:
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       edge_outputs: edge_base.EdgeModelOutputs | None,
-      input_state: sim_state.ToraxSimState,
+      input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
   ) -> tuple[
-      sim_state.ToraxSimState,
+      sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
     """Performs a single simulation step."""

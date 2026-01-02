@@ -22,7 +22,7 @@ dependencies = [
     "jaxlib>=0.8.1",
     "jaxopt>=0.8.2",
     "flax>=0.10.0",
-    "fusion_surrogates==0.4.4",
+    "fusion_surrogates[tglfnnukaea]==0.4.4",
     "matplotlib>=3.3.0",
     "numpy>2",
     "setuptools;python_version>='3.11'",
@@ -41,7 +41,7 @@ dependencies = [
     "pydantic>=2.10.5",
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
-    "imas-python>=2.0.1",
+    "imas-python==2.0.1",
     "typeguard==2.13.3",
 ]
 
@@ -61,11 +61,6 @@ documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
 
 [project.optional-dependencies]
 
-# Installed through `pip install -e .[tglfnnukaea]`
-tglfnnukaea = [
-    "fusion_surrogates[tglfnnukaea]==0.4.4"
-]
-
 # Installed through `pip install -e .[dev]`
 dev = [
     "isort",
@@ -80,7 +75,6 @@ dev = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_remove_toctrees",
-    "torax[tglfnnukaea]",
 ]
 
 # Installed through `pip install -e .[tutorial]`

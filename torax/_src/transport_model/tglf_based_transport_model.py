@@ -13,7 +13,6 @@
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
 import dataclasses
-import logging
 
 import jax
 from jax import numpy as jnp
@@ -22,6 +21,7 @@ from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
+from torax._src.physics import rotation
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import transport_model as transport_model_lib
 from typing_extensions import override
@@ -31,10 +31,8 @@ from typing_extensions import override
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for TGLF-based models."""
-
-  # Left here as a placeholder for future TGLF settings
-
-  pass
+  use_rotation: bool
+  rotation_multiplier: float
 
 
 # pylint: disable=invalid-name
@@ -62,6 +60,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     Zeff: Effective charge.
     Q_GB: TGLF heat flux normalisation factor.
     Gamma_GB: TGLF particle flux normalisation factor.
+    v_ExB_shear: Toroidal ExB velocity Doppler shift gradient.
   """
 
   Ti_over_Te: array_typing.FloatVectorFace
@@ -78,6 +77,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   Zeff: array_typing.FloatVectorFace
   Q_GB: array_typing.FloatVectorFace
   Gamma_GB: array_typing.FloatVectorFace
+  v_ExB_shear: array_typing.FloatVectorFace
 
   # Also define all the TGLF notations for the variables
   @property
@@ -142,12 +142,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
 
   @property
   def VEXB_SHEAR(self) -> array_typing.FloatVectorFace:
-    # TODO(b/381199010): Replace with real values once rotation added to TORAX
-    logging.warning(
-        "VEXB_SHEAR is not yet implemented in TORAX. TGLF based transport"
-        " models may produce spurious results."
-    )
-    return jnp.zeros_like(self.r_minor)
+    return self.v_ExB_shear
 
 
 class TGLFBasedTransportModel(
@@ -160,6 +155,7 @@ class TGLFBasedTransportModel(
       transport: RuntimeParams,  # pylint: disable=unused-argument
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
 
@@ -198,6 +194,7 @@ class TGLFBasedTransportModel(
       transport: Runtime parameters for the transport model.
       geo: Geometric parameters of the tokamak.
       core_profiles: Core plasma profiles (e.g., temperatures, densities, q).
+      poloidal_velocity_multiplier: Multiplier applied to the poloidal velocity.
 
     Returns:
       A `TGLFInputs` dataclass containing dimensionless inputs required by
@@ -315,6 +312,41 @@ class TGLFBasedTransportModel(
     Q_GB = n_e * T_e_J * GB  # [W/m^2]
     Gamma_GB = n_e * GB
 
+    # Normalized toroidal ExB velocity Doppler shift gradient.
+    # Calculated on the face grid.
+    # https://gacode.io/tglf/tglf_list.html#vexb-shear
+    def _get_v_ExB_shear():
+      v_ExB, _, _ = rotation.calculate_rotation(
+          T_i=core_profiles.T_i,
+          psi=core_profiles.psi,
+          n_i=core_profiles.n_i,
+          q_face=core_profiles.q_face,
+          Z_eff_face=core_profiles.Z_eff_face,
+          Z_i_face=core_profiles.Z_i_face,
+          toroidal_velocity=core_profiles.toroidal_velocity,
+          pressure_thermal_i=core_profiles.pressure_thermal_i,
+          geo=geo,
+          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
+      )
+      v_ExB_shear = -(
+          jnp.sign(core_profiles.Ip_profile_face)
+          * (r / jnp.abs(core_profiles.q_face))
+          * jnp.gradient(
+              v_ExB * geo.R_major_profile_face,
+              r,
+          )
+          * (a / c_s)
+      )
+      v_ExB_shear = v_ExB_shear * transport.rotation_multiplier
+      return v_ExB_shear
+
+    # TODO(b/381199010): Validate against existing frameworks.
+    v_ExB_shear = jax.lax.cond(
+        transport.use_rotation,
+        _get_v_ExB_shear,
+        lambda: jnp.zeros_like(core_profiles.q_face),
+    )
+
     return TGLFInputs(
         # From QuasilinearInputs
         chiGB=jnp.zeros_like(geo.rho_face_norm),  # unused
@@ -340,6 +372,7 @@ class TGLFBasedTransportModel(
         Zeff=core_profiles.Z_eff_face,
         Q_GB=Q_GB,
         Gamma_GB=Gamma_GB,
+        v_ExB_shear=v_ExB_shear,
     )
 
   @override

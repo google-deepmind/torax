@@ -34,27 +34,10 @@ from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 
-def prepare_simulation(
+def make_step_fn(
     torax_config: model_config.ToraxConfig,
-) -> tuple[
-    build_runtime_params.RuntimeParamsProvider,
-    sim_state.ToraxSimState,
-    post_processing.PostProcessedOutputs,
-    step_function.SimulationStepFn,
-]:
-  """Prepare a TORAX simulation returning the necessary inputs for the run loop.
-
-  Args:
-    torax_config: The TORAX config to use for the simulation.
-
-  Returns:
-    A tuple containing:
-
-      - The runtime parameters slice provider.
-      - The initial state.
-      - The initial post processed outputs.
-      - The simulation step function.
-  """
+) -> step_function.SimulationStepFn:
+  """Prepare a TORAX step function from a config."""
   geometry_provider = torax_config.geometry.build_provider
   physics_models = torax_config.build_physics_models()
 
@@ -66,35 +49,49 @@ def prepare_simulation(
       build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
   )
 
-  step_fn = step_function.SimulationStepFn(
+  return step_function.SimulationStepFn(
       solver=solver,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       geometry_provider=geometry_provider,
       runtime_params_provider=runtime_params_provider,
   )
 
+
+def prepare_simulation(
+    torax_config: model_config.ToraxConfig,
+) -> tuple[
+    sim_state.SimState,
+    post_processing.PostProcessedOutputs,
+    step_function.SimulationStepFn,
+]:
+  """Prepare a TORAX simulation returning the necessary inputs for the run loop.
+
+  Args:
+    torax_config: The TORAX config to use for the simulation.
+
+  Returns:
+    A tuple containing:
+      - The initial state.
+      - The initial post processed outputs.
+      - The simulation step function.
+  """
+  step_fn = make_step_fn(torax_config)
+
   if torax_config.restart and torax_config.restart.do_restart:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs_from_file(
-            t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            runtime_params_provider=runtime_params_provider,
-            geometry_provider=geometry_provider,
             step_fn=step_fn,
         )
     )
   else:
     initial_state, post_processed_outputs = (
         initial_state_lib.get_initial_state_and_post_processed_outputs(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=runtime_params_provider,
-            geometry_provider=geometry_provider,
             step_fn=step_fn,
         )
     )
 
   return (
-      runtime_params_provider,
       initial_state,
       post_processed_outputs,
       step_fn,
@@ -121,14 +118,12 @@ def run_simulation(
   """
 
   (
-      runtime_params_provider,
       initial_state,
       post_processed_outputs,
       step_fn,
   ) = prepare_simulation(torax_config)
 
   state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
-      runtime_params_provider=runtime_params_provider,
       initial_state=initial_state,
       initial_post_processed_outputs=post_processed_outputs,
       step_fn=step_fn,

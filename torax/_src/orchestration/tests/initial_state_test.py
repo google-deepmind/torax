@@ -16,7 +16,7 @@ from absl.testing import parameterized
 import chex
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state
-from torax._src.orchestration import step_function
+from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import sim_test_case
@@ -29,22 +29,14 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_from_file_restart(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
-    runtime_params_provider, geo_provider, step_fn = _get_providers_and_step_fn(
-        torax_config
-    )
+    step_fn = run_simulation.make_step_fn(torax_config)
     non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
-        t=torax_config.numerics.t_initial,
-        runtime_params_provider=runtime_params_provider,
-        geometry_provider=geo_provider,
         step_fn=step_fn,
     )
 
     result, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
-            t_initial=torax_config.numerics.t_initial,
             file_restart=torax_config.restart,
-            runtime_params_provider=runtime_params_provider,
-            geometry_provider=geo_provider,
             step_fn=step_fn,
         )
     )
@@ -92,14 +84,12 @@ class InitialStateTest(sim_test_case.SimTestCase):
     config['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    runtime_params_provider, geo_provider, step_fn = _get_providers_and_step_fn(
-        torax_config
-    )
+    step_fn = run_simulation.make_step_fn(torax_config)
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            runtime_params_provider=runtime_params_provider,
-            geometry_provider=geo_provider,
+            runtime_params_provider=step_fn.runtime_params_provider,
+            geometry_provider=step_fn.geometry_provider,
         )
     )
 
@@ -135,23 +125,6 @@ class InitialStateTest(sim_test_case.SimTestCase):
     core_profile_helpers.verify_core_profiles(
         ref_profiles, index, result.core_profiles
     )
-
-
-def _get_providers_and_step_fn(torax_config):
-  runtime_params_provider = (
-      build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-  )
-  geo_provider = torax_config.geometry.build_provider
-  solver = torax_config.solver.build_solver(
-      physics_models=torax_config.build_physics_models(),
-  )
-  step_fn = step_function.SimulationStepFn(
-      solver=solver,
-      time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
-      geometry_provider=geo_provider,
-      runtime_params_provider=runtime_params_provider,
-  )
-  return runtime_params_provider, geo_provider, step_fn
 
 
 if __name__ == '__main__':

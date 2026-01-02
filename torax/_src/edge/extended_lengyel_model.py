@@ -22,6 +22,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -344,18 +345,53 @@ def _resolve_param(
     geo_val: array_typing.FloatScalar | None,
     config_val: array_typing.FloatScalar | None,
 ) -> array_typing.FloatScalar:
-  """Helper to resolve a single parameter with logging."""
+  """Helper to resolve a single parameter with logging.
+
+  This function determines the definitive value for a geometric parameter that
+  can be provided by either the `Geometry` object or the `RuntimeParams` config.
+  The precedence is as follows:
+
+  1.  If a valid value (non-zero, non-NaN) is available from `geo_val`, it is
+      always preferred.
+  2.  If `geo_val` is present but invalid (0 or NaN), `config_val` is used as a
+      fallback if available.
+  3.  If `geo_val` is `None`, `config_val` is used.
+  4.  If both are `None`, or if `geo_val` is invalid and `config_val` is None,
+      an error is raised if TORAX errors are enabled.
+
+  Args:
+    name: Variable name.
+    geo_val: The value from the `Geometry` object.
+    config_val: The value from the `RuntimeParams` config.
+
+  Returns:
+    The resolved parameter value.
+
+  Raises:
+    RunTimeError: If both `geo_val` and `config_val` are `None` or if `geo_val`
+      is invalid and `config_val` is `None`.
+  """
   match (geo_val, config_val):
     case (g_val, c_val) if g_val is not None:
+      # Check if geometry value is valid (non-zero and non-NaN).
+      is_valid = jnp.logical_and(
+          jnp.not_equal(g_val, 0.0), jnp.logical_not(jnp.isnan(g_val))
+      )
+
       if c_val is not None:
-        # Logging won't cause spamming under jit since will only be logged
-        # during tracing.
-        logging.warning(
-            "ExtendedLengyelModel: Parameter '%s' found in both Geometry and"
-            ' Config. Using Geometry value. Config value ignored.',
-            name,
+        return jax.lax.select(is_valid, g_val, c_val)
+      else:
+        # No fallback provided. Raise error if g_val is invalid.
+        # This will raise a RuntimeError at runtime if is_valid is False and
+        # TORAX errors are enabled.
+        return jax_utils.error_if(
+            g_val,
+            jnp.logical_not(is_valid),
+            f"ExtendedLengyelModel: Geometry parameter '{name}' is invalid"
+            ' (0 or NaN) and no fallback value provided in'
+            ' ExtendedLengyelConfig.',
         )
-      return g_val
+
     case (None, c_val) if c_val is not None:
       logging.warning(
           "ExtendedLengyelModel: Parameter '%s' not found in Geometry. Using"

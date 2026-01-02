@@ -34,7 +34,7 @@ import typing_extensions
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(tglf_based_transport_model.RuntimeParams):
-  # Left blank for future extensions
+  # Left blank for future extension: bool
   pass
 
 
@@ -146,9 +146,13 @@ class TGLFNNukaeaTransportModel(
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,  # unused
   ) -> transport_model_lib.TurbulentTransport:
-    del runtime_params
     del pedestal_model_output
-    tglf_inputs = self._prepare_tglf_inputs(transport, geo, core_profiles)
+    tglf_inputs = self._prepare_tglf_inputs(
+        transport=transport,
+        geo=geo,
+        core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+    )
     tglfnn_inputs = self._prepare_tglfnn_inputs(self, tglf_inputs)
     predictions = self.model.predict(tglfnn_inputs)
 

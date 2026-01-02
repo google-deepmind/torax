@@ -29,10 +29,12 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.edge import extended_lengyel_standalone
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import post_processing
+from torax._src.solver import jax_root_finding
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
@@ -107,7 +109,7 @@ CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
 
 # Numerics.
-# Simulation error state.
+SIM_STATUS = "sim_status"
 SIM_ERROR = "sim_error"
 OUTER_SOLVER_ITERATIONS = "outer_solver_iterations"
 INNER_SOLVER_ITERATIONS = "inner_solver_iterations"
@@ -178,7 +180,7 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
-def _extend_cell_grid_to_boundaries(
+def extend_cell_grid_to_boundaries(
     cell_var: array_typing.FloatVectorCell,
     face_var: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorCellPlusBoundaries:
@@ -216,7 +218,7 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: list[sim_state.ToraxSimState],
+      state_history: list[sim_state.SimState],
       post_processed_outputs_history: tuple[
           post_processing.PostProcessedOutputs, ...
       ],
@@ -395,7 +397,16 @@ class StateHistory:
         flattened_all_core_data[key] = value
       else:
         raise ValueError(f"Duplicate key: {key}")
+
+    # Determine simulation status based on error state
+    sim_status = (
+        state.SimStatus.COMPLETED
+        if self.sim_error is state.SimError.NO_ERROR
+        else state.SimStatus.ERROR
+    )
+
     numerics_dict = {
+        SIM_STATUS: sim_status.value,
         SIM_ERROR: self.sim_error.value,
         SAWTOOTH_CRASH: xr.DataArray(
             self._stacked_solver_numeric_outputs.sawtooth_crash,
@@ -559,21 +570,27 @@ class StateHistory:
         else:
           # Save as a profile.
           face_value = getattr(stacked_core_profiles, "A_impurity_face")
-          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         xr_dict[output_key] = self._pack_into_data_array(
             output_key, data_to_save
         )
         continue
 
-      if hasattr(attr_value, "cell_plus_boundaries"):
+      if isinstance(attr_value, cell_variable.CellVariable):
         # Handles stacked CellVariable-like objects.
-        data_to_save = attr_value.cell_plus_boundaries()
+        data_to_save = []
+        for core_profile in self.core_profiles:
+          cell_var: cell_variable.CellVariable = getattr(
+              core_profile, attr_name
+          )
+          data_to_save.append(cell_var.cell_plus_boundaries())
+        data_to_save = np.stack(data_to_save)
       else:
         face_attr_name = f"{attr_name}_face"
         if face_attr_name in core_profile_field_names:
           # Combine cell and edge face values.
           face_value = getattr(stacked_core_profiles, face_attr_name)
-          data_to_save = _extend_cell_grid_to_boundaries(attr_value, face_value)
+          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
@@ -640,7 +657,7 @@ class StateHistory:
         )
     )
 
-    xr_dict[J_PARALLEL_BOOTSTRAP] = _extend_cell_grid_to_boundaries(
+    xr_dict[J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
     )
@@ -727,7 +744,7 @@ class StateHistory:
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:
-        data = _extend_cell_grid_to_boundaries(
+        data = extend_cell_grid_to_boundaries(
             data, geometry_attributes[f"{field_name}_face"]
         )
       # Remap to avoid outputting _face suffix in output.
@@ -768,7 +785,7 @@ class StateHistory:
         # If so, extend the data to the cell+boundaries grid.
         if f"{name}_face" in property_names:
           face_data = getattr(self._stacked_geometry, f"{name}_face")
-          property_data = _extend_cell_grid_to_boundaries(
+          property_data = extend_cell_grid_to_boundaries(
               property_data, face_data
           )
         data_array = self._pack_into_data_array(name, property_data)
@@ -835,23 +852,17 @@ class StateHistory:
     numerics = outputs.solver_status.numerics_outcome
     # Check for RootMetadata structure (newton solver)
     # TODO(b/446608829): make numerics itself parse its contents for outputs.
-    if hasattr(numerics, "iterations"):
+    if isinstance(numerics, jax_root_finding.RootMetadata):
       xr_dict["solver_iterations"] = self._pack_into_data_array(
           "solver_iterations", numerics.iterations
       )
       # Handle solver_residual explicitly because it is a vector
-      # (time, n_unknowns) which _pack_into_data_array doesn't support
-      # automatically.
-      if numerics.residual is not None and numerics.residual.ndim == 2:
-        xr_dict["solver_residual"] = xr.DataArray(
-            numerics.residual,
-            dims=[TIME, "solver_unknown_idx"],
-            name="solver_residual",
-        )
-      else:
-        xr_dict["solver_residual"] = self._pack_into_data_array(
-            "solver_residual", numerics.residual
-        )
+      # (time, n_unknowns). We want to output the scalar metric used for
+      # convergence checking (mean absolute error).
+      residual_scalar = np.mean(np.abs(numerics.residual), axis=-1)
+      xr_dict["solver_residual"] = self._pack_into_data_array(
+          "solver_residual", residual_scalar
+      )
 
       xr_dict["solver_error"] = self._pack_into_data_array(
           "solver_error", numerics.error

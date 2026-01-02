@@ -33,18 +33,13 @@ def run_loop_jit(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    sim_state.ToraxSimState, post_processing.PostProcessedOutputs, chex.Numeric
+    sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
   """Runs the simulation loop under jax.jit."""
-  runtime_params_provider = (
-      runtime_params_overrides or step_fn.runtime_params_provider
-  )
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(
-          t=runtime_params_provider.numerics.t_initial,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=step_fn.geometry_provider,
           step_fn=step_fn,
+          runtime_params_overrides=runtime_params_overrides,
       )
   )
 
@@ -161,7 +156,7 @@ def run_loop(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    list[sim_state.ToraxSimState],
+    list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
@@ -203,8 +198,7 @@ def run_loop(
   unstacked_states, unstacked_post_processed_outputs = _unstack_pytree_history(
       states_history, post_processed_outputs_history, final_i
   )
-  sim_error = step_function.check_for_errors(
-      step_fn.runtime_params_provider.numerics,
+  sim_error = step_fn.check_for_errors(
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
   )

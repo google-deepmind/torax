@@ -273,7 +273,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     data_path = os.path.join(test_data_dir, config_name).replace('.py', '.nc')
     torax_config = config_loader.build_torax_config_from_file(config_path)
     reference_file = output.load_state_file(data_path)
-    _, _, _, step_fn = run_simulation.prepare_simulation(torax_config)
+    step_fn = run_simulation.make_step_fn(torax_config)
 
     state_history, post_processed_outputs_history, sim_error = (
         jit_run_loop.run_loop(step_fn)

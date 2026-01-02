@@ -22,7 +22,6 @@ import jax.numpy as jnp
 import jax.test_util as jtu
 import numpy as np
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
@@ -33,41 +32,39 @@ from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import model_config
 
 
-def get_provider_sim_state_and_post_processed_outputs(
+def get_step_fn_sim_state_and_post_processed_outputs(
     config_dict: dict[str, Any] | None = None,
 ) -> tuple[
-    build_runtime_params.RuntimeParamsProvider,
-    sim_state_lib.ToraxSimState,
+    step_function.SimulationStepFn,
+    sim_state_lib.SimState,
     post_processing.PostProcessedOutputs,
 ]:
   if config_dict is None:
     config_dict = default_configs.get_default_config_dict()
   torax_config = model_config.ToraxConfig.from_dict(config_dict)
   (
-      params_provider,
       sim_state,
       post_processed_outputs,
-      _,
+      step_fn,
   ) = run_simulation.prepare_simulation(torax_config)
-  return params_provider, sim_state, post_processed_outputs
+  return step_fn, sim_state, post_processed_outputs
 
 
 class StepFunctionTest(parameterized.TestCase):
 
   def test_no_error(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         sim_state,
         post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NO_ERROR)
 
   def test_nan_in_bc(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     core_profiles = dataclasses.replace(
         sim_state.core_profiles,
@@ -79,31 +76,29 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state_core_profiles = dataclasses.replace(
         sim_state, core_profiles=core_profiles
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state_core_profiles,
         post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_nan_in_post_processed_outputs(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     new_post_processed_outputs = dataclasses.replace(
         post_processed_outputs,
         P_aux_total=jnp.array(jnp.nan),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         sim_state,
         new_post_processed_outputs,
     )
     self.assertEqual(error, state.SimError.NAN_DETECTED)
 
   def test_nan_in_source_array(self):
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs()
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs()
     )
     nan_array = np.zeros_like(sim_state.geometry.rho)
     nan_array[-1] = np.nan
@@ -117,8 +112,7 @@ class StepFunctionTest(parameterized.TestCase):
     new_sim_state_sources = dataclasses.replace(
         sim_state, core_sources=new_core_sources
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state_sources,
         post_processed_outputs,
     )
@@ -130,8 +124,8 @@ class StepFunctionTest(parameterized.TestCase):
         'min_dt': 2.0,
         'dt_reduction_factor': 2.0,
     }
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs(config_dict)
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs(config_dict)
     )
 
     new_sim_state = dataclasses.replace(
@@ -144,8 +138,7 @@ class StepFunctionTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state,
         post_processed_outputs,
     )
@@ -159,8 +152,8 @@ class StepFunctionTest(parameterized.TestCase):
         'exact_t_final': True,
         't_final': 5.0,
     }
-    params_provider, sim_state, post_processed_outputs = (
-        get_provider_sim_state_and_post_processed_outputs(config_dict)
+    step_fn, sim_state, post_processed_outputs = (
+        get_step_fn_sim_state_and_post_processed_outputs(config_dict)
     )
     new_sim_state = dataclasses.replace(
         sim_state,
@@ -173,8 +166,7 @@ class StepFunctionTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
     )
-    error = step_function.check_for_errors(
-        params_provider.numerics,
+    error = step_fn.check_for_errors(
         new_sim_state,
         post_processed_outputs,
     )
@@ -189,7 +181,6 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -223,7 +214,6 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -256,7 +246,6 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -300,7 +289,6 @@ class StepFunctionTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -314,9 +302,9 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_fixed_time_step_correct_time(self):
     config_dict = default_configs.get_default_config_dict()
+    control_dt = 0.01
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -324,11 +312,14 @@ class StepFunctionTest(parameterized.TestCase):
 
     t_initial = sim_state.t
     output_state, _ = step_fn.fixed_time_step(
-        jnp.array(0.01),
+        jnp.array(control_dt),
         sim_state,
         post_processed_outputs,
     )
-    np.testing.assert_allclose(output_state.t, t_initial + 0.01, atol=1e-7)
+    np.testing.assert_allclose(
+        output_state.t, t_initial + control_dt, atol=1e-7
+    )
+    np.testing.assert_allclose(output_state.dt, control_dt, atol=1e-7)
 
   def test_fixed_time_step_t_less_than_min_dt(self):
     config_dict = default_configs.get_default_config_dict()
@@ -336,7 +327,6 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict['numerics']['adaptive_dt'] = True
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -357,11 +347,11 @@ class StepFunctionTest(parameterized.TestCase):
     example_config_path = example_config_paths[config_name_no_py]
     cfg = config_loader.build_torax_config_from_file(example_config_path)
     (
-        params_provider,
         sim_state,
         post_processed_outputs,
         step_fn,
     ) = run_simulation.prepare_simulation(cfg)
+    params_provider = step_fn.runtime_params_provider
     input_value = params_provider.profile_conditions.Ip.value
 
     @jax.jit
@@ -392,11 +382,11 @@ class StepFunctionTest(parameterized.TestCase):
     raw_config = config_loader.import_module(example_config_path)['CONFIG']
     cfg = config_loader.build_torax_config_from_file(example_config_path)
     (
-        params_provider,
         sim_state,
         post_processed_outputs,
         step_fn,
     ) = run_simulation.prepare_simulation(cfg)
+    params_provider = step_fn.runtime_params_provider
 
     # Run a step with overriden Ip.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
@@ -417,12 +407,7 @@ class StepFunctionTest(parameterized.TestCase):
         lambda x: x * 2.0, raw_config['profile_conditions']['Ip']
     )
     cfg.update_fields({'profile_conditions.Ip': doubled_ip})
-    (
-        _,
-        _,
-        _,
-        step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
+    step_fn = run_simulation.make_step_fn(cfg)
     ref_state, ref_post_processed_outputs = step_fn(
         # Use original state and post-processed outputs as the initial value.
         sim_state,
@@ -442,7 +427,6 @@ class StepFunctionTest(parameterized.TestCase):
     example_config_path = example_config_paths[config_name_no_py]
     cfg = config_loader.build_torax_config_from_file(example_config_path)
     (
-        _,
         sim_state,
         post_processed_outputs,
         step_fn,
@@ -450,12 +434,7 @@ class StepFunctionTest(parameterized.TestCase):
 
     # Construct a new step function with a different geometry.
     cfg.update_fields({'geometry.calcphibdot': False})
-    (
-        _,
-        _,
-        _,
-        new_step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
+    new_step_fn = run_simulation.make_step_fn(cfg)
     # Use original step function with new step function's geometry as overrides.
     override_state, override_post_processed_outputs = step_fn(
         sim_state,

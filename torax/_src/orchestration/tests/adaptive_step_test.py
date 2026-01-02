@@ -33,12 +33,13 @@ class AdaptiveStepTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     (
-        self.params_provider,
         self.sim_state,
         self.post_processed_outputs,
         self.step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
-    self.runtime_params = self.params_provider(torax_config.numerics.t_initial)
+    self.runtime_params = self.step_fn.runtime_params_provider(
+        torax_config.numerics.t_initial
+    )
     self.geo = self.sim_state.geometry
 
   def test_create_initial_state_smoke(self):

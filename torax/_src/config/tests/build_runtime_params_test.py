@@ -296,12 +296,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     torax_config = config_loader.build_torax_config_from_file(
         'tests/test_data/test_iterhybrid_rampup.py'
     )
+    # TODO(b/467305739): Investigate why this cannot be removed and replaced
+    # with a call to `build_runtime_params.RuntimeParamsProvider.from_config`.
     (
-        self._params_provider,
         _,
         _,
-        _,
+        step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
+    self._params_provider = step_fn.runtime_params_provider
 
   def test_update_runtime_params_provider(self):
     params_provider = self._params_provider

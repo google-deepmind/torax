@@ -56,11 +56,33 @@ class GettersTest(parameterized.TestCase):
         T_i_right_bc=bound,
         T_i=value,
     )
-    result = getters.get_updated_ion_temperature(
-        profile_conditions, self.geo
-    )
+    result = getters.get_updated_ion_temperature(profile_conditions, self.geo)
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
+
+  def test_only_updating_boundary_condition(self):
+    value = np.array([12.0, 10.0, 8.0, 6.0])
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.RuntimeParams,
+        instance=True,
+        T_i_right_bc=0.5,
+        T_i=value,
+    )
+    original_T_i = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        left_face_grad_constraint=jnp.zeros(()),
+        right_face_grad_constraint=None,
+        right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        dr=self.geo.drho_norm,
+    )
+    result = getters.get_updated_ion_temperature(
+        profile_conditions,
+        self.geo,
+        only_boundary_condition=True,
+        original_T_i_value=original_T_i,
+    )
+    np.testing.assert_allclose(result.value, original_T_i.value)
+    np.testing.assert_equal(result.right_face_constraint, 0.5)
 
   def test_updated_electron_temperature(self):
     bound = np.array(42.0)
@@ -72,10 +94,35 @@ class GettersTest(parameterized.TestCase):
         T_e=value,
     )
     result = getters.get_updated_electron_temperature(
-        profile_conditions, self.geo,
+        profile_conditions,
+        self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
+
+  def test_only_updating_boundary_condition_electron_temperature(self):
+    value = np.array([12.0, 10.0, 8.0, 6.0])
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.RuntimeParams,
+        instance=True,
+        T_e_right_bc=0.5,
+        T_e=value,
+    )
+    original_T_e = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        left_face_grad_constraint=jnp.zeros(()),
+        right_face_grad_constraint=None,
+        right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        dr=self.geo.drho_norm,
+    )
+    result = getters.get_updated_electron_temperature(
+        profile_conditions,
+        self.geo,
+        only_boundary_condition=True,
+        original_T_e_value=original_T_e,
+    )
+    np.testing.assert_allclose(result.value, original_T_e.value)
+    np.testing.assert_equal(result.right_face_constraint, 0.5)
 
   def test_n_e_core_profile_setter(self):
     """Tests that setting n_e works."""
@@ -103,28 +150,140 @@ class GettersTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
-  @parameterized.parameters(
-      # When normalize_n_e_to_nbar=False, take n_e_right_bc from n_e
-      (None, False, 1.0e20),
-      # Take n_e_right_bc from provided value.
-      (0.85e20, False, 0.85e20),
-      # normalize_n_e_to_nbar=True, n_e_right_bc from n_e and normalize.
-      (None, True, 0.8050314e20),
-      # Even when normalize_n_e_to_nbar, boundary condition is absolute.
-      (0.5e20, True, 0.5e20),
+  def test_only_updating_boundary_condition_n_e(self):
+    """Tests that only updating the boundary condition works."""
+    value = np.array([12.0, 10.0, 8.0, 6.0])
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.RuntimeParams,
+        instance=True,
+        n_e_right_bc=0.5,
+        n_e=value,
+        Ip=15e6,
+        n_e_right_bc_is_fGW=False,
+        n_e_nbar_is_fGW=False,
+        normalize_n_e_to_nbar=False,
+    )
+    original_n_e = cell_variable.CellVariable(
+        value=jnp.array([1.0, 2.0, 3.0, 4.0]),
+        left_face_grad_constraint=jnp.zeros(()),
+        right_face_grad_constraint=None,
+        right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        dr=self.geo.drho_norm,
+    )
+    n_e = getters.get_updated_electron_density(
+        profile_conditions,
+        self.geo,
+        only_boundary_condition=True,
+        original_n_e_value=original_n_e,
+    )
+    np.testing.assert_allclose(n_e.value, original_n_e.value)
+    np.testing.assert_allclose(n_e.right_face_constraint, 0.5)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='Set from n_e',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=1.0e20,
+      ),
+      dict(
+          testcase_name='Set and normalize from n_e',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.8050314e20,
+      ),
+      dict(
+          testcase_name='Set and normalize from n_e in fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=True,
+          expected_n_e_right_bc=0.9609356e20,
+      ),
+      dict(
+          testcase_name='Set from n_e_right_bc',
+          n_e_right_bc=0.85e20,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.85e20,
+      ),
+      dict(
+          testcase_name='Set from n_e_right_bc absolute, ignore normalize',
+          n_e_right_bc=0.5e20,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5e20,
+      ),
+      dict(
+          testcase_name='Set from n_e in fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=True,
+          expected_n_e_right_bc=1.19366207319e20,
+      ),
+      dict(
+          testcase_name='Set from n_e, ignore n_e_right_bc_is_fGW',
+          n_e_right_bc=None,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=True,
+          expected_n_e_right_bc=1.0e20,
+      ),
+      dict(
+          testcase_name='Set from n_e_right_bc, which is in fGW',
+          n_e_right_bc=0.5,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=False,
+          n_e_right_bc_is_fGW=True,
+          expected_n_e_right_bc=0.59683103659e20,
+      ),
+      dict(
+          testcase_name='Set from n_e_right_bc, ignore n_e_nbar_is_fGW',
+          n_e_right_bc=0.5e20,
+          normalize_n_e_to_nbar=False,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5e20,
+      ),
+      dict(
+          testcase_name=(
+              'Set from n_e_right_bc, ignore n_e_nbar_is_fGW, ignore normalize'
+          ),
+          n_e_right_bc=0.5e20,
+          normalize_n_e_to_nbar=True,
+          n_e_nbar_is_fGW=True,
+          n_e_right_bc_is_fGW=False,
+          expected_n_e_right_bc=0.5e20,
+      ),
   )
   def test_density_boundary_condition_override(
       self,
       n_e_right_bc: float | None,
       normalize_n_e_to_nbar: bool,
-      expected_value: float,
+      n_e_nbar_is_fGW: bool,
+      n_e_right_bc_is_fGW: bool,
+      expected_n_e_right_bc: float,
   ):
     """Tests that setting n_e right boundary works."""
+    if n_e_nbar_is_fGW:
+      nbar = 1.0
+      n_e = {0: {0: 1.5, 1: 1}}
+    else:
+      nbar = 1.0e20
+      n_e = {0: {0: 1.5e20, 1: 1e20}}
+
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
-        'n_e': {0: {0: 1.5e20, 1: 1e20}},
-        'n_e_nbar_is_fGW': False,
-        'n_e_right_bc_is_fGW': False,
-        'nbar': 1e20,
+        'n_e': n_e,
+        'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
+        'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
+        'nbar': nbar,
         'n_e_right_bc': n_e_right_bc,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
     })
@@ -137,7 +296,7 @@ class GettersTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         n_e.right_face_constraint,
-        expected_value,
+        expected_n_e_right_bc,
         atol=1e-6,
         rtol=1e-6,
     )
@@ -704,9 +863,7 @@ class GettersTest(parameterized.TestCase):
     total = np.zeros((5,))
     total_sq = np.zeros((5,))
     for s, r in n_e_ratios.items():
-      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(
-          r
-      )
+      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(r)
       torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
       impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
       z_impurity = z_impurities[s][0]
@@ -951,9 +1108,7 @@ class GettersTest(parameterized.TestCase):
     total = np.zeros((5,))
     total_sq = np.zeros((5,))
     for s, r in n_e_ratios.items():
-      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(
-          r
-      )
+      impurity_value_tva = torax_pydantic.TimeVaryingArray.model_validate(r)
       torax_pydantic.set_grid(impurity_value_tva, geo.torax_mesh)
       impurity_value = impurity_value_tva.get_value(t=0.0, grid_type='face')
       z_impurity = z_impurities[s][0]

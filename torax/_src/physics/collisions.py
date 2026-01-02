@@ -27,6 +27,7 @@ Functions:
       electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
+    - calculate_tau_ii: Calculates the ion-ion collision time.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
     - _calculate_log_tau_e_Z1: Calculates log of electron-ion collision time for
@@ -155,7 +156,7 @@ def fast_ion_fractional_heating_formula(
   of the log.
 
   Args:
-    birth_energy: Birth energy of the fast ions in keV.
+    birth_energy: Birth energy of the fast ions [keV].
     T_e: Electron temperature.
     fast_ion_mass: Mass of the fast ions in amu.
 
@@ -191,11 +192,11 @@ def calculate_log_lambda_ee(
   See Wesson 3rd edition p727.
 
   Args:
-    T_e: Electron temperature in keV.
-    n_e: Electron density in m^-3.
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
 
   Returns:
-    Coulomb logarithm.
+    Coulomb logarithm [dimensionless].
   """
   # Rescale T_e to eV for specific form of formula.
   T_e_ev = T_e * 1e3
@@ -211,11 +212,11 @@ def calculate_log_lambda_ei(
   See Wesson 3rd edition p727.
 
   Args:
-    T_e: Electron temperature in keV.
-    n_e: Electron density in m^-3.
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
 
   Returns:
-    Coulomb logarithm.
+    Coulomb logarithm [dimensionless].
   """
   # Rescale T_e to eV for specific form of formula.
   T_e_ev = T_e * 1e3
@@ -232,16 +233,51 @@ def calculate_log_lambda_ii(
   Formula 18e in Sauter PoP 1999. See also NRL formulary 2013, page 34.
 
   Args:
-    T_i: Electron temperature in keV.
-    n_i: Electron density in m^-3.
+    T_i: Electron temperature [keV].
+    n_i: Electron density [m^-3].
     Z_i: Ion charge [dimensionless].
 
   Returns:
-    Coulomb logarithm.
+    Coulomb logarithm [dimensionless].
   """
   # Rescale T_i to eV for specific form of formula.
   T_i_ev = T_i * 1e3
   return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
+
+
+def calculate_tau_ii(
+    A_i: jax.Array,
+    Z_i: jax.Array,
+    T_i: jax.Array,
+    n_i: jax.Array,
+    ln_Lambda_ii: jax.Array,
+) -> jax.Array:
+  """Calculates ion-ion (self) collision time for a single ion species.
+
+  See Wesson 3rd edition p730.
+
+  Args:
+    A_i: Ion mass [amu]
+    Z_i: Ion charge number [dimensionless].
+    T_i: Ion temperature [keV].
+    n_i: Ion density [m^-3].
+    ln_Lambda_ii: Coulomb logarithm for ion-ion collisions [dimensionless].
+
+  Returns:
+    Ion-ion collision time [s].
+  """
+  log_tau_ii = (
+      jnp.log(12)
+      + 1.5 * jnp.log(jnp.pi)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+      + 0.5 * (jnp.log(A_i) + jnp.log(constants.CONSTANTS.m_amu))
+      + 1.5 * (jnp.log(T_i) + jnp.log(constants.CONSTANTS.keV_to_J))
+      - jnp.log(n_i)
+      - 4 * jnp.log(Z_i)
+      - 4 * jnp.log(constants.CONSTANTS.q_e)
+      - jnp.log(ln_Lambda_ii)
+  )
+  return jnp.exp(log_tau_ii)
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -268,12 +304,12 @@ def _calculate_log_tau_e_Z1(
   and implemented in calling functions.
 
   Args:
-    T_e: Electron temperature in keV.
-    n_e: Electron density in m^-3.
-    log_lambda_ei: Coulomb logarithm.
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
+    log_lambda_ei: Coulomb logarithm [dimensionless].
 
   Returns:
-    Log of electron-ion collision time.
+    Log of electron-ion collision time [dimensionless].
   """
   return (
       jnp.log(12 * jnp.pi**1.5 / (n_e * log_lambda_ei))

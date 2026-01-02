@@ -21,6 +21,7 @@ from typing import Final
 
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -49,6 +50,14 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
 _EPSILON_NN: Final[float] = (
     1 / 3
 )  # fixed inverse aspect ratio used to train QLKNN models
+
+
+# Rotation rule constants.
+# Defined in the van de Plassche 2020 paper.(https://arxiv.org/abs/1911.05617)
+_C1: Final[float] = 0.13
+_C2: Final[float] = 0.41
+_C3: Final[float] = 0.09
+_C4: Final[float] = 1.65
 
 
 # Memoize, but evict the old model if a new path is given.
@@ -162,6 +171,44 @@ def clip_inputs(
   return feature_scan
 
 
+def _calculate_rotation_rule_factor(
+    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
+) -> jax.Array:
+  """Calculate the rotation scaling factor."""
+  # TODO(b/456456279): The rotation rule has been calibrated for QLKNN10D.
+  # We should validate if this formula makes sense for QLKNN_7_11.
+  return (
+      _C1 * qualikiz_inputs.q
+      + _C2 * qualikiz_inputs.smag
+      + _C3 / qualikiz_inputs.epsilon
+      - _C4
+  )
+
+
+def _apply_rotation_rule(
+    model_output: base_qlknn_model.ModelOutput,
+    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
+) -> base_qlknn_model.ModelOutput:
+  """Apply the rotation scaling factor to the model output (Victor rule)."""
+  f_rot_rule = _calculate_rotation_rule_factor(qualikiz_inputs)
+  gamma_max = model_output['gamma_max'].squeeze()
+  lower_bound = 1e-4
+  gamma_max = jnp.maximum(gamma_max, lower_bound)
+  scaling_factor = jnp.clip(
+      1 + f_rot_rule * qualikiz_inputs.gamma_E_GB / gamma_max
+  )
+  # Add an extra dimension to match model outputs.
+  scaling_factor = scaling_factor[..., jnp.newaxis]
+
+  # Apply the scaling factor to ITG and TEM modes
+  updated_model_output = dict(model_output)
+  for flux in updated_model_output:
+    if flux.endswith('_itg') or flux.endswith('_tem'):
+      updated_model_output[flux] = scaling_factor * updated_model_output[flux]
+
+  return updated_model_output
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class QLKNNTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
@@ -201,13 +248,19 @@ class QLKNNTransportModel(
         runtime_params,
         pedestal_model_output,
     )
-    return self._combined(runtime_config_inputs, geo, core_profiles)
+    return self._combined(
+        runtime_config_inputs,
+        geo,
+        core_profiles,
+        runtime_params.neoclassical.poloidal_velocity_multiplier,
+    )
 
   def _combined(
       self,
       runtime_config_inputs: QLKNNRuntimeConfigInputs,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> transport_model_lib.TurbulentTransport:
     """Actual implementation of `__call__`.
 
@@ -218,6 +271,7 @@ class QLKNNTransportModel(
         triggering a JAX recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
+      poloidal_velocity_multiplier: Poloidal velocity multiplier.
 
     Returns:
       chi_face_ion: Chi for ion temperature, along faces.
@@ -229,6 +283,7 @@ class QLKNNTransportModel(
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=poloidal_velocity_multiplier,
     )
     model = get_model(self.path, self.name)
 
@@ -238,7 +293,7 @@ class QLKNNTransportModel(
     # the correct trapped electron fraction.
     qualikiz_inputs = dataclasses.replace(
         qualikiz_inputs,
-        x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
+        x=qualikiz_inputs.x * qualikiz_inputs.epsilon[-1] / _EPSILON_NN,
     )
 
     feature_scan = model.get_model_inputs_from_qualikiz_inputs(qualikiz_inputs)
@@ -254,6 +309,12 @@ class QLKNNTransportModel(
         lambda: feature_scan,  # Called when False
     )
     model_output = model.predict(feature_scan)
+    if (
+        runtime_config_inputs.transport.rotation_mode
+        != qualikiz_based_transport_model.RotationMode.OFF
+    ):
+      model_output = _apply_rotation_rule(model_output, qualikiz_inputs)
+
     model_output = _filter_model_output(
         model_output=model_output,
         include_ITG=runtime_config_inputs.transport.include_ITG,

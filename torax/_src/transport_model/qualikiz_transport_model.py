@@ -93,7 +93,7 @@ class QualikizTransportModel(
     Returns:
       coeffs: transport coefficients
     """
-    del pedestal_model_output, runtime_params  # Unused.
+    del pedestal_model_output  # Unused.
 
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -102,6 +102,7 @@ class QualikizTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
@@ -265,6 +266,8 @@ def _extract_qualikiz_plan(
       A qualikiz_tools.qualikiz_io.inputfiles.QuaLiKizPlan
   """
   # Generate QuaLiKizXPoint, changing object defaults
+
+  # TODO(b/381199010): Add option to use rotation.
 
   # numerical parameters
   meta = qualikiz_inputtools.QuaLiKizXpoint.Meta(
@@ -435,6 +438,10 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
+  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_mode: Annotated[
+      qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
+  ] = qualikiz_based_transport_model.RotationMode.OFF
 
   def build_transport_model(self) -> QualikizTransportModel:
     return QualikizTransportModel()
@@ -450,5 +457,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        rotation_multiplier=self.rotation_multiplier,
+        rotation_mode=self.rotation_mode,
         **base_kwargs,
     )

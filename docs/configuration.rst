@@ -19,6 +19,7 @@ dictionary, where the top level keys are:
 * **plasma_composition**: Configures the distribution of ion species.
 * **geometry**: Configures geometry setup and constructs the Geometry object.
 * **pedestal**: Configures the pedestal for the simulation.
+* **edge**: Selects and configures the edge physics model.
 * **sources**: Selects and configures parameters of the various heat source,
   particle source, and non-inductive current models.
 * **solver**: Selects and configures the PDE solver.
@@ -263,40 +264,47 @@ time-dependence of temperature, density, and current.
 ``T_i_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary
   condition will instead be taken from ``T_i`` at :math:`\hat{\rho}=1`.
+  In units of :math:`keV`.
 
 ``T_e_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary
   condition will instead be taken from ``T_e`` at :math:`\hat{\rho}=1`.
+  In units of :math:`keV`.
 
 ``T_i`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for ion temperature at different times in units
-  of keV.
+  If ``numerics.evolve_ion_heat`` is True, then the initial value of ion
+  temperature is taken from here. If ``numerics.evolve_ion_heat`` is False,
+  then the prescribed ion temperature for all times is taken from here. In units
+  of :math:`keV`.
 
 ``T_e`` (**time-varying-array** [default = {0: {0: 15.0, 1: 1.0}}])
-  Prescribed or evolving values for electron temperature at different times in
-  units of keV.
+  If ``numerics.evolve_electron_heat`` is True, then the initial value of
+  electron temperature is taken from here. If ``numerics.evolve_electron_heat``
+  is False, then the prescribed electron temperature for all times is taken from
+  here. In units of :math:`keV`.
 
 ``psi`` (**time-varying-array** | None [default = None])
-  Initial values for poloidal flux. If provided, the initial ``psi`` will be
-  taken from here. Otherwise, the initial ``psi`` will be calculated from either
-  the geometry or the "current_profile_nu formula" dependant on the
-  ``initial_psi_from_j`` field.
+  If provided, the initial ``psi`` will be taken from here. Otherwise, the
+  initial ``psi`` will be calculated from either the geometry or the
+  "current_profile_nu formula" dependent on the ``initial_psi_from_j`` field.
+  If ``numerics.evolve_current`` is False and ``psi`` is provided here, then
+  the prescribed ``psi`` for all times is taken from here.
 
 ``psidot`` (**time-varying-array** | None [default = None])
   Prescribed values for the time derivative of poloidal flux (loop voltage).
-  If provided, and if ``evolve_current`` is False, this prescribed ``psidot``
-  will be used instead of the internally calculated one. The motivation for
-  this feature is that sometimes the initial ``psi`` condition leads to
-  unphysical transient ``psidot`` and thus transiently unphysical
+  If provided, and if ``numerics.evolve_current`` is False, this prescribed
+  ``psidot`` will be used instead of the internally calculated one. The
+  motivation for this feature is that sometimes the initial ``psi`` condition
+  leads to unphysical transient ``psidot`` and thus transiently unphysical
   (e.g. too high) ohmic power. For such cases, it is useful to override a static
   non-physical ``psidot`` with a more physical value, e.g., one obtained from
   another similar simulation with current evolution enabled.
 
 ``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
-  Prescribed or evolving values for electron density at different times.
-
-  If ``evolve_density==True`` (see :ref:`numerics_dataclass`), then
-  time-dependent ``n_e`` is ignored, and only the initial value is used.
+  If ``numerics.evolve_density`` is True, then the initial value of electron
+  density is taken from here. If ``numerics.evolve_density`` is False, then the
+  prescribed electron density for all times is taken from here. In units of
+  :math:`m^{-3}`.
 
 ``normalize_n_e_to_nbar`` (bool = False)
   Whether to renormalize the density profile to have the desired line averaged
@@ -763,6 +771,57 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 ``rho_norm_ped_top`` (**time-varying-scalar** [default = 0.91])
   Location of pedestal top, in units of :math:`\hat{\rho}`.
 
+edge
+----
+
+Configures the edge physics model used to determine boundary conditions for the
+core transport solver. If not provided, no edge model is run, and boundary
+conditions are determined solely by the ``profile_conditions`` settings.
+
+See :ref:`edge_models` for a detailed description of the available models,
+their physics validation, and numerical implementation.
+
+``model_name`` (str [default = 'extended_lengyel'])
+  Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
+
+extended_lengyel
+^^^^^^^^^^^^^^^^
+
+Configuration for the Extended Lengyel model. This model calculates the target
+electron temperature and heat flux based on upstream conditions and impurity
+radiation.
+
+See :ref:`extended_lengyel_config` for the complete list of physical and
+control parameters.
+
+**Key Control Parameters:**
+
+``computation_mode`` (str [default = 'forward'])
+  * ``'forward'``: Calculate target conditions from upstream inputs.
+  * ``'inverse'``: Calculate required seeded impurity concentration to achieve
+    a specific target :math:`T_e`.
+
+``solver_mode`` (str [default = 'hybrid'])
+  Strategy for solving the non-linear edge equations
+  (``'fixed_point'``, ``'newton_raphson'``, or ``'hybrid'``).
+
+``impurity_sot`` (str [default = 'core'])
+  Defines the Source of Truth (``'core'`` or ``'edge'``) for fixed background
+  impurities. Determines whether the core profile ratios drive the edge
+  concentration or vice versa.
+
+**Key Physical Inputs:**
+
+``T_e_target``, ``seed_impurity_weights``, ``fixed_impurity_concentrations``,
+``enrichment_factor``, ``use_enrichment_model``.
+
+**Geometry:**
+
+Presently only the ``fbt`` geometry type supports edge geometry terms. For other
+geometry types, these terms must be provided in the edge configuration, e.g.
+``connection_length_target``, ``connection_length_divertor``,
+``flux_expansion``.
+
 .. _geometry_doc:
 
 geometry
@@ -810,8 +869,8 @@ additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
-  The default is set to ``iterhybrid.mat2cols’`` for
-  CHEASE geometry and ``iterhybrid_cocos02.eqdsk``` for EQDSK geometry.
+  The default is set to ``iterhybrid.mat2cols`` for
+  CHEASE geometry and ``iterhybrid_cocos02.eqdsk`` for EQDSK geometry.
 
 ``geometry_directory`` (str | None [default = None])
   Optionally set the geometry directory. This should be set to an absolute path.
@@ -851,9 +910,16 @@ denormalization.
 
 Geometry dicts for FBT geometry require the following additional keys.
 
+``divertor_domain`` (str [default = 'lower_null'])
+  Selects the divertor domain used to extract edge geometry parameters used
+  by the :ref:`extended_lengyel` edge model.
+  Either ``'lower_null'`` or ``'upper_null'``.
+
 ``LY_object`` (dict[str, np.ndarray | float] | str | None [default = None])
   Sets a single-slice FBT LY geometry file to be loaded, or alternatively a dict
   directly containing a single time slice of LY data.
+  **Note:** FBT files can optionally contain edge geometry parameters
+  (e.g., ``Lpar_target``) used by the :ref:`extended_lengyel` edge model.
 
 ``LY_bundle_object`` (dict[str, np.ndarray | float] | str | None
   [default = None]) Sets the FBT LY bundle file to be loaded, corresponding to
@@ -1222,6 +1288,19 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``rotation_multiplier`` (float [default = 1.0])
+  Multiplier for :math:`v_ExB`` in the rotation correction factor.
+
+``rotation_mode`` (str [default = 'off'])
+  Defines how the rotation correction is applied. Options are:
+
+  * ``off``: No rotation correction is applied.
+
+  * ``half_radius``: The rotation correction is only applied to the outer
+    half of the radius (:math:`\hat{\rho} > 0.5`).
+
+  * ``full_radius``: The rotation correction is applied everywhere.
+
 tglfnn-ukaea
 ^^^^^^^^^^^^
 
@@ -1244,6 +1323,11 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``rotation_multiplier`` (float [default = 1.0])
+  Multiplier for :math:`v_{ExB}_shear`.
+
+``use_rotation`` (bool [default = False])
+  If ``True``, use the rotation term :math:`v_{ExB}_shear` in the model.
 
 qualikiz
 ^^^^^^^^
@@ -1297,7 +1381,7 @@ be overlapping or non-overlapping; in regions of overlap, the total
 transport coefficients are computed by adding the contributions from
 component models active at those coordinates.
 For individual core transport models defined in ``transport_models``, the active
-domain (where transport coefficients are non-zero) is set by ``rho_min``` and
+domain (where transport coefficients are non-zero) is set by ``rho_min`` and
 ``rho_max``. If a pedestal is active, the active domain is then limited by
 ``rho_norm_ped_top`` if ``rho_norm_ped_top`` is less than ``rho_max``.
 ``rho_norm_ped_top`` is set in the ``pedestal`` section of the config.
@@ -1979,6 +2063,9 @@ transport
   Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
   and :math:`V_\mathrm{neo, ware}` separately.
 
+``poloidal_velocity_multiplier`` (float [default = 1.0])
+  Multiplier for the poloidal velocity.
+
 restart
 -------
 
@@ -2144,11 +2231,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'n_e_nbar_is_fGW': True,
           'nbar': 1,
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
-          'T_i_ped': 1.0,
-          'T_e_ped': 1.0,
-          'n_e_ped_is_fGW': True,
-          'n_e_ped': {0: 0.3, 80: 0.7},
-          'Ped_top': 0.9,
       },
       'numerics': {
           't_final': 80,
@@ -2169,8 +2251,12 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'a_minor': 2.0,
           'B_0': 5.3,
       },
+      'neoclassical': {
+          'bootstrap_current': {
+              'bootstrap_multiplier': 1.0,
+          },
+      },
       'sources': {
-          'j_bootstrap': {},
           'generic_current': {
               'fraction_of_total_current': 0.15,
               'gaussian_width': 0.075,
@@ -2212,19 +2298,19 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'V_e_min': -10,
           'V_e_max': 10,
           'smoothing_width': 0.1,
-          'qlknn_params': {
-              'DV_effective': True,
-              'avoid_big_negative_s': True,
-              'An_min': 0.05,
-              'ITG_flux_ratio_correction': 1,
-          },
+          'DV_effective': True,
+          'avoid_big_negative_s': True,
+          'An_min': 0.05,
+          'ITG_flux_ratio_correction': 1,
       },
       'pedestal': {
           'model_name': 'set_T_ped_n_ped',
           'set_pedestal': True,
           'T_i_ped': 1.0,
           'T_e_ped': 1.0,
+          'n_e_ped': {0: 0.3, 80: 0.7},
           'rho_norm_ped_top': 0.95,
+          'n_e_ped_is_fGW': True,
       },
       'solver': {
           'solver_type': 'newton_raphson',

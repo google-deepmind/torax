@@ -553,7 +553,7 @@ def _calculate_integrated_sources(
 
 @jax.jit
 def make_post_processed_outputs(
-    sim_state: sim_state_lib.ToraxSimState,
+    sim_state: sim_state_lib.SimState,
     runtime_params: runtime_params_lib.RuntimeParams,
     previous_post_processed_outputs: PostProcessedOutputs,
 ) -> PostProcessedOutputs:
@@ -821,6 +821,7 @@ def make_post_processed_outputs(
       toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
       pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
       geo=sim_state.geometry,
+      poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )
 
   return PostProcessedOutputs(

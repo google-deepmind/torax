@@ -252,43 +252,47 @@ def _get_provider_value_from_replace_value(
     leaf: ReplaceablePytreeNodes,
     replace_value: ValidUpdates,
 ) -> ReplaceablePytreeNodes:
-    """Validate and convert any replacement value to the correct type."""
-    match leaf:
-        case interpolated_param_1d.TimeVaryingScalar():
-            if not isinstance(
-                replace_value, interpolated_param_1d.TimeVaryingScalarUpdate
-            ):
-                raise ValueError(
-                    "To replace a `TimeVaryingScalar` use a"
-                    f" `TimeVaryingScalarReplace`, got {type(replace_value)} instead."
-                )
-            return leaf.update(replace_value)
-        case interpolated_param_2d.TimeVaryingArray():
-            if not isinstance(
-                replace_value, interpolated_param_2d.TimeVaryingArrayUpdate
-            ):
-                raise ValueError(
-                    "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"
-                    f" got {type(replace_value)} instead."
-                )
-            return leaf.update(replace_value)
-        case _ if isinstance(leaf, (chex.Array, float)):
-            # Convert to JAX arrays first, which handles tracers correctly
-            leaf = jnp.asarray(leaf)
-            replace_value = jnp.asarray(replace_value)
-            if leaf.shape != replace_value.shape or leaf.dtype != replace_value.dtype:
-                raise ValueError(
-                    "The shape of the replacement value must match the shape of the"
-                    f" leaf, Got leaf: shape={leaf.shape}, dtype={leaf.dtype},"
-                    f" replace_value: shape={replace_value.shape},"
-                    f" dtype={replace_value.dtype}."
-                )
-            return replace_value
-        case _:
-            raise ValueError(
-                "Only a scalar, `TimeVaryingScalar` or `TimeVaryingArray` can be"
-                f" replaced, got {type(leaf)} instead."
-            )
+  """Validate and convert any replacement value to the correct type."""
+  match leaf:
+    case interpolated_param_1d.TimeVaryingScalar():
+      if not isinstance(
+          replace_value, interpolated_param_1d.TimeVaryingScalarUpdate
+      ):
+        raise ValueError(
+            "To replace a `TimeVaryingScalar` use a"
+            f" `TimeVaryingScalarReplace`, got {type(replace_value)} instead."
+        )
+      return leaf.update(replace_value)
+    case interpolated_param_2d.TimeVaryingArray():
+      if not isinstance(
+          replace_value, interpolated_param_2d.TimeVaryingArrayUpdate
+      ):
+        raise ValueError(
+            "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"
+            f" got {type(replace_value)} instead."
+        )
+      return leaf.update(replace_value)
+    case _ if isinstance(leaf, (chex.Array, float)):
+      if not isinstance(replace_value, (chex.Array, float, jax.core.Tracer)):
+        raise ValueError(
+            "To replace a scalar or `Array` pass a scalar or `Array`,"
+            f" got {type(replace_value)} instead."
+        )
+      leaf = jnp.asarray(leaf)
+      replace_value = jnp.asarray(replace_value)
+      if leaf.shape != replace_value.shape or leaf.dtype != replace_value.dtype:
+        raise ValueError(
+            "The shape of the replacement value must match the shape of the"
+            f" leaf, Got leaf: shape={leaf.shape}, dtype={leaf.dtype},"
+            f" replace_value: shape={replace_value.shape},"
+            f" dtype={replace_value.dtype}."
+        )
+      return replace_value
+    case _:
+      raise ValueError(
+          "Only a scalar, `TimeVaryingScalar` or `TimeVaryingArray` can be"
+          f" replaced, got {type(leaf)} instead."
+      )
 
 
 def get_consistent_runtime_params_and_geometry(

@@ -61,13 +61,20 @@ def ohmic_model_func(
       core_profiles.psi,
   )
   psi_sources = calculated_source_profiles.total_psi_sources(geo)
-  psidot = psi_calculations.calculate_psidot_from_psi_sources(
-      psi_sources=psi_sources,
-      sigma=conductivity.sigma,
-      resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
-      psi=core_profiles.psi,
-      geo=geo,
-  )
+  if (
+      not runtime_params.numerics.evolve_current
+      and runtime_params.profile_conditions.psidot is not None
+  ):
+    # If psidot is prescribed and current does not evolve, use prescribed value
+    psidot = runtime_params.profile_conditions.psidot
+  else:
+    psidot = psi_calculations.calculate_psidot_from_psi_sources(
+        psi_sources=psi_sources,
+        sigma=conductivity.sigma,
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
+        psi=core_profiles.psi,
+        geo=geo,
+    )
 
   # Ohmic power is positive regardless of the sign of voltage and current.
   # Use local major radius for accurate local power calculation

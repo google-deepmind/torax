@@ -19,6 +19,7 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 import pydantic
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
@@ -45,11 +46,11 @@ class NeoclassicalTransport:
       field. It is separated from V_neo_e for interpretation convenience.
   """
 
-  chi_neo_i: jax.Array
-  chi_neo_e: jax.Array
-  D_neo_e: jax.Array
-  V_neo_e: jax.Array
-  V_neo_ware_e: jax.Array
+  chi_neo_i: array_typing.FloatVectorFace
+  chi_neo_e: array_typing.FloatVectorFace
+  D_neo_e: array_typing.FloatVectorFace
+  V_neo_e: array_typing.FloatVectorFace
+  V_neo_ware_e: array_typing.FloatVectorFace
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'NeoclassicalTransport':

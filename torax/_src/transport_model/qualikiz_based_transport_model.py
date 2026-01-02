@@ -13,16 +13,33 @@
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
 import dataclasses
+import enum
 
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
+from torax._src import jax_utils
 from torax._src import state
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import collisions
 from torax._src.physics import psi_calculations
+from torax._src.physics import rotation
 from torax._src.transport_model import quasilinear_transport_model
+
+
+class RotationMode(enum.StrEnum):
+  """Defines how the rotation correction is applied.
+
+  OFF: No rotation correction is applied.
+  HALF_RADIUS: The rotation correction is only applied to the outer
+    half of the radius (rhon > 0.5).
+  FULL_RADIUS: The rotation correction is applied everywhere.
+  """
+  OFF = 'off'
+  HALF_RADIUS = 'half_radius'
+  FULL_RADIUS = 'full_radius'
 
 
 @jax.tree_util.register_dataclass
@@ -34,6 +51,8 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   avoid_big_negative_s: bool
   smag_alpha_correction: bool
   q_sawtooth_proxy: bool
+  rotation_multiplier: float
+  rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
 
 
 # pylint: disable=invalid-name
@@ -50,7 +69,9 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   log_nu_star_face: array_typing.FloatVectorFace
   normni: array_typing.FloatVectorFace
   alpha: array_typing.FloatVectorFace
-  epsilon_lcfs: array_typing.FloatScalar
+  epsilon: array_typing.FloatVectorFace
+  gamma_E_GB: array_typing.FloatVectorFace
+  gamma_E_QLK: array_typing.FloatVectorFace
 
   # Also define the logarithmic gradients using standard QuaLiKiz notation.
   @property
@@ -84,14 +105,15 @@ class QualikizBasedTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> QualikizInputs:
     """Prepare Qualikiz inputs."""
     constants = constants_module.CONSTANTS
 
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    rmid = (geo.R_out - geo.R_in) * 0.5
-    rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
+    rmid = geo.r_mid
+    rmid_face = geo.r_mid_face
 
     # gyrobohm diffusivity
     # (defined here with Lref=a_minor due to QLKNN training set normalization)
@@ -123,8 +145,8 @@ class QualikizBasedTransportModel(
         core_profiles.psi,
     )
 
-    # Inverse aspect ratio at LCFS.
-    epsilon_lcfs = geo.epsilon_face[-1]
+    # Inverse aspect ratio.
+    epsilon = geo.epsilon_face
     # Local normalized radius.
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
@@ -184,6 +206,52 @@ class QualikizBasedTransportModel(
         smag,
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+
+    def _get_v_ExB():
+      if transport.rotation_mode == RotationMode.OFF:
+        return jnp.zeros_like(core_profiles.q_face)
+      v_ExB, _, _ = rotation.calculate_rotation(
+          T_i=core_profiles.T_i,
+          psi=core_profiles.psi,
+          n_i=core_profiles.n_i,
+          q_face=core_profiles.q_face,
+          Z_eff_face=core_profiles.Z_eff_face,
+          Z_i_face=core_profiles.Z_i_face,
+          toroidal_velocity=core_profiles.toroidal_velocity,
+          pressure_thermal_i=core_profiles.pressure_thermal_i,
+          geo=geo,
+          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
+      )
+      v_ExB = transport.rotation_multiplier * v_ExB
+      if transport.rotation_mode == RotationMode.HALF_RADIUS:
+        # Only consider contribution from the outer half-radius (rho > 0.5).
+        v_ExB = v_ExB * jnp.where(geo.rho_face_norm > 0.5, 1, 0)
+      return v_ExB
+
+    # gamma_E_SI = r / q * d(v_ExB * q / r)/dr
+    v_ExB = _get_v_ExB()
+    # Computing gradient on the cell grid for better numerical accuracy.
+    value_face = v_ExB * q / rmid_face
+    cv = cell_variable.CellVariable(
+        value=geometry.face_to_cell(value_face),
+        dr=geo.drho_norm,
+        right_face_constraint=value_face[-1],
+        right_face_grad_constraint=None,
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
+    gamma_E_SI = rmid_face / q * cv.face_grad(rmid)
+
+    # We need different normalizations for QuaLiKiz and QLKNN models.
+    c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
+    gamma_E_QLK = gamma_E_SI * (geo.R_major / c_ref)
+    c_sou = jnp.sqrt(
+        core_profiles.T_e.face_value()
+        * constants.keV_to_J
+        / (core_profiles.A_i * constants.m_amu)
+    )
+    gamma_E_GB = gamma_E_SI * (geo.a_minor / c_sou)
+
     return QualikizInputs(
         Z_eff_face=core_profiles.Z_eff_face,
         lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
@@ -201,5 +269,7 @@ class QualikizBasedTransportModel(
         Rmaj=geo.R_major,
         Rmin=geo.a_minor,
         alpha=alpha,
-        epsilon_lcfs=epsilon_lcfs,
+        epsilon=epsilon,
+        gamma_E_GB=gamma_E_GB,
+        gamma_E_QLK=gamma_E_QLK,
     )

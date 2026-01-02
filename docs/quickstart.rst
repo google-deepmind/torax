@@ -29,7 +29,7 @@ ITER hybrid scenario:
 * ``iterhybrid_predictor_corrector.py``: flat-top phase with the linear solver
   using predictor-corrector iterations.
 
-* ``iterhybrid_rampup.py``: time-dependent ramppup phase with the nonlinear
+* ``iterhybrid_rampup.py``: time-dependent rampup phase with the nonlinear
   Newton-Raphson solver.
 
 To run one of these, run for example:

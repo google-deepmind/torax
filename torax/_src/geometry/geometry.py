@@ -13,9 +13,11 @@
 # limitations under the License.
 
 """Classes for representing the problem geometry."""
+
 from collections.abc import Sequence
 import dataclasses
 import enum
+from typing import TypeVar
 
 import chex
 import jax
@@ -385,7 +387,10 @@ class Geometry:
       raise ValueError('Geometry does not have a z magnetic axis.')
 
 
-def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
+GeometryT = TypeVar('GeometryT', bound='Geometry')
+
+
+def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
   """Batch together a sequence of geometries.
 
   Args:

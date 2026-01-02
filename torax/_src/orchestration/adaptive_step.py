@@ -45,7 +45,7 @@ class AdaptiveStepState:
 
 
 def create_initial_state(
-    input_state: sim_state.ToraxSimState,
+    input_state: sim_state.SimState,
     evolving_names: tuple[str, ...],
     initial_dt: chex.Numeric,
     runtime_params_t: runtime_params_lib.RuntimeParams,
@@ -79,7 +79,7 @@ def compute_state(
     initial_dt: chex.Numeric,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
-    input_state: sim_state.ToraxSimState,
+    input_state: sim_state.SimState,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
@@ -138,7 +138,7 @@ def cond_fun(
     unused_initial_dt: chex.Numeric,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     unused_geo_t: geometry.Geometry,
-    input_state: sim_state.ToraxSimState,
+    input_state: sim_state.SimState,
     unused_explicit_source_profiles: source_profiles_lib.SourceProfiles,
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,

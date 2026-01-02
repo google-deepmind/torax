@@ -112,8 +112,25 @@ The ``numerics`` dataset contains the following data variables.
   indicating whether the state at that timestep corresponds to a
   post-sawtooth-crash state.
 
+``sim_status`` ()
+  String indicating if the simulation completed successfully:
+
+  * "completed" if successful.
+
+  * "error" if in an error state.
+
 ``sim_error`` ()
-  Indicator if the simulation completed successfully, 0 if successful, 1 if not.
+  Integer providing further information on the simulation error state:
+
+  * 0 if no error.
+
+  * 1 if a NaN is detected in the state or post-processed outputs.
+
+  * 2 if quasineutrality is violated.
+
+  * 3 if negative temperatures or densities are detected.
+
+  * 4 if the minimum timestep, as set by ``numerics.min_dt`` is reached.
 
 profiles
 --------
@@ -124,7 +141,7 @@ that the output structure is dependent on the input config for the
 ``geometry``, ``transport`` and ``sources`` fields.
 
 Note that certain profiles are only output for specific input configurations.
-These are called out in the list of profiles below, and generate relate to:
+These are called out in the list of profiles below, and generally relate to:
 
 * ``sources`` profiles which are only output if the source is active.
 
@@ -340,7 +357,7 @@ These are called out in the list of profiles below, and generate relate to:
 ``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   Impurity radiation power density per species [:math:`W/m^3`]. Only output
   if the ``mavrin_fit`` model is active for ``impurity_radiation``. In this
-  case, the radiation corresonds to combined line radiation and Bremsstrahlung,
+  case, the radiation corresponds to combined line radiation and Bremsstrahlung,
   and both ``p_bremsstrahlung_e`` and ``P_bremsstrahlung_e`` will be zero.
 
 ``R_in`` (time, rho_norm)
@@ -420,7 +437,11 @@ scalars
 -------
 
 This dataset contains time-dependent scalar quantities describing global plasma
-properties and characteristics.
+properties and characteristics, as well as scalar edge geometry quantities.
+
+``angle_of_incidence_target`` (time)
+  Angle between magnetic field line and divertor target [degrees]. Only present
+  if provided by FBT geometry.
 
 ``a_minor`` (time)
   Minor radius [:math:`m`].
@@ -433,6 +454,10 @@ properties and characteristics.
 
 ``B_0`` (time)
   Magnetic field strength at the magnetic axis [:math:`T`].
+
+``B_pol_OMP`` (time)
+  Poloidal magnetic field at the outboard midplane [:math:`T`]. Only present if
+  provided by FBT geometry.
 
 ``beta_N`` (time)
   Normalized beta (thermal) in percent [dimensionless]. Defined as
@@ -450,6 +475,18 @@ properties and characteristics.
 ``beta_tor`` (time)
   Volume-averaged plasma toroidal beta (thermal) [dimensionless]. Defined as
   :math:`\langle P_{th} \rangle_V/(B_0^2/(2\mu_0))`.
+
+``connection_length_divertor`` (time)
+  Parallel connection length from outboard midplane to X-point [:math:`m`]. Only
+  present if provided by FBT geometry.
+
+``connection_length_target`` (time)
+  Parallel connection length from outboard midplane to target [:math:`m`]. Only
+  present if provided by FBT geometry.
+
+``diverted`` (time)
+  Boolean flag indicating whether the geometry is diverted or limited. Only
+  present if provided by FBT geometry.
 
 ``dW_thermal_dt`` (time)
   Time derivative of the total thermal stored energy [:math:`W`].
@@ -636,6 +673,14 @@ properties and characteristics.
 ``R_major`` (time)
   Major radius [:math:`m`].
 
+``R_OMP`` (time)
+  Major radius of the outboard midplane [:math:`m`]. Only present if provided by
+  FBT geometry.
+
+``R_target`` (time)
+  Major radius of the divertor target strike point [:math:`m`]. Only present if
+  provided by FBT geometry.
+
 ``rho_b`` (time)
   Value of the unnormalized rho coordinate at the boundary [:math:`m`].
 
@@ -703,6 +748,70 @@ properties and characteristics.
 
 ``W_thermal_total`` (time)
   Total thermal stored energy [:math:`J`].
+
+edge
+----
+The ``edge`` dataset contains variables related to the edge physics model,
+if one is active (e.g., ``extended_lengyel``).
+
+``alpha_t`` (time)
+  Turbulence broadening parameter [dimensionless].
+
+``calculated_enrichment`` (impurity, time)
+  Impurity enrichment factor (:math:`c_{div}/c_{core}`) for each species,
+  as calculated by the Kallenbach 2024 model. For limited configurations,
+  calculated enrichment is set to 1.
+
+``pressure_neutral_divertor`` (time)
+  Neutral pressure in the divertor [:math:`Pa`].
+
+``q_parallel`` (time)
+  Parallel heat flux density upstream [:math:`W/m^2`].
+
+``q_perpendicular_target`` (time)
+  Heat flux density perpendicular to the divertor target [:math:`W/m^2`].
+
+``seed_impurity_concentrations`` (impurity, time)
+  Concentration (:math:`n_z/n_e`) of seeded impurities required in inverse mode
+  to match the imposed ``T_e_target``. In forward mode this field will not
+  exist.
+
+``T_e_separatrix`` (time)
+  Electron temperature at the separatrix [:math:`keV`].
+
+``T_e_target`` (time)
+  Electron temperature at the divertor target [:math:`eV`].
+
+``Z_eff_separatrix`` (time)
+  Effective charge :math:`Z_{eff}` at the separatrix.
+
+``solver_physics_outcome`` (time)
+  Status code indicating the physical validity of the edge solution:
+
+  * 0: Success.
+
+  * 1: Inverse mode: negative impurity seeding calculated. This is unphysical
+       and indicates that even with no seeded impurities, a value lower than the
+       target temperature was reached.
+
+  * 2: Forward mode: The heat flux at the convection-conduction interface was
+       calculated to be negative. This is unphysical and is an indication of
+       full detachment prediction.
+
+``solver_iterations`` (time)
+  Number of iterations performed by the edge solver (if Newton-Raphson used).
+
+``solver_residual`` (time)
+  Residual of the edge solver (if Newton-Raphson used).
+
+``solver_error`` (time)
+  Numeric error code from the edge solver (if Newton-Raphson used).
+
+  * 0: No error. Solver converged within full tolerance.
+
+  * 1: Solver did not converge.
+
+  * 2: Solver not fully converged but is within coarse tolerance.
 
 .. _output_examples:
 

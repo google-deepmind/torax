@@ -12,7 +12,6 @@ Short term development plans include:
 
 Longer term plans include:
 
-* Rotation profile and ExB shearing impact in turbulent transport
 * Multi-ion transport, with a focus on heavy impurities and neoclassical
   transport
 * IMAS coupling
