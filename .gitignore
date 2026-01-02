@@ -29,3 +29,7 @@ _build
 
 # venv
 venv
+.venv
+
+# Python version file
+.python-version

@@ -127,7 +127,7 @@ class SimulationStepFn:
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
     return self._time_step_calculator
-
+  
   def is_done(self, t: jax.Array) -> bool | jax.Array:
     return self._time_step_calculator.is_done(
         t=t,
@@ -142,6 +142,7 @@ class SimulationStepFn:
   ) -> state.SimError:
     """Checks for errors in the simulation state."""
     if self._runtime_params_provider.numerics.adaptive_dt:
+      
       if output_state.solver_numeric_outputs.solver_error_state == 1:
         # Only check for min dt if the solver did not converge. Else we may have
         # converged at a dt > min_dt just before we reach min_dt.
@@ -151,6 +152,13 @@ class SimulationStepFn:
             < self._runtime_params_provider.numerics.min_dt
         ):
           return state.SimError.REACHED_MIN_DT
+    
+    # Low-temperature collapse check
+    if output_state.core_profiles.low_temperature_below(
+        self._runtime_params_provider.numerics.T_minimum_eV
+    ):
+      return state.SimError.LOW_TEMPERATURE_COLLAPSE
+    
     state_error = output_state.check_for_errors()
     if state_error != state.SimError.NO_ERROR:
       return state_error

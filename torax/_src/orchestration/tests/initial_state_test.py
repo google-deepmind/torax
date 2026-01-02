@@ -17,10 +17,19 @@ import chex
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
+from torax._src.orchestration import sim_state
+from torax._src.output_tools import post_processing
+import jax.numpy as jnp
+from torax._src import state
+from torax._src.config import numerics as numerics_lib
+from torax._src.fvm import cell_variable
+from torax._src.geometry import circular_geometry
+from unittest import mock
 
 # pylint: disable=invalid-name
 
@@ -126,6 +135,52 @@ class InitialStateTest(sim_test_case.SimTestCase):
         ref_profiles, index, result.core_profiles
     )
 
+
+class LowTemperatureCollapseTest(sim_test_case.SimTestCase):
+    """Tests for low temperature collapse error detection."""
+
+    def test_low_temperature_triggers_error(self):
+        """Test that temperatures below threshold trigger LOW_TEMPERATURE_COLLAPSE error."""
+        
+        # Create mock CoreProfiles
+        mock_core_profiles = mock.MagicMock()
+        mock_core_profiles.low_temperature_below.return_value = True
+        
+        # Create mock output_state
+        mock_output_state = mock.MagicMock()
+        mock_output_state.core_profiles = mock_core_profiles
+        mock_output_state.solver_numeric_outputs.solver_error_state = 0
+        mock_output_state.check_for_errors.return_value = state.SimError.NO_ERROR
+        
+        # Create mock post_processed_outputs
+        mock_post_processed_outputs = mock.MagicMock()
+        mock_post_processed_outputs.check_for_errors.return_value = state.SimError.NO_ERROR
+        
+        # Create a real step_fn from a test config
+        torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+        real_step_fn = run_simulation.make_step_fn(torax_config)
+        
+        # Mock the numerics to have our test value
+        mock_numerics = mock.MagicMock()
+        mock_numerics.T_minimum_eV = 50.0
+        mock_numerics.adaptive_dt = False
+        
+        # Replace the runtime_params_provider's numerics
+        original_provider = real_step_fn._runtime_params_provider
+        mock_provider = mock.MagicMock()
+        mock_provider.numerics = mock_numerics
+        real_step_fn._runtime_params_provider = mock_provider
+        
+        # Call check_for_errors
+        error = real_step_fn.check_for_errors(mock_output_state, mock_post_processed_outputs)
+        
+        # Restore original provider
+        real_step_fn._runtime_params_provider = original_provider
+        
+        # Assert that LOW_TEMPERATURE_COLLAPSE error is detected
+        self.assertEqual(error, state.SimError.LOW_TEMPERATURE_COLLAPSE)
+        # Verify that low_temperature_below was called with the right threshold
+        mock_core_profiles.low_temperature_below.assert_called_once_with(50.0)
 
 if __name__ == '__main__':
   absltest.main()
