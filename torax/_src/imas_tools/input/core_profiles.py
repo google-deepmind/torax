@@ -13,11 +13,39 @@
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
 from collections.abc import Collection, Mapping
+import logging
 from typing import Any
 
 from imas import ids_toplevel
 import numpy as np
 from torax._src import constants
+
+
+def _validate_profiles_conditions(ids: ids_toplevel.IDSToplevel):
+  """Validates the profiles_conditions IDS."""
+  grid = ids.grid
+  if not grid.rho_tor_norm.has_value:
+    raise ValueError("The IDS is missing the grid.rho_tor_norm quantity.")
+  if not grid.psi.has_value:
+    logging.warning("The IDS is missing the grid.psi quantity.")
+
+  global_quantities = ids.global_quantities
+  if not global_quantities.v_loop.has_value:
+    logging.warning("The IDS is missing the v_loop quantity.")
+  if not global_quantities.ip.has_value:
+    logging.warning("The IDS is missing the ip quantity.")
+
+  if not ids.time.has_value:
+    logging.warning("The IDS is missing the time quantity.")
+
+  electrons_ids = ids.electrons
+  if not electrons_ids.temperature.has_value:
+    logging.warning("The IDS is missing the electrons.temperature quantity.")
+  if not electrons_ids.density.has_value:
+    logging.warning("The IDS is missing the electrons.density quantity.")
+
+  if not ids.t_i_average.has_value:
+    logging.warning("The IDS is missing the t_i_average quantity.")
 
 
 # pylint: disable=invalid-name
