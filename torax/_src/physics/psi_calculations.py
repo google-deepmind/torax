@@ -29,6 +29,7 @@ Functions:
     - j_toroidal_to_j_parallel: Calculates <j.B>/B0 from j_toroidal = dI/dS.
     - j_parallel_to_j_toroidal: Calculates j_toroidal = dI/dS from <j.B>/B0.
 """
+
 from typing import Final
 
 import jax
@@ -168,30 +169,25 @@ def calc_j_total(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
-  Ip_profile = (
-      psi.grad()
-      * geo.g2g3_over_rhon
-      * geo.F
-      / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
-  )
-
-  dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
-  dI_drhon = jnp.gradient(Ip_profile, geo.rho_norm)
+  # Calculate dI/drhon on the cell grid using finite difference of the face
+  # values. This ensures that the current density is consistent with the
+  # enclosed current at the boundaries of the cells.
+  dI_drhon = jnp.diff(Ip_profile_face) / geo.drho_norm
 
   j_total = dI_drhon / geo.spr
-  # Note: On-axis face values will be overwritten by extrapolation below, but we
-  # need to avoid division by zero
-  j_total_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
-  j_total_face = jnp.concatenate([jnp.array([j_total[0]]), j_total_face_bulk])
 
-  # Extrapolate the axis values to avoid numerical artifacts
+  # Extrapolate the axis values to avoid numerical artifacts.
   j_total = _extrapolate_cell_profile_to_axis(j_total, geo)
-  j_total_face = _extrapolate_face_profile_to_axis(
-      j_total_face,
+
+  # Convert to face grid using linear interpolation in the bulk, and set right
+  # edge while preserving total current. This provides a smoother profile than
+  # calculating gradients directly on faces.
+  j_total_face = math_utils.cell_to_face(
       j_total,
       geo,
+      preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
+
   return j_total, j_total_face, Ip_profile_face
 
 
