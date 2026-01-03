@@ -126,6 +126,50 @@ class InitialStatesTest(parameterized.TestCase):
       )
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
+  def test_temperature_below_minimum(self):
+    """Tests the temperature_below_minimum method for issue #1607."""
+    geo = circular_geometry.CircularConfig().build_geometry()
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+
+    # Set temperatures to 0.3 keV
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 0.3),
+        T_i=core_profile_helpers.make_constant_core_profile(geo, 0.3),
+    )
+
+    with self.subTest('min_temperature=0.0 disables check'):
+      # When min_temperature is 0.0, feature is disabled
+      self.assertFalse(core_profiles.temperature_below_minimum(0.0))
+
+    with self.subTest('min_temperature negative disables check'):
+      # When min_temperature is negative, feature is disabled
+      self.assertFalse(core_profiles.temperature_below_minimum(-1.0))
+
+    with self.subTest('temperature below threshold triggers'):
+      # T=0.3, min=0.5 should trigger
+      self.assertTrue(core_profiles.temperature_below_minimum(0.5))
+
+    with self.subTest('temperature above threshold does not trigger'):
+      # T=0.3, min=0.1 should not trigger
+      self.assertFalse(core_profiles.temperature_below_minimum(0.1))
+
+    with self.subTest('T_e below triggers even if T_i above'):
+      # T_e=0.3, T_i=1.0, min=0.5 should trigger (T_e is below)
+      mixed_profiles = dataclasses.replace(
+          core_profiles,
+          T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+      )
+      self.assertTrue(mixed_profiles.temperature_below_minimum(0.5))
+
+    with self.subTest('T_i below triggers even if T_e above'):
+      # T_e=1.0, T_i=0.3, min=0.5 should trigger (T_i is below)
+      mixed_profiles = dataclasses.replace(
+          core_profiles,
+          T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+      )
+      self.assertTrue(mixed_profiles.temperature_below_minimum(0.5))
+
 
 class ImpurityFractionsTest(parameterized.TestCase):
   """Tests for the impurity_fractions attribute in CoreProfiles."""

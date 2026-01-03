@@ -151,7 +151,9 @@ class SimulationStepFn:
             < self._runtime_params_provider.numerics.min_dt
         ):
           return state.SimError.REACHED_MIN_DT
-    state_error = output_state.check_for_errors()
+    state_error = output_state.check_for_errors(
+        min_temperature=self._runtime_params_provider.numerics.min_temperature,
+    )
     if state_error != state.SimError.NO_ERROR:
       return state_error
     else:
