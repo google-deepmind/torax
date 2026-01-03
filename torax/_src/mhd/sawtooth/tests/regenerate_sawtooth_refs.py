@@ -164,12 +164,9 @@ def calculate_sawtooth_crash_references() -> dict[str, Any]:
       runtime_params_provider=runtime_params_provider,
   )
 
-  # Get initial state
+  # Get initial state (using new API that takes step_fn as main argument)
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(
-          t=torax_config.numerics.t_initial,
-          runtime_params_provider=runtime_params_provider,
-          geometry_provider=geometry_provider,
           step_fn=step_fn,
       )
   )
