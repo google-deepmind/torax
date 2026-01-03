@@ -47,6 +47,7 @@ from absl import flags
 import numpy as np
 from torax._src import constants
 from torax._src import path_utils
+from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import standard_geometry
@@ -188,6 +189,7 @@ def _calculate_new_references(
   }
 
 
+
 def _print_full_summary(case_name: str, new_values: dict[str, np.ndarray]):
   """Prints the full regenerated reference values for inspection."""
   pretty_printer = pprint.PrettyPrinter(indent=4, width=100)
@@ -238,6 +240,7 @@ def main(argv: Sequence[str]) -> None:
     logging.info('Regenerating references for: %s...', case_name)
     config_generator_func = torax_refs.REFERENCES_REGISTRY[case_name]
     new_values = _calculate_new_references(config_generator_func)
+    
     all_data[case_name] = new_values
 
     if _PRINT_SUMMARY.value:
