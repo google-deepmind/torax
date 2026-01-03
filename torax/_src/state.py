@@ -167,6 +167,24 @@ class CoreProfiles:
         ])
     )
 
+  def temperature_below_minimum(self, min_temperature: float) -> jax.Array:
+    """Checks if any temperature is below the minimum threshold.
+
+    Args:
+      min_temperature: Minimum allowed temperature in keV.
+
+    Returns:
+      True if any temperature (T_i or T_e) is below min_temperature.
+    """
+    if min_temperature <= 0.0:
+      return np.array(False)
+    return np.any(
+        np.array([
+            np.any(np.less(self.T_i.value, min_temperature)),
+            np.any(np.less(self.T_e.value, min_temperature)),
+        ])
+    )
+
   def __str__(self) -> str:
     return f"""
       CoreProfiles(
@@ -292,6 +310,7 @@ class SimError(enum.Enum):
   QUASINEUTRALITY_BROKEN = 2
   NEGATIVE_CORE_PROFILES = 3
   REACHED_MIN_DT = 4
+  BELOW_MIN_TEMPERATURE = 5
 
   def log_error(self):
     match self:
@@ -319,6 +338,13 @@ class SimError(enum.Enum):
             configuration such as impurity densities incompatible with physical
             quasineutrality. Check the output file for near-zero temperatures or
             densities at the last valid step.
+            """)
+      case SimError.BELOW_MIN_TEMPERATURE:
+        logging.error("""
+            Simulation stopped because temperature fell below the minimum
+            allowed threshold (min_temperature). This typically occurs during
+            radiative collapse scenarios. Check the output file for temperature
+            profiles at the last valid step.
             """)
       case SimError.NO_ERROR:
         pass

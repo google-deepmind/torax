@@ -45,6 +45,7 @@ class RuntimeParams:
   resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
+  min_temperature: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
   evolve_electron_heat: bool = dataclasses.field(metadata={'static': True})
   evolve_current: bool = dataclasses.field(metadata={'static': True})
@@ -102,6 +103,10 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       temperature internal boundary conditions.
     adaptive_n_source_prefactor: Prefactor for adaptive source term for setting
       density internal boundary conditions.
+    min_temperature: Minimum allowed temperature in keV. If any temperature
+      (T_e or T_i) falls below this threshold, the simulation will exit with
+      an error. This is useful for avoiding numerical issues during radiative
+      collapse scenarios. Default is 0.0 (only negative temperatures trigger).
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -125,6 +130,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   )
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
+  min_temperature: pydantic.NonNegativeFloat = 0.0
 
   @pydantic.model_validator(mode='after')
   def model_validation(self) -> Self:
@@ -168,6 +174,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
+        min_temperature=self.min_temperature,
         evolve_ion_heat=self.evolve_ion_heat,
         evolve_electron_heat=self.evolve_electron_heat,
         evolve_current=self.evolve_current,

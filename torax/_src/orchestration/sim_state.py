@@ -55,8 +55,25 @@ class SimState:
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs
 
-  def check_for_errors(self) -> state.SimError:
-    """Checks for errors in the simulation state."""
+  def check_for_errors(
+      self,
+      min_temperature: float = 0.0,
+  ) -> state.SimError:
+    """Checks for errors in the simulation state.
+
+    Args:
+      min_temperature: Minimum allowed temperature in keV. If any temperature
+        falls below this threshold, returns BELOW_MIN_TEMPERATURE error.
+
+    Returns:
+      SimError indicating the type of error, or NO_ERROR if none.
+    """
+    if self.core_profiles.temperature_below_minimum(min_temperature):
+      logging.info(
+          "Temperature below minimum threshold (%s keV) detected.",
+          min_temperature,
+      )
+      return state.SimError.BELOW_MIN_TEMPERATURE
     if self.core_profiles.negative_temperature_or_density():
       logging.info("Unphysical negative values detected in core profiles:\n")
       _log_negative_profile_names(self.core_profiles)
