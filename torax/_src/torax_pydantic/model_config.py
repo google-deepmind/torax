@@ -40,7 +40,10 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
 from typing_extensions import Self
-
+from torax._src.config.runtime_validation_utils import (
+  check_q_profile,
+  check_source_densities,
+)
 
 class ToraxConfig(torax_pydantic.BaseModelFrozen):
   """Base config class for Torax.
@@ -280,6 +283,12 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
             'impurity.species.'
         )
 
+    return self
+    
+  @pydantic.model_validator(mode='after')
+  def _check_runtime_validations(self) -> Self:
+    check_q_profile(self)
+    check_source_densities(self)
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
