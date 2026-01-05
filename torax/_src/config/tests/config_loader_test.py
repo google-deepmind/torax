@@ -21,10 +21,6 @@ from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
-from torax._src.config.runtime_validation_utils import (
-  _check_q_profile,
-  _check_source_densities,
-)
 
 class ConfigLoaderTest(parameterized.TestCase):
 
