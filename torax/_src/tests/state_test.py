@@ -127,6 +127,54 @@ class InitialStatesTest(parameterized.TestCase):
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
 
+class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
+  """Tests for the below_minimum_temperature method in CoreProfiles."""
+
+  def setUp(self):
+    super().setUp()
+    self.geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    self.base_profiles = core_profile_helpers.make_zero_core_profiles(self.geo)
+
+  @parameterized.named_parameters(
+      ('all_above', 0.2, 0.2, 100.0, False),  # 0.2 keV = 200 eV > 100 eV
+      ('te_below', 0.05, 0.2, 100.0, True),  # 0.05 keV = 50 eV < 100 eV
+      ('ti_below', 0.2, 0.05, 100.0, True),
+      ('both_below', 0.05, 0.05, 100.0, True),
+      # 0.1 keV = 100 eV. Logic is strictly <, so this should pass (False).
+      ('exact_boundary', 0.1, 0.1, 100.0, False),
+  )
+  def test_below_minimum_temperature(
+      self, te_val, ti_val, threshold_ev, expected
+  ):
+    """Verifies below_minimum_temperature returns correct boolean flag."""
+    # Create profiles with constant values across the radius
+    core_profiles = dataclasses.replace(
+        self.base_profiles,
+        T_e=core_profile_helpers.make_constant_core_profile(self.geo, te_val),
+        T_i=core_profile_helpers.make_constant_core_profile(self.geo, ti_val),
+    )
+
+    result = core_profiles.below_minimum_temperature(threshold_ev)
+
+    self.assertIsInstance(result, bool)
+    self.assertEqual(result, expected)
+
+  def test_below_minimum_temperature_mixed_profile(self):
+    """Tests detection when only part of the profile is below threshold."""
+    threshold_ev = 100.0  # 0.1 keV
+
+    te_values = jnp.array([0.2, 0.2, 0.05, 0.2, 0.2])  # 0.05 is below threshold
+    ti_values = jnp.array([0.2, 0.2, 0.2, 0.2, 0.2])
+
+    core_profiles = dataclasses.replace(
+        self.base_profiles,
+        T_e=dataclasses.replace(self.base_profiles.T_e, value=te_values),
+        T_i=dataclasses.replace(self.base_profiles.T_i, value=ti_values),
+    )
+
+    self.assertTrue(core_profiles.below_minimum_temperature(threshold_ev))
+
+
 class ImpurityFractionsTest(parameterized.TestCase):
   """Tests for the impurity_fractions attribute in CoreProfiles."""
 

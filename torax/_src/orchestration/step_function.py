@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
+
 import dataclasses
 import functools
 
@@ -151,6 +152,13 @@ class SimulationStepFn:
             < self._runtime_params_provider.numerics.min_dt
         ):
           return state.SimError.REACHED_MIN_DT
+
+    # Low-temperature collapse check
+    if output_state.core_profiles.below_minimum_temperature(
+        self._runtime_params_provider.numerics.T_minimum_eV
+    ):
+      return state.SimError.LOW_TEMPERATURE_COLLAPSE
+
     state_error = output_state.check_for_errors()
     if state_error != state.SimError.NO_ERROR:
       return state_error

@@ -126,6 +126,8 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
 
+  T_minimum_eV: pydantic.PositiveFloat = 5.0
+
   @pydantic.model_validator(mode='after')
   def model_validation(self) -> Self:
     if self.t_initial > self.t_final:

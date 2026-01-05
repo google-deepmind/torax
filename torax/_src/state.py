@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
+
 import dataclasses
 import enum
 import functools
@@ -103,9 +104,7 @@ class CoreProfiles:
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
     """Electron thermal pressure [Pa]."""
     return cell_variable.CellVariable(
-        value=self.n_e.value
-        * self.T_e.value
-        * constants.CONSTANTS.keV_to_J,
+        value=self.n_e.value * self.T_e.value * constants.CONSTANTS.keV_to_J,
         dr=self.n_e.dr,
         right_face_constraint=self.n_e.right_face_constraint
         * self.T_e.right_face_constraint
@@ -166,6 +165,17 @@ class CoreProfiles:
             for x in jax.tree.leaves(profiles_to_check)
         ])
     )
+
+  def below_minimum_temperature(self, T_minimum_eV: float) -> bool:
+    """Return True if T_e or T_i is below the minimum temperature threshold."""
+    # Convert eV -> keV since internal storage is keV
+    T_minimum_keV = T_minimum_eV / 1000.0
+
+    is_low_te = jnp.any(self.T_e.value < T_minimum_keV)
+    is_low_ti = jnp.any(self.T_i.value < T_minimum_keV)
+
+    # Use .item() to return a concrete Python boolean
+    return (is_low_te | is_low_ti).item()
 
   def __str__(self) -> str:
     return f"""
@@ -292,6 +302,7 @@ class SimError(enum.Enum):
   QUASINEUTRALITY_BROKEN = 2
   NEGATIVE_CORE_PROFILES = 3
   REACHED_MIN_DT = 4
+  LOW_TEMPERATURE_COLLAPSE = 5
 
   def log_error(self):
     match self:
@@ -320,6 +331,12 @@ class SimError(enum.Enum):
             quasineutrality. Check the output file for near-zero temperatures or
             densities at the last valid step.
             """)
+      case SimError.LOW_TEMPERATURE_COLLAPSE:
+        logging.error("""
+          Simulation stopped because ion or electron temperature fell below the
+          configured minimum threshold. This is usually caused by radiative
+          collapse. Output file contains all profiles up to the last valid step.
+          """)
       case SimError.NO_ERROR:
         pass
       case _:

@@ -590,6 +590,18 @@ class SimTest(sim_test_case.SimTestCase):
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
 
+  def test_low_temperature_error(self):
+    """Verify that a config with radiation collapse triggers early stopping and an error."""
+    torax_config = self._get_torax_config(
+        'test_iterhybrid_radiation_collapse.py'
+    )
+    _, state_history = run_simulation.run_simulation(torax_config)
+
+    self.assertEqual(
+        state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
+    )
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
   def test_full_output_matches_reference(self):
     """Check for complete output match with reference."""
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
