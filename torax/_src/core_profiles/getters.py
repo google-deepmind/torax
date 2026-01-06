@@ -42,8 +42,8 @@ class Ions:
 
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
-  impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
-  main_ion_fractions: Mapping[str , array_typing.FloatVectorCell]
+  impurity_fractions: Mapping[str, array_typing.FloatVectorCell] 
+  main_ion_fractions: Mapping[str , array_typing.FloatVectorCell] 
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell

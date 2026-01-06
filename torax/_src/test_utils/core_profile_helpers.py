@@ -40,6 +40,7 @@ def make_zero_core_profiles(
   impurity_fractions_dict = {
       name: jnp.zeros_like(geo.rho) for name in impurity_names
   }
+  main_ion_fractions_dict = {} 
   return state.CoreProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -49,6 +50,7 @@ def make_zero_core_profiles(
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
       impurity_fractions=impurity_fractions_dict,
+      main_ion_fractions=main_ion_fractions_dict,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       v_loop_lcfs=jnp.array(0.0),
