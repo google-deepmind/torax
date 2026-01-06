@@ -541,9 +541,9 @@ class StateHistory:
     )
 
     for attr_name in core_profiles_names:
-      # Skip impurity_fractions since we have not yet converged on the public
+      # Skip impurity_fractions and main_ion_fractions since we have not yet converged on the public
       # API for individual impurity density extensions.
-      if attr_name == "impurity_fractions":
+      if attr_name in ("impurity_fractions", "main_ion_fractions"):
         continue
 
       attr_value = getattr(stacked_core_profiles, attr_name)

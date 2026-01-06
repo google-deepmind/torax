@@ -169,6 +169,7 @@ def update_core_and_source_profiles_after_step(
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
+      main_ion_fractions=ions.main_ion_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,

@@ -165,6 +165,73 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         write_output=False,
     )
 
+  def test_main_ion_fractions_in_output(self):
+    """Test that main_ion_fractions are present in IDS output."""
+    # Run sim
+    config = self._get_config_dict('test_iterhybrid_rampup_short.py')
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    (
+        initial_state,
+        post_processed_outputs,
+        step_fn,
+    ) = run_simulation.prepare_simulation(torax_config)
+
+    state_history, post_processed_outputs_history, sim_error = (
+        run_loop.run_loop(
+            initial_state=initial_state,
+            initial_post_processed_outputs=post_processed_outputs,
+            step_fn=step_fn,
+            log_timestep_info=False,
+            progress_bar=False,
+        )
+    )
+    state_history = output.StateHistory(
+        state_history=state_history,
+        post_processed_outputs_history=post_processed_outputs_history,
+        sim_error=sim_error,
+        torax_config=torax_config,
+    )
+    # Save output profiles to IDS
+    post_processed_outputs = state_history.post_processed_outputs
+    core_profiles = state_history.core_profiles
+    core_sources = state_history.source_profiles
+    geometry = state_history.geometries
+    times = state_history.times
+    filled_ids = output_core_profiles.core_profiles_to_IMAS(
+        step_fn.runtime_params_provider,
+        torax_config,
+        post_processed_outputs,
+        core_profiles,
+        core_sources,
+        geometry,
+        times,
+    )
+    
+    # Verify main_ion_fractions were used in output
+    # Check that core_profiles state has main_ion_fractions
+    cp_state = core_profiles[0]
+    self.assertTrue(hasattr(cp_state, 'main_ion_fractions'))
+    self.assertGreater(len(cp_state.main_ion_fractions), 0)
+    
+    # Check that IDS has ion densities populated
+    runtime_params = step_fn.runtime_params_provider(times[0])
+    num_main_ions = len(runtime_params.plasma_composition.main_ion.fractions)
+    self.assertGreater(num_main_ions, 0)
+    
+    # Verify each main ion has density and volume average in IDS
+    for ion_idx in range(num_main_ions):
+      # Check profile density exists and is non-zero
+      ion_density = filled_ids.profiles_1d[0].ion[ion_idx].density
+      self.assertEqual(len(ion_density), len(filled_ids.profiles_1d[0].grid.rho_tor_norm))
+      self.assertGreater(ion_density.max(), 0)
+      
+      # Check volume average exists and is non-zero
+      n_i_vol_avg = filled_ids.global_quantities.ion[ion_idx].n_i_volume_average[0]
+      self.assertGreater(n_i_vol_avg, 0)
+    
+    # Validate the IDS
+    filled_ids.validate()
+
 
 if __name__ == '__main__':
   absltest.main()
