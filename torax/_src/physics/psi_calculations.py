@@ -48,7 +48,7 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 # TODO(b/434175938): Make this configurable from numerics.
-_MIN_RHO_NORM: Final[array_typing.FloatScalar] = 0.025
+_MIN_RHO_NORM: Final[array_typing.FloatScalar] = 0.015
 
 
 def _extrapolate_cell_profile_to_axis(
