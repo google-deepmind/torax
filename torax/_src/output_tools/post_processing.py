@@ -145,7 +145,7 @@ class PostProcessedOutputs:
     j_total: Total toroidal current density [Am^-2]
     j_parallel_total: Total parallel current density [Am^-2]
     j_bootstrap: Toroidal bootstrap current density [Am^-2]
-    j_parallel_bootstrap: Parallel bootstrap current density [Am^-2]
+    j_bootstrap_face: Toroidal bootstrap current density on face grid [Am^-2]
     j_external: Toroidal current density from external psi sources (i.e.,
       excluding bootstrap) [A m^-2]
     j_parallel_external: Parallel current density from external psi sources
@@ -252,6 +252,7 @@ class PostProcessedOutputs:
   j_ohmic: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
   j_bootstrap: array_typing.FloatVector
+  j_bootstrap_face: array_typing.FloatVector
   j_generic_current: array_typing.FloatVector
   j_ecrh: array_typing.FloatVector
   S_gas_puff: array_typing.FloatScalar
@@ -342,7 +343,8 @@ class PostProcessedOutputs:
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
         j_parallel_total=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho.shape),
+        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         j_ohmic=jnp.zeros(geo.rho_face.shape),
         j_parallel_ohmic=jnp.zeros(geo.rho_face.shape),
         j_external=jnp.zeros(geo.rho_face.shape),
@@ -783,6 +785,16 @@ def make_post_processed_outputs(
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
       j_parallel_bootstrap, sim_state.geometry
   )
+
+  # j_parallel_to_j_toroidal method cannot be used on face grid. Convert with
+  # custom function for this.
+  j_toroidal_bootstrap_face = _convert_j_parallel_face_to_j_toroidal_face(
+      sim_state.core_sources.bootstrap_current.j_parallel_bootstrap_face,
+      j_parallel_bootstrap,
+      j_toroidal_bootstrap,
+      sim_state.geometry,
+  )
+
   j_toroidal_ohmic = psi_calculations.j_parallel_to_j_toroidal(
       j_parallel_ohmic, sim_state.geometry
   )
@@ -872,6 +884,7 @@ def make_post_processed_outputs(
       j_parallel_ohmic=j_parallel_ohmic,
       j_ohmic=j_toroidal_ohmic,
       j_bootstrap=j_toroidal_bootstrap,
+      j_bootstrap_face=j_toroidal_bootstrap_face,
       j_external=j_toroidal_external,
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
@@ -883,3 +896,32 @@ def make_post_processed_outputs(
       radial_electric_field=radial_electric_field.face_value(),
       first_step=jnp.array(False),
   )
+
+
+def _convert_j_parallel_face_to_j_toroidal_face(
+    j_parallel_face: array_typing.FloatVectorFace,
+    j_parallel_cell: array_typing.FloatVectorCell,
+    j_toroidal_cell: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  """Converts j_parallel on the face grid to j_toroidal on the face grid."""
+
+  safe_denominator = jnp.where(
+      jnp.abs(j_parallel_cell) > 1e-10,
+      j_parallel_cell,
+      1.0,
+  )
+  j_parallel_to_j_toroidal_factor_cell = jnp.where(
+      jnp.abs(j_parallel_cell) > 1e-10,
+      j_toroidal_cell / safe_denominator,
+      1.0,
+  )
+  # Interpolate conversion factor to face grid with constant extrapolation.
+  # Introduces a small and acceptable error on the face grid boundaries.
+  j_parallel_to_j_toroidal_factor_face = jnp.interp(
+      geo.rho_face_norm,
+      geo.rho_norm,
+      j_parallel_to_j_toroidal_factor_cell,
+  )
+  return j_parallel_to_j_toroidal_factor_face * j_parallel_face
+

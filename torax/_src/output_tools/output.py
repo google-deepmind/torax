@@ -690,6 +690,11 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
+
+    pp_field_names = {
+        f.name for f in dataclasses.fields(self._stacked_post_processed_outputs)
+    }
+
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
       if attr_name == "first_step":
@@ -699,10 +704,25 @@ class StateHistory:
       if attr_name == "impurity_species":
         continue
 
+      # Skip _face attributes if cell counterpart exists
+      if attr_name.endswith("_face") and (
+          attr_name.removesuffix("_face") in pp_field_names
+      ):
+        continue
+
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
+
+      # Check if a corresponding face variable exists to extend the grid.
+      face_attr_name = f"{attr_name}_face"
+
       if hasattr(attr_value, "cell_plus_boundaries"):
         # Handles stacked CellVariable-like objects.
         data_to_save = attr_value.cell_plus_boundaries()
+      elif face_attr_name in pp_field_names:
+        face_value = getattr(
+            self._stacked_post_processed_outputs, face_attr_name
+        )
+        data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
       else:
         data_to_save = attr_value
       xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
