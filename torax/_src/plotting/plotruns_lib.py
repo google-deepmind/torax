@@ -198,49 +198,43 @@ class PlotData:
         f"Variable '{name}' not found in output file datasets."
     )
 
-  def __dataclass_fields__(self):
-    """Return dataclass fields for backward compatibility."""
-    # Return a dict-like object that mimics dataclass fields
-    # This is used by code that checks for dataclass fields
-    class FieldsDict:
-      def __init__(self, plotdata):
-        self._plotdata = plotdata
+def flatten_plotdata(plotdata: PlotData) -> dict:
+  """Flatten PlotData attributes into a dict for validation.
 
-      def keys(self):
-        # Return all available attributes (hardcoded + dynamic)
-        hardcoded = {
-            'T_i', 'T_e', 'n_e', 'n_i', 'n_impurity', 'Z_impurity', 'psi',
-            'v_loop', 'j_total', 'j_ohmic', 'j_bootstrap', 'j_ecrh',
-            'j_generic_current', 'j_external', 'q', 'magnetic_shear',
-            'chi_turb_i', 'chi_neo_i', 'chi_turb_e', 'chi_neo_e',
-            'D_turb_e', 'D_neo_e', 'V_turb_e', 'V_neo_e', 'V_neo_ware_e',
-            'p_icrh_i', 'p_icrh_e', 'p_generic_heat_i', 'p_generic_heat_e',
-            'p_ecrh_e', 'p_alpha_i', 'p_alpha_e', 'p_ohmic_e',
-            'p_bremsstrahlung_e', 'p_cyclotron_radiation_e', 'ei_exchange',
-            'p_impurity_radiation_e', 'Q_fusion', 's_gas_puff',
-            's_generic_particle', 's_pellet', 'Ip_profile', 'I_bootstrap',
-            'I_aux_generic', 'I_ecrh', 'P_auxiliary', 'P_ohmic_e',
-            'P_alpha_total', 'P_sink', 'P_bremsstrahlung_e', 'P_cyclotron_e',
-            'P_radiation_e', 't', 'rho_norm', 'rho_cell_norm', 'rho_face_norm',
-            'T_e_volume_avg', 'T_i_volume_avg', 'n_e_volume_avg',
-            'n_i_volume_avg', 'W_thermal_total', 'q95'
-        }
-        # Add dynamic variables from datasets
-        dynamic = set()
-        if self._plotdata._profiles_dataset is not None:
-          dynamic.update(self._plotdata._profiles_dataset.data_vars.keys())
-        if self._plotdata._scalars_dataset is not None:
-          dynamic.update(self._plotdata._scalars_dataset.data_vars.keys())
-        if self._plotdata._dataset is not None:
-          dynamic.update(self._plotdata._dataset.data_vars.keys())
-        if self._plotdata._numerics_dataset is not None:
-          dynamic.update(self._plotdata._numerics_dataset.data_vars.keys())
-        return hardcoded.union(dynamic)
+  Returns all available attributes including properties and dynamic variables.
 
-      def __contains__(self, key):
-        return key in self.keys()
+  Args:
+    plotdata: PlotData instance to flatten.
 
-    return FieldsDict(self)
+  Returns:
+    Dictionary of all available attribute names.
+  """
+  attrs = {}
+
+  # Add all properties
+  for name in dir(type(plotdata)):
+    attr = getattr(type(plotdata), name, None)
+    if isinstance(attr, property):
+      attrs[name] = True
+
+  # Add all dataset variables
+  if plotdata._profiles_dataset is not None:
+    for var in plotdata._profiles_dataset.data_vars:
+      attrs[var] = True
+
+  if plotdata._scalars_dataset is not None:
+    for var in plotdata._scalars_dataset.data_vars:
+      attrs[var] = True
+
+  if plotdata._dataset is not None:
+    for var in plotdata._dataset.data_vars:
+      attrs[var] = True
+
+  if plotdata._numerics_dataset is not None:
+    for var in plotdata._numerics_dataset.data_vars:
+      attrs[var] = True
+
+  return attrs
 
 
 def load_data(filename: str) -> PlotData:
