@@ -107,7 +107,7 @@ class PlotData:
     any variable from the output file without needing to add it to the hardcoded
     list of attributes.
   """
-  
+
   @property
   def chi_total_i(self) -> np.ndarray:
     return self.chi_turb_i + self.chi_neo_i
@@ -127,6 +127,18 @@ class PlotData:
   @property
   def V_total_e(self) -> np.ndarray:
     return self.V_turb_e + self.V_neo_total_e
+
+  @property
+  def P_sink(self) -> np.ndarray:
+    """Total electron heating sink power [MW].
+    
+    Calculated as sum of bremsstrahlung, radiation, and cyclotron losses.
+    """
+    return (
+        self._scalars_dataset['P_bremsstrahlung_e'].to_numpy()
+        + self._scalars_dataset['P_radiation_e'].to_numpy()
+        + self._scalars_dataset['P_cyclotron_e'].to_numpy()
+    )
 
   def __init__(
       self,
