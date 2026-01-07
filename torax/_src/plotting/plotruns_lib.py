@@ -131,7 +131,7 @@ class PlotData:
   @property
   def P_sink(self) -> np.ndarray:
     """Total electron heating sink power [MW].
-    
+
     Calculated as sum of bremsstrahlung, radiation, and cyclotron losses.
     """
     return (
@@ -142,11 +142,10 @@ class PlotData:
 
   def __init__(
       self,
-      profiles_dataset: xr.Dataset | None = None,
-      scalars_dataset: xr.Dataset | None = None,
-      dataset: xr.Dataset | None = None,
+      profiles_dataset: xr.Dataset,
+      scalars_dataset: xr.Dataset,
+      dataset: xr.Dataset,
       numerics_dataset: xr.Dataset | None = None,
-      **kwargs,
   ):
     """Initialize PlotData with datasets and hardcoded attributes.
 
@@ -155,15 +154,12 @@ class PlotData:
       scalars_dataset: Dataset containing scalar variables.
       dataset: Top-level dataset containing coordinates.
       numerics_dataset: Dataset containing numeric variables (optional).
-      **kwargs: Hardcoded attribute values for backward compatibility.
     """
     self._profiles_dataset = profiles_dataset
     self._scalars_dataset = scalars_dataset
     self._dataset = dataset
     self._numerics_dataset = numerics_dataset
-    # Store hardcoded attributes
-    for key, value in kwargs.items():
-      setattr(self, key, value)
+
 
   def __getattr__(self, name: str) -> np.ndarray:
     """Dynamically access variables from the output datasets.
