@@ -95,10 +95,8 @@ class FigureProperties:
 
 # pylint: disable=invalid-name
 class PlotData:
-  r"""Class for all plot related data with support for dynamic variable access.
-
-  This class provides access to both hardcoded variables (for backward compatibility)
-  and any variable available in the output file through dynamic attribute access.
+  r"""Class for all plot related data with dynamic variable access.
+  All variables from the output file datasets are accessible as attributes.
 
   Dynamic Attributes:
     Any variable available in the output file can be accessed by name. The class
@@ -315,91 +313,14 @@ def load_data(filename: str) -> PlotData:
       else None
   )
 
+  # TODO: Fix Ip_profile bug - currently defined as profile but
+  # should be scalar (lp). Ip should be a scalar (single value), but it's
+  # currently mixed up with Ip_profile (array).
   return PlotData(
       profiles_dataset=profiles_dataset,
       scalars_dataset=scalars_dataset,
       dataset=dataset,
       numerics_dataset=numerics_dataset,
-      T_i=profiles_dataset[output.T_I].to_numpy(),
-      T_e=profiles_dataset[output.T_E].to_numpy(),
-      n_e=profiles_dataset[output.N_E].to_numpy(),
-      n_i=profiles_dataset[output.N_I].to_numpy(),
-      n_impurity=profiles_dataset[output.N_IMPURITY].to_numpy(),
-      Z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
-      psi=profiles_dataset[output.PSI].to_numpy(),
-      v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
-      j_total=profiles_dataset[output.J_TOROIDAL_TOTAL].to_numpy(),
-      j_ohmic=profiles_dataset[output.J_TOROIDAL_OHMIC].to_numpy(),
-      j_bootstrap=profiles_dataset[output.J_TOROIDAL_BOOTSTRAP].to_numpy(),
-      j_external=profiles_dataset[output.J_TOROIDAL_EXTERNAL].to_numpy(),
-      j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
-      j_generic_current=get_optional_data(
-          profiles_dataset, 'j_generic_current', 'cell'
-      ),
-      q=profiles_dataset[output.Q].to_numpy(),
-      magnetic_shear=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
-      chi_turb_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
-      chi_neo_i=profiles_dataset[output.CHI_NEO_I].to_numpy(),
-      chi_turb_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
-      chi_neo_e=profiles_dataset[output.CHI_NEO_E].to_numpy(),
-      D_turb_e=profiles_dataset[output.D_TURB_E].to_numpy(),
-      D_neo_e=profiles_dataset[output.D_NEO_E].to_numpy(),
-      V_turb_e=profiles_dataset[output.V_TURB_E].to_numpy(),
-      V_neo_e=profiles_dataset[output.V_NEO_E].to_numpy(),
-      V_neo_ware_e=profiles_dataset[output.V_NEO_WARE_E].to_numpy(),
-      rho_norm=dataset[output.RHO_NORM].to_numpy(),
-      rho_cell_norm=dataset[output.RHO_CELL_NORM].to_numpy(),
-      rho_face_norm=dataset[output.RHO_FACE_NORM].to_numpy(),
-      p_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
-      p_icrh_e=get_optional_data(profiles_dataset, 'p_icrh_e', 'cell'),
-      p_generic_heat_i=get_optional_data(
-          profiles_dataset, 'p_generic_heat_i', 'cell'
-      ),
-      p_generic_heat_e=get_optional_data(
-          profiles_dataset, 'p_generic_heat_e', 'cell'
-      ),
-      p_ecrh_e=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
-      p_alpha_i=get_optional_data(profiles_dataset, 'p_alpha_i', 'cell'),
-      p_alpha_e=get_optional_data(profiles_dataset, 'p_alpha_e', 'cell'),
-      p_ohmic_e=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
-      p_bremsstrahlung_e=get_optional_data(
-          profiles_dataset, 'p_bremsstrahlung_e', 'cell'
-      ),
-      p_cyclotron_radiation_e=get_optional_data(
-          profiles_dataset, 'p_cyclotron_radiation_e', 'cell'
-      ),
-      p_impurity_radiation_e=get_optional_data(
-          profiles_dataset, 'p_impurity_radiation_e', 'cell'
-      ),
-      ei_exchange=profiles_dataset[
-          'ei_exchange'
-      ].to_numpy(),  # ion heating/sink
-      Q_fusion=scalars_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
-      s_gas_puff=get_optional_data(profiles_dataset, 's_gas_puff', 'cell'),
-      s_generic_particle=get_optional_data(
-          profiles_dataset, 's_generic_particle', 'cell'
-      ),
-      s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
-      Ip_profile=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
-      I_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
-      I_aux_generic=scalars_dataset['I_aux_generic'].to_numpy(),
-      I_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
-      P_ohmic_e=scalars_dataset['P_ohmic_e'].to_numpy(),
-      P_auxiliary=scalars_dataset['P_aux_total'].to_numpy(),
-      P_alpha_total=scalars_dataset['P_alpha_total'].to_numpy(),
-      P_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
-      + scalars_dataset['P_radiation_e'].to_numpy()
-      + scalars_dataset['P_cyclotron_e'].to_numpy(),
-      P_bremsstrahlung_e=scalars_dataset['P_bremsstrahlung_e'].to_numpy(),
-      P_radiation_e=scalars_dataset['P_radiation_e'].to_numpy(),
-      P_cyclotron_e=scalars_dataset['P_cyclotron_e'].to_numpy(),
-      T_e_volume_avg=scalars_dataset['T_e_volume_avg'].to_numpy(),
-      T_i_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
-      n_e_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
-      n_i_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
-      W_thermal_total=scalars_dataset['W_thermal_total'].to_numpy(),
-      q95=scalars_dataset['q95'].to_numpy(),
-      t=time,
   )
 
 
@@ -416,26 +337,8 @@ def plot_run(
     raise ValueError(f'File {outfile2} does not exist.')
   plotdata1 = load_data(outfile)
   plotdata2 = load_data(outfile2) if outfile2 else None
-
-  # Attribute check. Sufficient to check one PlotData object.
-  # Get available attributes (hardcoded + dynamic)
-  if hasattr(plotdata1, '__dataclass_fields__'):
-    # Handle both method and dict-like access for backward compatibility
-    fields = plotdata1.__dataclass_fields__()
-    if callable(fields):
-      plotdata_fields = set(fields.keys())
-    else:
-      plotdata_fields = set(fields.keys() if hasattr(fields, 'keys') else fields)
-  else:
-    plotdata_fields = set()
-
-  plotdata_properties = {
-      name
-      for name, _ in inspect.getmembers(
-          type(plotdata1), lambda o: isinstance(o, property)
-      )
-  }
-  plotdata_attrs = plotdata_fields.union(plotdata_properties)
+  
+  plotdata_attrs = flatten_plotdata(plotdata1)
 
   # Validate attributes - try dynamic access for any not in hardcoded list
   for cfg in plot_config.axes:
@@ -444,8 +347,6 @@ def plot_run(
         # Try to access the attribute dynamically
         try:
           _ = getattr(plotdata1, attr)
-          # If successful, add it to the set for future checks
-          plotdata_attrs.add(attr)
         except AttributeError:
           raise ValueError(
               f"Attribute '{attr}' in plot_config does not exist in PlotData "
