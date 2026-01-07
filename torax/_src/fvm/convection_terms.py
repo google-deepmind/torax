@@ -118,10 +118,10 @@ def make_convection_terms(
   left_v = v_face[:-1]
   right_v = v_face[1:]
 
-  diag = (left_alpha * left_v - right_alpha * right_v) / var.dr
-  above = -(1.0 - right_alpha) * right_v / var.dr
+  diag = (left_alpha * left_v - right_alpha * right_v) / var.cell_widths
+  above = -(1.0 - right_alpha) * right_v / var.cell_widths
   above = above[:-1]
-  below = (1.0 - left_alpha) * left_v / var.dr
+  below = (1.0 - left_alpha) * left_v / var.cell_widths
   below = below[1:]
   mat = math_utils.tridiag(diag, above, below)
 
