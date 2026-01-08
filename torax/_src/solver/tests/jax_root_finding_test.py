@@ -42,15 +42,20 @@ class NewtonRaphsonSolveBlockTest(parameterized.TestCase):
     super().setUp()
     jax.config.update('jax_enable_x64', True)
 
-  def test_root_newton_raphson_basic(self):
+  @parameterized.named_parameters(
+      # All search directions are positive.
+      ('positive_search', 0.5, 0.1, (0.0, 0.0)),
+      # Assume find the root even with a negative search direction.
+      ('negative_search', 1.0, 1.0, (2.0, 1.0)),
+  )
+  def test_root_newton_raphson_basic(
+      self, a: float, b: float, x0: tuple[float, float]):
     dtype = np.float64
-    a = 0.5
-    b = 1.0
     tol = 1e-9
     f_closed = functools.partial(function_to_find_root, a=a, b=b)
 
-    x_init = np.array([0.0, 0.0], dtype=dtype)
-    sol_np = optimize.root(f_closed, [0, 0], tol=tol)
+    x_init = np.array(x0, dtype=dtype)
+    sol_np = optimize.root(f_closed, x0, tol=tol)
 
     @jax.jit(static_argnames=['tol', 'maxiter'])
     def root_jax(x, tol, maxiter):

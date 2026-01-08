@@ -278,7 +278,7 @@ def _delta_cond(
     delta_state['residual_new'] = residual_vec_x_new
   return jnp.bool_(
       jnp.logical_and(
-          jnp.max(delta_state['delta']) > MIN_DELTA,
+          jnp.max(jnp.abs(delta_state['delta'])) > MIN_DELTA,
           jnp.logical_or(
               residual_scalar_x_old < residual_scalar_x_new,
               jnp.isnan(residual_scalar_x_new),
