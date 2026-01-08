@@ -43,7 +43,7 @@ class Ions:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVectorCell] 
-  main_ion_fractions: Mapping[str , array_typing.FloatVectorCell] 
+  main_ion_fractions: Mapping[str , array_typing.FloatScalar] 
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
@@ -710,10 +710,7 @@ def get_updated_ions(
   main_ion_fractions_dict = {}
   for symbol in runtime_params.plasma_composition.main_ion_names:
     fraction = runtime_params.plasma_composition.main_ion.fractions[symbol]
-    if fraction.ndim == 0:
-      main_ion_fractions_dict[symbol] = jnp.full_like(n_e.value, fraction)
-    else:
-      main_ion_fractions_dict[symbol] = fraction
+    main_ion_fractions_dict[symbol] = fraction
 
   return Ions(
       n_i=n_i,

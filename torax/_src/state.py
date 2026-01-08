@@ -81,7 +81,7 @@ class CoreProfiles:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVector]  
-  main_ion_fractions: Mapping[str , array_typing.FloatVector]  
+  main_ion_fractions: Mapping[str , array_typing.FloatScalar]  
   q_face: array_typing.FloatVectorFace 
   s_face: array_typing.FloatVectorFace
   v_loop_lcfs: array_typing.FloatScalar

@@ -614,5 +614,103 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
 
+  def test_main_ion_fractions_output_matches_config(self):
+    """Tests that main_ion_fractions in core_profiles matches config expectations.
+    
+    This is a non-trivial case with time-varying scalar inputs for 2 main ions
+    (D and T) at different time points.
+    """
+    # Create a config with 2 main ions with time-varying fractions
+    torax_config = model_config.ToraxConfig.from_dict({
+        'profile_conditions': {
+            'T_i_right_bc': 27.7,
+            'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
+        },
+        'numerics': {},
+        'plasma_composition': {
+            'main_ion': {
+                'D': {0.0: 0.5, 1.0: 0.3},  
+                'T': {0.0: 0.5, 1.0: 0.7},  
+            },
+        },
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': default_sources.get_default_source_config(),
+        'solver': {},
+        'transport': {'model_name': 'constant'},
+        'pedestal': {},
+    })
+
+    geo = torax_config.geometry.build_provider(t=0.0)
+    runtime_params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+
+    # Create core profiles at two different times
+    runtime_params_t0 = runtime_params_provider(t=0.0)
+    runtime_params_t1 = runtime_params_provider(t=1.0)
+
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+
+    core_profiles_t0 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t0,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    core_profiles_t1 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t1,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    # Verify the fractions in core_profiles match the config at t=0
+    np.testing.assert_allclose(
+        core_profiles_t0.main_ion_fractions['D'],
+        0.5,
+        err_msg='D fraction at t=0 should be 0.5',
+    )
+    np.testing.assert_allclose(
+        core_profiles_t0.main_ion_fractions['T'],
+        0.5,
+        err_msg='T fraction at t=0 should be 0.5',
+    )
+
+    # Verify the fractions in core_profiles match the config at t=1
+    np.testing.assert_allclose(
+        core_profiles_t1.main_ion_fractions['D'],
+        0.3,
+        err_msg='D fraction at t=1 should be 0.3',
+    )
+    np.testing.assert_allclose(
+        core_profiles_t1.main_ion_fractions['T'],
+        0.7,
+        err_msg='T fraction at t=1 should be 0.7',
+    )
+
+    # Verify fractions sum to 1 at both times
+    sum_t0 = (
+        core_profiles_t0.main_ion_fractions['D']
+        + core_profiles_t0.main_ion_fractions['T']
+    )
+    sum_t1 = (
+        core_profiles_t1.main_ion_fractions['D']
+        + core_profiles_t1.main_ion_fractions['T']
+    )
+    np.testing.assert_allclose(
+        sum_t0, 1.0, err_msg='Fractions at t=0 should sum to 1'
+    )
+    np.testing.assert_allclose(
+        sum_t1, 1.0, err_msg='Fractions at t=1 should sum to 1'
+    )
+
+    # Verify that both D and T species are present in the dict
+    self.assertIn('D', core_profiles_t0.main_ion_fractions)
+    self.assertIn('T', core_profiles_t0.main_ion_fractions)
+    self.assertIn('D', core_profiles_t1.main_ion_fractions)
+    self.assertIn('T', core_profiles_t1.main_ion_fractions)
+
 if __name__ == '__main__':
   absltest.main()

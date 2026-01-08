@@ -21,7 +21,6 @@ from imas import ids_toplevel
 import jax
 import jaxtyping as jt
 import numpy as np
-from torax._src import math_utils
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
@@ -230,7 +229,6 @@ def _fill_profiles_1d(
         runtime_params,
         post_processed_outputs_slice,
         cp_state,
-        geometry_slice,
         T_i,
         n_i,
     )
@@ -310,7 +308,6 @@ def _fill_profiles_1d_ions(
     runtime_params: runtime_params_lib.RuntimeParams,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     cp_state: state.CoreProfiles,
-    geometry_slice: geometry_lib.Geometry,
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
 ) -> None:
@@ -324,7 +321,7 @@ def _fill_profiles_1d_ions(
   ids.profiles_1d[i].ion.resize(num_ions)
   for ion, symbol in enumerate(main_ion.keys()):
     _fill_main_ions(
-        ids, i, ion, symbol, T_i, n_i,cp_state, geometry_slice, post_processed_outputs_slice
+        ids, i, ion, symbol, T_i, n_i, cp_state, post_processed_outputs_slice
     )
 
   # Helper function is called when impurities array is defined to access
@@ -350,22 +347,11 @@ def _fill_main_ions(
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
     cp_state: state.CoreProfiles,
-    geometry_slice: geometry_lib.Geometry,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
 ) -> None:
   """Fills main ion quantities for the IDS."""
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
   main_ion_frac = cp_state.main_ion_fractions[symbol]
-  if main_ion_frac.ndim > 0:
-    #main_ion_frac_extended = output.extend_cell_grid_to_boundaries(
-       main_ion_frac_extended = np.concatenate([
-      [main_ion_frac[0]],  
-      main_ion_frac,       
-      [main_ion_frac[-1]]  
-    ])
-  else:
-  # Scalar case
-    main_ion_frac_extended = main_ion_frac
   # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
   # that instead of using a try-except.
   try:
@@ -374,8 +360,8 @@ def _fill_main_ions(
     # Case ids is plasma_profiles in early DDv4 releases.
     ids.profiles_1d[i].ion[ion].label = symbol
   ids.profiles_1d[i].ion[ion].temperature = T_i
-  ids.profiles_1d[i].ion[ion].density = n_i * main_ion_frac_extended
-  ids.profiles_1d[i].ion[ion].density_thermal = n_i * main_ion_frac_extended
+  ids.profiles_1d[i].ion[ion].density = n_i * main_ion_frac
+  ids.profiles_1d[i].ion[ion].density_thermal = n_i * main_ion_frac
   ids.profiles_1d[i].ion[ion].density_fast = np.zeros(
       len(ids.profiles_1d[i].grid.rho_tor_norm)
   )
@@ -387,19 +373,10 @@ def _fill_main_ions(
   ids.global_quantities.ion[ion].t_i_volume_average[i] = (
       post_processed_outputs_slice.T_i_volume_avg * 1e3
   )
-  # Handle both scalar and profile main_ion_fractions for volume average
-  if  main_ion_frac.ndim > 0:
-    n_i_this_ion_cell = n_i[1:-1] * main_ion_frac
-    n_i_this_ion_volume_avg = math_utils.volume_average(
-        n_i_this_ion_cell, geometry_slice
-    )
-    ids.global_quantities.ion[ion].n_i_volume_average[i] = n_i_this_ion_volume_avg
-  else:
-  # frac is scalar for main ions so can just take fraction of volume_avg.
-    ids.global_quantities.ion[ion].n_i_volume_average[i] = (
-        post_processed_outputs_slice.n_i_volume_avg * main_ion_frac
-    )
-
+  # main_ion_frac is scalar for main ions so can just take fraction of volume_avg.
+  ids.global_quantities.ion[ion].n_i_volume_average[i] = (
+      post_processed_outputs_slice.n_i_volume_avg * main_ion_frac
+  )
 
 def _fill_impurities(
     ids: ids_toplevel.IDSToplevel,
