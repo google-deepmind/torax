@@ -17,6 +17,8 @@ import pathlib
 from typing import Literal
 
 import imas
+from imas import ids_struct_array
+from imas import ids_structure
 from imas import ids_toplevel
 from torax._src import path_utils
 
@@ -65,3 +67,34 @@ def load_imas_data(
       ids = db.get(ids_name=ids_name, autoconvert=False)
       ids = imas.convert_ids(ids, _TORAX_IMAS_DD_VERSION)
   return ids
+
+
+def get_time_and_radial_arrays(
+    ids_node: ids_structure.IDSStructure,
+    t_initial: float | None = None,
+) -> tuple[ids_struct_array.IDSStructArray, list[list[float]], list[float]]:
+  """Extracts time and radial arrays from a given IDS node.
+
+  Can be used with core_profiles IDSTopLevel or with core_sources.source[i]
+  nodes.
+
+  Args:
+      ids_node: The IDS node from which to extract the arrays.
+      t_initial: Initial time used to map the profiles in the dicts. If None the
+        initial time will be the time of the first time slice of the ids. Else
+        all time slices will be shifted such that the first time slice has time
+        = t_initial.
+
+  Returns:
+      A tuple containing:
+      - profiles_1d: IDS's profiles_1d array of structures.
+      - rhon_array: A list of lists containing the radial grid points for each
+        time slice.
+      - time_array: A list containing the time points.
+  """
+  profiles_1d = ids_node.profiles_1d
+  time_array = [profile.time for profile in profiles_1d]
+  if t_initial:
+    time_array = [t - time_array[0] + t_initial for t in time_array]
+  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
+  return profiles_1d, rhon_array, time_array
