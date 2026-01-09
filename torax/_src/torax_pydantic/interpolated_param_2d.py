@@ -545,11 +545,7 @@ def set_grid(
     # The update API assumes all submodels are unique objects. Construct
     # a new Grid1D object (without validation) to ensure this. We do reuse
     # the same NumPy arrays.
-    new_grid = Grid1D.model_construct(
-        nx=grid.nx,
-        face_centers=grid.face_centers,
-        cell_centers=grid.cell_centers,
-    )
+    new_grid = Grid1D.model_construct(nx=grid.nx)
     if submodel.grid is None:
       submodel.__dict__['grid'] = new_grid
     else:
