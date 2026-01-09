@@ -129,6 +129,7 @@ class SimpleRedistribution(
           n_i=core_profiles_t.n_i,
           n_impurity=core_profiles_t.n_impurity,
           impurity_fractions=core_profiles_t.impurity_fractions,
+          main_ion_fractions=core_profiles_t.main_ion_fractions,
           Z_i=core_profiles_t.Z_i,
           Z_i_face=core_profiles_t.Z_i_face,
           Z_impurity=core_profiles_t.Z_impurity,

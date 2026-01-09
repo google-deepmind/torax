@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions to save IMAS core_profiles or plasma_profiles IDSs from TORAX."""
+
 from collections.abc import Sequence
 import datetime
 
@@ -53,8 +54,8 @@ def core_profiles_to_IMAS(
 
   Args:
     runtime_params_provider: TORAX RuntimeParamsProvider to get the names of the
-      ions and main_ion fractions. This is currently needed as we don't have
-      the main_ion information in the outputs.
+      ions and main_ion fractions. This is currently needed as we don't have the
+      main_ion information in the outputs.
     torax_config: ToraxConfig object to get number of main ions.
     post_processed_outputs: Sequence of TORAX PostProcessedOutputs objects.
     core_profiles: Sequence of TORAX CoreProfiles objects.
@@ -319,7 +320,8 @@ def _fill_profiles_1d_ions(
   num_of_impurities = len(impurity_symbols)
   num_ions = num_of_main_ions + num_of_impurities
   ids.profiles_1d[i].ion.resize(num_ions)
-  for ion, (symbol, frac) in enumerate(main_ion.items()):
+  for ion, symbol in enumerate(main_ion.keys()):
+    frac = cp_state.main_ion_fractions[symbol]
     _fill_main_ions(
         ids, i, ion, symbol, frac, T_i, n_i, post_processed_outputs_slice
     )

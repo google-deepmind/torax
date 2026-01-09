@@ -51,6 +51,7 @@ class CoreProfiles:
       n_i: Main ion density [m^-3].
       n_impurity: Impurity density of bundled impurity [m^-3].
       impurity_fractions: Fractional abundances of individual impurity species.
+      main_ion_fractions: Fractional abundances of individual main ion species.
       q_face: Safety factor.
       s_face: Magnetic shear.
       v_loop_lcfs: Loop voltage at LCFS (V).
@@ -81,6 +82,7 @@ class CoreProfiles:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVector]
+  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   q_face: array_typing.FloatVectorFace
   s_face: array_typing.FloatVectorFace
   v_loop_lcfs: array_typing.FloatScalar

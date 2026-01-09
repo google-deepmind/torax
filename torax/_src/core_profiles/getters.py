@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
+
 import dataclasses
 from typing import Mapping
 import jax
@@ -43,6 +44,7 @@ class Ions:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
@@ -498,9 +500,9 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   )
 
   # Now update the row for the unknown species with its calculated profile
-  n_e_ratios_all_species = n_e_ratios_known.at[
-      unknown_species_index, :
-  ].set(r_unknown)
+  n_e_ratios_all_species = n_e_ratios_known.at[unknown_species_index, :].set(
+      r_unknown
+  )
   n_e_ratios_all_species_face = n_e_ratios_known_face.at[
       unknown_species_index, :
   ].set(r_unknown_face)
@@ -704,10 +706,18 @@ def get_updated_ions(
     else:
       impurity_fractions_dict[symbol] = fraction
 
+  # Populate main ion fractions (which are time varying scalars) from
+  # plasma composition.
+  main_ion_fractions_dict = {}
+  for symbol in runtime_params.plasma_composition.main_ion_names:
+    fraction = runtime_params.plasma_composition.main_ion.fractions[symbol]
+    main_ion_fractions_dict[symbol] = fraction
+
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
       impurity_fractions=impurity_fractions_dict,
+      main_ion_fractions=main_ion_fractions_dict,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
       Z_impurity=ion_properties.Z_impurity,

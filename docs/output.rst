@@ -258,6 +258,9 @@ These are called out in the list of profiles below, and generally relate to:
   :math:`-\frac{\hat{\rho}}{\iota}\frac{\partial\iota}{\partial\hat{\rho}}`,
   where :math:`\iota \equiv 1/q` .
 
+``main_ion_fractions`` (main_ion_symbol, time)
+  Relative fractional abundance of each main ion species. [dimensionless].
+
 ``n_e`` (time, rho_norm)
   Electron density [:math:`m^{-3}`].
 

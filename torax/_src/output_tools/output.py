@@ -107,6 +107,7 @@ Q_FUSION = "Q_fusion"
 SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
 CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
+MAIN_ION = "main_ion"
 
 # Numerics.
 SIM_STATUS = "sim_status"
@@ -425,16 +426,19 @@ class StateHistory:
         ),
     }
     numerics = xr.Dataset(numerics_dict)
+
+    spatial_coords = {RHO_FACE_NORM, RHO_CELL_NORM, RHO_NORM}
+
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and v.values.ndim > 1  # pytype: disable=attribute-error
+        if v is not None and any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
+        if v is not None and not any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
     }
     scalars = xr.Dataset(scalars_dict)
     children = {
@@ -541,9 +545,13 @@ class StateHistory:
     )
 
     for attr_name in core_profiles_names:
-      # Skip impurity_fractions since we have not yet converged on the public
-      # API for individual impurity density extensions.
+      # Skip impurity_fractions since redundant with n_impurity_species.
       if attr_name == "impurity_fractions":
+        continue
+
+      # Skip main_ion_fractions as it requires special handling (dict to
+      # DataArray with extra dim)
+      if attr_name == "main_ion_fractions":
         continue
 
       attr_value = getattr(stacked_core_profiles, attr_name)
@@ -599,6 +607,19 @@ class StateHistory:
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
     xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)
+
+    # Handle main_ion_fractions
+    main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
+    data = np.stack(
+        [stacked_core_profiles.main_ion_fractions[ion] for ion in main_ions],
+        axis=0,
+    )
+    xr_dict["main_ion_fractions"] = xr.DataArray(
+        data,
+        dims=[MAIN_ION, TIME],
+        coords={MAIN_ION: main_ions, TIME: self.times},
+        name="main_ion_fractions",
+    )
 
     return xr_dict
 

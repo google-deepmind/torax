@@ -165,6 +165,5 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         write_output=False,
     )
 
-
 if __name__ == '__main__':
   absltest.main()
