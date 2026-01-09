@@ -234,6 +234,7 @@ class TGLFBasedTransportModel(
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
         radial_coordinate=geo.r_mid,  # On the cell grid
+        radial_face_coordinate=geo.r_mid_face,
         reference_length=a,
     )
 

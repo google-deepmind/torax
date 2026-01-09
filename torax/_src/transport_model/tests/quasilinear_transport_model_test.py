@@ -223,11 +223,13 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         dr=jnp.array(1.0),
     )
     radial_coordinate = jnp.array([0.0, 1.0])
+    radial_face_coordinate = jnp.array([-0.5, 0.5, 1.5])
     # pylint: disable=protected-access
     normalized_logarithmic_gradient = (
         quasilinear_transport_model.calculate_normalized_logarithmic_gradient(
             var=dummy_cell_variable,
             radial_coordinate=radial_coordinate,
+            radial_face_coordinate=radial_face_coordinate,
             reference_length=jnp.array(1.0),
         )
     )

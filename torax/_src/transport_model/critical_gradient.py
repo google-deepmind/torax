@@ -92,7 +92,9 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
     rmid = (geo.R_out - geo.R_in) * 0.5
 
     T_i_face = core_profiles.T_i.face_value()
-    T_i_face_grad = core_profiles.T_i.face_grad(rmid)
+    T_i_face_grad = core_profiles.T_i.face_grad(
+        x=rmid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+    )
     T_e_face = core_profiles.T_e.face_value()
 
     # set critical gradient

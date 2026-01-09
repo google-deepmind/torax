@@ -51,7 +51,9 @@ def _calculate_radial_electric_field(
     Er: Radial electric field [V/m] on the cell grid.
   """
   # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
-  dpi_dr = pressure_thermal_i.face_grad(geo.r_mid)
+  dpi_dr = pressure_thermal_i.face_grad(
+      x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+  )
 
   # Calculate Er
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()

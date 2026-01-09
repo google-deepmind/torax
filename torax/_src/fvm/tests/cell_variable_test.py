@@ -74,7 +74,11 @@ class CellVariableTest(parameterized.TestCase):
         dr=jnp.array(0.1),
     )
 
-    grad = var.face_grad(x=jnp.array([4.0, 1.0, 5.0, 3.0]))
+    grad = var.face_grad(
+        x=jnp.array([4.0, 1.0, 5.0, 3.0]),
+        x_left=jnp.array(5.5),
+        x_right=jnp.array(1.0),
+    )
     np.testing.assert_array_equal(
         grad, jnp.array([0.0, 1.0 / -3.0, 3.0 / 4.0, -2.0 / -2.0, 0.0])
     )

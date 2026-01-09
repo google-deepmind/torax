@@ -118,16 +118,22 @@ class CellVariable:
       )
 
   def face_grad(
-      self, x: jt.Float[chex.Array, 'cell'] | None = None
+      self,
+      *,
+      x: jt.Float[chex.Array, 'cell'] | None = None,
+      x_left: jt.Float[chex.Array, ''] | None = None,
+      x_right: jt.Float[chex.Array, ''] | None = None,
   ) -> jt.Float[chex.Array, 'face']:
     """Returns the gradient of this value with respect to the faces.
 
     Implemented using forward differencing of cells. Leftmost and rightmost
-    gradient entries are determined by user specify constraints, see
+    gradient entries are determined by user specified constraints, see
     CellVariable class docstring.
 
     Args:
-      x: (optional) coordinates over which differentiation is carried out
+      x: (optional) coordinates over which differentiation is carried out.
+      x_left: (optional) value of `x` at the leftmost face.
+      x_right: (optional) value of `x` at the rightmost face.
 
     Returns:
       A jax.Array of shape (num_faces,) containing the gradient.
@@ -135,6 +141,8 @@ class CellVariable:
     if x is None:
       forward_difference = jnp.diff(self.value) / jnp.diff(self.cell_centers)
     else:
+      if x_left is None or x_right is None:
+        raise ValueError('Must specify x_left and x_right if x is specified.')
       forward_difference = jnp.diff(self.value) / jnp.diff(x)
 
     def constrained_grad(
@@ -151,10 +159,12 @@ class CellVariable:
               'Cannot constraint both the value and gradient of '
               'a face variable.'
           )
-        coords = self.cell_centers if x is None else x
-        dx = coords[-1] - coords[-2] if right else coords[1] - coords[0]
+        if x is None:
+          dx = self.dr / 2.0
+        else:
+          dx = x_right - x[-1] if right else x[0] - x_left
         sign = -1 if right else 1
-        return sign * (cell - face) / (0.5 * dx)
+        return sign * (cell - face) / dx
       else:
         if grad is None:
           raise ValueError('Must specify one of value or gradient.')

@@ -133,6 +133,7 @@ class QualikizBasedTransportModel(
     normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
         radial_coordinate=rmid,
+        radial_face_coordinate=rmid_face,
         reference_length=geo.R_major,
     )
 
@@ -240,7 +241,9 @@ class QualikizBasedTransportModel(
         left_face_constraint=None,
         left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
-    gamma_E_SI = rmid_face / q * cv.face_grad(rmid)
+    gamma_E_SI = rmid_face / q * cv.face_grad(
+        x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1]
+    )
 
     # We need different normalizations for QuaLiKiz and QLKNN models.
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
