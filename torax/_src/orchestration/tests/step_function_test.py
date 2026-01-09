@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+import os
 from typing import Any
 
 from absl.testing import absltest
@@ -28,6 +29,7 @@ from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import model_config
 
@@ -265,6 +267,24 @@ class StepFunctionTest(parameterized.TestCase):
         geometry_provider=step_fn.geometry_provider,
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
+
+  def test_fixed_step_with_high_density_errors_and_does_not_hang(self):
+    # This test enforces that we exit the fixed step function early if we hit
+    # min_dt. If we don't do this then we risk hanging for a very long time as
+    # we stay at min_dt and the step never seems to make progress. This test
+    # ensures that we don't hang and instead fail early.
+    test_data_dir = paths.test_data_dir()
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(test_data_dir, 'test_iterhybrid_radiation_collapse.py')
+    )
+    sim_state, post_processed_outputs, step_fn = (
+        run_simulation.prepare_simulation(torax_config)
+    )
+    sim_state, post_processed_outputs = step_fn.fixed_time_step(
+        np.array(1.), sim_state, post_processed_outputs)
+
+    sim_error = step_fn.check_for_errors(sim_state, post_processed_outputs)
+    self.assertEqual(sim_error, state.SimError.NAN_DETECTED)
 
   def test_call_with_sawtooth_solver_smoke_test(self):
     """Smoke test for the boolean logic around the sawtooth solver.
