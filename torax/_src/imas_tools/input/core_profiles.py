@@ -43,7 +43,7 @@ def profile_conditions_from_IMAS(
   )
 
   # profile_conditions
-  psi = (np.array(rhon_array[0]), np.array(profiles_1d[0].grid.psi))
+  psi = (time_array, rhon_array, [profile.grid.psi for profile in profiles_1d])
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Ip sign is switched due to the difference between input COCOS conventions
   # and TORAX ones
