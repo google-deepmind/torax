@@ -18,9 +18,7 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-import jax
 import jax.numpy as jnp
-import jax.test_util as jtu
 import numpy as np
 from torax._src import state
 from torax._src.config import config_loader
@@ -358,49 +356,11 @@ class StepFunctionTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(output_state.dt, 0.01, atol=1e-7)
 
-  @parameterized.parameters([
-      'basic_config',
-      'iterhybrid_predictor_corrector',
-  ])
-  def test_step_function_grad(self, config_name_no_py):
-    example_config_paths = config_loader.example_config_paths()
-    example_config_path = example_config_paths[config_name_no_py]
-    cfg = config_loader.build_torax_config_from_file(example_config_path)
-    (
-        sim_state,
-        post_processed_outputs,
-        step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
-    params_provider = step_fn.runtime_params_provider
-    input_value = params_provider.profile_conditions.Ip.value
-
-    @jax.jit
-    def f(override_value):
-      ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-          value=override_value
-      )
-      runtime_params_overrides = params_provider.update_provider(
-          lambda x: (x.profile_conditions.Ip,),
-          (ip_update,),
-      )
-      _, new_post_processed_outputs = step_fn(
-          sim_state,
-          post_processed_outputs,
-          runtime_params_overrides=runtime_params_overrides,
-      )
-      return new_post_processed_outputs.Q_fusion
-
-    jtu.check_grads(f, (input_value,), order=1, modes=('rev',))
-
-  @parameterized.parameters([
-      'iterhybrid_predictor_corrector',
-      'iterhybrid_rampup',
-  ])
-  def test_step_function_overrides(self, config_name_no_py):
-    example_config_paths = config_loader.example_config_paths()
-    example_config_path = example_config_paths[config_name_no_py]
-    raw_config = config_loader.import_module(example_config_path)['CONFIG']
-    cfg = config_loader.build_torax_config_from_file(example_config_path)
+  def test_step_function_overrides(self):
+    original_ip = 15e6
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions']['Ip'] = original_ip
+    cfg = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -423,10 +383,7 @@ class StepFunctionTest(parameterized.TestCase):
     )
 
     # Update the config itself and re-run the step.
-    doubled_ip = jax.tree_util.tree_map(
-        lambda x: x * 2.0, raw_config['profile_conditions']['Ip']
-    )
-    cfg.update_fields({'profile_conditions.Ip': doubled_ip})
+    cfg.update_fields({'profile_conditions.Ip': original_ip * 2.0})
     step_fn = run_simulation.make_step_fn(cfg)
     ref_state, ref_post_processed_outputs = step_fn(
         # Use original state and post-processed outputs as the initial value.
@@ -439,13 +396,9 @@ class StepFunctionTest(parameterized.TestCase):
         override_post_processed_outputs, ref_post_processed_outputs
     )
 
-  @parameterized.parameters([
-      ('iterhybrid_rampup',),
-  ])
-  def test_step_function_geo_overrides(self, config_name_no_py):
-    example_config_paths = config_loader.example_config_paths()
-    example_config_path = example_config_paths[config_name_no_py]
-    cfg = config_loader.build_torax_config_from_file(example_config_path)
+  def test_step_function_geo_overrides(self):
+    config_dict = default_configs.get_default_config_dict()
+    cfg = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,

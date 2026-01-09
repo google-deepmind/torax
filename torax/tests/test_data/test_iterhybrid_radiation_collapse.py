@@ -31,6 +31,10 @@ CONFIG['plasma_composition']['impurity'] = {
     'W': W_frac,
 }
 CONFIG['plasma_composition']['Z_eff'] = 3.0
+
+# Remove QLKNN transport model to simplify step and avoid QLKNN load.
+CONFIG['transport'] = {}
+
 CONFIG['sources']['impurity_radiation'] = {
     'model_name': 'mavrin_fit',
 }
