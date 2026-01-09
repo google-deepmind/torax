@@ -327,26 +327,33 @@ def _fill_profiles_1d_currents(
   ids.profiles_1d[i].magnetic_shear = output.extend_cell_grid_to_boundaries(
       [s_cell], np.array([cp_state.s_face])
   )[0]
-  j_total = output.extend_cell_grid_to_boundaries(
-      [cp_state.j_total], np.array([cp_state.j_total_face])
-  )[0]
-  j_bootstrap = output.extend_cell_grid_to_boundaries(
-      [cs_state.bootstrap_current.j_bootstrap],
-      np.array([cs_state.bootstrap_current.j_bootstrap_face]),
-  )[0]
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
-  ids.profiles_1d[i].j_total = -1 * j_total
+  # Total toroidal current density 
+  j_phi = output.extend_cell_grid_to_boundaries(
+      [cp_state.j_total], np.array([cp_state.j_total_face])
+  )[0]
+  ids.profiles_1d[i].j_phi = -1 * j_phi
+  # Parallel current densities
+  j_bootstrap = output.extend_cell_grid_to_boundaries(
+      [cs_state.bootstrap_current.j_parallel_bootstrap],
+      np.array([cs_state.bootstrap_current.j_parallel_bootstrap_face]),
+  )[0]
   ids.profiles_1d[i].j_bootstrap = -1 * j_bootstrap
   # TODO: Add consistent boundary values. They are not available for the moment
-  # for j_ohmic and jni so copied the neighbouring points values.
-  j_ohmic = -1 * post_processed_outputs_slice.j_ohmic
+  # for j_ohmic, jni and parallel j_total so copied the neighbouring points 
+  # values.
+  j_parallel_total = -1 * post_processed_outputs_slice.j_parallel_total 
+  ids.profiles_1d[i].j_total = -np.concatenate(
+      [[j_parallel_total[0]], j_parallel_total, [j_parallel_total[-1]]]
+  )
+  j_ohmic = -1 * post_processed_outputs_slice.j_parallel_ohmic
   ids.profiles_1d[i].j_ohmic = np.concatenate(
       [[j_ohmic[0]], j_ohmic, [j_ohmic[-1]]]
   )
   j_non_inductive = (
-      -1 * sum(cs_state.psi.values()) + cs_state.bootstrap_current.j_bootstrap
+      -1 * (sum(cs_state.psi.values()) + cs_state.bootstrap_current.j_bootstrap)
   )
   ids.profiles_1d[i].j_non_inductive = -(
       np.concatenate(
