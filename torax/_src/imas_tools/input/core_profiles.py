@@ -19,6 +19,7 @@ from imas import ids_toplevel
 import numpy as np
 from torax._src import constants
 from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import validation
 
 
 # pylint: disable=invalid-name
@@ -39,6 +40,7 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
+  validation.validate_core_profiles_ids(ids)
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
