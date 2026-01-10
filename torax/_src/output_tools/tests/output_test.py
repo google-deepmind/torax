@@ -358,7 +358,28 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
   def test_output_profiles_are_correct_shape(self):
-    output_xr = self.history.simulation_output_to_xr()
+    # Create a history with impurity outputs to test that dimension.
+    impurity_output = impurity_radiation.ImpuritySpeciesOutput(
+        radiation=jnp.ones_like(self.geo.rho),
+        n_impurity=jnp.ones_like(self.geo.rho),
+        Z_impurity=jnp.ones_like(self.geo.rho),
+    )
+    post_processed_outputs = dataclasses.replace(
+        self._output_state, impurity_species={'Ne': impurity_output}
+    )
+
+    # We also need to update the config to match, to be consistent.
+    config_dict = self.torax_config.to_dict()
+    config_dict['plasma_composition']['impurity'] = {'Ne': 1.0}
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=[self.sim_state],
+        post_processed_outputs_history=(post_processed_outputs,),
+        torax_config=torax_config,
+    )
+    output_xr = history.simulation_output_to_xr()
     profile_output_dataset = output_xr.children[output.PROFILES].dataset
     self.assertCountEqual(
         profile_output_dataset.coords,
@@ -367,22 +388,36 @@ class StateHistoryTest(parameterized.TestCase):
             output.RHO_NORM,
             output.RHO_FACE_NORM,
             output.RHO_CELL_NORM,
+            impurity_radiation.IMPURITY_DIM,
         },
     )
     for data_var, data_array in profile_output_dataset.data_vars.items():
       # Check the shape of the underlying data.
       data_array_shape = data_array.values.shape
-      self.assertLen(
-          data_array_shape,
-          2,
-          msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
-      )
       data_array_dims = data_array.dims
-      self.assertEqual(data_array_dims[0], output.TIME)
-      self.assertIn(
-          data_array_dims[1],
-          [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
-      )
+      if impurity_radiation.IMPURITY_DIM in data_array_dims:
+        self.assertLen(
+            data_array_shape,
+            3,
+            msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+        )
+        self.assertEqual(data_array_dims[0], impurity_radiation.IMPURITY_DIM)
+        self.assertEqual(data_array_dims[1], output.TIME)
+        self.assertIn(
+            data_array_dims[2],
+            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+        )
+      else:
+        self.assertLen(
+            data_array_shape,
+            2,
+            msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+        )
+        self.assertEqual(data_array_dims[0], output.TIME)
+        self.assertIn(
+            data_array_dims[1],
+            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+        )
 
   def test_output_scalars_are_correct_shape(self):
     output_xr = self.history.simulation_output_to_xr()
