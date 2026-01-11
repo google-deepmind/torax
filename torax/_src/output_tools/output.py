@@ -80,6 +80,15 @@ I_BOOTSTRAP = "I_bootstrap"
 # Core transport.
 CHI_TURB_I = "chi_turb_i"
 CHI_TURB_E = "chi_turb_e"
+CHI_ITG_E = "chi_itg_e"
+CHI_TEM_E = "chi_tem_e"
+CHI_ETG_E = "chi_etg_e"
+CHI_ITG_I = "chi_itg_i"
+CHI_TEM_I = "chi_tem_i"
+CHI_ETG_I = "chi_etg_i"
+D_ITG_E = "d_itg_e"
+D_TEM_E = "d_tem_e"
+D_ETG_E = "d_etg_e"
 D_TURB_E = "D_turb_e"
 V_TURB_E = "V_turb_e"
 CHI_NEO_I = "chi_neo_i"
@@ -653,6 +662,7 @@ class StateHistory:
       xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
       xr_dict[CHI_BOHM_I] = core_transport.chi_face_ion_bohm
       xr_dict[CHI_GYROBOHM_I] = core_transport.chi_face_ion_gyrobohm
+
 
     xr_dict = {
         name: self._pack_into_data_array(
