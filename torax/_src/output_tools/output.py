@@ -663,7 +663,24 @@ class StateHistory:
       xr_dict[CHI_BOHM_I] = core_transport.chi_face_ion_bohm
       xr_dict[CHI_GYROBOHM_I] = core_transport.chi_face_ion_gyrobohm
 
-
+    if (
+        core_transport.chi_face_el_itg is not None
+        or core_transport.chi_face_el_tem is not None
+        or core_transport.chi_face_el_etg is not None
+        or core_transport.chi_face_ion_itg is not None
+        or core_transport.chi_face_ion_tem is not None
+        or core_transport.chi_face_ion_etg is not None
+     ):
+      xr_dict[CHI_ITG_E] = core_transport.chi_face_el_itg
+      xr_dict[CHI_TEM_E] = core_transport.chi_face_el_tem
+      xr_dict[CHI_ETG_E] = core_transport.chi_face_el_etg
+      xr_dict[CHI_ITG_I] = core_transport.chi_face_ion_itg
+      xr_dict[CHI_TEM_I] = core_transport.chi_face_ion_tem
+      xr_dict[CHI_ETG_I] = core_transport.chi_face_ion_etg
+      xr_dict[D_ITG_E] = core_transport.d_face_el_itg
+      xr_dict[D_TEM_E] = core_transport.d_face_el_tem
+      xr_dict[D_ETG_E] = core_transport.d_face_el_etg
+      
     xr_dict = {
         name: self._pack_into_data_array(
             name,
