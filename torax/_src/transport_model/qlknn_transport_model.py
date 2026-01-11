@@ -325,21 +325,38 @@ class QLKNNTransportModel(
 
     # combine fluxes
     qi_itg_squeezed = model_output['qi_itg'].squeeze()
-    qi = qi_itg_squeezed + model_output['qi_tem'].squeeze()
-    qe = (
-        model_output['qe_itg'].squeeze()
+    qi_tem_squeezed = model_output['qi_tem'].squeeze()
+    qe_itg_squeezed = model_output['qe_itg'].squeeze()
+    qe_tem_squeezed = model_output['qe_tem'].squeeze()
+    qe_etg_squeezed = model_output['qe_etg'].squeeze()
+    pfe_itg_squeezed = model_output['pfe_itg'].squeeze()
+    pfe_tem_squeezed = model_output['pfe_tem'].squeeze()
+
+
+    qi_itg = qi_itg_squeezed
+    qi_tem = qi_tem_squeezed
+    qe_itg = (
+        qe_itg_squeezed
         * runtime_config_inputs.transport.ITG_flux_ratio_correction
-        + model_output['qe_tem'].squeeze()
-        + model_output['qe_etg'].squeeze()
+    )
+    qe_tem = qe_tem_squeezed
+    qe_etg = (
+        qe_etg_squeezed
         * runtime_config_inputs.transport.ETG_correction_factor
     )
+    pfe_itg = pfe_itg_squeezed
+    pfe_tem = pfe_tem_squeezed
 
-    pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
+    # Combine fluxes for total transport
+    qi_total = qi_itg + qi_tem
+    qe_total = qe_itg + qe_tem + qe_etg
+    pfe_total = pfe_itg + pfe_tem
 
-    return self._make_core_transport(
-        qi=qi,
-        qe=qe,
-        pfe=pfe,
+    # Create base transport
+    base_transport = self._make_core_transport(
+        qi=qi_total,
+        qe=qe_total,
+        pfe=pfe_total,
         quasilinear_inputs=qualikiz_inputs,
         transport=runtime_config_inputs.transport,
         geo=geo,
@@ -347,3 +364,37 @@ class QLKNNTransportModel(
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
     )
+
+    # If mode contributions requested, decompose transport coefficients
+    if runtime_config_inputs.transport.output_mode_contributions:
+      eps = 1e-20  # Avoid division by zero
+
+      # Decompose ion heat diffusivity
+      chi_ion_itg = base_transport.chi_face_ion * qi_itg / (qi_total + eps)
+      chi_ion_tem = base_transport.chi_face_ion * qi_tem / (qi_total + eps)
+      chi_ion_etg = jnp.zeros_like(chi_ion_itg)
+
+      # Decompose electron heat diffusivity
+      chi_el_itg = base_transport.chi_face_el * qe_itg / (qe_total + eps)
+      chi_el_tem = base_transport.chi_face_el * qe_tem / (qe_total + eps)
+      chi_el_etg = base_transport.chi_face_el * qe_etg / (qe_total + eps)
+
+      # Decompose particle diffusivity
+      d_el_itg = base_transport.d_face_el * pfe_itg / (pfe_total + eps)
+      d_el_tem = base_transport.d_face_el * pfe_tem / (pfe_total + eps)
+      d_el_etg = jnp.zeros_like(d_el_itg)
+
+      return dataclasses.replace(
+          base_transport,
+          chi_face_ion_itg=chi_ion_itg,
+          chi_face_ion_tem=chi_ion_tem,
+          chi_face_ion_etg=chi_ion_etg,
+          chi_face_el_itg=chi_el_itg,
+          chi_face_el_tem=chi_el_tem,
+          chi_face_el_etg=chi_el_etg,
+          d_face_el_itg=d_el_itg,
+          d_face_el_tem=d_el_tem,
+          d_face_el_etg=d_el_etg,
+      )
+    else:
+      return base_transport
