@@ -212,11 +212,21 @@ class CoreTransport:
   chi_face_el_gyrobohm: jax.Array | None = None
   chi_face_ion_bohm: jax.Array | None = None
   chi_face_ion_gyrobohm: jax.Array | None = None
+  chi_face_el_itg: jax.Array | None = None
+  chi_face_el_tem: jax.Array | None = None
+  chi_face_el_etg: jax.Array | None = None
+  chi_face_ion_itg: jax.Array | None = None
+  chi_face_ion_tem: jax.Array | None = None
+  chi_face_ion_etg: jax.Array | None = None
+  d_face_el_itg: jax.Array | None = None
+  d_face_el_tem: jax.Array | None = None
+  d_face_el_etg: jax.Array | None = None
   chi_neo_i: jax.Array | None = None
   chi_neo_e: jax.Array | None = None
   D_neo_e: jax.Array | None = None
   V_neo_e: jax.Array | None = None
   V_neo_ware_e: jax.Array | None = None
+
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
