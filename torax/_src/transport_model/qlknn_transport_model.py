@@ -45,6 +45,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
+  output_mode_contributions: bool = False
 
 
 _EPSILON_NN: Final[float] = (

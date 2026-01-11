@@ -59,7 +59,15 @@ class TurbulentTransport:
   chi_face_el_gyrobohm: jax.Array | None = None
   chi_face_ion_bohm: jax.Array | None = None
   chi_face_ion_gyrobohm: jax.Array | None = None
-
+  chi_face_ion_itg: jax.Array | None = None
+  chi_face_ion_tem: jax.Array | None = None
+  chi_face_ion_etg: jax.Array | None = None
+  chi_face_el_itg: jax.Array | None = None
+  chi_face_el_tem: jax.Array | None = None
+  chi_face_el_etg: jax.Array | None = None
+  d_face_el_itg: jax.Array | None = None
+  d_face_el_tem: jax.Array | None = None
+  d_face_el_etg: jax.Array | None = None
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
