@@ -75,6 +75,14 @@ def core_profiles_to_IMAS(
   """
   if ids is None:
     ids = imas.IDSFactory().core_profiles()
+  elif (
+      not ids.metadata.name == 'core_profiles'
+      and not ids.metadata.name == 'plasma_profiles'
+  ):
+    raise TypeError(
+        'Expected core_profiles or plasma_profiles IDS, got'
+        f' {ids.metadata.name} IDS.'
+    )
 
   _fill_metadata(ids)
   _fill_global_quantities(
