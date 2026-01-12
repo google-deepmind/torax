@@ -83,18 +83,22 @@ class TimeVaryingArrayUpdate:
 
   def __post_init__(self):
     """Consistency checks for the provided values."""
-    if not isinstance(self.value, type(self.rho_norm)):
+    if (self.rho_norm is None and self.value is not None) or (
+        self.rho_norm is not None and self.value is None
+    ):
       raise ValueError(
-          'If rho_norm is provided, value must also be provided. Got value:'
-          f' {type(self.value)}, rho_norm: {type(self.rho_norm)}'
+          'Either both or neither of rho_norm and value must be provided.'
       )
+
     if self.rho_norm is not None and self.value is not None:
       rho_norm_shape = self.rho_norm.shape
       if rho_norm_shape[0] != self.value.shape[1]:
         raise ValueError(
-            'rho_norm and value must have the same shape. Got rho_norm shape:'
-            f' {rho_norm_shape} and value shape: {self.value.shape}'
+            'rho_norm and value must have the same trailing dimension. '
+            f'Got rho_norm shape: {rho_norm_shape} and value shape: '
+            f'{self.value.shape}'
         )
+
     if self.value is not None and self.time is not None:
       if self.value.shape[0] != self.time.shape[0]:
         raise ValueError(
@@ -583,6 +587,7 @@ def _get_face_centers(nx: int, dx: float) -> np.ndarray:
 @functools.cache
 def _get_cell_centers(nx: int, dx: float) -> np.ndarray:
   return np.linspace(dx * 0.5, (nx - 0.5) * dx, nx)
+
 
 NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
     TimeVaryingArray, pydantic.AfterValidator(_is_non_negative)

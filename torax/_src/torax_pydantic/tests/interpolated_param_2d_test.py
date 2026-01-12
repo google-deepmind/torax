@@ -470,6 +470,51 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         interpolated.get_value(t=0.0, grid_type='face_right'),
     )
 
+  def test_time_varying_array_update_validations_value_only(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Either both or neither of rho_norm and value must be provided.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0]]), rho_norm=None
+      )
+
+  def test_time_varying_array_update_validations_rhonorm_only(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Either both or neither of rho_norm and value must be provided.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=None, rho_norm=np.array([1.0])
+      )
+
+  def test_time_varying_array_update_validations_shape_mismatch(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'rho_norm and value must have the same trailing dimension.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]), rho_norm=np.array([1.0])
+      )
+
+  def test_time_varying_array_update_validations_time_dimension_mismatch(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'value and time arrays must have same leading dimension.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]),
+          rho_norm=np.array([0.0, 1.0]),
+          time=np.array([0.0]),
+      )
+
+  def test_allowed_mix_of_numpy_and_jax_arrays_for_update(self):
+    interpolated_param_2d.TimeVaryingArrayUpdate(
+        value=jnp.array([[1.0, 2.0], [3.0, 4.0]]),
+        rho_norm=np.array([0.0, 1.0]),
+        time=np.array([0.0, 1.0]),
+    )
+
   @parameterized.named_parameters(
       dict(
           testcase_name='update_values',
