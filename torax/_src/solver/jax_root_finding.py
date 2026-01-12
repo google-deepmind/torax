@@ -48,6 +48,7 @@ def root_newton_raphson(
     tau_min: float = 0.01,
     log_iterations: bool = False,
     use_jax_custom_root: bool = True,
+    custom_jac: Callable[[jax.Array], jax.Array] | None = None,
 ) -> tuple[jax.Array, RootMetadata]:
   """A differentiable Newton-Raphson root finder.
 
@@ -70,15 +71,18 @@ def root_newton_raphson(
     use_jax_custom_root: If true, use jax.lax.custom_root to allow for
       differentiable solving. This can increase compile times even when no
       derivatives are requested.
+    custom_jac: If provided, use this function to compute the Jacobian of `fun`
+      instead of jax.jacfwd.
 
   Returns:
     A tuple `(x_root, RootMetadata(...))`.
   """
 
-  def _newton_raphson(f, x):
+  def _newton_raphson(f, x, jacobian_fun=None):
     residual_fun = f
     init_x_new_vec = x
-    jacobian_fun = jax.jacfwd(f)
+    if jacobian_fun is None:
+      jacobian_fun = jax.jacfwd(f)
     # initialize state dict being passed around Newton-Raphson iterations
     residual_vec_init_x_new = residual_fun(init_x_new_vec)
     initial_state = {
@@ -118,6 +122,10 @@ def root_newton_raphson(
     return jnp.linalg.solve(jax.jacfwd(g)(y), y)
 
   if use_jax_custom_root:
+    if custom_jac is not None:
+      raise ValueError(
+          'custom_jac is not compatible with use_jax_custom_root.'
+      )
     x_out, metadata = jax.lax.custom_root(
         f=fun,
         initial_guess=x0,
@@ -126,7 +134,7 @@ def root_newton_raphson(
         has_aux=True,
     )
   else:
-    x_out, metadata = _newton_raphson(fun, x0)
+    x_out, metadata = _newton_raphson(fun, x0, jacobian_fun=custom_jac)
 
   # Tell the caller whether or not x_new successfully reduces the residual below
   # the tolerance by providing an extra output, error.
