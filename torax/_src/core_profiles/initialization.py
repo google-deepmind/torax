@@ -90,11 +90,11 @@ def initial_core_profiles(
   # Initialise psi and derived quantities to zero before they are calculated.
   psidot = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
   )
   psi = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
   )
 
   core_profiles = state.CoreProfiles(
@@ -200,7 +200,7 @@ def update_psi_from_j(
 
   psi = cell_variable.CellVariable(
       value=psi_value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=right_face_grad_constraint,
       right_face_constraint=right_face_constraint,
   )
@@ -314,9 +314,9 @@ def _init_psi_and_psi_derived(
 
       psi = cell_variable.CellVariable(
           value=runtime_params.profile_conditions.psi,
+          face_centers=geo.rho_face_norm,
           right_face_grad_constraint=right_face_grad_constraint,
           right_face_constraint=right_face_constraint,
-          dr=geo.drho_norm,
       )
 
     # Case 2: retrieving psi from the standard geometry input.
@@ -339,13 +339,13 @@ def _init_psi_and_psi_derived(
       # by make_ip_consistent
       psi = cell_variable.CellVariable(
           value=geo.psi_from_Ip,  # Use psi from equilibrium
+          face_centers=geo.rho_face_norm,
           right_face_grad_constraint=None
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else dpsi_drhonorm_edge,
           right_face_constraint=geo.psi_from_Ip_face[-1]
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else None,
-          dr=geo.drho_norm,
       )
 
     # Case 3: calculating j according to nu formula and psi from j.

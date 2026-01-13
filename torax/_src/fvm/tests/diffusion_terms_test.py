@@ -18,13 +18,18 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import diffusion_terms
 
 
+def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
+  """Creates uniform face centers from dr and number of cells."""
+  return np.linspace(0.0, num_cells * dr, num=num_cells + 1)
+
+
 # TODO(b/469726859): Extend tests to cover non-uniform grid.
 class DiffusionTermsTest(absltest.TestCase):
 
   def test_diffusion_terms_with_dirichlet_boundary_conditions_unit_space(self):
     cell_var = cell_variable.CellVariable(
         value=jnp.zeros(4),
-        dr=jnp.array(1.0),
+        face_centers=_make_face_centers(1.0, 4),
         right_face_grad_constraint=None,
         left_face_grad_constraint=None,
         left_face_constraint=jnp.array(-5.0),
@@ -45,7 +50,7 @@ class DiffusionTermsTest(absltest.TestCase):
   def test_diffusion_terms_with_neumann_boundary_conditions_unit_space(self):
     cell_var = cell_variable.CellVariable(
         value=jnp.zeros(4),
-        dr=jnp.array(1.0),
+        face_centers=_make_face_centers(1.0, 4),
         right_face_grad_constraint=jnp.array(10.0),
         left_face_grad_constraint=jnp.array(-10.0),
         left_face_constraint=None,
@@ -66,7 +71,7 @@ class DiffusionTermsTest(absltest.TestCase):
   def test_diffusion_terms_with_dirichlet_boundary_conditions(self):
     cell_var = cell_variable.CellVariable(
         value=jnp.zeros(4),
-        dr=jnp.array(0.2),
+        face_centers=_make_face_centers(0.2, 4),
         right_face_grad_constraint=None,
         left_face_grad_constraint=None,
         left_face_constraint=jnp.array(-5.0),
@@ -87,7 +92,7 @@ class DiffusionTermsTest(absltest.TestCase):
   def test_diffusion_terms_with_neumann_boundary_conditions(self):
     cell_var = cell_variable.CellVariable(
         value=jnp.zeros(4),
-        dr=jnp.array(0.2),
+        face_centers=_make_face_centers(0.2, 4),
         right_face_grad_constraint=jnp.array(10.0),
         left_face_grad_constraint=jnp.array(-10.0),
         left_face_constraint=None,

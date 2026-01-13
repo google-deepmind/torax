@@ -64,7 +64,7 @@ def _calculate_radial_electric_field(
   )
   return cell_variable.CellVariable(
       value=geometry.face_to_cell(Er),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_constraint=Er[-1],
       right_face_grad_constraint=None,
   )

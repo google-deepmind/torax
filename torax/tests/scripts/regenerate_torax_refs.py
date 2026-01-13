@@ -151,7 +151,7 @@ def _calculate_new_references(
     )
     psi = cell_variable.CellVariable(
         value=psi_value,
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_grad_constraint=psi_constraint,
     )
   else:

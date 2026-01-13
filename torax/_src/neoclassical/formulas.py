@@ -306,7 +306,7 @@ def calculate_poloidal_velocity(
 
   return cell_variable.CellVariable(
       value=geometry_lib.face_to_cell(v_pol),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_constraint=v_pol[-1],
       right_face_grad_constraint=None,
   )

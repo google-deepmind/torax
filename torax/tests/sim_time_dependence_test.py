@@ -224,7 +224,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     # Use x_new as a hacky way to extract what the combined value was.
     # Ti values will be the `combined` value in the output state.
     x_new = cell_variable.CellVariable(
-        dr=0.1,
+        face_centers=geo_t.rho_face_norm,
         value=np.ones_like(geo_t.rho_norm) * combined,
         right_face_constraint=combined,
         right_face_grad_constraint=None,

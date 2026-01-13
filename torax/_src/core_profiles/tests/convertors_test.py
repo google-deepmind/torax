@@ -34,25 +34,25 @@ class ConvertersTest(parameterized.TestCase):
 
     T_i = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 1.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.5),
         right_face_grad_constraint=None,
     )
     T_e = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 2.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.6),
         right_face_grad_constraint=None,
     )
     psi = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 3.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_grad_constraint=jnp.array(0.7),
         right_face_constraint=None,
     )
     n_e = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 4.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.8),
         right_face_grad_constraint=None,
     )

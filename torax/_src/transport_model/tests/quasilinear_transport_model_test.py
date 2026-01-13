@@ -178,9 +178,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     def _get_cell_variable(value):
       return cell_variable.CellVariable(
           value=jnp.array([value]),
+          face_centers=jnp.array([0.0, 1.0]),
           right_face_grad_constraint=None,
           right_face_constraint=jnp.array(value),
-          dr=jnp.array(1.0),
       )
 
     core_profiles = mock.create_autospec(
@@ -218,9 +218,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     """Tests that calculate_normalized_logarithmic_gradient is calculated correctly."""
     dummy_cell_variable = cell_variable.CellVariable(
         value=jnp.array([2.0, 1.0]),
+        face_centers=jnp.array([0.0, 1.0, 2.0]),
         right_face_constraint=jnp.array(0.5),
         right_face_grad_constraint=None,
-        dr=jnp.array(1.0),
     )
     radial_coordinate = jnp.array([0.0, 1.0])
     radial_face_coordinate = jnp.array([-0.5, 0.5, 1.5])

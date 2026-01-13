@@ -74,10 +74,10 @@ def get_updated_ion_temperature(
     value = profile_conditions_params.T_i
   T_i = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_i_right_bc,
-      dr=geo.drho_norm,
   )
   return T_i
 
@@ -101,10 +101,10 @@ def get_updated_electron_temperature(
 
   T_e = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_e_right_bc,
-      dr=geo.drho_norm,
   )
   return T_e
 
@@ -193,7 +193,7 @@ def get_updated_electron_density(
 
   n_e = cell_variable.CellVariable(
       value=value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_e_right_bc,
   )
@@ -235,7 +235,7 @@ def get_updated_psi(
   )
   return cell_variable.CellVariable(
       value=value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=right_face_grad_constraint,
       right_face_constraint=right_face_constraint,
   )
@@ -252,9 +252,9 @@ def get_updated_toroidal_velocity(
     value = profile_conditions_params.toroidal_velocity
   toroidal_velocity = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.toroidal_velocity_right_bc,
-      dr=geo.drho_norm,
   )
   return toroidal_velocity
 
@@ -657,7 +657,7 @@ def get_updated_ions(
 
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_e.right_face_constraint
       * ion_properties.dilution_factor_edge,
@@ -678,7 +678,7 @@ def get_updated_ions(
 
   n_impurity = cell_variable.CellVariable(
       value=n_impurity_value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_impurity_right_face_constraint,
   )

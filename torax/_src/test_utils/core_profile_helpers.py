@@ -35,7 +35,7 @@ def make_zero_core_profiles(
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_constraint=jnp.ones(()),
       right_face_grad_constraint=None,
   )
@@ -84,11 +84,11 @@ def make_constant_core_profile(
 ) -> cell_variable.CellVariable:
   return cell_variable.CellVariable(
       value=value * np.ones_like(geo.rho_norm),
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=np.zeros(()),
       left_face_constraint=None,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(value),
-      dr=geo.drho_norm,
   )
 
 

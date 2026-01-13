@@ -235,7 +235,7 @@ class QualikizBasedTransportModel(
     value_face = v_ExB * q / rmid_face
     cv = cell_variable.CellVariable(
         value=geometry.face_to_cell(value_face),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=value_face[-1],
         right_face_grad_constraint=None,
         left_face_constraint=None,

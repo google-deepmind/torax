@@ -42,7 +42,7 @@ class FlattenProfileTest(parameterized.TestCase):
     """Helper to create a CellVariable for testing."""
     return cell_variable.CellVariable(
         value=jnp.array(values),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         left_face_grad_constraint=jnp.array(0.0),
         left_face_constraint=None,
         right_face_grad_constraint=None,

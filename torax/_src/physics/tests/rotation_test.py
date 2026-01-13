@@ -126,7 +126,7 @@ class RotationTest(absltest.TestCase):
     E_r = rotation._calculate_radial_electric_field(
         pressure_thermal_i=cell_variable.CellVariable(
             value=np.linspace(1.0, 2.0, self.geo.rho_norm.size),
-            dr=self.geo.drho_norm,
+            face_centers=self.geo.rho_face_norm,
         ),
         toroidal_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0

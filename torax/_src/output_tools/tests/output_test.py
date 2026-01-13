@@ -325,7 +325,7 @@ class StateHistoryTest(parameterized.TestCase):
     torax_state = self.sim_state
     T_e = cell_variable.CellVariable(  # pylint: disable=invalid-name
         value=jnp.ones_like(self.geo.rho),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=2,
         left_face_constraint=18,
         left_face_grad_constraint=None,

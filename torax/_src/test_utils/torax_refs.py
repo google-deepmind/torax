@@ -93,8 +93,8 @@ def _build_references_from_case_data(
 
   psi = cell_variable.CellVariable(
       value=psi_value,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=psi_grad_bc,
-      dr=geo.drho_norm,
   )
 
   return References(
