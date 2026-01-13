@@ -300,11 +300,14 @@ def _calc_coeffs_full(
   # If rho_norm_ped_top_idx is outside of bounds of the mesh, the pedestal is
   # not present and the mask is all False. This is what is used in the case that
   # set_pedestal is False.
-  mask = (
-      jnp.zeros_like(geo.rho, dtype=bool)
-      .at[pedestal_model_output.rho_norm_ped_top_idx]
-      .set(True)
-  )
+  if pedestal_model_output.profile_mask is not None:
+    mask = pedestal_model_output.profile_mask
+  else:
+    mask = (
+        jnp.zeros_like(geo.rho, dtype=bool)
+        .at[pedestal_model_output.rho_norm_ped_top_idx]
+        .set(True)
+    )
 
   conductivity = (
       physics_models.neoclassical_models.conductivity.calculate_conductivity(
@@ -400,10 +403,16 @@ def _calc_coeffs_full(
   # density source vector based both on original and updated core profiles
   source_n_e = merged_source_profiles.total_sources('n_e', geo)
 
+  n_e_target = (
+      pedestal_model_output.n_e_ped
+      if pedestal_model_output.n_e_profile is None
+      else pedestal_model_output.n_e_profile
+  )
+
   source_n_e += (
       mask
       * runtime_params.numerics.adaptive_n_source_prefactor
-      * pedestal_model_output.n_e_ped
+      * n_e_target
   )
   source_mat_nn += -(mask * runtime_params.numerics.adaptive_n_source_prefactor)
 
@@ -478,15 +487,26 @@ def _calc_coeffs_full(
   source_mat_ei = qei.implicit_ei * geo.vpr
 
   # Pedestal
+  T_i_target = (
+      pedestal_model_output.T_i_ped
+      if pedestal_model_output.T_i_profile is None
+      else pedestal_model_output.T_i_profile
+  )
+  T_e_target = (
+      pedestal_model_output.T_e_ped
+      if pedestal_model_output.T_e_profile is None
+      else pedestal_model_output.T_e_profile
+  )
+
   source_i += (
       mask
       * runtime_params.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.T_i_ped
+      * T_i_target
   )
   source_e += (
       mask
       * runtime_params.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.T_e_ped
+      * T_e_target
   )
 
   source_mat_ii -= mask * runtime_params.numerics.adaptive_T_source_prefactor

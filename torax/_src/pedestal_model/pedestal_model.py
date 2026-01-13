@@ -46,6 +46,14 @@ class PedestalModelOutput:
   T_e_ped: array_typing.FloatScalar
   # The electron density at the pedestal in units 10^-3.
   n_e_ped: array_typing.FloatScalar
+  # The ion temperature profile.
+  T_i_profile: jax.Array | None = None
+  # The electron temperature profile.
+  T_e_profile: jax.Array | None = None
+  # The electron density profile.
+  n_e_profile: jax.Array | None = None
+  # The mask for where the profile should be enforced.
+  profile_mask: jax.Array | None = None
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
