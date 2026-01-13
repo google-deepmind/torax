@@ -44,12 +44,12 @@ def torax_state_to_imas_equilibrium(
   Returns:
     Equilibrium IDS based on the current TORAX simulation state object.
   """
-  if not equilibrium_in.metadata.name == "equilibrium":
-    raise TypeError(
-        "equilibrium_in must be an equilibrium IDS, got"
-        f" {equilibrium_in.metadata.name} IDS."
-    )
-
+  if equilibrium_in is not None:
+    if not equilibrium_in.metadata.name == "equilibrium":
+        raise TypeError(
+            "equilibrium_in must be an equilibrium IDS, got"
+            f" {equilibrium_in.metadata.name} IDS."
+        )
   geometry = sim_state.geometry
   if not isinstance(geometry, standard_geometry.StandardGeometry):
     raise ValueError("geometry_to_IMAS only supports StandardGeometry objects.")
