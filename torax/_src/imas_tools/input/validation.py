@@ -39,8 +39,10 @@ def _validate_paths(
       logging.warning("The IDS is missing the %s quantity.", path)
 
 
-def validate_core_profiles_ids(ids: ids_toplevel.IDSToplevel) -> None:
-  """Validates core_profiles IDS for profiles_conditions."""
+def validate_profile_conditions_from_IMAS(
+    ids: ids_toplevel.IDSToplevel,
+) -> None:
+  """Validates core_profiles IDS for profile_conditions."""
   # Assume the initial profile has the same structure as the rest.
   # This is a reasonable assumption on structure and avoids spamming warning
   # messages for many profiles.
@@ -65,3 +67,35 @@ def validate_core_profiles_ids(ids: ids_toplevel.IDSToplevel) -> None:
           "global_quantities.ip",
       ),
   )
+
+
+def validate_plasma_composition_from_IMAS(
+    ids: ids_toplevel.IDSToplevel,
+) -> None:
+  """Validates core_profiles IDS for plasma_composition."""
+  # Assume the initial profile has the same structure as the rest.
+  # This is a reasonable assumption on structure and avoids spamming warning
+  # messages for many profiles.
+  initial_profile = ids.profiles_1d[0]
+  _validate_paths(
+      initial_profile,
+      required_paths=(
+          "grid.rho_tor_norm",
+          "electrons.density",
+          "ion",
+      ),
+      warning_paths=(
+          "time",
+          "zeff",
+      ),
+  )
+  # TODO: add name to required paths when updating supported dd_versions.
+  for ion in initial_profile.ion:
+    _validate_paths(
+        ion,
+        required_paths=("density",),
+        warning_paths=(
+            "name",
+            "temperature",
+        ),
+    )
