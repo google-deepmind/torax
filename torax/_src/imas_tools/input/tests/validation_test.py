@@ -19,7 +19,7 @@ from torax._src.imas_tools.input import validation
 
 class IMASLoaderTest(absltest.TestCase):
 
-  def test_validate_core_profiles_ids_raises_on_missing_quantities(self):
+  def test_validate_profile_conditions_from_IMAS_raises_on_missing_quantities(self):
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     ids_name = "core_profiles"
     ids_in = loader.load_imas_data(path, ids_name)
@@ -28,7 +28,7 @@ class IMASLoaderTest(absltest.TestCase):
     with self.assertRaises(ValueError):
       validation.validate_profile_conditions_from_IMAS(ids_in)
 
-  def test_validate_core_profiles_warns_on_missing_optional_quantities(self):
+  def test_validate_profile_conditions_from_IMAS_warns_on_missing_optional_quantities(self):
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     ids_name = "core_profiles"
     ids_in = loader.load_imas_data(path, ids_name)
@@ -37,6 +37,14 @@ class IMASLoaderTest(absltest.TestCase):
       validation.validate_profile_conditions_from_IMAS(ids_in)
     self.assertIn("The IDS is missing the global_quantities.v_loop quantity.",
                   logs.output[0])
+ 
+  def test_validate_plasma_composition_from_IMAS_raises_on_empty_ions(self):
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
+    ids_name = "core_profiles"
+    ids_in = loader.load_imas_data(path, ids_name)
+    # The input IDS has no ion information. 
+    with self.assertRaises(ValueError):
+      validation.validate_plasma_composition_from_IMAS(ids_in)
 
 
 if __name__ == "__main__":
