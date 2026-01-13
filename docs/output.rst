@@ -492,7 +492,23 @@ properties and characteristics, as well as scalar edge geometry quantities.
   present if provided by FBT geometry.
 
 ``dW_thermal_dt`` (time)
-  Time derivative of the total thermal stored energy [:math:`W`].
+  Time derivative of the total thermal stored energy [:math:`W`], raw unsmoothed
+  value.
+
+``dW_thermal_dt_smoothed`` (time)
+  Smoothed time derivative of total stored thermal energy [:math:`W`].
+  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
+  set in the `numerics` config.
+
+``dW_thermal_e_dt_smoothed`` (time)
+  Smoothed time derivative of electron stored thermal energy [:math:`W`].
+  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
+  set in the `numerics` config.
+
+``dW_thermal_i_dt_smoothed`` (time)
+  Smoothed time derivative of ion stored thermal energy [:math:`W`].
+  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
+  set in the `numerics` config.
 
 ``drho`` (time)
   Radial grid spacing in the unnormalized rho coordinate [:math:`m`].
@@ -619,6 +635,19 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_fusion`` (time)
   Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
 
+``P_heat_e`` (time)
+  Total electron heating power: all sources - sinks. i.e. auxiliary heating +
+  electron-ion heat exchange + Ohmic + fusion + (negative) radiation sinks
+  [:math:`W`].
+
+``P_heat_i`` (time)
+  Total ion heating power: all sources. i.e. auxiliary heating +
+  electron-ion exchange + fusion
+
+``P_heat_total`` (time)
+  Total heating power: all sources - sinks. i.e. auxiliary heating + Ohmic +
+  fusion + (negative) radiation sinks [:math:`W`].
+
 ``P_icrh_e`` (time)
   Total ion cyclotron resonance heating power to electrons [:math:`W`].
 
@@ -650,12 +679,15 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``P_SOL_e`` (time)
   Total electron heating power exiting the plasma across the LCFS [:math:`W`].
+  Calculated as ``P_heat_e - dW_thermal_e_dt_smoothed``.
 
 ``P_SOL_i`` (time)
   Total ion heating power exiting the plasma across the LCFS [:math:`W`].
+  Calculated as ``P_heat_i - dW_thermal_i_dt_smoothed``.
 
 ``P_SOL_total`` (time)
   Total heating power exiting the plasma across the LCFS [:math:`W`].
+  Calculated as ``P_heat_total - dW_thermal_dt_smoothed``.
 
 ``Phi_b`` (time)
   Total toroidal magnetic flux [:math:`Wb`].

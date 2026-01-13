@@ -247,6 +247,15 @@ def get_initial_state_and_post_processed_outputs_from_file(
           'E_external_injected'
       ].to_numpy(),
       E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
+      dW_thermal_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_dt_smoothed'
+      ].to_numpy(),
+      dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_i_dt_smoothed'
+      ].to_numpy(),
+      dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_e_dt_smoothed'
+      ].to_numpy(),
   )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,

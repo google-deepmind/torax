@@ -45,6 +45,7 @@ class RuntimeParams:
   resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
+  dW_dt_smoothing_time_scale: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
   evolve_electron_heat: bool = dataclasses.field(metadata={'static': True})
   evolve_current: bool = dataclasses.field(metadata={'static': True})
@@ -102,6 +103,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       temperature internal boundary conditions.
     adaptive_n_source_prefactor: Prefactor for adaptive source term for setting
       density internal boundary conditions.
+    dW_dt_smoothing_time_scale: Time scale [s] for the exponential moving
+      average smoothing of dW/dt terms used in P_SOL and confinement time
+      calculations. If 0.0, no smoothing is applied and raw dW/dt is used.
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -125,6 +129,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   )
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
+  dW_dt_smoothing_time_scale: pydantic.NonNegativeFloat = 0.3
 
   T_minimum_eV: pydantic.PositiveFloat = 5.0
 
@@ -170,6 +175,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
+        dW_dt_smoothing_time_scale=self.dW_dt_smoothing_time_scale,
         evolve_ion_heat=self.evolve_ion_heat,
         evolve_electron_heat=self.evolve_electron_heat,
         evolve_current=self.evolve_current,
