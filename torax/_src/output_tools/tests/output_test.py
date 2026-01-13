@@ -59,7 +59,12 @@ class StateHistoryTest(parameterized.TestCase):
             'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
         },
         'numerics': {},
-        'plasma_composition': {},
+        'plasma_composition': {
+            'impurity': {
+                'impurity_mode': 'n_e_ratios',
+                'species': {'Ne': 0.01},
+            }
+        },
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
@@ -82,6 +87,7 @@ class StateHistoryTest(parameterized.TestCase):
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         T_i={
             'fusion': ones,
+            'generic_heat': 2 * ones,
         },
         T_e={
             'bremsstrahlung': -ones,
@@ -122,7 +128,12 @@ class StateHistoryTest(parameterized.TestCase):
         edge_outputs=None,
     )
     sim_error = state.SimError.NO_ERROR
-    self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)
+    previous_post_processed_outputs = (
+        post_processing.PostProcessedOutputs.zeros(self.geo)
+    )
+    self._output_state = post_processing.make_post_processed_outputs(
+        self.sim_state, runtime_params, previous_post_processed_outputs
+    )
 
     self.history = output.StateHistory(
         sim_error=sim_error,
@@ -358,28 +369,7 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
   def test_output_profiles_are_correct_shape(self):
-    # Create a history with impurity outputs to test that dimension.
-    impurity_output = impurity_radiation.ImpuritySpeciesOutput(
-        radiation=jnp.ones_like(self.geo.rho),
-        n_impurity=jnp.ones_like(self.geo.rho),
-        Z_impurity=jnp.ones_like(self.geo.rho),
-    )
-    post_processed_outputs = dataclasses.replace(
-        self._output_state, impurity_species={'Ne': impurity_output}
-    )
-
-    # We also need to update the config to match, to be consistent.
-    config_dict = self.torax_config.to_dict()
-    config_dict['plasma_composition']['impurity'] = {'Ne': 1.0}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
-
-    history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
-        state_history=[self.sim_state],
-        post_processed_outputs_history=(post_processed_outputs,),
-        torax_config=torax_config,
-    )
-    output_xr = history.simulation_output_to_xr()
+    output_xr = self.history.simulation_output_to_xr()
     profile_output_dataset = output_xr.children[output.PROFILES].dataset
     self.assertCountEqual(
         profile_output_dataset.coords,
