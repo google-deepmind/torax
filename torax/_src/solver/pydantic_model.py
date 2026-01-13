@@ -227,6 +227,54 @@ class OptimizerThetaMethod(BaseSolver):
     )
 
 
+class StationaryThetaMethod(BaseSolver):
+  """Model for the stationary state (equilibrium) solver.
+
+  This solver finds equilibrium states where ∂x/∂t = 0, solving the
+  algebraic equilibrium equations instead of performing time evolution.
+  It uses the theta method with theta=1 (fully implicit).
+
+  Attributes:
+    solver_type: The type of solver to use, hardcoded to 'stationary'.
+  """
+
+  solver_type: Annotated[Literal['stationary'], torax_pydantic.JAX_STATIC] = (
+      'stationary'
+  )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def scrub_unused_fields(cls, x: dict[str, Any]) -> dict[str, Any]:
+    # Stationary solver doesn't use predictor-corrector
+    fields_to_remove = ['use_predictor_corrector', 'n_corrector_steps']
+    for field in fields_to_remove:
+      if field in x:
+        del x[field]
+    return x
+
+  @functools.cached_property
+  def build_runtime_params(self) -> runtime_params.RuntimeParams:
+    return runtime_params.RuntimeParams(
+        theta_implicit=1.0,  # Always fully implicit for stationary
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=False,  # Not used for stationary
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
+        n_corrector_steps=0,  # Not used for stationary
+    )
+
+  def build_solver(
+      self,
+      physics_models: physics_models_lib.PhysicsModels,
+  ) -> 'stationary_theta_method.StationaryThetaMethod':
+    from torax._src.solver import stationary_theta_method
+    return stationary_theta_method.StationaryThetaMethod(
+        physics_models=physics_models,
+    )
+
+
 SolverConfig = (
-    LinearThetaMethod | NewtonRaphsonThetaMethod | OptimizerThetaMethod
+    LinearThetaMethod | NewtonRaphsonThetaMethod | OptimizerThetaMethod | StationaryThetaMethod
 )
