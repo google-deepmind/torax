@@ -26,7 +26,7 @@ class IMASLoaderTest(absltest.TestCase):
     for profile in ids_in.profiles_1d:
       profile.grid.rho_tor_norm = np.array([])
     with self.assertRaises(ValueError):
-      validation.validate_core_profiles_ids(ids_in)
+      validation.validate_profile_conditions_from_IMAS(ids_in)
 
   def test_validate_core_profiles_warns_on_missing_optional_quantities(self):
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
@@ -34,7 +34,7 @@ class IMASLoaderTest(absltest.TestCase):
     ids_in = loader.load_imas_data(path, ids_name)
     self.assertFalse(ids_in.global_quantities.v_loop.has_value)
     with self.assertLogs(level="WARNING") as logs:
-      validation.validate_core_profiles_ids(ids_in)
+      validation.validate_profile_conditions_from_IMAS(ids_in)
     self.assertIn("The IDS is missing the global_quantities.v_loop quantity.",
                   logs.output[0])
 
