@@ -440,6 +440,10 @@ equations being solved, constant numerical variables.
   Prefactor for adaptive source term for setting density internal boundary
   conditions.
 
+``min_rho_norm`` (float [default = 0.015])
+  Minimum rho_norm value below which current profile values are extrapolated to
+  the axis in psi calculations, to avoid numerical artifacts near rho=0.
+
 
 plasma_composition
 ------------------

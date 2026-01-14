@@ -550,7 +550,10 @@ def _calculate_integrated_sources(
         geo,
         # Convert current sources to toroidal current before integrating
         lambda x, geo: math_utils.area_integration(
-            psi_calculations.j_parallel_to_j_toroidal(x, geo), geo
+            psi_calculations.j_parallel_to_j_toroidal(
+                x, geo, runtime_params.numerics.min_rho_norm
+            ),
+            geo,
         ),
     )
 
@@ -863,7 +866,9 @@ def make_post_processed_outputs(
   # j_total is toroidal by default (see psi_calculations.calc_j_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_total, sim_state.geometry
+      sim_state.core_profiles.j_total,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_parallel_bootstrap = (
       sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
@@ -877,7 +882,9 @@ def make_post_processed_outputs(
   # j_total is toroidal by default (see psi_calculations.calc_j_total)
   # Core sources psi are all <j.B>/B0
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_bootstrap, sim_state.geometry
+      j_parallel_bootstrap,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
 
   # j_parallel_to_j_toroidal method cannot be used on face grid. Convert with
@@ -890,10 +897,14 @@ def make_post_processed_outputs(
   )
 
   j_toroidal_ohmic = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_ohmic, sim_state.geometry
+      j_parallel_ohmic,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external, sim_state.geometry
+      j_parallel_external,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_sources = {}
   for source_name in ['ecrh', 'generic_current']:
@@ -901,7 +912,9 @@ def make_post_processed_outputs(
       # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
       j_toroidal_sources[f'j_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
-              sim_state.core_sources.psi[source_name], sim_state.geometry
+              sim_state.core_sources.psi[source_name],
+              sim_state.geometry,
+              runtime_params.numerics.min_rho_norm,
           )
       )
     else:

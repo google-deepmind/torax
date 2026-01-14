@@ -420,7 +420,7 @@ def _calculate_all_psi_dependent_profiles(
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo, psi
+      geo, psi, runtime_params.numerics.min_rho_norm
   )
 
   core_profiles = dataclasses.replace(
@@ -547,7 +547,9 @@ def _iterate_psi_and_sources(
         geo,
         source_profiles.bootstrap_current,
         j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-            sum(source_profiles.psi.values()), geo
+            sum(source_profiles.psi.values()),
+            geo,
+            runtime_params.numerics.min_rho_norm,
         ),
     )
     psi = update_psi_from_j(
@@ -590,7 +592,9 @@ def get_j_toroidal_total_hires_with_external_sources(
   # Convert bootstrap current density to toroidal, and calculate high-resolution
   # version
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      bootstrap_current.j_parallel_bootstrap, geo
+      bootstrap_current.j_parallel_bootstrap,
+      geo,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_bootstrap_hires = jnp.interp(
       geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face

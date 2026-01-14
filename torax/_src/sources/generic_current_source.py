@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """External current source profile."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
@@ -76,7 +77,11 @@ def calculate_generic_current(
   Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
   j_tor = Cext * generic_current_form
 
-  return (psi_calculations.j_toroidal_to_j_parallel(j_tor, geo),)
+  return (
+      psi_calculations.j_toroidal_to_j_parallel(
+          j_tor, geo, runtime_params.numerics.min_rho_norm
+      ),
+  )
 
 
 def _calculate_I_generic(
