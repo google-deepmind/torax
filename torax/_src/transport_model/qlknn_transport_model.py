@@ -180,7 +180,7 @@ def _calculate_rotation_rule_factor(
   return (
       _C1 * qualikiz_inputs.q
       + _C2 * qualikiz_inputs.smag
-      + _C3 / qualikiz_inputs.epsilon
+      + _C3 / (_EPSILON_NN * qualikiz_inputs.x)
       - _C4
   )
 
