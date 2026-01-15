@@ -38,13 +38,13 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
-  include_ITG: bool
-  include_TEM: bool
-  include_ETG: bool
-  ITG_flux_ratio_correction: float
-  ETG_correction_factor: float
-  clip_inputs: bool
-  clip_margin: float
+  include_ITG: bool = True
+  include_TEM: bool = True
+  include_ETG: bool = True
+  ITG_flux_ratio_correction: float = 1.0
+  ETG_correction_factor: float = 1.0 / 3.0
+  clip_inputs: bool = False
+  clip_margin: float = 0.95
 
 
 _EPSILON_NN: Final[float] = (
