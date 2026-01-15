@@ -53,7 +53,9 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   q_sawtooth_proxy: bool
   rotation_multiplier: float
   rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
-
+  output_mode_contributions: bool = dataclasses.field(
+    default=False, metadata={'static': True}
+  )
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass

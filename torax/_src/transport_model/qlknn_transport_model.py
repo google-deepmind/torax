@@ -45,7 +45,6 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
-  output_mode_contributions: bool = False
 
 
 _EPSILON_NN: Final[float] = (
@@ -365,8 +364,8 @@ class QLKNNTransportModel(
         gyrobohm_flux_reference_length=geo.a_minor,
     )
 
-    # If mode contributions requested, decompose transport coefficients
-    if runtime_config_inputs.transport.output_mode_contributions:
+    def add_mode_contributions() -> transport_model_lib.TurbulentTransport:
+      """Decompose transport coefficients into mode contributions."""
       eps = 1e-20  # Avoid division by zero
 
       # Decompose ion heat diffusivity
@@ -396,5 +395,8 @@ class QLKNNTransportModel(
           d_face_el_tem=d_el_tem,
           d_face_el_etg=d_el_etg,
       )
-    else:
-      return base_transport
+    return jax.lax.cond(
+      runtime_config_inputs.transport.output_mode_contributions,
+      add_mode_contributions,
+      lambda: base_transport,
+    )

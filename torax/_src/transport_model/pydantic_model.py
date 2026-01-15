@@ -128,6 +128,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.OFF
+  output_mode_contributions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -177,6 +178,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         An_min=self.An_min,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
+        output_mode_contributions=self.output_mode_contributions,
         **base_kwargs,
     )
 
