@@ -19,6 +19,7 @@ Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
 import dataclasses
+import functools
 
 import chex
 import jax
@@ -70,7 +71,7 @@ class CellVariable:
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
 
-  @property
+  @functools.cached_property
   def cell_centers(self) -> jt.Float[chex.Array, 'cell']:
     """Locations of the cell centers."""
     return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
@@ -204,7 +205,7 @@ class CellVariable:
       value = jnp.expand_dims(value, axis=-1)
     else:
       # Maintain right_face consistent with right_face_grad_constraint
-      dr = self.face_centers[-1] - self.face_centers[-2]
+      dr = self.cell_widths[-1]
       value = (
           self.value[..., -1:]
           + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)
@@ -215,7 +216,14 @@ class CellVariable:
 
   def face_value(self) -> jt.Float[chex.Array, 'face']:
     """Calculates values of this variable on the face grid."""
-    inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
+    face_pts = self.face_centers[1:-1]
+    left_cells = self.cell_centers[:-1]
+    right_cells = self.cell_centers[1:]
+
+    # Linearly interpolate within cell centers as faces aren't uniformly spaced.
+    weights = (face_pts - left_cells) / (right_cells - left_cells)
+    inner = (1.0 - weights) * self.value[:-1] + weights * self.value[1:]
+
     return jnp.concatenate(
         [self.left_face_value(), inner, self.right_face_value()], axis=-1
     )
