@@ -16,6 +16,7 @@
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import formulas as neoclassical_formulas
@@ -58,7 +59,7 @@ def _calculate_radial_electric_field(
   # Calculate Er
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
   Er = (
-      (1.0 / denominator) * dpi_dr
+      math_utils.safe_divide(jnp.array(1.0), denominator) * dpi_dr
       - toroidal_velocity.face_value() * B_pol_face
       + poloidal_velocity.face_value() * B_tor_face
   )

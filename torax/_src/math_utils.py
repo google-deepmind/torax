@@ -21,10 +21,12 @@ physics or differential equation solvers.
 import enum
 import functools
 
+import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.geometry import geometry
 
 
@@ -293,3 +295,7 @@ def cumulative_volume_integration(
 ) -> array_typing.FloatVectorCell:
   """Calculates cumulative integral of value using a volume metric."""
   return cumulative_cell_integration(value * geo.vpr, geo)
+
+
+def safe_divide(y: chex.Array, x: chex.Array) -> chex.Array:
+  return y / (x + constants.CONSTANTS.eps)

@@ -29,6 +29,7 @@ from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
@@ -247,19 +248,19 @@ def _calculate_angioni_sauter_transport(
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
-  dpsi_drhon = core_profiles.psi.face_grad() + constants.CONSTANTS.eps
-  dlnne_dpsi = (
-      core_profiles.n_e.face_grad() / core_profiles.n_e.face_value()
-  ) / (dpsi_drhon + constants.CONSTANTS.eps)
-  dlnte_dpsi = (
-      core_profiles.T_e.face_grad() / core_profiles.T_e.face_value()
-  ) / (dpsi_drhon + constants.CONSTANTS.eps)
-  dlnni_dpsi = (
-      core_profiles.n_i.face_grad() / core_profiles.n_i.face_value()
-  ) / (dpsi_drhon + constants.CONSTANTS.eps)
-  dlnti_dpsi = (
-      core_profiles.T_i.face_grad() / core_profiles.T_i.face_value()
-  ) / (dpsi_drhon + constants.CONSTANTS.eps)
+  dpsi_drhon = core_profiles.psi.face_grad()
+  dlnne_dpsi = math_utils.safe_divide(
+      core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(), dpsi_drhon
+  )
+  dlnte_dpsi = math_utils.safe_divide(
+      core_profiles.T_e.face_grad() / core_profiles.T_e.face_value(), dpsi_drhon
+  )
+  dlnni_dpsi = math_utils.safe_divide(
+      core_profiles.n_i.face_grad() / core_profiles.n_i.face_value(), dpsi_drhon
+  )
+  dlnti_dpsi = math_utils.safe_divide(
+      core_profiles.T_i.face_grad() / core_profiles.T_i.face_value(), dpsi_drhon
+  )
 
   # --- Step 5: Calculate neoclassical fluxes ---
   pe = core_profiles.pressure_thermal_e.face_value()
