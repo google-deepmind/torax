@@ -242,10 +242,10 @@ def _fill_profiles_1d_grid(
   )
   ids.profiles_1d[i].grid.psi = cp_state.psi.cell_plus_boundaries()
   ids.profiles_1d[i].grid.psi_magnetic_axis = cp_state.psi.left_face_value()[0]
-  ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value()[0]
+  ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value[0]
   ids.profiles_1d[i].grid.rho_pol_norm = np.sqrt(
       (cp_state.psi.cell_plus_boundaries() - cp_state.psi.left_face_value()[0])
-      / (cp_state.psi.right_face_value()[0] - cp_state.psi.left_face_value()[0])
+      / (cp_state.psi.right_face_value[0] - cp_state.psi.left_face_value()[0])
   )
   ids.profiles_1d[i].grid.volume = output.extend_cell_grid_to_boundaries(
       [geometry_slice.volume], np.array([geometry_slice.volume_face])

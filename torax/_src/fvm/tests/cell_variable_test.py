@@ -84,7 +84,7 @@ class CellVariableTest(parameterized.TestCase):
         x_left=jnp.array(5.5),
         x_right=jnp.array(1.0),
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         grad, jnp.array([0.0, 1.0 / -3.0, 3.0 / 4.0, -2.0 / -2.0, 0.0])
     )
 
@@ -383,6 +383,63 @@ class CellVariableTest(parameterized.TestCase):
     cell_value = cell_var.value
     self.assertEqual(face_value.ndim, cell_value.ndim)
     self.assertEqual(face_value.shape[0], cell_value.shape[0] + 1)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='_non_uniform_cells1',
+          face_centers=np.array([0.0, 0.1, 0.3, 0.6, 1.0]),
+          c0=2,
+          c1=5,
+          c2=-3,
+      ),
+      dict(
+          testcase_name='_non_uniform_cells2',
+          face_centers=np.array([0.0, 0.5, 0.7, 0.9, 1.0]),
+          c0=2,
+          c1=5,
+          c2=-3,
+      ),
+      dict(
+          testcase_name='_uniform_cells',
+          face_centers=_make_face_centers(0.1, 4),
+          c0=2,
+          c1=5,
+          c2=-3,
+      ),
+  )
+  def test_compute_grad_on_inner_faces(self, face_centers, c0, c1, c2):
+    # cell points centered in faces
+    x = (face_centers[:-1] + face_centers[1:]) / 2.0
+    # We use a 2nd order polynomial so should get agreement with true gradient.
+    cell_values = c2 * x**2 + c1 * x + c0
+    face_right = c2 * face_centers[-1]**2 + c1 * face_centers[-1] + c0
+    face_grad = 2*c2*face_centers[1:-1] + c1
+    inner_grad = cell_variable._compute_inner_grad(
+        cell_values, face_right, face_centers, x,
+    )
+    np.testing.assert_allclose(face_grad, inner_grad)
+
+  def test_compute_face_grad_compared_to_forward_diff(self):
+    f = lambda x: jnp.sin(jnp.exp(x))
+    grad_f = lambda x: jnp.exp(x) * jnp.cos(jnp.exp(x))
+    face_centers = np.array([0.0, 0.1, 0.3, 0.6, 1.0])
+    cell_centers = (face_centers[:-1] + face_centers[1:]) / 2.0
+    cell_values = f(cell_centers)
+    face_right_value = f(face_centers[-1])
+    true_face_grad = grad_f(face_centers[1:-1])
+
+    # Compute the gradient using the accurate method and forward differences.
+    inner_grad_accurate = cell_variable._compute_inner_grad(
+        cell_values, face_right_value, face_centers, cell_centers
+    )
+    forward_difference = jnp.diff(cell_values) / jnp.diff(cell_centers)
+
+    # The error should be smaller when working with the accurate method.
+    accurate_method_error = jnp.abs(true_face_grad - inner_grad_accurate)
+    forward_difference_error = jnp.abs(true_face_grad - forward_difference)
+    np.testing.assert_array_less(
+        accurate_method_error, forward_difference_error
+    )
 
 
 if __name__ == '__main__':
