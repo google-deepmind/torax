@@ -17,6 +17,7 @@ import jax
 from torax._src import jax_utils
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
+from torax._src.solver import stationary_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -40,6 +41,11 @@ class PydanticModelTest(parameterized.TestCase):
           solver_type='optimizer',
           expected_type=nonlinear_theta_method.OptimizerThetaMethod,
       ),
+      dict(
+          testcase_name='stationary',
+          solver_type='stationary',
+          expected_type=stationary_theta_method.StationaryThetaMethod,
+      ),
   )
   def test_build_solver_from_config(self, solver_type, expected_type):
     """Builds a solver from the config."""
@@ -56,7 +62,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(solver, expected_type)
     self.assertEqual(torax_config.solver.theta_implicit, 0.5)
 
-  @parameterized.parameters('linear', 'newton_raphson', 'optimizer')
+  @parameterized.parameters('linear', 'newton_raphson', 'optimizer','stationary')
   def test_solver_under_jit(self, solver_type):
     config = default_configs.get_default_config_dict()
     config['solver'] = {

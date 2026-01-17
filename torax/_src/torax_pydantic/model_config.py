@@ -144,12 +144,15 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     using_linear_solver = isinstance(
         self.solver, solver_pydantic_model.LinearThetaMethod
     )
+    using_stationary_solver = isinstance(
+        self.solver, solver_pydantic_model.StationaryThetaMethod
+    )
 
     # pylint: disable=g-long-ternary
     # pylint: disable=attribute-error
     initial_guess_mode_is_linear = (
         False
-        if using_linear_solver
+        if using_linear_solver or using_stationary_solver
         else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR
     )
 
