@@ -107,6 +107,9 @@ def run_loop(
   # Solver step counter for checkpointing
   step_counter = 0
 
+  # Simulation-time tracking for checkpointing
+  last_checkpoint_sim_time = initial_state.t
+
   numerics = step_fn.runtime_params_provider.numerics
 
   with tqdm.tqdm(
@@ -149,11 +152,24 @@ def run_loop(
         # Periodic checkpointing (solver-step based)
         if torax_config is not None and torax_config.checkpointing.enabled:
           ckpt_cfg = torax_config.checkpointing
+          should_checkpoint = False
+
+          # Solver-step–based trigger
           if (
               ckpt_cfg.every_n_steps is not None
               and step_counter % ckpt_cfg.every_n_steps == 0
-              and ckpt_cfg.path is not None
           ):
+            should_checkpoint = True
+
+          # Simulation-time–based trigger
+          if (
+              ckpt_cfg.every_n_sim_time is not None
+              and (current_state.t - last_checkpoint_sim_time)
+                  >= ckpt_cfg.every_n_sim_time
+          ):
+            should_checkpoint = True
+
+          if should_checkpoint and ckpt_cfg.path is not None:
             # Import here to avoid circular dependency
             from torax._src.output_tools import output as output_module
 
@@ -167,6 +183,7 @@ def run_loop(
                 torax_config=torax_config,
             )
             temp_output.write_checkpoint(ckpt_cfg.path)
+            last_checkpoint_sim_time = current_state.t
 
         # Calculate progress ratio and update pbar.n
         progress_ratio = (

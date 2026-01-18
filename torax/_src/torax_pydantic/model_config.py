@@ -50,19 +50,32 @@ class CheckpointConfig(torax_pydantic.BaseModelFrozen):
   Attributes:
     enabled: Whether checkpointing is enabled.
     every_n_steps: Checkpoint every N solver steps. Must be positive if enabled.
+    every_n_sim_time: Checkpoint every N units of simulation time. Must be positive if enabled.
     path: Path to the checkpoint NetCDF file (will be overwritten).
   """
 
   enabled: bool = False
   every_n_steps: int | None = None
+  every_n_sim_time: float | None = None
   path: str | None = None
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> Self:
     if self.enabled:
-      if self.every_n_steps is None or self.every_n_steps <= 0:
+      if (
+          self.every_n_steps is None
+          and self.every_n_sim_time is None
+      ):
         raise ValueError(
-            'checkpointing.every_n_steps must be a positive integer'
+            'checkpointing requires every_n_steps or every_n_sim_time'
+        )
+      if self.every_n_steps is not None and self.every_n_steps <= 0:
+        raise ValueError(
+            'checkpointing.every_n_steps must be positive'
+        )
+      if self.every_n_sim_time is not None and self.every_n_sim_time <= 0:
+        raise ValueError(
+            'checkpointing.every_n_sim_time must be positive'
         )
       if not self.path:
         raise ValueError(
