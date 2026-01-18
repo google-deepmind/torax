@@ -490,6 +490,23 @@ class StateHistory:
 
     tree.to_netcdf(path)
 
+
+  def write_termination_checkpoint(self, path: str, sim_error) -> None:
+    """Write a final checkpoint when the simulation terminates abnormally.
+
+    Args:
+      path: Path to the checkpoint NetCDF file.
+      sim_error: SimError indicating termination reason.
+    """
+    tree = self.simulation_output_to_xr()
+
+    # Mark output as a terminated checkpoint
+    tree.attrs = dict(tree.attrs) if tree.attrs is not None else {}
+    tree.attrs["status"] = "terminated"
+    tree.attrs["termination_reason"] = str(sim_error)
+
+    tree.to_netcdf(path)
+
   def _pack_into_data_array(
       self,
       name: str,

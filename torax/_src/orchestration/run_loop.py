@@ -141,6 +141,27 @@ def run_loop(
       # simulation history to the user for inspection.
       if sim_error != state.SimError.NO_ERROR:
         sim_error.log_error()
+
+        # Write final checkpoint on abnormal termination (if enabled)
+        if (
+            torax_config is not None
+            and torax_config.checkpointing.enabled
+            and torax_config.checkpointing.path is not None
+        ):
+          from torax._src.output_tools import output as output_module
+
+          term_output = output_module.StateHistory(
+              state_history=state_history.copy(),
+              post_processed_outputs_history=tuple(
+                  post_processing_history.copy()
+              ),
+              sim_error=sim_error,
+              torax_config=torax_config,
+          )
+          term_output.write_termination_checkpoint(
+              torax_config.checkpointing.path, sim_error
+          )
+
         break
       else:
         state_history.append(current_state)
