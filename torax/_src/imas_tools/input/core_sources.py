@@ -35,7 +35,7 @@ class SourceProfiles:
 
   time: Sequence[float]
   rhon: Sequence[Sequence[float]]
-  # Optionnal profiles, depending on the source type.
+  # Optional profiles, depending on the source type.
   current: Sequence[float] | None = None
   ion_heat: Sequence[float] | None = None
   elec_heat: Sequence[float] | None = None
