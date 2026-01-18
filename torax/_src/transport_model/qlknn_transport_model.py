@@ -395,8 +395,24 @@ class QLKNNTransportModel(
           d_face_el_tem=d_el_tem,
           d_face_el_etg=d_el_etg,
       )
+
+    def return_base_transport_without_modes():
+      """Return base transport with zero mode contributions."""
+      return dataclasses.replace(
+          base_transport,
+          chi_face_ion_itg=jnp.zeros_like(base_transport.chi_face_ion),
+          chi_face_ion_tem=jnp.zeros_like(base_transport.chi_face_ion),
+          chi_face_ion_etg=jnp.zeros_like(base_transport.chi_face_ion),
+          chi_face_el_itg=jnp.zeros_like(base_transport.chi_face_el),
+          chi_face_el_tem=jnp.zeros_like(base_transport.chi_face_el),
+          chi_face_el_etg=jnp.zeros_like(base_transport.chi_face_el),
+          d_face_el_itg=jnp.zeros_like(base_transport.d_face_el),
+          d_face_el_tem=jnp.zeros_like(base_transport.d_face_el),
+          d_face_el_etg=jnp.zeros_like(base_transport.d_face_el),
+      )
+
     return jax.lax.cond(
-      runtime_config_inputs.transport.output_mode_contributions,
-      add_mode_contributions,
-      lambda: base_transport,
+        runtime_config_inputs.transport.output_mode_contributions,
+        add_mode_contributions,
+        return_base_transport_without_modes,
     )
