@@ -54,6 +54,8 @@ class Ions:
   A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 def get_updated_ion_temperature(
@@ -271,6 +273,8 @@ class _IonProperties:
   dilution_factor: array_typing.FloatVectorCell
   dilution_factor_edge: array_typing.FloatScalar
   impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 def _get_ion_properties_from_fractions(
@@ -283,16 +287,19 @@ def _get_ion_properties_from_fractions(
 ) -> _IonProperties:
   """Calculates ion properties when impurity content is defined by fractions."""
 
-  Z_impurity = charge_states.get_average_charge_state(
+  charge_state_info = charge_states.get_average_charge_state(
       T_e=T_e.value,
       fractions=impurity_params.fractions,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
-  Z_impurity_face = charge_states.get_average_charge_state(
+  )
+  Z_impurity = charge_state_info.Z_mixture
+
+  charge_state_info_face = charge_states.get_average_charge_state(
       T_e=T_e.face_value(),
       fractions=impurity_params.fractions_face,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
+  )
+  Z_impurity_face = charge_state_info_face.Z_mixture
 
   Z_eff = Z_eff_from_config
   Z_eff_edge = Z_eff_face_from_config[-1]
@@ -318,6 +325,8 @@ def _get_ion_properties_from_fractions(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
       impurity_fractions=impurity_params.fractions,
+      charge_state_info=charge_state_info,
+      charge_state_info_face=charge_state_info_face,
   )
 
 
@@ -379,6 +388,8 @@ def _get_ion_properties_from_n_e_ratios(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
       impurity_fractions=impurity_params.fractions,
+      charge_state_info=average_charge_state,
+      charge_state_info_face=average_charge_state_face,
   )
 
 
@@ -546,16 +557,19 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
         jnp.ones_like(T_e.face_value()) * impurity_params.A_override_face
     )
 
-  Z_impurity = charge_states.get_average_charge_state(
+  charge_state_info = charge_states.get_average_charge_state(
       T_e=T_e.value,
       fractions=fractions,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
-  Z_impurity_face = charge_states.get_average_charge_state(
+  )
+  Z_impurity = charge_state_info.Z_mixture
+
+  charge_state_info_face = charge_states.get_average_charge_state(
       T_e=T_e.face_value(),
       fractions=fractions_face,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
+  )
+  Z_impurity_face = charge_state_info_face.Z_mixture
 
   return _IonProperties(
       A_impurity=A_avg,
@@ -566,6 +580,8 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_face[-1],
       impurity_fractions=fractions,
+      charge_state_info=charge_state_info,
+      charge_state_info_face=charge_state_info_face,
   )
 
 
@@ -727,6 +743,8 @@ def get_updated_ions(
       A_impurity_face=ion_properties.A_impurity_face,
       Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
+      charge_state_info=ion_properties.charge_state_info,
+      charge_state_info_face=ion_properties.charge_state_info_face,
   )
 
 

@@ -549,6 +549,14 @@ class StateHistory:
       if attr_name == "impurity_fractions":
         continue
 
+      # Skip charge_state_info since it is not needed in the output.
+      if attr_name in (
+          "charge_state_info",
+          "charge_state_info_face",
+          "impurity_density_scaling",
+      ):
+        continue
+
       # Skip main_ion_fractions as it requires special handling (dict to
       # DataArray with extra dim)
       if attr_name == "main_ion_fractions":

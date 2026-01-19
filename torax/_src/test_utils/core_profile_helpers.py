@@ -21,6 +21,7 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output
+from torax._src.physics import charge_states
 
 
 # pylint: disable=invalid-name
@@ -43,6 +44,18 @@ def make_zero_core_profiles(
       name: jnp.zeros_like(geo.rho) for name in impurity_names
   }
   main_ion_fractions_dict = {name: jnp.array(0.0) for name in main_ion_names}
+  zero_charge_state_info = charge_states.ChargeStateInfo(
+      Z_avg=jnp.zeros_like(geo.rho),
+      Z2_avg=jnp.zeros_like(geo.rho),
+      Z_per_species={name: jnp.zeros_like(geo.rho) for name in impurity_names},
+  )
+  zero_charge_state_info_face = charge_states.ChargeStateInfo(
+      Z_avg=jnp.zeros_like(geo.rho_face),
+      Z2_avg=jnp.zeros_like(geo.rho_face),
+      Z_per_species={
+          name: jnp.zeros_like(geo.rho_face) for name in impurity_names
+      },
+  )
   return state.CoreProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -75,6 +88,8 @@ def make_zero_core_profiles(
       j_total_face=jnp.zeros_like(geo.rho_face),
       Ip_profile_face=jnp.zeros_like(geo.rho_face),
       toroidal_velocity=zero_cell_variable,
+      charge_state_info=zero_charge_state_info,
+      charge_state_info_face=zero_charge_state_info_face,
   )
 
 

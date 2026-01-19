@@ -21,7 +21,6 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
-from torax._src.physics import charge_states
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -91,17 +90,11 @@ def calculate_impurity_species_output(
 
   impurity_fractions = sim_state.core_profiles.impurity_fractions
   impurity_names = runtime_params.plasma_composition.impurity_names
-  charge_state_info = charge_states.get_average_charge_state(
-      T_e=sim_state.core_profiles.T_e.value,
-      fractions=impurity_fractions,
-      Z_override=runtime_params.plasma_composition.impurity.Z_override,
-  )
+  charge_state_info = sim_state.core_profiles.charge_state_info
 
   for symbol in impurity_names:
     core_profiles = sim_state.core_profiles
-    impurity_density_scaling = (
-        core_profiles.Z_impurity / charge_state_info.Z_avg
-    )
+    impurity_density_scaling = core_profiles.impurity_density_scaling
     n_imp = (
         impurity_fractions[symbol]
         * core_profiles.n_impurity.value

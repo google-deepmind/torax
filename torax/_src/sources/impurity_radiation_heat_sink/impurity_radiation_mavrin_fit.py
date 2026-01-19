@@ -27,7 +27,6 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.physics import charge_states
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
@@ -209,9 +208,6 @@ def impurity_radiation_mavrin_fit(
   impurity_fractions_arr = jnp.stack(
       [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
   )
-  impurity_fractions = {
-      symbol: core_profiles.impurity_fractions[symbol] for symbol in ion_symbols
-  }
   # Calculate the total effective cooling rate coming from all impurity species.
   effective_LZ = calculate_total_impurity_radiation(
       ion_symbols=runtime_params.plasma_composition.impurity_names,
@@ -229,13 +225,7 @@ def impurity_radiation_mavrin_fit(
   # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
   # It is important that the calculated radiation corresponds to the true total
   # impurity density, not the effective one.
-  charge_state_info = charge_states.get_average_charge_state(
-      T_e=core_profiles.T_e.value,
-      fractions=impurity_fractions,
-      Z_override=runtime_params.plasma_composition.impurity.Z_override,
-  )
-  Z_avg = charge_state_info.Z_avg
-  impurity_density_scaling = core_profiles.Z_impurity / Z_avg
+  impurity_density_scaling = core_profiles.impurity_density_scaling
 
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)

@@ -27,6 +27,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import charge_states
 import typing_extensions
 
 
@@ -58,6 +59,7 @@ class CoreProfiles:
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
+      # TODO(b/434175938): Remove in V2. Duplication with new charge_state_info.
       Z_impurity: Impurity charge of bundled impurity on cell grid
         [dimensionless].
       Z_impurity_face: Impurity charge of bundled impurity on face grid
@@ -72,6 +74,10 @@ class CoreProfiles:
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
       toroidal_velocity: Toroidal velocity [m/s].
+      charge_state_info: Container with averaged and per-species ion charge
+        state information. See `charge_states.ChargeStateInfo`. Cell grid.
+      charge_state_info_face: Container with averaged and per-species ion charge
+        state information. See `charge_states.ChargeStateInfo`. Face grid.
   """
 
   T_i: cell_variable.CellVariable
@@ -101,6 +107,13 @@ class CoreProfiles:
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
   toroidal_velocity: cell_variable.CellVariable
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
+
+  @functools.cached_property
+  def impurity_density_scaling(self) -> jax.Array:
+    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
+    return self.Z_impurity / self.charge_state_info.Z_avg
 
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:

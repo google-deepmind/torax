@@ -73,6 +73,8 @@ class ScalingLawsTest(parameterized.TestCase):
         j_total_face=mock.ANY,
         Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         toroidal_velocity=mock.ANY,
+        charge_state_info=mock.ANY,
+        charge_state_info_face=mock.ANY,
     )
     P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
         scaling_laws.calculate_plh_scaling_factor(geo, core_profiles)
@@ -142,6 +144,8 @@ class ScalingLawsTest(parameterized.TestCase):
         j_total_face=mock.ANY,
         Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         toroidal_velocity=mock.ANY,
+        charge_state_info=mock.ANY,
+        charge_state_info_face=mock.ANY,
     )
     Ploss = jnp.array(50e6)
 

@@ -34,7 +34,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.physics import charge_states
 from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import runtime_params as source_runtime_params_lib
@@ -347,17 +346,7 @@ def _get_minority_concentration_from_composition(
 
   if minority_species in plasma_composition.impurity_names:
     impurity_fractions = core_profiles.impurity_fractions
-    charge_state_info = charge_states.get_average_charge_state(
-        T_e=core_profiles.T_e.value,
-        fractions=impurity_fractions,
-        Z_override=plasma_composition.impurity.Z_override,
-    )
-    # Calculate true impurity density from the effective n_impurity.
-    # The scaling factor is a result of assumptions made in the lumping
-    # procedure. See `impurity_radiation_mavrin_fit.py` for more details.
-    impurity_density_scaling = (
-        core_profiles.Z_impurity / charge_state_info.Z_avg
-    )
+    impurity_density_scaling = core_profiles.impurity_density_scaling
     fraction = impurity_fractions[minority_species]
     n_imp_species = (
         fraction * core_profiles.n_impurity.value * impurity_density_scaling

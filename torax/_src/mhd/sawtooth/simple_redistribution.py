@@ -139,6 +139,8 @@ class SimpleRedistribution(
           A_impurity_face=core_profiles_t.A_impurity_face,
           Z_eff=core_profiles_t.Z_eff,
           Z_eff_face=core_profiles_t.Z_eff_face,
+          charge_state_info=core_profiles_t.charge_state_info,
+          charge_state_info_face=core_profiles_t.charge_state_info_face,
       )
     if runtime_params.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
@@ -180,6 +182,8 @@ class SimpleRedistribution(
         Z_impurity_face=ions_redistributed.Z_impurity_face,
         q_face=psi_calculations.calc_q_face(geo, psi_redistributed),
         s_face=psi_calculations.calc_s_face(geo, psi_redistributed),
+        charge_state_info=ions_redistributed.charge_state_info,
+        charge_state_info_face=ions_redistributed.charge_state_info_face,
     )
 
 

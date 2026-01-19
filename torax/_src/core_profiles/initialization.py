@@ -125,6 +125,8 @@ def initial_core_profiles(
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       toroidal_velocity=toroidal_velocity,
+      charge_state_info=ions.charge_state_info,
+      charge_state_info_face=ions.charge_state_info_face,
   )
 
   return _init_psi_and_psi_derived(
