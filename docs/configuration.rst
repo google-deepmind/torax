@@ -1742,6 +1742,14 @@ environment variable which should point to a compatible JSON file.
 
 ``minority_concentration`` (**time-varying-scalar** [default = 0.03])
   Helium-3 minority fractional concentration relative to the electron density.
+  This is a deprecated legacy option, used only when ``minority_species`` is
+  not specified. It is recommended to instead set ``minority_species`` to
+  'He3' and use the plasma composition to set the minority concentration.
+
+``minority_species`` (str | None [default = None])
+  Symbol of the minority species (e.g. 'He3'). If specified, the minority
+  concentration is automatically extracted from the plasma composition.
+  Presently, only 'He3' is supported.
 
 ``P_total`` (**time-varying-scalar** [default = 10e6])
   Total injected source power in W.
