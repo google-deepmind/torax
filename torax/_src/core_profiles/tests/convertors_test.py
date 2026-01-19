@@ -84,7 +84,7 @@ class ConvertersTest(parameterized.TestCase):
         j_total=mock.ANY,
         j_total_face=mock.ANY,
         Ip_profile_face=mock.ANY,
-        toroidal_velocity=mock.ANY,
+        toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
     )

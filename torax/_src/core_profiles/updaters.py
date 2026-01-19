@@ -197,7 +197,7 @@ def update_core_and_source_profiles_after_step(
       j_total=j_total,
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
-      toroidal_velocity=updated_core_profiles_t_plus_dt.toroidal_velocity,
+      toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )
@@ -294,7 +294,7 @@ def provide_core_profiles_t_plus_dt(
       only_boundary_condition=numerics.evolve_density,
       original_n_e_value=core_profiles_t.n_e,
   )
-  toroidal_velocity = getters.get_updated_toroidal_velocity(
+  toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
@@ -306,6 +306,6 @@ def provide_core_profiles_t_plus_dt(
       T_e=T_e,
       psi=psi,
       n_e=n_e,
-      toroidal_velocity=toroidal_velocity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
   )
   return core_profiles_t_plus_dt

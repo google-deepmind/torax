@@ -73,7 +73,7 @@ class CoreProfiles:
       j_total: Total current density on the cell grid [A/m^2].
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
-      toroidal_velocity: Toroidal velocity [m/s].
+      toroidal_angular_velocity: Toroidal angular velocity [rad/s].
       charge_state_info: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
@@ -106,7 +106,7 @@ class CoreProfiles:
   j_total: array_typing.FloatVectorCell
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
-  toroidal_velocity: cell_variable.CellVariable
+  toroidal_angular_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
 

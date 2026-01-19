@@ -243,22 +243,22 @@ def get_updated_psi(
   )
 
 
-def get_updated_toroidal_velocity(
+def get_updated_toroidal_angular_velocity(
     profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed toroidal velocity profiles."""
-  if profile_conditions_params.toroidal_velocity is None:
+  if profile_conditions_params.toroidal_angular_velocity is None:
     value = jnp.zeros_like(geo.rho)
   else:
-    value = profile_conditions_params.toroidal_velocity
-  toroidal_velocity = cell_variable.CellVariable(
+    value = profile_conditions_params.toroidal_angular_velocity
+  toroidal_angular_velocity = cell_variable.CellVariable(
       value=value,
       face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=profile_conditions_params.toroidal_velocity_right_bc,
+      right_face_constraint=profile_conditions_params.toroidal_angular_velocity_right_bc,
   )
-  return toroidal_velocity
+  return toroidal_angular_velocity
 
 
 @dataclasses.dataclass(frozen=True)

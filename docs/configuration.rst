@@ -347,14 +347,15 @@ time-dependence of temperature, density, and current.
   This setting is ignored for the ad-hoc circular geometry, which has no
   numerical geometry.
 
-``toroidal_velocity`` (**time-varying-array** | None [default = None])
-  Toroidal velocity profile. If not provided, the velocity will be set to zero.
+``toroidal_angular_velocity`` (**time-varying-array** | None [default = None])
+  Toroidal angular velocity profile. If not provided, the velocity will be set
+  to zero.
 
-``toroidal_velocity_right_bc`` (**time-varying-scalar** | None [default = None])
-  Toroidal velocity boundary condition for r=a_minor. If this is ``None`` the
-  boundary condition will instead be taken from ``toroidal_velocity`` at
-  :math:`\hat{\rho}=1`. If ``toroidal_velocity`` is also ``None``, then the
-  boundary condition will be set to zero.
+``toroidal_angular_velocity_right_bc`` (**time-varying-scalar** | None [default = None])
+  Toroidal angular velocity boundary condition for r=a_minor. If this is
+  ``None`` the boundary condition will instead be taken from
+  ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
+  also ``None``, then the boundary condition will be set to zero.
 
 .. _numerics_dataclass:
 

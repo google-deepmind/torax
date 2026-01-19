@@ -72,7 +72,7 @@ class ScalingLawsTest(parameterized.TestCase):
         j_total=mock.ANY,
         j_total_face=mock.ANY,
         Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-        toroidal_velocity=mock.ANY,
+        toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
     )
@@ -143,7 +143,7 @@ class ScalingLawsTest(parameterized.TestCase):
         j_total=mock.ANY,
         j_total_face=mock.ANY,
         Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
-        toroidal_velocity=mock.ANY,
+        toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
     )

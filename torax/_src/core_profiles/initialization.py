@@ -69,7 +69,7 @@ def initial_core_profiles(
       runtime_params.profile_conditions, geo
   )
   ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
-  toroidal_velocity = getters.get_updated_toroidal_velocity(
+  toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       runtime_params.profile_conditions, geo
   )
   # Set v_loop_lcfs. Two branches:
@@ -124,7 +124,7 @@ def initial_core_profiles(
       j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      toroidal_velocity=toroidal_velocity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )

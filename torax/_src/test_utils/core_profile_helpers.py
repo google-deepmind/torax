@@ -87,7 +87,7 @@ def make_zero_core_profiles(
       j_total=jnp.zeros_like(geo.rho),
       j_total_face=jnp.zeros_like(geo.rho_face),
       Ip_profile_face=jnp.zeros_like(geo.rho_face),
-      toroidal_velocity=zero_cell_variable,
+      toroidal_angular_velocity=zero_cell_variable,
       charge_state_info=zero_charge_state_info,
       charge_state_info_face=zero_charge_state_info_face,
   )

@@ -26,7 +26,7 @@ from torax._src.physics import psi_calculations
 # pylint: disable=invalid-name
 def _calculate_radial_electric_field(
     pressure_thermal_i: cell_variable.CellVariable,
-    toroidal_velocity: cell_variable.CellVariable,
+    toroidal_angular_velocity: cell_variable.CellVariable,
     poloidal_velocity: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
     Z_i_face: array_typing.FloatVector,
@@ -40,7 +40,7 @@ def _calculate_radial_electric_field(
 
   Args:
     pressure_thermal_i: Pressure profile as a cell variable.
-    toroidal_velocity: Toroidal velocity profile as a cell variable.
+    toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
     poloidal_velocity: Poloidal velocity profile as a cell variable.
     n_i: Main ion density profile as a cell variable.
     Z_i_face: Main ion charge on the face grid.
@@ -60,7 +60,9 @@ def _calculate_radial_electric_field(
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
   Er = (
       math_utils.safe_divide(jnp.array(1.0), denominator) * dpi_dr
-      - toroidal_velocity.face_value() * B_pol_face
+      - toroidal_angular_velocity.face_value()
+      * geo.R_major_profile_face
+      * B_pol_face
       + poloidal_velocity.face_value() * B_tor_face
   )
   return cell_variable.CellVariable(
@@ -87,7 +89,7 @@ def calculate_rotation(
     q_face: array_typing.FloatVectorFace,
     Z_eff_face: array_typing.FloatVectorFace,
     Z_i_face: array_typing.FloatVector,
-    toroidal_velocity: cell_variable.CellVariable,
+    toroidal_angular_velocity: cell_variable.CellVariable,
     pressure_thermal_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
     poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
@@ -101,7 +103,7 @@ def calculate_rotation(
     q_face: Safety factor on the face grid.
     Z_eff_face: Effective charge on the face grid.
     Z_i_face: Main ion charge on the face grid.
-    toroidal_velocity: Toroidal velocity profile as a cell variable.
+    toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
     pressure_thermal_i: Pressure profile as a cell variable.
     geo: Geometry object.
     poloidal_velocity_multiplier: A multiplier to apply to the poloidal
@@ -138,7 +140,7 @@ def calculate_rotation(
 
   Er = _calculate_radial_electric_field(
       pressure_thermal_i=pressure_thermal_i,
-      toroidal_velocity=toroidal_velocity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
       poloidal_velocity=poloidal_velocity,
       n_i=n_i,
       Z_i_face=Z_i_face,
