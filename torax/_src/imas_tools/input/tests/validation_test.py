@@ -38,6 +38,16 @@ class IMASLoaderTest(absltest.TestCase):
     self.assertIn("The IDS is missing the global_quantities.v_loop quantity.",
                   logs.output[0])
 
+  def test_validate_core_profiles_ions_raises_on_unrecognized_ions(self):
+    parsed_ions = ["D", "T", "He5"]
+    with self.assertRaises(KeyError):
+      validation.validate_core_profiles_ions(parsed_ions)
+  
+  def test_validate_main_ions_presence_raises_on_missing_main_ions(self):
+    parsed_ions = ["D", "He", "C"]
+    main_ions_symbols = ["D", "T"]
+    with self.assertRaises(ValueError):
+      validation.validate_main_ions_presence(parsed_ions, main_ions_symbols)
 
 if __name__ == "__main__":
   absltest.main()
