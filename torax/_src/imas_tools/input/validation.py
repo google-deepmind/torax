@@ -15,9 +15,10 @@
 
 import functools
 import logging
-from typing import Any
+from typing import Any, Collection
 
 from imas import ids_toplevel
+from torax._src import constants
 
 
 def _get_nested_attr(obj: Any, path: str) -> Any:
@@ -65,3 +66,42 @@ def validate_core_profiles_ids(ids: ids_toplevel.IDSToplevel) -> None:
           "global_quantities.ip",
       ),
   )
+
+
+def validate_core_profiles_ions(
+    parsed_ions: list[str],
+) -> None:
+  """Checks if all parsed ions are recognized."""
+  for ion in parsed_ions:
+    # ion is casted to str to avoid issues with imas string types.
+    if str(ion) not in constants.ION_PROPERTIES_DICT.keys():
+      raise (
+          KeyError(
+              f"{ion} is present in the IDS but not a valid TORAX ion. Check"
+              "typing or add the ion to the excluded_impurities."
+          )
+      )
+
+
+def validate_main_ions_presence(
+    parsed_ions: list[str],
+    main_ion_symbols: Collection[str],
+) -> None:
+  """Checks that items in main_ion_symbols are present in a list of ions parsed
+  from a given core_profiles IDS."""
+  for ion in main_ion_symbols:
+    if ion not in constants.ION_PROPERTIES_DICT.keys():
+      raise (
+          KeyError(
+              f"{ion} is not a valid symbol of a TORAX valid ion. Please"
+              " check typing of main_ion_symbols."
+          )
+      )
+    if ion not in parsed_ions:
+      raise (
+          ValueError(
+              f"The expected main ion {ion} cannot be found in the input"
+              " IDS or has no valid data. \n Please check that the IDS is"
+              " properly filled"
+          )
+      )
