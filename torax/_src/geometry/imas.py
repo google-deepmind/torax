@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing an IMAS geometry."""
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
+from absl import logging
 from imas import ids_toplevel
 import pydantic
 from torax._src.geometry import geometry
@@ -100,6 +101,30 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
           f'{specified_inputs}.'
       )
     return self
+
+  @pydantic.model_serializer
+  def _serialize_model(self) -> dict[str, Any]:
+    """Custom serializer to exclude equilibrium_object from output.
+
+    The equilibrium_object field contains IDS objects that are not
+    JSON-serializable. This serializer excludes that field when dumping
+    the model to ensure compatibility with config saving to output files.
+
+    Returns:
+      Dictionary representation of the model with equilibrium_object excluded.
+    """
+    # Get the default serialization
+    data = self.model_dump(mode='python', exclude={'equilibrium_object'})
+
+    # Log a warning if equilibrium_object was used
+    if self.equilibrium_object is not None:
+      logging.warning(
+          'IMASConfig: equilibrium_object is set but will not be included in '
+          'serialized output. The saved configuration will have '
+          'equilibrium_object=None and may not be fully reproducible.'
+      )
+
+    return data
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     inputs = imas_geometry.geometry_from_IMAS(

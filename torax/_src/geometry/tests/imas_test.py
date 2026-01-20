@@ -48,6 +48,43 @@ class IMASGeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.02)
     np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.01)
 
+  def test_imas_config_serialization_with_filepath(self):
+    """Test that IMASConfig can be serialized to JSON with imas_filepath."""
+    config = imas.IMASConfig(imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc')
+
+    # Test model_dump
+    config_dict = config.model_dump()
+    self.assertEqual(config_dict['imas_filepath'], 'ITERhybrid_COCOS17_IDS_ddv4.nc')
+    self.assertIsNone(config_dict['equilibrium_object'])
+
+    # Test model_dump_json (should not raise)
+    config_json = config.model_dump_json()
+    self.assertIsInstance(config_json, str)
+
+  def test_imas_config_serialization_excludes_equilibrium_object(self):
+    """Test that equilibrium_object is excluded from serialization (issue #1744)."""
+    # This test verifies the fix for issue #1744 where equilibrium_object
+    # (which is not JSON-serializable) caused serialization to fail.
+
+    # Create a mock equilibrium object (we don't need a real one for this test)
+    # We just need to verify that when equilibrium_object is set, it gets
+    # excluded from serialization
+    config = imas.IMASConfig(
+        equilibrium_object=object(),  # Mock object
+        imas_filepath=None,
+    )
+
+    # Test model_dump - equilibrium_object should be excluded
+    config_dict = config.model_dump()
+    self.assertNotIn('equilibrium_object', config_dict)
+
+    # Test model_dump_json - should not raise even with non-serializable object
+    try:
+      config_json = config.model_dump_json()
+      self.assertIsInstance(config_json, str)
+    except Exception as e:
+      self.fail(f'model_dump_json() raised {type(e).__name__}: {e}')
+
 
 if __name__ == '__main__':
   absltest.main()
