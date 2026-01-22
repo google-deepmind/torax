@@ -258,8 +258,8 @@ class Geometry:
 
   @property
   def drho_norm(self) -> array_typing.Array:
-    r"""Grid size for rho_norm [dimensionless]."""
-    return jnp.array(self.torax_mesh.dx)
+    """Cell widths [dimensionless]."""
+    return self.torax_mesh.cell_widths
 
   @property
   def rho_face(self) -> array_typing.Array:
@@ -301,8 +301,8 @@ class Geometry:
 
   @property
   def drho(self) -> array_typing.Array:
-    """Grid size for rho [m]."""
-    return self.drho_norm * self.rho_b
+    """Cell widths [m]."""
+    return self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rho_b(self) -> array_typing.FloatScalar:

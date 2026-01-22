@@ -830,6 +830,17 @@ class StateHistory:
         continue
       if isinstance(value, property):
         property_data = value.fget(self._stacked_geometry)
+        # TODO(b/434175938): Remove this once we move to V2.
+        if name == "drho":
+          is_uniform = np.all(
+              np.isclose(property_data[:, 0][..., None], property_data)
+          )
+          if is_uniform:
+            property_data = property_data[:, 0]
+        elif name == "drho_norm":
+          is_uniform = all(np.isclose(property_data, property_data[0]))
+          if is_uniform:
+            property_data = property_data[0]
         # Check if there is a corresponding face variable for this property.
         # If so, extend the data to the cell+boundaries grid.
         if f"{name}_face" in property_names:

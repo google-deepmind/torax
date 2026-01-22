@@ -67,12 +67,11 @@ def cell_to_face(
 ) -> array_typing.FloatVectorFace:
   """Convert cell values to face values.
 
-  We make four assumptions:
+  We make three assumptions:
   1) Inner face values are the average of neighbouring cells.
   2) The left most face value is linearly extrapolated from the left most cell
   values.
   3) The transformation from cell to face is integration preserving.
-  4) The cell spacing is constant.
 
   Args:
     cell_values: Values defined on the TORAX cell grid.
@@ -83,43 +82,50 @@ def cell_to_face(
   Returns:
     Values defined on the TORAX face grid.
   """
+
   if len(cell_values) < 2:
     raise ValueError(
         'Cell values must have at least two values to convert to face values.'
     )
-  inner_face_values = (cell_values[:-1] + cell_values[1:]) / 2.0
+  inner_face_values = inner_face_values_from_cell_values(
+      cell_values=cell_values,
+      face_centers=geo.rho_face_norm,
+      cell_centers=geo.rho_norm,
+  )
   # Linearly extrapolate to get left value.
   left = cell_values[0] - (inner_face_values[0] - cell_values[0])
   face_values_without_right = jnp.concatenate([left[None], inner_face_values])
+  # Use the last cell width for the rightmost face calculation
+  last_drho = geo.drho_norm[-1]
   # Preserve integral.
   match preserved_quantity:
     case IntegralPreservationQuantity.VOLUME:
       diff = jnp.sum(
-          cell_values * geo.vpr
-      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          cell_values * geo.vpr * geo.drho_norm
+      ) - jax.scipy.integrate.trapezoid(
           face_values_without_right * geo.vpr_face[:-1], geo.rho_face_norm[:-1]
       )
       right = (
-          2 * diff / geo.drho_norm
+          2 * diff / last_drho
           - face_values_without_right[-1] * geo.vpr_face[-2]
       ) / geo.vpr_face[-1]
     case IntegralPreservationQuantity.SURFACE:
       diff = jnp.sum(
-          cell_values * geo.spr
-      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          cell_values * geo.spr * geo.drho_norm
+      ) - jax.scipy.integrate.trapezoid(
           face_values_without_right * geo.spr_face[:-1], geo.rho_face_norm[:-1]
       )
       right = (
-          2 * diff / geo.drho_norm
+          2 * diff / last_drho
           - face_values_without_right[-1] * geo.spr_face[-2]
       ) / geo.spr_face[-1]
     case IntegralPreservationQuantity.VALUE:
       diff = jnp.sum(
-          cell_values
-      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          cell_values * geo.drho_norm
+      ) - jax.scipy.integrate.trapezoid(
           face_values_without_right, geo.rho_face_norm[:-1]
       )
-      right = 2 * diff / geo.drho_norm - face_values_without_right[-1]
+      right = 2 * diff / last_drho - face_values_without_right[-1]
 
   face_values = jnp.concatenate([face_values_without_right, right[None]])
   return face_values

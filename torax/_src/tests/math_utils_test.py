@@ -266,7 +266,7 @@ class MathUtilsTest(parameterized.TestCase):
     expected = np.zeros(num_cell_grid_points)
 
     for i in range(len(cumulative_result)):
-      expected[i] = np.sum(x[: i + 1] * geo.drho_norm)
+      expected[i] = np.sum(x[: i + 1] * geo.drho_norm[: i + 1])
 
     np.testing.assert_allclose(
         cumulative_result,
@@ -285,7 +285,9 @@ class MathUtilsTest(parameterized.TestCase):
     expected = np.zeros(num_cell_grid_points)
 
     for i in range(len(cumulative_result)):
-      expected[i] = np.sum(x[: i + 1] * geo.spr[: i + 1] * geo.drho_norm)
+      expected[i] = np.sum(
+          x[: i + 1] * geo.spr[: i + 1] * geo.drho_norm[: i + 1]
+      )
 
     np.testing.assert_allclose(
         cumulative_result,
@@ -304,7 +306,9 @@ class MathUtilsTest(parameterized.TestCase):
     expected = np.zeros(num_cell_grid_points)
 
     for i in range(len(cumulative_result)):
-      expected[i] = np.sum(x[: i + 1] * geo.vpr[: i + 1] * geo.drho_norm)
+      expected[i] = np.sum(
+          x[: i + 1] * geo.vpr[: i + 1] * geo.drho_norm[: i + 1]
+      )
 
     np.testing.assert_allclose(
         cumulative_result,

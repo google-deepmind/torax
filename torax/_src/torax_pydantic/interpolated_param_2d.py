@@ -65,6 +65,11 @@ class Grid1D(model_base.BaseModelFrozen):
     """Coordinates of cell centers."""
     return _get_cell_centers(nx=self.nx, dx=self.dx)
 
+  @functools.cached_property
+  def cell_widths(self) -> np.ndarray:
+    """Widths of cells."""
+    return np.diff(self.face_centers)
+
   def __eq__(self, other: typing_extensions.Self) -> bool:
     return self.nx == other.nx and self.dx == other.dx
 

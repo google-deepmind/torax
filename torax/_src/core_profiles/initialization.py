@@ -193,7 +193,7 @@ def update_psi_from_j(
     # we set it to match the desired plasma current.
     right_face_grad_constraint = None
     right_face_constraint = (
-        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
+        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
     )
   else:
     # Use the dpsi/drho calculated above as the right face gradient constraint
@@ -306,7 +306,7 @@ def _init_psi_and_psi_derived(
         right_face_grad_constraint = None
         right_face_constraint = (
             runtime_params.profile_conditions.psi[-1]
-            + dpsi_drhonorm_edge * geo.drho_norm / 2
+            + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
         )
       else:
         # Use the dpsi/drho calculated above as the right face gradient

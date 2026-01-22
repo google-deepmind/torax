@@ -117,7 +117,7 @@ def calc_q_face(
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phi_b * geo.drho_norm) / psi.face_grad()[1]), 0
+      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -201,7 +201,7 @@ def calc_s_face(
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -238,7 +238,7 @@ def calc_s_rmid(
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
