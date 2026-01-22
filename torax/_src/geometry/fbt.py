@@ -23,6 +23,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import constants
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
@@ -44,21 +45,15 @@ class DivertorDomain(enum.StrEnum):
   LOWER_NULL = 'lower_null'
 
 
-class FBTConfig(torax_pydantic.BaseModelFrozen):
+class FBTConfig(base.BaseGeometryConfig):
   """Pydantic model for the FBT geometry.
 
   Attributes:
     geometry_type: Always set to 'fbt'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
-    hires_factor: Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
       alternatively a dict directly containing a single time slice of LY data.
     LY_bundle_object: Sets the FBT LY bundle file to be loaded, corresponding to
@@ -77,8 +72,6 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
       'fbt'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )

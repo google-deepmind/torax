@@ -16,21 +16,18 @@ from typing import Annotated
 from typing import Literal
 import numpy as np
 import pydantic
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 
 # pylint: disable=invalid-name
-class CircularConfig(torax_pydantic.BaseModelFrozen):
+class CircularConfig(base.BaseGeometryConfig):
   """Pydantic model for the circular geometry config.
 
   Attributes:
     geometry_type: Always set to 'circular'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     R_major: Major radius (R) in meters.
     a_minor: Minor radius (a) in meters.
     B_0: Vacuum toroidal magnetic field on axis [T].
@@ -41,8 +38,6 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[
       Literal['circular'], torax_pydantic.TIME_INVARIANT
   ] = 'circular'
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   R_major: torax_pydantic.Meter = 6.2
   a_minor: torax_pydantic.Meter = 2.0
   B_0: torax_pydantic.Tesla = 5.3

@@ -16,6 +16,7 @@ from typing import Annotated, Literal
 
 from imas import ids_toplevel
 import pydantic
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import equilibrium as imas_geometry
@@ -24,7 +25,7 @@ import typing_extensions
 
 
 # pylint: disable=invalid-name
-class IMASConfig(torax_pydantic.BaseModelFrozen):
+class IMASConfig(base.BaseGeometryConfig):
   """Pydantic model for the IMAS geometry.
 
   Currently written for COCOSv17 and DDv4. Note the IMASConfig is experimental
@@ -43,10 +44,6 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
 
   Attributes:
     geometry_type: Always set to 'imas'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
@@ -70,8 +67,6 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[Literal['imas'], torax_pydantic.TIME_INVARIANT] = (
       'imas'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )

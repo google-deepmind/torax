@@ -21,6 +21,7 @@ import numpy as np
 import pydantic
 import scipy
 from torax._src import constants
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
@@ -28,7 +29,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class EQDSKConfig(torax_pydantic.BaseModelFrozen):
+class EQDSKConfig(base.BaseGeometryConfig):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:
@@ -36,10 +37,6 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       integer in the range 1-8 or 11-18 inclusive.
     geometry_file: Name of the EQDSK file in the geometry directory.
     geometry_type: Always set to 'eqdsk'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
@@ -50,14 +47,11 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
-
-  cocos: torax_pydantic.COCOSInt
-  geometry_file: str
+  cocos: torax_pydantic.COCOSInt = ...
+  geometry_file: str = ...
   geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
       'eqdsk'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
