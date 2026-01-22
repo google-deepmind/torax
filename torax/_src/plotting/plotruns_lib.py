@@ -439,20 +439,31 @@ def create_slider(
       else max(max(plotdata1.t), max(plotdata2.t))
   )
 
-  dt = (
-      min(np.diff(plotdata1.t))
-      if plotdata2 is None
-      else min(min(np.diff(plotdata1.t)), min(np.diff(plotdata2.t)))
-  )
-
-  return widgets.Slider(
-      ax,
-      'Time [s]',
-      tmin,
-      tmax,
-      valinit=tmin,
-      valstep=dt,
-  )
+  if len(plotdata1.t) == 1:
+    # There is only one timepoint. Create a fake slider
+    dt = 0
+    sl = widgets.Slider(
+        ax,
+        'Time [s]',
+        tmin,
+        tmax,
+        valinit=tmin,
+    )
+  else:
+    dt = (
+        min(np.diff(plotdata1.t))
+        if plotdata2 is None
+        else min(min(np.diff(plotdata1.t)), min(np.diff(plotdata2.t)))
+    )
+    sl = widgets.Slider(
+        ax,
+        'Time [s]',
+        tmin,
+        tmax,
+        valinit=tmin,
+        valstep=dt,
+    )
+  return sl
 
 
 def format_plots(
@@ -489,12 +500,18 @@ def format_plots(
 
     # Get limits for y-axis based on percentile values.
     # 0.0 or 100.0 are special cases for simple min/max values.
+    if len(plotdata1.t) == 1 and cfg.include_first_timepoint is False:
+        # We ignore the first timepoint, but there is only one. Plot it anyway
+        include_first_timepoint = True
+    else:
+        include_first_timepoint = cfg.include_first_timepoint
     ymin = get_limit(
-        plotdata1, cfg.attrs, cfg.lower_percentile, cfg.include_first_timepoint
+        plotdata1, cfg.attrs, cfg.lower_percentile, include_first_timepoint
     )
     ymax = get_limit(
-        plotdata1, cfg.attrs, cfg.upper_percentile, cfg.include_first_timepoint
+        plotdata1, cfg.attrs, cfg.upper_percentile, include_first_timepoint
     )
+
 
     if plotdata2:
       ymin = min(
