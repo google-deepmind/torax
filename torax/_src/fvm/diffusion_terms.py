@@ -113,5 +113,5 @@ def make_diffusion_terms(
     )
 
   # Build the matrix
-  mat = math_utils.tridiag(diag, lower_off, upper_off)
+  mat = math_utils.tridiag(diag, upper_off, lower_off)
   return mat, vec
