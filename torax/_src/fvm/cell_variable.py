@@ -27,6 +27,7 @@ from jax import numpy as jnp
 import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src import math_utils
 
 
 def _zero() -> array_typing.FloatScalar:
@@ -300,13 +301,11 @@ class CellVariable:
 
   def face_value(self) -> jt.Float[chex.Array, 'face']:
     """Calculates values of this variable on the face grid."""
-    face_pts = self.face_centers[1:-1]
-    left_cells = self.cell_centers[:-1]
-    right_cells = self.cell_centers[1:]
-
-    # Linearly interpolate within cell centers as faces aren't uniformly spaced.
-    weights = (face_pts - left_cells) / (right_cells - left_cells)
-    inner = (1.0 - weights) * self.value[:-1] + weights * self.value[1:]
+    inner = math_utils.inner_face_values_from_cell_values(
+        cell_values=self.value,
+        face_centers=self.face_centers,
+        cell_centers=self.cell_centers,
+    )
 
     return jnp.concatenate(
         [self.left_face_value(), inner, self.right_face_value], axis=-1

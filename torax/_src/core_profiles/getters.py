@@ -20,6 +20,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
@@ -143,7 +144,11 @@ def get_updated_electron_density(
   if profile_conditions_params.normalize_n_e_to_nbar:
     face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
     face_right = n_e_right_bc
-    face_inner = (n_e_value[..., :-1] + n_e_value[..., 1:]) / 2.0
+    face_inner = math_utils.inner_face_values_from_cell_values(
+        cell_values=n_e_value,
+        face_centers=geo.rho_face_norm,
+        cell_centers=geo.rho_norm,
+    )
     n_e_face = jnp.concatenate(
         [face_left[None], face_inner, face_right[None]],
     )

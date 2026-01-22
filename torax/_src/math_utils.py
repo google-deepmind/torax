@@ -42,6 +42,23 @@ class IntegralPreservationQuantity(enum.Enum):
   VALUE = 'value'
 
 
+def inner_face_values_from_cell_values(
+    *,
+    cell_values: chex.Array,
+    face_centers: chex.Array,
+    cell_centers: chex.Array,
+) -> chex.Array:
+  """Interpolate inner face values from cell values."""
+  face_pts = face_centers[1:-1]
+  left_cells = cell_centers[:-1]
+  right_cells = cell_centers[1:]
+
+  # Linearly interpolate within cell centers as faces aren't uniformly spaced.
+  weights = (face_pts - left_cells) / (right_cells - left_cells)
+  inner = (1.0 - weights) * cell_values[:-1] + weights * cell_values[1:]
+  return inner
+
+
 @array_typing.jaxtyped
 def cell_to_face(
     cell_values: array_typing.FloatVectorCell,
