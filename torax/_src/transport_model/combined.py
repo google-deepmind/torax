@@ -16,6 +16,7 @@
 
 A class for combining transport models.
 """
+
 import dataclasses
 from typing import Callable, Sequence
 
@@ -34,8 +35,10 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
-  transport_model_params: Sequence[runtime_params_lib.RuntimeParams]
-  pedestal_transport_model_params: Sequence[runtime_params_lib.RuntimeParams]
+  transport_model_params: Sequence[transport_runtime_params_lib.RuntimeParams]
+  pedestal_transport_model_params: Sequence[
+      transport_runtime_params_lib.RuntimeParams
+  ]
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -100,8 +103,8 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     r"""Calculates transport coefficients using the Combined model.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model. Can change without triggering a JAX recompilation.
+      transport_runtime_params: Input runtime parameters for this transport
+        model. Can change without triggering a JAX recompilation.
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles.
