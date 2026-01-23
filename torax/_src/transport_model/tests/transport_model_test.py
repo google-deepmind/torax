@@ -28,26 +28,57 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class FixedTransportModel(transport_model_lib.TransportModel):
+  """Fixed TransportModel for testing purposes."""
+
+  def _call_implementation(
+      self,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+  ) -> transport_model_lib.TurbulentTransport:
+    chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
+    chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
+    d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
+    v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
+    return transport_model_lib.TurbulentTransport(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
+
+
+class FixedTransportConfig(transport_pydantic_model_base.TransportBase):
+  """Fixed transport config for a model that always returns fixed values."""
+
+  model_name: Annotated[Literal['fixed'], torax_pydantic.JAX_STATIC] = 'fixed'
+
+  def build_transport_model(self) -> FixedTransportModel:
+    return FixedTransportModel()
+
+
+def setUpModule():
+  # Register the fixed transport config.
+  register_model.register_transport_model(FixedTransportConfig)
 
 
 class TransportSmoothingTest(parameterized.TestCase):
   """Tests Gaussian smoothing in the `torax.transport_model` package."""
 
-  def setUp(self):
-    super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
-        'transport'
-    ].annotation |= FakeTransportConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
-
   def test_smoothing(self):
     """Tests that smoothing works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fake',
+        'model_name': 'fixed',
         'apply_inner_patch': True,
         'apply_outer_patch': True,
         'rho_inner': 0.3,
@@ -59,12 +90,10 @@ class TransportSmoothingTest(parameterized.TestCase):
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
@@ -78,9 +107,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles
-    )
+    pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
@@ -214,7 +241,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing everywhere works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fake',
+        'model_name': 'fixed',
         'apply_inner_patch': True,
         'apply_outer_patch': True,
         'rho_inner': 0.3,
@@ -231,11 +258,9 @@ class TransportSmoothingTest(parameterized.TestCase):
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(t=torax_config.numerics.t_initial)
-    )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial,
     )
@@ -248,9 +273,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         neoclassical_models,
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles
-    )
+    pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
@@ -399,37 +422,113 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class FakeTransportModel(transport_model_lib.TransportModel):
-  """Fake TransportModel for testing purposes."""
+class TransportMaskingTest(parameterized.TestCase):
+  """Tests for output masking in transport models."""
 
-  def _call_implementation(
-      self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
-    chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
-    chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
-    d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
-    v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
-    return transport_model_lib.TurbulentTransport(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
+  def test_single_model_masking(self):
+    """Tests that disabling a channel zeroes its output in a single model."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'fixed',
+        'disable_chi_i': True,  # Should be zeroed
+        # Default is non-zero. We want the zero from disabled to be preserved.
+        'chi_min': 0.0,
+        'D_e_min': 0.0,
+        'disable_D_e': False,  # Should be present
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    # Build components
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    # We need a pedestal model even if unused by the fixed transport
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    # Mock core profiles (not used by FixedTransportModel but needed for API)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        torax_config.sources.build_models(),
+        torax_config.neoclassical.build_models(),
+    )
+    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
+
+    transport_model = torax_config.transport.build_transport_model()
+    coeffs = transport_model(
+        runtime_params, geo, core_profiles, pedestal_outputs
     )
 
+    # Verify chi_i is zeroed out
+    np.testing.assert_allclose(coeffs.chi_face_ion, 0.0)
 
-class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
-  """Fake transport config for a model that always returns zeros."""
+    # Verify D_e is non-zero (FixedTransportModel returns non-zero values)
+    self.assertFalse(np.allclose(coeffs.d_face_el, 0.0))
 
-  model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
+  def test_combined_model_masking(self):
+    """Tests that masking works correctly in a combined model."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [
+            {
+                'model_name': 'fixed',  # Base model
+                'disable_chi_i': False,
+                'disable_D_e': False,
+            },
+            {
+                'model_name': 'fixed',  # Additive model with selective enable
+                'disable_chi_i': True,  # Should NOT add to chi_i
+                'disable_D_e': False,  # Should add to D_e
+            },
+        ],
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
 
-  def build_transport_model(self) -> FakeTransportModel:
-    return FakeTransportModel()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        torax_config.sources.build_models(),
+        torax_config.neoclassical.build_models(),
+    )
+    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
+
+    transport_model = torax_config.transport.build_transport_model()
+    coeffs = transport_model(
+        runtime_params, geo, core_profiles, pedestal_outputs
+    )
+
+    # Get reference values from a single fixed model
+    single_fixed_config = model_config.ToraxConfig.from_dict({
+        **config,
+        'transport': {
+            'model_name': 'fixed',
+        },
+    })
+    single_model = single_fixed_config.transport.build_transport_model()
+    single_runtime = build_runtime_params.RuntimeParamsProvider.from_config(
+        single_fixed_config
+    )(t=0.0)
+    ref_coeffs = single_model(
+        single_runtime, geo, core_profiles, pedestal_outputs
+    )
+
+    # chi_i should be approx equal to single model (1x contribution)
+    # The first model adds it, the second model has it disabled (adds 0)
+    np.testing.assert_allclose(
+        coeffs.chi_face_ion, ref_coeffs.chi_face_ion, rtol=1e-5
+    )
+
+    # D_e should be approx double the single model (2x contribution)
+    # Both models add to it.
+    np.testing.assert_allclose(
+        coeffs.d_face_el, 2 * ref_coeffs.d_face_el, rtol=1e-5
+    )
 
 
 if __name__ == '__main__':

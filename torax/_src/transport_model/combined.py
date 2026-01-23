@@ -69,7 +69,8 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     )
 
     # In contrast to the base TransportModel, we do not apply domain restriction
-    # as this is handled at the component model level
+    # or output masking (enabled/disabled channels) as these are handled at the
+    # component model level in _call_implementation here.
 
     # Apply min/max clipping
     transport_coeffs = self._apply_clipping(
@@ -139,6 +140,10 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
           geo,
           core_profiles,
           pedestal_model_output,
+      )
+      component_transport_coeffs = component_model._apply_output_mask(
+          component_params,
+          component_transport_coeffs,
       )
       component_transport_coeffs = restriction_fn(
           component_params,

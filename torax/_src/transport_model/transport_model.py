@@ -31,6 +31,8 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
+# pylint: disable=invalid-name
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
@@ -83,6 +85,11 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         pedestal_model_output,
     )
 
+    # Apply masking to selectively enable/disable specific channels
+    transport_coeffs = self._apply_output_mask(
+        transport_runtime_params, transport_coeffs
+    )
+
     # Restrict the model to operating in its permissible rho domain
     transport_coeffs = self._apply_domain_restriction(
         transport_runtime_params,
@@ -124,6 +131,36 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     pass
+
+  def _apply_output_mask(
+      self,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_coeffs: TurbulentTransport,
+  ) -> TurbulentTransport:
+    """Sets coefficients to zero for channels that are disabled."""
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=jnp.where(
+            transport_runtime_params.disable_chi_i,
+            0.0,
+            transport_coeffs.chi_face_ion,
+        ),
+        chi_face_el=jnp.where(
+            transport_runtime_params.disable_chi_e,
+            0.0,
+            transport_coeffs.chi_face_el,
+        ),
+        d_face_el=jnp.where(
+            transport_runtime_params.disable_D_e,
+            0.0,
+            transport_coeffs.d_face_el,
+        ),
+        v_face_el=jnp.where(
+            transport_runtime_params.disable_V_e,
+            0.0,
+            transport_coeffs.v_face_el,
+        ),
+    )
 
   def _apply_domain_restriction(
       self,
@@ -249,9 +286,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(runtime_params.pedestal.set_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -262,9 +297,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(runtime_params.pedestal.set_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -275,9 +308,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(runtime_params.pedestal.set_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
@@ -288,9 +319,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         jnp.logical_and(
             jnp.logical_and(
                 transport_runtime_params.apply_outer_patch,
-                jnp.logical_not(
-                    runtime_params.pedestal.set_pedestal
-                ),
+                jnp.logical_not(runtime_params.pedestal.set_pedestal),
             ),
             geo.rho_face_norm > transport_runtime_params.rho_outer - consts.eps,
         ),
