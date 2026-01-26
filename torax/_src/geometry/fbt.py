@@ -115,7 +115,7 @@ class FBTConfig(base.BaseGeometryConfig):
         LY_object=self.LY_object,
         L_object=self.L_object,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
     )
@@ -135,7 +135,7 @@ class FBTConfig(base.BaseGeometryConfig):
         L_object=self.L_object,
         LY_to_torax_times=self.LY_to_torax_times,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
     )
@@ -153,8 +153,8 @@ def _from_fbt_single_slice(
     geometry_directory: str | None,
     LY_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
@@ -174,9 +174,9 @@ def _from_fbt_single_slice(
       `load_geo_data` implementation.
     LY_object: File name for LY data, or directly an LY single slice dict.
     L_object: File name for L data, or directly an L dict.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -214,7 +214,7 @@ def _from_fbt_single_slice(
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY, L)
   return _from_fbt(
-      LY, L, Ip_from_parameters, n_rho, hires_factor, divertor_domain
+      LY, L, face_centers, Ip_from_parameters, hires_factor, divertor_domain
   )
 
 
@@ -223,8 +223,8 @@ def _from_fbt_bundle(
     LY_bundle_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
     LY_to_torax_times: np.ndarray | None,
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> Mapping[float, standard_geometry.StandardGeometryIntermediates]:
@@ -250,9 +250,9 @@ def _from_fbt_bundle(
       geometry slices to TORAX simulation times. A ValueError is raised if the
       number of array elements doesn't match the length of the LY_bundle array
       data. If None, then times are taken from the LY_bundle_object itself.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -307,8 +307,8 @@ def _from_fbt_bundle(
     intermediates[t] = _from_fbt(
         data_slice,
         L,
+        face_centers,
         Ip_from_parameters,
-        n_rho,
         hires_factor,
         divertor_domain,
     )
@@ -382,8 +382,8 @@ def _get_LY_single_slice_from_bundle(
 def _from_fbt(
     LY: Mapping[str, np.ndarray | int],
     L: Mapping[str, np.ndarray],
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
@@ -392,9 +392,9 @@ def _from_fbt(
   Args:
     LY: A dictionary of relevant FBT LY geometry data.
     L: A dictionary of relevant FBT L geometry data.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations on initialization.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -517,7 +517,7 @@ def _from_fbt(
       delta_lower_face=LY['deltal'],
       elongation=LY['kappa'],
       vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=diverted,
       connection_length_target=connection_length_target,

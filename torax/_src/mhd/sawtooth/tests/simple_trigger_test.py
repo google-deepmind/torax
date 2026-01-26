@@ -32,9 +32,7 @@ class SimpleTriggerTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.CircularConfig(
-        n_rho=_NRHO
-    ).build_geometry()
+    self.geo = circular_geometry.CircularConfig(n_rho=_NRHO).build_geometry()
     self.trigger = simple_trigger.SimpleTrigger()
 
   def _get_mock_core_profiles(

@@ -19,6 +19,7 @@ import numpy as np
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources.tests import test_lib
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -37,7 +38,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         model_func=ohmic_heat_source.ohmic_model_func
     )
     source_config = self._source_config_class.from_dict({})
-    torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    torax_pydantic.set_grid(
+        source_config,
+        torax_pydantic.Grid1D(face_centers=face_centers),
+    )
     runtime_params = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         instance=True,
@@ -62,7 +67,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         model_func=ohmic_heat_source.ohmic_model_func
     )
     source_config = self._source_config_class.from_dict({})
-    torax_pydantic.set_grid(source_config, torax_pydantic.Grid1D(nx=4,))
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    torax_pydantic.set_grid(
+        source_config,
+        torax_pydantic.Grid1D(face_centers=face_centers),
+    )
     runtime_params = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         instance=True,

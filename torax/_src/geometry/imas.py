@@ -103,7 +103,7 @@ class IMASConfig(base.BaseGeometryConfig):
         imas_uri=self.imas_uri,
         imas_filepath=self.imas_filepath,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         slice_time=self.slice_time,
         slice_index=self.slice_index,

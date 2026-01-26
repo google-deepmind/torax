@@ -30,6 +30,7 @@ from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -162,7 +163,9 @@ class PydanticModelTest(parameterized.TestCase):
             ),
         },
     })
-    mesh = torax_pydantic.Grid1D(nx=4,)
+    mesh = torax_pydantic.Grid1D(
+        face_centers=interpolated_param_2d.get_face_centers(nx=4)
+    )
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertLen(source.prescribed_values, 1)

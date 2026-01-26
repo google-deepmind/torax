@@ -29,6 +29,7 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -111,11 +112,9 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         {"model_path": _DUMMY_MODEL_PATH}
     )
     self.assertIsInstance(source, self._source_config_class)
+    face_centers = interpolated_param_2d.get_face_centers(nx=4)
     torax_pydantic.set_grid(
-        source,
-        torax_pydantic.Grid1D(
-            nx=4,
-        ),
+        source, torax_pydantic.Grid1D(face_centers=face_centers)
     )
     runtime_params = source.build_runtime_params(t=0.0)
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
@@ -136,11 +135,9 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         "is_explicit": is_explicit,
         "model_path": _DUMMY_MODEL_PATH,
     })
+    face_centers = interpolated_param_2d.get_face_centers(nx=4)
     torax_pydantic.set_grid(
-        source_config,
-        torax_pydantic.Grid1D(
-            nx=4,
-        ),
+        source_config, torax_pydantic.Grid1D(face_centers=face_centers),
     )
     dynamic_params = source_config.build_runtime_params(t=0.0)
     self.assertIsInstance(dynamic_params, runtime_params_lib.RuntimeParams)

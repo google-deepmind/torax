@@ -64,7 +64,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         cocos=self.cocos,
         n_surfaces=self.n_surfaces,
@@ -78,7 +78,7 @@ def _construct_intermediates_from_eqdsk(
     geometry_file: str,
     hires_factor: int,
     Ip_from_parameters: bool,
-    n_rho: int,
+    face_centers: np.ndarray,
     n_surfaces: int,
     last_surface_factor: float,
     cocos: int,
@@ -98,7 +98,7 @@ def _construct_intermediates_from_eqdsk(
       calculations.
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
@@ -424,7 +424,7 @@ def _construct_intermediates_from_eqdsk(
       delta_lower_face=delta_lower_face,
       elongation=elongation,
       vpr=vpr,
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=None,
       connection_length_target=None,

@@ -206,6 +206,14 @@ def stitch_state_files(
     A xr.DataTree containing the stitched dataset.
   """
   previous_datatree = load_state_file(file_restart.filename)
+  np.testing.assert_array_equal(
+      previous_datatree.coords[RHO_CELL_NORM].as_numpy(),
+      datatree.coords[RHO_CELL_NORM].as_numpy(),
+      err_msg=(
+          "The rho_cell_norm coordinates of the previous state file and the"
+          " current state file must be the same."
+      ),
+  )
   # Reduce previous_ds to all times before the first time step in this
   # sim output. We use ds.time[0] instead of file_restart.time because
   # we are uncertain if file_restart.time is the exact time of the

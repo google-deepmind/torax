@@ -23,6 +23,7 @@ from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import interpolated_param_2d
 
 # Internal import.
 
@@ -36,7 +37,6 @@ class FBTGeometryTest(parameterized.TestCase):
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=True,
-        n_rho=25,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -58,6 +58,7 @@ class FBTGeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
+        face_centers=interpolated_param_2d.get_face_centers(25),
         hires_factor=4,
         z_magnetic_axis=np.array(0.0),
         diverted=True,
@@ -223,6 +224,7 @@ class FBTGeometryTest(parameterized.TestCase):
         LY_to_torax_times=np.array([0.0, 1.0]),
         L_object=L,
         divertor_domain=divertor_domain,
+        face_centers=interpolated_param_2d.get_face_centers(25),
     )
 
     # from_fbt_bundle returns a dictionary of StandardGeometryIntermediates
@@ -260,6 +262,7 @@ class FBTGeometryTest(parameterized.TestCase):
         LY_bundle_object=LY,
         LY_to_torax_times=np.array([0.0, 1.0]),
         L_object=L,
+        face_centers=interpolated_param_2d.get_face_centers(25),
     )
     for intermediate in geo_intermediates_no_z.values():
       self.assertIsNone(intermediate.connection_length_target)
@@ -285,6 +288,7 @@ class FBTGeometryTest(parameterized.TestCase):
           LY_to_torax_times=np.array([0.0, 1.0]),
           L_object=L,
           divertor_domain=fbt.DivertorDomain.LOWER_NULL,
+          face_centers=interpolated_param_2d.get_face_centers(25),
       )
 
 

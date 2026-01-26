@@ -62,7 +62,7 @@ class CheaseConfig(base.BaseGeometryConfig):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         R_major=self.R_major,
         a_minor=self.a_minor,
         B_0=self.B_0,
@@ -79,7 +79,7 @@ def _construct_intermediates_from_chease(
     geometry_directory: str | None,
     geometry_file: str,
     Ip_from_parameters: bool,
-    n_rho: int,
+    face_centers: np.ndarray,
     R_major: float,
     a_minor: float,
     B_0: float,
@@ -94,7 +94,7 @@ def _construct_intermediates_from_chease(
     geometry_file: CHEASE file name.
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
-    n_rho: Radial grid points (num cells)
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     R_major: major radius (R) in meters. CHEASE geometries are normalized, so
       this is used as an unnormalization factor.
     a_minor: minor radius (a) in meters
@@ -175,7 +175,7 @@ def _construct_intermediates_from_chease(
       delta_lower_face=chease_data['delta_bottom'],
       elongation=chease_data['elongation'],
       vpr=vpr,
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=None,
       connection_length_target=None,

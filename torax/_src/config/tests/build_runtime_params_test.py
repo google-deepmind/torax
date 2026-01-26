@@ -38,7 +38,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self._torax_mesh = torax_pydantic.Grid1D(
-        nx=4,
+        face_centers=interpolated_param_2d.get_face_centers(nx=4),
     )
 
   def test_time_dependent_provider_is_time_dependent(self):

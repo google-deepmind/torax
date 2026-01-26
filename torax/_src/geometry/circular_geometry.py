@@ -51,7 +51,7 @@ class CircularConfig(base.BaseGeometryConfig):
 
   def build_geometry(self) -> geometry.Geometry:
     return _build_circular_geometry(
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         elongation_LCFS=self.elongation_LCFS,
         R_major=self.R_major,
         a_minor=self.a_minor,
@@ -61,7 +61,7 @@ class CircularConfig(base.BaseGeometryConfig):
 
 
 def _build_circular_geometry(
-    n_rho: int,
+    face_centers: np.ndarray,
     elongation_LCFS: float,
     R_major: float,
     a_minor: float,
@@ -71,7 +71,7 @@ def _build_circular_geometry(
   """Constructs a circular Geometry instance used for testing only.
 
   Args:
-    n_rho: Radial grid points (num cells)
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     elongation_LCFS: Elongation at last closed flux surface.
     R_major: major radius (R) in meters
     a_minor: minor radius (a) in meters
@@ -85,7 +85,7 @@ def _build_circular_geometry(
   # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  mesh = torax_pydantic.Grid1D(nx=n_rho,)
+  mesh = torax_pydantic.Grid1D(face_centers=face_centers)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
   rho_b = np.asarray(a_minor)
 
