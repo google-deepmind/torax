@@ -167,33 +167,31 @@ class CombinedTransportModelTest(absltest.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config)
 
-  def test_error_if_rho_min_or_rho_max_set(self):
+  def test_error_if_pedestal_model_defines_rho_min(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant'},
-            {'model_name': 'constant'},
+        'transport_models': [{'model_name': 'constant'}],
+        'pedestal_transport_models': [
+            {'model_name': 'constant', 'rho_min': 0.1}
         ],
-        'pedestal_transport_models': [{'model_name': 'constant'}],
-        'rho_min': 0.1,
     }
     with self.assertRaisesRegex(
-        ValueError, '(?=.*rho)(?=.*CombinedTransportModel)'
+        ValueError, 'rho_min and rho_max not supported'
     ):
       model_config.ToraxConfig.from_dict(config)
 
+  def test_error_if_pedestal_model_defines_rho_max(self):
+    config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant'},
-            {'model_name': 'constant'},
+        'transport_models': [{'model_name': 'constant'}],
+        'pedestal_transport_models': [
+            {'model_name': 'constant', 'rho_max': 0.9}
         ],
-        'pedestal_transport_models': [{'model_name': 'constant'}],
-        'rho_max': 0.9,
     }
     with self.assertRaisesRegex(
-        ValueError, '(?=.*rho)(?=.*CombinedTransportModel)'
+        ValueError, 'rho_min and rho_max not supported'
     ):
       model_config.ToraxConfig.from_dict(config)
 

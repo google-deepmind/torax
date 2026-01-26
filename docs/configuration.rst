@@ -1379,32 +1379,45 @@ Runtime parameters for the QuaLiKiz model.
 combined
 ^^^^^^^^
 
-A combined (additive) model, where the total transport coefficients are
-calculated by summing contributions from a list of component models. Each
-component model is active only within its defined radial domain, which can
-be overlapping or non-overlapping; in regions of overlap, the total
-transport coefficients are computed by adding the contributions from
-component models active at those coordinates.
-For individual core transport models defined in ``transport_models``, the active
-domain (where transport coefficients are non-zero) is set by ``rho_min`` and
-``rho_max``. If a pedestal is active, the active domain is then limited by
-``rho_norm_ped_top`` if ``rho_norm_ped_top`` is less than ``rho_max``.
-``rho_norm_ped_top`` is set in the ``pedestal`` section of the config.
-For models in ``pedestal_transport_models``, the active domain is only for
-radii above ``rho_norm_ped_top``.
-Post-processing (clipping and smoothing) is performed on the summed
-values from all component models, including in the pedestal.
+A combined model where the total transport coefficients are calculated by
+sequentially applying a list of component models. Each component model is
+active only within its defined radial domain, which can be overlapping or
+non-overlapping.
 
-The runtime parameters are as follows.
+The combination logic is controlled by the ``merge_mode`` of each component
+model:
+
+*   **ADD (default)**: The model's coefficients are added to the accumulated
+    total in its active region. However, it does not contribute to regions
+    and channels covered by an OVERWRITE model.
+*   **OVERWRITE**: The model is the sole contributor to the transport
+    coefficients in its active region, for enabled transport channels. It
+    **locks** this region for the specific transport channels it provides,
+    preventing other models in the list from modifying them.
+
+You can selectively enable or disable specific transport channels (e.g.,
+``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
+Disabled channels are "transparent" in OVERWRITE mode; they do not overwrite
+existing values and do not set a lock. An example of when this could be useful
+is when using one model for heat transport across the entire radial range, but
+then using another model specifically for particle transport within
+a restricted range, e.g. towards the LCFS.
+
+Two separate lists of transport models can be provided:
 
 ``transport_models`` (list[dict])
   A list containing config dicts for the component models for turbulent
-  transport in the core.
+  transport in the core. For each component model, ``rho_min`` and ``rho_max``
+  are set to define the active region. If a pedestal is active, the core
+  ``rho_max`` is overridden by max(``rho_max``, ``rho_norm_ped_top``), where
+  ``rho_norm_ped_top`` is set in the ``pedestal`` config, and not in the
+  ``transport_models`` dict.
 
 ``pedestal_transport_models`` (list[dict])
   A list containing config dicts for the component models for turbulent
-  transport in the pedestal.
-
+  transport in the pedestal. The pedestal transport model is active only for
+  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored,
+  and an error is raised if they are specified.
 
    .. warning::
     TORAX will throw a ``ValueError`` if any of the component transport
@@ -1412,11 +1425,11 @@ The runtime parameters are as follows.
     to True. Patches must be set in the config of the ``combined`` model
     only.
 
-..
-    The code for generating the plots for this example is found in
-    docs/scripts/combined_transport_example.py
+Post-processing (clipping and smoothing) is performed on the summed
+values from all component models, including in the pedestal.
 
-Example:
+
+Examples:
 
 .. code-block:: python
 
@@ -1463,6 +1476,39 @@ active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
 only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
 only the pedestal transport model is active (``chi_i = 0.5``).
 
+The code for generating the plot above is found in
+docs/scripts/combined_transport_example.py.
+
+The next example shows how to apply a physics-based model (QLKNN) in the core,
+but enforcing specific transport coefficients in the edge region using a
+Constant model with ``OVERWRITE`` mode, effectively overriding the core model
+in that region. This is useful e.g. for L-mode modelling. This example is more
+powerful than using the outer_patch API, since we here have fine-grained
+control over each transport channel.
+
+.. code-block:: python
+
+  'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+          # Base model: QLKNN applied everywhere (default ADD)
+          {
+              'model_name': 'qlknn',
+              'rho_max': 1.0,
+          },
+          # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
+          # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
+          {
+              'model_name': 'constant',
+              'rho_min': 0.9,
+              'D_e': 0.5,
+              'V_e': -1.0,
+              'merge_mode': 'overwrite',
+              'disable_chi_i': True,
+              'disable_chi_e': True,
+          },
+      ],
+    },
 
 sources
 -------
