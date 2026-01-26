@@ -19,29 +19,26 @@ Radiative Cooling Rates for Low-Z Impurities in Non-coronal Equilibrium State.
 J Fusion Energ (2017) 36:161-172
 DOI 10.1007/s10894-017-0136-z
 """
-import enum
+
 from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge import mavrin_2017_charge_states_data
-from torax._src.edge import mavrin_2017_cooling_rate_data
+from torax._src.physics.radiation import mavrin_fit
 
 # pylint: disable=invalid-name
 
 _NE_TAU_CORONAL_LIMIT = 1e19
 
 
-class MavrinVariable(enum.StrEnum):
-  Z = 'Z'
-  LZ = 'LZ'
-
-
-def calculate_mavrin_2017(
+# TODO(b/479521524): Similarly to radiation, create a new package for
+# charge_states and move this function, acommpanying data, and
+# physics/charge_states.py there.
+def calculate_mavrin_noncoronal_charge_state(
     T_e: array_typing.FloatVector,
     ne_tau: array_typing.FloatScalar,
     ion_symbol: str,
-    variable: MavrinVariable,
 ) -> jax.Array:
   """Calculates the average charge state of an impurity based on a polynomial fit.
 
@@ -55,24 +52,10 @@ def calculate_mavrin_2017(
       impurity residence time [m^-3 s]. High values of ne_tau correspond to the
       coronal limit.
     ion_symbol: Species to calculate average charge state for.
-    variable: The variable to calculate, either 'Z' (charge states) or 'LZ'
-      (radiative cooling rates).
 
   Returns:
-    Either average charge states or cooling rate, depending on the variable.
+    Average charge state of the impurity.
   """
-
-  match variable:
-    case MavrinVariable.Z:
-      cr_module = mavrin_2017_charge_states_data
-    case MavrinVariable.LZ:
-      cr_module = mavrin_2017_cooling_rate_data
-    case _:
-      allowed_variables = ', '.join([v.name for v in MavrinVariable])
-      raise ValueError(
-          f'Invalid fit variable: {variable}. Allowed variables are:'
-          f' {allowed_variables}'
-      )
 
   # Alias He3 and He4 to He as they are chemically identical
   if ion_symbol in ('He3', 'He4'):
@@ -80,7 +63,7 @@ def calculate_mavrin_2017(
   else:
     ion_symbol_lookup = ion_symbol
 
-  if ion_symbol_lookup not in cr_module.COEFFS.keys():
+  if ion_symbol_lookup not in mavrin_2017_charge_states_data.COEFFS.keys():
     # If the ion is not supported by the edge radiation model, we assume it
     # negligibly contributes to the edge physics (radiation or Z_eff/dilution in
     # the divertor). This is a good assumption for heavy impurities like W,
@@ -91,18 +74,21 @@ def calculate_mavrin_2017(
   T_e_ev = T_e * 1e3
 
   # Avoid extrapolating fitted polynomial out of bounds.
-  min_temp = cr_module.MIN_TEMPERATURES[ion_symbol_lookup]
-  max_temp = cr_module.MAX_TEMPERATURES[ion_symbol_lookup]
+  min_temp = mavrin_2017_charge_states_data.MIN_TEMPERATURES[ion_symbol_lookup]
+  max_temp = mavrin_2017_charge_states_data.MAX_TEMPERATURES[ion_symbol_lookup]
   T_e_ev = jnp.clip(T_e_ev, min_temp, max_temp)
   # Residence parameter capped at 10^19, which is the coronal limit.
   ne_tau = jnp.clip(ne_tau, a_max=_NE_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   interval_indices = jnp.searchsorted(
-      cr_module.TEMPERATURE_INTERVALS[ion_symbol_lookup], T_e_ev
+      mavrin_2017_charge_states_data.TEMPERATURE_INTERVALS[ion_symbol_lookup],
+      T_e_ev,
   )
   coeffs_in_range = jnp.take(
-      cr_module.COEFFS[ion_symbol_lookup], interval_indices, axis=1
+      mavrin_2017_charge_states_data.COEFFS[ion_symbol_lookup],
+      interval_indices,
+      axis=1,
   )
 
   X = jnp.log10(T_e_ev)
@@ -161,11 +147,11 @@ def _calculate_L_INT(
   electron_temp = electron_temp_ev / 1e3
 
   # Calculate Lz at each temperature point on the grid
-  Lz_values = calculate_mavrin_2017(
+  Lz_values = mavrin_fit.calculate_mavrin_cooling_rate(
       T_e=electron_temp,
-      ne_tau=ne_tau,
       ion_symbol=ion_symbol,
-      variable=MavrinVariable.LZ,
+      model_type=mavrin_fit.MavrinModelType.NONCORONAL,
+      ne_tau=ne_tau,
   )
 
   # The integrand is Lz * sqrt(Te)
