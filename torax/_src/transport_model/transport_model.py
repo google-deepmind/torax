@@ -193,18 +193,21 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         transport_runtime_params, geo, pedestal_model_output
     )
 
-    chi_face_ion = jnp.where(active_mask, transport_coeffs.chi_face_ion, 0.0)
-    chi_face_el = jnp.where(active_mask, transport_coeffs.chi_face_el, 0.0)
-    d_face_el = jnp.where(active_mask, transport_coeffs.d_face_el, 0.0)
-    v_face_el = jnp.where(active_mask, transport_coeffs.v_face_el, 0.0)
+    coeffs_dict = dataclasses.asdict(transport_coeffs)
+    to_replace = {}
 
-    return dataclasses.replace(
-        transport_coeffs,
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-    )
+    for channel_name, config in CHANNEL_CONFIG_STRUCT.items():
+      # Mask main channel
+      val = coeffs_dict[channel_name]
+      to_replace[channel_name] = jnp.where(active_mask, val, 0.0)
+
+      # Mask sub-channels
+      for sub_channel in config['sub_channels']:
+        sub_val = coeffs_dict[sub_channel]
+        if sub_val is not None:
+          to_replace[sub_channel] = jnp.where(active_mask, sub_val, 0.0)
+
+    return dataclasses.replace(transport_coeffs, **to_replace)
 
   def _apply_clipping(
       self,

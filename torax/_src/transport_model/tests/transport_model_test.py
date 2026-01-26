@@ -596,6 +596,53 @@ class TransportMaskingTest(parameterized.TestCase):
     )
     self.assertIsNone(new_coeffs_disabled.chi_face_ion_bohm)
 
+  def test_sub_channel_domain_restriction(self):
+    """Tests that sub-channels are masked by domain restriction."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'fixed',
+        'rho_max': 0.8,
+        'smoothing_width': 0.0,
+        'chi_min': 0.0,
+        'D_e_min': 0.0,
+        'V_e_min': 0.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    # We need a pedestal model even if unused by the fixed transport
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    # Mock core profiles (not used by FixedTransportModel but needed for API)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        torax_config.sources.build_models(),
+        torax_config.neoclassical.build_models(),
+    )
+    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
+
+    transport_model = torax_config.transport.build_transport_model()
+    coeffs = transport_model(
+        runtime_params, geo, core_profiles, pedestal_outputs
+    )
+
+    # Find index where rho > 0.8
+    cutoff_idx = np.searchsorted(geo.rho_face_norm, 0.8, side='right')
+
+    # Verify main channel is zeroed
+    np.testing.assert_allclose(coeffs.chi_face_ion[cutoff_idx:], 0.0)
+
+    # Verify sub-channels are also zeroed
+    # FixedTransportModel sets chi_face_ion_bohm = chi_face_ion * 0.3
+    # If not masked, it would be non-zero because FixedTransportModel computes
+    # it everywhere
+    self.assertIsNotNone(coeffs.chi_face_ion_bohm)
+    np.testing.assert_allclose(coeffs.chi_face_ion_bohm[cutoff_idx:], 0.0)
+    self.assertIsNotNone(coeffs.chi_face_ion_gyrobohm)
+    np.testing.assert_allclose(coeffs.chi_face_ion_gyrobohm[cutoff_idx:], 0.0)
+
 
 if __name__ == '__main__':
   absltest.main()
