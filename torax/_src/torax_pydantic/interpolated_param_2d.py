@@ -51,6 +51,18 @@ class Grid1D(model_base.BaseModelFrozen):
   """
   face_centers: pydantic_types.NumpyArray1DSorted
 
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_data(cls, data: Any) -> Any:
+    if not isinstance(data, dict):
+      return data
+    if 'nx' in data:
+      nx = data['nx']
+      face_centers = get_face_centers(nx)
+      data['face_centers'] = face_centers
+      del data['nx']
+    return data
+
   @pydantic.field_validator('face_centers')
   @classmethod
   def _validate_face_centers(cls, v: np.ndarray) -> np.ndarray:
