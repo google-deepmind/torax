@@ -14,6 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.fvm import cell_variable
@@ -440,6 +441,43 @@ class CellVariableTest(parameterized.TestCase):
     np.testing.assert_array_less(
         accurate_method_error, forward_difference_error
     )
+
+  def test_jax_tracer_leak_in_cond(self):
+    """Tests that accessing properties inside jax.cond does not leak tracers."""
+    # This test verifies that we don't have side effects (like cached_property
+    # updates) that leak tracers from inside a jax.cond to the outer scope.
+
+    n = 10
+    value = jnp.zeros((n,))
+    face_centers = jnp.linspace(0, 1, n + 1)
+
+    # Create the object OUTSIDE the cond
+    var = cell_variable.CellVariable(value=value, face_centers=face_centers)
+
+    def true_branch(_):
+      # Access properties INSIDE the cond
+      # If these are cached_property and write to var.__dict__, it might leak
+      _ = var.cell_centers
+      _ = var.right_face_value
+      return var.cell_centers
+
+    def false_branch(_):
+      return jnp.zeros((n,))
+
+    jax.lax.cond(jnp.array(True), true_branch, false_branch, None)
+
+    # Access the property AFTER the cond to ensure no leaked tracer is stored.
+    centers = var.cell_centers
+    right_face = var.right_face_value
+
+    # Force use of the values in a way that triggers UnexpectedTracerError for
+    # leaked tracers
+    val_check = centers + 1.0
+    right_check = right_face + 1.0
+
+    # Casting to numpy also forces evaluation
+    np.array(val_check)
+    np.array(right_check)
 
 
 if __name__ == '__main__':
