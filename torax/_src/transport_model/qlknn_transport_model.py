@@ -217,7 +217,7 @@ class QLKNNTransportModel(
   path: str
   name: str
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

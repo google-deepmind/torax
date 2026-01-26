@@ -19,13 +19,14 @@ A class for combining transport models.
 
 import dataclasses
 from typing import Callable, Sequence
-
 import jax
 import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -60,7 +61,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     # Calculate the transport coefficients - includes contribution from pedestal
     # and core transport models.
-    transport_coeffs = self._call_implementation(
+    transport_coeffs = self.call_implementation(
         transport_runtime_params,
         runtime_params,
         geo,
@@ -70,7 +71,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     # In contrast to the base TransportModel, we do not apply domain restriction
     # or output masking (enabled/disabled channels) as these are handled at the
-    # component model level in _call_implementation here.
+    # component model level in call_implementation here.
 
     # Apply min/max clipping
     transport_coeffs = self._apply_clipping(
@@ -93,7 +94,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         pedestal_model_output,
     )
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -117,95 +118,142 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    def apply_and_restrict(
-        component_model: transport_model_lib.TransportModel,
-        component_params: transport_runtime_params_lib.RuntimeParams,
-        restriction_fn: Callable[
-            [
-                transport_runtime_params_lib.RuntimeParams,
-                geometry.Geometry,
-                transport_model_lib.TurbulentTransport,
-                pedestal_model_lib.PedestalModelOutput,
-            ],
-            transport_model_lib.TurbulentTransport,
-        ],
-    ) -> transport_model_lib.TurbulentTransport:
-      # TODO(b/434175682): Consider only computing transport coefficients for
-      # the active domain, rather than masking them out later. This could be
-      # significantly more efficient especially for pedestal models, as these
-      # are only active in a small region of the domain.
-      component_transport_coeffs = component_model._call_implementation(
-          component_params,
-          runtime_params,
-          geo,
-          core_profiles,
-          pedestal_model_output,
-      )
-      component_transport_coeffs = component_model._apply_output_mask(
-          component_params,
-          component_transport_coeffs,
-      )
-      component_transport_coeffs = restriction_fn(
-          component_params,
-          geo,
-          component_transport_coeffs,
-          pedestal_model_output,
-      )
-      return component_transport_coeffs
+    core_coeffs = self._combine(
+        self.transport_models,
+        transport_runtime_params.transport_model_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_model_output,
+        transport_model_lib.compute_core_domain_mask,
+    )
 
-    pedestal_coeffs = [
-        apply_and_restrict(
-            model, params, self._apply_pedestal_domain_restriction
-        )
-        for model, params in zip(
-            self.pedestal_transport_models,
-            transport_runtime_params.pedestal_transport_model_params,
-        )
-    ]
-
-    core_coeffs = [
-        apply_and_restrict(model, params, model._apply_domain_restriction)
-        for model, params in zip(
-            self.transport_models,
-            transport_runtime_params.transport_model_params,
-        )
-    ]
+    pedestal_coeffs = self._combine(
+        self.pedestal_transport_models,
+        transport_runtime_params.pedestal_transport_model_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_model_output,
+        _pedestal_domain_mask,
+    )
 
     # Combine the transport coefficients from core and pedestal models.
-    def _combine_maybe_none_coeffs(*leaves):
-      non_none_leaves = [leaf for leaf in leaves if leaf is not None]
-      return sum(non_none_leaves) if non_none_leaves else None
-
     combined_transport_coeffs = jax.tree.map(
-        _combine_maybe_none_coeffs,
-        *pedestal_coeffs,
-        *core_coeffs,
-        # Needed to handle the case where some coefficients are None and others
-        # are not.
-        is_leaf=lambda x: x is None,
+        _add_optional, core_coeffs, pedestal_coeffs
     )
 
     return combined_transport_coeffs
 
-  def _apply_pedestal_domain_restriction(
+  def _combine(
       self,
-      unused_transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      models: tuple[transport_model_lib.TransportModel, ...],
+      params_list: Sequence[transport_runtime_params_lib.RuntimeParams],
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      transport_coeffs: transport_model_lib.TurbulentTransport,
+      core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      domain_mask_fn: Callable[
+          [
+              transport_runtime_params_lib.RuntimeParams,
+              geometry.Geometry,
+              pedestal_model_lib.PedestalModelOutput,
+          ],
+          jax.Array,
+      ],
   ) -> transport_model_lib.TurbulentTransport:
-    del unused_transport_runtime_params
-    active_mask = geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+    """Calculates and combines transport coefficients from a list of models."""
 
-    chi_face_ion = jnp.where(active_mask, transport_coeffs.chi_face_ion, 0.0)
-    chi_face_el = jnp.where(active_mask, transport_coeffs.chi_face_el, 0.0)
-    d_face_el = jnp.where(active_mask, transport_coeffs.d_face_el, 0.0)
-    v_face_el = jnp.where(active_mask, transport_coeffs.v_face_el, 0.0)
-
-    return dataclasses.replace(
-        transport_coeffs,
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
+    # Initialize accumulators with zeros. Will be iteratively updated based on
+    # model outputs and merge modes.
+    zero_profile = jnp.zeros_like(
+        geo.rho_face_norm, dtype=jax_utils.get_dtype()
     )
+    accumulators = {}
+    locks = {}
+
+    for channel, config in transport_model_lib.CHANNEL_CONFIG_STRUCT.items():
+      accumulators[channel] = zero_profile
+      locks[channel] = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
+      for sub in config['sub_channels']:
+        accumulators[sub] = None
+
+    # TODO(b/344023668) explore batching or fori_loop for performance.
+    for model, params in zip(models, params_list, strict=True):
+      # 1. Calculate raw coefficients
+      coeffs = model.call_implementation(
+          params, runtime_params, geo, core_profiles, pedestal_model_output
+      )
+
+      # 2. Zero out disabled channels. Unused subchannels returned as None.
+      coeffs = model.zero_out_disabled_channels(params, coeffs)
+
+      # 3. Calculate active domain mask. Values outside this are set to 0.
+      domain_mask = domain_mask_fn(params, geo, pedestal_model_output)
+
+      coeffs_dict = dataclasses.asdict(coeffs)
+      for k in coeffs_dict:
+        # Apply domain restriction to values.
+        if coeffs_dict[k] is not None:
+          coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)
+
+      for channel, config in transport_model_lib.CHANNEL_CONFIG_STRUCT.items():
+        disable_flag_name = config['disable_flag']
+        is_disabled = getattr(params, disable_flag_name)
+
+        # A channel is active for this model if it's in the domain AND enabled.
+        # Note that this is a boolean array over the face grid.
+        channel_active = jnp.logical_and(
+            domain_mask, jnp.logical_not(is_disabled)
+        )
+
+        val = coeffs_dict[channel]
+        if params.merge_mode == enums.MergeMode.OVERWRITE:
+          # Wiping: Replace accumulator values where active.
+          accumulators[channel] = jnp.where(
+              channel_active, val, accumulators[channel]
+          )
+          # Update lock.
+          locks[channel] = jnp.logical_or(locks[channel], channel_active)
+        else:  # ADD
+          # Add where not locked.
+          factor = jnp.where(locks[channel], 0.0, 1.0)
+          accumulators[channel] = accumulators[channel] + val * factor
+
+        # Handle sub-channels.
+        for sub in config['sub_channels']:
+          sub_val = coeffs_dict[sub]
+          if sub_val is not None:
+            if accumulators[sub] is None:
+              accumulators[sub] = zero_profile
+
+            if params.merge_mode == enums.MergeMode.OVERWRITE:
+              accumulators[sub] = jnp.where(
+                  channel_active, sub_val, accumulators[sub]
+              )
+            else:  # ADD
+              # Add where not locked (using main channel lock).
+              factor = jnp.where(locks[channel], 0.0, 1.0)
+              accumulators[sub] = accumulators[sub] + sub_val * factor
+
+    return transport_model_lib.TurbulentTransport(**accumulators)
+
+
+def _add_optional(
+    core_value: jax.Array | None, pedestal_value: jax.Array | None
+) -> jax.Array | None:
+  """Adds two values, treating None as zero. Returns None if both are None."""
+  if core_value is None:
+    return pedestal_value
+  if pedestal_value is None:
+    return core_value
+  return core_value + pedestal_value
+
+
+def _pedestal_domain_mask(
+    unused_params: transport_runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    pedestal_output: pedestal_model_lib.PedestalModelOutput,
+) -> jax.Array:
+  """Calculates the active domain mask for pedestal transport models."""
+  return jnp.asarray(geo.rho_face_norm > pedestal_output.rho_norm_ped_top)

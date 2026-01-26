@@ -659,16 +659,17 @@ class StateHistory:
 
     # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
-    if (
-        core_transport.chi_face_el_bohm is not None
-        or core_transport.chi_face_el_gyrobohm is not None
-        or core_transport.chi_face_ion_bohm is not None
-        or core_transport.chi_face_ion_gyrobohm is not None
-    ):
-      xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
-      xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
-      xr_dict[CHI_BOHM_I] = core_transport.chi_face_ion_bohm
-      xr_dict[CHI_GYROBOHM_I] = core_transport.chi_face_ion_gyrobohm
+    optional_transport_map = {
+        CHI_BOHM_E: core_transport.chi_face_el_bohm,
+        CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
+        CHI_BOHM_I: core_transport.chi_face_ion_bohm,
+        CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
+    }
+
+    for name, data in optional_transport_map.items():
+      # Skip if None or an array of Nones from stack
+      if data is not None and data.dtype != object:
+        xr_dict[name] = data
 
     xr_dict = {
         name: self._pack_into_data_array(

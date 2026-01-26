@@ -260,7 +260,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Dummy transport model that always returns zeros."""
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_model_runtime_params.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

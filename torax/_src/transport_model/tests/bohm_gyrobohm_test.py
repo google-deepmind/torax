@@ -134,14 +134,14 @@ class BohmGyroBohmTest(absltest.TestCase):
         chi_i_gyrobohm_multiplier=5.0,
     )
 
-    output_A = self.model._call_implementation(
+    output_A = self.model.call_implementation(
         dyn_params_A.transport,
         dyn_params_A,
         self.geo,
         self.core_profiles,
         self.pedestal_outputs,
     )
-    output_B = self.model._call_implementation(
+    output_B = self.model.call_implementation(
         dyn_params_B.transport,
         dyn_params_B,
         self.geo,
@@ -179,14 +179,14 @@ class BohmGyroBohmTest(absltest.TestCase):
         chi_i_gyrobohm_multiplier=5.0,
     )
 
-    output_A = self.model._call_implementation(
+    output_A = self.model.call_implementation(
         dyn_params_A.transport,
         dyn_params_A,
         self.geo,
         self.core_profiles,
         self.pedestal_outputs,
     )
-    output_B = self.model._call_implementation(
+    output_B = self.model.call_implementation(
         dyn_params_B.transport,
         dyn_params_B,
         self.geo,

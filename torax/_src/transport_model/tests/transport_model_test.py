@@ -17,6 +17,7 @@ from typing import Annotated, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax.numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -37,7 +38,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 class FixedTransportModel(transport_model_lib.TransportModel):
   """Fixed TransportModel for testing purposes."""
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -49,11 +50,17 @@ class FixedTransportModel(transport_model_lib.TransportModel):
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
     v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
+    # Add sub-components
+    chi_face_ion_bohm = chi_face_ion * 0.3
+    chi_face_ion_gyrobohm = chi_face_ion * 0.7
+
     return transport_model_lib.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
+        chi_face_ion_bohm=chi_face_ion_bohm,
+        chi_face_ion_gyrobohm=chi_face_ion_gyrobohm,
     )
 
 
@@ -461,6 +468,10 @@ class TransportMaskingTest(parameterized.TestCase):
 
     # Verify chi_i is zeroed out
     np.testing.assert_allclose(coeffs.chi_face_ion, 0.0)
+    if coeffs.chi_face_ion_bohm is not None:
+      np.testing.assert_allclose(coeffs.chi_face_ion_bohm, 0.0)
+    if coeffs.chi_face_ion_gyrobohm is not None:
+      np.testing.assert_allclose(coeffs.chi_face_ion_gyrobohm, 0.0)
 
     # Verify D_e is non-zero (FixedTransportModel returns non-zero values)
     self.assertFalse(np.allclose(coeffs.d_face_el, 0.0))
@@ -529,6 +540,61 @@ class TransportMaskingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         coeffs.d_face_el, 2 * ref_coeffs.d_face_el, rtol=1e-5
     )
+
+  def test_preserves_none_enabled(self):
+    """Tests that None values are preserved when channel is enabled."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'fixed',
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    model = torax_config.transport.build_transport_model()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+
+    coeffs = transport_model_lib.TurbulentTransport(
+        chi_face_ion=jnp.array([1.0]),
+        chi_face_el=jnp.array([1.0]),
+        d_face_el=jnp.array([1.0]),
+        v_face_el=jnp.array([1.0]),
+        chi_face_ion_bohm=None,
+    )
+
+    # Test preservation when enabled
+    new_coeffs = model.zero_out_disabled_channels(
+        runtime_params.transport, coeffs
+    )
+    self.assertIsNone(new_coeffs.chi_face_ion_bohm)
+
+  def test_preserves_none_disabled(self):
+    """Tests that None values are preserved when channel is disabled."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'fixed',
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    model = torax_config.transport.build_transport_model()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+
+    coeffs = transport_model_lib.TurbulentTransport(
+        chi_face_ion=jnp.array([1.0]),
+        chi_face_el=jnp.array([1.0]),
+        d_face_el=jnp.array([1.0]),
+        v_face_el=jnp.array([1.0]),
+        chi_face_ion_bohm=None,
+    )
+
+    # Test preservation when disabled
+    disabled_params = dataclasses.replace(
+        runtime_params.transport, disable_chi_i=True
+    )
+    new_coeffs_disabled = model.zero_out_disabled_channels(
+        disabled_params, coeffs
+    )
+    self.assertIsNone(new_coeffs_disabled.chi_face_ion_bohm)
 
 
 if __name__ == '__main__':

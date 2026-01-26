@@ -20,7 +20,9 @@ coefficients.
 
 import abc
 import dataclasses
+from typing import Final, Mapping, Sequence
 
+import immutabledict
 import jax
 from jax import numpy as jnp
 from torax._src import constants
@@ -32,6 +34,29 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
 # pylint: disable=invalid-name
+
+# Map main channels to their sub-channels (if any) and disable flags
+# TODO(b/434175938): Upgrade TransportModel to encapsulate this structure.
+CHANNEL_CONFIG_STRUCT: Final[Mapping[str, dict[str, Sequence[str] | str]]] = (
+    immutabledict.immutabledict({
+        'chi_face_ion': {
+            'sub_channels': ['chi_face_ion_bohm', 'chi_face_ion_gyrobohm'],
+            'disable_flag': 'disable_chi_i',
+        },
+        'chi_face_el': {
+            'sub_channels': ['chi_face_el_bohm', 'chi_face_el_gyrobohm'],
+            'disable_flag': 'disable_chi_e',
+        },
+        'd_face_el': {
+            'sub_channels': [],
+            'disable_flag': 'disable_D_e',
+        },
+        'v_face_el': {
+            'sub_channels': [],
+            'disable_flag': 'disable_V_e',
+        },
+    })
+)
 
 
 @jax.tree_util.register_dataclass
@@ -77,7 +102,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     transport_runtime_params = runtime_params.transport
 
     # Calculate the transport coefficients
-    transport_coeffs = self._call_implementation(
+    transport_coeffs = self.call_implementation(
         transport_runtime_params,
         runtime_params,
         geo,
@@ -86,7 +111,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     )
 
     # Apply masking to selectively enable/disable specific channels
-    transport_coeffs = self._apply_output_mask(
+    transport_coeffs = self.zero_out_disabled_channels(
         transport_runtime_params, transport_coeffs
     )
 
@@ -122,7 +147,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     )
 
   @abc.abstractmethod
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -132,35 +157,29 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
   ) -> TurbulentTransport:
     pass
 
-  def _apply_output_mask(
+  def zero_out_disabled_channels(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       transport_coeffs: TurbulentTransport,
   ) -> TurbulentTransport:
     """Sets coefficients to zero for channels that are disabled."""
-    return dataclasses.replace(
-        transport_coeffs,
-        chi_face_ion=jnp.where(
-            transport_runtime_params.disable_chi_i,
-            0.0,
-            transport_coeffs.chi_face_ion,
-        ),
-        chi_face_el=jnp.where(
-            transport_runtime_params.disable_chi_e,
-            0.0,
-            transport_coeffs.chi_face_el,
-        ),
-        d_face_el=jnp.where(
-            transport_runtime_params.disable_D_e,
-            0.0,
-            transport_coeffs.d_face_el,
-        ),
-        v_face_el=jnp.where(
-            transport_runtime_params.disable_V_e,
-            0.0,
-            transport_coeffs.v_face_el,
-        ),
-    )
+    to_replace = {}
+
+    for channel_name, config in CHANNEL_CONFIG_STRUCT.items():
+      disable_flag = getattr(transport_runtime_params, config['disable_flag'])
+
+      # Handle main channel
+      val = getattr(transport_coeffs, channel_name)
+      to_replace[channel_name] = jnp.where(disable_flag, 0.0, val)
+
+      # Handle sub-channels
+      for sub_channel in config['sub_channels']:
+        sub_value = getattr(transport_coeffs, sub_channel)
+        if sub_value is not None:
+          sub_value = jnp.where(disable_flag, 0.0, sub_value)
+        to_replace[sub_channel] = sub_value
+
+    return dataclasses.replace(transport_coeffs, **to_replace)
 
   def _apply_domain_restriction(
       self,
@@ -170,19 +189,8 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Sets transport coefficients to zero outside the model's domain."""
-    # Standard case: active range is
-    # rho_min < rho <= rho_norm_ped_top
-    active_mask = (
-        (geo.rho_face_norm > transport_runtime_params.rho_min)
-        & (geo.rho_face_norm <= transport_runtime_params.rho_max)
-        & (geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top)
-    )
-    # Special case: if rho_min is 0, active range is
-    # rho_min <= rho <= rho_norm_ped_top
-    active_mask = (
-        jnp.asarray(active_mask)
-        .at[0]
-        .set(transport_runtime_params.rho_min == 0)
+    active_mask = compute_core_domain_mask(
+        transport_runtime_params, geo, pedestal_model_output
     )
 
     chi_face_ion = jnp.where(active_mask, transport_coeffs.chi_face_ion, 0.0)
@@ -461,3 +469,33 @@ def _build_smoothing_matrix(
   row_sums = jnp.sum(kernel, axis=1)
   kernel /= row_sums[:, jnp.newaxis]
   return kernel
+
+
+def compute_core_domain_mask(
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+) -> jax.Array:
+  """Calculates the active domain mask for core transport models.
+
+  Args:
+    transport_runtime_params: Runtime parameters for the transport model.
+    geo: Geometry of the torus.
+    pedestal_model_output: Output of the pedestal model.
+
+  Returns:
+    active_mask: A boolean array indicating the active domain.
+  """
+  # Standard case: active range is
+  # rho_min < rho <= rho_max AND rho <= rho_norm_ped_top
+  active_mask = (
+      (geo.rho_face_norm > transport_runtime_params.rho_min)
+      & (geo.rho_face_norm <= transport_runtime_params.rho_max)
+      & (geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top)
+  )
+  # Special case: if rho_min is 0, active range is
+  # rho_min <= rho <= rho_norm_ped_top
+  active_mask = (
+      jnp.asarray(active_mask).at[0].set(transport_runtime_params.rho_min == 0)
+  )
+  return active_mask

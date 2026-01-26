@@ -81,7 +81,7 @@ class QualikizTransportModel(
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
