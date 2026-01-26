@@ -410,8 +410,8 @@ def build_standard_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  rho_hires_norm = np.linspace(
-      0, 1, intermediates.n_rho * intermediates.hires_factor
+  rho_hires_norm = geometry.increase_grid_resolution(
+      rho_face_norm, intermediates.hires_factor
   )
   rho_hires = rho_hires_norm * rho_b
 

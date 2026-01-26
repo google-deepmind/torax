@@ -186,7 +186,9 @@ def _build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  rho_hires_norm = np.linspace(0, 1, n_rho * hires_factor)
+  rho_hires_norm = geometry.increase_grid_resolution(
+      rho_face_norm, hires_factor
+  )
   rho_hires = rho_hires_norm * rho_b
 
   R_out = R_major + rho
