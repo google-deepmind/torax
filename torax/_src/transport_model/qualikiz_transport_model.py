@@ -279,6 +279,21 @@ def _extract_qualikiz_plan(
 
   # TODO(b/381199010): Add option to use rotation.
 
+  if transport.rotation_mode == qualikiz_based_transport_model.RotationMode.OFF:
+    rot_flag = 0
+  elif (
+      transport.rotation_mode
+      == qualikiz_based_transport_model.RotationMode.FULL_RADIUS
+  ):
+    rot_flag = 1
+  elif (
+      transport.rotation_mode
+      == qualikiz_based_transport_model.RotationMode.HALF_RADIUS
+  ):
+    rot_flag = 2
+  else:
+    raise ValueError(f'Unsupported rotation mode: {transport.rotation_mode}')
+
   # numerical parameters
   meta = qualikiz_inputtools.QuaLiKizXpoint.Meta(
       maxpts=5e6,
@@ -288,6 +303,8 @@ def _extract_qualikiz_plan(
       rhomin=0.0,
       rhomax=0.98,
       maxruns=transport.n_max_runs,
+      rot_flag=rot_flag,
+      timeout=30,
   )
 
   options = qualikiz_inputtools.QuaLiKizXpoint.Options(
@@ -324,11 +341,11 @@ def _extract_qualikiz_plan(
       q=2,  # will be scan variable
       smag=1,  # will be scan variable
       alpha=0,  # will be scan variable
-      Machtor=0,
-      Autor=0,
-      Machpar=0,
-      Aupar=0,
-      gammaE=0,
+      Machtor=0,  # will be scan variable
+      Autor=0,  # will be scan variable (computed from Machtor and GammaE)
+      Machpar=0,  # will be scan variable (computed from Machtor and GammaE)
+      Aupar=0,  # will be scan variable (computed from Machtor and GammaE)
+      gammaE=0,  # will be scan variable
   )
 
   elec = qualikiz_inputtools.Electron(
@@ -408,6 +425,11 @@ def _extract_qualikiz_plan(
       'Zi1': np.array(Zi1),
       'Ai1': np.array(core_profiles.A_impurity_face),
   }
+  if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
+    scan_dict['gammaE'] = (
+        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK
+    )
+    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal
   # pylint: enable=invalid-name
 
   qualikiz_plan = qualikiz_inputtools.QuaLiKizPlan(
