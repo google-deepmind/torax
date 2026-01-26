@@ -1844,9 +1844,12 @@ sawtooth
     Multiplier applied to :math:`\hat{\rho}_{q=1}` to determine the mixing
     radius :math:`\hat{\rho}_{mix}`.
 
-``crash_step_duration`` (float [default = 1e-3]):
+``crash_step_duration`` (float [default = 1e-5]):
   Duration of a sawtooth crash step in seconds. This is how much the solver time
-  will be bumped forward during a crash.
+  will be bumped forward during a crash. It is important that this is is small
+  enough to satisfy the assumption of timescale separation between the sawtooth
+  crash and the transport timescale, otherwise issues may arise regarding
+  conservation properties.
 
 solver
 -------

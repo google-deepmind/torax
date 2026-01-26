@@ -39,7 +39,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
       pydantic.Field(discriminator='model_name')
   )
 
-  crash_step_duration: torax_pydantic.Second = 1e-3
+  crash_step_duration: torax_pydantic.Second = 1e-5
 
   def build_models(self):
     return sawtooth_models.SawtoothModels(
