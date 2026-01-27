@@ -265,6 +265,10 @@ These are called out in the list of profiles below, and generally relate to:
   Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
   ``generic_current`` source is active.
 
+``j_non_inductive`` (time, rho_cell_norm)
+  Total toroidal non-inductive current density (including bootstrap and external)
+  [:math:`A/m^2`].
+
 ``j_ohmic`` (time, rho_cell_norm)
   Toroidal ohmic current density [:math:`A/m^2`].
 
@@ -275,9 +279,17 @@ These are called out in the list of profiles below, and generally relate to:
   Parallel electron cyclotron heating current density [:math:`A/m^2`]. Only output if
   ``ecrh`` source is active.
 
+``j_parallel_external`` (time, rho_cell_norm)
+  Total parallel external current density (including generic and ECRH current)
+  [:math:`A/m^2`].
+
 ``j_parallel_generic_current`` (time, rho_cell_norm)
   Parallel generic external non-inductive current density [:math:`A/m^2`]. Only
   output if ``generic_current`` source is active.
+
+``j_parallel_non_inductive`` (time, rho_cell_norm)
+  Total parallel non-inductive current density (including bootstrap and external)
+  [:math:`A/m^2`].
 
 ``j_parallel_ohmic`` (time, rho_cell_norm)
   Parallel Ohmic current density [:math:`A/m^2`].
@@ -577,6 +589,12 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``E_ohmic_e`` (time)
   Cumulative (integrated over time) Ohmic heating to electrons [:math:`J`].
 
+``f_bootstrap`` (time)
+  Fraction of the total plasma current that is bootstrap current [dimensionless].
+
+``f_non_inductive`` (time)
+  Fraction of the total plasma current that is non-inductive [dimensionless].
+
 ``fgw_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
 
@@ -604,6 +622,12 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``I_bootstrap`` (time)
   Total bootstrap current [:math:`A`].
+
+``I_external`` (time)
+  Total external current [:math:`A`].
+
+``I_non_inductive`` (time)
+  Total non-inductive current (including bootstrap and external) [:math:`A`].
 
 ``I_ecrh`` (time)
   Total electron cyclotron source current [:math:`A`].

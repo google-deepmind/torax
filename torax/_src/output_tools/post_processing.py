@@ -172,6 +172,14 @@ class PostProcessedOutputs:
       source [Am^-2]
     j_parallel_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
+    j_non_inductive: Total toroidal non-inductive current density [Am^-2]
+    j_parallel_non_inductive: Total parallel non-inductive current density
+      [Am^-2]
+    I_external: Total external current [A]
+    I_non_inductive: Total non-inductive current [A]
+    f_non_inductive: Non-inductive current fraction of the total current
+      [dimensionless]
+    f_bootstrap: Bootstrap current fraction of the total current [dimensionless]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
@@ -267,12 +275,19 @@ class PostProcessedOutputs:
   # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
   j_parallel_total: array_typing.FloatVector
   j_external: array_typing.FloatVector
+  j_parallel_external: array_typing.FloatVector
   j_ohmic: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
   j_bootstrap: array_typing.FloatVector
   j_bootstrap_face: array_typing.FloatVector
   j_generic_current: array_typing.FloatVector
   j_ecrh: array_typing.FloatVector
+  j_non_inductive: array_typing.FloatVector
+  j_parallel_non_inductive: array_typing.FloatVector
+  I_external: array_typing.FloatScalar
+  I_non_inductive: array_typing.FloatScalar
+  f_non_inductive: array_typing.FloatScalar
+  f_bootstrap: array_typing.FloatScalar
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
@@ -374,6 +389,13 @@ class PostProcessedOutputs:
         j_external=jnp.zeros(geo.rho_face.shape),
         j_generic_current=jnp.zeros(geo.rho_face.shape),
         j_ecrh=jnp.zeros(geo.rho_face.shape),
+        j_non_inductive=jnp.zeros(geo.rho_face.shape),
+        j_parallel_external=jnp.zeros(geo.rho_face.shape),
+        j_parallel_non_inductive=jnp.zeros(geo.rho_face.shape),
+        I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -925,6 +947,10 @@ def make_post_processed_outputs(
   I_bootstrap = math_utils.area_integration(
       j_toroidal_bootstrap, sim_state.geometry
   )
+  I_external = math_utils.area_integration(
+      j_toroidal_external, sim_state.geometry
+  )
+  I_non_inductive = I_bootstrap + I_external
 
   beta_tor, beta_pol, beta_N = formulas.calculate_betas(
       sim_state.core_profiles, sim_state.geometry
@@ -998,6 +1024,17 @@ def make_post_processed_outputs(
       j_external=j_toroidal_external,
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
+      j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
+      j_parallel_external=j_parallel_external,
+      j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
+      I_external=I_external,
+      I_non_inductive=I_non_inductive,
+      f_non_inductive=math_utils.safe_divide(
+          I_non_inductive, sim_state.core_profiles.Ip_profile_face[-1]
+      ),
+      f_bootstrap=math_utils.safe_divide(
+          I_bootstrap, sim_state.core_profiles.Ip_profile_face[-1]
+      ),
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
