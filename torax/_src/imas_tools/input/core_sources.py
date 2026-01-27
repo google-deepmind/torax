@@ -145,14 +145,14 @@ def sources_from_IMAS(
     source_name = str(source.identifier.name)
 
     # External fuelling sources.
-    if "pellet" in source_name:
+    if source_name == "pellet":
       # Pellet: particle source.
       profiles = _extract_source_profiles(
           source, t_initial, affected_profiles=["n_e"]
       )
       accumulator.add("pellet", profiles)
 
-    elif "gas_puff" in source_name:
+    elif source_name == "gas_puff":
       # Gas puff: particle source.
       profiles = _extract_source_profiles(
           source, t_initial, affected_profiles=["n_e"]
@@ -160,14 +160,14 @@ def sources_from_IMAS(
       accumulator.add("gas_puff", profiles)
 
     # External HCD sources.
-    elif "ec" in source_name:
+    elif source_name == "ec":
       # ECRH: electron heating and current drive.
       profiles = _extract_source_profiles(
           source, t_initial, affected_profiles=["T_e", "psi"]
       )
       accumulator.add("ecrh", profiles)
 
-    elif "ic" in source_name:
+    elif source_name == "ic":
       # ICRH: ion heating and current drive.
       profiles = _extract_source_profiles(
           source, t_initial, affected_profiles=["T_i", "T_e"]
@@ -176,38 +176,38 @@ def sources_from_IMAS(
 
     if not load_only_external_sources:
       # Physics-based sources
-      if "ohmic" in source_name:
+      if source_name == "ohmic":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_e"]
         )
         accumulator.add("ohmic", profiles)
 
-      elif "fusion" in source_name:
+      elif source_name == "fusion":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_i", "T_e"]
         )
         accumulator.add("fusion", profiles)
 
-      elif "collisional_equipartition" in source_name:
+      elif source_name == "collisional_equipartition":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_i", "T_e"]
         )
         accumulator.add("ei_exchange", profiles)
 
       # Radiation sources
-      elif "cyclotron_radiation" in source_name:
+      elif source_name == "cyclotron_radiation":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_e"]
         )
         accumulator.add("cyclotron_radiation", profiles)
 
-      elif "bremsstrahlung" in source_name:
+      elif source_name == "bremsstrahlung":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_e"]
         )
         accumulator.add("bremsstrahlung", profiles)
 
-      elif "impurity_radiation" in source_name:
+      elif source_name == "impurity_radiation":
         profiles = _extract_source_profiles(
             source, t_initial, affected_profiles=["T_e"]
         )
