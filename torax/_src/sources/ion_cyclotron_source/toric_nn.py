@@ -576,6 +576,18 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   def model_func(self) -> source.SourceProfileFunction:
     return _icrh_model_func_with_toric_nn(self.model_path)
 
+  def build_source(self) -> base.IonCyclotronSource:
+    """Builds the source, only loading the ToricNN model in MODEL_BASED mode.
+
+    When the mode is PRESCRIBED or ZERO, the model function is never called,
+    so we avoid loading the ToricNN model JSON file. This allows users who
+    don't have access to the toric_nn model file to still use the ICRH source
+    in prescribed mode.
+    """
+    if self.mode == source_runtime_params_lib.Mode.MODEL_BASED:
+      return base.IonCyclotronSource(model_func=self.model_func)
+    return base.IonCyclotronSource(model_func=None)
+
   @pydantic.model_validator(mode='after')
   def _validate_minority_species(self) -> typing_extensions.Self:
     if self.minority_species is not None and self.minority_species != 'He3':
