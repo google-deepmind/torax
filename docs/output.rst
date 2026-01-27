@@ -184,6 +184,15 @@ These are called out in the list of profiles below, and generally relate to:
 ``D_turb_e`` (time, rho_face_norm)
   Total turbulent electron particle diffusivity [:math:`m^2/s`].
 
+``delta`` (time, rho_face_norm)
+  Average of upper and lower triangularity of each flux surface [dimensionless].
+
+``delta_lower`` (time, rho_face_norm)
+  Lower triangularity of each flux surface [dimensionless].
+
+``delta_upper`` (time, rho_face_norm)
+  Upper triangularity of each flux surface [dimensionless].
+
 ``ei_exchange`` (time, rho_cell_norm)
   Ion-electron heat exchange power density profile [:math:`W/m^3`]. Positive
   values mean heat source for ions, and heat sink for electrons.
@@ -229,26 +238,52 @@ These are called out in the list of profiles below, and generally relate to:
 ``g3`` (time, rho_norm)
   Flux surface averaged :math:`\frac{1}{R^2}` [:math:`m^{-2}`].
 
+``gm4`` (time, rho_norm)
+  Flux surface averaged :math:`\frac{1}{B^2}` [:math:`T^{-2}`].
+
+``gm5`` (time, rho_norm)
+  Flux surface averaged :math:`B^2` [:math:`T^2`].
+
+``gm9`` (time, rho_norm)
+  Flux surface averaged :math:`\frac{1}{R}` [:math:`m^{-1}`].
+
 ``Ip_profile`` (time, rho_face_norm)
   Total cumulative current profile [:math:`A`].
 
 ``j_bootstrap`` (time, rho_norm)
-  Bootstrap current density [:math:`A/m^2`].
+  Toroidal bootstrap current density [:math:`A/m^2`].
 
 ``j_ecrh`` (time, rho_cell_norm)
-  Electron cyclotron heating current density [:math:`A/m^2`]. Only output if
+  Toroidal electron cyclotron heating current density [:math:`A/m^2`]. Only output if
   ``ecrh`` source is active.
 
 ``j_external`` (time, rho_cell_norm)
-  Total external current density (including generic and ECRH current)
+  Total toroidal external current density (including generic and ECRH current)
   [:math:`A/m^2`].
 
 ``j_generic_current`` (time, rho_cell_norm)
-  Generic external non-inductive current density [:math:`A/m^2`]. Only output if
+  Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
   ``generic_current`` source is active.
 
 ``j_ohmic`` (time, rho_cell_norm)
-  Ohmic current density [:math:`A/m^2`].
+  Toroidal ohmic current density [:math:`A/m^2`].
+
+``j_parallel_bootstrap`` (time, rho_norm)
+  Parallel bootstrap current density [:math:`A/m^2`].
+
+``j_parallel_ecrh`` (time, rho_cell_norm)
+  Parallel electron cyclotron heating current density [:math:`A/m^2`]. Only output if
+  ``ecrh`` source is active.
+
+``j_parallel_generic_current`` (time, rho_cell_norm)
+  Parallel generic external non-inductive current density [:math:`A/m^2`]. Only
+  output if ``generic_current`` source is active.
+
+``j_parallel_ohmic`` (time, rho_cell_norm)
+  Parallel Ohmic current density [:math:`A/m^2`].
+
+``j_parallel_total`` (time, rho_cell_norm)
+  Total parallel current density [:math:`A/m^2`].
 
 ``j_total`` (time, rho_norm)
   Total toroidal current density [:math:`A/m^2`].
@@ -371,6 +406,9 @@ These are called out in the list of profiles below, and generally relate to:
 
 ``R_out`` (time, rho_norm)
   Outer (maximum) radius of each flux surface [:math:`m`].
+
+``R_major_profile`` (time, rho_norm)
+  Local major radius of each flux surface [:math:`m`].
 
 ``s_gas_puff`` (time, rho_cell_norm)
   Gas puff particle source density [:math:`s^{-1} m^{-3}`]. Only output if
@@ -517,17 +555,27 @@ properties and characteristics, as well as scalar edge geometry quantities.
   Radial grid spacing in the normalized rho coordinate [dimensionless].
 
 ``E_aux_total`` (time)
-  Total cumulative auxiliary injected energy
-  [:math:`J`].
+  Total (ion + electron) cumulative (integrated over time) auxiliary energy
+    absorbed by the plasma. Corresponds to external heating sources like NBI,
+    ICRH, ECRH. [:math:`J`].
 
 ``E_external_injected`` (time)
-  Total cumulative injected energy before absorption [:math:`J`].
+  Total (ion + electron) cumulative (integrated over time) auxiliary energy
+    injected into the plasma. Corresponds to external heating sources like NBI,
+    ICRH, ECRH. [:math:`J`]. Can be higher than ``E_aux_total`` since it
+    includes the energy that is not absorbed by the plasma.
+
+``E_external_total`` (time)
+  Total (ion + electron) cumulative (integrated over time) external energy
+    absorbed by the plasma [:math:`J`]. Equal to ``E_aux_total`` +
+    ``E_ohmic_e``.
 
 ``E_fusion`` (time)
-  Total cumulative fusion energy produced [:math:`J`].
+  Total (ion + electron) cumulative (integrated over time) fusion energy
+    produced [:math:`J`].
 
 ``E_ohmic_e`` (time)
-  Total cumulative ohmic heating to electrons [:math:`J`].
+  Cumulative (integrated over time) Ohmic heating to electrons [:math:`J`].
 
 ``fgw_n_e_line_avg`` (time)
   Greenwald fraction from line-averaged electron density [dimensionless].
@@ -631,6 +679,9 @@ properties and characteristics, as well as scalar edge geometry quantities.
   Total externally injected power into the plasma [:math:`W`]. This will be
   larger than ``P_external_tot`` if any source has a value of
   ``absorption_fraction`` less than 1.
+
+``P_external_total`` (time)
+  Total external power absorbed by the plasma (including Ohmic) [:math:`W`].
 
 ``P_fusion`` (time)
   Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
@@ -783,6 +834,9 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``W_thermal_total`` (time)
   Total thermal stored energy [:math:`J`].
+
+``z_magnetic_axis`` (time)
+  Vertical position of the magnetic axis [:math:`m`].
 
 edge
 ----
