@@ -68,10 +68,11 @@ def cell_to_face(
   """Convert cell values to face values.
 
   We make three assumptions:
-  1) Inner face values are the average of neighbouring cells.
+  1) Inner face values are the interpolation of neighboring cell values.
   2) The left most face value is linearly extrapolated from the left most cell
-  values.
-  3) The transformation from cell to face is integration preserving.
+    values.
+  3) The transformation from cell to face is integration preserving and the
+    quantity to preserve the integral of is specified by `preserved_quantity`.
 
   Args:
     cell_values: Values defined on the TORAX cell grid.

@@ -861,13 +861,41 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``n_rho`` (int [default = 25])
-  Number of radial grid points
+``n_rho`` (int | None [default = 25])
+  Number of radial grid cells. Creates a uniform grid with cell width
+  :math:`d\hat{\rho} = 1/n\_rho`. Must be at least 4.
+  Either ``n_rho`` or ``face_centers`` must be specified.
+
+``face_centers`` (array | None [default = None])
+  Explicit array of face center coordinates in normalized :math:`\hat{\rho}`
+  (ranging from 0 to 1) for defining non-uniform radial grids. For a grid with
+  N cells, there should be N+1 face centers. The array must start at 0.0, end
+  at 1.0, be strictly increasing, and have at least 5 elements (4 cells).
+  This enables finer resolution in regions of interest, such as
+  near the plasma edge.
+
+  Example of a non-uniform grid with finer resolution near the edge:
+
+  .. code-block:: python
+
+    import numpy as np
+
+    # Create non-uniform grid: coarse in core, fine near edge
+    core_faces = np.linspace(0, 0.8, 9)  # 8 cells from rho=0 to rho=0.8
+    edge_faces = np.linspace(0.8, 1.0, 9)[1:]  # 8 cells from rho=0.8 to rho=1.0
+    face_centers = np.concatenate([core_faces, edge_faces])
+
+    'geometry': {
+        'geometry_type': 'chease',
+        'face_centers': face_centers,
+        # ... other geometry parameters
+    }
 
 ``hires_factor`` (int [default = 4])
   Only used when the initial condition ``psi`` is from plasma current. Sets up a
   higher resolution mesh with ``nrho_hires = nrho * hi_res_fac``, used for
   ``j`` to ``psi`` conversions.
+
 
 Geometry dicts for all non-circular geometry types can contain the following
 additional keys.

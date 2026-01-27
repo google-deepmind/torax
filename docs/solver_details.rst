@@ -16,10 +16,15 @@ The TORAX JAX 1D FVM library is significantly influenced by
 library API. This section summarizes 1D FVM numerics in general.
 
 The 1D spatial domain, :math:`0 \leq \hat{\rho} \leq 1`, is divided into a
-uniform grid of :math:`N` cells, each with a width of
-:math:`d \hat{\rho} = 1/N`.  The cell centers are denoted by
-:math:`\hat{\rho}_i`, where :math:`0 = 1, 2,..., N-1`, and the :math:`N+1` cell
-faces are located at :math:`\hat{\rho}_{i\pm1/2}`. Both :math:`\hat{\rho}=0` and
+grid of :math:`N` cells. TORAX supports both uniform grids (configured via
+``n_rho``) and non-uniform grids (configured via ``face_centers``). For uniform
+grids, each cell has width :math:`d \hat{\rho} = 1/N`. For non-uniform grids,
+cell widths :math:`d \hat{\rho}_i` vary across the domain, enabling finer
+resolution in regions of interest such as near the plasma edge.
+
+The cell centers are denoted by :math:`\hat{\rho}_i`, where
+:math:`i = 0, 1, 2,..., N-1`, and the :math:`N+1` cell faces are located at
+:math:`\hat{\rho}_{i\pm1/2}`. Both :math:`\hat{\rho}=0` and
 :math:`\hat{\rho}=1` are on the face grid.
 
 For a generic conservation law of the form:
@@ -37,12 +42,14 @@ of finite differences:
 
 .. math::
 
-  \frac{\partial }{\partial t}(x_i) + \frac{1}{d \hat{\rho}}({\Gamma}_{i+1/2}
+  \frac{\partial }{\partial t}(x_i) + \frac{1}{d \hat{\rho}_i}({\Gamma}_{i+1/2}
   - {\Gamma}_{i-1/2})  = S_i
 
 where: :math:`x_i` is the cell-averaged value of :math:`x` in cell :math:`i`,
-:math:`\Gamma_{i+1/2}` is the flux at face :math:`i+1/2`, and :math:`S_i` is the
-cell-averaged source term in cell :math:`i`.
+:math:`\Gamma_{i+1/2}` is the flux at face :math:`i+1/2`, :math:`S_i` is the
+cell-averaged source term in cell :math:`i`, and :math:`d \hat{\rho}_i` is the
+width of cell :math:`i` (which may vary for non-uniform grids).
+
 
 In general, the fluxes in TORAX are decomposed as
 
@@ -55,9 +62,9 @@ convection coefficient, leading to:
 .. math::
 
   \begin{aligned}
-  \Gamma_{i+1/2} &= -D_{i+1/2}\frac{x_{i+1} - x_{i}}{d\hat{\rho}} +
+  \Gamma_{i+1/2} &= -D_{i+1/2}\frac{x_{i+1} - x_{i}}{\hat{\rho}_{i+1} - \hat{\rho}_{i}} +
    V_{i+1/2}x_{i+1/2} \\
-  \Gamma_{i-1/2} &= -D_{i-1/2}\frac{x_{i} - x_{i-1}}{d\hat{\rho}} +
+  \Gamma_{i-1/2} &= -D_{i-1/2}\frac{x_{i} - x_{i-1}}{\hat{\rho}_{i} - \hat{\rho}_{i-1}} +
    V_{i-1/2}x_{i-1/2}
   \end{aligned}
 
@@ -78,9 +85,11 @@ defined as:
 
 .. math::
 
-  Pe = \frac{V d \hat{\rho}}{D}
+  Pe = \frac{V d \hat{\rho}_i}{D}
 
-where :math:`V` is convection and :math:`D` is diffusion. The power-law scheme
+where :math:`V` is convection, :math:`D` is diffusion, and
+:math:`d \hat{\rho}_i` is the local cell width (which varies for non-uniform
+grids). The power-law scheme
 is as follows:
 
 .. math::
@@ -327,9 +336,10 @@ as follows.
 
   .. math::
 
-    \Delta t_{ \mathrm{base}}=\frac{(d\hat{\rho})^2}{2\chi_{\max}}
+    \Delta t_{ \mathrm{base}}=\frac{(d\hat{\rho}_{\min})^2}{2\chi_{\max}}
 
-  where
+  where :math:`d \hat{\rho}_{\min}` is the minimum cell width (for non-uniform
+  grids, this is the smallest cell; for uniform grids, all cells are equal), and
   :math:`\Delta t = c_{ \mathrm{mult}}^{dt} \Delta t_{ \mathrm{base}}`.
 
   :math:`c_{ \mathrm{mult}}^{dt}` is a user-configurable prefactor.
