@@ -316,7 +316,11 @@ class TGLFBasedTransportModel(
     # Normalized toroidal ExB velocity Doppler shift gradient.
     # Calculated on the face grid.
     # https://gacode.io/tglf/tglf_list.html#vexb-shear
-    def _get_v_ExB_shear():
+    def _get_v_ExB_shear(
+        core_profiles: state.CoreProfiles,
+        geo: geometry.Geometry,
+        poloidal_velocity_multiplier: array_typing.FloatScalar,
+    ):
       v_ExB, _, _ = rotation.calculate_rotation(
           T_i=core_profiles.T_i,
           psi=core_profiles.psi,
@@ -345,7 +349,10 @@ class TGLFBasedTransportModel(
     v_ExB_shear = jax.lax.cond(
         transport.use_rotation,
         _get_v_ExB_shear,
-        lambda: jnp.zeros_like(core_profiles.q_face),
+        lambda core_profiles, *_: jnp.zeros_like(core_profiles.q_face),
+        core_profiles,
+        geo,
+        poloidal_velocity_multiplier,
     )
 
     return TGLFInputs(
