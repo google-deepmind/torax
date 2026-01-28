@@ -16,53 +16,55 @@
 import dataclasses
 import os
 from unittest import mock
-from absl.testing import absltest
+
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+from absl.testing import absltest
+
 from torax._src import array_typing
 
 
 def _f_invalid_shape(
     x: jt.Float[jax.Array, "size size"],
 ) -> jt.Float[jax.Array, "size"]:
-  return x**2
+    return x**2
 
 
 @dataclasses.dataclass(frozen=True)
 class TestClass:
-  x: jt.Float[jax.Array, "size size"]
+    x: jt.Float[jax.Array, "size size"]
 
 
 class ArrayTypingTest(absltest.TestCase):
+    # This test ensures that runtime type checking is always turned on for tests,
+    # despite being turned off by default.
+    def test_invalid_shape(self):
+        x = jnp.ones((3, 3))
+        f = array_typing.jaxtyped(_f_invalid_shape)
+        with self.assertRaises(jt.TypeCheckError):
+            f(x)
 
-  # This test ensures that runtime type checking is always turned on for tests,
-  # despite being turned off by default.
-  def test_invalid_shape(self):
-    x = jnp.ones((3, 3))
-    f = array_typing.jaxtyped(_f_invalid_shape)
-    with self.assertRaises(jt.TypeCheckError):
-      f(x)
+    @mock.patch.dict(os.environ, {"TORAX_JAXTYPING": "false"})
+    def test_invalid_shape_disabled(self):
+        x = jnp.ones((3, 3))
+        f = array_typing.jaxtyped(_f_invalid_shape)
+        f(x)
 
-  @mock.patch.dict(os.environ, {"TORAX_JAXTYPING": "false"})
-  def test_invalid_shape_disabled(self):
-    x = jnp.ones((3, 3))
-    f = array_typing.jaxtyped(_f_invalid_shape)
-    f(x)
+    @mock.patch.dict(os.environ, {}, clear=True)
+    def test_invalid_shape_default_enabled(self):
+        x = jnp.ones((3, 3))
+        f = array_typing.jaxtyped(_f_invalid_shape)
+        with self.assertRaises(jt.TypeCheckError):
+            f(x)
 
-  @mock.patch.dict(os.environ, {}, clear=True)
-  def test_invalid_shape_default_disabled(self):
-    x = jnp.ones((3, 3))
-    f = array_typing.jaxtyped(_f_invalid_shape)
-    f(x)
+    def test_dataclass(self):
+        test_class = array_typing.jaxtyped(TestClass)
+        with self.assertRaises(jt.TypeCheckError):
+            test_class(x=jnp.ones((3,)))
 
-  def test_dataclass(self):
-    test_class = array_typing.jaxtyped(TestClass)
-    with self.assertRaises(jt.TypeCheckError):
-      test_class(x=jnp.ones((3,)))
-
-    test_class(x=jnp.ones((3, 3)))
+        test_class(x=jnp.ones((3, 3)))
 
 
 if __name__ == "__main__":
-  absltest.main()
+    absltest.main()
