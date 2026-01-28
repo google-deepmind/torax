@@ -16,21 +16,18 @@ from typing import Annotated
 from typing import Literal
 import numpy as np
 import pydantic
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 
 # pylint: disable=invalid-name
-class CircularConfig(torax_pydantic.BaseModelFrozen):
+class CircularConfig(base.BaseGeometryConfig):
   """Pydantic model for the circular geometry config.
 
   Attributes:
     geometry_type: Always set to 'circular'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     R_major: Major radius (R) in meters.
     a_minor: Minor radius (a) in meters.
     B_0: Vacuum toroidal magnetic field on axis [T].
@@ -41,8 +38,6 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[
       Literal['circular'], torax_pydantic.TIME_INVARIANT
   ] = 'circular'
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   R_major: torax_pydantic.Meter = 6.2
   a_minor: torax_pydantic.Meter = 2.0
   B_0: torax_pydantic.Tesla = 5.3
@@ -56,7 +51,7 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
 
   def build_geometry(self) -> geometry.Geometry:
     return _build_circular_geometry(
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         elongation_LCFS=self.elongation_LCFS,
         R_major=self.R_major,
         a_minor=self.a_minor,
@@ -66,7 +61,7 @@ class CircularConfig(torax_pydantic.BaseModelFrozen):
 
 
 def _build_circular_geometry(
-    n_rho: int,
+    face_centers: np.ndarray,
     elongation_LCFS: float,
     R_major: float,
     a_minor: float,
@@ -76,7 +71,7 @@ def _build_circular_geometry(
   """Constructs a circular Geometry instance used for testing only.
 
   Args:
-    n_rho: Radial grid points (num cells)
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     elongation_LCFS: Elongation at last closed flux surface.
     R_major: major radius (R) in meters
     a_minor: minor radius (a) in meters
@@ -90,7 +85,7 @@ def _build_circular_geometry(
   # circular geometry assumption of r/a_minor = rho_norm, the normalized
   # toroidal flux coordinate.
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  mesh = torax_pydantic.Grid1D(nx=n_rho,)
+  mesh = torax_pydantic.Grid1D(face_centers=face_centers)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
   rho_b = np.asarray(a_minor)
 
@@ -191,7 +186,9 @@ def _build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  rho_hires_norm = np.linspace(0, 1, n_rho * hires_factor)
+  rho_hires_norm = geometry.increase_grid_resolution(
+      rho_face_norm, hires_factor
+  )
   rho_hires = rho_hires_norm * rho_b
 
   R_out = R_major + rho

@@ -16,6 +16,7 @@ from typing import Annotated, Literal
 import numpy as np
 import pydantic
 from torax._src import constants
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
@@ -24,15 +25,11 @@ import typing_extensions
 
 
 # pylint: disable=invalid-name
-class CheaseConfig(torax_pydantic.BaseModelFrozen):
+class CheaseConfig(base.BaseGeometryConfig):
   """Pydantic model for the CHEASE geometry.
 
   Attributes:
     geometry_type: Always set to 'chease'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
@@ -45,8 +42,6 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[Literal['chease'], torax_pydantic.TIME_INVARIANT] = (
       'chease'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
@@ -67,7 +62,7 @@ class CheaseConfig(torax_pydantic.BaseModelFrozen):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         R_major=self.R_major,
         a_minor=self.a_minor,
         B_0=self.B_0,
@@ -84,7 +79,7 @@ def _construct_intermediates_from_chease(
     geometry_directory: str | None,
     geometry_file: str,
     Ip_from_parameters: bool,
-    n_rho: int,
+    face_centers: np.ndarray,
     R_major: float,
     a_minor: float,
     B_0: float,
@@ -99,7 +94,7 @@ def _construct_intermediates_from_chease(
     geometry_file: CHEASE file name.
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
-    n_rho: Radial grid points (num cells)
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     R_major: major radius (R) in meters. CHEASE geometries are normalized, so
       this is used as an unnormalization factor.
     a_minor: minor radius (a) in meters
@@ -180,7 +175,7 @@ def _construct_intermediates_from_chease(
       delta_lower_face=chease_data['delta_bottom'],
       elongation=chease_data['elongation'],
       vpr=vpr,
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=None,
       connection_length_target=None,

@@ -258,8 +258,8 @@ class Geometry:
 
   @property
   def drho_norm(self) -> array_typing.Array:
-    r"""Grid size for rho_norm [dimensionless]."""
-    return jnp.array(self.torax_mesh.dx)
+    """Cell widths [dimensionless]."""
+    return self.torax_mesh.cell_widths
 
   @property
   def rho_face(self) -> array_typing.Array:
@@ -301,8 +301,8 @@ class Geometry:
 
   @property
   def drho(self) -> array_typing.Array:
-    """Grid size for rho [m]."""
-    return self.drho_norm * self.rho_b
+    """Cell widths [m]."""
+    return self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rho_b(self) -> array_typing.FloatScalar:
@@ -457,3 +457,15 @@ def update_geometries_with_Phibdot(
   geo_t = dataclasses.replace(geo_t, Phi_b_dot=Phibdot)
   geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phi_b_dot=Phibdot)
   return geo_t, geo_t_plus_dt
+
+
+def increase_grid_resolution(faces: chex.Array, factor: int) -> chex.Array:
+  """Increase the grid resolution by a factor."""
+  if factor <= 1:
+    raise ValueError('factor must be >= 1.')
+  num_faces = len(faces)
+  num_cells = num_faces - 1
+  grid_indices = np.arange(len(faces))
+  new_num_faces = num_cells * factor + 1
+  new_indices = np.linspace(0, num_cells, new_num_faces)
+  return np.interp(new_indices, grid_indices, faces)

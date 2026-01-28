@@ -50,7 +50,7 @@ class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
 class ConstantTransportModel(transport_model_lib.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

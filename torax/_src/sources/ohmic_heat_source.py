@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Ohmic heat source."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import chex
@@ -59,6 +60,7 @@ def ohmic_model_func(
   j_total, _, _ = psi_calculations.calc_j_total(
       geo,
       core_profiles.psi,
+      runtime_params.numerics.min_rho_norm,
   )
   psi_sources = calculated_source_profiles.total_psi_sources(geo)
   if (

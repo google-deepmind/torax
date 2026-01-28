@@ -105,7 +105,7 @@ def calculate_plh_scaling_factor(
 def calculate_scaling_law_confinement_time(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    Ploss: jax.Array,
+    P_loss: jax.Array,
     scaling_law: str,
 ) -> jax.Array:
   """Calculates the thermal energy confinement time for a given empirical scaling law.
@@ -113,7 +113,7 @@ def calculate_scaling_law_confinement_time(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    Ploss: Plasma power loss in W.
+    P_loss: Plasma power loss in W.
     scaling_law: Scaling law to use.
 
   Returns:
@@ -184,8 +184,15 @@ def calculate_scaling_law_confinement_time(
 
   params = scaling_params[scaling_law]
 
+  # Floor P_loss to a negligible but positive value. This is to avoid NaNs in
+  # scaling law outputs.
+  # Negative P_loss can arise during strong transients, when dW/dt > P_heat.
+  # Scaling laws were not intended to be used in transient regimes, but we still
+  # need to avoid NaNs.
+  P_loss = jnp.maximum(P_loss, 1.0)
+
   scaled_Ip = core_profiles.Ip_profile_face[-1] / 1e6  # convert to MA
-  scaled_Ploss = Ploss / 1e6  # convert to MW
+  scaled_Ploss = P_loss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
       math_utils.line_average(core_profiles.n_e.value, geo) / 1e19

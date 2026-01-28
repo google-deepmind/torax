@@ -13,165 +13,168 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
+
 import dataclasses
 from typing import Annotated, Literal
 from unittest import mock
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
+from absl.testing import absltest, parameterized
+
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.orchestration import run_loop
-from torax._src.orchestration import run_simulation
-from torax._src.orchestration import sim_state
-from torax._src.orchestration import step_function
+from torax._src.orchestration import run_loop, run_simulation, sim_state, step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
-from torax._src.torax_pydantic import model_config
-from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.torax_pydantic import model_config, torax_pydantic
+from torax._src.transport_model import (
+    pydantic_model_base as transport_pydantic_model_base,
+)
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class SimWithTimeDependenceTest(parameterized.TestCase):
-  """Integration tests for torax.sim with time-dependent runtime params."""
+    """Integration tests for torax.sim with time-dependent runtime params."""
 
-  def setUp(self):
-    super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
-        'transport'
-    ].annotation |= FakeTransportConfig
-    model_config.ToraxConfig.model_fields[
-        'solver'
-    ].annotation |= FakeSolverConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
+    def setUp(self):
+        super().setUp()
+        # Save original annotations for restoration in tearDown.
+        self._original_transport_annotation = model_config.ToraxConfig.model_fields[
+            "transport"
+        ].annotation
+        self._original_solver_annotation = model_config.ToraxConfig.model_fields[
+            "solver"
+        ].annotation
+        # Register the fake transport config.
+        model_config.ToraxConfig.model_fields[
+            "transport"
+        ].annotation |= FakeTransportConfig
+        model_config.ToraxConfig.model_fields["solver"].annotation |= FakeSolverConfig
+        model_config.ToraxConfig.model_rebuild(force=True)
 
-  @parameterized.named_parameters(
-      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3+3+2),
-      ('without_adaptive_dt', False, 1, 1, 3.0, [0, 4], 4),
-  )
-  def test_time_dependent_params_update_in_adaptive_dt(
-      self,
-      adaptive_dt: bool,
-      expected_outer_solver_iterations: int,
-      expected_error_state: int,
-      expected_combined_value: float,
-      inner_solver_iterations: list[int],
-      expected_inner_solver_iterations: int,
-  ):
-    """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
+    def tearDown(self):
+        super().tearDown()
+        # Restore original annotations to avoid polluting other tests.
+        model_config.ToraxConfig.model_fields[
+            "transport"
+        ].annotation = self._original_transport_annotation
+        model_config.ToraxConfig.model_fields[
+            "solver"
+        ].annotation = self._original_solver_annotation
+        model_config.ToraxConfig.model_rebuild(force=True)
 
-    config = {
-        'profile_conditions': {
-            'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-            'n_e_right_bc': 0.5e20,
-        },
-        'numerics': {
-            'adaptive_dt': adaptive_dt,
-            # 1 time step in, the T_i_right_bc will be 2.0
-            'fixed_dt': 1.0,
-            'dt_reduction_factor': 1.5,
-            't_final': 1.0,
-            'evolve_ion_heat': True,
-            'evolve_electron_heat': False,
-            'evolve_current': False,
-            'evolve_density': False,
-        },
-        'plasma_composition': {},
-        'geometry': {
-            'geometry_type': 'circular',
-        },
-        'transport': {'model_name': 'fake'},
-        'solver': {
-            'solver_type': 'fake',
-            'inner_solver_iterations': inner_solver_iterations,
-        },
-        'pedestal': {},
-        'time_step_calculator': {'calculator_type': 'fixed'},
-        'sources': {},
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    @parameterized.named_parameters(
+        ("with_adaptive_dt", True, 3, 0, 2.44444444444, [2, 3], 3 + 3 + 2),
+        ("without_adaptive_dt", False, 1, 1, 3.0, [0, 4], 4),
+    )
+    def test_time_dependent_params_update_in_adaptive_dt(
+        self,
+        adaptive_dt: bool,
+        expected_outer_solver_iterations: int,
+        expected_error_state: int,
+        expected_combined_value: float,
+        inner_solver_iterations: list[int],
+        expected_inner_solver_iterations: int,
+    ):
+        """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
 
-    def _fake_run_loop(
-        initial_state: sim_state.SimState,
-        initial_post_processed_outputs: post_processing.PostProcessedOutputs,
-        step_fn: step_function.SimulationStepFn,
-        log_timestep_info: bool = False,
-        progress_bar: bool = True,
-    ) -> tuple[
-        tuple[sim_state.SimState, ...],
-        tuple[post_processing.PostProcessedOutputs, ...],
-        state.SimError,
-    ]:
-      del (
-          log_timestep_info,
-          progress_bar,
-      )
-      output_state, post_processed_outputs = step_fn(
-          initial_state,
-          initial_post_processed_outputs,
-      )
-      self.assertEqual(
-          output_state.solver_numeric_outputs.outer_solver_iterations,
-          expected_outer_solver_iterations,
-      )
-      self.assertEqual(
-          output_state.solver_numeric_outputs.inner_solver_iterations,
-          expected_inner_solver_iterations,
-      )
-      self.assertEqual(
-          output_state.solver_numeric_outputs.solver_error_state,
-          expected_error_state,
-      )
-      np.testing.assert_allclose(
-          output_state.core_profiles.T_i.value[0], expected_combined_value
-      )
-      sim_error = step_fn.check_for_errors(
-          output_state,
-          post_processed_outputs,
-      )
-      return (output_state,), (post_processed_outputs,), sim_error
+        config = {
+            "profile_conditions": {
+                "T_i_right_bc": {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+                "n_e_right_bc": 0.5e20,
+            },
+            "numerics": {
+                "adaptive_dt": adaptive_dt,
+                # 1 time step in, the T_i_right_bc will be 2.0
+                "fixed_dt": 1.0,
+                "dt_reduction_factor": 1.5,
+                "t_final": 1.0,
+                "evolve_ion_heat": True,
+                "evolve_electron_heat": False,
+                "evolve_current": False,
+                "evolve_density": False,
+            },
+            "plasma_composition": {},
+            "geometry": {
+                "geometry_type": "circular",
+            },
+            "transport": {"model_name": "fake_sim_time_dep"},
+            "solver": {
+                "solver_type": "fake",
+                "inner_solver_iterations": inner_solver_iterations,
+            },
+            "pedestal": {},
+            "time_step_calculator": {"calculator_type": "fixed"},
+            "sources": {},
+        }
+        torax_config = model_config.ToraxConfig.from_dict(config)
 
-    with mock.patch.object(
-        run_loop, 'run_loop', wraps=_fake_run_loop
-    ) as mock_run_loop:
-      run_simulation.run_simulation(torax_config)
-    # The initial step will not work, so it should take several adaptive time
-    # steps to get under the T_i_right_bc threshold set above if adaptive_dt
-    # was set to True.
-    mock_run_loop.assert_called_once()
+        def _fake_run_loop(
+            initial_state: sim_state.SimState,
+            initial_post_processed_outputs: post_processing.PostProcessedOutputs,
+            step_fn: step_function.SimulationStepFn,
+            log_timestep_info: bool = False,
+            progress_bar: bool = True,
+        ) -> tuple[
+            tuple[sim_state.SimState, ...],
+            tuple[post_processing.PostProcessedOutputs, ...],
+            state.SimError,
+        ]:
+            del (
+                log_timestep_info,
+                progress_bar,
+            )
+            output_state, post_processed_outputs = step_fn(
+                initial_state,
+                initial_post_processed_outputs,
+            )
+            self.assertEqual(
+                output_state.solver_numeric_outputs.outer_solver_iterations,
+                expected_outer_solver_iterations,
+            )
+            self.assertEqual(
+                output_state.solver_numeric_outputs.inner_solver_iterations,
+                expected_inner_solver_iterations,
+            )
+            self.assertEqual(
+                output_state.solver_numeric_outputs.solver_error_state,
+                expected_error_state,
+            )
+            np.testing.assert_allclose(
+                output_state.core_profiles.T_i.value[0], expected_combined_value
+            )
+            sim_error = step_fn.check_for_errors(
+                output_state,
+                post_processed_outputs,
+            )
+            return (output_state,), (post_processed_outputs,), sim_error
+
+        with mock.patch.object(
+            run_loop, "run_loop", wraps=_fake_run_loop
+        ) as mock_run_loop:
+            run_simulation.run_simulation(torax_config)
+        # The initial step will not work, so it should take several adaptive time
+        # steps to get under the T_i_right_bc threshold set above if adaptive_dt
+        # was set to True.
+        mock_run_loop.assert_called_once()
 
 
 class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
-  """Fake solver config that allows us to hook into the error logic."""
+    """Fake solver config that allows us to hook into the error logic."""
 
-  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
-  param: Annotated[str, torax_pydantic.JAX_STATIC] = 'T_i_right_bc'
-  max_value: float = 2.5
-  inner_solver_iterations: list[int] | None = None
-
-  def build_solver(
-      self,
-      physics_models: physics_models_lib.PhysicsModels,
-  ) -> 'FakeSolver':
-    return FakeSolver(
-        param=self.param,
-        max_value=self.max_value,
-        physics_models=physics_models,
-        inner_solver_iterations=self.inner_solver_iterations,
-    )
-
+    solver_type: Annotated[Literal["fake"], torax_pydantic.JAX_STATIC] = "fake"
+    param: Annotated[str, torax_pydantic.JAX_STATIC] = "T_i_right_bc"
+    max_value: float = 2.5
+    inner_solver_iterations: list[int] | None = None
 
 class FakeSolver(linear_theta_method.LinearThetaMethod):
   """Fake solver that allows us to hook into the error logic.
@@ -224,66 +227,126 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
     # Use x_new as a hacky way to extract what the combined value was.
     # Ti values will be the `combined` value in the output state.
     x_new = cell_variable.CellVariable(
-        dr=0.1,
-        value=np.ones_like(geo_t.rho_norm) * combined,
+        face_centers=geo_t.rho_face_norm,
+        value=jnp.ones_like(geo_t.rho_norm) * combined,
         right_face_constraint=combined,
         right_face_grad_constraint=None,
     )
 
-    # Use the termination condition to determine how many inner solver
-    # iterations to report. This is a bit of a hack but allows us to test
-    # the accumulation of varying number of inner solver iterations for the
-    # adaptive step mode.
-    current_inner_solver_iterations = jnp.where(
-        combined < self._max_value,
-        self._inner_solver_iterations[0],
-        self._inner_solver_iterations[1],
-    )
 
-    def _get_return_value(error_code: int):
-      solver_numeric_outputs = state.SolverNumericOutputs(
-          outer_solver_iterations=1,
-          solver_error_state=error_code,
-          inner_solver_iterations=current_inner_solver_iterations,
-          sawtooth_crash=False,
-      )
-      return (x_new,), solver_numeric_outputs
+class FakeSolver(linear_theta_method.LinearThetaMethod):
+    """Fake solver that allows us to hook into the error logic.
 
-    return jax.lax.cond(
-        combined < self._max_value,
-        lambda: _get_return_value(error_code=0),
-        lambda: _get_return_value(error_code=1),
-    )
+    Given the name of a time-dependent param in the runtime_params, and a max
+    value for
+    that param, this solver returns a successful state if the config values for
+    that param in the config at time t and config at time t+dt sum to less than
+    max value.
+
+    The number of inner solver iterations can also be specified.
+
+    This solver returns the input state as is and doesn't actually use the
+    transport model or sources provided. They are given just to match the base
+    class api.
+    """
+
+    def __init__(
+        self,
+        param: str,
+        max_value: float,
+        physics_models: physics_models_lib.PhysicsModels,
+        inner_solver_iterations: list[int] | None = None,
+    ):
+        super().__init__(
+            physics_models=physics_models,
+        )
+        self._param = param
+        self._max_value = max_value
+        self._inner_solver_iterations = jnp.array(inner_solver_iterations)
+
+    def __call__(
+        self,
+        t: jax.Array,
+        dt: jax.Array,
+        runtime_params_t: runtime_params_lib.RuntimeParams,
+        runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
+        geo_t: geometry.Geometry,
+        geo_t_plus_dt: geometry.Geometry,
+        core_profiles_t: state.CoreProfiles,
+        core_profiles_t_plus_dt: state.CoreProfiles,
+        explicit_source_profiles: source_profiles.SourceProfiles,
+    ) -> tuple[
+        tuple[cell_variable.CellVariable, ...],
+        state.SolverNumericOutputs,
+    ]:
+        combined = getattr(runtime_params_t.profile_conditions, self._param) + getattr(
+            runtime_params_t_plus_dt.profile_conditions, self._param
+        )
+        # Use x_new as a hacky way to extract what the combined value was.
+        # Ti values will be the `combined` value in the output state.
+        x_new = cell_variable.CellVariable(
+            dr=0.1,
+            value=np.ones_like(geo_t.rho_norm) * combined,
+            right_face_constraint=combined,
+            right_face_grad_constraint=None,
+        )
+
+        # Use the termination condition to determine how many inner solver
+        # iterations to report. This is a bit of a hack but allows us to test
+        # the accumulation of varying number of inner solver iterations for the
+        # adaptive step mode.
+        current_inner_solver_iterations = jnp.where(
+            combined < self._max_value,
+            self._inner_solver_iterations[0],
+            self._inner_solver_iterations[1],
+        )
+
+        def _get_return_value(error_code: int):
+            solver_numeric_outputs = state.SolverNumericOutputs(
+                outer_solver_iterations=1,
+                solver_error_state=error_code,
+                inner_solver_iterations=current_inner_solver_iterations,
+                sawtooth_crash=False,
+            )
+            return (x_new,), solver_numeric_outputs
+
+        return jax.lax.cond(
+            combined < self._max_value,
+            lambda: _get_return_value(error_code=0),
+            lambda: _get_return_value(error_code=1),
+        )
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTransportModel(transport_model_lib.TransportModel):
-  """Dummy transport model that always returns zeros."""
+    """Dummy transport model that always returns zeros."""
 
-  def _call_implementation(
-      self,
-      transport_runtime_params: transport_model_runtime_params.RuntimeParams,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
-    return transport_model_lib.TurbulentTransport(
-        chi_face_ion=jnp.zeros(geo.rho_face.shape),
-        chi_face_el=jnp.zeros(geo.rho_face.shape),
-        d_face_el=jnp.zeros(geo.rho_face.shape),
-        v_face_el=jnp.zeros(geo.rho_face.shape),
-    )
+    def _call_implementation(
+        self,
+        transport_runtime_params: transport_model_runtime_params.RuntimeParams,
+        runtime_params: runtime_params_lib.RuntimeParams,
+        geo: geometry.Geometry,
+        core_profiles: state.CoreProfiles,
+        pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+    ) -> transport_model_lib.TurbulentTransport:
+        return transport_model_lib.TurbulentTransport(
+            chi_face_ion=jnp.zeros(geo.rho_face.shape),
+            chi_face_el=jnp.zeros(geo.rho_face.shape),
+            d_face_el=jnp.zeros(geo.rho_face.shape),
+            v_face_el=jnp.zeros(geo.rho_face.shape),
+        )
 
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
-  """Fake transport config for a model that always returns zeros."""
+    """Fake transport config for a model that always returns zeros."""
 
-  model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
+    model_name: Annotated[Literal["fake_sim_time_dep"], torax_pydantic.JAX_STATIC] = (
+        "fake_sim_time_dep"
+    )
 
-  def build_transport_model(self) -> FakeTransportModel:
-    return FakeTransportModel()
+    def build_transport_model(self) -> FakeTransportModel:
+        return FakeTransportModel()
 
 
-if __name__ == '__main__':
-  absltest.main()
+if __name__ == "__main__":
+    absltest.main()

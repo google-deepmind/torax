@@ -416,6 +416,55 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
+  def test_validate_toric_nn_requires_he3(self):
+    """Tests that ToricNN model requires He3 in plasma composition."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {
+        "icrh": {
+            "model_name": "toric_nn",
+            "model_path": "/tmp/dummy_path.json",
+        }
+    }
+
+    # Case 1: He3 is missing (default config often doesn't have it)
+    # Default plasma composition usually has D and T.
+    # This should be VALID in V1 mode (minority_species is None)
+    config_dict["plasma_composition"] = {
+        "main_ion": {"D": 0.5, "T": 0.5},
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": 0.01},
+        },
+    }
+    model_config.ToraxConfig.from_dict(config_dict)
+
+    # Case 1b: He3 missing AND minority_species set -> INVALID
+    config_dict["sources"]["icrh"]["minority_species"] = "He3"
+    with self.assertRaisesRegex(
+        ValueError, 'The ToricNN ICRH model requires "He3" to be present'
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+    # Case 2: He3 is present as main ion -> Valid
+    config_dict["plasma_composition"] = {
+        "main_ion": {"D": 0.47, "T": 0.5, "He3": 0.03},
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": 0.01},
+        },
+    }
+    model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
+
+    # Case 3: He3 is present as impurity -> Valid
+    config_dict["plasma_composition"] = {
+        "main_ion": {"D": 0.5, "T": 0.5},
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"He3": 0.03},
+        },
+    }
+    model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
+
 
 class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   """Tests validation logic for Extended Lengyel and impurity mode."""

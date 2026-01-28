@@ -197,7 +197,8 @@ class StandardGeometryIntermediates:
       docstring for definition.
     vpr:  Profile of dVolume/d(rho_norm), where rho_norm is the normalized
       toroidal flux coordinate [:math:`\mathrm{m^3}`].
-    n_rho: Radial grid points (number of cells).
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
+      For a grid with N cells, there are N+1 faces.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations. Used to create a higher-resolution grid to improve accuracy
       when initializing psi from a plasma current profile.
@@ -237,7 +238,7 @@ class StandardGeometryIntermediates:
   delta_lower_face: array_typing.Array
   elongation: array_typing.Array
   vpr: array_typing.Array
-  n_rho: int
+  face_centers: array_typing.Array
   hires_factor: int
   z_magnetic_axis: array_typing.FloatScalar | None
   # Optional parameters not present in all geometry sources.
@@ -402,7 +403,7 @@ def build_standard_geometry(
 
   # fill geometry structure
   # normalized grid
-  mesh = torax_pydantic.Grid1D(nx=intermediates.n_rho)
+  mesh = torax_pydantic.Grid1D(face_centers=intermediates.face_centers)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   rho_face_norm = mesh.face_centers
@@ -410,8 +411,8 @@ def build_standard_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  rho_hires_norm = np.linspace(
-      0, 1, intermediates.n_rho * intermediates.hires_factor
+  rho_hires_norm = geometry.increase_grid_resolution(
+      rho_face_norm, intermediates.hires_factor
   )
   rho_hires = rho_hires_norm * rho_b
 

@@ -180,7 +180,7 @@ def _calculate_rotation_rule_factor(
   return (
       _C1 * qualikiz_inputs.q
       + _C2 * qualikiz_inputs.smag
-      + _C3 / qualikiz_inputs.epsilon
+      + _C3 / (_EPSILON_NN * qualikiz_inputs.x)
       - _C4
   )
 
@@ -195,7 +195,7 @@ def _apply_rotation_rule(
   lower_bound = 1e-4
   gamma_max = jnp.maximum(gamma_max, lower_bound)
   scaling_factor = jnp.clip(
-      1 + f_rot_rule * qualikiz_inputs.gamma_E_GB / gamma_max
+      1 + f_rot_rule * jnp.abs(qualikiz_inputs.gamma_E_GB) / gamma_max
   )
   # Add an extra dimension to match model outputs.
   scaling_factor = scaling_factor[..., jnp.newaxis]
@@ -217,7 +217,7 @@ class QLKNNTransportModel(
   path: str
   name: str
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

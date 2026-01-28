@@ -27,6 +27,7 @@ Includes:
 - compute_boundary_conditions_for_t_plus_dt: Computes boundary conditions for
   the next timestep and returns updates to State.
 """
+
 import dataclasses
 
 import jax
@@ -85,6 +86,7 @@ def update_core_profiles_during_step(
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
+      main_ion_fractions=ions.main_ion_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
@@ -96,6 +98,8 @@ def update_core_profiles_during_step(
       Z_eff_face=ions.Z_eff_face,
       q_face=psi_calculations.calc_q_face(geo, updated_core_profiles.psi),
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
+      charge_state_info=ions.charge_state_info,
+      charge_state_info_face=ions.charge_state_info_face,
   )
 
 
@@ -157,6 +161,7 @@ def update_core_and_source_profiles_after_step(
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
       geo,
       updated_core_profiles_t_plus_dt.psi,
+      runtime_params_t_plus_dt.numerics.min_rho_norm,
   )
 
   # A wholly new core profiles object is defined as a guard against neglecting
@@ -169,6 +174,7 @@ def update_core_and_source_profiles_after_step(
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
+      main_ion_fractions=ions.main_ion_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
       Z_impurity=ions.Z_impurity,
@@ -191,7 +197,9 @@ def update_core_and_source_profiles_after_step(
       j_total=j_total,
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
-      toroidal_velocity=updated_core_profiles_t_plus_dt.toroidal_velocity,
+      toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
+      charge_state_info=ions.charge_state_info,
+      charge_state_info_face=ions.charge_state_info_face,
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
@@ -286,7 +294,7 @@ def provide_core_profiles_t_plus_dt(
       only_boundary_condition=numerics.evolve_density,
       original_n_e_value=core_profiles_t.n_e,
   )
-  toroidal_velocity = getters.get_updated_toroidal_velocity(
+  toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
 
@@ -298,6 +306,6 @@ def provide_core_profiles_t_plus_dt(
       T_e=T_e,
       psi=psi,
       n_e=n_e,
-      toroidal_velocity=toroidal_velocity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
   )
   return core_profiles_t_plus_dt

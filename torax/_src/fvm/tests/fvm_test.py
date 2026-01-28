@@ -32,6 +32,11 @@ from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
 
 
+def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
+  """Creates uniform face centers from dr and number of cells."""
+  return np.linspace(0.0, num_cells * dr, num=num_cells + 1)
+
+
 class FVMTest(parameterized.TestCase):
 
   @parameterized.parameters([
@@ -43,16 +48,15 @@ class FVMTest(parameterized.TestCase):
     """Tests that leftward convection spreads the right boundary value."""
     num_faces = num_cells + 1
     right_boundary = jnp.array((1.0, -2.0))
-    dr = jnp.array(1.0)
     x_0 = cell_variable.CellVariable(
         value=jnp.zeros(num_cells),
-        dr=dr,
+        face_centers=_make_face_centers(1.0, num_cells),
         right_face_grad_constraint=None,
         right_face_constraint=right_boundary[0],
     )
     x_1 = cell_variable.CellVariable(
         value=jnp.zeros(num_cells),
-        dr=dr,
+        face_centers=_make_face_centers(1.0, num_cells),
         right_face_grad_constraint=None,
         right_face_constraint=right_boundary[1],
     )
@@ -123,7 +127,6 @@ class FVMTest(parameterized.TestCase):
 
     num_faces = num_cells + 1
     dt = jnp.array(1.0)
-    dx = jnp.array(1.0)
     transient_cell_i = jnp.ones(num_cells)
     transient_cell = (transient_cell_i, transient_cell_i)
     d_face_i = jnp.zeros(num_cells + 1)
@@ -146,13 +149,13 @@ class FVMTest(parameterized.TestCase):
       # Make both x_0 and x_1 start at 0
       x_0 = cell_variable.CellVariable(
           value=jnp.zeros(num_cells),
-          dr=dx,
+          face_centers=_make_face_centers(1.0, num_cells),
           right_face_grad_constraint=None,
           right_face_constraint=right_boundary,
       )
       x_1 = cell_variable.CellVariable(
           value=jnp.zeros(num_cells),
-          dr=dx,
+          face_centers=_make_face_centers(1.0, num_cells),
           right_face_grad_constraint=None,
           right_face_constraint=right_boundary,
       )
@@ -365,7 +368,7 @@ class FVMTest(parameterized.TestCase):
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
         value=jnp.zeros(num_cells),
-        dr=jnp.array(1.0),
+        face_centers=_make_face_centers(1.0, num_cells),
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
@@ -483,7 +486,7 @@ class FVMTest(parameterized.TestCase):
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
         value=jnp.zeros(num_cells),
-        dr=jnp.array(1.0),
+        face_centers=_make_face_centers(1.0, num_cells),
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )

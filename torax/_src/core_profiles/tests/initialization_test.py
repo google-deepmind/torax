@@ -72,7 +72,7 @@ class InitializationTest(parameterized.TestCase):
         unused_conductivity=mock.ANY,
     )[0]
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_external, geo
+        j_parallel_external, geo, runtime_params.numerics.min_rho_norm
     )
     j_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
@@ -89,31 +89,30 @@ class InitializationTest(parameterized.TestCase):
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
-  def test_initial_core_profiles_toroidal_velocity(self):
+  def test_initial_core_profiles_toroidal_angular_velocity(self):
     config = default_configs.get_default_config_dict()
     # Test default initialization (zeros)
     torax_config = model_config.ToraxConfig.from_dict(config)
     core_profiles, geo, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
-        core_profiles.toroidal_velocity.value, np.zeros_like(geo.rho)
+        core_profiles.toroidal_angular_velocity.value, np.zeros_like(geo.rho)
     )
 
   def test_initial_toroidal_velocity_from_profile_conditions(self):
     config = default_configs.get_default_config_dict()
-    toroidal_velocity_test = np.array([10.0, 20.0, 30.0, 40.0])
-    _, geo, _ = _get_initial_state(
-        model_config.ToraxConfig.from_dict(config)
-    )
-    config['profile_conditions']['toroidal_velocity'] = {
+    toroidal_angular_velocity_test = np.array([10.0, 20.0, 30.0, 40.0])
+    _, geo, _ = _get_initial_state(model_config.ToraxConfig.from_dict(config))
+    config['profile_conditions']['toroidal_angular_velocity'] = {
         0.0: {
             rho: value
-            for rho, value in zip(geo.rho_norm, toroidal_velocity_test)
+            for rho, value in zip(geo.rho_norm, toroidal_angular_velocity_test)
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     core_profiles, _, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
-        core_profiles.toroidal_velocity.value, toroidal_velocity_test
+        core_profiles.toroidal_angular_velocity.value,
+        toroidal_angular_velocity_test,
     )
 
   @parameterized.parameters(
@@ -532,10 +531,12 @@ def _get_initial_state(
   j_toroidal_total = core_profiles.j_total
   j_toroidal_total_face = core_profiles.j_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      sum(core_sources.psi.values()), geo
+      sum(core_sources.psi.values()), geo, runtime_params.numerics.min_rho_norm
   )
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      core_sources.bootstrap_current.j_parallel_bootstrap, geo
+      core_sources.bootstrap_current.j_parallel_bootstrap,
+      geo,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_ohmic = (
       j_toroidal_total - j_toroidal_external - j_toroidal_bootstrap

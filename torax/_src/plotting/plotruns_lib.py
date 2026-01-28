@@ -19,8 +19,9 @@ import dataclasses
 import enum
 import inspect
 from os import path
-from typing import Any, List
+from typing import Any, Final, List, Mapping, Set
 
+import immutabledict
 import matplotlib
 from matplotlib import figure
 from matplotlib import gridspec
@@ -32,9 +33,44 @@ import xarray as xr
 
 # Internal import.
 
-# Constants for figure setup, plot labels, and formatting.
-# The axes are designed to be plotted in the order they appear in the list,
-# first ascending in columns, then rows.
+
+# For some use-cases it is useful to compare simulations where one will have
+# a given source (e.g. p_icrh) and the other does not. However, the simulation
+# without the source will not have that variable existing in the profile child
+# data tree. To avoid confusion in the plots, it's sometimes useful to
+# explicitly display the zero values of the source profile in the simulation
+# where that source is off or non-existent. We thus need to return zero profiles
+# in the PlotData getattr when that attribute is not initialized from the xarray
+# object. The set of profiles for which this is done, is determined by the
+# _OPTIONAL_PROFILE_ATTRS dictionary. The key is the variable name. The value
+# indicates the appropriate grid type via the _GridType enum.
+class _GridType(enum.Enum):
+  """Enum for grid types."""
+
+  CELL = enum.auto()
+  FACE = enum.auto()
+
+
+_OPTIONAL_PROFILE_ATTRS: Final[Mapping[str, _GridType]] = (
+    immutabledict.immutabledict({
+        'j_ecrh': _GridType.CELL,
+        'j_generic_current': _GridType.CELL,
+        'p_icrh_i': _GridType.CELL,
+        'p_icrh_e': _GridType.CELL,
+        'p_generic_heat_i': _GridType.CELL,
+        'p_generic_heat_e': _GridType.CELL,
+        'p_ecrh_e': _GridType.CELL,
+        'p_alpha_i': _GridType.CELL,
+        'p_alpha_e': _GridType.CELL,
+        'p_ohmic_e': _GridType.CELL,
+        'p_bremsstrahlung_e': _GridType.CELL,
+        'p_cyclotron_radiation_e': _GridType.CELL,
+        'p_impurity_radiation_e': _GridType.CELL,
+        's_gas_puff': _GridType.CELL,
+        's_generic_particle': _GridType.CELL,
+        's_pellet': _GridType.CELL,
+    })
+)
 
 
 class PlotType(enum.Enum):
@@ -94,186 +130,23 @@ class FigureProperties:
 
 
 # pylint: disable=invalid-name
-@dataclasses.dataclass
 class PlotData:
-  r"""Dataclass for all plot related data.
+  """Class for all plot related data with dynamic variable access.
 
-  Attributes:
-    T_i: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
-    T_e: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
-    n_e: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
-      grid.
-    n_i: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
-      grid. Corresponds to a bundled ion mixture if specified as such in the
-      config.
-    n_impurity: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on
-      the cell grid. Corresponds to a bundled ion mixture if specified as such
-      in the config.
-    Z_impurity: Average charge state of the impurity species [dimensionless] on
-      the cell grid.
-    psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
-    v_loop: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
-      on the cell grid.
-    j_total: Total toroidal current density profile [:math:`\mathrm{MA/m^2}`] on
-      the cell grid.
-    j_ohmic: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the cell
-      grid.
-    j_bootstrap: Bootstrap current density profile [:math:`\mathrm{MA/m^2}`] on
-      the cell grid.
-    j_ecrh: Electron cyclotron current density profile [:math:`\mathrm{MA/m^2}`]
-      on the cell grid.
-    j_generic_current: Generic external current source density profile
-      [:math:`\mathrm{MA/m^2}`] on the cell grid.
-    j_external: Total externally driven current source density profile
-      [:math:`\mathrm{MA/m^2}`] on the cell grid.
-    q: Safety factor (q-profile) [dimensionless] on the face grid.
-    magnetic_shear: Magnetic shear profile [dimensionless] on the face grid.
-    chi_turb_i: Turbulent ion heat conductivity [:math:`\mathrm{m^2/s}`] on the
-      face grid.
-    chi_neo_i: Neoclassical ion heat conductivity [:math:`\mathrm{m^2/s}`] on
-      the face grid.
-    chi_turb_e: Turbulent electron heat conductivity [:math:`\mathrm{m^2/s}`] on
-      the face grid.
-    chi_neo_e: Neoclassical electron heat conductivity [:math:`\mathrm{m^2/s}`]
-      on the face grid.
-    D_turb_e: Turbulent electron particle diffusivity [:math:`\mathrm{m^2/s}`]
-      on the face grid.
-    D_neo_e: Neoclassical electron particle diffusivity [:math:`\mathrm{m^2/s}`]
-      on the face grid.
-    V_turb_e: Turbulent electron particle convection [:math:`\mathrm{m^2/s}`] on
-      the face grid.
-    V_neo_e: Neoclassical electron particle convection [:math:`\mathrm{m^2/s}`]
-      on the face grid. Contains all components apart from the Ware pinch.
-    V_neo_ware_e: Neoclassical electron particle convection (Ware pinch term)
-      [:math:`\mathrm{m^2/s}`] on the face grid.
-    p_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
-    p_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
-    p_generic_heat_i: Generic ion heating power density
-      [:math:`\mathrm{MW/m^³}`].
-    p_generic_heat_e: Generic electron heating power density
-      [:math:`\mathrm{MW/m^3}`].
-    p_ecrh_e: Electron cyclotron heating power density
-      [:math:`\mathrm{MW/m^3}`].
-    p_alpha_i: Fusion alpha particle heating power density to ion
-      [:math:`\mathrm{MW/m^3}`].
-    p_alpha_e: Fusion alpha particle heating power density to electrons
-      [:math:`\mathrm{MW/m^3}`].
-    p_ohmic_e: Ohmic heating power density [:math:`\mathrm{MW/m^3}`].
-    p_bremsstrahlung_e: Bremsstrahlung radiation power density
-      [:math:`\mathrm{MW/m^3}`].
-    p_cyclotron_radiation_e: Cyclotron radiation power density
-      [:math:`\mathrm{MW/m^3}`].
-    ei_exchange: Ion-electron heat exchange power density
-      [:math:`\mathrm{MW/m^3}`]. Positive values denote ion heating, and
-      negative values denote ion cooling (electron heating).
-    p_impurity_radiation_e: Impurity radiation power density
-      [:math:`\mathrm{MW/m^3}`].
-    Q_fusion: Fusion power gain (dimensionless).
-    s_gas_puff: Gas puff particle source density [:math:`\mathrm{10^{20} m^{-3}
-      s^{-1}}`].
-    s_generic_particle: Generic particle source density [:math:`\mathrm{10^{20}
-      m^{-3} s^{-1}}`].
-    s_pellet: Pellet particle source density [:math:`\mathrm{10^{20} m^{-3}
-      s^{-1}}`].
-    Ip_profile: Total plasma current [:math:`\mathrm{MA}`].
-    I_bootstrap: Total bootstrap current [:math:`\mathrm{MA}`].
-    I_aux_generic: Total generic current source [:math:`\mathrm{MA}`].
-    I_ecrh: Total electron cyclotron current [:math:`\mathrm{MA}`].
-    P_auxiliary: Total auxiliary heating power [:math:`\mathrm{MW}`].
-    P_ohmic_e: Total Ohmic heating power [:math:`\mathrm{MW}`].
-    P_alpha_total: Total fusion alpha heating power [:math:`\mathrm{MW}`].
-    P_sink: Total electron heating sink [:math:`\mathrm{MW}`].
-    P_bremsstrahlung_e: Total bremsstrahlung radiation power loss
-      [:math:`\mathrm{MW}`].
-    P_cyclotron_e: Total cyclotron radiation power loss [:math:`\mathrm{MW}`].
-    P_radiation_e: Total impurity radiation power loss [:math:`\mathrm{MW}`].
-    t: Simulation time [:math:`\mathrm{s}`].
-    rho_norm: Normalized toroidal flux coordinate on cell grid + boundaries.
-    rho_cell_norm: Normalized toroidal flux coordinate on the cell grid.
-    rho_face_norm: Normalized toroidal flux coordinate on the face grid.
-    T_e_volume_avg: Volume-averaged electron temperature [:math:`\mathrm{keV}`].
-    T_i_volume_avg: Volume-averaged ion temperature [:math:`\mathrm{keV}`].
-    n_e_volume_avg: Volume-averaged electron density [:math:`\mathrm{10^{20}
-      m^{-3}}`].
-    n_i_volume_avg: Volume-averaged ion density [:math:`\mathrm{10^{20}
-      m^{-3}}`].
-    W_thermal_total: Total thermal stored energy [:math:`\mathrm{MJ}`].
-    q95: Safety factor at 95% of the normalized poloidal flux.
-    chi_total_i: Total ion heat conductivity (chi_turb_i + chi_neo_i)
-      [:math:`\mathrm{m^2/s}`] on the face grid.
-    chi_total_e: Total electron heat conductivity (chi_turb_e + chi_neo_e)
-      [:math:`\mathrm{m^2/s}`] on the face grid.
-    D_total_e: Total electron particle diffusivity (D_turb_e + D_neo_e)
-      [:math:`\mathrm{m^2/s}`] on the face grid.
-    V_total_e: Total electron particle convection (V_turb_e + V_neo_e +
-      V_neo_ware_e) [:math:`\mathrm{m^2/s}`] on the face grid.
-    V_neo_total_e: Neoclassical electron particle convection
-      [:math:`\mathrm{m^2/s}`] on the face grid. Contains all components
-      including the Ware pinch.
+  All variables from the output file datasets are accessible as attributes.
   """
 
-  T_i: np.ndarray
-  T_e: np.ndarray
-  n_e: np.ndarray
-  n_i: np.ndarray
-  n_impurity: np.ndarray
-  Z_impurity: np.ndarray
-  psi: np.ndarray
-  v_loop: np.ndarray
-  j_total: np.ndarray
-  j_ohmic: np.ndarray
-  j_bootstrap: np.ndarray
-  j_ecrh: np.ndarray
-  j_generic_current: np.ndarray
-  j_external: np.ndarray
-  q: np.ndarray
-  magnetic_shear: np.ndarray
-  chi_turb_i: np.ndarray
-  chi_neo_i: np.ndarray
-  chi_turb_e: np.ndarray
-  chi_neo_e: np.ndarray
-  D_turb_e: np.ndarray
-  D_neo_e: np.ndarray
-  V_turb_e: np.ndarray
-  V_neo_e: np.ndarray
-  V_neo_ware_e: np.ndarray
-  p_icrh_i: np.ndarray
-  p_icrh_e: np.ndarray
-  p_generic_heat_i: np.ndarray
-  p_generic_heat_e: np.ndarray
-  p_ecrh_e: np.ndarray
-  p_alpha_i: np.ndarray
-  p_alpha_e: np.ndarray
-  p_ohmic_e: np.ndarray
-  p_bremsstrahlung_e: np.ndarray
-  p_cyclotron_radiation_e: np.ndarray
-  ei_exchange: np.ndarray
-  p_impurity_radiation_e: np.ndarray
-  Q_fusion: np.ndarray  # pylint: disable=invalid-name
-  s_gas_puff: np.ndarray
-  s_generic_particle: np.ndarray
-  s_pellet: np.ndarray
-  Ip_profile: np.ndarray
-  I_bootstrap: np.ndarray
-  I_aux_generic: np.ndarray
-  I_ecrh: np.ndarray
-  P_auxiliary: np.ndarray
-  P_ohmic_e: np.ndarray
-  P_alpha_total: np.ndarray
-  P_sink: np.ndarray
-  P_bremsstrahlung_e: np.ndarray
-  P_cyclotron_e: np.ndarray
-  P_radiation_e: np.ndarray
-  t: np.ndarray
-  rho_norm: np.ndarray
-  rho_cell_norm: np.ndarray
-  rho_face_norm: np.ndarray
-  T_e_volume_avg: np.ndarray
-  T_i_volume_avg: np.ndarray
-  n_e_volume_avg: np.ndarray
-  n_i_volume_avg: np.ndarray
-  W_thermal_total: np.ndarray  # pylint: disable=invalid-name
-  q95: np.ndarray
+  def __init__(
+      self,
+      data_tree: xr.DataTree,
+  ):
+    """Initialize PlotData with TORAX output DataTree."""
+    self._top_level_dataset = data_tree.dataset
+    if output.TIME not in self._top_level_dataset:
+      raise ValueError('Time variable not found in top-level dataset.')
+    self._scalars_dataset = data_tree.children[output.SCALARS].dataset
+    self._profiles_dataset = data_tree.children[output.PROFILES].dataset
+    self._numerics_dataset = data_tree.children[output.NUMERICS].dataset
 
   @property
   def chi_total_i(self) -> np.ndarray:
@@ -295,27 +168,113 @@ class PlotData:
   def V_total_e(self) -> np.ndarray:
     return self.V_turb_e + self.V_neo_total_e
 
+  @property
+  def P_sink(self) -> np.ndarray:
+    """Total electron heating sink power [MW].
+
+    Calculated as sum of bremsstrahlung, radiation, and cyclotron losses.
+    """
+    return (
+        self._scalars_dataset['P_bremsstrahlung_e'].to_numpy()
+        + self._scalars_dataset['P_radiation_e'].to_numpy()
+        + self._scalars_dataset['P_cyclotron_e'].to_numpy()
+    )
+
+  @property
+  def P_auxiliary(self) -> np.ndarray:
+    """Total auxiliary power [MW]."""
+    return self._scalars_dataset['P_aux_total'].to_numpy()
+
+  @property
+  def t(self) -> np.ndarray:
+    """Accessor for the time coordinate."""
+    return self._top_level_dataset[output.TIME].to_numpy()
+
+  def __getattr__(self, name: str) -> np.ndarray:
+    """Dynamically access variables from the output datasets.
+
+    Args:
+      name: Name of the variable to access.
+
+    Returns:
+      A numpy array containing the variable data.
+    """
+
+    # Intercept Ip_profile and set as scalars.Ip
+    # This is needed for backwards compatibility with V1 Ip_profile definition
+    # in PlotData.
+    # TODO(b/379838765): Remove this in V2
+    if name == 'Ip_profile':
+      return self._scalars_dataset['Ip'].to_numpy()
+
+    # 1. Search in profiles dataset
+    if self._profiles_dataset is not None and name in self._profiles_dataset:
+      return self._profiles_dataset[name].to_numpy()
+
+    # 2. Search in scalars dataset
+    if self._scalars_dataset is not None and name in self._scalars_dataset:
+      return self._scalars_dataset[name].to_numpy()
+
+    # 3. Search in top-level dataset (for coordinates etc)
+    if self._top_level_dataset is not None and name in self._top_level_dataset:
+      return self._top_level_dataset[name].to_numpy()
+
+    # 4. Search in numerics dataset
+    if self._numerics_dataset is not None and name in self._numerics_dataset:
+      return self._numerics_dataset[name].to_numpy()
+
+    # 5. Check if it is a known optional variable that defaults to zero
+    if name in _OPTIONAL_PROFILE_ATTRS:
+      return self._get_zero_profile(name, _OPTIONAL_PROFILE_ATTRS[name])
+
+    raise AttributeError(
+        f"'{type(self).__name__}' object has no attribute '{name}'. "
+        f"Variable '{name}' not found in output file datasets."
+    )
+
+  def _get_zero_profile(self, name: str, grid_type: _GridType) -> np.ndarray:
+    """Generates a zero-filled array with the correct shape."""
+    time_steps = len(self.t)
+    match grid_type:
+      case _GridType.CELL:
+        spatial_steps = len(self.rho_cell_norm)
+      case _GridType.FACE:
+        spatial_steps = len(self.rho_face_norm)
+      case _:
+        raise ValueError(f"Unknown grid type '{grid_type}' for {name}")
+    return np.zeros((time_steps, spatial_steps))
+
+  def available_variables(self) -> Set[str]:
+    """Returns a set of all available attribute names for validation."""
+    attrs = set()
+
+    # Add all properties (from the class definition)
+    for name, _ in inspect.getmembers(
+        type(self), lambda x: isinstance(x, property)
+    ):
+      attrs.add(name)
+
+    datasets = [
+        self._profiles_dataset,
+        self._scalars_dataset,
+        self._top_level_dataset,
+        self._numerics_dataset,
+    ]
+
+    for ds in datasets:
+      if ds is not None:
+        for var in ds.data_vars:
+          attrs.add(str(var))
+
+    for name in _OPTIONAL_PROFILE_ATTRS:
+      attrs.add(name)
+
+    return attrs
+
 
 def load_data(filename: str) -> PlotData:
   """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
   data_tree = output.load_state_file(filename)
-  # Handle potential time coordinate name variations
-  time = data_tree[output.TIME].to_numpy()
-
-  def get_optional_data(ds, key, grid_type):
-    if grid_type.lower() not in ['cell', 'face']:
-      raise ValueError(
-          f'grid_type for {key} must be either "cell" or "face", got'
-          f' {grid_type}'
-      )
-    if key in ds:
-      return ds[key].to_numpy()
-    else:
-      return (
-          np.zeros((len(time), len(ds[output.RHO_CELL_NORM])))
-          if grid_type == 'cell'
-          else np.zeros((len(time), len(ds[output.RHO_FACE_NORM].to_numpy())))
-      )
 
   def _transform_data(ds: xr.Dataset):
     """Transforms data in-place to the desired units."""
@@ -364,93 +323,7 @@ def load_data(filename: str) -> PlotData:
 
     return ds
 
-  data_tree = xr.map_over_datasets(_transform_data, data_tree)
-  profiles_dataset = data_tree.children[output.PROFILES].dataset
-  scalars_dataset = data_tree.children[output.SCALARS].dataset
-  dataset = data_tree.dataset
-
-  return PlotData(
-      T_i=profiles_dataset[output.T_I].to_numpy(),
-      T_e=profiles_dataset[output.T_E].to_numpy(),
-      n_e=profiles_dataset[output.N_E].to_numpy(),
-      n_i=profiles_dataset[output.N_I].to_numpy(),
-      n_impurity=profiles_dataset[output.N_IMPURITY].to_numpy(),
-      Z_impurity=profiles_dataset[output.Z_IMPURITY].to_numpy(),
-      psi=profiles_dataset[output.PSI].to_numpy(),
-      v_loop=profiles_dataset[output.V_LOOP].to_numpy(),
-      j_total=profiles_dataset[output.J_TOROIDAL_TOTAL].to_numpy(),
-      j_ohmic=profiles_dataset[output.J_TOROIDAL_OHMIC].to_numpy(),
-      j_bootstrap=profiles_dataset[output.J_TOROIDAL_BOOTSTRAP].to_numpy(),
-      j_external=profiles_dataset[output.J_TOROIDAL_EXTERNAL].to_numpy(),
-      j_ecrh=get_optional_data(profiles_dataset, 'j_ecrh', 'cell'),
-      j_generic_current=get_optional_data(
-          profiles_dataset, 'j_generic_current', 'cell'
-      ),
-      q=profiles_dataset[output.Q].to_numpy(),
-      magnetic_shear=profiles_dataset[output.MAGNETIC_SHEAR].to_numpy(),
-      chi_turb_i=profiles_dataset[output.CHI_TURB_I].to_numpy(),
-      chi_neo_i=profiles_dataset[output.CHI_NEO_I].to_numpy(),
-      chi_turb_e=profiles_dataset[output.CHI_TURB_E].to_numpy(),
-      chi_neo_e=profiles_dataset[output.CHI_NEO_E].to_numpy(),
-      D_turb_e=profiles_dataset[output.D_TURB_E].to_numpy(),
-      D_neo_e=profiles_dataset[output.D_NEO_E].to_numpy(),
-      V_turb_e=profiles_dataset[output.V_TURB_E].to_numpy(),
-      V_neo_e=profiles_dataset[output.V_NEO_E].to_numpy(),
-      V_neo_ware_e=profiles_dataset[output.V_NEO_WARE_E].to_numpy(),
-      rho_norm=dataset[output.RHO_NORM].to_numpy(),
-      rho_cell_norm=dataset[output.RHO_CELL_NORM].to_numpy(),
-      rho_face_norm=dataset[output.RHO_FACE_NORM].to_numpy(),
-      p_icrh_i=get_optional_data(profiles_dataset, 'p_icrh_i', 'cell'),
-      p_icrh_e=get_optional_data(profiles_dataset, 'p_icrh_e', 'cell'),
-      p_generic_heat_i=get_optional_data(
-          profiles_dataset, 'p_generic_heat_i', 'cell'
-      ),
-      p_generic_heat_e=get_optional_data(
-          profiles_dataset, 'p_generic_heat_e', 'cell'
-      ),
-      p_ecrh_e=get_optional_data(profiles_dataset, 'p_ecrh_e', 'cell'),
-      p_alpha_i=get_optional_data(profiles_dataset, 'p_alpha_i', 'cell'),
-      p_alpha_e=get_optional_data(profiles_dataset, 'p_alpha_e', 'cell'),
-      p_ohmic_e=get_optional_data(profiles_dataset, 'p_ohmic_e', 'cell'),
-      p_bremsstrahlung_e=get_optional_data(
-          profiles_dataset, 'p_bremsstrahlung_e', 'cell'
-      ),
-      p_cyclotron_radiation_e=get_optional_data(
-          profiles_dataset, 'p_cyclotron_radiation_e', 'cell'
-      ),
-      p_impurity_radiation_e=get_optional_data(
-          profiles_dataset, 'p_impurity_radiation_e', 'cell'
-      ),
-      ei_exchange=profiles_dataset[
-          'ei_exchange'
-      ].to_numpy(),  # ion heating/sink
-      Q_fusion=scalars_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
-      s_gas_puff=get_optional_data(profiles_dataset, 's_gas_puff', 'cell'),
-      s_generic_particle=get_optional_data(
-          profiles_dataset, 's_generic_particle', 'cell'
-      ),
-      s_pellet=get_optional_data(profiles_dataset, 's_pellet', 'cell'),
-      Ip_profile=profiles_dataset[output.IP_PROFILE].to_numpy()[:, -1],
-      I_bootstrap=scalars_dataset[output.I_BOOTSTRAP].to_numpy(),
-      I_aux_generic=scalars_dataset['I_aux_generic'].to_numpy(),
-      I_ecrh=scalars_dataset['I_ecrh'].to_numpy(),
-      P_ohmic_e=scalars_dataset['P_ohmic_e'].to_numpy(),
-      P_auxiliary=scalars_dataset['P_aux_total'].to_numpy(),
-      P_alpha_total=scalars_dataset['P_alpha_total'].to_numpy(),
-      P_sink=scalars_dataset['P_bremsstrahlung_e'].to_numpy()
-      + scalars_dataset['P_radiation_e'].to_numpy()
-      + scalars_dataset['P_cyclotron_e'].to_numpy(),
-      P_bremsstrahlung_e=scalars_dataset['P_bremsstrahlung_e'].to_numpy(),
-      P_radiation_e=scalars_dataset['P_radiation_e'].to_numpy(),
-      P_cyclotron_e=scalars_dataset['P_cyclotron_e'].to_numpy(),
-      T_e_volume_avg=scalars_dataset['T_e_volume_avg'].to_numpy(),
-      T_i_volume_avg=scalars_dataset['T_i_volume_avg'].to_numpy(),
-      n_e_volume_avg=scalars_dataset['n_e_volume_avg'].to_numpy(),
-      n_i_volume_avg=scalars_dataset['n_i_volume_avg'].to_numpy(),
-      W_thermal_total=scalars_dataset['W_thermal_total'].to_numpy(),
-      q95=scalars_dataset['q95'].to_numpy(),
-      t=time,
-  )
+  return PlotData(xr.map_over_datasets(_transform_data, data_tree))
 
 
 def plot_run(
@@ -467,21 +340,23 @@ def plot_run(
   plotdata1 = load_data(outfile)
   plotdata2 = load_data(outfile2) if outfile2 else None
 
-  # Attribute check. Sufficient to check one PlotData object.
-  plotdata_fields = set(plotdata1.__dataclass_fields__)
-  plotdata_properties = {
-      name
-      for name, _ in inspect.getmembers(
-          type(plotdata1), lambda o: isinstance(o, property)
-      )
-  }
-  plotdata_attrs = plotdata_fields.union(plotdata_properties)
-  for cfg in plot_config.axes:
-    for attr in cfg.attrs:
-      if attr not in plotdata_attrs:
-        raise ValueError(
-            f"Attribute '{attr}' in plot_config does not exist in PlotData"
-        )
+  # Prepare list of datasets to check, associating them with their filenames
+  # for clearer errors
+  datasets_to_check = [(plotdata1, outfile)]
+  if plotdata2 is not None:
+    datasets_to_check.append((plotdata2, outfile2))
+
+  for plotdata, filename in datasets_to_check:
+    # Get the set of valid keys for this specific dataset
+    available_vars = plotdata.available_variables()
+
+    for cfg in plot_config.axes:
+      for attr in cfg.attrs:
+        if attr not in available_vars:
+          raise ValueError(
+              f"Attribute '{attr}' in plot_config was not found in "
+              f'output file: {filename}'
+          )
 
   fig, axes, slider_ax = create_figure(plot_config)
 

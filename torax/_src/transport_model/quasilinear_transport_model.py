@@ -48,6 +48,7 @@ class NormalizedLogarithmicGradients:
       cls,
       core_profiles: state.CoreProfiles,
       radial_coordinate: jnp.ndarray,
+      radial_face_coordinate: jnp.ndarray,
       reference_length: jnp.ndarray,
   ) -> typing_extensions.Self:
     """Calculates the normalized logarithmic gradients."""
@@ -62,6 +63,7 @@ class NormalizedLogarithmicGradients:
       gradients[name] = calculate_normalized_logarithmic_gradient(
           var=profile,
           radial_coordinate=radial_coordinate,
+          radial_face_coordinate=radial_face_coordinate,
           reference_length=reference_length,
       )
     return cls(**gradients)
@@ -165,6 +167,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 def calculate_normalized_logarithmic_gradient(
     var: cell_variable.CellVariable,
     radial_coordinate: jax.Array,
+    radial_face_coordinate: jax.Array,
     reference_length: jax.Array,
 ) -> jax.Array:
   """Calculates the normalized logarithmic gradient of a CellVariable on the face grid."""
@@ -174,7 +177,13 @@ def calculate_normalized_logarithmic_gradient(
   result = jnp.where(
       jnp.abs(var.face_value()) < constants_module.CONSTANTS.eps,
       constants_module.CONSTANTS.eps,
-      -reference_length * var.face_grad(radial_coordinate) / var.face_value(),
+      -reference_length
+      * var.face_grad(
+          x=radial_coordinate,
+          x_left=radial_face_coordinate[0],
+          x_right=radial_face_coordinate[-1],
+      )
+      / var.face_value(),
   )
 
   # to avoid divisions by zero elsewhere in TORAX, if the gradient is zero

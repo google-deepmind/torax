@@ -35,6 +35,7 @@ a custom location, use the --output_dir flag:
 python -m torax.tests.scripts.regenerate_refs --write_to_file --no_summary
 --output_dir=/path/to/my/custom/directory
 """
+
 from collections.abc import Callable, Sequence
 import json
 import logging
@@ -132,7 +133,9 @@ def _calculate_new_references(
             geo=geo,
             bootstrap_current=source_profiles.bootstrap_current,
             j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-                sum(source_profiles.psi.values()), geo
+                sum(source_profiles.psi.values()),
+                geo,
+                runtime_params.numerics.min_rho_norm,
             ),
         )
     )
@@ -151,7 +154,7 @@ def _calculate_new_references(
     )
     psi = cell_variable.CellVariable(
         value=psi_value,
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_grad_constraint=psi_constraint,
     )
   else:
@@ -160,6 +163,7 @@ def _calculate_new_references(
   j_total, _, _ = psi_calculations.calc_j_total(
       geo,
       psi,
+      min_rho_norm=runtime_params.numerics.min_rho_norm,
   )
 
   q_face = psi_calculations.calc_q_face(geo, psi)

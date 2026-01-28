@@ -45,31 +45,54 @@ ValueType: TypeAlias = dict[
 class Grid1D(model_base.BaseModelFrozen):
   """Data structure defining a 1-D grid of cells with faces.
 
-  Attributes:
-    nx: Number of cells.
+  The grid is defined by the face_centers array, which specifies the locations
+  of all faces (including boundary faces). For a grid with N cells, there are
+  N+1 faces.
   """
+  face_centers: pydantic_types.NumpyArray1DSorted
 
-  nx: typing_extensions.Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_data(cls, data: Any) -> Any:
+    if not isinstance(data, dict):
+      return data
+    if 'nx' in data:
+      nx = data['nx']
+      face_centers = get_face_centers(nx)
+      data['face_centers'] = face_centers
+      del data['nx']
+    return data
 
-  @functools.cached_property
-  def dx(self) -> float:
-    return 1 / self.nx
+  @pydantic.field_validator('face_centers')
+  @classmethod
+  def _validate_face_centers(cls, v: np.ndarray) -> np.ndarray:
+    """Validates that face_centers has at least 5 elements (4 cells)."""
+    if len(v) < 5:
+      raise ValueError('face_centers must have at least 5 elements (4 cells)')
+    if 0.0 not in v or 1.0 not in v:
+      raise ValueError('face_centers must include 0.0 and 1.0')
+    return v
 
   @property
-  def face_centers(self) -> np.ndarray:
-    """Coordinates of face centers."""
-    return _get_face_centers(nx=self.nx, dx=self.dx)
+  def nx(self) -> int:
+    """Number of cells in the grid."""
+    return len(self.face_centers) - 1
 
   @property
   def cell_centers(self) -> np.ndarray:
-    """Coordinates of cell centers."""
-    return _get_cell_centers(nx=self.nx, dx=self.dx)
+    """Coordinates of cell centers (midpoints between faces)."""
+    return (self.face_centers[1:] + self.face_centers[:-1]) / 2.0
+
+  @functools.cached_property
+  def cell_widths(self) -> jax.Array:
+    """Widths of cells."""
+    return jnp.diff(self.face_centers)
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
-    return self.nx == other.nx and self.dx == other.dx
-
-  def __hash__(self) -> int:
-    return hash((self.nx, self.dx))
+    """Custom equality to handle numpy array comparison."""
+    if not isinstance(other, Grid1D):
+      return False
+    return np.array_equal(self.face_centers, other.face_centers)
 
 
 @jax.tree_util.register_dataclass
@@ -83,18 +106,22 @@ class TimeVaryingArrayUpdate:
 
   def __post_init__(self):
     """Consistency checks for the provided values."""
-    if not isinstance(self.value, type(self.rho_norm)):
+    if (self.rho_norm is None and self.value is not None) or (
+        self.rho_norm is not None and self.value is None
+    ):
       raise ValueError(
-          'If rho_norm is provided, value must also be provided. Got value:'
-          f' {type(self.value)}, rho_norm: {type(self.rho_norm)}'
+          'Either both or neither of rho_norm and value must be provided.'
       )
+
     if self.rho_norm is not None and self.value is not None:
       rho_norm_shape = self.rho_norm.shape
       if rho_norm_shape[0] != self.value.shape[1]:
         raise ValueError(
-            'rho_norm and value must have the same shape. Got rho_norm shape:'
-            f' {rho_norm_shape} and value shape: {self.value.shape}'
+            'rho_norm and value must have the same trailing dimension. '
+            f'Got rho_norm shape: {rho_norm_shape} and value shape: '
+            f'{self.value.shape}'
         )
+
     if self.value is not None and self.time is not None:
       if self.value.shape[0] != self.time.shape[0]:
         raise ValueError(
@@ -545,11 +572,7 @@ def set_grid(
     # The update API assumes all submodels are unique objects. Construct
     # a new Grid1D object (without validation) to ensure this. We do reuse
     # the same NumPy arrays.
-    new_grid = Grid1D.model_construct(
-        nx=grid.nx,
-        face_centers=grid.face_centers,
-        cell_centers=grid.cell_centers,
-    )
+    new_grid = Grid1D.model_construct(face_centers=grid.face_centers)
     if submodel.grid is None:
       submodel.__dict__['grid'] = new_grid
     else:
@@ -577,16 +600,12 @@ def _is_non_negative(
   return time_varying_array
 
 
-# The Torax mesh objects will generally have the same grid parameters. Thus
-# a global cache prevents recomputing the same linspaces for each mesh.
 @functools.cache
-def _get_face_centers(nx: int, dx: float) -> np.ndarray:
+def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
+  if dx is None:
+    dx = 1.0 / nx
   return np.linspace(0, nx * dx, nx + 1)
 
-
-@functools.cache
-def _get_cell_centers(nx: int, dx: float) -> np.ndarray:
-  return np.linspace(dx * 0.5, (nx - 0.5) * dx, nx)
 
 NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
     TimeVaryingArray, pydantic.AfterValidator(_is_non_negative)

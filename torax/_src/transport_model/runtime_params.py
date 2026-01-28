@@ -21,6 +21,7 @@ import dataclasses
 
 import jax
 from torax._src import array_typing
+from torax._src.transport_model import enums
 
 
 # pylint: disable=invalid-name
@@ -51,3 +52,8 @@ class RuntimeParams:
   rho_outer: array_typing.FloatScalar
   smoothing_width: float
   smooth_everywhere: bool
+  disable_chi_i: array_typing.BoolScalar
+  disable_chi_e: array_typing.BoolScalar
+  disable_D_e: array_typing.BoolScalar
+  disable_V_e: array_typing.BoolScalar
+  merge_mode: enums.MergeMode = dataclasses.field(metadata={'static': True})

@@ -41,28 +41,28 @@ class SauterTest(absltest.TestCase):
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
         T_i=cell_variable.CellVariable(
-            value=np.linspace(400, 700, n_rho), dr=geo.drho_norm
+            value=np.linspace(400, 700, n_rho), face_centers=geo.rho_face_norm
         ),
         T_e=cell_variable.CellVariable(
-            value=np.linspace(4000, 7000, n_rho), dr=geo.drho_norm
+            value=np.linspace(4000, 7000, n_rho), face_centers=geo.rho_face_norm
         ),
         psi=cell_variable.CellVariable(
-            value=np.linspace(9000, 4000, n_rho), dr=geo.drho_norm
+            value=np.linspace(9000, 4000, n_rho), face_centers=geo.rho_face_norm
         ),
         n_e=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), dr=geo.drho_norm
+            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
         ),
         n_i=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), dr=geo.drho_norm
+            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
         ),
         Z_i_face=np.linspace(1000, 2000, n_rho + 1),
         Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
         pressure_thermal_e=cell_variable.CellVariable(
-            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+            value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
         ),
         pressure_thermal_i=cell_variable.CellVariable(
-            value=np.linspace(1000, 2000, n_rho), dr=geo.drho_norm
+            value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
         ),
     )
 

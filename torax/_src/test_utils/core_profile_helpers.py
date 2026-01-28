@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helpers for tests using core profiles."""
+
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -20,6 +21,7 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output
+from torax._src.physics import charge_states
 
 
 # pylint: disable=invalid-name
@@ -29,17 +31,31 @@ def make_zero_core_profiles(
     Z_impurity: jax.Array | None = None,
     Z_impurity_face: jax.Array | None = None,
     impurity_names: tuple[str, ...] = ("dummy_impurity",),
+    main_ion_names: tuple[str, ...] = ("dummy_main_ion",),
 ) -> state.CoreProfiles:
   """Returns a dummy CoreProfiles object."""
   zero_cell_variable = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_constraint=jnp.ones(()),
       right_face_grad_constraint=None,
   )
   impurity_fractions_dict = {
       name: jnp.zeros_like(geo.rho) for name in impurity_names
   }
+  main_ion_fractions_dict = {name: jnp.array(0.0) for name in main_ion_names}
+  zero_charge_state_info = charge_states.ChargeStateInfo(
+      Z_avg=jnp.zeros_like(geo.rho),
+      Z2_avg=jnp.zeros_like(geo.rho),
+      Z_per_species={name: jnp.zeros_like(geo.rho) for name in impurity_names},
+  )
+  zero_charge_state_info_face = charge_states.ChargeStateInfo(
+      Z_avg=jnp.zeros_like(geo.rho_face),
+      Z2_avg=jnp.zeros_like(geo.rho_face),
+      Z_per_species={
+          name: jnp.zeros_like(geo.rho_face) for name in impurity_names
+      },
+  )
   return state.CoreProfiles(
       T_i=zero_cell_variable,
       T_e=T_e if T_e is not None else zero_cell_variable,
@@ -49,6 +65,7 @@ def make_zero_core_profiles(
       n_i=zero_cell_variable,
       n_impurity=zero_cell_variable,
       impurity_fractions=impurity_fractions_dict,
+      main_ion_fractions=main_ion_fractions_dict,
       q_face=jnp.zeros_like(geo.rho_face),
       s_face=jnp.zeros_like(geo.rho_face),
       v_loop_lcfs=jnp.array(0.0),
@@ -70,7 +87,9 @@ def make_zero_core_profiles(
       j_total=jnp.zeros_like(geo.rho),
       j_total_face=jnp.zeros_like(geo.rho_face),
       Ip_profile_face=jnp.zeros_like(geo.rho_face),
-      toroidal_velocity=zero_cell_variable,
+      toroidal_angular_velocity=zero_cell_variable,
+      charge_state_info=zero_charge_state_info,
+      charge_state_info_face=zero_charge_state_info_face,
   )
 
 
@@ -80,11 +99,11 @@ def make_constant_core_profile(
 ) -> cell_variable.CellVariable:
   return cell_variable.CellVariable(
       value=value * np.ones_like(geo.rho_norm),
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=np.zeros(()),
       left_face_constraint=None,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(value),
-      dr=geo.drho_norm,
   )
 
 

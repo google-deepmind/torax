@@ -59,7 +59,12 @@ class StateHistoryTest(parameterized.TestCase):
             'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
         },
         'numerics': {},
-        'plasma_composition': {},
+        'plasma_composition': {
+            'impurity': {
+                'impurity_mode': 'n_e_ratios',
+                'species': {'Ne': 0.01},
+            }
+        },
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
@@ -82,6 +87,7 @@ class StateHistoryTest(parameterized.TestCase):
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         T_i={
             'fusion': ones,
+            'generic_heat': 2 * ones,
         },
         T_e={
             'bremsstrahlung': -ones,
@@ -122,7 +128,12 @@ class StateHistoryTest(parameterized.TestCase):
         edge_outputs=None,
     )
     sim_error = state.SimError.NO_ERROR
-    self._output_state = post_processing.PostProcessedOutputs.zeros(self.geo)
+    previous_post_processed_outputs = (
+        post_processing.PostProcessedOutputs.zeros(self.geo)
+    )
+    self._output_state = post_processing.make_post_processed_outputs(
+        self.sim_state, runtime_params, previous_post_processed_outputs
+    )
 
     self.history = output.StateHistory(
         sim_error=sim_error,
@@ -314,7 +325,7 @@ class StateHistoryTest(parameterized.TestCase):
     torax_state = self.sim_state
     T_e = cell_variable.CellVariable(  # pylint: disable=invalid-name
         value=jnp.ones_like(self.geo.rho),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=2,
         left_face_constraint=18,
         left_face_grad_constraint=None,
@@ -367,47 +378,64 @@ class StateHistoryTest(parameterized.TestCase):
             output.RHO_NORM,
             output.RHO_FACE_NORM,
             output.RHO_CELL_NORM,
+            impurity_radiation.IMPURITY_DIM,
         },
     )
     for data_var, data_array in profile_output_dataset.data_vars.items():
       # Check the shape of the underlying data.
       data_array_shape = data_array.values.shape
-      self.assertLen(
-          data_array_shape,
-          2,
-          msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
-      )
       data_array_dims = data_array.dims
-      self.assertEqual(data_array_dims[0], output.TIME)
-      self.assertIn(
-          data_array_dims[1],
-          [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
-      )
+      if impurity_radiation.IMPURITY_DIM in data_array_dims:
+        self.assertLen(
+            data_array_shape,
+            3,
+            msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+        )
+        self.assertEqual(data_array_dims[0], impurity_radiation.IMPURITY_DIM)
+        self.assertEqual(data_array_dims[1], output.TIME)
+        self.assertIn(
+            data_array_dims[2],
+            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+        )
+      else:
+        self.assertLen(
+            data_array_shape,
+            2,
+            msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
+        )
+        self.assertEqual(data_array_dims[0], output.TIME)
+        self.assertIn(
+            data_array_dims[1],
+            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+        )
 
   def test_output_scalars_are_correct_shape(self):
     output_xr = self.history.simulation_output_to_xr()
     scalar_output_dataset = output_xr.children[output.SCALARS].dataset
     # Check coordinates are inherited from top level dataset.
+    expected_coords = {
+        output.TIME,
+        output.RHO_NORM,
+        output.RHO_FACE_NORM,
+        output.RHO_CELL_NORM,
+        output.MAIN_ION,
+    }
+
     self.assertCountEqual(
         scalar_output_dataset.coords,
-        {
-            output.TIME,
-            output.RHO_NORM,
-            output.RHO_FACE_NORM,
-            output.RHO_CELL_NORM,
-        },
+        expected_coords,
     )
     for data_var, data_array in scalar_output_dataset.data_vars.items():
-      # Check the shape of the underlying data.
-      data_array_shape = data_array.values.shape
-      self.assertIn(
-          len(data_array_shape),
-          [0, 1],
-          msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
-      )
+      # Check that none of the dims are spatial.
+      for dim in data_array.dims:
+        self.assertNotIn(
+            dim,
+            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+            msg=f'Data var {data_var} in scalars has spatial dim {dim}.',
+        )
       data_array_dims = data_array.dims
       if data_array_dims:
-        self.assertEqual(data_array_dims[0], output.TIME)
+        self.assertIn(output.TIME, data_array_dims)
 
   def test_impurity_radiation_output(self):
     test_data_dir = paths.test_data_dir()
@@ -611,6 +639,201 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('sim_error', output_xr.numerics)
     self.assertEqual(
         output_xr.numerics.sim_error, state.SimError.NAN_DETECTED.value
+    )
+
+  def test_main_ion_fractions_output_matches_config(self):
+    """Tests that main_ion_fractions in core_profiles matches config expectations.
+
+    This is a non-trivial case with time-varying scalar inputs for 2 main ions
+    (D and T) at different time points.
+    """
+    # Create a config with 2 main ions with time-varying fractions
+    torax_config = model_config.ToraxConfig.from_dict({
+        'profile_conditions': {
+            'T_i_right_bc': 27.7,
+            'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
+        },
+        'numerics': {},
+        'plasma_composition': {
+            'main_ion': {
+                'D': {0.0: 0.5, 1.0: 0.3},
+                'T': {0.0: 0.5, 1.0: 0.7},
+            },
+        },
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': default_sources.get_default_source_config(),
+        'solver': {},
+        'transport': {'model_name': 'constant'},
+        'pedestal': {},
+    })
+
+    geo = torax_config.geometry.build_provider(t=0.0)
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+    )
+
+    # Create core profiles at two different times
+    runtime_params_t0 = runtime_params_provider(t=0.0)
+    runtime_params_t1 = runtime_params_provider(t=1.0)
+
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+
+    core_profiles_t0 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t0,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    core_profiles_t1 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t1,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    # Verify the fractions in core_profiles match the config at t=0
+    np.testing.assert_allclose(
+        core_profiles_t0.main_ion_fractions['D'],
+        0.5,
+        err_msg='D fraction at t=0 should be 0.5',
+    )
+    np.testing.assert_allclose(
+        core_profiles_t0.main_ion_fractions['T'],
+        0.5,
+        err_msg='T fraction at t=0 should be 0.5',
+    )
+
+    # Verify the fractions in core_profiles match the config at t=1
+    np.testing.assert_allclose(
+        core_profiles_t1.main_ion_fractions['D'],
+        0.3,
+        err_msg='D fraction at t=1 should be 0.3',
+    )
+    np.testing.assert_allclose(
+        core_profiles_t1.main_ion_fractions['T'],
+        0.7,
+        err_msg='T fraction at t=1 should be 0.7',
+    )
+
+    # Verify fractions sum to 1 at both times
+    sum_t0 = (
+        core_profiles_t0.main_ion_fractions['D']
+        + core_profiles_t0.main_ion_fractions['T']
+    )
+    sum_t1 = (
+        core_profiles_t1.main_ion_fractions['D']
+        + core_profiles_t1.main_ion_fractions['T']
+    )
+    np.testing.assert_allclose(
+        sum_t0, 1.0, err_msg='Fractions at t=0 should sum to 1'
+    )
+    np.testing.assert_allclose(
+        sum_t1, 1.0, err_msg='Fractions at t=1 should sum to 1'
+    )
+
+    # Verify that both D and T species are present in the dict
+    self.assertIn('D', core_profiles_t0.main_ion_fractions)
+    self.assertIn('T', core_profiles_t0.main_ion_fractions)
+    self.assertIn('D', core_profiles_t1.main_ion_fractions)
+    self.assertIn('T', core_profiles_t1.main_ion_fractions)
+
+  def test_main_ion_fractions_xr_output_matches_config(self):
+    """Tests that main_ion_fractions in core_profiles matches config expectations.
+
+    This is a non-trivial case with time-varying scalar inputs for 2 main ions
+    (D and T) at different time points.
+    """
+    # Create a config with 2 main ions with time-varying fractions
+    torax_config = model_config.ToraxConfig.from_dict({
+        'profile_conditions': {
+            'T_i_right_bc': 27.7,
+            'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
+        },
+        'numerics': {},
+        'plasma_composition': {
+            'main_ion': {
+                'D': {0.0: 0.5, 1.0: 0.3},
+                'T': {0.0: 0.5, 1.0: 0.7},
+            },
+        },
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': default_sources.get_default_source_config(),
+        'solver': {},
+        'transport': {'model_name': 'constant'},
+        'pedestal': {},
+    })
+
+    geo = torax_config.geometry.build_provider(t=0.0)
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+    )
+
+    # Create core profiles at two different times
+    runtime_params_t0 = runtime_params_provider(t=0.0)
+    runtime_params_t1 = runtime_params_provider(t=1.0)
+
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+
+    core_profiles_t0 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t0,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    core_profiles_t1 = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t1,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+
+    sim_state_t0 = dataclasses.replace(
+        self.sim_state,
+        core_profiles=core_profiles_t0,
+        geometry=geo,
+        t=jnp.array(0.0),
+    )
+
+    sim_state_t1 = dataclasses.replace(
+        self.sim_state,
+        core_profiles=core_profiles_t1,
+        geometry=geo,
+        t=jnp.array(1.0),
+    )
+
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=[sim_state_t0, sim_state_t1],
+        post_processed_outputs_history=(self._output_state, self._output_state),
+        torax_config=torax_config,
+    )
+
+    output_xr = history.simulation_output_to_xr()
+
+    # Check that main_ion_fractions is present in scalars
+    scalars_dataset = output_xr.children[output.SCALARS].dataset
+    self.assertIn('main_ion_fractions', scalars_dataset.data_vars)
+
+    fractions_xr = scalars_dataset['main_ion_fractions']
+
+    # Verify values at t=0
+    np.testing.assert_allclose(
+        fractions_xr.sel(main_ion='D', time=0.0).values, 0.5
+    )
+    np.testing.assert_allclose(
+        fractions_xr.sel(main_ion='T', time=0.0).values, 0.5
+    )
+
+    # Verify values at t=1
+    np.testing.assert_allclose(
+        fractions_xr.sel(main_ion='D', time=1.0).values, 0.3
+    )
+    np.testing.assert_allclose(
+        fractions_xr.sel(main_ion='T', time=1.0).values, 0.7
     )
 
 

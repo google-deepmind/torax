@@ -14,12 +14,14 @@
 
 """Base pydantic config for Transport models."""
 import abc
+from typing import Annotated
 
 import chex
 import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params
 from torax._src.transport_model import transport_model
 import typing_extensions
@@ -57,6 +59,15 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       transport model outputs.
     smooth_everywhere: Smooth across entire radial domain regardless of inner
       and outer patches.
+    disable_chi_i: If True, sets the ion heat conductivity output to zero.
+    disable_chi_e: If True, sets the electron heat conductivity output to zero.
+    disable_D_e: If True, sets the electron diffusivity output to zero.
+    disable_V_e: If True, sets the electron convection output to zero.
+    merge_mode: Defines how this model is combined with previous models in a
+      CombinedTransportModel. 'add' (default) adds to the accumulated value.
+      'overwrite' overwrites the previous value in this model's valid domain
+      and prevents subsequent 'add' models in the sequence from modifying this
+      region.
   """
 
   chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
@@ -71,6 +82,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
+  # TODO(b/434175938): Remove patch mechanism in V2 due to duplication with
+  # combined transport model framework.
   apply_inner_patch: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -109,6 +122,21 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   smoothing_width: pydantic.NonNegativeFloat = 0.0
   smooth_everywhere: bool = False
+  disable_chi_i: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  disable_chi_e: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  disable_D_e: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  disable_V_e: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  merge_mode: Annotated[enums.MergeMode, torax_pydantic.JAX_STATIC] = (
+      enums.MergeMode.ADD
+  )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
@@ -174,6 +202,11 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
         rho_outer=self.rho_outer.get_value(t),
         smoothing_width=self.smoothing_width,
         smooth_everywhere=self.smooth_everywhere,
+        disable_chi_i=self.disable_chi_i.get_value(t),
+        disable_chi_e=self.disable_chi_e.get_value(t),
+        disable_D_e=self.disable_D_e.get_value(t),
+        disable_V_e=self.disable_V_e.get_value(t),
+        merge_mode=self.merge_mode,
     )
 
   @abc.abstractmethod

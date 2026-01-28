@@ -42,7 +42,7 @@ class RotationTest(absltest.TestCase):
         q_face=np.ones_like(self.geo.rho_face_norm),
         Z_eff_face=np.ones_like(self.geo.rho_face_norm),
         Z_i_face=np.ones_like(self.geo.rho_face_norm),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+        toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
         pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
@@ -63,13 +63,13 @@ class RotationTest(absltest.TestCase):
         pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+        toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
         poloidal_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
-        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1e19),
         Z_i_face=1.0,
         B_pol_face=np.ones_like(self.geo.rho_face_norm),
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
@@ -85,7 +85,7 @@ class RotationTest(absltest.TestCase):
         pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+        toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 1.0
         ),
         poloidal_velocity=core_profile_helpers.make_constant_core_profile(
@@ -106,7 +106,7 @@ class RotationTest(absltest.TestCase):
         pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+        toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
         poloidal_velocity=core_profile_helpers.make_constant_core_profile(
@@ -126,9 +126,9 @@ class RotationTest(absltest.TestCase):
     E_r = rotation._calculate_radial_electric_field(
         pressure_thermal_i=cell_variable.CellVariable(
             value=np.linspace(1.0, 2.0, self.geo.rho_norm.size),
-            dr=self.geo.drho_norm,
+            face_centers=self.geo.rho_face_norm,
         ),
-        toroidal_velocity=core_profile_helpers.make_constant_core_profile(
+        toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
         poloidal_velocity=core_profile_helpers.make_constant_core_profile(

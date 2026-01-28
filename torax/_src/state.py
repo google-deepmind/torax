@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
+
 import dataclasses
 import enum
 import functools
@@ -26,6 +27,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import charge_states
 import typing_extensions
 
 
@@ -50,12 +52,14 @@ class CoreProfiles:
       n_i: Main ion density [m^-3].
       n_impurity: Impurity density of bundled impurity [m^-3].
       impurity_fractions: Fractional abundances of individual impurity species.
+      main_ion_fractions: Fractional abundances of individual main ion species.
       q_face: Safety factor.
       s_face: Magnetic shear.
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
       A_i: Main ion mass [amu].
+      # TODO(b/434175938): Remove in V2. Duplication with new charge_state_info.
       Z_impurity: Impurity charge of bundled impurity on cell grid
         [dimensionless].
       Z_impurity_face: Impurity charge of bundled impurity on face grid
@@ -69,7 +73,11 @@ class CoreProfiles:
       j_total: Total current density on the cell grid [A/m^2].
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
-      toroidal_velocity: Toroidal velocity [m/s].
+      toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+      charge_state_info: Container with averaged and per-species ion charge
+        state information. See `charge_states.ChargeStateInfo`. Cell grid.
+      charge_state_info_face: Container with averaged and per-species ion charge
+        state information. See `charge_states.ChargeStateInfo`. Face grid.
   """
 
   T_i: cell_variable.CellVariable
@@ -80,6 +88,7 @@ class CoreProfiles:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVector]
+  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   q_face: array_typing.FloatVectorFace
   s_face: array_typing.FloatVectorFace
   v_loop_lcfs: array_typing.FloatScalar
@@ -97,16 +106,21 @@ class CoreProfiles:
   j_total: array_typing.FloatVectorCell
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
-  toroidal_velocity: cell_variable.CellVariable
+  toroidal_angular_velocity: cell_variable.CellVariable
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
+
+  @functools.cached_property
+  def impurity_density_scaling(self) -> jax.Array:
+    """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
+    return self.Z_impurity / self.charge_state_info.Z_avg
 
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
     """Electron thermal pressure [Pa]."""
     return cell_variable.CellVariable(
-        value=self.n_e.value
-        * self.T_e.value
-        * constants.CONSTANTS.keV_to_J,
-        dr=self.n_e.dr,
+        value=self.n_e.value * self.T_e.value * constants.CONSTANTS.keV_to_J,
+        face_centers=self.n_e.face_centers,
         right_face_constraint=self.n_e.right_face_constraint
         * self.T_e.right_face_constraint
         * constants.CONSTANTS.keV_to_J,
@@ -120,7 +134,7 @@ class CoreProfiles:
         value=self.T_i.value
         * constants.CONSTANTS.keV_to_J
         * (self.n_i.value + self.n_impurity.value),
-        dr=self.n_i.dr,
+        face_centers=self.n_i.face_centers,
         right_face_constraint=self.T_i.right_face_constraint
         * constants.CONSTANTS.keV_to_J
         * (
@@ -135,7 +149,7 @@ class CoreProfiles:
     """Total thermal pressure [Pa]."""
     return cell_variable.CellVariable(
         value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
-        dr=self.pressure_thermal_e.dr,
+        face_centers=self.pressure_thermal_e.face_centers,
         right_face_constraint=self.pressure_thermal_e.right_face_constraint
         + self.pressure_thermal_i.right_face_constraint,
         right_face_grad_constraint=None,
@@ -166,6 +180,17 @@ class CoreProfiles:
             for x in jax.tree.leaves(profiles_to_check)
         ])
     )
+
+  def below_minimum_temperature(self, T_minimum_eV: float) -> bool:
+    """Return True if T_e or T_i is below the minimum temperature threshold."""
+    # Convert eV -> keV since internal storage is keV
+    T_minimum_keV = T_minimum_eV / 1000.0
+
+    is_low_te = jnp.any(self.T_e.value < T_minimum_keV)
+    is_low_ti = jnp.any(self.T_i.value < T_minimum_keV)
+
+    # Use .item() to return a concrete Python boolean
+    return (is_low_te | is_low_ti).item()
 
   def __str__(self) -> str:
     return f"""
@@ -292,6 +317,7 @@ class SimError(enum.Enum):
   QUASINEUTRALITY_BROKEN = 2
   NEGATIVE_CORE_PROFILES = 3
   REACHED_MIN_DT = 4
+  LOW_TEMPERATURE_COLLAPSE = 5
 
   def log_error(self):
     match self:
@@ -320,6 +346,12 @@ class SimError(enum.Enum):
             quasineutrality. Check the output file for near-zero temperatures or
             densities at the last valid step.
             """)
+      case SimError.LOW_TEMPERATURE_COLLAPSE:
+        logging.error("""
+          Simulation stopped because ion or electron temperature fell below the
+          configured minimum threshold. This is usually caused by radiative
+          collapse. Output file contains all profiles up to the last valid step.
+          """)
       case SimError.NO_ERROR:
         pass
       case _:

@@ -256,6 +256,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
       ),
+      # L-mode iterhybrid variant with combined transport model and overwrites
+      (
+          'test_iterhybrid_predictor_corrector_Lmode_combined',
+          'test_iterhybrid_predictor_corrector_Lmode_combined.py',
+      ),
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
@@ -588,6 +593,18 @@ class SimTest(sim_test_case.SimTestCase):
     _, state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
+    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
+  def test_low_temperature_error(self):
+    """Verify that a config with radiation collapse triggers early stopping and an error."""
+    torax_config = self._get_torax_config(
+        'test_iterhybrid_radiation_collapse.py'
+    )
+    _, state_history = run_simulation.run_simulation(torax_config)
+
+    self.assertEqual(
+        state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
+    )
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
 
   def test_full_output_matches_reference(self):

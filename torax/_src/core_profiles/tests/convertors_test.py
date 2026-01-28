@@ -34,25 +34,25 @@ class ConvertersTest(parameterized.TestCase):
 
     T_i = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 1.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.5),
         right_face_grad_constraint=None,
     )
     T_e = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 2.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.6),
         right_face_grad_constraint=None,
     )
     psi = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 3.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_grad_constraint=jnp.array(0.7),
         right_face_constraint=None,
     )
     n_e = cell_variable.CellVariable(
         value=jnp.ones(self.geo.rho_norm.shape) * 4.0,
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
         right_face_constraint=jnp.array(0.8),
         right_face_grad_constraint=None,
     )
@@ -65,6 +65,7 @@ class ConvertersTest(parameterized.TestCase):
         n_i=mock.ANY,
         n_impurity=mock.ANY,
         impurity_fractions=mock.ANY,
+        main_ion_fractions=mock.ANY,
         psidot=mock.ANY,
         q_face=mock.ANY,
         s_face=mock.ANY,
@@ -83,7 +84,9 @@ class ConvertersTest(parameterized.TestCase):
         j_total=mock.ANY,
         j_total_face=mock.ANY,
         Ip_profile_face=mock.ANY,
-        toroidal_velocity=mock.ANY,
+        toroidal_angular_velocity=mock.ANY,
+        charge_state_info=mock.ANY,
+        charge_state_info_face=mock.ANY,
     )
 
   def test_core_profiles_to_solver_x_tuple(self):

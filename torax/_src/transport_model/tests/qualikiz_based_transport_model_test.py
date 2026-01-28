@@ -156,7 +156,7 @@ class FakeQualikizBasedTransportModel(
 
   # pylint: enable=invalid-name
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: qualikiz_based_transport_model.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -218,7 +218,7 @@ class QualikizBasedTransportModelConfig(
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
-  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.HALF_RADIUS

@@ -65,13 +65,19 @@ class PostProcessedOutputs:
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime: FF' on the face grid, where F is the toroidal flux function
     psi_norm: Normalized poloidal flux on the face grid [Wb]
-    P_SOL_i: Total ion heating power exiting the plasma with all sources:
-      auxiliary heating + ion-electron exchange + fusion [W]
-    P_SOL_e: Total electron heating power exiting the plasma with all sources
-      and sinks: auxiliary heating + ion-electron exchange + Ohmic + fusion +
-      radiation sinks [W]
-    P_SOL_total: Total heating power exiting the plasma with all sources and
-      sinks
+    P_heat_i: Total ion heating power: all sources - sinks. i.e. auxiliary
+      heating + ion-electron exchange + fusion + (negative) radiation sinks [W].
+    P_heat_e: Total electron heating power: all sources - sinks. i.e. auxiliary
+      heating + ion-electron exchange + Ohmic + fusion + (negative) radiation
+      sinks [W].
+    P_heat_total: Total heating power: all sources - sinks. i.e. auxiliary
+      heating + fusion + (negative) radiation sinks [W].
+    P_SOL_i: Total ion heating power exiting the plasma: P_heat_i -
+      dW_thermal_i/dt. The dW/dt term is smoothed.
+    P_SOL_e: Total electron heating power exiting the plasma: P_heat_e -
+      dW_thermal_e/dt. The dW/dt term is smoothed.
+    P_SOL_total: Total heating power exiting the plasma: P_heat_total -
+      dW_thermal_total/dt. The dW/dt term is smoothed.
     P_aux_i: Total auxiliary ion heating power [W]
     P_aux_e: Total auxiliary electron heating power [W]
     P_aux_total: Total auxiliary heating power [W]
@@ -115,7 +121,6 @@ class PostProcessedOutputs:
     T_e_volume_avg: Volume average electron temperature [keV]
     T_i_volume_avg: Volume average ion temperature [keV]
     n_e_volume_avg: Volume average electron density [m^-3]
-    n_e_volume_avg: Volume average electron density [m^-3]
     n_i_volume_avg: Volume average main ion density [m^-3]
     n_e_line_avg: Line averaged electron density [m^-3]
     n_i_line_avg: Line averaged main ion density [m^-3]
@@ -126,7 +131,14 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     W_pol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
-    dW_thermal_dt: Time derivative of the total stored thermal energy [W]
+    dW_thermal_dt: Time derivative of the total stored thermal energy [W], raw
+      unsmoothed value.
+    dW_thermal_dt_smoothed: Smoothed time derivative of total stored thermal
+      energy [W].
+    dW_thermal_i_dt_smoothed: Smoothed time derivative of ion stored thermal
+      energy [W].
+    dW_thermal_e_dt_smoothed: Smoothed time derivative of electron stored
+      thermal energy [W].
     q_min: Minimum q value
     rho_q_min: rho_norm at the minimum q
     rho_q_3_2_first: First outermost rho_norm value that intercepts the q=3/2
@@ -145,7 +157,7 @@ class PostProcessedOutputs:
     j_total: Total toroidal current density [Am^-2]
     j_parallel_total: Total parallel current density [Am^-2]
     j_bootstrap: Toroidal bootstrap current density [Am^-2]
-    j_parallel_bootstrap: Parallel bootstrap current density [Am^-2]
+    j_bootstrap_face: Toroidal bootstrap current density on face grid [Am^-2]
     j_external: Toroidal current density from external psi sources (i.e.,
       excluding bootstrap) [A m^-2]
     j_parallel_external: Parallel current density from external psi sources
@@ -160,6 +172,14 @@ class PostProcessedOutputs:
       source [Am^-2]
     j_parallel_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
+    j_non_inductive: Total toroidal non-inductive current density [Am^-2]
+    j_parallel_non_inductive: Total parallel non-inductive current density
+      [Am^-2]
+    I_external: Total external current [A]
+    I_non_inductive: Total non-inductive current [A]
+    f_non_inductive: Non-inductive current fraction of the total current
+      [dimensionless]
+    f_bootstrap: Bootstrap current fraction of the total current [dimensionless]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
@@ -194,6 +214,9 @@ class PostProcessedOutputs:
   P_aux_total: array_typing.FloatScalar
   P_external_injected: array_typing.FloatScalar
   P_external_total: array_typing.FloatScalar
+  P_heat_i: array_typing.FloatScalar
+  P_heat_e: array_typing.FloatScalar
+  P_heat_total: array_typing.FloatScalar
   P_ei_exchange_i: array_typing.FloatScalar
   P_ei_exchange_e: array_typing.FloatScalar
   P_aux_generic_i: array_typing.FloatScalar
@@ -235,6 +258,9 @@ class PostProcessedOutputs:
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
   dW_thermal_dt: array_typing.FloatScalar
+  dW_thermal_dt_smoothed: array_typing.FloatScalar
+  dW_thermal_i_dt_smoothed: array_typing.FloatScalar
+  dW_thermal_e_dt_smoothed: array_typing.FloatScalar
   rho_q_min: array_typing.FloatScalar
   q_min: array_typing.FloatScalar
   rho_q_3_2_first: array_typing.FloatScalar
@@ -249,11 +275,19 @@ class PostProcessedOutputs:
   # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
   j_parallel_total: array_typing.FloatVector
   j_external: array_typing.FloatVector
+  j_parallel_external: array_typing.FloatVector
   j_ohmic: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
   j_bootstrap: array_typing.FloatVector
+  j_bootstrap_face: array_typing.FloatVector
   j_generic_current: array_typing.FloatVector
   j_ecrh: array_typing.FloatVector
+  j_non_inductive: array_typing.FloatVector
+  j_parallel_non_inductive: array_typing.FloatVector
+  I_external: array_typing.FloatScalar
+  I_non_inductive: array_typing.FloatScalar
+  f_non_inductive: array_typing.FloatScalar
+  f_bootstrap: array_typing.FloatScalar
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
@@ -290,6 +324,9 @@ class PostProcessedOutputs:
         P_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_external_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_heat_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_heat_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_heat_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_aux_generic_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -331,6 +368,9 @@ class PostProcessedOutputs:
         W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         dW_thermal_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_thermal_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_thermal_i_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_thermal_e_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_2_first=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -342,12 +382,20 @@ class PostProcessedOutputs:
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
         j_parallel_total=jnp.zeros(geo.rho_face.shape),
-        j_bootstrap=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho.shape),
+        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         j_ohmic=jnp.zeros(geo.rho_face.shape),
         j_parallel_ohmic=jnp.zeros(geo.rho_face.shape),
         j_external=jnp.zeros(geo.rho_face.shape),
         j_generic_current=jnp.zeros(geo.rho_face.shape),
         j_ecrh=jnp.zeros(geo.rho_face.shape),
+        j_non_inductive=jnp.zeros(geo.rho_face.shape),
+        j_parallel_external=jnp.zeros(geo.rho_face.shape),
+        j_parallel_non_inductive=jnp.zeros(geo.rho_face.shape),
+        I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -458,12 +506,7 @@ def _calculate_integrated_sources(
   integrated['P_ei_exchange_i'] = math_utils.volume_integration(qei, geo)
   integrated['P_ei_exchange_e'] = -integrated['P_ei_exchange_i']
 
-  # Initialize total electron and ion powers
-  # TODO(b/380848256): P_sol is now correct for stationary state. However,
-  # for generality need to add dWth/dt to the equation (time dependence of
-  # stored energy).
-  integrated['P_SOL_i'] = integrated['P_ei_exchange_i']
-  integrated['P_SOL_e'] = integrated['P_ei_exchange_e']
+  # Initialize total electron and ion auxiliary powers.
   integrated['P_aux_i'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
   integrated['P_aux_e'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
   integrated['P_external_injected'] = jnp.array(
@@ -490,8 +533,7 @@ def _calculate_integrated_sources(
     integrated[f'{value}_total'] = (
         integrated[f'{value}_i'] + integrated[f'{value}_e']
     )
-    integrated['P_SOL_i'] += integrated[f'{value}_i']
-    integrated['P_SOL_e'] += integrated[f'{value}_e']
+
     if key in EXTERNAL_HEATING_SOURCES:
       integrated['P_aux_i'] += integrated[f'{value}_i']
       integrated['P_aux_e'] += integrated[f'{value}_e']
@@ -519,7 +561,6 @@ def _calculate_integrated_sources(
     integrated[f'{value}'] = _get_integrated_source_value(
         core_sources.T_e, key, geo, math_utils.volume_integration
     )
-    integrated['P_SOL_e'] += integrated[f'{value}']
     if key in EXTERNAL_HEATING_SOURCES:
       integrated['P_aux_e'] += integrated[f'{value}']
       integrated['P_external_injected'] += integrated[f'{value}']
@@ -531,7 +572,10 @@ def _calculate_integrated_sources(
         geo,
         # Convert current sources to toroidal current before integrating
         lambda x, geo: math_utils.area_integration(
-            psi_calculations.j_parallel_to_j_toroidal(x, geo), geo
+            psi_calculations.j_parallel_to_j_toroidal(
+                x, geo, runtime_params.numerics.min_rho_norm
+            ),
+            geo,
         ),
     )
 
@@ -541,12 +585,28 @@ def _calculate_integrated_sources(
     )
     integrated['S_total'] += integrated[f'{value}']
 
-  integrated['P_SOL_total'] = integrated['P_SOL_i'] + integrated['P_SOL_e']
   integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
   integrated['P_fusion'] = 5 * integrated['P_alpha_total']
   integrated['P_external_total'] = (
       integrated['P_external_injected'] + integrated['P_ohmic_e']
   )
+  integrated['P_heat_e'] = (
+      integrated['P_aux_e']
+      + integrated['P_alpha_e']
+      + integrated['P_ohmic_e']
+      + integrated['P_ei_exchange_e']
+      + integrated['P_cyclotron_e']
+      + integrated['P_bremsstrahlung_e']
+      + integrated['P_radiation_e']
+  )
+
+  integrated['P_heat_i'] = (
+      integrated['P_aux_i']
+      + integrated['P_alpha_i']
+      + integrated['P_ei_exchange_i']
+  )
+
+  integrated['P_heat_total'] = integrated['P_heat_i'] + integrated['P_heat_e']
 
   return integrated
 
@@ -612,24 +672,87 @@ def make_post_processed_outputs(
       )
   )
 
-  # Thermal energy confinement time is the stored energy divided by the total
-  # input power into the plasma.
+  # Calculate dW/dt.
+  # We perform raw calculation and smoothing inside a conditional block to
+  # prevent division by zero on the first step (when dt=0) and to avoid
+  # large transients (since previous W is initialized to 0).
+  def _calculate_dW_dt_terms():
+    # Raw values
+    dW_i_dt_raw = (
+        W_thermal_ion - previous_post_processed_outputs.W_thermal_i
+    ) / sim_state.dt
+    dW_e_dt_raw = (
+        W_thermal_el - previous_post_processed_outputs.W_thermal_e
+    ) / sim_state.dt
+    dW_total_dt_raw = dW_i_dt_raw + dW_e_dt_raw
 
-  # Ploss term here does not include the reduction of radiated power. Most
-  # analysis of confinement times from databases have not included this term.
+    # Calculate smoothing parameter
+    alpha = jax.lax.cond(
+        runtime_params.numerics.dW_dt_smoothing_time_scale > 0.0,
+        lambda: jnp.array(1.0, dtype=jax_utils.get_dtype())
+        - jnp.exp(
+            -sim_state.dt / runtime_params.numerics.dW_dt_smoothing_time_scale
+        ),
+        lambda: jnp.array(1.0, dtype=jax_utils.get_dtype()),
+    )
+
+    dW_i_dt_smoothed = _exponential_smoothing(
+        dW_i_dt_raw,
+        previous_post_processed_outputs.dW_thermal_i_dt_smoothed,
+        alpha,
+    )
+    dW_e_dt_smoothed = _exponential_smoothing(
+        dW_e_dt_raw,
+        previous_post_processed_outputs.dW_thermal_e_dt_smoothed,
+        alpha,
+    )
+    dW_total_dt_smoothed = dW_i_dt_smoothed + dW_e_dt_smoothed
+
+    return (
+        dW_total_dt_raw,
+        dW_total_dt_smoothed,
+        dW_i_dt_smoothed,
+        dW_e_dt_smoothed,
+    )
+
+  (
+      dW_thermal_total_dt_raw,
+      dW_thermal_total_dt_smoothed,
+      dW_thermal_i_dt_smoothed,
+      dW_thermal_e_dt_smoothed,
+  ) = jax.lax.cond(
+      previous_post_processed_outputs.first_step,
+      lambda: (0.0, 0.0, 0.0, 0.0),
+      _calculate_dW_dt_terms,
+  )
+
+  # Calculate P_SOL (Power crossing separatrix) = P_sources - P_sinks - dW/dt
+  integrated_sources['P_SOL_i'] = (
+      integrated_sources['P_heat_i'] - dW_thermal_i_dt_smoothed
+  )
+
+  integrated_sources['P_SOL_e'] = (
+      integrated_sources['P_heat_e'] - dW_thermal_e_dt_smoothed
+  )
+
+  integrated_sources['P_SOL_total'] = (
+      integrated_sources['P_SOL_i'] + integrated_sources['P_SOL_e']
+  )
+
+  # Calculate P_loss term used for confinement time calculations.
+  # As per standard definitions, P_loss does not include radiation terms.
   # Therefore highly radiative scenarios can lead to skewed results.
 
-  Ploss = (
+  P_loss = (
       integrated_sources['P_alpha_total']
       + integrated_sources['P_aux_total']
       + integrated_sources['P_ohmic_e']
+      - dW_thermal_total_dt_smoothed
       + constants.CONSTANTS.eps  # Division guard.
   )
 
   def cumulative_values():
-    dW_th_dt = (
-        W_thermal_tot - previous_post_processed_outputs.W_thermal_total
-    ) / sim_state.dt
+
     E_fusion = (
         previous_post_processed_outputs.E_fusion
         + sim_state.dt
@@ -676,7 +799,6 @@ def make_post_processed_outputs(
         / 2.0
     )
     return (
-        dW_th_dt,
         E_fusion,
         E_aux_total,
         E_ohmic_e,
@@ -685,7 +807,6 @@ def make_post_processed_outputs(
     )
 
   (
-      dW_th_dt,
       E_fusion,
       E_aux_total,
       E_ohmic_e,
@@ -693,29 +814,29 @@ def make_post_processed_outputs(
       E_external_total,
   ) = jax.lax.cond(
       previous_post_processed_outputs.first_step,
-      lambda: (0.0,) * 6,
+      lambda: (0.0,) * 5,
       cumulative_values,
   )
 
-  tauE = W_thermal_tot / Ploss
+  tau_E = W_thermal_tot / P_loss
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H89P'
+      sim_state.geometry, sim_state.core_profiles, P_loss, 'H89P'
   )
   tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H98'
+      sim_state.geometry, sim_state.core_profiles, P_loss, 'H98'
   )
   tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H97L'
+      sim_state.geometry, sim_state.core_profiles, P_loss, 'H97L'
   )
   tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
-      sim_state.geometry, sim_state.core_profiles, Ploss, 'H20'
+      sim_state.geometry, sim_state.core_profiles, P_loss, 'H20'
   )
 
-  H89P = tauE / tauH89P
-  H98 = tauE / tauH98
-  H97L = tauE / tauH97L
-  H20 = tauE / tauH20
+  H89P = tau_E / tauH89P
+  H98 = tau_E / tauH98
+  H97L = tau_E / tauH97L
+  H20 = tau_E / tauH20
 
   # Calculate q at 95% of the normalized poloidal flux
   q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
@@ -747,12 +868,12 @@ def make_post_processed_outputs(
   fgw_n_e_line_avg = formulas.calculate_greenwald_fraction(
       n_e_line_avg, sim_state.core_profiles, sim_state.geometry
   )
-  Wpol = psi_calculations.calc_Wpol(
+  W_pol = psi_calculations.calc_Wpol(
       sim_state.geometry, sim_state.core_profiles.psi
   )
   li3 = psi_calculations.calc_li3(
       sim_state.geometry.R_major,
-      Wpol,
+      W_pol,
       sim_state.core_profiles.Ip_profile_face[-1],
   )
 
@@ -767,7 +888,9 @@ def make_post_processed_outputs(
   # j_total is toroidal by default (see psi_calculations.calc_j_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_total, sim_state.geometry
+      sim_state.core_profiles.j_total,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_parallel_bootstrap = (
       sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
@@ -781,13 +904,29 @@ def make_post_processed_outputs(
   # j_total is toroidal by default (see psi_calculations.calc_j_total)
   # Core sources psi are all <j.B>/B0
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_bootstrap, sim_state.geometry
+      j_parallel_bootstrap,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
+
+  # j_parallel_to_j_toroidal method cannot be used on face grid. Convert with
+  # custom function for this.
+  j_toroidal_bootstrap_face = _convert_j_parallel_face_to_j_toroidal_face(
+      sim_state.core_sources.bootstrap_current.j_parallel_bootstrap_face,
+      j_parallel_bootstrap,
+      j_toroidal_bootstrap,
+      sim_state.geometry,
+  )
+
   j_toroidal_ohmic = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_ohmic, sim_state.geometry
+      j_parallel_ohmic,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external, sim_state.geometry
+      j_parallel_external,
+      sim_state.geometry,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_sources = {}
   for source_name in ['ecrh', 'generic_current']:
@@ -795,7 +934,9 @@ def make_post_processed_outputs(
       # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
       j_toroidal_sources[f'j_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
-              sim_state.core_sources.psi[source_name], sim_state.geometry
+              sim_state.core_sources.psi[source_name],
+              sim_state.geometry,
+              runtime_params.numerics.min_rho_norm,
           )
       )
     else:
@@ -806,6 +947,10 @@ def make_post_processed_outputs(
   I_bootstrap = math_utils.area_integration(
       j_toroidal_bootstrap, sim_state.geometry
   )
+  I_external = math_utils.area_integration(
+      j_toroidal_external, sim_state.geometry
+  )
+  I_non_inductive = I_bootstrap + I_external
 
   beta_tor, beta_pol, beta_N = formulas.calculate_betas(
       sim_state.core_profiles, sim_state.geometry
@@ -818,7 +963,7 @@ def make_post_processed_outputs(
       q_face=sim_state.core_profiles.q_face,
       Z_eff_face=sim_state.core_profiles.Z_eff_face,
       Z_i_face=sim_state.core_profiles.Z_i_face,
-      toroidal_velocity=sim_state.core_profiles.toroidal_velocity,
+      toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
       pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
       geo=sim_state.geometry,
       poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
@@ -829,7 +974,7 @@ def make_post_processed_outputs(
       W_thermal_i=W_thermal_ion,
       W_thermal_e=W_thermal_el,
       W_thermal_total=W_thermal_tot,
-      tau_E=tauE,
+      tau_E=tau_E,
       H89P=H89P,
       H98=H98,
       H97L=H97L,
@@ -856,9 +1001,12 @@ def make_post_processed_outputs(
       fgw_n_e_volume_avg=fgw_n_e_volume_avg,
       fgw_n_e_line_avg=fgw_n_e_line_avg,
       q95=q95,
-      W_pol=Wpol,
+      W_pol=W_pol,
       li3=li3,
-      dW_thermal_dt=dW_th_dt,
+      dW_thermal_dt=dW_thermal_total_dt_raw,
+      dW_thermal_dt_smoothed=dW_thermal_total_dt_smoothed,
+      dW_thermal_i_dt_smoothed=dW_thermal_i_dt_smoothed,
+      dW_thermal_e_dt_smoothed=dW_thermal_e_dt_smoothed,
       rho_q_min=safety_factor_fit_outputs.rho_q_min,
       q_min=safety_factor_fit_outputs.q_min,
       rho_q_3_2_first=safety_factor_fit_outputs.rho_q_3_2_first,
@@ -872,9 +1020,21 @@ def make_post_processed_outputs(
       j_parallel_ohmic=j_parallel_ohmic,
       j_ohmic=j_toroidal_ohmic,
       j_bootstrap=j_toroidal_bootstrap,
+      j_bootstrap_face=j_toroidal_bootstrap_face,
       j_external=j_toroidal_external,
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
+      j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
+      j_parallel_external=j_parallel_external,
+      j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
+      I_external=I_external,
+      I_non_inductive=I_non_inductive,
+      f_non_inductive=math_utils.safe_divide(
+          I_non_inductive, sim_state.core_profiles.Ip_profile_face[-1]
+      ),
+      f_bootstrap=math_utils.safe_divide(
+          I_bootstrap, sim_state.core_profiles.Ip_profile_face[-1]
+      ),
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
@@ -883,3 +1043,36 @@ def make_post_processed_outputs(
       radial_electric_field=radial_electric_field.face_value(),
       first_step=jnp.array(False),
   )
+
+
+def _convert_j_parallel_face_to_j_toroidal_face(
+    j_parallel_face: array_typing.FloatVectorFace,
+    j_parallel_cell: array_typing.FloatVectorCell,
+    j_toroidal_cell: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  """Converts j_parallel on the face grid to j_toroidal on the face grid."""
+
+  safe_denominator = jnp.where(
+      jnp.abs(j_parallel_cell) > 1e-10,
+      j_parallel_cell,
+      1.0,
+  )
+  j_parallel_to_j_toroidal_factor_cell = jnp.where(
+      jnp.abs(j_parallel_cell) > 1e-10,
+      j_toroidal_cell / safe_denominator,
+      1.0,
+  )
+  # Interpolate conversion factor to face grid with constant extrapolation.
+  # Introduces a small and acceptable error on the face grid boundaries.
+  j_parallel_to_j_toroidal_factor_face = jnp.interp(
+      geo.rho_face_norm,
+      geo.rho_norm,
+      j_parallel_to_j_toroidal_factor_cell,
+  )
+  return j_parallel_to_j_toroidal_factor_face * j_parallel_face
+
+
+def _exponential_smoothing(new_raw, old_smoothed, alpha):
+  """Exponential moving average (EMA)."""
+  return (1.0 - alpha) * old_smoothed + alpha * new_raw

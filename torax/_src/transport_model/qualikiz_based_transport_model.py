@@ -72,6 +72,7 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   epsilon: array_typing.FloatVectorFace
   gamma_E_GB: array_typing.FloatVectorFace
   gamma_E_QLK: array_typing.FloatVectorFace
+  mach_toroidal: array_typing.FloatVectorFace
 
   # Also define the logarithmic gradients using standard QuaLiKiz notation.
   @property
@@ -133,6 +134,7 @@ class QualikizBasedTransportModel(
     normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
         radial_coordinate=rmid,
+        radial_face_coordinate=rmid_face,
         reference_length=geo.R_major,
     )
 
@@ -217,7 +219,7 @@ class QualikizBasedTransportModel(
           q_face=core_profiles.q_face,
           Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
-          toroidal_velocity=core_profiles.toroidal_velocity,
+          toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
           pressure_thermal_i=core_profiles.pressure_thermal_i,
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
@@ -231,20 +233,28 @@ class QualikizBasedTransportModel(
     # gamma_E_SI = r / q * d(v_ExB * q / r)/dr
     v_ExB = _get_v_ExB()
     # Computing gradient on the cell grid for better numerical accuracy.
-    value_face = v_ExB * q / rmid_face
+    value_face = v_ExB * q / (rmid_face + constants.eps)
     cv = cell_variable.CellVariable(
         value=geometry.face_to_cell(value_face),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=value_face[-1],
         right_face_grad_constraint=None,
         left_face_constraint=None,
         left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
-    gamma_E_SI = rmid_face / q * cv.face_grad(rmid)
+    gamma_E_SI = rmid_face / q * cv.face_grad(
+        x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1]
+    )
 
     # We need different normalizations for QuaLiKiz and QLKNN models.
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
     gamma_E_QLK = gamma_E_SI * (geo.R_major / c_ref)
+    mach_toroidal = (
+        core_profiles.toroidal_angular_velocity.face_value()
+        * geo.R_major_profile_face
+        / c_ref
+    )
+
     c_sou = jnp.sqrt(
         core_profiles.T_e.face_value()
         * constants.keV_to_J
@@ -272,4 +282,5 @@ class QualikizBasedTransportModel(
         epsilon=epsilon,
         gamma_E_GB=gamma_E_GB,
         gamma_E_QLK=gamma_E_QLK,
+        mach_toroidal=mach_toroidal,
     )

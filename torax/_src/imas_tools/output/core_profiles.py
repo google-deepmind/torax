@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions to save IMAS core_profiles or plasma_profiles IDSs from TORAX."""
+
 from collections.abc import Sequence
 import datetime
 
@@ -24,8 +25,6 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
@@ -35,7 +34,6 @@ from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
 def core_profiles_to_IMAS(
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     torax_config: model_config.ToraxConfig,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[state.CoreProfiles],
@@ -52,9 +50,6 @@ def core_profiles_to_IMAS(
   slice, please make sure the inputs are `Sequence`s of length 1.
 
   Args:
-    runtime_params_provider: TORAX RuntimeParamsProvider to get the names of the
-      ions and main_ion fractions. This is currently needed as we don't have
-      the main_ion information in the outputs.
     torax_config: ToraxConfig object to get number of main ions.
     post_processed_outputs: Sequence of TORAX PostProcessedOutputs objects.
     core_profiles: Sequence of TORAX CoreProfiles objects.
@@ -86,7 +81,6 @@ def core_profiles_to_IMAS(
   )
   _fill_profiles_1d(
       ids,
-      runtime_params_provider,
       post_processed_outputs,
       core_profiles,
       core_sources,
@@ -174,7 +168,6 @@ def _fill_global_quantities(
 
 def _fill_profiles_1d(
     ids: ids_toplevel.IDSToplevel,
-    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
@@ -190,9 +183,6 @@ def _fill_profiles_1d(
     cp_state = core_profiles[i]
     cs_state = core_sources[i]
     post_processed_outputs_slice = post_processed_outputs[i]
-    # TODO(b/459479939): i/1660) - Add main_ion information to outputs
-    # to avoid use of runtime_params
-    runtime_params = runtime_params_provider(t)
 
     ids.profiles_1d[i].time = t
     _fill_profiles_1d_grid(ids, i, geometry_slice, cp_state)
@@ -226,7 +216,6 @@ def _fill_profiles_1d(
     _fill_profiles_1d_ions(
         ids,
         i,
-        runtime_params,
         post_processed_outputs_slice,
         cp_state,
         T_i,
@@ -253,10 +242,10 @@ def _fill_profiles_1d_grid(
   )
   ids.profiles_1d[i].grid.psi = cp_state.psi.cell_plus_boundaries()
   ids.profiles_1d[i].grid.psi_magnetic_axis = cp_state.psi.left_face_value()[0]
-  ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value()[0]
+  ids.profiles_1d[i].grid.psi_boundary = cp_state.psi.right_face_value[0]
   ids.profiles_1d[i].grid.rho_pol_norm = np.sqrt(
       (cp_state.psi.cell_plus_boundaries() - cp_state.psi.left_face_value()[0])
-      / (cp_state.psi.right_face_value()[0] - cp_state.psi.left_face_value()[0])
+      / (cp_state.psi.right_face_value[0] - cp_state.psi.left_face_value()[0])
   )
   ids.profiles_1d[i].grid.volume = output.extend_cell_grid_to_boundaries(
       [geometry_slice.volume], np.array([geometry_slice.volume_face])
@@ -305,21 +294,21 @@ def _fill_profiles_1d_currents(
 def _fill_profiles_1d_ions(
     ids: ids_toplevel.IDSToplevel,
     i: int,
-    runtime_params: runtime_params_lib.RuntimeParams,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     cp_state: state.CoreProfiles,
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
 ) -> None:
   """Fills `ion` section of `profiles_1d` in-place for the IDS."""
-  main_ion = runtime_params.plasma_composition.main_ion.fractions
-  impurity_symbols = runtime_params.plasma_composition.impurity_names
 
-  num_of_main_ions = len(main_ion)
+  impurity_symbols = list(cp_state.impurity_fractions.keys())
+  main_ion_fractions = cp_state.main_ion_fractions
   num_of_impurities = len(impurity_symbols)
+  num_of_main_ions = len(main_ion_fractions)
   num_ions = num_of_main_ions + num_of_impurities
   ids.profiles_1d[i].ion.resize(num_ions)
-  for ion, (symbol, frac) in enumerate(main_ion.items()):
+  for ion, symbol in enumerate(cp_state.main_ion_fractions.keys()):
+    frac = cp_state.main_ion_fractions[symbol]
     _fill_main_ions(
         ids, i, ion, symbol, frac, T_i, n_i, post_processed_outputs_slice
     )

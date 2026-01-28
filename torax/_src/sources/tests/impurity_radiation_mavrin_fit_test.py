@@ -24,6 +24,7 @@ from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -70,7 +71,11 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
-    torax_pydantic.set_grid(sources, torax_pydantic.Grid1D(nx=4,))
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    torax_pydantic.set_grid(
+        sources,
+        torax_pydantic.Grid1D(face_centers=face_centers),
+    )
     runtime_params = getattr(sources, self._source_name).build_runtime_params(
         t=0.0
     )

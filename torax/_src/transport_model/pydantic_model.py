@@ -23,11 +23,13 @@ import chex
 from fusion_surrogates.qlknn.models import registry
 import numpy as np
 import pydantic
+from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import combined
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
+from torax._src.transport_model import enums
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
@@ -124,14 +126,18 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
-  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.OFF
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
+  def _conform_data(cls, data: Any) -> Any:
+    # If the input is not a dict (e.g. it is already a model instance), return
+    # it as is.
+    if not isinstance(data, dict):
+      return data
     data = copy.deepcopy(data)
 
     data['qlknn_model_name'] = _resolve_qlknn_model_name(
@@ -195,7 +201,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   machine: Annotated[
       Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
   ] = 'multimachine'
-  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # Quasilinear transport options
   DV_effective: bool = False
@@ -503,6 +509,90 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
       )
 
     return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_unique_overwrites_core(self) -> typing_extensions.Self:
+    _validate_unique_overwrites(self.transport_models, 'core')
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_unique_overwrites_pedestal(self) -> typing_extensions.Self:
+    _validate_unique_overwrites(self.pedestal_transport_models, 'pedestal')
+    return self
+
+
+def _validate_unique_overwrites(
+    models: Sequence[CombinedCompatibleTransportModel], domain: str
+) -> None:  # pytype: disable=invalid-annotation
+  """Validates that models overwriting the same channel do not overlap."""
+
+  for i, model1 in enumerate(models):
+    # Only check models that overwrite
+    if model1.merge_mode != enums.MergeMode.OVERWRITE:
+      continue
+
+    # Avoid self-comparison and duplicated checks
+    for model2 in models[i+1:]:
+      # Only check models that overwrite
+      if model2.merge_mode != enums.MergeMode.OVERWRITE:
+        continue
+
+      # Only check if there are shared enabled channels
+      overlapping_channels = _get_overlapping_channels(model1, model2)
+      if not overlapping_channels:
+        continue
+
+      # Check for spatial overlap
+      if _ranges_overlap(model1, model2):
+        raise ValueError(
+            f'Multiple {domain} transport models are configured to'
+            f' OVERWRITE the same channels {overlapping_channels} in'
+            f' overlapping radial zones: '
+            f"'{model1.model_name}' and '{model2.model_name}'"
+        )
+
+
+def _get_overlapping_channels(
+    model1: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+    model2: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+) -> list[str]:
+  """Returns list of channels enabled in both models."""
+  channels = []
+  if _is_enabled(model1.disable_chi_i) and _is_enabled(model2.disable_chi_i):
+    channels.append('chi_i')
+  if _is_enabled(model1.disable_chi_e) and _is_enabled(model2.disable_chi_e):
+    channels.append('chi_e')
+  if _is_enabled(model1.disable_D_e) and _is_enabled(model2.disable_D_e):
+    channels.append('D_e')
+  if _is_enabled(model1.disable_V_e) and _is_enabled(model2.disable_V_e):
+    channels.append('V_e')
+  return channels
+
+
+def _is_enabled(
+    disabled_time_series: interpolated_param_1d.TimeVaryingScalar,
+) -> bool:
+  # If not explicitly disabled everywhere (all True), it is enabled.
+  return not np.all(disabled_time_series.value)
+
+
+def _get_range_bounds(
+    model: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+) -> tuple[float, float]:
+  """Returns global min/max for a model's active range."""
+  return np.min(model.rho_min.value), np.max(model.rho_max.value)
+
+
+def _ranges_overlap(
+    model1: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+    model2: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+) -> bool:
+  """Checks if global extents of two models overlap."""
+  r1_min, r1_max = _get_range_bounds(model1)
+  r2_min, r2_max = _get_range_bounds(model2)
+
+  # Overlap condition: start1 < end2 AND start2 < end1
+  return (r1_min < r2_max) and (r2_min < r1_max)
 
 
 TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation

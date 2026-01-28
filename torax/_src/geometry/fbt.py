@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for loading and representing a FBT geometry."""
+
 from collections.abc import Mapping
 import enum
 import logging
@@ -23,6 +24,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import constants
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
@@ -44,21 +46,15 @@ class DivertorDomain(enum.StrEnum):
   LOWER_NULL = 'lower_null'
 
 
-class FBTConfig(torax_pydantic.BaseModelFrozen):
+class FBTConfig(base.BaseGeometryConfig):
   """Pydantic model for the FBT geometry.
 
   Attributes:
     geometry_type: Always set to 'fbt'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
-    hires_factor: Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
       alternatively a dict directly containing a single time slice of LY data.
     LY_bundle_object: Sets the FBT LY bundle file to be loaded, corresponding to
@@ -77,8 +73,6 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
       'fbt'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
@@ -122,7 +116,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         LY_object=self.LY_object,
         L_object=self.L_object,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
     )
@@ -142,7 +136,7 @@ class FBTConfig(torax_pydantic.BaseModelFrozen):
         L_object=self.L_object,
         LY_to_torax_times=self.LY_to_torax_times,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
     )
@@ -160,8 +154,8 @@ def _from_fbt_single_slice(
     geometry_directory: str | None,
     LY_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
@@ -181,9 +175,9 @@ def _from_fbt_single_slice(
       `load_geo_data` implementation.
     LY_object: File name for LY data, or directly an LY single slice dict.
     L_object: File name for L data, or directly an L dict.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -221,7 +215,7 @@ def _from_fbt_single_slice(
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY, L)
   return _from_fbt(
-      LY, L, Ip_from_parameters, n_rho, hires_factor, divertor_domain
+      LY, L, face_centers, Ip_from_parameters, hires_factor, divertor_domain
   )
 
 
@@ -230,8 +224,8 @@ def _from_fbt_bundle(
     LY_bundle_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
     LY_to_torax_times: np.ndarray | None,
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> Mapping[float, standard_geometry.StandardGeometryIntermediates]:
@@ -257,9 +251,9 @@ def _from_fbt_bundle(
       geometry slices to TORAX simulation times. A ValueError is raised if the
       number of array elements doesn't match the length of the LY_bundle array
       data. If None, then times are taken from the LY_bundle_object itself.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -314,8 +308,8 @@ def _from_fbt_bundle(
     intermediates[t] = _from_fbt(
         data_slice,
         L,
+        face_centers,
         Ip_from_parameters,
-        n_rho,
         hires_factor,
         divertor_domain,
     )
@@ -389,8 +383,8 @@ def _get_LY_single_slice_from_bundle(
 def _from_fbt(
     LY: Mapping[str, np.ndarray | int],
     L: Mapping[str, np.ndarray],
+    face_centers: np.ndarray,
     Ip_from_parameters: bool = True,
-    n_rho: int = 25,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
 ) -> standard_geometry.StandardGeometryIntermediates:
@@ -399,9 +393,9 @@ def _from_fbt(
   Args:
     LY: A dictionary of relevant FBT LY geometry data.
     L: A dictionary of relevant FBT L geometry data.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations on initialization.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -524,7 +518,7 @@ def _from_fbt(
       delta_lower_face=LY['deltal'],
       elongation=LY['kappa'],
       vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=diverted,
       connection_length_target=connection_length_target,
@@ -590,7 +584,15 @@ def _validate_fbt_data(
       'FtPVQ': psi_and_time_shape,
       'FtPQ': psi_and_time_shape,
   }
-  # TODO(b/467942568): Add validation for optional edge model inputs.
+  # Optional edge model inputs
+  edge_model_omp_keys = {'r_OMP', 'Bp_OMP'}
+  edge_model_target_keys = {
+      'z_div',
+      'Lpar_target',
+      'Lpar_div',
+      'alpha_target',
+      'r_target',
+  }
 
   missing_LY_keys = required_LY_spec.keys() - LY.keys()
   if missing_LY_keys:
@@ -618,3 +620,38 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+  # Validate presence of all optional edge model inputs
+  all_optional_keys = edge_model_omp_keys | edge_model_target_keys
+  present_optional_keys = all_optional_keys.intersection(LY.keys())
+  if present_optional_keys and len(present_optional_keys) != len(
+      all_optional_keys
+  ):
+    missing_optional_keys = all_optional_keys - present_optional_keys
+    logging.warning(
+        'Some but not all optional edge model keys are present in LY data. '
+        'This may lead to incomplete edge model initialization. '
+        'Missing data: %s',
+        missing_optional_keys,
+    )
+
+  # 1. OMP keys must match time_only_shape
+  for key in edge_model_omp_keys:
+    if key in LY:
+      if LY[key].shape != time_only_shape:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. "
+            f'Expected {time_only_shape}, got {LY[key].shape}.'
+        )
+
+  # 2. Target keys can be time_only_shape (n_directions=1)
+  # or (2,) + time_only_shape (n_directions=2)
+  shape_n_directions2 = (2,) + time_only_shape
+  for key in edge_model_target_keys:
+    if key in LY:
+      shape = LY[key].shape
+      if shape != time_only_shape and shape != shape_n_directions2:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. "
+            f'Expected {time_only_shape} or {shape_n_directions2}, got {shape}.'
+        )

@@ -29,7 +29,6 @@ Functions:
     - j_toroidal_to_j_parallel: Calculates <j.B>/B0 from j_toroidal = dI/dS.
     - j_parallel_to_j_toroidal: Calculates j_toroidal = dI/dS from <j.B>/B0.
 """
-from typing import Final
 
 import jax
 from jax import numpy as jnp
@@ -46,14 +45,11 @@ _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
 
-# TODO(b/434175938): Make this configurable from numerics.
-_MIN_RHO_NORM: Final[array_typing.FloatScalar] = 0.025
-
 
 def _extrapolate_cell_profile_to_axis(
     cell_profile: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
-    min_rho_norm: array_typing.FloatScalar = _MIN_RHO_NORM,
+    min_rho_norm: array_typing.FloatScalar,
 ) -> array_typing.FloatVectorCell:
   """Extrapolates the value of a cell profile towards the axis.
 
@@ -86,7 +82,7 @@ def _extrapolate_face_profile_to_axis(
     face_profile: array_typing.FloatVectorFace,
     cell_profile: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
-    min_rho_norm: array_typing.FloatScalar = _MIN_RHO_NORM,
+    min_rho_norm: array_typing.FloatScalar,
 ) -> array_typing.FloatVectorFace:
   """Extrapolates the value of a face profile towards the axis."""
   # TODO(b/464285811): Replace with a more sophisticated extrapolation method
@@ -121,7 +117,7 @@ def calc_q_face(
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phi_b * geo.drho_norm) / psi.face_grad()[1]), 0
+      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -131,6 +127,7 @@ def calc_q_face(
 def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
+    min_rho_norm: array_typing.FloatScalar,
 ) -> tuple[
     array_typing.FloatVectorCell,
     array_typing.FloatVectorFace,
@@ -152,6 +149,8 @@ def calc_j_total(
   Args:
     geo: Torus geometry.
     psi: Poloidal flux.
+    min_rho_norm: Minimum rho_norm value below which current profile values are
+      extrapolated to the axis to avoid numerical artifacts.
 
   Returns:
     j_total: total current density [A/m2] on cell grid
@@ -168,30 +167,25 @@ def calc_j_total(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
   )
 
-  Ip_profile = (
-      psi.grad()
-      * geo.g2g3_over_rhon
-      * geo.F
-      / geo.Phi_b
-      / (16 * jnp.pi**3 * constants.CONSTANTS.mu_0)
-  )
-
-  dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
-  dI_drhon = jnp.gradient(Ip_profile, geo.rho_norm)
+  # Calculate dI/drhon on the cell grid using finite difference of the face
+  # values. This ensures that the current density is consistent with the
+  # enclosed current at the boundaries of the cells.
+  dI_drhon = jnp.diff(Ip_profile_face) / geo.drho_norm
 
   j_total = dI_drhon / geo.spr
-  # Note: On-axis face values will be overwritten by extrapolation below, but we
-  # need to avoid division by zero
-  j_total_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
-  j_total_face = jnp.concatenate([jnp.array([j_total[0]]), j_total_face_bulk])
 
-  # Extrapolate the axis values to avoid numerical artifacts
-  j_total = _extrapolate_cell_profile_to_axis(j_total, geo)
-  j_total_face = _extrapolate_face_profile_to_axis(
-      j_total_face,
+  # Extrapolate the axis values to avoid numerical artifacts.
+  j_total = _extrapolate_cell_profile_to_axis(j_total, geo, min_rho_norm)
+
+  # Convert to face grid using linear interpolation in the bulk, and set right
+  # edge while preserving total current. This provides a smoother profile than
+  # calculating gradients directly on faces.
+  j_total_face = math_utils.cell_to_face(
       j_total,
       geo,
+      preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
+
   return j_total, j_total_face, Ip_profile_face
 
 
@@ -207,7 +201,7 @@ def calc_s_face(
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -244,7 +238,7 @@ def calc_s_rmid(
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -459,7 +453,9 @@ def calculate_psidot_from_psi_sources(
 
 
 def j_toroidal_to_j_parallel(
-    j_toroidal: array_typing.FloatVectorCell, geo: geometry.Geometry
+    j_toroidal: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+    min_rho_norm: array_typing.FloatScalar,
 ) -> array_typing.FloatVectorCell:
   r"""Calculates <j.B>/B0 from j_tor = dI/dS.
 
@@ -485,6 +481,8 @@ def j_toroidal_to_j_parallel(
   Args:
     j_toroidal: Toroidal current density [A/m2] on the cell grid.
     geo: Tokamak geometry.
+    min_rho_norm: Minimum rho_norm value below which current profile values are
+      extrapolated to the axis to avoid numerical artifacts.
 
   Returns:
     j_parallel: Parallel current density [A/m2] on the cell grid.
@@ -505,11 +503,13 @@ def j_toroidal_to_j_parallel(
   )
 
   # Extrapolate to axis to avoid numerical artifacts due to rho -> 0
-  return _extrapolate_cell_profile_to_axis(j_dot_B_over_B0, geo)
+  return _extrapolate_cell_profile_to_axis(j_dot_B_over_B0, geo, min_rho_norm)
 
 
 def j_parallel_to_j_toroidal(
-    j_parallel: array_typing.FloatVectorCell, geo: geometry.Geometry
+    j_parallel: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+    min_rho_norm: array_typing.FloatScalar,
 ) -> array_typing.FloatVectorCell:
   r"""Calculates j_toroidal = dI/dS from <j.B>/B0.
 
@@ -529,6 +529,8 @@ def j_parallel_to_j_toroidal(
   Args:
     j_parallel: Parallel current density [A/m2] on the cell grid.
     geo: Tokamak geometry.
+    min_rho_norm: Minimum rho_norm value below which current profile values are
+      extrapolated to the axis to avoid numerical artifacts.
 
   Returns:
     j_toroidal: Toroidal current density [A/m2] on the cell grid.
@@ -556,4 +558,4 @@ def j_parallel_to_j_toroidal(
   j_tor = jnp.diff(I_face) / jnp.diff(S_face)
 
   # Extrapolate to axis to avoid numerical artifacts
-  return _extrapolate_cell_profile_to_axis(j_tor, geo)
+  return _extrapolate_cell_profile_to_axis(j_tor, geo, min_rho_norm)

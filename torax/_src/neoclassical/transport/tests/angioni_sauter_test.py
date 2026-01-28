@@ -187,7 +187,7 @@ class AngioniSauterTest(absltest.TestCase):
 # generation of the Kmn matrix.
 _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
     chi_neo_i=np.array([
-        -0.0,
+        0.01220085,
         0.01220085,
         0.02223608,
         0.03117304,
@@ -200,7 +200,7 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
         0.0591895,
     ]),
     chi_neo_e=np.array([
-        -0.0,
+        -0.00210023,
         -0.00210023,
         -0.0030792,
         -0.00388683,
@@ -213,7 +213,7 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
         -0.00750323,
     ]),
     D_neo_e=np.array([
-        0.0,
+        0.00011698,
         0.00011698,
         0.00021105,
         0.00028474,
@@ -226,7 +226,7 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
         0.0002924,
     ]),
     V_neo_e=np.array([
-        0.0,
+        1.07951440e-05,
         1.07951440e-05,
         1.11015003e-05,
         1.54065751e-05,
@@ -239,7 +239,7 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
         1.18868626e-03,
     ]),
     V_neo_ware_e=np.array([
-        -0.0,
+        -0.00038114,
         -0.00038114,
         -0.00041759,
         -0.00037123,
@@ -256,7 +256,7 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
 # Shaing correction only affects ions, so we can reuse the other values
 _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = base.NeoclassicalTransport(
     chi_neo_i=np.array([
-        0.20237419,
+        0.20382857,
         0.17130245,
         0.03031974,
         0.02593766,

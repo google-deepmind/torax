@@ -25,9 +25,9 @@ from torax._src.imas_tools.input import loader
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
 def geometry_from_IMAS(
+    face_centers: np.ndarray,
     geometry_directory: str | None = None,
     Ip_from_parameters: bool = False,
-    n_rho: int = 25,
     hires_factor: int = 4,
     slice_time: float | None = None,
     slice_index: int = 0,
@@ -40,11 +40,11 @@ def geometry_from_IMAS(
   Currently written for COCOSv17 and DDv4.
 
   Args:
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
-    n_rho: Radial grid points (num cells)
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     slice_time: Time of slice to load from IMAS IDS. If given, overrides
@@ -220,7 +220,7 @@ def geometry_from_IMAS(
       "delta_lower_face": IMAS_data.profiles_1d.triangularity_lower,
       "elongation": IMAS_data.profiles_1d.elongation,
       "vpr": vpr,
-      "n_rho": n_rho,
+      "face_centers": face_centers,
       "hires_factor": hires_factor,
       "z_magnetic_axis": z_magnetic_axis,
       "diverted": np.bool(IMAS_data.boundary.type),
