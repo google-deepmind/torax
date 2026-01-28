@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for loading and representing a FBT geometry."""
+
 from collections.abc import Mapping
 import enum
 import logging
@@ -583,7 +584,15 @@ def _validate_fbt_data(
       'FtPVQ': psi_and_time_shape,
       'FtPQ': psi_and_time_shape,
   }
-  # TODO(b/467942568): Add validation for optional edge model inputs.
+  # Optional edge model inputs
+  edge_model_omp_keys = {'r_OMP', 'Bp_OMP'}
+  edge_model_target_keys = {
+      'z_div',
+      'Lpar_target',
+      'Lpar_div',
+      'alpha_target',
+      'r_target',
+  }
 
   missing_LY_keys = required_LY_spec.keys() - LY.keys()
   if missing_LY_keys:
@@ -611,3 +620,38 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+  # Validate presence of all optional edge model inputs
+  all_optional_keys = edge_model_omp_keys | edge_model_target_keys
+  present_optional_keys = all_optional_keys.intersection(LY.keys())
+  if present_optional_keys and len(present_optional_keys) != len(
+      all_optional_keys
+  ):
+    missing_optional_keys = all_optional_keys - present_optional_keys
+    logging.warning(
+        'Some but not all optional edge model keys are present in LY data. '
+        'This may lead to incomplete edge model initialization. '
+        'Missing data: %s',
+        missing_optional_keys,
+    )
+
+  # 1. OMP keys must match time_only_shape
+  for key in edge_model_omp_keys:
+    if key in LY:
+      if LY[key].shape != time_only_shape:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. "
+            f'Expected {time_only_shape}, got {LY[key].shape}.'
+        )
+
+  # 2. Target keys can be time_only_shape (n_directions=1)
+  # or (2,) + time_only_shape (n_directions=2)
+  shape_n_directions2 = (2,) + time_only_shape
+  for key in edge_model_target_keys:
+    if key in LY:
+      shape = LY[key].shape
+      if shape != time_only_shape and shape != shape_n_directions2:
+        raise ValueError(
+            f"Incorrect shape for key '{key}' in LY data. "
+            f'Expected {time_only_shape} or {shape_n_directions2}, got {shape}.'
+        )

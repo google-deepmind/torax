@@ -181,9 +181,9 @@ class FBTGeometryTest(parameterized.TestCase):
           np.array([15.0, 25.0]),
           np.array([1.5, 2.5]),
           np.array([3.5, 4.5]),
-          np.array([6.5, 7.5]),
+          np.array([6.0, 7.0]),
           np.array([5.5, 6.5]),
-          np.array([0.6, 0.8]),
+          np.array([0.5, 0.7]),
       ),
   )
   def test_fbt_edge_parameters(
@@ -207,9 +207,11 @@ class FBTGeometryTest(parameterized.TestCase):
     LY['Lpar_target'] = np.array([[10.0, 20.0], [15.0, 25.0]])
     LY['Lpar_div'] = np.array([[1.0, 2.0], [1.5, 2.5]])
     LY['alpha_target'] = np.deg2rad(np.array([[3.0, 4.0], [3.5, 4.5]]))
-    LY['r_OMP'] = np.array([[6.0, 7.0], [6.5, 7.5]])
+    # r_OMP and Bp_OMP must be time_only_shape (shape (len_times,)).
+    # They do not depend on direction/domain.
+    LY['r_OMP'] = np.array([6.0, 7.0])
+    LY['Bp_OMP'] = np.array([0.5, 0.7])
     LY['r_target'] = np.array([[5.0, 6.0], [5.5, 6.5]])
-    LY['Bp_OMP'] = np.array([[0.5, 0.7], [0.6, 0.8]])
 
     # z_div to distinguish nulls.
     # Index 0: lower null (<0), Index 1: upper null (>0) for ALL times.
@@ -290,6 +292,86 @@ class FBTGeometryTest(parameterized.TestCase):
           divertor_domain=fbt.DivertorDomain.LOWER_NULL,
           face_centers=interpolated_param_2d.get_face_centers(25),
       )
+
+  @parameterized.named_parameters(
+      ('valid_n_directions1', (10,), (10,)),
+      ('valid_n_directions2', (10,), (2, 10)),
+      ('invalid_omp', (10, 2), (10,)),
+      ('invalid_target', (10,), (3, 10)),
+      (
+          'invalid_target_n_directions_mismatch',
+          (10,),
+          (10, 2),
+      ),  # (10, 2) is not (2, 10) or (10,)
+  )
+  def test_validate_fbt_data_edge_shapes(self, omp_shape, target_shape):
+    len_psinorm = 20
+    len_times = 10
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
+
+    # Add optional keys
+    LY['r_OMP'] = np.zeros(omp_shape)
+    LY['z_div'] = np.zeros(target_shape)
+
+    should_fail = (omp_shape != (len_times,)) or (
+        target_shape != (len_times,) and target_shape != (2, len_times)
+    )
+
+    if should_fail:
+      with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
+        fbt._validate_fbt_data(LY, L)
+    else:
+      fbt._validate_fbt_data(LY, L)
+
+  def test_validate_fbt_data_edge_shapes_scalar(self):
+    len_psinorm = 20
+    len_times = 1
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
+    # Simulate squeezing: remove time dimension if 1
+    for k in LY:
+      LY[k] = np.squeeze(LY[k])
+
+    # 1. Valid scalar OMP, scalar target (n_directions=1)
+    LY['r_OMP'] = np.array(1.0)  # scalar
+    LY['z_div'] = np.array(1.0)  # scalar
+    fbt._validate_fbt_data(LY, L)
+
+    # 2. Valid scalar OMP, 1D target (n_directions=2) -> shape (2,)
+    LY['z_div'] = np.array([1.0, 2.0])
+    fbt._validate_fbt_data(LY, L)
+
+    # 3. Invalid OMP shape (vector instead of scalar)
+    LY['r_OMP'] = np.array([1.0, 2.0])
+    # Expect incorrect shape because OMP is strictly checked against time_only
+    with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
+      fbt._validate_fbt_data(LY, L)
+
+    # 4. Invalid target shape (n_directions=3)
+    LY['r_OMP'] = np.array(1.0)
+    # z_div (3,) -> n_directions can only be 1 or 2
+    # consistent check: 3 != 1.
+    LY['z_div'] = np.array([1.0, 2.0, 3.0])
+    with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
+      fbt._validate_fbt_data(LY, L)
+
+  def test_validate_fbt_data_partial_optional_keys(self):
+    len_psinorm = 20
+    len_times = 1
+    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
+
+    # Provide only one optional key 'r_OMP', missing all others
+    LY['r_OMP'] = np.array(1.0)
+
+    # We expect a warning about missing keys.
+    with self.assertLogs(level='WARNING') as cm:
+      fbt._validate_fbt_data(LY, L)
+
+    self.assertTrue(
+        any(
+            'Some but not all optional edge model keys are present' in o
+            for o in cm.output
+        )
+    )
 
 
 if __name__ == '__main__':
