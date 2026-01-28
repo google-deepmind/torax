@@ -19,6 +19,7 @@ Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
 import dataclasses
+import functools
 
 import chex
 import jax
@@ -130,7 +131,7 @@ class CellVariable:
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
 
-  @property
+  @functools.cached_property
   def cell_centers(self) -> jt.Float[chex.Array, 'cell']:
     """Locations of the cell centers."""
     return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
@@ -280,7 +281,7 @@ class CellVariable:
       value = self.value[..., 0:1]
     return value
 
-  @property
+  @functools.cached_property
   def right_face_value(self) -> jt.Float[chex.Array, '']:
     """Calculates the value of the rightmost face."""
     if self.right_face_constraint is not None:
