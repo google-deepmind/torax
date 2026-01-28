@@ -25,6 +25,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.edge import collisional_radiative_models
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
@@ -121,9 +122,16 @@ def calculate_impurity_radiation_single_species(
 ) -> array_typing.FloatVector:
   """Calculates the line radiation for single impurity species.
 
-  Polynomial fit range is 0.1-100 keV, which is well within the typical
-  bounds of core tokamak modelling. For safety, inputs are clipped to avoid
-  extrapolation outside this range.
+  Depending on the temperature, this either selects the Mavrin (2018) model, for
+  high-temperature (coronal) radiation, or the Mavrin (2017) model, for low-
+  temperature (non-coronal radiation).
+
+  The region of validity for the coronal model is 100eV-100keV.
+  The region of validity for the non-coronal model is 1eV-10keV.
+  For safety, inputs are clipped to avoid extrapolation outside these ranges.
+
+  Note: in this implementation, the coronal model overrides the non-coronal
+  model in regions where both are valid.
 
   Args:
     T_e: Electron temperature [keV].
@@ -139,22 +147,45 @@ def calculate_impurity_radiation_single_species(
         f' {constants.ION_SYMBOLS}'
     )
 
-  # Avoid extrapolating fitted polynomial out of bounds.
-  T_e = jnp.clip(T_e, 0.1, 100.0)
+  # 1. Compute the coronal Mavrin model (2018)
+  # This value is only valid for 100eV-100keV
+  T_e_coronal = jnp.clip(T_e, 0.1, 100.0)
 
   # Gather coefficients for each temperature
   if ion_symbol in {'He3', 'He4', 'Be', 'Li'}:
     interval_indices = 0
   else:
-    interval_indices = jnp.searchsorted(_TEMPERATURE_INTERVALS[ion_symbol], T_e)
+    interval_indices = jnp.searchsorted(
+        _TEMPERATURE_INTERVALS[ion_symbol], T_e_coronal
+    )
 
   L_coeffs_in_range = jnp.take(
       _MAVRIN_L_COEFFS[ion_symbol], interval_indices, axis=0
   ).transpose()
 
-  X = jnp.log10(T_e)
-  log10_LZ = jnp.polyval(L_coeffs_in_range, X)
-  return 10**log10_LZ
+  X = jnp.log10(T_e_coronal)
+  log10_LZ_coronal = jnp.polyval(L_coeffs_in_range, X)
+  LZ_coronal = 10**log10_LZ_coronal
+
+  # 2. Compute the non-coronal Mavrin model (2017)
+  # This value is only valid for 1eV-10keV
+  # calculate_mavriv_2017 handles clipping internally
+  LZ_noncoronal = collisional_radiative_models.calculate_mavrin_2017(
+      T_e,
+      # Use the upper limit on ne_tau to avoid having to set a parameter
+      collisional_radiative_models._NE_TAU_CORONAL_LIMIT,
+      ion_symbol,
+      collisional_radiative_models.MavrinVariable.LZ,
+  )
+
+  # 3. Select which model to apply based on the temperature
+  # We choose to always trust the coronal model for T_e greater than 0.1keV
+  LZ = jnp.where(T_e > 0.1, LZ_coronal, LZ_noncoronal)
+
+  # 4. If we're below the minimum temperature for the non-coronal model...
+  # TODO: add handling for this later
+
+  return LZ
 
 
 @functools.partial(
