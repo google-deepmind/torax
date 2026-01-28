@@ -23,6 +23,7 @@ torax_config.update(updated_fields)
 new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
+from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import run_loop
@@ -129,6 +130,7 @@ def run_simulation(
       step_fn=step_fn,
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,
+      torax_config=torax_config,
   )
 
   state_history = output.StateHistory(
