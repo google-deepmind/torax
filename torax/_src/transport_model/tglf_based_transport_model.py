@@ -31,7 +31,7 @@ from typing_extensions import override
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for TGLF-based models."""
-  use_rotation: bool
+  use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
 
 
@@ -346,14 +346,14 @@ class TGLFBasedTransportModel(
       return v_ExB_shear
 
     # TODO(b/381199010): Validate against existing frameworks.
-    v_ExB_shear = jax.lax.cond(
-        transport.use_rotation,
-        _get_v_ExB_shear,
-        lambda core_profiles, *_: jnp.zeros_like(core_profiles.q_face),
-        core_profiles,
-        geo,
-        poloidal_velocity_multiplier,
-    )
+    if transport.use_rotation:
+      v_ExB_shear = _get_v_ExB_shear(
+          core_profiles,
+          geo,
+          poloidal_velocity_multiplier,
+      )
+    else:
+      v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
 
     return TGLFInputs(
         # From QuasilinearInputs
