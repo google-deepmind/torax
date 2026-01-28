@@ -28,6 +28,7 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -57,10 +58,10 @@ class SourceTestCase(parameterized.TestCase):
   def test_build_runtime_params(self):
     source = self._source_config_class.from_dict({})
     self.assertIsInstance(source, self._source_config_class)
-    torax_pydantic.set_grid(
-        source,
-        torax_pydantic.Grid1D(nx=4,),
+    mesh = torax_pydantic.Grid1D(
+        face_centers=interpolated_param_2d.get_face_centers(nx=4)
     )
+    torax_pydantic.set_grid(source, mesh)
     runtime_params = source.build_runtime_params(t=0.0)
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
 
@@ -79,10 +80,10 @@ class SourceTestCase(parameterized.TestCase):
     source_config = self._source_config_class.from_dict(
         {'mode': mode, 'is_explicit': is_explicit}
     )
-    torax_pydantic.set_grid(
-        source_config,
-        torax_pydantic.Grid1D(nx=4,),
+    mesh = torax_pydantic.Grid1D(
+        face_centers=interpolated_param_2d.get_face_centers(nx=4)
     )
+    torax_pydantic.set_grid(source_config, mesh)
     runtime_params = source_config.build_runtime_params(t=0.0)
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
     self.assertEqual(runtime_params.mode, mode)

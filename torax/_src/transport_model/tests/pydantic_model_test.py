@@ -289,5 +289,181 @@ class PydanticModelTest(parameterized.TestCase):
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
+class CombinedTransportModelValidationTest(parameterized.TestCase):
+
+  def test_valid_no_overwrite(self):
+    config = transport_pydantic_model.CombinedTransportModel(
+        transport_models=[
+            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
+            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
+        ]
+    )
+    self.assertIsInstance(
+        config, transport_pydantic_model.CombinedTransportModel
+    )
+
+  def test_valid_single_overwrite(self):
+    config = transport_pydantic_model.CombinedTransportModel(
+        transport_models=[
+            transport_pydantic_model.ConstantTransportModel(
+                merge_mode='overwrite'
+            ),
+            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
+        ]
+    )
+    self.assertIsInstance(
+        config, transport_pydantic_model.CombinedTransportModel
+    )
+
+  def test_valid_split_overwrites(self):
+    # Model 1 overwrites Chi_i only
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=False,
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    # Model 2 overwrites Chi_e only
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=True,
+        disable_chi_e=False,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    config = transport_pydantic_model.CombinedTransportModel(
+        transport_models=[m1, m2]
+    )
+    self.assertIsInstance(
+        config, transport_pydantic_model.CombinedTransportModel
+    )
+
+  def test_invalid_duplicate_overwrite(self):
+    # Both models overwrite Chi_i
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Multiple core transport models are configured to OVERWRITE the same'
+        r" channels \['chi_i'\]",
+    ):
+      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+
+  def test_invalid_duplicate_overwrite_pedestal(self):
+    # Both models overwrite Chi_i in pedestal
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Multiple pedestal transport models are configured to OVERWRITE the'
+        r" same channels \['chi_i'\]",
+    ):
+      transport_pydantic_model.CombinedTransportModel(
+          pedestal_transport_models=[m1, m2]
+      )
+
+  def test_valid_disjoint_overwrite(self):
+    # M1 and M2 overwrite Chi_i, but in disjoint spatial domains
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=False,
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.0,
+        rho_max=0.5,
+    )
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=False,
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.5,
+        rho_max=1.0,
+    )
+    config = transport_pydantic_model.CombinedTransportModel(
+        transport_models=[m1, m2]
+    )
+    self.assertIsInstance(
+        config, transport_pydantic_model.CombinedTransportModel
+    )
+
+  def test_invalid_overlapping_overwrite(self):
+    # M1 and M2 overwrite Chi_i in overlapping domains
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=False,
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.0,
+        rho_max=0.6,
+    )
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=False,
+        disable_chi_e=True,
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.5,
+        rho_max=1.0,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Multiple core transport models are configured to OVERWRITE the same'
+        r" channels \['chi_i'\] in overlapping radial zones",
+    ):
+      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+
+  def test_invalid_overlapping_overwrite_part_time(self):
+    # M1 and M2 overwrite Chi_i in overlapping domains
+    m1 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=True,
+        disable_chi_e={0: False, 1: True},
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.0,
+        rho_max=0.6,
+    )
+    m2 = transport_pydantic_model.ConstantTransportModel(
+        merge_mode='overwrite',
+        disable_chi_i=True,
+        disable_chi_e=False,
+        disable_D_e=True,
+        disable_V_e=True,
+        rho_min=0.5,
+        rho_max=1.0,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Multiple core transport models are configured to OVERWRITE the same'
+        r" channels \['chi_e'\] in overlapping radial zones",
+    ):
+      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+
+
 if __name__ == '__main__':
   absltest.main()

@@ -347,14 +347,15 @@ time-dependence of temperature, density, and current.
   This setting is ignored for the ad-hoc circular geometry, which has no
   numerical geometry.
 
-``toroidal_velocity`` (**time-varying-array** | None [default = None])
-  Toroidal velocity profile. If not provided, the velocity will be set to zero.
+``toroidal_angular_velocity`` (**time-varying-array** | None [default = None])
+  Toroidal angular velocity profile. If not provided, the velocity will be set
+  to zero.
 
-``toroidal_velocity_right_bc`` (**time-varying-scalar** | None [default = None])
-  Toroidal velocity boundary condition for r=a_minor. If this is ``None`` the
-  boundary condition will instead be taken from ``toroidal_velocity`` at
-  :math:`\hat{\rho}=1`. If ``toroidal_velocity`` is also ``None``, then the
-  boundary condition will be set to zero.
+``toroidal_angular_velocity_right_bc`` (**time-varying-scalar** | None [default = None])
+  Toroidal angular velocity boundary condition for r=a_minor. If this is
+  ``None`` the boundary condition will instead be taken from
+  ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
+  also ``None``, then the boundary condition will be set to zero.
 
 .. _numerics_dataclass:
 
@@ -439,6 +440,10 @@ equations being solved, constant numerical variables.
 ``adaptive_n_source_prefactor`` (float [default = 1e8])
   Prefactor for adaptive source term for setting density internal boundary
   conditions.
+
+``min_rho_norm`` (float [default = 0.015])
+  Minimum rho_norm value below which current profile values are extrapolated to
+  the axis in psi calculations, to avoid numerical artifacts near rho=0.
 
 
 plasma_composition
@@ -856,13 +861,41 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``n_rho`` (int [default = 25])
-  Number of radial grid points
+``n_rho`` (int | None [default = 25])
+  Number of radial grid cells. Creates a uniform grid with cell width
+  :math:`d\hat{\rho} = 1/n\_rho`. Must be at least 4.
+  Either ``n_rho`` or ``face_centers`` must be specified.
+
+``face_centers`` (array | None [default = None])
+  Explicit array of face center coordinates in normalized :math:`\hat{\rho}`
+  (ranging from 0 to 1) for defining non-uniform radial grids. For a grid with
+  N cells, there should be N+1 face centers. The array must start at 0.0, end
+  at 1.0, be strictly increasing, and have at least 5 elements (4 cells).
+  This enables finer resolution in regions of interest, such as
+  near the plasma edge.
+
+  Example of a non-uniform grid with finer resolution near the edge:
+
+  .. code-block:: python
+
+    import numpy as np
+
+    # Create non-uniform grid: coarse in core, fine near edge
+    core_faces = np.linspace(0, 0.8, 9)  # 8 cells from rho=0 to rho=0.8
+    edge_faces = np.linspace(0.8, 1.0, 9)[1:]  # 8 cells from rho=0.8 to rho=1.0
+    face_centers = np.concatenate([core_faces, edge_faces])
+
+    'geometry': {
+        'geometry_type': 'chease',
+        'face_centers': face_centers,
+        # ... other geometry parameters
+    }
 
 ``hires_factor`` (int [default = 4])
   Only used when the initial condition ``psi`` is from plasma current. Sets up a
   higher resolution mesh with ``nrho_hires = nrho * hi_res_fac``, used for
   ``j`` to ``psi`` conversions.
+
 
 Geometry dicts for all non-circular geometry types can contain the following
 additional keys.
@@ -1374,32 +1407,45 @@ Runtime parameters for the QuaLiKiz model.
 combined
 ^^^^^^^^
 
-A combined (additive) model, where the total transport coefficients are
-calculated by summing contributions from a list of component models. Each
-component model is active only within its defined radial domain, which can
-be overlapping or non-overlapping; in regions of overlap, the total
-transport coefficients are computed by adding the contributions from
-component models active at those coordinates.
-For individual core transport models defined in ``transport_models``, the active
-domain (where transport coefficients are non-zero) is set by ``rho_min`` and
-``rho_max``. If a pedestal is active, the active domain is then limited by
-``rho_norm_ped_top`` if ``rho_norm_ped_top`` is less than ``rho_max``.
-``rho_norm_ped_top`` is set in the ``pedestal`` section of the config.
-For models in ``pedestal_transport_models``, the active domain is only for
-radii above ``rho_norm_ped_top``.
-Post-processing (clipping and smoothing) is performed on the summed
-values from all component models, including in the pedestal.
+A combined model where the total transport coefficients are calculated by
+sequentially applying a list of component models. Each component model is
+active only within its defined radial domain, which can be overlapping or
+non-overlapping.
 
-The runtime parameters are as follows.
+The combination logic is controlled by the ``merge_mode`` of each component
+model:
+
+*   **ADD (default)**: The model's coefficients are added to the accumulated
+    total in its active region. However, it does not contribute to regions
+    and channels covered by an OVERWRITE model.
+*   **OVERWRITE**: The model is the sole contributor to the transport
+    coefficients in its active region, for enabled transport channels. It
+    **locks** this region for the specific transport channels it provides,
+    preventing other models in the list from modifying them.
+
+You can selectively enable or disable specific transport channels (e.g.,
+``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
+Disabled channels are "transparent" in OVERWRITE mode; they do not overwrite
+existing values and do not set a lock. An example of when this could be useful
+is when using one model for heat transport across the entire radial range, but
+then using another model specifically for particle transport within
+a restricted range, e.g. towards the LCFS.
+
+Two separate lists of transport models can be provided:
 
 ``transport_models`` (list[dict])
   A list containing config dicts for the component models for turbulent
-  transport in the core.
+  transport in the core. For each component model, ``rho_min`` and ``rho_max``
+  are set to define the active region. If a pedestal is active, the core
+  ``rho_max`` is overridden by max(``rho_max``, ``rho_norm_ped_top``), where
+  ``rho_norm_ped_top`` is set in the ``pedestal`` config, and not in the
+  ``transport_models`` dict.
 
 ``pedestal_transport_models`` (list[dict])
   A list containing config dicts for the component models for turbulent
-  transport in the pedestal.
-
+  transport in the pedestal. The pedestal transport model is active only for
+  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored,
+  and an error is raised if they are specified.
 
    .. warning::
     TORAX will throw a ``ValueError`` if any of the component transport
@@ -1407,11 +1453,11 @@ The runtime parameters are as follows.
     to True. Patches must be set in the config of the ``combined`` model
     only.
 
-..
-    The code for generating the plots for this example is found in
-    docs/scripts/combined_transport_example.py
+Post-processing (clipping and smoothing) is performed on the summed
+values from all component models, including in the pedestal.
 
-Example:
+
+Examples:
 
 .. code-block:: python
 
@@ -1458,6 +1504,39 @@ active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
 only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
 only the pedestal transport model is active (``chi_i = 0.5``).
 
+The code for generating the plot above is found in
+docs/scripts/combined_transport_example.py.
+
+The next example shows how to apply a physics-based model (QLKNN) in the core,
+but enforcing specific transport coefficients in the edge region using a
+Constant model with ``OVERWRITE`` mode, effectively overriding the core model
+in that region. This is useful e.g. for L-mode modelling. This example is more
+powerful than using the outer_patch API, since we here have fine-grained
+control over each transport channel.
+
+.. code-block:: python
+
+  'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+          # Base model: QLKNN applied everywhere (default ADD)
+          {
+              'model_name': 'qlknn',
+              'rho_max': 1.0,
+          },
+          # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
+          # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
+          {
+              'model_name': 'constant',
+              'rho_min': 0.9,
+              'D_e': 0.5,
+              'V_e': -1.0,
+              'merge_mode': 'overwrite',
+              'disable_chi_i': True,
+              'disable_chi_e': True,
+          },
+      ],
+    },
 
 sources
 -------
@@ -1738,6 +1817,14 @@ environment variable which should point to a compatible JSON file.
 
 ``minority_concentration`` (**time-varying-scalar** [default = 0.03])
   Helium-3 minority fractional concentration relative to the electron density.
+  This is a deprecated legacy option, used only when ``minority_species`` is
+  not specified. It is recommended to instead set ``minority_species`` to
+  'He3' and use the plasma composition to set the minority concentration.
+
+``minority_species`` (str | None [default = None])
+  Symbol of the minority species (e.g. 'He3'). If specified, the minority
+  concentration is automatically extracted from the plasma composition.
+  Presently, only 'He3' is supported.
 
 ``P_total`` (**time-varying-scalar** [default = 10e6])
   Total injected source power in W.
@@ -1831,9 +1918,12 @@ sawtooth
     Multiplier applied to :math:`\hat{\rho}_{q=1}` to determine the mixing
     radius :math:`\hat{\rho}_{mix}`.
 
-``crash_step_duration`` (float [default = 1e-3]):
+``crash_step_duration`` (float [default = 1e-5]):
   Duration of a sawtooth crash step in seconds. This is how much the solver time
-  will be bumped forward during a crash.
+  will be bumped forward during a crash. It is important that this is is small
+  enough to satisfy the assumption of timescale separation between the sawtooth
+  crash and the transport timescale, otherwise issues may arise regarding
+  conservation properties.
 
 solver
 -------

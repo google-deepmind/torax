@@ -58,8 +58,8 @@ class RuntimeParams:
   # If provided as array, Psi profile defined on the cell grid.
   psi: array_typing.FloatVector | None
   psidot: array_typing.FloatVector | None
-  toroidal_velocity: array_typing.FloatVector | None
-  toroidal_velocity_right_bc: array_typing.FloatScalar | None
+  toroidal_angular_velocity: array_typing.FloatVector | None
+  toroidal_angular_velocity_right_bc: array_typing.FloatScalar | None
   # Electron density profile on the cell grid.
   n_e: array_typing.FloatVector
   nbar: array_typing.FloatScalar
@@ -114,12 +114,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       `psidot` will be used instead of the internally calculated one. This is
       useful for cases where an unphysical transient `psidot` from the initial
       `psi` condition needs to be overridden.
-    toroidal_velocity: Prescribed or evolving values for toroidal velocity. If
-      None, toroidal_velocity will be initialized to zero.
-    toroidal_velocity_right_bc: Toroidal velocity boundary condition for
+    toroidal_angular_velocity: Prescribed or evolving values for toroidal
+      angular velocity. If None, toroidal_angular_velocity will be initialized
+      to zero.
+    toroidal_angular_velocity_right_bc: Toroidal velocity boundary condition for
       r=a_minor. If this is `None` the boundary condition will instead be taken
-      from `toroidal_velocity` at rhon=1. If `toroidal_velocity is also `None`,
-      then the boundary condition will be set to zero.
+      from `toroidal_angular_velocity` at rhon=1. If `toroidal_angular_velocity
+      is also `None`, then the boundary condition will be set to zero.
     n_e: Prescribed or evolving values for electron density at different times.
     normalize_n_e_to_nbar: Whether to renormalize the density profile to have
       the desired line averaged density `nbar`.
@@ -145,8 +146,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       "current_profile_nu" current formula, or from the psi available in the
       numerical geometry file. This setting is ignored for the ad-hoc circular
       geometry, which has no numerical geometry.
-    initial_psi_mode: Mode of the initial psi value. If `PROFILE_CONDITIONS`
-      is used, then the initial psi is taken from the `psi` attribute. If
+    initial_psi_mode: Mode of the initial psi value. If `PROFILE_CONDITIONS` is
+      used, then the initial psi is taken from the `psi` attribute. If
       `GEOMETRY` is used, then the initial psi is taken from the geometry. If
       `J` is used, then the psi calculation is based on the `current_profile_nu`
       current formula. For now if `PROFILE_CONDITIONS` is used, but `psi` is not
@@ -171,8 +172,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
   psidot: torax_pydantic.TimeVaryingArray | None = None
-  toroidal_velocity: torax_pydantic.TimeVaryingArray | None = None
-  toroidal_velocity_right_bc: torax_pydantic.TimeVaryingScalar | None = None
+  toroidal_angular_velocity: torax_pydantic.TimeVaryingArray | None = None
+  toroidal_angular_velocity_right_bc: (
+      torax_pydantic.TimeVaryingScalar | None
+  ) = None
   n_e: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0: {0: 1.2e20, 1: 0.8e20}})
   )
@@ -408,12 +411,12 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
           t, grid_type='face_right'
       )
 
-    if self.toroidal_velocity_right_bc is None:
-      if self.toroidal_velocity is None:
-        runtime_params['toroidal_velocity_right_bc'] = 0.0
+    if self.toroidal_angular_velocity_right_bc is None:
+      if self.toroidal_angular_velocity is None:
+        runtime_params['toroidal_angular_velocity_right_bc'] = 0.0
       else:
-        runtime_params['toroidal_velocity_right_bc'] = (
-            self.toroidal_velocity.get_value(t, grid_type='face_right')
+        runtime_params['toroidal_angular_velocity_right_bc'] = (
+            self.toroidal_angular_velocity.get_value(t, grid_type='face_right')
         )
 
     if self.n_e_right_bc is None:

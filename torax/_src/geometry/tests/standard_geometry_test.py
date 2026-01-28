@@ -19,6 +19,7 @@ from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import standard_geometry
+from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
 
@@ -35,7 +36,6 @@ class GeometryTest(parameterized.TestCase):
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.FBT,
         Ip_from_parameters=True,
-        n_rho=25,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -58,6 +58,7 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
+        face_centers=interpolated_param_2d.get_face_centers(25),
         hires_factor=4,
         z_magnetic_axis=np.array(0.0),
         diverted=None,
@@ -78,14 +79,23 @@ class GeometryTest(parameterized.TestCase):
     _, LY1 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=2.0)
     _, LY2 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=3.0)
     geo0_intermediate = fbt._from_fbt_single_slice(
-        geometry_directory=None, LY_object=LY0, L_object=L
+        geometry_directory=None,
+        LY_object=LY0,
+        L_object=L,
+        face_centers=interpolated_param_2d.get_face_centers(25),
     )
 
     geo1_intermediate = fbt._from_fbt_single_slice(
-        geometry_directory=None, LY_object=LY1, L_object=L
+        geometry_directory=None,
+        LY_object=LY1,
+        L_object=L,
+        face_centers=interpolated_param_2d.get_face_centers(25),
     )
     geo2_intermediate = fbt._from_fbt_single_slice(
-        geometry_directory=None, LY_object=LY2, L_object=L
+        geometry_directory=None,
+        LY_object=LY2,
+        L_object=L,
+        face_centers=interpolated_param_2d.get_face_centers(25),
     )
     geo0 = standard_geometry.build_standard_geometry(geo0_intermediate)
     geo1 = standard_geometry.build_standard_geometry(geo1_intermediate)

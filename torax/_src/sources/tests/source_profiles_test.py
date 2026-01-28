@@ -23,6 +23,7 @@ from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_sources
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -65,7 +66,9 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D(nx=10)
+    torax_mesh = torax_pydantic.Grid1D(
+        face_centers=interpolated_param_2d.get_face_centers(nx=10)
+    )
     sources = sources_pydantic_model.Sources.from_dict(
         default_sources.get_default_source_config()
     )

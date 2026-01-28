@@ -79,7 +79,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     geometry = state_history.geometries
     times = state_history.times
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        step_fn.runtime_params_provider,
         torax_config,
         post_processed_outputs,
         core_profiles,
@@ -128,7 +127,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     times = [sim_state.t]
     post_processed_outputs = [post_processed_outputs_history[0]]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
-        step_fn.runtime_params_provider,
         torax_config,
         post_processed_outputs,
         core_profiles,
@@ -164,7 +162,6 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ds=imas_xr,
         write_output=False,
     )
-
 
 if __name__ == '__main__':
   absltest.main()

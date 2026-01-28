@@ -288,7 +288,9 @@ def calculate_poloidal_velocity(
   k_neo = _calculate_neoclassical_k_neo(nu_i_star, epsilon)
 
   # Calculate Radial Temperature Gradient (dT/dr)
-  grad_Ti = T_i.face_grad(geo.r_mid) * constants.CONSTANTS.keV_to_J  # [J/m]
+  grad_Ti = T_i.face_grad(
+      x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+  ) * constants.CONSTANTS.keV_to_J  # [J/m]
 
   # Calculate Poloidal Velocity
   # v_pol = k_i * (dT/dr) * (B_tor / <B^2>) / (Z * e)
@@ -304,7 +306,7 @@ def calculate_poloidal_velocity(
 
   return cell_variable.CellVariable(
       value=geometry_lib.face_to_cell(v_pol),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_constraint=v_pol[-1],
       right_face_grad_constraint=None,
   )

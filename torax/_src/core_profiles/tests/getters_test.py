@@ -73,7 +73,7 @@ class GettersTest(parameterized.TestCase):
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
     )
     result = getters.get_updated_ion_temperature(
         profile_conditions,
@@ -113,7 +113,7 @@ class GettersTest(parameterized.TestCase):
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
     )
     result = getters.get_updated_electron_temperature(
         profile_conditions,
@@ -168,7 +168,7 @@ class GettersTest(parameterized.TestCase):
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(1.0, dtype=jax_utils.get_dtype()),
-        dr=self.geo.drho_norm,
+        face_centers=self.geo.rho_face_norm,
     )
     n_e = getters.get_updated_electron_density(
         profile_conditions,
@@ -402,7 +402,7 @@ class GettersTest(parameterized.TestCase):
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
         right_face_constraint=jnp.array(100.0, dtype=jax_utils.get_dtype()),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
     )
     n_e = getters.get_updated_electron_density(
         runtime_params.profile_conditions,
@@ -561,13 +561,13 @@ class GettersTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(t=0.0)
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=T_e,
         right_face_grad_constraint=None,
     )
     n_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, n_e),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
@@ -666,13 +666,13 @@ class GettersTest(parameterized.TestCase):
     geo = torax_config.geometry.build_provider(t=0.0)
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=T_e,
         right_face_grad_constraint=None,
     )
     n_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, n_e),
-        dr=geo.drho_norm,
+        face_centers=geo.rho_face_norm,
         right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
@@ -790,13 +790,13 @@ class GettersTest(parameterized.TestCase):
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
@@ -908,13 +908,13 @@ class GettersTest(parameterized.TestCase):
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
@@ -978,13 +978,13 @@ class GettersTest(parameterized.TestCase):
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
@@ -1079,13 +1079,13 @@ class GettersTest(parameterized.TestCase):
 
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
-          dr=geo.drho_norm,
+          face_centers=geo.rho_face_norm,
           right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )

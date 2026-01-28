@@ -21,6 +21,7 @@ import numpy as np
 import pydantic
 import scipy
 from torax._src import constants
+from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
@@ -28,7 +29,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class EQDSKConfig(torax_pydantic.BaseModelFrozen):
+class EQDSKConfig(base.BaseGeometryConfig):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:
@@ -36,10 +37,6 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       integer in the range 1-8 or 11-18 inclusive.
     geometry_file: Name of the EQDSK file in the geometry directory.
     geometry_type: Always set to 'eqdsk'.
-    n_rho: Number of radial grid points.
-    hires_factor: Only used when the initial condition ``psi`` is from plasma
-      current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
-      hi_res_fac``, used for ``j`` to ``psi`` conversions.
     geometry_directory: Optionally overrides the default geometry directory.
     Ip_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
@@ -50,14 +47,11 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
-
-  cocos: torax_pydantic.COCOSInt
-  geometry_file: str
+  cocos: torax_pydantic.COCOSInt = ...
+  geometry_file: str = ...
   geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
       'eqdsk'
   )
-  n_rho: Annotated[pydantic.PositiveInt, torax_pydantic.TIME_INVARIANT] = 25
-  hires_factor: pydantic.PositiveInt = 4
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
@@ -70,7 +64,7 @@ class EQDSKConfig(torax_pydantic.BaseModelFrozen):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         Ip_from_parameters=self.Ip_from_parameters,
-        n_rho=self.n_rho,
+        face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         cocos=self.cocos,
         n_surfaces=self.n_surfaces,
@@ -84,7 +78,7 @@ def _construct_intermediates_from_eqdsk(
     geometry_file: str,
     hires_factor: int,
     Ip_from_parameters: bool,
-    n_rho: int,
+    face_centers: np.ndarray,
     n_surfaces: int,
     last_surface_factor: float,
     cocos: int,
@@ -104,7 +98,7 @@ def _construct_intermediates_from_eqdsk(
       calculations.
     Ip_from_parameters: If True, then Ip is taken from the config and the values
       in the Geometry are rescaled.
-    n_rho: Grid resolution used for all TORAX cell variables.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
@@ -430,7 +424,7 @@ def _construct_intermediates_from_eqdsk(
       delta_lower_face=delta_lower_face,
       elongation=elongation,
       vpr=vpr,
-      n_rho=n_rho,
+      face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=None,
       connection_length_target=None,

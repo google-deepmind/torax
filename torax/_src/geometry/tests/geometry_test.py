@@ -169,6 +169,39 @@ class GeometryTest(parameterized.TestCase):
       geo3 = dataclasses.replace(geo1, Phi_face=np.array([2.0]))
       self.assertNotEqual(geo1, geo3)
 
+  @parameterized.parameters([
+      dict(
+          arr=np.array([1.0, 2.0, 3.0]),
+          factor=2,
+          expected_arr=np.array([1.0, 1.5, 2.0, 2.5, 3.0]),
+      ),
+      dict(
+          arr=np.array([1.0, 2.0, 3.0, 4.0, 5.0]),
+          factor=2,
+          expected_arr=np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]),
+      ),
+      dict(
+          arr=np.array([1.0, 2.0, 3.0, 4.0, 5.0]),
+          factor=3,
+          expected_arr=np.array(
+              [1.0, 1.33333333, 1.66666667, 2.0, 2.33333333, 2.66666667, 3.0,
+               3.33333333, 3.66666667, 4.0, 4.33333333, 4.66666667, 5.0]
+          ),
+      ),
+      dict(
+          arr=np.array([0.0, 0.25, 0.5, 0.75, 1.0]),
+          factor=4,
+          expected_arr=np.array(
+              [0.0, 0.0625, 0.125, 0.1875, 0.25, 0.3125, 0.375, 0.4375, 0.5,
+               0.5625, 0.625, 0.6875, 0.75, 0.8125, 0.875, 0.9375, 1.0]
+          ),
+      ),
+  ])
+  def test_increase_resolution(self, arr, factor, expected_arr):
+    np.testing.assert_allclose(
+        geometry.increase_grid_resolution(arr, factor), expected_arr
+    )
+
 
 def _pint_face_to_cell(n_rho, face):
   cell = np.zeros(n_rho)

@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 from typing import Annotated
 from typing import Literal
+import uuid
 
 import chex
 import jax
@@ -65,13 +66,22 @@ class QualikizTransportModel(
 
   def __init__(self):
     self._qlkrun_parentdir = tempfile.TemporaryDirectory()
+    # Include UUID to prevent collisions when multiple simulations start
+    # simultaneously (e.g., in SLURM distributed systems)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    short_uuid = uuid.uuid4().hex[:8]
+    # Check for SLURM job ID if available (common in distributed computing)
+    slurm_job_id = os.environ.get('SLURM_JOB_ID')
+    if slurm_job_id:
+      unique_suffix = f'job_{slurm_job_id}_uuid_{short_uuid}'
+    else:
+      unique_suffix = f'uuid_{short_uuid}'
     self._qlkrun_name = (
-        _DEFAULT_QLKRUN_NAME_PREFIX
-        + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        _DEFAULT_QLKRUN_NAME_PREFIX + '_' + timestamp + '_' + unique_suffix
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -82,10 +92,10 @@ class QualikizTransportModel(
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model.
-      runtime_params: Input runtime parameters for all components
-        of the simulation at the current time.
+      transport_runtime_params: Input runtime parameters for this transport
+        model.
+      runtime_params: Input runtime parameters for all components of the
+        simulation at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
@@ -107,7 +117,7 @@ class QualikizTransportModel(
 
     def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
       # Qualikiz expects numpy arrays, but the callback passes jax.Array.
-      (qualikiz_inputs, transport_runtime_params, geo, core_profiles) = (
+      qualikiz_inputs, transport_runtime_params, geo, core_profiles = (
           jax.tree.map(
               np.asarray,
               (qualikiz_inputs, transport_runtime_params, geo, core_profiles),
@@ -131,7 +141,7 @@ class QualikizTransportModel(
       return core_transport
 
     face_array_shape_dtype = jax.ShapeDtypeStruct(
-        shape=(geo.torax_mesh.nx+1,), dtype=jax_utils.get_dtype()
+        shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
     )
     result_shape_dtypes = transport_model.TurbulentTransport(
         chi_face_ion=face_array_shape_dtype,
@@ -269,6 +279,21 @@ def _extract_qualikiz_plan(
 
   # TODO(b/381199010): Add option to use rotation.
 
+  if transport.rotation_mode == qualikiz_based_transport_model.RotationMode.OFF:
+    rot_flag = 0
+  elif (
+      transport.rotation_mode
+      == qualikiz_based_transport_model.RotationMode.FULL_RADIUS
+  ):
+    rot_flag = 1
+  elif (
+      transport.rotation_mode
+      == qualikiz_based_transport_model.RotationMode.HALF_RADIUS
+  ):
+    rot_flag = 2
+  else:
+    raise ValueError(f'Unsupported rotation mode: {transport.rotation_mode}')
+
   # numerical parameters
   meta = qualikiz_inputtools.QuaLiKizXpoint.Meta(
       maxpts=5e6,
@@ -278,6 +303,8 @@ def _extract_qualikiz_plan(
       rhomin=0.0,
       rhomax=0.98,
       maxruns=transport.n_max_runs,
+      rot_flag=rot_flag,
+      timeout=30,
   )
 
   options = qualikiz_inputtools.QuaLiKizXpoint.Options(
@@ -314,11 +341,11 @@ def _extract_qualikiz_plan(
       q=2,  # will be scan variable
       smag=1,  # will be scan variable
       alpha=0,  # will be scan variable
-      Machtor=0,
-      Autor=0,
-      Machpar=0,
-      Aupar=0,
-      gammaE=0,
+      Machtor=0,  # will be scan variable
+      Autor=0,  # will be scan variable (computed from Machtor and GammaE)
+      Machpar=0,  # will be scan variable (computed from Machtor and GammaE)
+      Aupar=0,  # will be scan variable (computed from Machtor and GammaE)
+      gammaE=0,  # will be scan variable
   )
 
   elec = qualikiz_inputtools.Electron(
@@ -398,6 +425,11 @@ def _extract_qualikiz_plan(
       'Zi1': np.array(Zi1),
       'Ai1': np.array(core_profiles.A_impurity_face),
   }
+  if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
+    scan_dict['gammaE'] = (
+        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK
+    )
+    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal
   # pylint: enable=invalid-name
 
   qualikiz_plan = qualikiz_inputtools.QuaLiKizPlan(
@@ -438,7 +470,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
-  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.OFF

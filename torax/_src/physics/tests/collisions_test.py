@@ -130,16 +130,16 @@ class CollisionsTest(parameterized.TestCase):
         state.CoreProfiles,
         instance=True,
         n_e=cell_variable.CellVariable(
-            value=jnp.array(n_e),
-            dr=jnp.array(1.0),
+            value=jnp.array([n_e]),
+            face_centers=jnp.array([0.0, 1.0]),
         ),
         n_i=cell_variable.CellVariable(
-            value=jnp.array(n_i),
-            dr=jnp.array(1.0),
+            value=jnp.array([n_i]),
+            face_centers=jnp.array([0.0, 1.0]),
         ),
         n_impurity=cell_variable.CellVariable(
-            value=jnp.array(n_impurity),
-            dr=jnp.array(1.0),
+            value=jnp.array([n_impurity]),
+            face_centers=jnp.array([0.0, 1.0]),
         ),
         Z_i=Z_i,
         A_i=A_i,

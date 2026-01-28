@@ -33,6 +33,7 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import torax_refs
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -69,7 +70,8 @@ class PsiCalculationsTest(parameterized.TestCase):
     return geo, j_parallel_truth, j_tor_truth
 
   def test_extrapolation_to_axis(self):
-    grid = torax_pydantic.Grid1D(nx=5)
+    face_centers = interpolated_param_2d.get_face_centers(nx=5)
+    grid = torax_pydantic.Grid1D(face_centers=face_centers)
     rho_norm = grid.cell_centers
     rho_face_norm = grid.face_centers
     cell_profile = rho_norm
@@ -171,6 +173,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     j, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         references.psi,
+        min_rho_norm=references.config.numerics.min_rho_norm,
     )
     # pylint: enable=invalid-name
     np.testing.assert_allclose(j, references.j_total, rtol=1e-5)
@@ -277,6 +280,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     _, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         psi_cell_variable,
+        min_rho_norm=0.01,
     )
 
     # Analytical formula for Bpol in circular geometry (Ampere's law)
@@ -322,6 +326,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     _, _, Ip_profile_face = psi_calculations.calc_j_total(
         geo,
         psi_cell_variable,
+        min_rho_norm=0.01,
     )
 
     # Analytical formula for Bpol^2 in circular geometry (Ampere's law)
@@ -351,12 +356,16 @@ class PsiCalculationsTest(parameterized.TestCase):
         'STEP_SPP_001_ECHD_ftop.nc'
     )
 
+    # Default value in TORAX config
+    min_rho_norm = 0.015
     j_tor_from_j_parallel = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_truth, geo
+        j_parallel_truth, geo, min_rho_norm
     )
     np.testing.assert_allclose(j_tor_from_j_parallel, j_tor_truth, rtol=0.05)
     np.testing.assert_allclose(
-        psi_calculations.j_toroidal_to_j_parallel(j_tor_from_j_parallel, geo),
+        psi_calculations.j_toroidal_to_j_parallel(
+            j_tor_from_j_parallel, geo, min_rho_norm
+        ),
         j_parallel_truth,
         rtol=0.05,
     )
@@ -368,14 +377,18 @@ class PsiCalculationsTest(parameterized.TestCase):
         'STEP_SPP_001_ECHD_ftop.nc'
     )
 
+    # Default value in TORAX config
+    min_rho_norm = 0.015
     j_parallel_from_j_tor = psi_calculations.j_toroidal_to_j_parallel(
-        j_tor_truth, geo
+        j_tor_truth, geo, min_rho_norm
     )
     np.testing.assert_allclose(
         j_parallel_from_j_tor, j_parallel_truth, rtol=0.05
     )
     np.testing.assert_allclose(
-        psi_calculations.j_parallel_to_j_toroidal(j_parallel_from_j_tor, geo),
+        psi_calculations.j_parallel_to_j_toroidal(
+            j_parallel_from_j_tor, geo, min_rho_norm
+        ),
         j_tor_truth,
         rtol=0.05,
     )
@@ -386,7 +399,8 @@ class PsiCalculationsTest(parameterized.TestCase):
     Check the output inverts _calculate_psi_value_constraint_from_v_loop
     as expected.
     """
-    mesh = torax_pydantic.Grid1D(nx=4)
+    face_centers = interpolated_param_2d.get_face_centers(nx=4)
+    mesh = torax_pydantic.Grid1D(face_centers=face_centers)
 
     dt = 1.0
     theta = 1.0
@@ -405,12 +419,12 @@ class PsiCalculationsTest(parameterized.TestCase):
 
     psi_t = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * 0.5,
-        dr=mesh.dx,
+        face_centers=mesh.face_centers,
         right_face_grad_constraint=0.0,
     )
     psi_t_plus_dt = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * psi_lcfs_t_plus_dt,
-        dr=mesh.dx,
+        face_centers=mesh.face_centers,
         right_face_grad_constraint=0.0,
     )
 

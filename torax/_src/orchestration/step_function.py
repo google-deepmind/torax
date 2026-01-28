@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
+
 import dataclasses
 import functools
 
@@ -141,21 +142,30 @@ class SimulationStepFn:
       post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> state.SimError:
     """Checks for errors in the simulation state."""
-    if self._runtime_params_provider.numerics.adaptive_dt:
-      if output_state.solver_numeric_outputs.solver_error_state == 1:
-        # Only check for min dt if the solver did not converge. Else we may have
-        # converged at a dt > min_dt just before we reach min_dt.
-        if (
-            output_state.dt
-            / self._runtime_params_provider.numerics.dt_reduction_factor
-            < self._runtime_params_provider.numerics.min_dt
-        ):
-          return state.SimError.REACHED_MIN_DT
+
+    # Low-temperature collapse check
+    if output_state.core_profiles.below_minimum_temperature(
+        self._runtime_params_provider.numerics.T_minimum_eV
+    ):
+      return state.SimError.LOW_TEMPERATURE_COLLAPSE
+
     state_error = output_state.check_for_errors()
     if state_error != state.SimError.NO_ERROR:
       return state_error
-    else:
-      return post_processed_outputs.check_for_errors()
+
+    post_processed_error = post_processed_outputs.check_for_errors()
+    if post_processed_error != state.SimError.NO_ERROR:
+      return post_processed_error
+
+    # Check if reached the minimum time step last - this is often caused by
+    # other errors so check those first to give more informative error messages.
+    if self._runtime_params_provider.numerics.adaptive_dt:
+      if output_state.solver_numeric_outputs.solver_error_state == 1:
+        # If using adaptive stepping and the solver did not converge we must
+        # have reached the minimum time step, so we can exit the simulation.
+        return state.SimError.REACHED_MIN_DT
+
+    return state.SimError.NO_ERROR
 
   @jax.jit
   def __call__(
@@ -290,8 +300,18 @@ class SimulationStepFn:
     remaining_dt = dt
 
     def cond(args):
-      remaining_dt, _, _ = args
-      return remaining_dt > constants.CONSTANTS.eps
+      remaining_dt, prev_state, _ = args
+      # If adaptive dt is enabled and the solver errors then we must have
+      # reached the minimum time step, so we should exit the simulation
+      # and an error will be raised when the state is checked. Here we set a
+      # the bool min_dt_reached to True to indicate that we should exit the
+      # simulation.
+      if self.runtime_params_provider.numerics.adaptive_dt:
+        exit_min_dt = prev_state.solver_numeric_outputs.solver_error_state == 1
+      else:
+        exit_min_dt = False
+      return jnp.logical_and(
+          remaining_dt > constants.CONSTANTS.eps, ~exit_min_dt)
 
     def body(args):
       remaining_dt, prev_state, prev_post_processed = args

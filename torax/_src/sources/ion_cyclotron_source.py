@@ -25,11 +25,13 @@ import flax.linen as nn
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
+import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
@@ -307,11 +309,55 @@ def _toric_nn_predict(
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(source_runtime_params_lib.RuntimeParams):
   frequency: array_typing.FloatScalar
-  minority_concentration: array_typing.FloatScalar
+  minority_concentration: array_typing.FloatScalar | None
   P_total: array_typing.FloatScalar
   absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
+  minority_species: str | None = dataclasses.field(
+      default=None, metadata={'static': True}
+  )
+
+
+def _get_minority_concentration_from_composition(
+    plasma_composition: plasma_composition_lib.RuntimeParams,
+    core_profiles: state.CoreProfiles,
+    minority_species: str,
+) -> jax.Array:
+  """Extract minority species concentration from core profiles.
+
+  Args:
+    plasma_composition: Runtime parameters of plasma composition.
+    core_profiles: Core plasma profiles.
+    minority_species: Symbol of the minority species (e.g., 'He3', 'D', 'T').
+
+  Returns:
+    Minority species fractional concentration relative to electron density.
+
+  Raises:
+    ValueError: If minority_species is not found in plasma composition.
+  """
+
+  # Check if species is in main ions
+  if minority_species in plasma_composition.main_ion_names:
+    # For main ions, concentration is fraction * n_i / n_e
+    fraction = core_profiles.main_ion_fractions[minority_species]
+    return core_profiles.n_i.value * fraction / core_profiles.n_e.value
+
+  if minority_species in plasma_composition.impurity_names:
+    impurity_fractions = core_profiles.impurity_fractions
+    impurity_density_scaling = core_profiles.impurity_density_scaling
+    fraction = impurity_fractions[minority_species]
+    n_imp_species = (
+        fraction * core_profiles.n_impurity.value * impurity_density_scaling
+    )
+    return n_imp_species / core_profiles.n_e.value
+
+  raise ValueError(
+      f'Minority species {minority_species} not found in plasma composition.'
+      f' Available main ions: {plasma_composition.main_ion_names},'
+      f' impurities: {plasma_composition.impurity_names}'
+  )
 
 
 def _helium3_tail_temperature(
@@ -350,6 +396,26 @@ def icrh_model_func(
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
 
+  # Get minority concentration: either from plasma composition or from params
+  if source_params.minority_species is not None:
+    # Extract minority concentration from plasma composition
+    minority_concentration_profile = (
+        _get_minority_concentration_from_composition(
+            runtime_params.plasma_composition,
+            core_profiles,
+            source_params.minority_species,
+        )
+    )
+    # Use first cell point value as assumption for relevant locations for
+    # extracting scalar ToricNN input, since deposition tends to be near-axis.
+    minority_concentration_scalar = minority_concentration_profile[0]
+  else:
+    # Use legacy parameter (backward compatibility)
+    # TODO(b/434175938): Remove backward compatibility in V2.
+    minority_concentration_scalar = source_params.minority_concentration
+    # For profile-dependent calculations, use constant value
+    minority_concentration_profile = source_params.minority_concentration
+
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
       core_profiles.T_e.value, geo
@@ -364,7 +430,7 @@ def icrh_model_func(
   )
   density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
   Router = geo.R_out_face[-1]  # Use LCFS outboard radius
-  Rinner = geo.R_in_face[-1]   # Use LCFS inboard radius
+  Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
   # This is a good assumption for the inner gap but perhaps less good for the
   # outer gap where there is significant curvature to the outer limiter.
@@ -375,7 +441,7 @@ def icrh_model_func(
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=source_params.minority_concentration
+      minority_concentration=minority_concentration_scalar
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
@@ -419,7 +485,7 @@ def icrh_model_func(
   helium3_birth_energy = _helium3_tail_temperature(
       power_deposition_he3,
       core_profiles,
-      source_params.minority_concentration,
+      minority_concentration_profile,
       source_params.P_total / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
@@ -487,7 +553,14 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       [m].
     frequency: ICRF wave frequency [Hz].
     minority_concentration: He3 minority fractional concentration relative to
-      the electron density.
+      the electron density. This parameter is used when minority_species is not
+      specified (legacy mode). When minority_species is set, the concentration
+      is automatically extracted from plasma_composition.
+    minority_species: Optional symbol of the minority species (e.g., 'He3', 'D',
+      'T'). When specified, the minority concentration is extracted from the
+      plasma_composition instead of using minority_concentration parameter. The
+      species can be either a main ion (if hydrogenic) or an impurity (if
+      helium).
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
@@ -501,9 +574,11 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       120e6
   )
-  minority_concentration: torax_pydantic.TimeVaryingScalar = (
+  # TODO(b/434175938): Remove in V2. Will be set in plasma_composition.
+  minority_concentration: torax_pydantic.TimeVaryingScalar | None = (
       torax_pydantic.ValidatedDefault(0.03)
   )
+  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       10e6
   )
@@ -518,6 +593,32 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   def model_func(self) -> source.SourceProfileFunction:
     return _icrh_model_func_with_toric_nn(self.model_path)
 
+  @pydantic.model_validator(mode='after')
+  def _validate_minority_species(self) -> typing_extensions.Self:
+    if self.minority_species is not None and self.minority_species != 'He3':
+      raise ValueError(
+          "Minority species must be 'He3' if specified. Got:"
+          f' {self.minority_species}. '
+          'The current ToricNN model supports only He3.'
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _log_warning_for_used_minority_concentration(
+      self,
+  ) -> typing_extensions.Self:
+    """Logs a warning if minority_concentration is provided."""
+    if self.minority_concentration is not None:
+      logging.warning(
+          'minority_concentration is provided in ion_cyclotron_source. '
+          'This is a deprecated parameter. It is recommended to explicitly set '
+          'minority_species to None and then define the minority density in '
+          'plasma_composition instead. Note that defining '
+          'non None minority_concentration in ion_cyclotron_source overrides '
+          'any plasma_composition values for ICRH model input.'
+      )
+    return self
+
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -531,7 +632,12 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),
-        minority_concentration=self.minority_concentration.get_value(t),
+        minority_concentration=(
+            self.minority_concentration.get_value(t)
+            if self.minority_concentration is not None
+            else None
+        ),
+        minority_species=self.minority_species,
         P_total=self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )

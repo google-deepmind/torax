@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 import scipy
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -31,6 +33,8 @@ from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
+# pylint: disable=invalid-name
+
 
 class PostProcessingTest(parameterized.TestCase):
 
@@ -40,9 +44,9 @@ class PostProcessingTest(parameterized.TestCase):
     config['sources'] = default_sources.get_default_source_config()
     torax_config = model_config.ToraxConfig.from_dict(config)
     self.runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(t=0.0)
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=0.0
+        )
     )
     self.geo = torax_config.geometry.build_provider(t=0.0)
     # Make some dummy source profiles.
@@ -55,13 +59,17 @@ class PostProcessingTest(parameterized.TestCase):
         T_i={
             'fusion': ones,
             'generic_heat': 2 * ones,
+            'icrh': 3 * ones,
         },
         T_e={
             'bremsstrahlung': -ones,
-            'ohmic': ones * 5,
+            'cyclotron_radiation': -2 * ones,
+            'impurity_radiation': -3 * ones,
+            'ohmic': 5 * ones,
             'fusion': ones,
             'generic_heat': 3 * ones,
             'ecrh': 7 * ones,
+            'icrh': 1.5 * ones,
         },
         psi={
             'generic_current': 2 * ones,
@@ -108,9 +116,9 @@ class PostProcessingTest(parameterized.TestCase):
         'P_icrh_total',
         'P_radiation_e',
         'P_cyclotron_e',
-        'P_SOL_i',
-        'P_SOL_e',
-        'P_SOL_total',
+        'P_heat_i',
+        'P_heat_e',
+        'P_heat_total',
         'P_aux_i',
         'P_aux_e',
         'P_aux_total',
@@ -131,24 +139,28 @@ class PostProcessingTest(parameterized.TestCase):
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
         integrated_sources['P_aux_generic_i']
+        + integrated_sources['P_icrh_i']
         + integrated_sources['P_alpha_i']
         + integrated_sources['P_ei_exchange_i'],
-        integrated_sources['P_SOL_i'],
+        integrated_sources['P_heat_i'],
     )
 
     np.testing.assert_allclose(
         integrated_sources['P_aux_generic_e']
         + integrated_sources['P_ohmic_e']
         + integrated_sources['P_bremsstrahlung_e']
+        + integrated_sources['P_cyclotron_e']
+        + integrated_sources['P_radiation_e']
         + integrated_sources['P_ecrh_e']
+        + integrated_sources['P_icrh_e']
         + integrated_sources['P_alpha_e']
         + integrated_sources['P_ei_exchange_e'],
-        integrated_sources['P_SOL_e'],
+        integrated_sources['P_heat_e'],
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_SOL_e'] + integrated_sources['P_SOL_i'],
-        integrated_sources['P_SOL_total'],
+        integrated_sources['P_heat_e'] + integrated_sources['P_heat_i'],
+        integrated_sources['P_heat_total'],
     )
 
     np.testing.assert_allclose(
@@ -159,9 +171,11 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         integrated_sources['P_aux_total']
         + integrated_sources['P_bremsstrahlung_e']
-        - integrated_sources['P_ohmic_e'],
-        +integrated_sources['P_alpha_total'],
-        integrated_sources['P_SOL_total'],
+        + integrated_sources['P_cyclotron_e']
+        + integrated_sources['P_radiation_e']
+        + integrated_sources['P_ohmic_e']
+        + integrated_sources['P_alpha_total'],
+        integrated_sources['P_heat_total'],
     )
 
     # Check expected values.
@@ -224,6 +238,89 @@ class PostProcessingTest(parameterized.TestCase):
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR
     )
 
+  def test_current_outputs(self):
+    """Checks calculation of current-related outputs."""
+    # Setup non-zero bootstrap current
+    ones = np.ones_like(self.geo.rho)
+    bootstrap_current = bootstrap_current_base.BootstrapCurrent(
+        j_parallel_bootstrap=1.0 * ones,
+        j_parallel_bootstrap_face=1.0 * np.ones_like(self.geo.rho_face),
+    )
+
+    # Source profiles with parallel currents (normalized <j.B>/B0)
+    # generic: 2.0, ecrh: 2.0. Sum external = 4.0.
+    source_profiles = dataclasses.replace(
+        self.source_profiles, bootstrap_current=bootstrap_current
+    )
+
+    # Mock j_total (toroidal).
+    # We leave core_profiles as is (from setUp), but update source_profiles.
+
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+    )
+
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
+    )
+
+    # Check parallel currents
+    # external = sum(psi) = 2 + 2 = 4
+    np.testing.assert_allclose(outputs.j_parallel_external, 4.0 * ones)
+
+    # non_inductive = bootstrap (1.0) + external (4.0) = 5.0
+    np.testing.assert_allclose(outputs.j_parallel_non_inductive, 5.0 * ones)
+
+    # Check toroidal currents relation
+    # j_non_inductive should be j_bootstrap + j_external
+    np.testing.assert_allclose(
+        outputs.j_non_inductive, outputs.j_bootstrap + outputs.j_external
+    )
+
+    # Check integrated currents
+    # I_non_inductive should be I_bootstrap + area_int(j_external)
+    I_external = math_utils.area_integration(outputs.j_external, self.geo)
+    np.testing.assert_allclose(outputs.I_external, I_external)
+
+    np.testing.assert_allclose(
+        outputs.I_non_inductive, outputs.I_bootstrap + I_external
+    )
+
+    # Check fraction
+    # f_non_inductive = I_non_inductive / Ip
+    # Ip comes from core_profiles.Ip_profile_face[-1]
+    ip = self.core_profiles.Ip_profile_face[-1]
+    # Code uses constants.CONSTANTS.eps for division guard
+    np.testing.assert_allclose(
+        outputs.f_non_inductive,
+        math_utils.safe_divide(outputs.I_non_inductive, ip),
+        rtol=1e-5,
+    )
+
+    # Check bootstrap fraction
+    # f_bootstrap = I_bootstrap / Ip
+    np.testing.assert_allclose(
+        outputs.f_bootstrap,
+        math_utils.safe_divide(outputs.I_bootstrap, ip),
+        rtol=1e-5,
+    )
+
 
 class PostProcessingSimTest(sim_test_case.SimTestCase):
   """Tests for the cumulative outputs."""
@@ -240,16 +337,20 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
     p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e
     p_external_injected = (
-        state_history._stacked_post_processed_outputs.P_external_injected)
+        state_history._stacked_post_processed_outputs.P_external_injected
+    )
     p_external_total = (
-        state_history._stacked_post_processed_outputs.P_external_total)
+        state_history._stacked_post_processed_outputs.P_external_total
+    )
     e_fusion = state_history._stacked_post_processed_outputs.E_fusion
     e_aux_total = state_history._stacked_post_processed_outputs.E_aux_total
     e_ohmic_e = state_history._stacked_post_processed_outputs.E_ohmic_e
     e_external_injected = (
-        state_history._stacked_post_processed_outputs.E_external_injected)
+        state_history._stacked_post_processed_outputs.E_external_injected
+    )
     e_external_total = (
-        state_history._stacked_post_processed_outputs.E_external_total)
+        state_history._stacked_post_processed_outputs.E_external_total
+    )
     t = state_history.times
 
     # Calculate the cumulative energies from the powers.
@@ -272,8 +373,9 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(e_fusion, e_fusion_expected)
     np.testing.assert_allclose(e_aux_total, e_aux_total_expected)
     np.testing.assert_allclose(e_ohmic_e, e_ohmic_e_expected)
-    np.testing.assert_allclose(e_external_injected,
-                               e_external_injected_expected)
+    np.testing.assert_allclose(
+        e_external_injected, e_external_injected_expected
+    )
     np.testing.assert_allclose(e_external_total, e_external_total_expected)
 
 

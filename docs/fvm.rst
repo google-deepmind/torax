@@ -26,7 +26,10 @@ arbitrary mesh topologies. `torax.fvm` is much less general ---it
 avoids hard-coded Tokamak physics into `torax.fvm` but has not attempted
 to include any more features than needed for the Tokamak core transport
 problem. `torax.fvm` thus supports only one topology, the 1-D
-grid topology. However, within this restricted domain, `torax.fvm`
+grid topology, though it does support both uniform and non-uniform radial
+grids (see :ref:`configuration` for details on configuring the grid via
+``n_rho`` or ``face_centers``).
+However, within this restricted domain, `torax.fvm`
 offers a variety of solver techniques not available in `fipy`,
 especially solver techniques that are possible only with differentiable
 solvers, in our case enabled by JAX. For example, in `torax.fvm` the

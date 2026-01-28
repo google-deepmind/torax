@@ -272,7 +272,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=nx)
+    face_centers = interpolated_param_2d.get_face_centers(nx)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     np.testing.assert_allclose(
@@ -342,7 +343,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         interpolated_param_2d.set_grid(m2, grid)
 
     with self.subTest('set_grid_already_set_force'):
-      grid._update_fields({'nx': grid.nx + 1})
+      face_centers = grid.face_centers**2
+      grid._update_fields({'face_centers': face_centers})
       interpolated_param_2d.set_grid(m2, grid, mode='force')
       chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
       # Ensure that setting the grid does not re-use the grid object.
@@ -363,15 +365,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     self.assertEqual(array_1, array_2)
     array_1.get_value(t=0.0)
     self.assertEqual(array_1, array_2)
-
-  def test_grid1d_cache(self):
-    grid_1 = interpolated_param_2d.Grid1D(nx=10,)
-    grid_2 = interpolated_param_2d.Grid1D(nx=10,)
-
-    # Ensure cell_centers and face_centers are cached, and use the same
-    # underlying NumPy arrays.
-    self.assertIs(grid_1.cell_centers, grid_2.cell_centers)
-    self.assertIs(grid_1.face_centers, grid_2.face_centers)
 
   def test_sorted_keys(self):
 
@@ -394,7 +387,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -443,7 +437,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     @jax.jit
@@ -468,6 +463,51 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     np.testing.assert_allclose(
         face_right_values,
         interpolated.get_value(t=0.0, grid_type='face_right'),
+    )
+
+  def test_time_varying_array_update_validations_value_only(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Either both or neither of rho_norm and value must be provided.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0]]), rho_norm=None
+      )
+
+  def test_time_varying_array_update_validations_rhonorm_only(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Either both or neither of rho_norm and value must be provided.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=None, rho_norm=np.array([1.0])
+      )
+
+  def test_time_varying_array_update_validations_shape_mismatch(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'rho_norm and value must have the same trailing dimension.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]), rho_norm=np.array([1.0])
+      )
+
+  def test_time_varying_array_update_validations_time_dimension_mismatch(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'value and time arrays must have same leading dimension.',
+    ):
+      interpolated_param_2d.TimeVaryingArrayUpdate(
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]),
+          rho_norm=np.array([0.0, 1.0]),
+          time=np.array([0.0]),
+      )
+
+  def test_allowed_mix_of_numpy_and_jax_arrays_for_update(self):
+    interpolated_param_2d.TimeVaryingArrayUpdate(
+        value=jnp.array([[1.0, 2.0], [3.0, 4.0]]),
+        rho_norm=np.array([0.0, 1.0]),
+        time=np.array([0.0, 1.0]),
     )
 
   @parameterized.named_parameters(
@@ -507,7 +547,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     new_tva = tva.update(new_values)
@@ -531,7 +572,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     tva = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D(nx=4)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
     interpolated_param_2d.set_grid(tva, grid=grid)
 
     @jax.jit

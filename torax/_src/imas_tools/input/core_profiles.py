@@ -18,6 +18,8 @@ from typing import Any
 from imas import ids_toplevel
 import numpy as np
 from torax._src import constants
+from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import validation
 
 
 # pylint: disable=invalid-name
@@ -38,12 +40,13 @@ def profile_conditions_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `profile_conditions` section of a TORAX `CONFIG`.
   """
-  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
+  validation.validate_core_profiles_ids(ids)
+  profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
 
   # profile_conditions
-  psi = (np.array(rhon_array[0]), np.array(profiles_1d[0].grid.psi))
+  psi = (time_array, rhon_array, [profile.grid.psi for profile in profiles_1d])
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Ip sign is switched due to the difference between input COCOS conventions
   # and TORAX ones
@@ -149,7 +152,7 @@ def plasma_composition_from_IMAS(
     The updated fields read from the IDS that can be used to completely or
     partially fill the `plasma_composition` section of a TORAX `CONFIG`.
   """
-  profiles_1d, rhon_array, time_array = _get_time_and_radial_arrays(
+  profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
   # Check that the expected ions are present in the IDS
@@ -207,18 +210,6 @@ def plasma_composition_from_IMAS(
           "species": impurity_species,
       },
   }
-
-
-def _get_time_and_radial_arrays(
-    ids: ids_toplevel.IDSToplevel,
-    t_initial: float | None = None,
-) -> tuple[ids_toplevel.IDSStructure, list[list[float]], list[float]]:
-  profiles_1d = ids.profiles_1d
-  time_array = [profile.time for profile in profiles_1d]
-  if t_initial:
-    time_array = [t - time_array[0] + t_initial for t in time_array]
-  rhon_array = [profile.grid.rho_tor_norm for profile in profiles_1d]
-  return profiles_1d, rhon_array, time_array
 
 
 def _check_expected_ions_presence(

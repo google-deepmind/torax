@@ -18,7 +18,7 @@ import dataclasses
 import chex
 import jax
 from torax._src import array_typing
-from torax._src import constants
+from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
@@ -153,7 +153,7 @@ def _calculate_impurity_scaling_factor(
   # Calculate scaling from the current value of the profile at the lcfs.
   # This scales the whole profile shape to match the edge value.
   current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
-  return conc_lcfs / (current_val_at_edge + constants.CONSTANTS.eps)
+  return math_utils.safe_divide(conc_lcfs, current_val_at_edge)
 
 
 def _update_impurities(

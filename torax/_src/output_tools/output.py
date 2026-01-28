@@ -107,6 +107,7 @@ Q_FUSION = "Q_fusion"
 SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
 CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
+MAIN_ION = "main_ion"
 
 # Numerics.
 SIM_STATUS = "sim_status"
@@ -205,6 +206,14 @@ def stitch_state_files(
     A xr.DataTree containing the stitched dataset.
   """
   previous_datatree = load_state_file(file_restart.filename)
+  np.testing.assert_array_equal(
+      previous_datatree.coords[RHO_CELL_NORM].as_numpy(),
+      datatree.coords[RHO_CELL_NORM].as_numpy(),
+      err_msg=(
+          "The rho_cell_norm coordinates of the previous state file and the"
+          " current state file must be the same."
+      ),
+  )
   # Reduce previous_ds to all times before the first time step in this
   # sim output. We use ds.time[0] instead of file_restart.time because
   # we are uncertain if file_restart.time is the exact time of the
@@ -425,16 +434,19 @@ class StateHistory:
         ),
     }
     numerics = xr.Dataset(numerics_dict)
+
+    spatial_coords = {RHO_FACE_NORM, RHO_CELL_NORM, RHO_NORM}
+
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and v.values.ndim > 1  # pytype: disable=attribute-error
+        if v is not None and any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and v.values.ndim in [0, 1]  # pytype: disable=attribute-error
+        if v is not None and not any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
     }
     scalars = xr.Dataset(scalars_dict)
     children = {
@@ -541,9 +553,21 @@ class StateHistory:
     )
 
     for attr_name in core_profiles_names:
-      # Skip impurity_fractions since we have not yet converged on the public
-      # API for individual impurity density extensions.
+      # Skip impurity_fractions since redundant with n_impurity_species.
       if attr_name == "impurity_fractions":
+        continue
+
+      # Skip charge_state_info since it is not needed in the output.
+      if attr_name in (
+          "charge_state_info",
+          "charge_state_info_face",
+          "impurity_density_scaling",
+      ):
+        continue
+
+      # Skip main_ion_fractions as it requires special handling (dict to
+      # DataArray with extra dim)
+      if attr_name == "main_ion_fractions":
         continue
 
       attr_value = getattr(stacked_core_profiles, attr_name)
@@ -600,6 +624,19 @@ class StateHistory:
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
     xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)
 
+    # Handle main_ion_fractions
+    main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
+    data = np.stack(
+        [stacked_core_profiles.main_ion_fractions[ion] for ion in main_ions],
+        axis=0,
+    )
+    xr_dict["main_ion_fractions"] = xr.DataArray(
+        data,
+        dims=[MAIN_ION, TIME],
+        coords={MAIN_ION: main_ions, TIME: self.times},
+        name="main_ion_fractions",
+    )
+
     return xr_dict
 
   def _save_core_transport(
@@ -622,16 +659,17 @@ class StateHistory:
 
     # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
-    if (
-        core_transport.chi_face_el_bohm is not None
-        or core_transport.chi_face_el_gyrobohm is not None
-        or core_transport.chi_face_ion_bohm is not None
-        or core_transport.chi_face_ion_gyrobohm is not None
-    ):
-      xr_dict[CHI_BOHM_E] = core_transport.chi_face_el_bohm
-      xr_dict[CHI_GYROBOHM_E] = core_transport.chi_face_el_gyrobohm
-      xr_dict[CHI_BOHM_I] = core_transport.chi_face_ion_bohm
-      xr_dict[CHI_GYROBOHM_I] = core_transport.chi_face_ion_gyrobohm
+    optional_transport_map = {
+        CHI_BOHM_E: core_transport.chi_face_el_bohm,
+        CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
+        CHI_BOHM_I: core_transport.chi_face_ion_bohm,
+        CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
+    }
+
+    for name, data in optional_transport_map.items():
+      # Skip if None or an array of Nones from stack
+      if data is not None and data.dtype != object:
+        xr_dict[name] = data
 
     xr_dict = {
         name: self._pack_into_data_array(
@@ -690,6 +728,11 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
+
+    pp_field_names = {
+        f.name for f in dataclasses.fields(self._stacked_post_processed_outputs)
+    }
+
     for field in dataclasses.fields(self._stacked_post_processed_outputs):
       attr_name = field.name
       if attr_name == "first_step":
@@ -699,10 +742,25 @@ class StateHistory:
       if attr_name == "impurity_species":
         continue
 
+      # Skip _face attributes if cell counterpart exists
+      if attr_name.endswith("_face") and (
+          attr_name.removesuffix("_face") in pp_field_names
+      ):
+        continue
+
       attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
+
+      # Check if a corresponding face variable exists to extend the grid.
+      face_attr_name = f"{attr_name}_face"
+
       if hasattr(attr_value, "cell_plus_boundaries"):
         # Handles stacked CellVariable-like objects.
         data_to_save = attr_value.cell_plus_boundaries()
+      elif face_attr_name in pp_field_names:
+        face_value = getattr(
+            self._stacked_post_processed_outputs, face_attr_name
+        )
+        data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
       else:
         data_to_save = attr_value
       xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
@@ -781,6 +839,17 @@ class StateHistory:
         continue
       if isinstance(value, property):
         property_data = value.fget(self._stacked_geometry)
+        # TODO(b/434175938): Remove this once we move to V2.
+        if name == "drho":
+          is_uniform = np.all(
+              np.isclose(property_data[:, 0][..., None], property_data)
+          )
+          if is_uniform:
+            property_data = property_data[:, 0]
+        elif name == "drho_norm":
+          is_uniform = all(np.isclose(property_data, property_data[0]))
+          if is_uniform:
+            property_data = property_data[0]
         # Check if there is a corresponding face variable for this property.
         # If so, extend the data to the cell+boundaries grid.
         if f"{name}_face" in property_names:

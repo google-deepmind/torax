@@ -237,8 +237,8 @@ def calculate_betas(
 
   magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
-  beta_tor = p_total_volume_avg / (
-      magnetic_pressure_on_axis + constants.CONSTANTS.eps
+  beta_tor = math_utils.safe_divide(
+      p_total_volume_avg, magnetic_pressure_on_axis
   )
 
   beta_pol = (

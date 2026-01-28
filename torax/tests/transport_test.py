@@ -28,7 +28,7 @@ from torax._src.test_utils import default_configs
 class FakeTransportModel(transport.TransportModel):
   """Fake transport model that always returns zeros."""
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: transport.RuntimeParams,
       runtime_params: torax.RuntimeParams,

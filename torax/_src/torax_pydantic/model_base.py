@@ -119,7 +119,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     }
     # The model needs to be reconstructed without validation, as init can
     # contain JAX tracers inside a JIT, which will fail Pydantic validation. In
-    # addition, validation is unecessary overhead.
+    # addition, validation is unnecessary overhead.
     return cls.model_construct(**(dynamic_kwargs | aux_data))
 
   @classmethod

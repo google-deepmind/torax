@@ -133,9 +133,9 @@ def scale_cell_variable(
 
   return cell_variable.CellVariable(
       value=scaled_value,
+      face_centers=cv.face_centers,
       left_face_constraint=scaled_left_face_constraint,
       left_face_grad_constraint=scaled_left_face_grad_constraint,
       right_face_constraint=scaled_right_face_constraint,
       right_face_grad_constraint=scaled_right_face_grad_constraint,
-      dr=cv.dr,
   )

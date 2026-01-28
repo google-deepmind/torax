@@ -69,7 +69,7 @@ def initial_core_profiles(
       runtime_params.profile_conditions, geo
   )
   ions = getters.get_updated_ions(runtime_params, geo, n_e, T_e)
-  toroidal_velocity = getters.get_updated_toroidal_velocity(
+  toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       runtime_params.profile_conditions, geo
   )
   # Set v_loop_lcfs. Two branches:
@@ -90,11 +90,11 @@ def initial_core_profiles(
   # Initialise psi and derived quantities to zero before they are calculated.
   psidot = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
   )
   psi = cell_variable.CellVariable(
       value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
   )
 
   core_profiles = state.CoreProfiles(
@@ -107,6 +107,7 @@ def initial_core_profiles(
       A_i=ions.A_i,
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
+      main_ion_fractions=ions.main_ion_fractions,
       Z_impurity=ions.Z_impurity,
       Z_impurity_face=ions.Z_impurity_face,
       A_impurity=ions.A_impurity,
@@ -123,7 +124,9 @@ def initial_core_profiles(
       j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      toroidal_velocity=toroidal_velocity,
+      toroidal_angular_velocity=toroidal_angular_velocity,
+      charge_state_info=ions.charge_state_info,
+      charge_state_info_face=ions.charge_state_info_face,
   )
 
   return _init_psi_and_psi_derived(
@@ -190,7 +193,7 @@ def update_psi_from_j(
     # we set it to match the desired plasma current.
     right_face_grad_constraint = None
     right_face_constraint = (
-        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
+        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
     )
   else:
     # Use the dpsi/drho calculated above as the right face gradient constraint
@@ -199,7 +202,7 @@ def update_psi_from_j(
 
   psi = cell_variable.CellVariable(
       value=psi_value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=right_face_grad_constraint,
       right_face_constraint=right_face_constraint,
   )
@@ -303,7 +306,7 @@ def _init_psi_and_psi_derived(
         right_face_grad_constraint = None
         right_face_constraint = (
             runtime_params.profile_conditions.psi[-1]
-            + dpsi_drhonorm_edge * geo.drho_norm / 2
+            + dpsi_drhonorm_edge * geo.drho_norm[-1] / 2
         )
       else:
         # Use the dpsi/drho calculated above as the right face gradient
@@ -313,9 +316,9 @@ def _init_psi_and_psi_derived(
 
       psi = cell_variable.CellVariable(
           value=runtime_params.profile_conditions.psi,
+          face_centers=geo.rho_face_norm,
           right_face_grad_constraint=right_face_grad_constraint,
           right_face_constraint=right_face_constraint,
-          dr=geo.drho_norm,
       )
 
     # Case 2: retrieving psi from the standard geometry input.
@@ -338,13 +341,13 @@ def _init_psi_and_psi_derived(
       # by make_ip_consistent
       psi = cell_variable.CellVariable(
           value=geo.psi_from_Ip,  # Use psi from equilibrium
+          face_centers=geo.rho_face_norm,
           right_face_grad_constraint=None
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else dpsi_drhonorm_edge,
           right_face_constraint=geo.psi_from_Ip_face[-1]
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else None,
-          dr=geo.drho_norm,
       )
 
     # Case 3: calculating j according to nu formula and psi from j.
@@ -419,7 +422,7 @@ def _calculate_all_psi_dependent_profiles(
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo, psi
+      geo, psi, runtime_params.numerics.min_rho_norm
   )
 
   core_profiles = dataclasses.replace(
@@ -546,7 +549,9 @@ def _iterate_psi_and_sources(
         geo,
         source_profiles.bootstrap_current,
         j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-            sum(source_profiles.psi.values()), geo
+            sum(source_profiles.psi.values()),
+            geo,
+            runtime_params.numerics.min_rho_norm,
         ),
     )
     psi = update_psi_from_j(
@@ -589,7 +594,9 @@ def get_j_toroidal_total_hires_with_external_sources(
   # Convert bootstrap current density to toroidal, and calculate high-resolution
   # version
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
-      bootstrap_current.j_parallel_bootstrap, geo
+      bootstrap_current.j_parallel_bootstrap,
+      geo,
+      runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_bootstrap_hires = jnp.interp(
       geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face

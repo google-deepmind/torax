@@ -31,7 +31,7 @@ from typing_extensions import override
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for TGLF-based models."""
-  use_rotation: bool
+  use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
 
 
@@ -234,6 +234,7 @@ class TGLFBasedTransportModel(
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
         radial_coordinate=geo.r_mid,  # On the cell grid
+        radial_face_coordinate=geo.r_mid_face,
         reference_length=a,
     )
 
@@ -315,7 +316,11 @@ class TGLFBasedTransportModel(
     # Normalized toroidal ExB velocity Doppler shift gradient.
     # Calculated on the face grid.
     # https://gacode.io/tglf/tglf_list.html#vexb-shear
-    def _get_v_ExB_shear():
+    def _get_v_ExB_shear(
+        core_profiles: state.CoreProfiles,
+        geo: geometry.Geometry,
+        poloidal_velocity_multiplier: array_typing.FloatScalar,
+    ):
       v_ExB, _, _ = rotation.calculate_rotation(
           T_i=core_profiles.T_i,
           psi=core_profiles.psi,
@@ -323,7 +328,7 @@ class TGLFBasedTransportModel(
           q_face=core_profiles.q_face,
           Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
-          toroidal_velocity=core_profiles.toroidal_velocity,
+          toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
           pressure_thermal_i=core_profiles.pressure_thermal_i,
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
@@ -341,11 +346,14 @@ class TGLFBasedTransportModel(
       return v_ExB_shear
 
     # TODO(b/381199010): Validate against existing frameworks.
-    v_ExB_shear = jax.lax.cond(
-        transport.use_rotation,
-        _get_v_ExB_shear,
-        lambda: jnp.zeros_like(core_profiles.q_face),
-    )
+    if transport.use_rotation:
+      v_ExB_shear = _get_v_ExB_shear(
+          core_profiles,
+          geo,
+          poloidal_velocity_multiplier,
+      )
+    else:
+      v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
 
     return TGLFInputs(
         # From QuasilinearInputs

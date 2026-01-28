@@ -13,12 +13,14 @@
 # limitations under the License.
 
 """Functions for getting updated CellVariable objects for CoreProfiles."""
+
 import dataclasses
 from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
@@ -43,6 +45,7 @@ class Ions:
   n_i: cell_variable.CellVariable
   n_impurity: cell_variable.CellVariable
   impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+  main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   Z_impurity: array_typing.FloatVectorCell
@@ -52,6 +55,8 @@ class Ions:
   A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 def get_updated_ion_temperature(
@@ -72,10 +77,10 @@ def get_updated_ion_temperature(
     value = profile_conditions_params.T_i
   T_i = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_i_right_bc,
-      dr=geo.drho_norm,
   )
   return T_i
 
@@ -99,10 +104,10 @@ def get_updated_electron_temperature(
 
   T_e = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=profile_conditions_params.T_e_right_bc,
-      dr=geo.drho_norm,
   )
   return T_e
 
@@ -139,7 +144,11 @@ def get_updated_electron_density(
   if profile_conditions_params.normalize_n_e_to_nbar:
     face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
     face_right = n_e_right_bc
-    face_inner = (n_e_value[..., :-1] + n_e_value[..., 1:]) / 2.0
+    face_inner = math_utils.inner_face_values_from_cell_values(
+        cell_values=n_e_value,
+        face_centers=geo.rho_face_norm,
+        cell_centers=geo.rho_norm,
+    )
     n_e_face = jnp.concatenate(
         [face_left[None], face_inner, face_right[None]],
     )
@@ -191,7 +200,7 @@ def get_updated_electron_density(
 
   n_e = cell_variable.CellVariable(
       value=value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_e_right_bc,
   )
@@ -233,28 +242,28 @@ def get_updated_psi(
   )
   return cell_variable.CellVariable(
       value=value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=right_face_grad_constraint,
       right_face_constraint=right_face_constraint,
   )
 
 
-def get_updated_toroidal_velocity(
+def get_updated_toroidal_angular_velocity(
     profile_conditions_params: profile_conditions.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed toroidal velocity profiles."""
-  if profile_conditions_params.toroidal_velocity is None:
+  if profile_conditions_params.toroidal_angular_velocity is None:
     value = jnp.zeros_like(geo.rho)
   else:
-    value = profile_conditions_params.toroidal_velocity
-  toroidal_velocity = cell_variable.CellVariable(
+    value = profile_conditions_params.toroidal_angular_velocity
+  toroidal_angular_velocity = cell_variable.CellVariable(
       value=value,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=profile_conditions_params.toroidal_velocity_right_bc,
-      dr=geo.drho_norm,
+      right_face_constraint=profile_conditions_params.toroidal_angular_velocity_right_bc,
   )
-  return toroidal_velocity
+  return toroidal_angular_velocity
 
 
 @dataclasses.dataclass(frozen=True)
@@ -269,6 +278,8 @@ class _IonProperties:
   dilution_factor: array_typing.FloatVectorCell
   dilution_factor_edge: array_typing.FloatScalar
   impurity_fractions: Mapping[str, array_typing.FloatVectorCell]
+  charge_state_info: charge_states.ChargeStateInfo
+  charge_state_info_face: charge_states.ChargeStateInfo
 
 
 def _get_ion_properties_from_fractions(
@@ -281,16 +292,19 @@ def _get_ion_properties_from_fractions(
 ) -> _IonProperties:
   """Calculates ion properties when impurity content is defined by fractions."""
 
-  Z_impurity = charge_states.get_average_charge_state(
+  charge_state_info = charge_states.get_average_charge_state(
       T_e=T_e.value,
       fractions=impurity_params.fractions,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
-  Z_impurity_face = charge_states.get_average_charge_state(
+  )
+  Z_impurity = charge_state_info.Z_mixture
+
+  charge_state_info_face = charge_states.get_average_charge_state(
       T_e=T_e.face_value(),
       fractions=impurity_params.fractions_face,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
+  )
+  Z_impurity_face = charge_state_info_face.Z_mixture
 
   Z_eff = Z_eff_from_config
   Z_eff_edge = Z_eff_face_from_config[-1]
@@ -316,6 +330,8 @@ def _get_ion_properties_from_fractions(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
       impurity_fractions=impurity_params.fractions,
+      charge_state_info=charge_state_info,
+      charge_state_info_face=charge_state_info_face,
   )
 
 
@@ -377,6 +393,8 @@ def _get_ion_properties_from_n_e_ratios(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_edge,
       impurity_fractions=impurity_params.fractions,
+      charge_state_info=average_charge_state,
+      charge_state_info_face=average_charge_state_face,
   )
 
 
@@ -498,9 +516,9 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   )
 
   # Now update the row for the unknown species with its calculated profile
-  n_e_ratios_all_species = n_e_ratios_known.at[
-      unknown_species_index, :
-  ].set(r_unknown)
+  n_e_ratios_all_species = n_e_ratios_known.at[unknown_species_index, :].set(
+      r_unknown
+  )
   n_e_ratios_all_species_face = n_e_ratios_known_face.at[
       unknown_species_index, :
   ].set(r_unknown_face)
@@ -544,16 +562,19 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
         jnp.ones_like(T_e.face_value()) * impurity_params.A_override_face
     )
 
-  Z_impurity = charge_states.get_average_charge_state(
+  charge_state_info = charge_states.get_average_charge_state(
       T_e=T_e.value,
       fractions=fractions,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
-  Z_impurity_face = charge_states.get_average_charge_state(
+  )
+  Z_impurity = charge_state_info.Z_mixture
+
+  charge_state_info_face = charge_states.get_average_charge_state(
       T_e=T_e.face_value(),
       fractions=fractions_face,
       Z_override=impurity_params.Z_override,
-  ).Z_mixture
+  )
+  Z_impurity_face = charge_state_info_face.Z_mixture
 
   return _IonProperties(
       A_impurity=A_avg,
@@ -564,6 +585,8 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_face[-1],
       impurity_fractions=fractions,
+      charge_state_info=charge_state_info,
+      charge_state_info_face=charge_state_info_face,
   )
 
 
@@ -655,7 +678,7 @@ def get_updated_ions(
 
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_e.right_face_constraint
       * ion_properties.dilution_factor_edge,
@@ -676,7 +699,7 @@ def get_updated_ions(
 
   n_impurity = cell_variable.CellVariable(
       value=n_impurity_value,
-      dr=geo.drho_norm,
+      face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
       right_face_constraint=n_impurity_right_face_constraint,
   )
@@ -704,10 +727,18 @@ def get_updated_ions(
     else:
       impurity_fractions_dict[symbol] = fraction
 
+  # Populate main ion fractions (which are time varying scalars) from
+  # plasma composition.
+  main_ion_fractions_dict = {}
+  for symbol in runtime_params.plasma_composition.main_ion_names:
+    fraction = runtime_params.plasma_composition.main_ion.fractions[symbol]
+    main_ion_fractions_dict[symbol] = fraction
+
   return Ions(
       n_i=n_i,
       n_impurity=n_impurity,
       impurity_fractions=impurity_fractions_dict,
+      main_ion_fractions=main_ion_fractions_dict,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
       Z_impurity=ion_properties.Z_impurity,
@@ -717,6 +748,8 @@ def get_updated_ions(
       A_impurity_face=ion_properties.A_impurity_face,
       Z_eff=ion_properties.Z_eff,
       Z_eff_face=Z_eff_face,
+      charge_state_info=ion_properties.charge_state_info,
+      charge_state_info_face=ion_properties.charge_state_info_face,
   )
 
 
