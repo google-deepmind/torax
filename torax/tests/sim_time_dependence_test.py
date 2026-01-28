@@ -176,62 +176,16 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
     max_value: float = 2.5
     inner_solver_iterations: list[int] | None = None
 
-class FakeSolver(linear_theta_method.LinearThetaMethod):
-  """Fake solver that allows us to hook into the error logic.
-
-  Given the name of a time-dependent param in the runtime_params, and a max
-  value for
-  that param, this solver returns a successful state if the config values for
-  that param in the config at time t and config at time t+dt sum to less than
-  max value.
-
-  The number of inner solver iterations can also be specified.
-
-  This solver returns the input state as is and doesn't actually use the
-  transport model or sources provided. They are given just to match the base
-  class api.
-  """
-
-  def __init__(
-      self,
-      param: str,
-      max_value: float,
-      physics_models: physics_models_lib.PhysicsModels,
-      inner_solver_iterations: list[int] | None = None,
-  ):
-    super().__init__(
-        physics_models=physics_models,
-    )
-    self._param = param
-    self._max_value = max_value
-    self._inner_solver_iterations = jnp.array(inner_solver_iterations)
-
-  def __call__(
-      self,
-      t: jax.Array,
-      dt: jax.Array,
-      runtime_params_t: runtime_params_lib.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-      geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
-  ]:
-    combined = getattr(
-        runtime_params_t.profile_conditions, self._param
-    ) + getattr(runtime_params_t_plus_dt.profile_conditions, self._param)
-    # Use x_new as a hacky way to extract what the combined value was.
-    # Ti values will be the `combined` value in the output state.
-    x_new = cell_variable.CellVariable(
-        face_centers=geo_t.rho_face_norm,
-        value=jnp.ones_like(geo_t.rho_norm) * combined,
-        right_face_constraint=combined,
-        right_face_grad_constraint=None,
-    )
+    def build_solver(
+        self,
+        physics_models: physics_models_lib.PhysicsModels,
+    ) -> "FakeSolver":
+        return FakeSolver(
+            param=self.param,
+            max_value=self.max_value,
+            physics_models=physics_models,
+            inner_solver_iterations=self.inner_solver_iterations,
+        )
 
 
 class FakeSolver(linear_theta_method.LinearThetaMethod):
@@ -285,8 +239,8 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
         # Use x_new as a hacky way to extract what the combined value was.
         # Ti values will be the `combined` value in the output state.
         x_new = cell_variable.CellVariable(
-            dr=0.1,
-            value=np.ones_like(geo_t.rho_norm) * combined,
+            face_centers=geo_t.rho_face_norm,
+            value=jnp.ones_like(geo_t.rho_norm) * combined,
             right_face_constraint=combined,
             right_face_grad_constraint=None,
         )
@@ -321,7 +275,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
 class FakeTransportModel(transport_model_lib.TransportModel):
     """Dummy transport model that always returns zeros."""
 
-    def _call_implementation(
+    def call_implementation(
         self,
         transport_runtime_params: transport_model_runtime_params.RuntimeParams,
         runtime_params: runtime_params_lib.RuntimeParams,
