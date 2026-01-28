@@ -169,6 +169,12 @@ def geometry_from_IMAS(
   # spr = vpr * <1/R> / ( 2 * np.pi )
   # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
   jtor = -1 * IMAS_data.profiles_1d.j_phi
+  if not np.any(jtor):
+    raise ValueError(
+        "Missing required IMAS profile: profiles_1d.j_phi. "
+        "Ensure the equilibrium IDS includes j_phi (e.g. in JETTO outputs) "
+        "before loading into TORAX."
+    )
   rhon = IMAS_data.profiles_1d.rho_tor_norm
   if not rhon:
     if B_0 is None or not IMAS_data.profiles_1d.phi:
