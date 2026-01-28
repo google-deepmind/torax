@@ -126,7 +126,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   q_sawtooth_proxy: bool = True
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
-  rotation_multiplier: pydantic.PositiveFloat = 1.0
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.OFF
