@@ -200,6 +200,7 @@ def update_core_and_source_profiles_after_step(
       toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
+      fast_ions=core_profiles_t_plus_dt.fast_ions,
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(

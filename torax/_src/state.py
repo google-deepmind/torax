@@ -28,6 +28,7 @@ from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
+from torax._src.physics import fast_ions as fast_ions_lib
 import typing_extensions
 
 
@@ -58,8 +59,8 @@ class CoreProfiles:
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
-      A_i: Main ion mass [amu].
-      # TODO(b/434175938): Remove in V2. Duplication with new charge_state_info.
+      A_i: Main ion mass [amu]. # TODO(b/434175938): Remove in V2. Duplication
+        with new charge_state_info.
       Z_impurity: Impurity charge of bundled impurity on cell grid
         [dimensionless].
       Z_impurity_face: Impurity charge of bundled impurity on face grid
@@ -78,6 +79,11 @@ class CoreProfiles:
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Face grid.
+      fast_ions: A tuple of `fast_ions_lib.FastIon` objects. Fast ions are
+        particles that have kinetic energy above the thermal equilibrium
+        distribution of the bulk plasma. Each `FastIon` object contains density
+        and temperature profiles as well as species and source information for a
+        population of fast ions.
   """
 
   T_i: cell_variable.CellVariable
@@ -109,6 +115,7 @@ class CoreProfiles:
   toroidal_angular_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
+  fast_ions: tuple[fast_ions_lib.FastIon, ...]
 
   @functools.cached_property
   def impurity_density_scaling(self) -> jax.Array:
