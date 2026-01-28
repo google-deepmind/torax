@@ -93,7 +93,11 @@ def calculate_rotation(
     pressure_thermal_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
     poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
-):
+) -> tuple[
+    array_typing.FloatVectorFace,
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+]:
   """Calculates quantities related to the rotation of the plasma.
 
   Args:
