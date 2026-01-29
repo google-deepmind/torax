@@ -24,15 +24,14 @@ import jaxtyping as jt
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
 from torax._src import math_utils
+from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-from torax._src.physics import charge_states
-from torax._src.config import runtime_params as runtime_params_lib
+
 
 # pylint: disable=invalid-name
 def core_profiles_to_IMAS(
@@ -41,7 +40,6 @@ def core_profiles_to_IMAS(
     core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
     geometry: Sequence[geometry_lib.Geometry],
-    runtime_params: runtime_params_lib.RuntimeParams,
     times: array_typing.FloatVector,
     ids: ids_toplevel.IDSToplevel | None = None,
 ) -> ids_toplevel.IDSToplevel:
@@ -53,7 +51,7 @@ def core_profiles_to_IMAS(
   The function can be used to save an entire trajectory or a single time slice.
   If you want to use this function programatically and save a single time
   slice, please make sure the inputs are `Sequence`s of length 1.
-  
+
 
   Args:
     torax_config: ToraxConfig object to get number of main ions.
@@ -91,7 +89,6 @@ def core_profiles_to_IMAS(
       core_profiles,
       core_sources,
       geometry,
-      runtime_params,
       times,
   )
   return ids
@@ -179,7 +176,6 @@ def _fill_profiles_1d(
     core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
     geometry: Sequence[geometry_lib.Geometry],
-    runtime_params: runtime_params_lib.RuntimeParams,
     times: array_typing.FloatVector,
 ) -> None:
   """Fills `profiles_1d` section in-place for the IDS."""
@@ -212,10 +208,6 @@ def _fill_profiles_1d(
     ids.profiles_1d[i].electrons.density_fast = np.zeros(
         len(ids.profiles_1d[i].grid.rho_tor_norm)
     )
-    # TODO(b/459479939): i/1660) - We should be using the sum of the real
-    # impurity densities here (`n_impurity_species`) and not the "bulk" impurity
-    # species `n_impurity`.
-    ids.profiles_1d[i].n_i_total_over_n_e = (n_i + n_impurity) / n_e
     ids.profiles_1d[i].electrons.pressure_thermal = (
         cp_state.pressure_thermal_e.cell_plus_boundaries()
     )
@@ -229,9 +221,9 @@ def _fill_profiles_1d(
         post_processed_outputs_slice,
         geometry_slice,
         cp_state,
-        runtime_params,
         T_i,
         n_i,
+        n_e,
         n_impurity,
         pressure_thermal_i,
     )
@@ -245,43 +237,43 @@ def _fill_profiles_1d(
 # grid to get rid of this function.
 def _calculate_impurity_density_scaling_and_charge_states(
     core_profiles: state.CoreProfiles,
-    runtime_params: runtime_params_lib.RuntimeParams,
 ) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
   """Computes the impurity_density_scaling factor to compute "True" impurity density.
 
+  Output quantities are on the cell_plus_boundaries grid.
   Reproduces what is done in impurity_radiation_mavrin_fit in
   sources/impurity_radiation_heat_sink/impurity_radiation_mavrin_fit.py
   Also outputs Z_per_species to avoid calculating them again.
 
   Returns:
       FloatVector of impurity density scaling Z_imp_eff / <Z> and
-      FloatVector of avg Z_per_specie for all impurities on
+      FloatVector of avg Z_per_species for all impurities on
       cell_plus_boundaries grid.
   """
-  ion_symbols = runtime_params.plasma_composition.impurity_names
-  # TODO: check if there is a better way to extrapolate values on boundaries.
-  impurity_fractions = {
-      symbol: np.concatenate([
-          [core_profiles.impurity_fractions[symbol][0]],
-          core_profiles.impurity_fractions[symbol],
-          [core_profiles.impurity_fractions[symbol][-1]],
+  charge_state_info = core_profiles.charge_state_info
+  charge_state_info_face = core_profiles.charge_state_info_face
+  Z_avg_per_species = {
+      species: np.concatenate([
+          [charge_state_info_face.Z_per_species[species][0]],
+          Z_species_cell,
+          [charge_state_info_face.Z_per_species[species][-1]],
       ])
-      for symbol in ion_symbols
+      for species, Z_species_cell in charge_state_info.Z_per_species.items()
   }
-
-  charge_state_info = charge_states.get_average_charge_state(
-      T_e=core_profiles.T_e.cell_plus_boundaries(),
-      fractions=impurity_fractions,
-      Z_override=runtime_params.plasma_composition.impurity.Z_override,
-  )
-  Z_avg = charge_state_info.Z_avg
-  Z_impurity = np.concatenate([
-      [core_profiles.Z_impurity_face[0]],
-      core_profiles.Z_impurity,
-      [core_profiles.Z_impurity_face[-1]],
+  Z_avg = np.concatenate([
+      [charge_state_info_face.Z_avg[0]],
+      charge_state_info.Z_avg,
+      [charge_state_info_face.Z_avg[-1]],
   ])
+
+  Z_impurity = np.concatenate([
+      [charge_state_info_face.Z_mixture[0]],
+      charge_state_info.Z_mixture,
+      [charge_state_info_face.Z_mixture[-1]],
+  ])
+
   impurity_density_scaling = Z_impurity / Z_avg
-  return impurity_density_scaling, charge_state_info.Z_per_species
+  return impurity_density_scaling, Z_avg_per_species
 
 
 def _fill_profiles_1d_grid(
@@ -330,7 +322,7 @@ def _fill_profiles_1d_currents(
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
-  # Total toroidal current density 
+  # Total toroidal current density
   j_phi = output.extend_cell_grid_to_boundaries(
       [cp_state.j_total], np.array([cp_state.j_total_face])
   )[0]
@@ -342,23 +334,20 @@ def _fill_profiles_1d_currents(
   )[0]
   ids.profiles_1d[i].j_bootstrap = -1 * j_bootstrap
   # TODO: Add consistent boundary values. They are not available for the moment
-  # for j_ohmic, jni and parallel j_total so copied the neighbouring points 
+  # for j_ohmic, jni and parallel j_total so copied the neighbouring points
   # values.
-  j_parallel_total = -1 * post_processed_outputs_slice.j_parallel_total 
-  ids.profiles_1d[i].j_total = -np.concatenate(
-      [[j_parallel_total[0]], j_parallel_total, [j_parallel_total[-1]]]
-  )
+  # Decision to make if we want to change it to spline or linear extrapolation,
+  # or do it "properly" by calculating more strictly the face values of these
+  # currents.
+  j_parallel_total = -1 * post_processed_outputs_slice.j_parallel_total
+  ids.profiles_1d[i].j_total = np.pad(j_parallel_total, (1, 1), mode='edge')
+
   j_ohmic = -1 * post_processed_outputs_slice.j_parallel_ohmic
-  ids.profiles_1d[i].j_ohmic = np.concatenate(
-      [[j_ohmic[0]], j_ohmic, [j_ohmic[-1]]]
-  )
-  j_non_inductive = (
-      -1 * (sum(cs_state.psi.values()) + cs_state.bootstrap_current.j_bootstrap)
-  )
-  ids.profiles_1d[i].j_non_inductive = -(
-      np.concatenate(
-          [[j_non_inductive[0]], j_non_inductive, [j_non_inductive[1]]]
-      )
+  ids.profiles_1d[i].j_ohmic = np.pad(j_ohmic, (1, 1), mode='edge')
+
+  j_non_inductive = -1 * post_processed_outputs_slice.j_parallel_non_inductive
+  ids.profiles_1d[i].j_non_inductive = np.pad(
+      j_non_inductive, (1, 1), mode='edge'
   )
   ids.profiles_1d[i].conductivity_parallel = (
       output.extend_cell_grid_to_boundaries(
@@ -373,29 +362,38 @@ def _fill_profiles_1d_ions(
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     geometry_slice: geometry_lib.Geometry,
     cp_state: state.CoreProfiles,
-    runtime_params: runtime_params_lib.RuntimeParams,
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
+    n_e: jt.Float[jax.Array, 't* cell+2'],
     n_impurity: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
 ) -> None:
   """Fills `ion` section of `profiles_1d` in-place for the IDS."""
-
-  impurity_symbols = list(cp_state.impurity_fractions.keys())
   main_ion_fractions = cp_state.main_ion_fractions
-  impurity_fractions_arr = np.stack(
-      [cp_state.impurity_fractions[symbol] for symbol in impurity_symbols]
-  )
+  impurity_symbols = list(cp_state.impurity_fractions.keys())
+  # Extend to cell_plus_boundaries grid by copying neighboring values.
+  # TODO: As for currents, decide on exterpolation mode:
+  # spline or linear, or do it " properly"
+  impurity_fractions_arr = [
+      np.pad(impurity_fraction, (1, 1), mode='edge')
+      for impurity_fraction in cp_state.impurity_fractions.values()
+  ]
   impurities = list(zip(impurity_symbols, impurity_fractions_arr, strict=True))
+  # Computes impurity quantities on cell_plus_boundaries grid
+  impurity_fractions_sum = np.sum(impurity_fractions_arr, axis=0)
   impurity_density_scaling, Z_avg_per_species = (
-      _calculate_impurity_density_scaling_and_charge_states(
-          cp_state, runtime_params
-      )
+      _calculate_impurity_density_scaling_and_charge_states(cp_state)
   )
+  n_impurity_true = (
+      n_impurity * impurity_density_scaling * impurity_fractions_sum
+  )
+  # Index variables
   num_of_impurities = len(impurity_symbols)
   num_of_main_ions = len(main_ion_fractions)
   num_ions = num_of_main_ions + num_of_impurities
   ids.profiles_1d[i].ion.resize(num_ions)
+  # Use the true n_impurity to get the real total ion density.
+  ids.profiles_1d[i].n_i_total_over_n_e = (n_i + n_impurity_true) / n_e
   for ion, symbol in enumerate(cp_state.main_ion_fractions.keys()):
     frac = cp_state.main_ion_fractions[symbol]
     _fill_main_ions(
@@ -406,9 +404,8 @@ def _fill_profiles_1d_ions(
         frac,
         T_i,
         n_i,
-        n_impurity,
+        n_impurity_true,
         pressure_thermal_i,
-        impurity_density_scaling,
         post_processed_outputs_slice,
     )
 
@@ -422,6 +419,7 @@ def _fill_profiles_1d_ions(
         T_i,
         n_i,
         n_impurity,
+        n_impurity_true,
         pressure_thermal_i,
         Z_avg_per_species,
         impurity_density_scaling,
@@ -440,9 +438,8 @@ def _fill_main_ions(
     frac: float,
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity: jt.Float[jax.Array, 't* cell+2'],
+    n_impurity_true: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
-    impurity_density_scaling: jt.Float[jax.Array, 't* cell+2'],
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
 ) -> None:
   """Fills main ion quantities for the IDS."""
@@ -455,21 +452,14 @@ def _fill_main_ions(
     # Case ids is plasma_profiles in early DDv4 releases.
     ids.profiles_1d[i].ion[ion].label = symbol
   ids.profiles_1d[i].ion[ion].temperature = T_i
-  ids.profiles_1d[i].ion[ion].density = n_i * frac
-  ids.profiles_1d[i].ion[ion].density_thermal = n_i * frac
+  n_species = n_i * frac  # Individual density
+  ids.profiles_1d[i].ion[ion].density = n_species
+  ids.profiles_1d[i].ion[ion].density_thermal = n_species
   ids.profiles_1d[i].ion[ion].density_fast = np.zeros(
       len(ids.profiles_1d[i].grid.rho_tor_norm)
   )
   # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = (
-      frac
-      * n_i
-      / (
-          n_i
-          + n_impurity
-          * impurity_density_scaling  # Access true total impurity density
-      )
-  )
+  total_ions_mixture_fraction = n_species / (n_i + n_impurity_true)
   ion_pressure = total_ions_mixture_fraction * pressure_thermal_i
   ids.profiles_1d[i].ion[ion].pressure = ion_pressure
   ids.profiles_1d[i].ion[ion].pressure_thermal = ion_pressure
@@ -492,7 +482,8 @@ def _fill_impurities(
     ion: int,
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity: jt.Float[jax.Array, 't* cell+2'],
+    n_impurity_eff: jt.Float[jax.Array, 't* cell+2'],
+    n_impurity_true: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
     Z_avg_per_species: dict[str, jt.Float[jax.Array, 't* cell+2']],
     impurity_density_scaling: jt.Float[jax.Array, 't* cell+2'],
@@ -503,17 +494,11 @@ def _fill_impurities(
 ) -> None:
   """Fills impurity quantities for the IDS."""
   # TODO(b/459479939): i/1660) - We can directly use the impurity densities
-  # from profiles.n_impurity_species here.  
+  # from post_processed_outputs.impurity_species.n_impurity here, if they get
+  # extended to cell_plus_boundaries grid.
   symbol, individual_frac = impurities[ion]
   index = num_of_main_ions + ion
-  # Extend to cell_plus_boundaries_grid by copying neighbouring values.
-  # TODO: check if there is a better way to extrapolate values on boundaries.
-  frac = (
-      np.concatenate(
-          [[individual_frac[0]], individual_frac, [individual_frac[-1]]]
-      )
-      * impurity_density_scaling
-  )
+  scaled_frac = individual_frac * impurity_density_scaling
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
   ids.profiles_1d[i].ion[index].z_ion_1d = Z_avg_per_species[symbol]
   # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
@@ -524,22 +509,14 @@ def _fill_impurities(
     # Case ids is plasma_profiles in early DDv4 releases.
     ids.profiles_1d[i].ion[index].label = symbol
   ids.profiles_1d[i].ion[index].temperature = T_i
-  # TODO(b/459479939): i/1814) - Map density from computed frac
-  ids.profiles_1d[i].ion[index].density = n_impurity * frac
-  ids.profiles_1d[i].ion[index].density_thermal = n_impurity * frac
+  n_impurity_species = n_impurity_eff * scaled_frac
+  ids.profiles_1d[i].ion[index].density = n_impurity_species
+  ids.profiles_1d[i].ion[index].density_thermal = n_impurity_species
   ids.profiles_1d[i].ion[index].density_fast = np.zeros(
       len(ids.profiles_1d[i].grid.rho_tor_norm)
   )
   # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = (
-      frac
-      * n_impurity
-      / (
-          n_i
-          + n_impurity
-          * impurity_density_scaling  # Access true total impurity density
-      )
-  )
+  total_ions_mixture_fraction = n_impurity_species / (n_i + n_impurity_true)
   impurity_pressure = total_ions_mixture_fraction * pressure_thermal_i
   ids.profiles_1d[i].ion[index].pressure = impurity_pressure
   ids.profiles_1d[i].ion[index].pressure_thermal = impurity_pressure
@@ -550,6 +527,9 @@ def _fill_impurities(
   ids.global_quantities.ion[index].t_i_volume_average[i] = (
       post_processed_outputs_slice.T_i_volume_avg * 1e3
   )
-  n_impurity_cell = post_processed_outputs_slice.impurity_species[symbol].n_impurity 
-  ids.global_quantities.ion[index].n_i_volume_average[i] = math_utils.volume_average(
-      n_impurity_cell, geometry_slice)
+  n_impurity_cell = post_processed_outputs_slice.impurity_species[
+      symbol
+  ].n_impurity
+  ids.global_quantities.ion[index].n_i_volume_average[i] = (
+      math_utils.volume_average(n_impurity_cell, geometry_slice)
+  )
