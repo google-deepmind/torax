@@ -16,9 +16,9 @@
 import abc
 import dataclasses
 import logging
-
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
@@ -79,6 +79,7 @@ class BootstrapCurrentModel(abc.ABC):
 
 class BootstrapCurrentModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for bootstrap current model configs."""
+  bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 
   @abc.abstractmethod
   def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:

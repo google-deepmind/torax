@@ -33,7 +33,8 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import formulas
+from torax._src.neoclassical.formulas import formulas
+from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.neoclassical.transport import base
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.physics import collisions
@@ -478,11 +479,11 @@ def _calculate_Kmn(
   # Supplement K matrix with "bootstrap terms" needed for Ware pinch from the
   # Sauter model (PoP 1999)
   Kmn_e = Kmn_e.at[:, 0, 2].set(
-      -formulas.calculate_L31(ftrap, nu_e_star, Z_eff)
+      -sauter_formulas.calculate_L31(ftrap, nu_e_star, Z_eff)
   )
   Kmn_e = Kmn_e.at[:, 2, 0].set(Kmn_e[:, 0, 2])
   Kmn_e = Kmn_e.at[:, 1, 2].set(
-      -formulas.calculate_L32(ftrap, nu_e_star, Z_eff)
+      -sauter_formulas.calculate_L32(ftrap, nu_e_star, Z_eff)
   )
   Kmn_e = Kmn_e.at[:, 2, 1].set(Kmn_e[:, 1, 2])
 

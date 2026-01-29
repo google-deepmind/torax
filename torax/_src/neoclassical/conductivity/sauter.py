@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Sauter conductivity model."""
+
 import dataclasses
 from typing import Annotated, Literal
 
@@ -21,9 +22,9 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import formulas
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
+from torax._src.neoclassical.formulas import formulas
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 

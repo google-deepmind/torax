@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,10 +19,13 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import collisions
 
 
 # pylint: disable=invalid-name
+
+
 def calculate_f_trap(
     geo: geometry_lib.Geometry,
 ) -> array_typing.FloatVectorFace:
@@ -46,64 +49,6 @@ def calculate_f_trap(
   return 1.0 - jnp.sqrt(aa) * (1.0 - epsilon_effective) / (
       1.0 + 2.0 * jnp.sqrt(epsilon_effective)
   )
-
-
-def calculate_L31(
-    f_trap: array_typing.FloatVectorFace,
-    nu_e_star: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorFace:
-  """Calculates the L31 Sauter coefficient: Sauter PoP 1999 Eqs. 14a + 14b."""
-  denom = (
-      1.0
-      + (1 - 0.1 * f_trap) * jnp.sqrt(nu_e_star)
-      + 0.5 * (1.0 - f_trap) * nu_e_star / Z_eff
-  )
-  ft31 = f_trap / denom
-  term_0 = (1 + 1.4 / (Z_eff + 1)) * ft31
-  term_1 = -1.9 / (Z_eff + 1) * ft31**2
-  term_2 = 0.3 / (Z_eff + 1) * ft31**3
-  term_3 = 0.2 / (Z_eff + 1) * ft31**4
-  return term_0 + term_1 + term_2 + term_3
-
-
-def calculate_L32(
-    f_trap: array_typing.FloatVectorFace,
-    nu_e_star: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorFace:
-  """Calculates the L32 Sauter coefficient: Sauter PoP 1999 Eqs. 15a-e."""
-  ft32ee = f_trap / (
-      1
-      + 0.26 * (1 - f_trap) * jnp.sqrt(nu_e_star)
-      + 0.18 * (1 - 0.37 * f_trap) * nu_e_star / jnp.sqrt(Z_eff)
-  )
-  ft32ei = f_trap / (
-      1
-      + (1 + 0.6 * f_trap) * jnp.sqrt(nu_e_star)
-      + 0.85 * (1 - 0.37 * f_trap) * nu_e_star * (1 + Z_eff)
-  )
-
-  F32ee = (
-      (0.05 + 0.62 * Z_eff)
-      / (Z_eff * (1 + 0.44 * Z_eff))
-      * (ft32ee - ft32ee**4)
-      + 1
-      / (1 + 0.22 * Z_eff)
-      * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2 / (1 + 0.5 * Z_eff) * ft32ee**4
-  )
-
-  F32ei = (
-      -(0.56 + 1.93 * Z_eff)
-      / (Z_eff * (1 + 0.44 * Z_eff))
-      * (ft32ei - ft32ei**4)
-      + 4.95
-      / (1 + 2.48 * Z_eff)
-      * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2 / (1 + 0.5 * Z_eff) * ft32ei**4
-  )
-  return F32ee + F32ei
 
 
 # TODO(b/428166775): currently we have two very similar implementations for
@@ -201,8 +146,8 @@ def _calculate_neoclassical_k_neo(
     - Pfirsch-Schluter regime (nu_star -> inf): ~ -2.1
 
   Args:
-    nu_star : The normalized ion collisionality.
-    epsilon : The inverse aspect ratio.
+    nu_star: The normalized ion collisionality.
+    epsilon: The inverse aspect ratio.
 
   Returns:
     k_neo : The neoclassical coefficient.
@@ -222,6 +167,7 @@ def _calculate_neoclassical_k_neo(
   denominator = 1.0 + ps_factor
 
   return (term1 - term2) / denominator
+
 
 # TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
 # See Sauter (1999) Eq. 17a-17b
@@ -288,9 +234,12 @@ def calculate_poloidal_velocity(
   k_neo = _calculate_neoclassical_k_neo(nu_i_star, epsilon)
 
   # Calculate Radial Temperature Gradient (dT/dr)
-  grad_Ti = T_i.face_grad(
-      x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
-  ) * constants.CONSTANTS.keV_to_J  # [J/m]
+  grad_Ti = (
+      T_i.face_grad(
+          x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+      )
+      * constants.CONSTANTS.keV_to_J
+  )  # [J/m]
 
   # Calculate Poloidal Velocity
   # v_pol = k_i * (dT/dr) * (B_tor / <B^2>) / (Z * e)
@@ -309,4 +258,75 @@ def calculate_poloidal_velocity(
       face_centers=geo.rho_face_norm,
       right_face_constraint=v_pol[-1],
       right_face_grad_constraint=None,
+  )
+
+
+def calculate_analytic_bootstrap_current(
+    *,
+    bootstrap_multiplier: float,
+    n_e: cell_variable.CellVariable,
+    n_i: cell_variable.CellVariable,
+    T_e: cell_variable.CellVariable,
+    T_i: cell_variable.CellVariable,
+    p_e: cell_variable.CellVariable,
+    p_i: cell_variable.CellVariable,
+    psi: cell_variable.CellVariable,
+    geo: geometry_lib.Geometry,
+    L31: array_typing.FloatVectorFace,
+    L32: array_typing.FloatVectorFace,
+    L34: array_typing.FloatVectorFace,
+    alpha: array_typing.FloatVectorFace,
+) -> bootstrap_current_base.BootstrapCurrent:
+  """Shared function for computing bootstrap current from analytic fits.
+
+  Used by Sauter and Redl models.
+
+  Args:
+    bootstrap_multiplier: A multiplier for the bootstrap current.
+    n_e: Electron density profile.
+    n_i: Ion density profile.
+    T_e: Electron temperature profile.
+    T_i: Ion temperature profile.
+    p_e: Electron pressure profile.
+    p_i: Ion pressure profile.
+    psi: Poloidal flux profile.
+    geo: The magnetic geometry.
+    L31: Neoclassical transport coefficient.
+    L32: Neoclassical transport coefficient.
+    L34: Neoclassical transport coefficient.
+    alpha: Neoclassical coefficient related to ion-ion collisions.
+
+  Returns:
+    The bootstrap current profile.
+  """
+  prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
+
+  pe = p_e.face_value()
+  pi = p_i.face_value()
+
+  dpsi_drnorm = psi.face_grad()
+  dlnne_drnorm = n_e.face_grad() / n_e.face_value()
+  dlnni_drnorm = n_i.face_grad() / n_i.face_value()
+  dlnte_drnorm = T_e.face_grad() / T_e.face_value()
+  dlnti_drnorm = T_i.face_grad() / T_i.face_value()
+
+  global_coeff = prefactor[1:] / dpsi_drnorm[1:]
+  global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])
+
+  necoeff = L31 * pe
+  nicoeff = L31 * pi
+  tecoeff = (L31 + L32) * pe
+  ticoeff = (L31 + alpha * L34) * pi
+
+  j_parallel_bootstrap_face = global_coeff * (
+      necoeff * dlnne_drnorm
+      + nicoeff * dlnni_drnorm
+      + tecoeff * dlnte_drnorm
+      + ticoeff * dlnti_drnorm
+  )
+  j_parallel_bootstrap = geometry_lib.face_to_cell(j_parallel_bootstrap_face)
+
+  return bootstrap_current_base.BootstrapCurrent(
+      j_parallel_bootstrap=j_parallel_bootstrap,
+      j_parallel_bootstrap_face=j_parallel_bootstrap_face,
   )

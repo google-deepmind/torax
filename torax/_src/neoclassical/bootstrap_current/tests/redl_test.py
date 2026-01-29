@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
+from torax._src.neoclassical.bootstrap_current import redl
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
-from torax._src.neoclassical.bootstrap_current import sauter
 
 
-class SauterTest(absltest.TestCase):
+class RedlTest(absltest.TestCase):
 
-  def test_sauter_bootstrap_current_is_correct_shape(self):
+  def test_redl_bootstrap_current_is_correct_shape(self):
     n_rho = 10
     geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
     bootstrap_params = bootstrap_current_runtime_params.RuntimeParams(
@@ -69,7 +69,7 @@ class SauterTest(absltest.TestCase):
         ),
     )
 
-    model = sauter.SauterModel()
+    model = redl.RedlModel()
     result = model.calculate_bootstrap_current(
         runtime_params, geo, core_profiles
     )

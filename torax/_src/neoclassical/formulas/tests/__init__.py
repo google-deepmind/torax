@@ -11,14 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Runtime params for bootstrap current models."""
-import dataclasses
-import jax
-import pydantic
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class RuntimeParams:
-  """Base class for runtime params."""
-  bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0

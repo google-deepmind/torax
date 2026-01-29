@@ -19,7 +19,7 @@ from torax._src import constants
 from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import formulas as neoclassical_formulas
+from torax._src.neoclassical.formulas import formulas
 from torax._src.physics import psi_calculations
 
 
@@ -130,7 +130,7 @@ def calculate_rotation(
   B_total_squared_face = B_pol_squared_face + B_tor_face**2
   B_total_face = jnp.sqrt(B_total_squared_face)
 
-  poloidal_velocity = neoclassical_formulas.calculate_poloidal_velocity(
+  poloidal_velocity = formulas.calculate_poloidal_velocity(
       T_i=T_i,
       n_i=n_i.face_value(),
       q=q_face,
