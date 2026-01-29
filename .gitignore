@@ -2,7 +2,7 @@
 *.pyc
 
 # Byte-compiled
-_pycache__/
+__pycache__/
 .cache/
 
 # Poetry, setuptools, PyPI distribution artifacts.
@@ -30,6 +30,7 @@ _build
 # venv
 venv
 .venv
+env/
 
 # Python version file
 .python-version
