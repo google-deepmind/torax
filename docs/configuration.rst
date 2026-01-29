@@ -445,6 +445,14 @@ equations being solved, constant numerical variables.
   Minimum rho_norm value below which current profile values are extrapolated to
   the axis in psi calculations, to avoid numerical artifacts near rho=0.
 
+.. TODO (b/434175938): consolidate naming to _min or _minimum.
+
+``T_minimum_eV`` (float [default = 5.0])
+  Minimum temperature threshold in eV. If the ion or electron temperature drops
+  below this value anywhere in the domain, the simulation will stop with a
+  ``LOW_TEMPERATURE_COLLAPSE`` error (error code 5). This is to catch radiative
+  collapse or other unphysical low-temperature states early.
+
 
 plasma_composition
 ------------------
@@ -811,9 +819,22 @@ control parameters.
   (``'fixed_point'``, ``'newton_raphson'``, or ``'hybrid'``).
 
 ``impurity_sot`` (str [default = 'core'])
-  Defines the Source of Truth (``'core'`` or ``'edge'``) for fixed background
-  impurities. Determines whether the core profile ratios drive the edge
-  concentration or vice versa.
+  Defines the source of truth for fixed background impurity concentrations.
+  Options:
+
+  * ``'core'``: Fixed impurity concentrations are taken from the core state
+    (``plasma_composition``).
+  * ``'edge'``: Fixed impurity concentrations are taken from the
+    ``fixed_impurity_concentrations`` dictionary in the edge configuration.
+
+``update_temperatures`` (bool [default = True])
+  If ``True``, update the core solver's boundary electron and ion temperatures
+  using the values calculated by the edge model.
+
+``update_impurities`` (bool [default = True])
+  If ``True``, and enrichment modeling is used or enrichment factors are
+  provided, update the core solver's impurity boundary conditions based on
+  edge enrichment calculations.
 
 **Key Physical Inputs:**
 
@@ -1307,6 +1328,11 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`\hat{s} - \alpha_{MHD} > -0.2` always, to compensate for the lack of
   slab ITG modes in QuaLiKiz.
 
+``smag_alpha_correction`` (bool [default = True])
+  If ``True``, reduce input magnetic shear by :math:`0.5*\alpha_{MHD}` to
+  capture the main impact of :math:`\alpha_{MHD}`, which was not itself part of
+  the ``QLKNN`` training set.
+
 ``q_sawtooth_proxy`` (bool [default = True])
   To avoid un-physical transport barriers, modify the input q-profile and
   magnetic shear for zones where :math:`q < 1`, as a proxy for sawteeth.
@@ -1322,7 +1348,7 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`D_{eff}`, if ``DV_effective==True``.
 
 ``rotation_multiplier`` (float [default = 1.0])
-  Multiplier for :math:`v_ExB`` in the rotation correction factor.
+  Multiplier for :math:`v_ExB` in the rotation correction factor.
 
 ``rotation_mode`` (str [default = 'off'])
   Defines how the rotation correction is applied. Options are:
