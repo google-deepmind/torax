@@ -83,7 +83,8 @@ class PydanticModelTest(parameterized.TestCase):
     }
 
     # Test valid config
-    geo_provider = pydantic_model.Geometry.from_dict(base_config).build_provider
+    geo_pydantic = pydantic_model.Geometry.from_dict(base_config)
+    geo_provider = geo_pydantic.build_provider
     self.assertIsInstance(
         geo_provider, standard_geometry.StandardGeometryProvider
     )
@@ -91,6 +92,10 @@ class PydanticModelTest(parameterized.TestCase):
         geo_provider(t=0.0), standard_geometry.StandardGeometry
     )
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
+
+    np.testing.assert_array_equal(
+        geo_pydantic.get_face_centers(),
+        geo_provider.torax_mesh.face_centers)
 
   @parameterized.parameters([
       dict(param='n_rho', value=5),

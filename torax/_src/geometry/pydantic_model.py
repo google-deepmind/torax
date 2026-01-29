@@ -16,6 +16,8 @@ import functools
 from typing import Annotated
 from typing import Any
 from typing import TypeVar
+
+import numpy as np
 import pydantic
 from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
@@ -108,6 +110,17 @@ class Geometry(torax_pydantic.BaseModelFrozen):
       geometries = self.geometry_configs.config.build_geometry()
       provider = geometry_provider.ConstantGeometryProvider
       return provider(geometries)
+
+  def get_face_centers(self) -> np.ndarray:
+    """Returns the face centers of the geometry."""
+    if isinstance(self.geometry_configs, dict):
+      # We check that the grid is the same for all geometries so can return the
+      # face centers from any of them here.
+      return next(
+          iter(self.geometry_configs.values())
+      ).config.get_face_centers()
+    else:
+      return self.geometry_configs.config.get_face_centers()
 
 
 def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
