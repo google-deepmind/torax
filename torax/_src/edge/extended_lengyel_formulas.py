@@ -267,21 +267,23 @@ def calc_Z_eff(
   dilution_factor = 0.0
   # Contribution from seeded impurities, with n_e_ratio = c_z*weight.
   for key, weight in seed_impurity_weights.items():
-    Z_impurity_per_species = collisional_radiative_models.calculate_mavrin_2017(
-        T_e=jnp.array([T_e]),
-        ne_tau=ne_tau,
-        ion_symbol=key,
-        variable=collisional_radiative_models.MavrinVariable.Z,
+    Z_impurity_per_species = (
+        collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
+            T_e=jnp.array([T_e]),
+            ne_tau=ne_tau,
+            ion_symbol=key,
+        )
     )
     Z_eff += Z_impurity_per_species**2 * c_z * weight
     dilution_factor += Z_impurity_per_species * c_z * weight
   # Contribution from fixed impurities, with n_e_ratio=concentration
   for key, concentration in fixed_impurity_concentrations.items():
-    Z_impurity_per_species = collisional_radiative_models.calculate_mavrin_2017(
-        T_e=jnp.array([T_e]),
-        ne_tau=ne_tau,
-        ion_symbol=key,
-        variable=collisional_radiative_models.MavrinVariable.Z,
+    Z_impurity_per_species = (
+        collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
+            T_e=jnp.array([T_e]),
+            ne_tau=ne_tau,
+            ion_symbol=key,
+        )
     )
     Z_eff += Z_impurity_per_species**2 * concentration
     dilution_factor += Z_impurity_per_species * concentration
