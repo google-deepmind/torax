@@ -160,7 +160,7 @@ CONFIG = {
         "smoothing_width": 0.05,
     },
     "neoclassical": {
-        "bootstrap_current": {"model_name": "sauter"},
+        "bootstrap_current": {"model_name": "redl"},
         "transport": {
             "model_name": "angioni_sauter",
             "use_shaing_ion_correction": True,

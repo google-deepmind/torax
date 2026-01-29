@@ -21,7 +21,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import formulas
+from torax._src.neoclassical.formulas import common as common_formulas
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.physics import collisions
@@ -90,7 +90,7 @@ def _calculate_conductivity(
   # Formulas from Sauter PoP 1999.
 
   # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
+  f_trap = common_formulas.calculate_f_trap(geo)
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
@@ -106,7 +106,7 @@ def _calculate_conductivity(
       / log_lambda_ei
   )
 
-  nu_e_star_face = formulas.calculate_nu_e_star(
+  nu_e_star_face = common_formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
       n_e=n_e.face_value(),
