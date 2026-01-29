@@ -602,12 +602,30 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config(
         'test_iterhybrid_radiation_collapse.py'
     )
-    _, state_history = run_simulation.run_simulation(torax_config)
+    output_xr, state_history = run_simulation.run_simulation(torax_config)
 
+    # Check that the simulation stopped due to low temperature collapse
     self.assertEqual(
         state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
     )
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+
+    # Check that the output matches the reference
+    ref_profiles, ref_time = self._get_refs(
+        'test_iterhybrid_radiation_collapse.nc', _ALL_PROFILES
+    )
+
+    self._check_profiles_vs_expected(
+        t=output_xr.time.values,
+        ref_time=ref_time,
+        ref_profiles=ref_profiles,
+        rtol=sim_test_case._RTOL,
+        atol=sim_test_case._ATOL,
+        output_file=sim_test_case._FAILED_TEST_OUTPUT_DIR
+        + 'test_iterhybrid_radiation_collapse.nc',
+        ds=output_xr,
+        write_output=True,
+    )
 
   def test_full_output_matches_reference(self):
     """Check for complete output match with reference."""
