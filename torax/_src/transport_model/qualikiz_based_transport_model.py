@@ -224,10 +224,6 @@ class QualikizBasedTransportModel(
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
-      v_ExB = transport.rotation_multiplier * v_ExB
-      if transport.rotation_mode == RotationMode.HALF_RADIUS:
-        # Only consider contribution from the outer half-radius (rho > 0.5).
-        v_ExB = v_ExB * jnp.where(geo.rho_face_norm > 0.5, 1, 0)
       return v_ExB
 
     # gamma_E_SI = r / q * d(v_ExB * q / r)/dr
@@ -245,6 +241,7 @@ class QualikizBasedTransportModel(
     gamma_E_SI = rmid_face / q * cv.face_grad(
         x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1]
     )
+    gamma_E_SI = gamma_E_SI * transport.rotation_multiplier
 
     # We need different normalizations for QuaLiKiz and QLKNN models.
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
@@ -254,6 +251,7 @@ class QualikizBasedTransportModel(
         * geo.R_major_profile_face
         / c_ref
     )
+    mach_toroidal = mach_toroidal * transport.rotation_multiplier
 
     c_sou = jnp.sqrt(
         core_profiles.T_e.face_value()
