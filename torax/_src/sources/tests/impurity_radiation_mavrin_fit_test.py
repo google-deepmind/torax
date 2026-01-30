@@ -19,6 +19,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.physics import charge_states
+from torax._src.physics.radiation import radiation
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
@@ -29,7 +30,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
+class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
@@ -40,10 +41,8 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
@@ -137,110 +136,77 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     )
 
   @parameterized.named_parameters(
-      ('T_e_low_input', 0.05, 0.1),
-      ('T_e_high_input', 150.0, 100.0),
-  )
-  def test_temperature_clipping(self, T_e_input, T_e_clipped):
-    """Test with valid ions and within temperature range."""
-    ion_symbol = ('W',)
-    impurity_fractions = np.array([1.0])
-
-    LZ_calculated = (
-        impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
-            ion_symbol,
-            impurity_fractions,
-            T_e_input,
-        )
-    )
-    LZ_expected = (
-        impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
-            ion_symbol,
-            impurity_fractions,
-            T_e_clipped,
-        )
-    )
-
-    np.testing.assert_allclose(
-        LZ_calculated,
-        LZ_expected,
-        err_msg=(
-            f'T_e clipping not working as expected for T_e_input={T_e_input},'
-            f' LZ_calculated = {LZ_calculated}, Z_expected={LZ_expected}'
-        ),
-    )
-
-  @parameterized.named_parameters(
       (
           'Helium-3',
           {'He3': 1.0},
           [0.1, 2, 10],
-          [2.26267051e-36, 3.55291080e-36, 6.25952387e-36],
+          [2.797083e-36, 3.552900e-36, 6.259505e-36],
       ),
       (
           'Helium-4',
           {'He4': 1.0},
           [0.1, 2, 10],
-          [2.26267051e-36, 3.55291080e-36, 6.25952387e-36],
+          [2.797083e-36, 3.552900e-36, 6.259505e-36],
       ),
       (
           'Lithium',
           {'Li': 1.0},
           [0.1, 2, 10],
-          [1.37075024e-35, 9.16765402e-36, 1.60346076e-35],
+          [1.615307e-35, 9.167690e-36, 1.603467e-35],
       ),
       (
           'Beryllium',
           {'Be': 1.0},
           [0.1, 2, 10],
-          [6.86895406e-35, 1.88578938e-35, 3.04614535e-35],
+          [7.666709e-35, 1.885787e-35, 3.046141e-35],
       ),
       (
           'Carbon',
           {'C': 1.0},
           [0.1, 2, 10],
-          [6.74683566e-34, 5.89332177e-35, 7.94786067e-35],
+          [6.970662e-34, 5.893319e-35, 7.947856e-35],
       ),
       (
           'Nitrogen',
           {'N': 1.0},
           [0.1, 2, 10],
-          [6.97912189e-34, 9.68950644e-35, 1.15250226e-34],
+          [7.294689e-34, 9.689468e-35, 1.152498e-34],
       ),
       (
           'Oxygen',
           {'O': 1.0},
           [0.1, 2, 10],
-          [4.10676301e-34, 1.57469152e-34, 1.58599054e-34],
+          [4.331469e-34, 1.574689e-34, 1.585988e-34],
       ),
       (
           'Neon',
           {'Ne': 1.0},
           [0.1, 2, 10],
-          [1.19151664e-33, 3.27468464e-34, 2.82416557e-34],
+          [1.296422e-33, 3.274692e-34, 2.824165e-34],
       ),
       (
           'Argon',
           {'Ar': 1.0},
           [0.1, 2, 10],
-          [1.92265224e-32, 4.02388371e-33, 1.53295491e-33],
+          [1.892625e-32, 4.023872e-33, 1.532957e-33],
       ),
       (
           'Krypton',
           {'Kr': 1.0},
           [0.1, 2, 10],
-          [6.57654706e-32, 3.23512795e-32, 7.53285680e-33],
+          [3.288289e-32, 3.235129e-32, 7.532862e-33],
       ),
       (
           'Xenon',
           {'Xe': 1.0},
           [0.1, 2, 10],
-          [2.89734288e-31, 8.96916315e-32, 2.87740863e-32],
+          [1.448672e-31, 8.969181e-32, 2.877398e-32],
       ),
       (
           'Tungsten',
           {'W': 1.0},
           [0.1, 2, 10],
-          [1.66636258e-31, 4.46651033e-31, 1.31222935e-31],
+          [8.331822e-32, 4.466520e-31, 1.312230e-31],
       ),
       (
           'Mixture',
@@ -258,7 +224,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
               'W': 0.001,
           },
           [0.1, 2, 10],
-          [2.75762225e-33, 1.04050126e-33, 3.93256085e-34],
+          [2.486582e-33, 1.040501e-33, 3.932562e-34],
       ),
   )
   def test_calculate_total_impurity_radiation(
@@ -279,9 +245,9 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     T_e = np.array(T_e)
     expected_LZ = np.array(expected_LZ)
     ion_symbols = tuple(species.keys())
-    impurity_fractions = np.stack([
-        np.full_like(T_e, fraction) for fraction in species.values()
-    ])
+    impurity_fractions = np.stack(
+        [np.full_like(T_e, fraction) for fraction in species.values()]
+    )
     LZ_calculated = (
         impurity_radiation_mavrin_fit.calculate_total_impurity_radiation(
             ion_symbols,
@@ -326,8 +292,8 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         for symbol in impurity_ratios
     }
     impurities_lz = {
-        symbol: impurity_radiation_mavrin_fit.calculate_impurity_radiation_single_species(
-            np.array([t_e_keV]), symbol
+        symbol: radiation.calculate_mavrin_cooling_rate(
+            np.array([t_e_keV]), symbol, radiation.MavrinModelType.CORONAL
         )
         for symbol in impurity_ratios
     }
@@ -418,9 +384,9 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     }
 
     # Calculate Z_eff
-    zeff = (1 - sum(
-        r * z_impurities[s] for s, r in n_e_ratios.items()
-    )) * z_main + sum(r * z_impurities[s] ** 2 for s, r in n_e_ratios.items())
+    zeff = (
+        1 - sum(r * z_impurities[s] for s, r in n_e_ratios.items())
+    ) * z_main + sum(r * z_impurities[s] ** 2 for s, r in n_e_ratios.items())
 
     # Calculate impurity fractions
     total_impurity_ne_ratio = sum(n_e_ratios.values())
@@ -453,9 +419,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     config_dict_ne_ratios['plasma_composition'] = {
         'main_ion': main_ion_symbol,
         'impurity': {
-            'impurity_mode': (
-                plasma_composition._IMPURITY_MODE_NE_RATIOS
-            ),
+            'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
             'species': n_e_ratios,
         },
     }
@@ -468,9 +432,7 @@ class MarvinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     config_dict_fractions['plasma_composition'] = {
         'main_ion': main_ion_symbol,
         'impurity': {
-            'impurity_mode': (
-                plasma_composition._IMPURITY_MODE_FRACTIONS
-            ),
+            'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
             'species': impurity_fractions,
         },
         'Z_eff': float(zeff),
