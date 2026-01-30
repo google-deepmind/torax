@@ -22,6 +22,7 @@ from typing import Final
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -45,6 +46,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
+  output_mode_contributions: bool = dataclasses.field(metadata={'static': True})
 
 
 _EPSILON_NN: Final[float] = (
@@ -323,22 +325,30 @@ class QLKNNTransportModel(
     )
 
     # combine fluxes
-    qi_itg_squeezed = model_output['qi_itg'].squeeze()
-    qi = qi_itg_squeezed + model_output['qi_tem'].squeeze()
-    qe = (
+    qi_itg = model_output['qi_itg'].squeeze()
+    qi_tem = model_output['qi_tem'].squeeze()
+    qe_itg = (
         model_output['qe_itg'].squeeze()
         * runtime_config_inputs.transport.ITG_flux_ratio_correction
-        + model_output['qe_tem'].squeeze()
-        + model_output['qe_etg'].squeeze()
+    )
+    qe_tem = model_output['qe_tem'].squeeze()
+    qe_etg = (
+        model_output['qe_etg'].squeeze()
         * runtime_config_inputs.transport.ETG_correction_factor
     )
+    pfe_itg = model_output['pfe_itg'].squeeze()
+    pfe_tem = model_output['pfe_tem'].squeeze()
 
-    pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
+    # Combine fluxes for total transport
+    qi_total = qi_itg + qi_tem
+    qe_total = qe_itg + qe_tem + qe_etg
+    pfe_total = pfe_itg + pfe_tem
 
-    return self._make_core_transport(
-        qi=qi,
-        qe=qe,
-        pfe=pfe,
+    # Create base transport
+    base_transport = self._make_core_transport(
+        qi=qi_total,
+        qe=qe_total,
+        pfe=pfe_total,
         quasilinear_inputs=qualikiz_inputs,
         transport=runtime_config_inputs.transport,
         geo=geo,
@@ -346,3 +356,39 @@ class QLKNNTransportModel(
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
     )
+
+    def add_mode_contributions() -> transport_model_lib.TurbulentTransport:
+      """Decompose transport coefficients into mode contributions."""
+      eps = constants.CONSTANTS.eps
+
+      # Decompose ion heat diffusivity
+      chi_ion_itg = base_transport.chi_face_ion * qi_itg / (qi_total + eps)
+      chi_ion_tem = base_transport.chi_face_ion * qi_tem / (qi_total + eps)
+
+      # Decompose electron heat diffusivity
+      chi_el_itg = base_transport.chi_face_el * qe_itg / (qe_total + eps)
+      chi_el_tem = base_transport.chi_face_el * qe_tem / (qe_total + eps)
+      chi_el_etg = base_transport.chi_face_el * qe_etg / (qe_total + eps)
+
+      # Decompose particle diffusivity
+      d_el_itg = base_transport.d_face_el * pfe_itg / (pfe_total + eps)
+      d_el_tem = base_transport.d_face_el * pfe_tem / (pfe_total + eps)
+      v_el_itg = base_transport.v_face_el * pfe_itg / (pfe_total + eps)
+      v_el_tem = base_transport.v_face_el * pfe_tem / (pfe_total + eps)
+
+      return dataclasses.replace(
+          base_transport,
+          chi_face_ion_itg=chi_ion_itg,
+          chi_face_ion_tem=chi_ion_tem,
+          chi_face_el_itg=chi_el_itg,
+          chi_face_el_tem=chi_el_tem,
+          chi_face_el_etg=chi_el_etg,
+          d_face_el_itg=d_el_itg,
+          d_face_el_tem=d_el_tem,
+          v_face_el_itg=v_el_itg,
+          v_face_el_tem=v_el_tem,
+      )
+
+    if runtime_config_inputs.transport.output_mode_contributions:
+      base_transport = add_mode_contributions()
+    return base_transport

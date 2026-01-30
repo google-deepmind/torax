@@ -165,6 +165,7 @@ CONFIG = {
         # effective D
         'An_min': 0.05,
         'ITG_flux_ratio_correction': 1,
+        'output_mode_contributions': True,
     },
     'solver': {
         'solver_type': 'linear',

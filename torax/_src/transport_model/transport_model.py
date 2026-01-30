@@ -40,19 +40,30 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 CHANNEL_CONFIG_STRUCT: Final[Mapping[str, dict[str, Sequence[str] | str]]] = (
     immutabledict.immutabledict({
         'chi_face_ion': {
-            'sub_channels': ['chi_face_ion_bohm', 'chi_face_ion_gyrobohm'],
+            'sub_channels': [
+                'chi_face_ion_bohm',
+                'chi_face_ion_gyrobohm',
+                'chi_face_ion_itg',
+                'chi_face_ion_tem',
+            ],
             'disable_flag': 'disable_chi_i',
         },
         'chi_face_el': {
-            'sub_channels': ['chi_face_el_bohm', 'chi_face_el_gyrobohm'],
+            'sub_channels': [
+                'chi_face_el_bohm',
+                'chi_face_el_gyrobohm',
+                'chi_face_el_itg',
+                'chi_face_el_tem',
+                'chi_face_el_etg',
+            ],
             'disable_flag': 'disable_chi_e',
         },
         'd_face_el': {
-            'sub_channels': [],
+            'sub_channels': ['d_face_el_itg', 'd_face_el_tem'],
             'disable_flag': 'disable_D_e',
         },
         'v_face_el': {
-            'sub_channels': [],
+            'sub_channels': ['v_face_el_itg', 'v_face_el_tem'],
             'disable_flag': 'disable_V_e',
         },
     })
@@ -76,6 +87,15 @@ class TurbulentTransport:
     chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
     chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
       conductivity.
+    chi_face_ion_itg: (Optional) ITG contribution for ion heat conductivity.
+    chi_face_ion_tem: (Optional) TEM contribution for ion heat conductivity.
+    chi_face_el_itg: (Optional) ITG contribution for electron heat conductivity.
+    chi_face_el_tem: (Optional) TEM contribution for electron heat conductivity.
+    chi_face_el_etg: (Optional) ETG contribution for electron heat conductivity.
+    d_face_el_itg: (Optional) ITG contribution for electron diffusivity.
+    d_face_el_tem: (Optional) TEM contribution for electron diffusivity.
+    v_face_el_itg: (Optional) ITG contribution for electron convection.
+    v_face_el_tem: (Optional) TEM contribution for electron convection.
   """
 
   chi_face_ion: jax.Array
@@ -86,6 +106,15 @@ class TurbulentTransport:
   chi_face_el_gyrobohm: jax.Array | None = None
   chi_face_ion_bohm: jax.Array | None = None
   chi_face_ion_gyrobohm: jax.Array | None = None
+  chi_face_ion_itg: jax.Array | None = None
+  chi_face_ion_tem: jax.Array | None = None
+  chi_face_el_itg: jax.Array | None = None
+  chi_face_el_tem: jax.Array | None = None
+  chi_face_el_etg: jax.Array | None = None
+  d_face_el_itg: jax.Array | None = None
+  d_face_el_tem: jax.Array | None = None
+  v_face_el_itg: jax.Array | None = None
+  v_face_el_tem: jax.Array | None = None
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

@@ -161,6 +161,9 @@ These are called out in the list of profiles below, and generally relate to:
 ``chi_bohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
   Bohm component of ion heat turbulent conductivity. Only output if active.
 
+``chi_etg_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  ETG component of electron heat turbulent conductivity. Only output if active.
+
 ``chi_gyrobohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
   Gyro-Bohm component of electron heat turbulent conductivity. Only output if
   active.
@@ -168,11 +171,23 @@ These are called out in the list of profiles below, and generally relate to:
 ``chi_gyrobohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
   Gyro-Bohm component of ion heat turbulent conductivity. Only output if active.
 
+``chi_itg_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  ITG component of electron heat turbulent conductivity. Only output if active.
+
+``chi_itg_i`` (time, rho_face_norm) [:math:`m^2/s`]
+  ITG component of ion heat turbulent conductivity. Only output if active.
+
 ``chi_neo_e`` (time, rho_face_norm)
   Neoclassical electron heat conductivity [:math:`m^2/s`].
 
 ``chi_neo_i`` (time, rho_face_norm)
   Neoclassical ion heat conductivity [:math:`m^2/s`].
+
+``chi_tem_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  TEM component of electron heat turbulent conductivity. Only output if active.
+
+``chi_tem_i`` (time, rho_face_norm) [:math:`m^2/s`]
+  TEM component of ion heat turbulent conductivity. Only output if active.
 
 ``chi_turb_e`` (time, rho_face_norm)
   Total turbulent electron heat conductivity [:math:`m^2/s`].
@@ -180,8 +195,16 @@ These are called out in the list of profiles below, and generally relate to:
 ``chi_turb_i`` (time, rho_face_norm)
   Total turbulent ion heat conductivity [:math:`m^2/s`].
 
+``D_itg_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  ITG component of electron particle turbulent diffusivity. Only output if
+  active.
+
 ``D_neo_e`` (time, rho_face_norm)
   Neoclassical electron particle diffusivity [:math:`m^2/s`].
+
+``D_tem_e`` (time, rho_face_norm) [:math:`m^2/s`]
+  TEM component of electron particle turbulent diffusivity. Only output if
+  active.
 
 ``D_turb_e`` (time, rho_face_norm)
   Total turbulent electron particle diffusivity [:math:`m^2/s`].
@@ -463,16 +486,24 @@ These are called out in the list of profiles below, and generally relate to:
   Derivative of plasma volume enclosed by each flux surface with respect to the
   normalized toroidal flux coordinate rho_norm [:math:`m^3`].
 
+``V_itg_e`` (time, rho_face_norm) [:math:`m/s`]
+  ITG component of electron particle turbulent convection velocity. Only output
+  if active.
+
 ``V_neo_e`` (time, rho_face_norm)
   Neoclassical electron particle convection velocity [:math:`m/s`]. Contains
   all components apart from the Ware pinch, which is output separately.
 
-``V_turb_e`` (time, rho_face_norm)
-  Turbulent electron particle convection [:math:`m/s`].
-
 ``V_neo_ware_e`` (time, rho_face_norm)
   Ware pinch electron particle convection velocity [:math:`m/s`], i.e. the
   component of neoclassical convection arising from the parallel electric field.
+
+``V_tem_e`` (time, rho_face_norm) [:math:`m/s`]
+  TEM component of electron particle turbulent convection velocity. Only output
+  if active.
+
+``V_turb_e`` (time, rho_face_norm)
+  Turbulent electron particle convection [:math:`m/s`].
 
 ``Z_eff`` (time, rho_norm)
   Effective charge profile defined as

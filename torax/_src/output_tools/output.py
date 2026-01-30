@@ -80,7 +80,16 @@ I_BOOTSTRAP = "I_bootstrap"
 # Core transport.
 CHI_TURB_I = "chi_turb_i"
 CHI_TURB_E = "chi_turb_e"
+CHI_ITG_E = "chi_itg_e"
+CHI_TEM_E = "chi_tem_e"
+CHI_ETG_E = "chi_etg_e"
+CHI_ITG_I = "chi_itg_i"
+CHI_TEM_I = "chi_tem_i"
+D_ITG_E = "D_itg_e"
+D_TEM_E = "D_tem_e"
 D_TURB_E = "D_turb_e"
+V_ITG_E = "V_itg_e"
+V_TEM_E = "V_tem_e"
 V_TURB_E = "V_turb_e"
 CHI_NEO_I = "chi_neo_i"
 CHI_NEO_E = "chi_neo_e"
@@ -664,6 +673,15 @@ class StateHistory:
         CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
         CHI_BOHM_I: core_transport.chi_face_ion_bohm,
         CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
+        CHI_ITG_E: core_transport.chi_face_el_itg,
+        CHI_TEM_E: core_transport.chi_face_el_tem,
+        CHI_ETG_E: core_transport.chi_face_el_etg,
+        CHI_ITG_I: core_transport.chi_face_ion_itg,
+        CHI_TEM_I: core_transport.chi_face_ion_tem,
+        D_ITG_E: core_transport.d_face_el_itg,
+        D_TEM_E: core_transport.d_face_el_tem,
+        V_ITG_E: core_transport.v_face_el_itg,
+        V_TEM_E: core_transport.v_face_el_tem,
     }
 
     for name, data in optional_transport_map.items():
