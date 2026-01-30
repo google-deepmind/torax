@@ -114,7 +114,7 @@ class RuntimeParamsProvider:
       self,
       t: chex.Numeric,
   ) -> runtime_params_lib.RuntimeParams:
-    """Returns a runtime_params_slice.RuntimeParams to use during time t of the sim."""
+    """Returns a runtime_params.RuntimeParams to use during time t of the sim."""
     return runtime_params_lib.RuntimeParams(
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
