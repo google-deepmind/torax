@@ -153,15 +153,11 @@ class ExtendedLengyelSolverInverseTest(absltest.TestCase):
     calculated_c_z, status = extended_lengyel_solvers._solve_for_c_z_prefactor(
         sol_model=sol_model,
     )
-    expected_c_z = 0.0
 
     self.assertEqual(
         status, extended_lengyel_solvers.PhysicsOutcome.C_Z_PREFACTOR_NEGATIVE
     )
-    np.testing.assert_allclose(
-        calculated_c_z,
-        expected_c_z,
-    )
+    self.assertLess(calculated_c_z, 0.0)
 
   def test_inverse_unsuccessful_newton_solve_but_successful_hybrid_solve(self):
     # The initial guess state is deliberately set far from the solution, by

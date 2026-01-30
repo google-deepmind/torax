@@ -101,9 +101,11 @@ def inverse_mode_fixed_point_solver(
     # Solve for the impurity concentration required to achieve the target
     # temperature for a given q_parallel. This also updates the divertor and
     # separatrix Z_eff values in sol_model, used downstream.
-    current_sol_model.state.c_z_prefactor, physics_outcome = (
-        _solve_for_c_z_prefactor(sol_model=current_sol_model)
+    c_z_prefactor, physics_outcome = _solve_for_c_z_prefactor(
+        sol_model=current_sol_model
     )
+    # Clip to physical values (non-negative impurity concentration).
+    current_sol_model.state.c_z_prefactor = jnp.maximum(c_z_prefactor, 0.0)
 
     # Update alpha_t for the next loop iteration.
     current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
@@ -342,11 +344,15 @@ def inverse_mode_newton_solver(
   )
 
   # 4. Construct final model.
+  # Clip c_z_prefactor to 0.0 if it is negative (unphysical solution).
+  # Negative values are allowed during the solve process (to ensure smooth
+  # gradients for the solver), but the final physical state must have
+  # non-negative concentrations.
   final_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_root[0]),
       alpha_t=jax.nn.softplus(x_root[1]),
       kappa_e=jnp.exp(x_root[2]),
-      c_z_prefactor=x_root[3],
+      c_z_prefactor=jnp.maximum(x_root[3], 0.0),
       T_e_target=fixed_Tt,
   )
 
@@ -355,6 +361,7 @@ def inverse_mode_newton_solver(
   )
 
   # 5. Re-calculate physics outcome at final state to return the physics_outcome
+  # This uses the clipped (physical) c_z_prefactor.
   _, physics_outcome = _solve_for_c_z_prefactor(sol_model=final_sol_model)
 
   solver_status = ExtendedLengyelSolverStatus(
@@ -468,11 +475,15 @@ def _inverse_residual(
 ) -> jax.Array:
   """Calculates the residual vector for Inverse Mode F(x) = 0."""
   # 1. Construct physical state from vector guess.
+  # Note: c_z_prefactor is clipped to be non-negative for physics calculations
+  # to avoid NaNs (e.g. in Z_eff -> alpha_t). The solver is allowed to explore
+  # negative values in x_vec[3] to properly find the root (even if unphysical),
+  # but the state used for consistent physics checks must be valid.
   current_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_vec[0]),
       alpha_t=jax.nn.softplus(x_vec[1]),
       kappa_e=jnp.exp(x_vec[2]),
-      c_z_prefactor=x_vec[3],
+      c_z_prefactor=jnp.maximum(x_vec[3], 0.0),
       T_e_target=fixed_Tt,
   )
 
@@ -510,7 +521,10 @@ def _inverse_residual(
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
   r_at = at_calc_safe - current_state.alpha_t
   r_ke = jnp.log(ke_calc_safe) - x_vec[2]
-  r_cz = cz_calc - current_state.c_z_prefactor
+  # Residual for c_z compares the calculated required c_z against the
+  # *raw* solver guess x_vec[3], not the clipped state value.
+  # This provides a gradient signal even when x_vec[3] is negative.
+  r_cz = cz_calc - x_vec[3]
 
   return jnp.stack([r_qp, r_at, r_ke, r_cz])
 
@@ -627,12 +641,6 @@ def _solve_for_c_z_prefactor(
       c_z_prefactor < 0.0,
       PhysicsOutcome.C_Z_PREFACTOR_NEGATIVE,
       PhysicsOutcome.SUCCESS,
-  )
-
-  # c_z is related to impurity density which physically cannot be negative.
-  # The natural floor of c_z_prefactor is zero.
-  c_z_prefactor = jnp.where(
-      status == PhysicsOutcome.SUCCESS, c_z_prefactor, 0.0
   )
 
   return c_z_prefactor, status

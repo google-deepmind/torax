@@ -14,6 +14,7 @@
 
 from unittest import mock
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
@@ -23,7 +24,7 @@ from torax._src.edge import extended_lengyel_standalone
 # pylint: disable=invalid-name
 
 
-class ExtendedLengyelTest(absltest.TestCase):
+class ExtendedLengyelTest(parameterized.TestCase):
 
   def test_run_extended_lengyel_model_inverse_mode_fixed_point(self):
     """Integration test for the full extended_lengyel model in inverse mode."""
@@ -548,6 +549,68 @@ class ExtendedLengyelTest(absltest.TestCase):
           T_e_target=10.0,
           seed_impurity_weights={},
       )
+
+  @parameterized.named_parameters(
+      ('low_ip', {'plasma_current': 2.0e6, 'power_crossing_separatrix': 10e6}),
+      (
+          'low_power',
+          {'plasma_current': 15.0e6, 'power_crossing_separatrix': 1.0e6},
+      ),
+  )
+  def test_underpowered_scenario(self, inputs_update):
+    """Test scenario where input power is too low to reach target temperature.
+
+    This uses unrealistically low inputs for ITER-like scenarios (Ip or P_SOL)
+    which results in required impurity concentration being negative
+    (physically impossible).
+    The solver should report this via physics_outcome and a non-zero residual.
+
+    Args:
+      inputs_update: Dictionary of input parameters to override defaults.
+    """
+    inputs = {
+        'T_e_target': 5.0,
+        'power_crossing_separatrix': 10e6,
+        'separatrix_electron_density': 3e19,
+        'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
+        'fixed_impurity_concentrations': {},
+        'magnetic_field_on_axis': 5.3,
+        'plasma_current': 15.0e6,
+        'connection_length_target': 50.0,
+        'connection_length_divertor': 10.0,
+        'major_radius': 6.2,
+        'minor_radius': 2.0,
+        'elongation_psi95': 1.7,
+        'triangularity_psi95': 0.33,
+        'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.HYBRID,
+        'seed_impurity_weights': {'Ne': 1.0},
+    }
+    inputs.update(inputs_update)
+
+    outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
+        **inputs
+    )
+
+    numerics = outputs.solver_status.numerics_outcome
+
+    # 1. Assert no NaNs in output.
+    self.assertFalse(np.any(np.isnan(numerics.residual)))
+    self.assertFalse(np.isnan(outputs.Z_eff_separatrix))
+    self.assertFalse(np.isnan(outputs.alpha_t))
+
+    # 2. Physics outcome should flag the issue.
+    self.assertEqual(
+        outputs.solver_status.physics_outcome.item(),
+        extended_lengyel_solvers.PhysicsOutcome.C_Z_PREFACTOR_NEGATIVE,
+    )
+
+    # 3. Impurities should be clamped to 0.
+    np.testing.assert_allclose(
+        outputs.seed_impurity_concentrations['Ne'], 0.0, atol=1e-5
+    )
 
 
 if __name__ == '__main__':

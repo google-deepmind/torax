@@ -421,9 +421,10 @@ def calc_alpha_t(
   nu_ee = jnp.exp(log_nu_ee)
 
   # Z_eff correction to transform electron-electron collisions to ion-electron
-  # collisions. Equation B2 in Eich 2020
+  # collisions. Equation B2 in Eich 2020. Adding a small addition to Z_eff to
+  # avoid numerical issues with the gradient at Z_eff=1 (no impurities).
   Z_eff_correction = (1.0 - 0.569) * jnp.exp(
-      -(((Z_eff_separatrix - 1.0) / 3.25) ** 0.85)
+      -(((Z_eff_separatrix - 1.0 + constants.CONSTANTS.eps) / 3.25) ** 0.85)
   ) + 0.569
 
   nu_ei = nu_ee * Z_eff_correction * Z_eff_separatrix

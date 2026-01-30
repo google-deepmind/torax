@@ -230,6 +230,8 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel',
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_lengyel.py',
+          _ALL_PROFILES,
+          1e-8,
       ),
       # Predictor-corrector with Mavrin and n_e_ratios_Z_eff impurity mode.
       (
