@@ -59,11 +59,17 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
 
     if self.face_centers is not None:
       if len(self.face_centers) < 5:
-        raise ValueError('face_centers must have at least 5 elements (4 cells)')
+        raise ValueError(
+            'face_centers must have at least 5 elements (4 cells). Got'
+            f' {len(self.face_centers)}'
+        )
       if not np.isclose(self.face_centers[0], 0.0) or not np.isclose(
           self.face_centers[-1], 1.0
       ):
-        raise ValueError('face_centers must start at 0.0 and end at 1.0')
+        raise ValueError(
+            'face_centers must start at 0.0 and end at 1.0. Got'
+            f' {self.face_centers}'
+        )
 
     if self.n_rho is not None and self.n_rho < 4:
       raise ValueError('n_rho must be at least 4')

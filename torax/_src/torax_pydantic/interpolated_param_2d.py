@@ -68,9 +68,12 @@ class Grid1D(model_base.BaseModelFrozen):
   def _validate_face_centers(cls, v: np.ndarray) -> np.ndarray:
     """Validates that face_centers has at least 5 elements (4 cells)."""
     if len(v) < 5:
-      raise ValueError('face_centers must have at least 5 elements (4 cells)')
-    if 0.0 not in v or 1.0 not in v:
-      raise ValueError('face_centers must include 0.0 and 1.0')
+      raise ValueError(
+          'face_centers must have at least 5 elements (4 cells) but got'
+          f' {len(v)}'
+      )
+    if not np.isclose(v[0], 0.0) or not np.isclose(v[-1], 1.0):
+      raise ValueError(f'face_centers must include 0.0 and 1.0 but got {v}')
     return v
 
   @property
