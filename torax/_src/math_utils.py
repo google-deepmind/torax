@@ -323,3 +323,16 @@ def cumulative_volume_integration(
 
 def safe_divide(y: chex.Array, x: chex.Array) -> chex.Array:
   return y / (x + constants.CONSTANTS.eps)
+
+
+def inverse_softplus(x: jax.Array) -> jax.Array:
+  """Inverse of softplus function."""
+  # Enforce minimum value to avoid log(0) or log(negative).
+  # We want a function that maps x back to y such that softplus(y) = x.
+  # y = log(exp(x) - 1).
+  # If x -> 0, y -> -inf.
+  # For avoiding overflow/underflow issues with float32:
+  # exp(x) overflows if x > 88.
+  # But for x > 30, softplus(x) ~ x.
+  # For x < 1e-32, exp(x) = 1 and we get log(0). Avoid by clipping.
+  return jnp.where(x > 30.0, x, jnp.log(jnp.expm1(jnp.maximum(x, 1e-20))))

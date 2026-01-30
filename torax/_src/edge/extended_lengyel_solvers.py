@@ -19,6 +19,7 @@ import functools
 import jax
 from jax import numpy as jnp
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.edge import collisional_radiative_models
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
@@ -248,12 +249,12 @@ def forward_mode_newton_solver(
   """
   # 1. Create initial guess state vector.
   # Uses log space for strictly positive variables and to improve conditioning.
-  # alpha_t is left linear since should always remain O(1) and log steps
-  # can lead to numerical issues due to exponential amplification. Positivity is
-  # enforced via softplus when unpacking.
+  # alpha_t is strictly positive, but is enforced via softplus in the residual.
+  # Therefore we must inverse softplus the initial guess to maintain
+  # consistency.
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      initial_sol_model.state.alpha_t,
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
       jnp.log(initial_sol_model.state.kappa_e),
       jnp.log(initial_sol_model.state.T_e_target),
   ])
@@ -319,13 +320,13 @@ def inverse_mode_newton_solver(
   # 1. Create initial guess state vector.
 
   # Uses log space for strictly positive variables and to improve conditioning.
-  # alpha_t is left linear since should always remain O(1) and log steps
-  # can lead to numerical issues due to exponential amplification. Positivity is
-  # enforced via softplus when unpacking.
+  # alpha_t is strictly positive, but is enforced via softplus in the residual.
+  # Therefore we must inverse softplus the initial guess to maintain
+  # consistency.
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      initial_sol_model.state.alpha_t,
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
       jnp.log(initial_sol_model.state.kappa_e),
       initial_sol_model.state.c_z_prefactor,
   ])
@@ -461,7 +462,7 @@ def _forward_residual(
   at_calc_safe = jnp.maximum(at_calc, constants.CONSTANTS.eps)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
-  r_at = at_calc_safe - current_state.alpha_t
+  r_at = math_utils.inverse_softplus(at_calc_safe) - x_vec[1]
   r_ke = jnp.log(ke_calc_safe) - x_vec[2]
   r_Tt = jnp.log(Tt_calc_safe) - x_vec[3]
 
@@ -519,7 +520,7 @@ def _inverse_residual(
   at_calc_safe = jnp.maximum(at_calc, constants.CONSTANTS.eps)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
-  r_at = at_calc_safe - current_state.alpha_t
+  r_at = math_utils.inverse_softplus(at_calc_safe) - x_vec[1]
   r_ke = jnp.log(ke_calc_safe) - x_vec[2]
   # Residual for c_z compares the calculated required c_z against the
   # *raw* solver guess x_vec[3], not the clipped state value.

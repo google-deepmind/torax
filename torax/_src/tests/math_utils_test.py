@@ -315,6 +315,35 @@ class MathUtilsTest(parameterized.TestCase):
         expected,
     )
 
+  @parameterized.parameters(1e-14, 1e-6, 1e-4, 0.1)
+  def test_inverse_softplus_small_values(self, value):
+    x_val = jnp.array(value)
+    y_val = math_utils.inverse_softplus(x_val)
+    x_rec = jax.nn.softplus(y_val)
+    np.testing.assert_allclose(x_val, x_rec, rtol=1e-6)
+
+  @parameterized.parameters(1.0, 5.0, 10.0)
+  def test_inverse_softplus_medium_values(self, value):
+    x_val = jnp.array(value)
+    y_val = math_utils.inverse_softplus(x_val)
+    x_rec = jax.nn.softplus(y_val)
+    np.testing.assert_allclose(x_val, x_rec, rtol=1e-6)
+
+  @parameterized.parameters(25.0, 50.0, 100.0)
+  def test_inverse_softplus_large_values(self, value):
+    x_val = jnp.array(value)
+    y_val = math_utils.inverse_softplus(x_val)
+    np.testing.assert_allclose(x_val, y_val, rtol=1e-6)
+    x_rec = jax.nn.softplus(y_val)
+    np.testing.assert_allclose(x_val, x_rec, rtol=1e-6)
+
+  @parameterized.parameters(-20, -10, -1, 1e-10, 1e-6, 0.1, 1.0, 10.0, 100.0)
+  def test_softplus_round_trip(self, value):
+    x = jnp.array(value)
+    y = jax.nn.softplus(x)
+    x_rec = math_utils.inverse_softplus(y)
+    np.testing.assert_allclose(x, x_rec, rtol=1e-6)
+
 
 if __name__ == '__main__':
   absltest.main()
