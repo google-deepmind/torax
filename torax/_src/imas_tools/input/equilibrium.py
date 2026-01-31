@@ -109,7 +109,8 @@ def geometry_from_IMAS(
     )
   IMAS_data = equilibrium.time_slice[slice_index]
   R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)
-  B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
+  # B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
+  B_0 = np.asarray(np.abs(IMAS_data.profiles_1d.f[-1]) / R_major)
 
   # Poloidal flux.
   psi = np.abs(IMAS_data.profiles_1d.psi)
