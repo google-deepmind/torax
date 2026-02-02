@@ -33,6 +33,9 @@ _DENSITY_SCALE_FACTOR = 1e-20
 # _LINT_SCALE_FACTOR * _DENSITY_SCALE_FACTOR**2
 _LINT_K_INVERSE_SCALE_FACTOR = 1e-10
 
+# kappa scale factor for residuals
+_KAPPA_SCALE_FACTOR = 1e-3
+
 
 class PhysicsOutcome(enum.IntEnum):
   """Status of the _solve_for_qcc or _solve_for_c_z_prefactor calculations.
@@ -157,10 +160,19 @@ def forward_mode_fixed_point_solver(
     prev_sol_model = current_sol_model
 
     # Update q_parallel based on the current separatrix temperature and alpha_t.
-    current_sol_model.state.q_parallel = divertor_sol_1d_lib.calc_q_parallel(
+    new_q_parallel = divertor_sol_1d_lib.calc_q_parallel(
         params=current_sol_model.params,
         T_e_separatrix=current_sol_model.T_e_separatrix,
         alpha_t=current_sol_model.state.alpha_t,
+    )
+
+    # Relax q_parallel for stability.
+    # No relaxation for the first iteration (i=0), since we don't have a
+    # previous q_parallel to relax with.
+    current_sol_model.state.q_parallel = jax.lax.cond(
+        i > 0,
+        lambda: _relax(new_q_parallel, prev_sol_model.state.q_parallel),
+        lambda: new_q_parallel,
     )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
@@ -248,15 +260,16 @@ def forward_mode_newton_solver(
       status and number of iterations.
   """
   # 1. Create initial guess state vector.
-  # Uses log space for strictly positive variables and to improve conditioning.
-  # alpha_t is strictly positive, but is enforced via softplus in the residual.
-  # Therefore we must inverse softplus the initial guess to maintain
-  # consistency.
+  # Uses log space and softplus for strictly positive variables and to improve
+  # conditioning. alpha_t, kappa_e, and T_e_target are strictly positive, but is
+  # enforced via softplus in the residual. Therefore we must inverse softplus
+  # the initial guess to maintain consistency.
+
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
       math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
-      jnp.log(initial_sol_model.state.kappa_e),
-      jnp.log(initial_sol_model.state.T_e_target),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
+      math_utils.inverse_softplus(initial_sol_model.state.T_e_target),
   ])
 
   # 2. Define residual function, closing over params and fixed c_z.
@@ -276,8 +289,8 @@ def forward_mode_newton_solver(
   final_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_root[0]),
       alpha_t=jax.nn.softplus(x_root[1]),
-      kappa_e=jnp.exp(x_root[2]),
-      T_e_target=jnp.exp(x_root[3]),
+      kappa_e=jax.nn.softplus(x_root[2]),
+      T_e_target=jax.nn.softplus(x_root[3]),
       c_z_prefactor=fixed_cz,
   )
   final_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -319,15 +332,15 @@ def inverse_mode_newton_solver(
   """
   # 1. Create initial guess state vector.
 
-  # Uses log space for strictly positive variables and to improve conditioning.
-  # alpha_t is strictly positive, but is enforced via softplus in the residual.
-  # Therefore we must inverse softplus the initial guess to maintain
-  # consistency.
+  # Uses log space and softplus for strictly positive variables and to improve
+  # conditioning. alpha_t and kappa_e are strictly positive, but is enforced via
+  # softplus in the residual. Therefore we must inverse softplus the initial
+  # guess to maintain consistency.
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
       math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
-      jnp.log(initial_sol_model.state.kappa_e),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
       initial_sol_model.state.c_z_prefactor,
   ])
 
@@ -352,7 +365,7 @@ def inverse_mode_newton_solver(
   final_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_root[0]),
       alpha_t=jax.nn.softplus(x_root[1]),
-      kappa_e=jnp.exp(x_root[2]),
+      kappa_e=jax.nn.softplus(x_root[2]),
       c_z_prefactor=jnp.maximum(x_root[3], 0.0),
       T_e_target=fixed_Tt,
   )
@@ -383,6 +396,7 @@ def forward_mode_hybrid_solver(
       initial_sol_model=initial_sol_model,
       iterations=fixed_point_iterations,
   )
+
   final_sol_model, solver_status = forward_mode_newton_solver(
       initial_sol_model=intermediate_sol_model,
       maxiter=newton_raphson_iterations,
@@ -420,8 +434,8 @@ def _forward_residual(
   current_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_vec[0]),
       alpha_t=jax.nn.softplus(x_vec[1]),
-      kappa_e=jnp.exp(x_vec[2]),
-      T_e_target=jnp.exp(x_vec[3]),
+      kappa_e=jax.nn.softplus(x_vec[2]),
+      T_e_target=jax.nn.softplus(x_vec[3]),
       c_z_prefactor=fixed_cz,
   )
   temp_model = divertor_sol_1d_lib.DivertorSOL1D(
@@ -455,16 +469,14 @@ def _forward_residual(
   )
 
   # 3. Compute residuals in solver space for conditioning.
-  # Enforce positivity for numerical stability.
+  # q_parallel assumes a log mapping.
+  # kappa is scaled (1e3), the others O(1)
   qp_calc_safe = jnp.maximum(qp_calc, constants.CONSTANTS.eps)
-  ke_calc_safe = jnp.maximum(ke_calc, constants.CONSTANTS.eps)
-  Tt_calc_safe = jnp.maximum(Tt_calc, constants.CONSTANTS.eps)
-  at_calc_safe = jnp.maximum(at_calc, constants.CONSTANTS.eps)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
-  r_at = math_utils.inverse_softplus(at_calc_safe) - x_vec[1]
-  r_ke = jnp.log(ke_calc_safe) - x_vec[2]
-  r_Tt = jnp.log(Tt_calc_safe) - x_vec[3]
+  r_at = at_calc - current_state.alpha_t
+  r_ke = (ke_calc - current_state.kappa_e) * _KAPPA_SCALE_FACTOR
+  r_Tt = Tt_calc - current_state.T_e_target
 
   return jnp.stack([r_qp, r_at, r_ke, r_Tt])
 
@@ -483,7 +495,7 @@ def _inverse_residual(
   current_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=jnp.exp(x_vec[0]),
       alpha_t=jax.nn.softplus(x_vec[1]),
-      kappa_e=jnp.exp(x_vec[2]),
+      kappa_e=jax.nn.softplus(x_vec[2]),
       c_z_prefactor=jnp.maximum(x_vec[3], 0.0),
       T_e_target=fixed_Tt,
   )
@@ -515,13 +527,12 @@ def _inverse_residual(
   cz_calc, _ = _solve_for_c_z_prefactor(sol_model=temp_model)
 
   # 3. Compute residuals in solver space for conditioning.
+  # q_parallel assumes a log mapping.
   qp_calc_safe = jnp.maximum(qp_calc, constants.CONSTANTS.eps)
-  ke_calc_safe = jnp.maximum(ke_calc, constants.CONSTANTS.eps)
-  at_calc_safe = jnp.maximum(at_calc, constants.CONSTANTS.eps)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
-  r_at = math_utils.inverse_softplus(at_calc_safe) - x_vec[1]
-  r_ke = jnp.log(ke_calc_safe) - x_vec[2]
+  r_at = at_calc - current_state.alpha_t
+  r_ke = (ke_calc - current_state.kappa_e) * _KAPPA_SCALE_FACTOR
   # Residual for c_z compares the calculated required c_z against the
   # *raw* solver guess x_vec[3], not the clipped state value.
   # This provides a gradient signal even when x_vec[3] is negative.
@@ -726,12 +737,14 @@ def _solve_for_qcc(
       PhysicsOutcome.SUCCESS,
   )
 
-  # Clip qcc to a low but positive value to avoid NaNs. Still corresponds to
-  # near total detachment.
-  qcc = jnp.where(
-      status == PhysicsOutcome.SUCCESS,
-      jnp.sqrt(qcc_squared),
-      constants.CONSTANTS.eps,
+  # Use smooth_sqrt to avoid vanishing gradients when qcc_squared is negative.
+  # We scale inputs to smooth_sqrt by qu^2 + epsilon so that the dimensionless
+  # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
+  # effective. This prevents vanishing gradients for deep negative excursions.
+  qcc_norm = math_utils.smooth_sqrt(
+      math_utils.safe_divide(qcc_squared, qu**2), epsilon=1e-3
   )
 
-  return qcc, status
+  qcc = qcc_norm * jnp.sqrt(qu**2)
+
+  return qcc, status  # pytype: disable=bad-return-type

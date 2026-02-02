@@ -336,3 +336,41 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
   # But for x > 30, softplus(x) ~ x.
   # For x < 1e-32, exp(x) = 1 and we get log(0). Avoid by clipping.
   return jnp.where(x > 30.0, x, jnp.log(jnp.expm1(jnp.maximum(x, 1e-20))))
+
+
+def smooth_sqrt(
+    x: jax.Array, epsilon: float = constants.CONSTANTS.eps
+) -> jax.Array:
+  """Smoothed sqrt that linearly extrapolates for x < epsilon.
+
+  This function avoids vanishing gradients for x <= 0, which can happen with
+  simple clipping. This function returns a linear extrapolation for x < epsilon,
+  connecting smoothly (C1 continuity) to sqrt(x) at x = epsilon.
+
+  For x >= epsilon: sqrt(x)
+  For x < epsilon: 2 * eps^1.5 / (3 * eps - x)
+  This matches value and derivative at x = epsilon.
+
+  Decays as 1/|x| for x -> -infinity, avoiding vanishing gradients.
+  Derivative always positive, avoiding zero-slope trap.
+
+  Args:
+    x: Input array.
+    epsilon: Threshold below which linear extrapolation is used.
+
+  Returns:
+    Approximation of sqrt(x) that is linear for x < epsilon.
+  """
+
+  sqrt_eps = jnp.sqrt(epsilon)
+  # Guard against negative x in sqrt, even when not selected, to avoid NaN
+  # gradients. We clamp to epsilon/2 to ensuring the argument is strictly
+  # positive (avoiding sqrt(0) singularity) and that at x=epsilon, the
+  # derivative is continuous.
+  safe_sqrt_x = jnp.sqrt(jnp.maximum(x, epsilon / 2.0))
+
+  # Rational tail for x < epsilon.
+  # Note: 3*eps - x is always positive for x < epsilon (since eps > 0).
+  rational_approx = 2 * epsilon * sqrt_eps / (3 * epsilon - x)
+
+  return jnp.where(x >= epsilon, safe_sqrt_x, rational_approx)

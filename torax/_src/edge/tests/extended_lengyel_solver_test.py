@@ -335,14 +335,17 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     self.assertEqual(
         status, extended_lengyel_solvers.PhysicsOutcome.Q_CC_SQUARED_NEGATIVE
     )
-    np.testing.assert_allclose(calculated_qcc, 1e-7)
+    # Assert small but positive qcc, due to smooth_sqrt function on
+    # on negative arguments, which effectively clips but maintains gradients.
+    np.testing.assert_array_less(0.0, calculated_qcc)
+    np.testing.assert_array_less(calculated_qcc, np.sqrt(1e-7))
 
   def test_forward_unsuccessful_newton_solve_but_successful_hybrid_solve(self):
     # The initial guess state is deliberately set far from the solution, by
     # having too low a q_parallel. But the hybrid solver should still converge
     # to the solution while Newton-Raphson fails.
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=1e3,
+        q_parallel=1e5,
         c_z_prefactor=0.0,
         kappa_e=1751.6010938527386,
         alpha_t=0.1,

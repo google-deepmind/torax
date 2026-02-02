@@ -264,7 +264,7 @@ def run_extended_lengyel_standalone(
 
   # Initialize values for iterative solver.
   alpha_t_init = 0.1
-  c_z_prefactor_init = 0.0
+  c_z_prefactor_init = 1e-4
   kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
   T_e_separatrix_init = 100.0  # [eV], needed to initialize q_parallel
   q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
@@ -276,7 +276,8 @@ def run_extended_lengyel_standalone(
   if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
     T_e_target_init = T_e_target  # from input
   elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-    T_e_target_init = 2.0  # eV. Typical value below sputtering limits
+    # High value is better for converging on attached root.
+    T_e_target_init = 300.0  # eV.
   else:
     raise ValueError(f'Unknown computation mode: {computation_mode}')
 

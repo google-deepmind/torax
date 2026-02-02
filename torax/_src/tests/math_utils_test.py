@@ -344,6 +344,54 @@ class MathUtilsTest(parameterized.TestCase):
     x_rec = math_utils.inverse_softplus(y)
     np.testing.assert_allclose(x, x_rec, rtol=1e-6)
 
+  def test_smooth_sqrt_c1_continuity(self):
+    """Tests C1 continuity at x=epsilon."""
+    epsilon = 1.0
+    # Value at epsilon
+    val = math_utils.smooth_sqrt(jnp.array(epsilon), epsilon=epsilon)
+    expected_val = jnp.sqrt(epsilon)
+    np.testing.assert_allclose(val, expected_val, rtol=1e-14)
+
+    # Gradient at epsilon
+    grad_fn = jax.grad(lambda x: math_utils.smooth_sqrt(x, epsilon=epsilon))
+    grad = grad_fn(jnp.array(epsilon))
+    expected_grad = 0.5 / jnp.sqrt(epsilon)
+    np.testing.assert_allclose(grad, expected_grad, rtol=1e-14)
+
+    # Check left/right gradients numerically close to epsilon
+    delta = 1e-6
+    grad_left = grad_fn(epsilon - delta)
+    grad_right = grad_fn(epsilon + delta)
+    # Allow some tolerance due to curvature changes
+    np.testing.assert_allclose(grad_left, expected_grad, rtol=1e-4)
+    np.testing.assert_allclose(grad_right, expected_grad, rtol=1e-4)
+
+  @parameterized.parameters(1.0, 10.0, 100.0, 1e5, 1e10, 1e15)
+  def test_smooth_sqrt_equivalence_positive(self, value):
+    """Tests equivalence to sqrt(x) for x >= epsilon."""
+    epsilon = 1.0
+    x = jnp.array(value, dtype=jnp.float64)
+    res = math_utils.smooth_sqrt(x, epsilon=epsilon)
+    expected = jnp.sqrt(x)
+    np.testing.assert_allclose(res, expected, rtol=1e-14)
+
+  @parameterized.parameters(0.0, -1e-15, -1e-10, -1.0, -1e2, -1e5, -1e10, -1e15)
+  def test_smooth_sqrt_negative_branch(self, value):
+    """Tests positive values and gradients for x < epsilon."""
+    epsilon = 1.0
+    x = jnp.array(value, dtype=jnp.float64)
+
+    # Value check
+    result = math_utils.smooth_sqrt(x, epsilon=epsilon)
+    self.assertGreater(result, 0.0)
+
+    # Gradient check
+    grad_fn = jax.grad(lambda u: math_utils.smooth_sqrt(u, epsilon=epsilon))
+    grad = grad_fn(x)
+    self.assertGreater(grad, 0.0)
+    self.assertFalse(jnp.isnan(grad))
+    self.assertFalse(jnp.isinf(grad))
+
 
 if __name__ == '__main__':
   absltest.main()

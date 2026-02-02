@@ -477,6 +477,14 @@ def calc_T_e_target(
       )
   )
 
+  # Clip momentum and power loss to 95% to avoid unphysical values that
+  # can lead to spurious condensation to T_e_target = 0.
+  # The empirical fits do not extend to T_e_target < ~1 eV.
+  # For T_e_target = 0.0, the fits give momentum_loss = 1.0 and
+  # power_loss_conv_layer = 1.0 (i.e. total loss), which are unphysical.
+  momentum_loss = jnp.minimum(momentum_loss, 0.95)
+  power_loss_conv_layer = jnp.minimum(power_loss_conv_layer, 0.95)
+
   # Calculate the basic target electron temperature from the two-point model,
   # which assumes no power or momentum loss.
   # In log space to avoid over/underflows in fp32.
