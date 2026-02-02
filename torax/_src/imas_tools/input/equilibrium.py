@@ -34,6 +34,7 @@ def geometry_from_IMAS(
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
+    explicit_convert: bool = False,
 ) -> dict[str, Any]:
   """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
@@ -54,6 +55,10 @@ def geometry_from_IMAS(
     imas_uri: The IMAS uri containing the equilibrium data.
     imas_filepath: The path to the IMAS netCDF file containing the equilibrium
       data.
+    explicit_convert: Whether to explicitly convert the IDS to the current DD
+      version. If True, an explicit conversion will be attempted. Explicit
+      conversion is recommended when converting between major DD versions.
+      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
 
   Returns:
     A StandardGeometry instance based on the input file. This can then be
@@ -68,11 +73,11 @@ def geometry_from_IMAS(
     equilibrium = equilibrium_object
   elif imas_uri is not None:
     equilibrium = loader.load_imas_data(
-        imas_uri, "equilibrium", geometry_directory
+        imas_uri, "equilibrium", geometry_directory, explicit_convert
     )
   elif imas_filepath is not None:
     equilibrium = loader.load_imas_data(
-        imas_filepath, "equilibrium", geometry_directory
+        imas_filepath, "equilibrium", geometry_directory, explicit_convert
     )
   else:
     raise ValueError(

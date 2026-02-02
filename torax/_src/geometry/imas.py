@@ -62,6 +62,10 @@ class IMASConfig(base.BaseGeometryConfig):
       equilibrium_object can be set.
     slice_time: Time of slice to load from IMAS IDS. If given, overrides
     slice_index: Index of slice to load from IMAS IDS.
+    explicit_convert: Whether to explicitly convert the IDS to the current DD
+      version. If True, an explicit conversion will be attempted. Explicit
+      conversion is recommended when converting between major DD versions.
+      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
   """
 
   geometry_type: Annotated[Literal['imas'], torax_pydantic.TIME_INVARIANT] = (
@@ -76,6 +80,7 @@ class IMASConfig(base.BaseGeometryConfig):
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
   slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
+  explicit_convert: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
@@ -107,6 +112,7 @@ class IMASConfig(base.BaseGeometryConfig):
         hires_factor=self.hires_factor,
         slice_time=self.slice_time,
         slice_index=self.slice_index,
+        explicit_convert=self.explicit_convert,
     )
     intermediates = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.IMAS, **inputs
