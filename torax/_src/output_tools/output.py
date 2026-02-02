@@ -116,6 +116,7 @@ Q_FUSION = "Q_fusion"
 SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
 CALCULATED_ENRICHMENT = "calculated_enrichment"
 IMPURITY = "impurity"
+SEED_IMPURITY = "seed_impurity"
 MAIN_ION = "main_ion"
 
 # Numerics.
@@ -916,10 +917,21 @@ class StateHistory:
         xr_dict[name] = self._pack_into_data_array(name, value)
         continue
       # Special handling for seed_impurity_concentrations
-      # Only populate if the dict is not empty.
-      if (
-          name == SEED_IMPURITY_CONCENTRATIONS or name == CALCULATED_ENRICHMENT
-      ) and value:
+      if name == SEED_IMPURITY_CONCENTRATIONS and value:
+        # This is a dict of {impurity: array(time,)}, where (time,) is the shape
+        # We want to convert it to an array of shape (n_impurities, time) with
+        # impurity coord.
+        impurities = sorted(list(value.keys()))
+        data_array = np.stack([value[i] for i in impurities], axis=0)
+        xr_dict[name] = xr.DataArray(
+            data_array,
+            dims=[SEED_IMPURITY, TIME],
+            coords={SEED_IMPURITY: impurities, TIME: self.times},
+            name=name,
+        )
+        continue
+
+      if name == CALCULATED_ENRICHMENT and value:
         # This is a dict of {impurity: array(time,)}, where (time,) is the shape
         # We want to convert it to an array of shape (n_impurities, time) with
         # impurity coord.

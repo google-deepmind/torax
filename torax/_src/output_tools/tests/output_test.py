@@ -530,8 +530,70 @@ class StateHistoryTest(parameterized.TestCase):
     # Verify values match
     np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
+        edge_dataset['seed_impurity_concentrations']
+        .sel(seed_impurity='Ar')
+        .values,
         np.array([0.01]),
+    )
+
+  def test_seed_impurity_concentrations_does_not_align_with_enrichment(self):
+    # Create dummy ExtendedLengyelOutputs with mixed impurities
+    # seed_impurity_concentrations has only 'Ar'
+    # calculated_enrichment has 'Ar' and 'W' (will happen if 'W' is a fixed
+    # impurity)
+    # We expect seed_impurity_concentrations to NOT include 'W'.
+
+    seed_imp = {'Ar': jnp.array(0.01)}
+    calculated_enrichment = {'Ar': jnp.array(1.0), 'W': jnp.array(0.5)}
+
+    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        q_parallel=jnp.array(1.0),
+        q_perpendicular_target=jnp.array(2.0),
+        T_e_separatrix=jnp.array(3.0),
+        T_e_target=jnp.array(4.0),
+        pressure_neutral_divertor=jnp.array(5.0),
+        alpha_t=jnp.array(0.5),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations=seed_imp,
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
+        ),
+        calculated_enrichment=calculated_enrichment,
+    )
+
+    sim_state_with_edge = dataclasses.replace(
+        self.sim_state,
+        edge_outputs=extended_lengyel_outputs,
+    )
+
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=[sim_state_with_edge],
+        post_processed_outputs_history=(self._output_state,),
+        torax_config=self.torax_config,
+    )
+
+    output_xr = history.simulation_output_to_xr()
+    edge_dataset = output_xr.children[output.EDGE].dataset
+
+    # Verify seed_impurity_concentrations has dimension SEED_IMPURITY
+    self.assertIn(output.SEED_IMPURITY, edge_dataset.dims)
+    self.assertIn(output.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars)
+
+    seed_var = edge_dataset[output.SEED_IMPURITY_CONCENTRATIONS]
+    self.assertIn(output.SEED_IMPURITY, seed_var.dims)
+
+    # Verify it has ONLY 'Ar'
+    self.assertLen(seed_var.coords[output.SEED_IMPURITY], 1)
+    self.assertEqual(seed_var.coords[output.SEED_IMPURITY].values[0], 'Ar')
+
+    # Verify calculated_enrichment has both
+    enrich_var = edge_dataset[output.CALCULATED_ENRICHMENT]
+    self.assertIn(output.IMPURITY, enrich_var.dims)
+    self.assertLen(enrich_var.coords[output.IMPURITY], 2)
+    self.assertCountEqual(
+        enrich_var.coords[output.IMPURITY].values, ['Ar', 'W']
     )
 
   def test_state_history_with_extended_lengyel_outputs_newton(self):
@@ -599,7 +661,9 @@ class StateHistoryTest(parameterized.TestCase):
     # Verify values match
     np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations'].sel(impurity='Ar').values,
+        edge_dataset['seed_impurity_concentrations']
+        .sel(seed_impurity='Ar')
+        .values,
         np.array([0.01]),
     )
     np.testing.assert_allclose(
