@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Impurity cooling rate model for non-coronal equilibrium.
 
-"""Impurity cooling rate data valid at the tokamak edge.
-
-Polynomial fit coefficients from A. A. Mavrin (2017):
+Implements the polynomial fit coefficients from A. A. Mavrin (2017):
 Radiative Cooling Rates for Low-Z Impurities in Non-coronal Equilibrium State.
 J Fusion Energ (2017) 36:161-172
 DOI 10.1007/s10894-017-0136-z
@@ -22,12 +21,16 @@ DOI 10.1007/s10894-017-0136-z
 
 from typing import Final, Mapping
 
+import chex
 import immutabledict
+import jax.numpy as jnp
+import jaxtyping as jt
 import numpy as np
 from torax._src import array_typing
 
 # Tables 1, 3, 5, 7, 9, 11, 13, 15
-
+# Note: these coefficients are given for T_e in [eV]. Make sure to convert
+# to eV before evaluating the polynomial, i.e. multiply by 1e3.
 # Disable line-too-long check for the coefficients table for readability.
 # pylint: disable=line-too-long
 COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
@@ -132,38 +135,80 @@ COEFFS: Final[Mapping[str, array_typing.FloatVector]] = (
 )
 # pylint: enable=line-too-long
 
-# All temperatures are in eV
+# These intervals mark the boundaries in temperature used to select which
+# column of coefficients to use.
+# All temperatures are in keV.
 TEMPERATURE_INTERVALS: Final[Mapping[str, array_typing.FloatVector]] = (
     immutabledict.immutabledict({
-        'He': np.array([3.0, 10.0, 30.0, 100.0]),
-        'Li': np.array([7.0, 30.0, 60.0, 100.0, 1000.0]),
-        'Be': np.array([0.7, 3.0, 11.0, 45.0, 170.0]),
-        'C': np.array([7.0, 20.0, 70.0, 200.0, 700.0]),
-        'N': np.array([10.0, 30.0, 100.0, 300.0, 1000.0]),
-        'O': np.array([10.0, 30.0, 100.0, 300.0, 1000.0]),
-        'Ne': np.array([10.0, 70.0, 300.0, 1000.0, 3000.0]),
-        'Ar': np.array([10.0, 50.0, 150.0, 500.0, 1500.0]),
+        'He': np.array([3.0e-3, 10.0e-3, 30.0e-3, 100.0e-3]),
+        'Li': np.array([7.0e-3, 30.0e-3, 60.0e-3, 100.0e-3, 1000.0e-3]),
+        'Be': np.array([0.7e-3, 3.0e-3, 11.0e-3, 45.0e-3, 170.0e-3]),
+        'C': np.array([7.0e-3, 20.0e-3, 70.0e-3, 200.0e-3, 700.0e-3]),
+        'N': np.array([10.0e-3, 30.0e-3, 100.0e-3, 300.0e-3, 1000.0e-3]),
+        'O': np.array([10.0e-3, 30.0e-3, 100.0e-3, 300.0e-3, 1000.0e-3]),
+        'Ne': np.array([10.0e-3, 70.0e-3, 300.0e-3, 1000.0e-3, 3000.0e-3]),
+        'Ar': np.array([10.0e-3, 50.0e-3, 150.0e-3, 500.0e-3, 1500.0e-3]),
     })
 )
 
 MIN_TEMPERATURES: Final[Mapping[str, float]] = immutabledict.immutabledict({
-    'He': 1.0,
-    'Li': 1.0,
-    'Be': 0.2,
-    'C': 1.0,
-    'N': 1.0,
-    'O': 1.0,
-    'Ne': 1.0,
-    'Ar': 1.0,
+    'He': 1.0e-3,
+    'Li': 1.0e-3,
+    'Be': 0.2e-3,
+    'C': 1.0e-3,
+    'N': 1.0e-3,
+    'O': 1.0e-3,
+    'Ne': 1.0e-3,
+    'Ar': 1.0e-3,
 })
 
 MAX_TEMPERATURES: Final[Mapping[str, float]] = immutabledict.immutabledict({
-    'He': 1.5e4,
-    'Li': 1.0e4,
-    'Be': 1.0e4,
-    'C': 1.5e4,
-    'N': 1.5e4,
-    'O': 1.5e4,
-    'Ne': 1.5e4,
-    'Ar': 1.0e4,
+    'He': 15.0,
+    'Li': 10.0,
+    'Be': 10.0,
+    'C': 15.0,
+    'N': 15.0,
+    'O': 15.0,
+    'Ne': 15.0,
+    'Ar': 10.0,
 })
+
+# pylint: disable=invalid-name
+
+
+def evaluate_polynomial_fit(
+    T_e: array_typing.FloatVector,
+    ne_tau_fraction: array_typing.FloatScalar,
+    coeffs: jt.Float[array_typing.Array, '10 _'],
+) -> array_typing.FloatVector:
+  """Evaluate the polynomial fit for the cooling rate."""
+  # Check shape
+  T_e = jnp.asarray(T_e)
+  if T_e.ndim == 0:
+    expected_shape = (10,)
+  elif T_e.ndim == 1:
+    expected_shape = (10, T_e.shape[0])
+  else:
+    raise ValueError(f'Unsupported T_e shape: {T_e.shape}')
+  chex.assert_shape(coeffs, expected_shape)
+
+  # Formulas are constructed for T_e in eV
+  T_e_eV = T_e * 1e3
+  X = jnp.log10(T_e_eV)
+  Y = jnp.log10(ne_tau_fraction)
+
+  # 2D polynomial from Mavrin 2017, Eq. 8
+  log10_cooling_rate = (
+      coeffs[0]
+      + coeffs[1] * X
+      + coeffs[2] * Y
+      + coeffs[3] * X**2
+      + coeffs[4] * X * Y
+      + coeffs[5] * Y**2
+      + coeffs[6] * X**3
+      + coeffs[7] * X**2 * Y
+      + coeffs[8] * X * Y**2
+      + coeffs[9] * Y**3
+  )
+
+  return 10**log10_cooling_rate

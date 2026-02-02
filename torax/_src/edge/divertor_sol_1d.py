@@ -64,6 +64,7 @@ class ExtendedLengyelParameters:
   main_ion_charge: array_typing.FloatScalar  # [dimensionless]
   average_ion_mass: array_typing.FloatScalar  # [amu]
   mean_ion_charge_state: array_typing.FloatScalar  # [dimensionless]
+  # TODO(b/434175938): (v2) Rename to ne_tau for consistency.
   ne_tau: array_typing.FloatScalar  # [s m^-3]
   fraction_of_P_SOL_to_divertor: array_typing.FloatScalar  # [dimensionless]
   SOL_conduction_fraction: array_typing.FloatScalar  # [dimensionless]

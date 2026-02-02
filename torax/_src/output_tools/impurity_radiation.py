@@ -21,6 +21,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.physics.radiation import mavrin_fit
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -102,8 +103,8 @@ def calculate_impurity_species_output(
     )
     Z_imp = charge_state_info.Z_per_species[symbol]
     if mavrin_active:
-      lz = impurity_radiation_mavrin_fit.calculate_impurity_radiation_single_species(
-          core_profiles.T_e.value, symbol
+      lz = mavrin_fit.calculate_mavrin_cooling_rate(
+          core_profiles.T_e.value, symbol, mavrin_fit.MavrinModelType.CORONAL
       )
       radiation = n_imp * core_profiles.n_e.value * lz
     else:
