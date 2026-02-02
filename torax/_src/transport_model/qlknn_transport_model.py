@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -187,17 +188,37 @@ def _calculate_rotation_rule_factor(
   )
 
 
-def _apply_rotation_rule(
+def _maybe_apply_rotation_rule(
     model_output: base_qlknn_model.ModelOutput,
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
+    rotation_mode: qualikiz_based_transport_model.RotationMode,
+    geo: geometry.Geometry,
 ) -> base_qlknn_model.ModelOutput:
   """Apply the rotation scaling factor to the model output (Victor rule)."""
+  if rotation_mode == qualikiz_based_transport_model.RotationMode.OFF:
+    # Rotation is disabled. Do not apply the rotation rule.
+    return model_output
+
+  gamma_E_GB = qualikiz_inputs.gamma_E_GB
+  if rotation_mode == qualikiz_based_transport_model.RotationMode.HALF_RADIUS:
+    # Only consider contribution from the outer half-radius.
+    # We use a linear ramp-up between rho 0.4 and 0.6 to avoid a discontinuity.
+    # jnp.interp uses constant extrapolation by default for values outside of
+    # the interpolation range.
+    scaling = jnp.interp(
+        geo.rho_face_norm,
+        jnp.array([0.4, 0.6], dtype=jax_utils.get_dtype()),
+        jnp.array([0.0, 1.0], dtype=jax_utils.get_dtype()),
+    )
+    gamma_E_GB = gamma_E_GB * scaling
+
   f_rot_rule = _calculate_rotation_rule_factor(qualikiz_inputs)
-  gamma_max = model_output['gamma_max'].squeeze()
+
   lower_bound = 1e-4
-  gamma_max = jnp.maximum(gamma_max, lower_bound)
+  gamma_max = jnp.maximum(model_output['gamma_max'].squeeze(), lower_bound)
+
   scaling_factor = jnp.clip(
-      1 + f_rot_rule * jnp.abs(qualikiz_inputs.gamma_E_GB) / gamma_max
+      1.0 + f_rot_rule * jnp.abs(gamma_E_GB) / gamma_max, 0.0
   )
   # Add an extra dimension to match model outputs.
   scaling_factor = scaling_factor[..., jnp.newaxis]
@@ -207,6 +228,15 @@ def _apply_rotation_rule(
   for flux in updated_model_output:
     if flux.endswith('_itg') or flux.endswith('_tem'):
       updated_model_output[flux] = scaling_factor * updated_model_output[flux]
+
+      # Make tiny flux values exactly zero.
+      # This prevents numerical instabilities in the solver.
+      # TODO(b/479917564): Investigate source of numerical instabilities.
+      updated_model_output[flux] = jnp.where(
+          jnp.abs(updated_model_output[flux]) < constants.CONSTANTS.eps,
+          0.0,
+          updated_model_output[flux],
+      )
 
   return updated_model_output
 
@@ -311,11 +341,13 @@ class QLKNNTransportModel(
         lambda: feature_scan,  # Called when False
     )
     model_output = model.predict(feature_scan)
-    if (
-        runtime_config_inputs.transport.rotation_mode
-        != qualikiz_based_transport_model.RotationMode.OFF
-    ):
-      model_output = _apply_rotation_rule(model_output, qualikiz_inputs)
+
+    model_output = _maybe_apply_rotation_rule(
+        model_output,
+        qualikiz_inputs,
+        runtime_config_inputs.transport.rotation_mode,
+        geo,
+    )
 
     model_output = _filter_model_output(
         model_output=model_output,
