@@ -17,24 +17,24 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.physics.radiation import mavrin_coronal_cooling_rate
-from torax._src.physics.radiation import mavrin_fit
 from torax._src.physics.radiation import mavrin_noncoronal_cooling_rate
+from torax._src.physics.radiation import radiation
 
 
 # pylint: disable=invalid-name
 
 
-class MavrinFitTest(parameterized.TestCase):
+class RadiationTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
           testcase_name='_coronal',
-          model_type=mavrin_fit.MavrinModelType.CORONAL,
+          model_type=radiation.MavrinModelType.CORONAL,
           data_module=mavrin_coronal_cooling_rate,
       ),
       dict(
           testcase_name='_noncoronal',
-          model_type=mavrin_fit.MavrinModelType.NONCORONAL,
+          model_type=radiation.MavrinModelType.NONCORONAL,
           data_module=mavrin_noncoronal_cooling_rate,
       ),
   )
@@ -47,23 +47,23 @@ class MavrinFitTest(parameterized.TestCase):
 
     # Test lower bound clipping
     T_e_low = np.array([T_e_min / 2.0])
-    val_low = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_low = radiation.calculate_mavrin_cooling_rate(
         T_e_low, ion_symbol, model_type, ne_tau=ne_tau
     )
-    val_min_ref = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_min_ref = radiation.calculate_mavrin_cooling_rate(
         np.array([T_e_min]), ion_symbol, model_type, ne_tau=ne_tau
     )
     np.testing.assert_allclose(val_low, val_min_ref)
 
     # Test upper bound clipping
     T_e_high = np.array([T_e_max * 2.0])
-    val_high = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_high = radiation.calculate_mavrin_cooling_rate(
         T_e_high,
         ion_symbol,
         model_type,
         ne_tau=ne_tau,
     )
-    val_max_ref = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_max_ref = radiation.calculate_mavrin_cooling_rate(
         np.array([T_e_max]),
         ion_symbol,
         model_type,
@@ -75,19 +75,19 @@ class MavrinFitTest(parameterized.TestCase):
     """Tests that ne_tau is correctly capped at the coronal limit."""
     ion_symbol = 'C'
     T_e = np.array([1.0])
-    ne_tau_limit = mavrin_fit._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
+    ne_tau_limit = radiation._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
     ne_tau_high = 2 * ne_tau_limit
 
-    val_high = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_high = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.NONCORONAL,
+        radiation.MavrinModelType.NONCORONAL,
         ne_tau=ne_tau_high,
     )
-    val_limit = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_limit = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.NONCORONAL,
+        radiation.MavrinModelType.NONCORONAL,
         ne_tau=ne_tau_limit,
     )
     np.testing.assert_allclose(val_high, val_limit)
@@ -95,19 +95,19 @@ class MavrinFitTest(parameterized.TestCase):
   def test_noncoronal_coronal_limit_vs_coronal_model(self):
     """Compares noncoronal model in coronal limit to coronal model for Ar."""
     ion_symbol = 'Ar'
-    ne_tau = mavrin_fit._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
+    ne_tau = radiation._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
     T_e = np.array([0.1, 0.2, 0.5, 0.9, 1.5, 9.0])
 
-    lz_noncoronal_limit = mavrin_fit.calculate_mavrin_cooling_rate(
+    lz_noncoronal_limit = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.NONCORONAL,
+        radiation.MavrinModelType.NONCORONAL,
         ne_tau=ne_tau,
     )
-    lz_coronal = mavrin_fit.calculate_mavrin_cooling_rate(
+    lz_coronal = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.CORONAL,
+        radiation.MavrinModelType.CORONAL,
     )
 
     # The 2017 model Lz "coronal limit" is only valid for low temperatures.
@@ -118,11 +118,11 @@ class MavrinFitTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='_coronal',
-          model_type=mavrin_fit.MavrinModelType.CORONAL,
+          model_type=radiation.MavrinModelType.CORONAL,
       ),
       dict(
           testcase_name='_noncoronal',
-          model_type=mavrin_fit.MavrinModelType.NONCORONAL,
+          model_type=radiation.MavrinModelType.NONCORONAL,
       ),
   )
   def test_helium_isotope_equivalence(self, model_type):
@@ -130,21 +130,21 @@ class MavrinFitTest(parameterized.TestCase):
     T_e = np.array([0.005, 0.01, 0.1])
     ne_tau = 1e17
 
-    val_he = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_He = radiation.calculate_mavrin_cooling_rate(
         T_e, 'He', model_type, ne_tau=ne_tau
     )
-    val_he3 = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_He3 = radiation.calculate_mavrin_cooling_rate(
         T_e, 'He3', model_type, ne_tau=ne_tau
     )
-    val_he4 = mavrin_fit.calculate_mavrin_cooling_rate(
+    val_He4 = radiation.calculate_mavrin_cooling_rate(
         T_e, 'He4', model_type, ne_tau=ne_tau
     )
 
     np.testing.assert_allclose(
-        val_he3, val_he, err_msg=f'He3 != He for {model_type}'
+        val_He3, val_He, err_msg=f'He3 != He for {model_type}'
     )
     np.testing.assert_allclose(
-        val_he4, val_he, err_msg=f'He4 != He for {model_type}'
+        val_He4, val_He, err_msg=f'He4 != He for {model_type}'
     )
 
   @parameterized.named_parameters(
@@ -295,10 +295,10 @@ class MavrinFitTest(parameterized.TestCase):
     ])
     ne_tau = 1e17  # A representative non-coronal value
 
-    calculated_lz = mavrin_fit.calculate_mavrin_cooling_rate(
+    calculated_lz = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.NONCORONAL,
+        radiation.MavrinModelType.NONCORONAL,
         ne_tau=ne_tau,
     )
 
@@ -377,12 +377,68 @@ class MavrinFitTest(parameterized.TestCase):
       expected_LZ,
   ):
     T_e = np.array([0.1, 2, 10])
-    calculated_LZ = mavrin_fit.calculate_mavrin_cooling_rate(
+    calculated_LZ = radiation.calculate_mavrin_cooling_rate(
         T_e,
         ion_symbol,
-        mavrin_fit.MavrinModelType.CORONAL,
+        radiation.MavrinModelType.CORONAL,
     )
     np.testing.assert_allclose(calculated_LZ, expected_LZ, rtol=1e-5)
+
+  def test_cooling_rate_below_t_min_noncoronal_is_extrapolated(self):
+    ion_symbol = 'Ar'
+    ne_tau = 1e17
+    T_e_min_noncoronal = mavrin_noncoronal_cooling_rate.MIN_TEMPERATURES[
+        ion_symbol
+    ]
+    rate_at_min = radiation.calculate_cooling_rate(
+        np.array([T_e_min_noncoronal]), ion_symbol, ne_tau=ne_tau
+    )
+    rate_below_min = radiation.calculate_cooling_rate(
+        np.array([T_e_min_noncoronal / 2.0]), ion_symbol, ne_tau=ne_tau
+    )
+    self.assertGreater(rate_at_min[0], rate_below_min[0])
+    # w is approx 0 in this regime, so cooling rate should be approx
+    # noncoronal cooling rate, which is linearly extrapolated.
+    np.testing.assert_allclose(
+        rate_below_min[0], rate_at_min[0] / 2.0, rtol=1e-4
+    )
+
+  def test_cooling_rate_in_upper_coronal_regime_matches_coronal_model(self):
+    ion_symbol = 'Ar'
+    ne_tau = 1e17
+    T_e_min_coronal = mavrin_coronal_cooling_rate.MIN_TEMPERATURES[ion_symbol]
+    # At 5 * T_e_min_coronal, sigmoid weight w should be ~1.
+    T_e = np.array([T_e_min_coronal * 5])
+    cooling_rate = radiation.calculate_cooling_rate(
+        T_e, ion_symbol, ne_tau=ne_tau
+    )
+    coronal_cooling_rate = radiation.calculate_mavrin_cooling_rate(
+        T_e, ion_symbol, radiation.MavrinModelType.CORONAL, ne_tau=ne_tau
+    )
+    np.testing.assert_allclose(cooling_rate, coronal_cooling_rate, rtol=1e-2)
+
+  def test_cooling_rate_in_lower_noncoronal_regime_matches_noncoronal_model(
+      self,
+  ):
+    ion_symbol = 'Ar'
+    ne_tau = 1e17
+    T_e_min_coronal = mavrin_coronal_cooling_rate.MIN_TEMPERATURES[ion_symbol]
+    T_e_min_noncoronal = mavrin_noncoronal_cooling_rate.MIN_TEMPERATURES[
+        ion_symbol
+    ]
+    # At T_e_min_coronal / 4, sigmoid weight w should be ~0.
+    # This temperature must be >= T_e_min_noncoronal for non-coronal model
+    # to be in fit range (not extrapolated range).
+    T_e = np.array([T_e_min_coronal / 4.0])
+    self.assertGreaterEqual(T_e[0], T_e_min_noncoronal)
+
+    cooling_rate = radiation.calculate_cooling_rate(
+        T_e, ion_symbol, ne_tau=ne_tau
+    )
+    noncoronal_cooling_rate = radiation.calculate_mavrin_cooling_rate(
+        T_e, ion_symbol, radiation.MavrinModelType.NONCORONAL, ne_tau=ne_tau
+    )
+    np.testing.assert_allclose(cooling_rate, noncoronal_cooling_rate, rtol=1e-2)
 
 
 if __name__ == '__main__':

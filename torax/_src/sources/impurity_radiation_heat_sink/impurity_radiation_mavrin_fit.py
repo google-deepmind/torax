@@ -24,7 +24,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.physics.radiation import mavrin_fit
+from torax._src.physics.radiation import radiation
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
@@ -69,9 +69,7 @@ def calculate_total_impurity_radiation(
   effective_LZ = jnp.zeros_like(T_e)
   for i, ion_symbol in enumerate(ion_symbols):
     fraction = impurity_fractions[i]
-    effective_LZ += fraction * mavrin_fit.calculate_mavrin_cooling_rate(
-        T_e, ion_symbol, mavrin_fit.MavrinModelType.CORONAL
-    )
+    effective_LZ += fraction * radiation.calculate_cooling_rate(T_e, ion_symbol)
   return effective_LZ
 
 

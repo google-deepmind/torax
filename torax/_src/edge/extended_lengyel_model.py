@@ -109,6 +109,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   newton_raphson_tol: float
 
   # --- Physical Parameters ---
+  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
   ne_tau: array_typing.FloatScalar
   divertor_broadening_factor: array_typing.FloatScalar
   ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar

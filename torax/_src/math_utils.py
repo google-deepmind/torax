@@ -374,3 +374,48 @@ def smooth_sqrt(
   rational_approx = 2 * epsilon * sqrt_eps / (3 * epsilon - x)
 
   return jnp.where(x >= epsilon, safe_sqrt_x, rational_approx)
+
+
+def smoothstep_transition(
+    x: jax.Array,
+    smoothing_start: float,
+    smoothing_end: float,
+    y_left: jax.Array,
+    y_right: jax.Array,
+    log_scale: bool = True,
+) -> jax.Array:
+  """Sigmoid-like transition between two models using smoothstep.
+
+  For x < smoothing_start, returns y_left.
+  For x > smoothing_end, returns y_right.
+  For smoothing_start < x < smoothing_end, returns a sigmoid transition between
+  y_left and y_right.
+
+  The smoothstep function is a sigmoid-like function that exactly satisfies f(0)
+  = 0, f(1) = 1, and has zero gradient at the endpoints. The standard logistic
+  sigmoid has non-zero gradients at the endpoints, and only approaches 0 and 1
+  asymptotically.
+
+  Args:
+    x: The independent variable.
+    smoothing_start: The start of the sigmoid transition.
+    smoothing_end: The end of the sigmoid transition.
+    y_left: The value of the left model.
+    y_right: The value of the right model.
+    log_scale: Whether to use a logarithmic scale for the sigmoid transition. If
+      True, the sigmoid transition is applied in log(x) space.
+
+  Returns:
+    A weighted average of the left and right models, with the weight given by a
+    sigmoid (smoothstep) function.
+  """
+  if log_scale:
+    x, smoothing_start, smoothing_end = jax.tree.map(
+        jnp.log, (x, smoothing_start, smoothing_end)
+    )
+  t = (x - smoothing_start) / (smoothing_end - smoothing_start)
+  # Clip t to [0, 1] to avoid extrapolation
+  t = jnp.clip(t, 0.0, 1.0)
+  # Smoothstep function (https://en.wikipedia.org/wiki/Smoothstep)
+  w = 3.0 * t**2 - 2.0 * t**3
+  return w * y_right + (1 - w) * y_left

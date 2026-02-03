@@ -92,6 +92,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   diverted: torax_pydantic.TimeVaryingScalar | None = None
 
   # --- Physical parameters ---
+  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
   ne_tau: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(extended_lengyel_defaults.NE_TAU)
   )

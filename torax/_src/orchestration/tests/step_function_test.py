@@ -267,19 +267,28 @@ class StepFunctionTest(parameterized.TestCase):
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 
   def test_fixed_step_with_high_density_errors_and_does_not_hang(self):
-    # This test enforces that we exit the fixed step function early if we hit
-    # min_dt. If we don't do this then we risk hanging for a very long time as
-    # we stay at min_dt and the step never seems to make progress. This test
-    # ensures that we don't hang and instead fail early.
+    # This test checks that when min_dt is reached, we exit the fixed step
+    # function early. If we don't do this then we risk hanging for a very long
+    # time as taking min_dt steps will take a long time to reach the final
+    # time.
+    # We force the min_dt to be reached in the substeps by 1) selecting a case
+    # with fast dynamics, and 2) choosing a large min dt.
+    # We don't compare the results to a reference solution, because the purpose
+    # of this test is to check that the code does not hang and the numerics mean
+    # that we can't get consistent behaviour.
     test_data_dir = paths.test_data_dir()
     torax_config = config_loader.build_torax_config_from_file(
         os.path.join(test_data_dir, 'test_iterhybrid_radiation_collapse.py')
     )
+    torax_config.update_fields({'numerics.min_dt': 0.01})
+
     sim_state, post_processed_outputs, step_fn = (
         run_simulation.prepare_simulation(torax_config)
     )
+    # The test errors out before reaching t=2.0
     sim_state, post_processed_outputs = step_fn.fixed_time_step(
-        np.array(1.), sim_state, post_processed_outputs)
+        np.array(2.0), sim_state, post_processed_outputs
+    )
 
     sim_error = step_fn.check_for_errors(sim_state, post_processed_outputs)
     self.assertEqual(sim_error, state.SimError.NAN_DETECTED)

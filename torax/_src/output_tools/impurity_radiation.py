@@ -21,7 +21,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
-from torax._src.physics.radiation import mavrin_fit
+from torax._src.physics.radiation import radiation as radiation_lib
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -67,13 +67,13 @@ def calculate_impurity_species_output(
     zeros for the radiation output.
   """
   impurity_species_output: dict[str, ImpuritySpeciesOutput] = {}
-  mavrin_active = True
+  radiation_active = True
   # If the impurity radiation heat sink is not enabled, return empty dictionary.
   if (
       impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME
       not in runtime_params.sources
   ):
-    mavrin_active = False
+    radiation_active = False
   else:
     runtime_params_impurity = runtime_params.sources[
         impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME
@@ -87,7 +87,7 @@ def calculate_impurity_species_output(
         and runtime_params_impurity.mode
         == source_runtime_params_lib.Mode.MODEL_BASED
     ):
-      mavrin_active = False
+      radiation_active = False
 
   impurity_fractions = sim_state.core_profiles.impurity_fractions
   impurity_names = runtime_params.plasma_composition.impurity_names
@@ -102,10 +102,8 @@ def calculate_impurity_species_output(
         * impurity_density_scaling
     )
     Z_imp = charge_state_info.Z_per_species[symbol]
-    if mavrin_active:
-      lz = mavrin_fit.calculate_mavrin_cooling_rate(
-          core_profiles.T_e.value, symbol, mavrin_fit.MavrinModelType.CORONAL
-      )
+    if radiation_active:
+      lz = radiation_lib.calculate_cooling_rate(core_profiles.T_e.value, symbol)
       radiation = n_imp * core_profiles.n_e.value * lz
     else:
       radiation = jnp.zeros_like(n_imp)

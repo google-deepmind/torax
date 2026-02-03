@@ -25,10 +25,10 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge import mavrin_2017_charge_states_data
-from torax._src.physics.radiation import mavrin_fit
+from torax._src.physics.radiation import radiation
 
 # pylint: disable=invalid-name
-
+# TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
 _NE_TAU_CORONAL_LIMIT = 1e19
 
 
@@ -37,6 +37,7 @@ _NE_TAU_CORONAL_LIMIT = 1e19
 # physics/charge_states.py there.
 def calculate_mavrin_noncoronal_charge_state(
     T_e: array_typing.FloatVector,
+    # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
     ne_tau: array_typing.FloatScalar,
     ion_symbol: str,
 ) -> jax.Array:
@@ -147,10 +148,10 @@ def _calculate_L_INT(
   electron_temp = electron_temp_ev / 1e3
 
   # Calculate Lz at each temperature point on the grid
-  Lz_values = mavrin_fit.calculate_mavrin_cooling_rate(
+  Lz_values = radiation.calculate_mavrin_cooling_rate(
       T_e=electron_temp,
       ion_symbol=ion_symbol,
-      model_type=mavrin_fit.MavrinModelType.NONCORONAL,
+      model_type=radiation.MavrinModelType.NONCORONAL,
       ne_tau=ne_tau,
   )
 

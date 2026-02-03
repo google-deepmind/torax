@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Based on test_iterhybrid_predictor_corrector but with radiation collapse."""
+"""Based on test_iterhybrid_predictor_corrector but with radiation collapse.
+
+The goal of this test is for the temperature to drop below 5eV, triggering an
+exit with `state.SimError.LOW_TEMPERATURE_COLLAPSE`. We achieve this by
+ramping up the density, increasing the concentration of a high-Z impurity (W),
+and turning off the fusion source.
+"""
 
 # pylint: disable=invalid-name
 
@@ -20,38 +26,42 @@ import copy
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
-W_frac = 1e-3
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-assert isinstance(CONFIG['plasma_composition'], dict)
-# increasing density to eventually trigger radiation collapse
+
+# Increase density over the course of the simulation
 CONFIG['profile_conditions']['nbar'] = {0: 0.8, 5.0: 1.2}
+
+# Increase W concentration
+W_frac = 0.01
 CONFIG['plasma_composition']['impurity'] = {
     'Ne': 1 - W_frac,
     'W': W_frac,
 }
 CONFIG['plasma_composition']['Z_eff'] = 3.0
 
-# Remove QLKNN transport model to simplify step and avoid QLKNN load.
+# Remove QLKNN transport model to speed up the test
 CONFIG['transport'] = {}
 
+# Turn on impurity radiation, which is the mechanism for collapse
 CONFIG['sources']['impurity_radiation'] = {
     'model_name': 'mavrin_fit',
 }
-# Remove fusion source to make collapse easier to attain
+
+# Remove fusion source to reduce self-heating, making collapse easier to attain
 CONFIG['sources'].pop('fusion')
-# Reduce the pedestal temperature to make collapse easier to attain
-CONFIG['pedestal']['T_i_ped'] = 1.0
-CONFIG['pedestal']['T_e_ped'] = 1.0
-# nonlinear solver to enable adaptive dt such that small temperature is reached
-# during the collapse.
-CONFIG['solver'] = (
-    {
-        'solver_type': 'newton_raphson',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 5,
-        'chi_pereverzev': 30,
-        'D_pereverzev': 15,
-        'use_pereverzev': True,
-    }
-)
+
+# Use nonlinear solver with adaptive dt stepping, so that we can resolve
+# the temperature drop
+CONFIG['solver'] = {
+    'solver_type': 'newton_raphson',
+    'use_predictor_corrector': True,
+    'n_corrector_steps': 5,
+    'chi_pereverzev': 30,
+    'D_pereverzev': 15,
+    'use_pereverzev': True,
+    'log_iterations': True,
+}
+CONFIG['time_step_calculator'] = {
+    'calculator_type': 'fixed',
+}

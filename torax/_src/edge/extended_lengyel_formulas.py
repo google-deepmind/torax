@@ -235,6 +235,7 @@ def calc_Z_eff(
     c_z: array_typing.FloatScalar,
     T_e: array_typing.FloatScalar,
     Z_i: array_typing.FloatScalar,
+    # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
     ne_tau: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],

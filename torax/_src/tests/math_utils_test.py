@@ -392,6 +392,43 @@ class MathUtilsTest(parameterized.TestCase):
     self.assertFalse(jnp.isnan(grad))
     self.assertFalse(jnp.isinf(grad))
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='linear_scale',
+          x=np.array([1.0, 2.0, 3.5, 5.0, 6.0]),
+          smoothing_start=2.0,
+          smoothing_end=5.0,
+          y_left=1.0,
+          y_right=10.0,
+          log_scale=False,
+          expected=np.array([1.0, 1.0, 5.5, 10.0, 10.0]),
+      ),
+      dict(
+          testcase_name='log_scale',
+          x=np.array([0.5, 1.0, np.sqrt(10.0), 10.0, 11.0]),
+          smoothing_start=1.0,
+          smoothing_end=10.0,
+          y_left=1.0,
+          y_right=10.0,
+          log_scale=True,
+          expected=np.array([1.0, 1.0, 5.5, 10.0, 10.0]),
+      ),
+  )
+  def test_sigmoid_transition(
+      self,
+      x,
+      smoothing_start,
+      smoothing_end,
+      y_left,
+      y_right,
+      log_scale,
+      expected,
+  ):
+    got = math_utils.smoothstep_transition(
+        x, smoothing_start, smoothing_end, y_left, y_right, log_scale
+    )
+    np.testing.assert_allclose(got, expected, rtol=1e-6)
+
 
 if __name__ == '__main__':
   absltest.main()

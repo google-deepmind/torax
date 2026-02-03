@@ -599,11 +599,18 @@ class SimTest(sim_test_case.SimTestCase):
 
   def test_low_temperature_error(self):
     """Verify that a config with radiation collapse triggers early stopping and an error."""
+    # We don't compare the results to a reference solution, because the purpose
+    # of this test is to check that the code exits correctly, rather than
+    # achieves a specific solution.
     torax_config = self._get_torax_config(
         'test_iterhybrid_radiation_collapse.py'
     )
+    # Increase T_min so that we are sure to hit the error
+    torax_config.update_fields({'numerics.T_minimum_eV': 20})
+
     _, state_history = run_simulation.run_simulation(torax_config)
 
+    # Check that the simulation stopped due to low temperature collapse
     self.assertEqual(
         state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
     )

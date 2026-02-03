@@ -39,10 +39,10 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     )
 
     # Test lower bound clipping
-    t_e_low = np.array([min_temp_keV / 2.0])
+    T_e_low = np.array([min_temp_keV / 2.0])
     val_low = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_low,
+            T_e_low,
             ne_tau,
             ion_symbol,
         )
@@ -57,10 +57,10 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     np.testing.assert_allclose(val_low, val_min_ref)
 
     # Test upper bound clipping
-    t_e_high = np.array([max_temp_keV * 2.0])
+    T_e_high = np.array([max_temp_keV * 2.0])
     val_high = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_high,
+            T_e_high,
             ne_tau,
             ion_symbol,
         )
@@ -74,23 +74,24 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(val_high, val_max_ref)
 
+  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
   def test_ne_tau_clipping(self):
     """Tests that ne_tau is correctly capped at the coronal limit."""
     ion_symbol = 'C'
-    t_e = np.array([1.0])  # 1 keV
+    T_e = np.array([1.0])  # 1 keV
     ne_tau_high = 2e19
     ne_tau_limit = collisional_radiative_models._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
 
     val_high = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e,
+            T_e,
             ne_tau_high,
             ion_symbol,
         )
     )
     val_limit = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e,
+            T_e,
             ne_tau_limit,
             ion_symbol,
         )
@@ -107,18 +108,18 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
   def test_coronal_limit_vs_2018_model(self, ion_symbol):
     """Compares to 2018 model in coronal limit for overlapping ions and T_e range."""
     ne_tau = collisional_radiative_models._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
-    t_e_keV = np.array([0.1, 0.2, 0.5, 0.9, 1.5, 9.0])
+    T_e_keV = np.array([0.1, 0.2, 0.5, 0.9, 1.5, 9.0])
 
     z_edge_model = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_keV,
+            T_e_keV,
             ne_tau,
             ion_symbol,
         )
     )
     z_core_model = (
         charge_states_core.calculate_average_charge_state_single_species(
-            t_e_keV, ion_symbol
+            T_e_keV, ion_symbol
         )
     )
 
@@ -132,30 +133,26 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
 
   def test_helium_isotope_equivalence(self):
     """Tests that He3 and He4 produce identical results to He."""
-    t_e_keV = np.array([0.005, 0.01, 0.1])
+    T_e_keV = np.array([0.005, 0.01, 0.1])
     ne_tau = 1e17
-    val_he = (
+    val_He = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_keV, ne_tau, 'He'
+            T_e_keV, ne_tau, 'He'
         )
     )
-    val_he3 = (
+    val_He3 = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_keV, ne_tau, 'He3'
+            T_e_keV, ne_tau, 'He3'
         )
     )
-    val_he4 = (
+    val_He4 = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_keV, ne_tau, 'He4'
+            T_e_keV, ne_tau, 'He4'
         )
     )
 
-    np.testing.assert_allclose(
-        val_he3, val_he, err_msg='He3 != He'
-    )
-    np.testing.assert_allclose(
-        val_he4, val_he, err_msg='He4 != He'
-    )
+    np.testing.assert_allclose(val_He3, val_He, err_msg='He3 != He')
+    np.testing.assert_allclose(val_He4, val_He, err_msg='He4 != He')
 
   @parameterized.named_parameters(
       # These values are for Z (charge states)
@@ -294,7 +291,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     """Compares model output against hard-coded values for regression testing."""
 
     # Covers all intervals in the model.
-    t_e_keV = np.array([
+    T_e_keV = np.array([
         0.0015,
         0.005,
         0.015,
@@ -310,7 +307,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
 
     calculated_z = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            t_e_keV,
+            T_e_keV,
             ne_tau,
             ion_symbol,
         )
