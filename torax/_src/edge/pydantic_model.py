@@ -17,7 +17,9 @@
 import logging
 from typing import Annotated, Any, Literal, Mapping
 import chex
+import jax.numpy as jnp
 import pydantic
+from torax._src import array_typing
 from torax._src.edge import base
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
@@ -27,6 +29,33 @@ from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 # pylint: disable=invalid-name
+
+
+class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
+  """Configuration for initial guesses of the edge model state.
+
+  Allows overriding the initial guess for the iterative solver.
+
+  Attributes:
+    alpha_t: Turbulence broadening parameter [dimensionless].
+    kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
+    T_e_separatrix: Electron temperature at the separatrix [eV]. Used to
+      calculate the initial q_parallel.
+    T_e_target: Electron temperature at the target [eV]. Only used in Forward
+      computation mode.
+    c_z_prefactor: Impurity concentration prefactor [dimensionless]. Only used
+      in Inverse computation mode.
+    use_previous_step_as_guess: If True, use the converged state from the
+      previous time step as the initial guess for the current step. Overridden
+      by any explicit values provided above.
+  """
+
+  alpha_t: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  kappa_e: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  T_e_separatrix: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  T_e_target: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  c_z_prefactor: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+  use_previous_step_as_guess: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
 
 class ExtendedLengyelConfig(base.EdgeModelConfig):
@@ -162,6 +191,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   enrichment_model_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
+  initial_guess: InitialGuessConfig = InitialGuessConfig()
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -325,6 +355,44 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           k: v.get_value(t) for k, v in self.enrichment_factor.items()
       }
 
+    # TODO(b/323504363): b/446608829 - Simplify design and avoid the "provided" flags.
+    def _get_value_and_flag(
+        param: torax_pydantic.TimeVaryingScalar | None,
+        default: float = 0.0,
+    ) -> tuple[array_typing.FloatScalar, array_typing.BoolScalar]:
+      if param is not None:
+        return param.get_value(t), jnp.array(True, dtype=jnp.bool_)
+      # Default is an arbitrary value, only used such that we have consistent
+      # typing in a jnp.where in extended_lengyel_model when choosing between
+      # defaults or provided values.
+      return jnp.array(default), jnp.array(False, dtype=jnp.bool_)
+
+    alpha_t, alpha_t_provided = _get_value_and_flag(self.initial_guess.alpha_t)
+    kappa_e, kappa_e_provided = _get_value_and_flag(self.initial_guess.kappa_e)
+    T_e_separatrix, T_e_separatrix_provided = _get_value_and_flag(
+        self.initial_guess.T_e_separatrix
+    )
+    T_e_target_guess, T_e_target_provided = _get_value_and_flag(
+        self.initial_guess.T_e_target
+    )
+    c_z_prefactor, c_z_prefactor_provided = _get_value_and_flag(
+        self.initial_guess.c_z_prefactor
+    )
+
+    initial_guess_params = extended_lengyel_model.InitialGuessRuntimeParams(
+        alpha_t=alpha_t,
+        alpha_t_provided=alpha_t_provided,
+        kappa_e=kappa_e,
+        kappa_e_provided=kappa_e_provided,
+        T_e_separatrix=T_e_separatrix,
+        T_e_separatrix_provided=T_e_separatrix_provided,
+        T_e_target=T_e_target_guess,
+        T_e_target_provided=T_e_target_provided,
+        c_z_prefactor=c_z_prefactor,
+        c_z_prefactor_provided=c_z_prefactor_provided,
+        use_previous_step_as_guess=self.initial_guess.use_previous_step_as_guess,
+    )
+
     return extended_lengyel_model.RuntimeParams(
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
@@ -375,6 +443,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         T_e_target=_get_optional_value(self.T_e_target, t),
         use_enrichment_model=self.use_enrichment_model,
         enrichment_model_multiplier=enrichment_model_multiplier,
+        initial_guess=initial_guess_params,
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:

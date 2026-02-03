@@ -16,6 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.edge import divertor_sol_1d
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_solvers
@@ -610,6 +611,81 @@ class ExtendedLengyelTest(parameterized.TestCase):
     # 3. Impurities should be clamped to 0.
     np.testing.assert_allclose(
         outputs.seed_impurity_concentrations['Ne'], 0.0, atol=1e-5
+    )
+
+  def test_initial_guess_is_respected(self):
+    """Tests that providing an initial guess changes solver behavior.
+
+    We set the max iterations to 1 for the newton solver. If the initial guess
+    is close to the solution, the error should be small. If not, error large.
+    """
+
+    # 1. Find the solution with plenty of iterations
+    inputs = {
+        'T_e_target': 2.34,
+        'power_crossing_separatrix': 5.5e6,
+        'separatrix_electron_density': 3.3e19,
+        'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'magnetic_field_on_axis': 2.5,
+        'plasma_current': 1.0e6,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
+        'major_radius': 1.65,
+        'minor_radius': 0.5,
+        'elongation_psi95': 1.6,
+        'triangularity_psi95': 0.3,
+        'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
+        'newton_raphson_iterations': 50,
+    }
+
+    outputs_converged = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(**inputs)
+    )
+
+    # 2. Run with 1 iteration and no initial guess (using defaults).
+    # Should result in large error/residual.
+    inputs['newton_raphson_iterations'] = 1
+    outputs_no_guess = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(**inputs)
+    )
+
+    # 3. Run with 1 iteration and initial guess set to the converged solution.
+    # Should result in small error/residual.
+    initial_guess = divertor_sol_1d.InverseInitialGuess(
+        alpha_t=outputs_converged.alpha_t,
+        kappa_e=extended_lengyel_defaults.KAPPA_E_0,
+        T_e_separatrix=outputs_converged.T_e_separatrix
+        * 1000.0,  # convert keV to eV
+        c_z_prefactor=outputs_converged.seed_impurity_concentrations[
+            'N'
+        ],  # Approx, since N weight is 1.0
+    )
+
+    outputs_with_guess = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(
+            initial_guess=initial_guess, **inputs
+        )
+    )
+
+    # Check residuals
+    # Access residual scalar. Note: numerics_outcome is RootMetadata
+    residual_no_guess = np.mean(
+        np.abs(outputs_no_guess.solver_status.numerics_outcome.residual)
+    )
+    residual_with_guess = np.mean(
+        np.abs(outputs_with_guess.solver_status.numerics_outcome.residual)
+    )
+
+    self.assertLess(
+        residual_with_guess,
+        residual_no_guess,
+        'Initial guess should reduce residual compared to default start with'
+        ' few iterations.',
     )
 
 

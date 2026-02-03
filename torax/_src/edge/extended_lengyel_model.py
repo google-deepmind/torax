@@ -28,6 +28,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
+from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import runtime_params as edge_runtime_params
@@ -60,6 +62,26 @@ class FixedImpuritySourceOfTruth(enum.StrEnum):
 
   CORE = 'core'
   EDGE = 'edge'
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class InitialGuessRuntimeParams:
+  """Runtime parameters for the initial guess."""
+
+  alpha_t: array_typing.FloatScalar
+  alpha_t_provided: array_typing.BoolScalar
+  kappa_e: array_typing.FloatScalar
+  kappa_e_provided: array_typing.BoolScalar
+  T_e_separatrix: array_typing.FloatScalar
+  T_e_separatrix_provided: array_typing.BoolScalar
+  T_e_target: array_typing.FloatScalar
+  T_e_target_provided: array_typing.BoolScalar
+  c_z_prefactor: array_typing.FloatScalar
+  c_z_prefactor_provided: array_typing.BoolScalar
+  use_previous_step_as_guess: bool = dataclasses.field(
+      metadata={'static': True}
+  )
 
 
 @jax.tree_util.register_dataclass
@@ -118,6 +140,9 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
 
   # --- Optional parameter for inverse mode ---
   T_e_target: array_typing.FloatScalar | None
+
+  # --- Initial Guess ---
+  initial_guess: InitialGuessRuntimeParams
 
 
 @jax.tree_util.register_dataclass
@@ -229,6 +254,52 @@ class ExtendedLengyelModel(base.EdgeModel):
             ratio_face[-1] * edge_params.enrichment_factor[species]
         )
 
+    # Determine initial guesses
+    # Priority 3: Defaults
+    alpha_t_default = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
+    kappa_e_default = extended_lengyel_defaults.KAPPA_E_0
+    T_e_separatrix_default = (
+        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
+    )
+
+    # Priority 1: Config (overrides defaults)
+    ig = edge_params.initial_guess
+
+    alpha_t = jnp.where(ig.alpha_t_provided, ig.alpha_t, alpha_t_default)
+    kappa_e = jnp.where(ig.kappa_e_provided, ig.kappa_e, kappa_e_default)
+    T_e_sep = jnp.where(
+        ig.T_e_separatrix_provided, ig.T_e_separatrix, T_e_separatrix_default
+    )
+
+    # Mode dependent
+    if (
+        edge_params.computation_mode
+        == extended_lengyel_enums.ComputationMode.FORWARD
+    ):
+      T_e_target_default = (
+          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
+      )
+      T_e_target = jnp.where(
+          ig.T_e_target_provided, ig.T_e_target, T_e_target_default
+      )
+
+      initial_guess = divertor_sol_1d_lib.ForwardInitialGuess(
+          alpha_t=alpha_t,
+          kappa_e=kappa_e,
+          T_e_separatrix=T_e_sep,
+          T_e_target=T_e_target,
+      )
+    else:
+      c_z_default = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
+      c_z = jnp.where(ig.c_z_prefactor_provided, ig.c_z_prefactor, c_z_default)
+
+      initial_guess = divertor_sol_1d_lib.InverseInitialGuess(
+          alpha_t=alpha_t,
+          kappa_e=kappa_e,
+          T_e_separatrix=T_e_sep,
+          c_z_prefactor=c_z,
+      )
+
     # Call the standalone runner with combined parameters
     return extended_lengyel_standalone.run_extended_lengyel_standalone(
         # Dynamic state from TORAX
@@ -273,6 +344,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         newton_raphson_tol=edge_params.newton_raphson_tol,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
         diverted=diverted,
+        initial_guess=initial_guess,
     )
 
 

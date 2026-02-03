@@ -38,6 +38,38 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         config.solver_mode, extended_lengyel_enums.SolverMode.HYBRID
     )
 
+  def test_initial_guess_config_defaults(self):
+    """Checks default values for the initial guess config."""
+    config = pydantic_model.ExtendedLengyelConfig()
+    self.assertIsNone(config.initial_guess.alpha_t)
+    self.assertIsNone(config.initial_guess.kappa_e)
+    self.assertIsNone(config.initial_guess.T_e_separatrix)
+    self.assertIsNone(config.initial_guess.T_e_target)
+    self.assertIsNone(config.initial_guess.c_z_prefactor)
+    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
+
+  def test_initial_guess_runtime_params(self):
+    """Tests that initial guess parameters are correctly built."""
+    config = pydantic_model.ExtendedLengyelConfig(
+        initial_guess=pydantic_model.InitialGuessConfig(
+            alpha_t=0.5,
+            T_e_target=5.0,
+        )
+    )
+    runtime_params = config.build_runtime_params(t=0.0)
+
+    self.assertEqual(runtime_params.initial_guess.alpha_t, 0.5)
+    self.assertTrue(runtime_params.initial_guess.alpha_t_provided)
+
+    self.assertEqual(runtime_params.initial_guess.T_e_target, 5.0)
+    self.assertTrue(runtime_params.initial_guess.T_e_target_provided)
+
+    # Check default/non-provided values
+    self.assertEqual(runtime_params.initial_guess.kappa_e, 0.0)
+    self.assertFalse(runtime_params.initial_guess.kappa_e_provided)
+
+    self.assertTrue(runtime_params.initial_guess.use_previous_step_as_guess)
+
   def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID
     config_hybrid = pydantic_model.ExtendedLengyelConfig()
@@ -77,6 +109,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
             'Ar': 1.0,
         },
         'diverted': True,
+        'initial_guess': {'alpha_t': 0.2},
     }
     config_dict['plasma_composition'] = {
         'impurity': {
@@ -94,6 +127,10 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     self.assertEqual(
         torax_config.edge.computation_mode,
         extended_lengyel_enums.ComputationMode.INVERSE,
+    )
+    assert torax_config.edge.initial_guess.alpha_t is not None
+    self.assertEqual(
+        torax_config.edge.initial_guess.alpha_t.get_value(0.0), 0.2
     )
 
   def test_torax_config_no_edge(self):
@@ -381,7 +418,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'connection_length_divertor': 5.0,
         'angle_of_incidence_target': 3.0,
         'toroidal_flux_expansion': 1.0,
-        'ratio_bpol_omp_to_bpol_avg': 4.0/3.0,
+        'ratio_bpol_omp_to_bpol_avg': 4.0 / 3.0,
         'computation_mode': 'inverse',
         'solver_mode': 'fixed_point',
         'use_enrichment_model': False,
@@ -412,10 +449,17 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     runtime_params_dict.pop('update_impurities')
     runtime_params_dict.pop('use_enrichment_model')
     runtime_params_dict.pop('impurity_sot')
+    # Remove initial_guess as it's not in the standalone args map
+    # directly in this test setup
+    runtime_params_dict.pop('initial_guess')
     kwargs = {**dynamic_inputs, **runtime_params_dict}
     # Run the model
+    # We pass None for initial_guess since the standalone runner logic
+    # handles defaults if None, and we haven't constructed a valid JAX
+    # InitialGuess object in this test context easily without mocking more.
+    # The pydantic test focuses on config parsing.
     outputs = extended_lengyel_standalone.run_extended_lengyel_standalone(
-        **kwargs
+        initial_guess=None, **kwargs
     )
     # --- Assertions ---
     self.assertEqual(

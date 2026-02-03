@@ -115,6 +115,9 @@ def run_extended_lengyel_standalone(
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
     diverted: bool = True,
+    initial_guess: (
+        divertor_sol_1d_lib.ExtendedLengyelInitialGuess | None
+    ) = None,
 ) -> ExtendedLengyelOutputs:
   """Calculate the impurity concentration required for detachment.
 
@@ -172,6 +175,7 @@ def run_extended_lengyel_standalone(
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
     enrichment_model_multiplier: Multiplier for the Kallenbach enrichment model.
     diverted: Whether we are in diverted geometry or not.
+    initial_guess: Initial guess for the iterative solver state variables.
 
   Returns:
     An ExtendedLengyelOutputs object with the calculated values and solver
@@ -263,23 +267,50 @@ def run_extended_lengyel_standalone(
   )
 
   # Initialize values for iterative solver.
-  alpha_t_init = 0.1
-  c_z_prefactor_init = 1e-4
-  kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
-  T_e_separatrix_init = 100.0  # [eV], needed to initialize q_parallel
-  q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
-      params=params,
-      T_e_separatrix=T_e_separatrix_init,
-      alpha_t=alpha_t_init,
-  )
+  if initial_guess is not None:
+    alpha_t_init = initial_guess.alpha_t
+    kappa_e_init = initial_guess.kappa_e
+    T_e_separatrix_init = initial_guess.T_e_separatrix
+    # q_parallel is calculated from T_e_separatrix, not passed directly.
+    q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
+        params=params,
+        T_e_separatrix=T_e_separatrix_init,
+        alpha_t=alpha_t_init,
+    )
 
-  if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-    T_e_target_init = T_e_target  # from input
-  elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-    # High value is better for converging on attached root.
-    T_e_target_init = 300.0  # eV.
+    if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
+      T_e_target_init = T_e_target  # from input
+      assert isinstance(initial_guess, divertor_sol_1d_lib.InverseInitialGuess)
+      c_z_prefactor_init = initial_guess.c_z_prefactor
+    elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
+      assert isinstance(initial_guess, divertor_sol_1d_lib.ForwardInitialGuess)
+      T_e_target_init = initial_guess.T_e_target
+      # Not used as an evolved variable in forward mode.
+      c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
+    else:
+      raise ValueError(f'Unknown computation mode: {computation_mode}')
+
   else:
-    raise ValueError(f'Unknown computation mode: {computation_mode}')
+    alpha_t_init = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
+    c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
+    kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
+    T_e_separatrix_init = (
+        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
+    )  # [eV]
+    q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
+        params=params,
+        T_e_separatrix=T_e_separatrix_init,
+        alpha_t=alpha_t_init,
+    )
+
+    if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
+      T_e_target_init = T_e_target  # from input
+    elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
+      T_e_target_init = (
+          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
+      )  # eV.
+    else:
+      raise ValueError(f'Unknown computation mode: {computation_mode}')
 
   initial_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=q_parallel_init,

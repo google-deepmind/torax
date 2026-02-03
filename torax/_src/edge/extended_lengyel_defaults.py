@@ -42,6 +42,12 @@ NEWTON_RAPHSON_ITERATIONS: Final[int] = 30
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
 
+# Physics defaults for initialization
+DEFAULT_ALPHA_T_INIT: Final[float] = 0.1
+DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
+DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 100.0  # eV
+DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 300.0  # eV
+
 
 @dataclasses.dataclass(frozen=True)
 class _FitParams:

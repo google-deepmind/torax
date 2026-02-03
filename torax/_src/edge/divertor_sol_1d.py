@@ -29,6 +29,7 @@ model, while `extended_lengyel_formulas.py` provides more fundamental,
 self-contained physics formulas that are used as building blocks here.
 """
 
+import abc
 import dataclasses
 from typing import Mapping
 import jax
@@ -100,6 +101,32 @@ class ExtendedLengyelState:
   kappa_e: array_typing.FloatScalar  # [W/(m*eV^3.5)]
   T_e_target: array_typing.FloatScalar  # [eV]
   c_z_prefactor: array_typing.FloatScalar  # [m^-3]
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ExtendedLengyelInitialGuess(abc.ABC):
+  """Base class for initial guess state variables."""
+
+  alpha_t: array_typing.FloatScalar
+  kappa_e: array_typing.FloatScalar
+  T_e_separatrix: array_typing.FloatScalar
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class ForwardInitialGuess(ExtendedLengyelInitialGuess):
+  """Initial guess variables for Forward mode."""
+
+  T_e_target: array_typing.FloatScalar
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class InverseInitialGuess(ExtendedLengyelInitialGuess):
+  """Initial guess variables for Inverse mode."""
+
+  c_z_prefactor: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass

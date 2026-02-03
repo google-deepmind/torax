@@ -518,6 +518,19 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'use_enrichment_model': False,
         'enrichment_model_multiplier': 1.0,
         'diverted': None,
+        'initial_guess': extended_lengyel_model.InitialGuessRuntimeParams(
+            alpha_t=0.0,
+            alpha_t_provided=False,
+            kappa_e=0.0,
+            kappa_e_provided=False,
+            T_e_separatrix=0.0,
+            T_e_separatrix_provided=False,
+            T_e_target=0.0,
+            T_e_target_provided=False,
+            c_z_prefactor=0.0,
+            c_z_prefactor_provided=False,
+            use_previous_step_as_guess=False,
+        ),
     }
     defaults.update(kwargs)
     return extended_lengyel_model.RuntimeParams(**defaults)
