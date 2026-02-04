@@ -433,13 +433,18 @@ equations being solved, constant numerical variables.
   current diffusion timescale to be closer to the energy confinement timescale,
   for testing purposes.
 
-``adaptive_T_source_prefactor`` (float [default = 1e10])
+``adaptive_T_source_prefactor`` (float [default = 2e10])
   Prefactor for adaptive source term for setting temperature internal boundary
   conditions.
 
-``adaptive_n_source_prefactor`` (float [default = 1e8])
+``adaptive_n_source_prefactor`` (float [default = 2e8])
   Prefactor for adaptive source term for setting density internal boundary
   conditions.
+
+``dW_dt_smoothing_time_scale`` (float [default = 0.3])
+  Time scale [s] for the exponential moving average smoothing of dW/dt terms
+  used in P_SOL and confinement time calculations. If 0.0, no smoothing is
+  applied and raw dW/dt is used.
 
 ``min_rho_norm`` (float [default = 0.015])
   Minimum rho_norm value below which current profile values are extrapolated to
