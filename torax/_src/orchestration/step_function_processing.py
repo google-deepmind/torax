@@ -89,6 +89,7 @@ def pre_step(
         geo_t,
         input_state.core_profiles,
         core_sources,
+        previous_edge_outputs=input_state.edge_outputs,
     )
   else:
     edge_outputs = None

@@ -127,6 +127,7 @@ def _get_initial_state(
         geo,
         initial_core_profiles,
         initial_core_sources,
+        previous_edge_outputs=None,
     )
   else:
     edge_outputs = None

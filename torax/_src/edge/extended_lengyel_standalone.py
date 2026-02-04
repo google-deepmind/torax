@@ -39,6 +39,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
 
   Attributes:
     alpha_t: Turbulence broadening factor alpha_t.
+    kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
+    c_z_prefactor: Impurity concentration prefactor [dimensionless].
     Z_eff_separatrix: Z_eff at the separatrix.
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
@@ -47,6 +49,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   """
 
   alpha_t: jax.Array
+  kappa_e: jax.Array
+  c_z_prefactor: jax.Array
   Z_eff_separatrix: jax.Array
   seed_impurity_concentrations: Mapping[str, jax.Array]
   solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
@@ -435,6 +439,8 @@ def run_extended_lengyel_standalone(
       T_e_target=output_sol_model.state.T_e_target,
       pressure_neutral_divertor=pressure_neutral_divertor,
       alpha_t=output_sol_model.state.alpha_t,
+      kappa_e=output_sol_model.state.kappa_e,
+      c_z_prefactor=output_sol_model.state.c_z_prefactor,
       q_parallel=output_sol_model.state.q_parallel,
       q_perpendicular_target=q_perpendicular_target,
       T_e_separatrix=output_sol_model.T_e_separatrix / 1e3,

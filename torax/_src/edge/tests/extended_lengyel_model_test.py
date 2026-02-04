@@ -343,6 +343,143 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         err_msg='Fixed impurity concentration was not updated from core.',
     )
 
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_initial_guess_from_previous_step(self, mock_run_standalone):
+    """Tests that initial guess is derived from previous_edge_outputs when enabled."""
+    n_rho = 10
+
+    # 1. Mock Geometry
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.geometry_type = geometry.GeometryType.CHEASE
+    mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))
+    mock_geo.rho_norm = np.linspace(0, 1, n_rho)
+    mock_geo.drho_norm = np.ones(n_rho) / n_rho
+    mock_geo.connection_length_target = None
+    mock_geo.connection_length_divertor = None
+    mock_geo.angle_of_incidence_target = None
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = None
+    mock_geo.R_major = np.array(1.65)
+    mock_geo.a_minor = np.array(0.5)
+    mock_geo.B_0 = np.array(2.5)
+    mock_geo.elongation_face = np.array([1.6] * (n_rho + 1))
+    mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
+    mock_geo.vpr = np.ones(n_rho)
+
+    # 2. Mock CoreProfiles
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1)
+      setattr(mock_core_profiles, attr, m)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1)
+
+    # 3. Mock CoreSources
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.zeros(n_rho)
+
+    # 4. Create previous_edge_outputs with known values
+    previous_alpha_t = 0.42
+    previous_kappa_e = 2500.0
+    previous_T_e_sep_keV = 0.1  # Will be converted to 100 eV
+    previous_T_e_target = 3.5
+    previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        q_parallel=jnp.array(1e8),
+        q_perpendicular_target=jnp.array(1e6),
+        T_e_separatrix=jnp.array(previous_T_e_sep_keV),
+        T_e_target=jnp.array(previous_T_e_target),
+        pressure_neutral_divertor=jnp.array(1.0),
+        alpha_t=jnp.array(previous_alpha_t),
+        kappa_e=jnp.array(previous_kappa_e),
+        c_z_prefactor=jnp.array(0.0),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations={},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
+        ),
+        calculated_enrichment={},
+    )
+
+    # 5. Configure Edge with use_previous_step_as_guess=True (default)
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        fixed_impurity_concentrations={'He': 0.05},
+        seed_impurity_weights={},
+        connection_length_target=10.0,
+        connection_length_divertor=5.0,
+        angle_of_incidence_target=1.0,
+        toroidal_flux_expansion=1.0,
+        ratio_bpol_omp_to_bpol_avg=1.0,
+        use_enrichment_model=False,
+        enrichment_factor={'He': 1.0},
+        diverted=True,
+        initial_guess=pydantic_model.InitialGuessConfig(
+            use_previous_step_as_guess=True,
+        ),
+    )
+    edge_params = edge_config.build_runtime_params(t=0.0)
+
+    # 6. Construct RuntimeParams
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    mock_runtime_params.edge = edge_params
+    impurity_params = electron_density_ratios.RuntimeParams(
+        n_e_ratios={},
+        n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
+        A_avg=mock.MagicMock(),
+        A_avg_face=mock.MagicMock(),
+        Z_override=None,
+    )
+    mock_plasma_composition = mock.MagicMock(
+        spec=plasma_composition_lib.RuntimeParams
+    )
+    mock_plasma_composition.impurity = impurity_params
+    mock_runtime_params.plasma_composition = mock_plasma_composition
+
+    # 7. Run with previous_edge_outputs
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(
+        mock_runtime_params,
+        mock_geo,
+        mock_core_profiles,
+        mock_core_sources,
+        previous_edge_outputs=previous_edge_outputs,
+    )
+
+    # 8. Assert initial_guess was passed with values from previous_edge_outputs
+    _, kwargs = mock_run_standalone.call_args
+    passed_initial_guess = kwargs['initial_guess']
+
+    np.testing.assert_allclose(
+        passed_initial_guess.alpha_t,
+        previous_alpha_t,
+        err_msg='alpha_t was not taken from previous_edge_outputs.',
+    )
+    np.testing.assert_allclose(
+        passed_initial_guess.kappa_e,
+        previous_kappa_e,
+        err_msg='kappa_e was not taken from previous_edge_outputs.',
+    )
+    np.testing.assert_allclose(
+        passed_initial_guess.T_e_separatrix,
+        previous_T_e_sep_keV * 1e3,  # keV to eV conversion
+        err_msg='T_e_separatrix was not correctly converted from keV to eV.',
+    )
+    np.testing.assert_allclose(
+        passed_initial_guess.T_e_target,
+        previous_T_e_target,
+        err_msg='T_e_target was not taken from previous_edge_outputs.',
+    )
+
   @parameterized.named_parameters(
       (
           'diverted',

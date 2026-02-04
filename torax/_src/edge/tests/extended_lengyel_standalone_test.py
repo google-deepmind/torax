@@ -343,6 +343,12 @@ class ExtendedLengyelTest(parameterized.TestCase):
         'solver_mode': extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
         'newton_raphson_iterations': 30,
         'newton_raphson_tol': 1e-5,
+        'initial_guess': divertor_sol_1d.ForwardInitialGuess(
+            alpha_t=0.1,
+            kappa_e=2.0e3,
+            T_e_separatrix=2e2,
+            T_e_target=1e2,
+        ),
     }
 
     # --- Expected output values ---

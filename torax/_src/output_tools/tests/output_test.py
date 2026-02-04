@@ -484,6 +484,8 @@ class StateHistoryTest(parameterized.TestCase):
         T_e_target=jnp.array(4.0),
         pressure_neutral_divertor=jnp.array(5.0),
         alpha_t=jnp.array(0.5),
+        kappa_e=jnp.array(0.1),
+        c_z_prefactor=jnp.array(1.0),
         Z_eff_separatrix=jnp.array(1.5),
         seed_impurity_concentrations={'Ar': jnp.array(0.01)},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
@@ -553,6 +555,8 @@ class StateHistoryTest(parameterized.TestCase):
         T_e_target=jnp.array(4.0),
         pressure_neutral_divertor=jnp.array(5.0),
         alpha_t=jnp.array(0.5),
+        kappa_e=jnp.array(0.1),
+        c_z_prefactor=jnp.array(1.0),
         Z_eff_separatrix=jnp.array(1.5),
         seed_impurity_concentrations=seed_imp,
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
@@ -607,6 +611,8 @@ class StateHistoryTest(parameterized.TestCase):
         T_e_target=jnp.array(4.0),
         pressure_neutral_divertor=jnp.array(5.0),
         alpha_t=jnp.array(0.5),
+        kappa_e=jnp.array(0.1),
+        c_z_prefactor=jnp.array(1.0),
         Z_eff_separatrix=jnp.array(1.5),
         seed_impurity_concentrations={'Ar': jnp.array(0.01)},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(

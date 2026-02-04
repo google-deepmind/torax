@@ -266,3 +266,35 @@ in extracting the required data for specific geometries.
 ``divertor_broadening_factor`` (**time-varying-scalar** [default = 3.0])
   Ratio of the wetted area broadening (:math:`\lambda_{int}/\lambda_q`) in the
   divertor. Set to 1.0 in limited configurations.
+
+Initial Guess Parameters
+------------------------
+
+These parameters control the initialization of the iterative solver. By default,
+the model attempts to use the converged solution from the previous time step to
+warm-start the solver (``use_previous_step_as_guess=True``), improving
+convergence speed and stability in time-dependent simulations. Provided initial
+guess values are always used for the first time step.
+
+``initial_guess.use_previous_step_as_guess`` (bool [default = True])
+  If True, use the converged state from the previous time step as the initial
+  guess for the current step. This enables warm-starting and is recommended for
+  time-dependent simulations.
+
+``initial_guess.alpha_t`` (**time-varying-scalar**) [default = 0.1]
+  Turbulence broadening parameter [dimensionless].
+
+``initial_guess.kappa_e`` (**time-varying-scalar**) [default = 2390]
+  Electron heat conductivity prefactor [W/(m·eV\ :sup:`3.5`)].
+
+``initial_guess.T_e_separatrix`` (**time-varying-scalar**) [default = 100.0]
+  Electron temperature at the separatrix [eV]. Used to calculate the initial
+  parallel heat flux.
+
+``initial_guess.T_e_target`` (**time-varying-scalar**) [default = 300.0]
+  Electron temperature at the target [eV]. Only used in Forward computation
+  mode.
+
+``initial_guess.c_z_prefactor`` (**time-varying-scalar**) [default = 1e-4]
+  Impurity concentration prefactor [dimensionless]. Only used in Inverse
+  computation mode.

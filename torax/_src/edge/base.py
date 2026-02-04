@@ -60,6 +60,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
+      previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
     """Evaluates the edge model at the given time."""
 

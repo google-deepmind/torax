@@ -169,6 +169,7 @@ class ExtendedLengyelModel(base.EdgeModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
+      previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
     """Runs the extended Lengyel model using current TORAX state."""
 
@@ -256,50 +257,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         )
 
     # Determine initial guesses
-    # Priority 3: Defaults
-    alpha_t_default = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
-    kappa_e_default = extended_lengyel_defaults.KAPPA_E_0
-    T_e_separatrix_default = (
-        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
-    )
-
-    # Priority 1: Config (overrides defaults)
-    ig = edge_params.initial_guess
-
-    alpha_t = jnp.where(ig.alpha_t_provided, ig.alpha_t, alpha_t_default)
-    kappa_e = jnp.where(ig.kappa_e_provided, ig.kappa_e, kappa_e_default)
-    T_e_sep = jnp.where(
-        ig.T_e_separatrix_provided, ig.T_e_separatrix, T_e_separatrix_default
-    )
-
-    # Mode dependent
-    if (
-        edge_params.computation_mode
-        == extended_lengyel_enums.ComputationMode.FORWARD
-    ):
-      T_e_target_default = (
-          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
-      )
-      T_e_target = jnp.where(
-          ig.T_e_target_provided, ig.T_e_target, T_e_target_default
-      )
-
-      initial_guess = divertor_sol_1d_lib.ForwardInitialGuess(
-          alpha_t=alpha_t,
-          kappa_e=kappa_e,
-          T_e_separatrix=T_e_sep,
-          T_e_target=T_e_target,
-      )
-    else:
-      c_z_default = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
-      c_z = jnp.where(ig.c_z_prefactor_provided, ig.c_z_prefactor, c_z_default)
-
-      initial_guess = divertor_sol_1d_lib.InverseInitialGuess(
-          alpha_t=alpha_t,
-          kappa_e=kappa_e,
-          T_e_separatrix=T_e_sep,
-          c_z_prefactor=c_z,
-      )
+    initial_guess = _get_initial_guess(edge_params, previous_edge_outputs)
 
     # Call the standalone runner with combined parameters
     return extended_lengyel_standalone.run_extended_lengyel_standalone(
@@ -494,3 +452,118 @@ def _get_diverted(
   )
   is_fbt = geo.geometry_type == geometry.GeometryType.FBT
   return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)
+
+
+def _get_initial_guess(
+    edge_params: RuntimeParams,
+    previous_edge_outputs: base.EdgeModelOutputs | None = None,
+) -> divertor_sol_1d_lib.ExtendedLengyelInitialGuess:
+  """Resolves the initial guess for the solver state variables.
+
+  Priorities:
+  1. Previous simulation state (warm start), if available and enabled.
+  2. Configuration overrides (if provided).
+  3. Physics-based defaults.
+
+  Args:
+    edge_params: Runtime parameters for the edge model.
+    previous_edge_outputs: Outputs from the previous time step.
+
+  Returns:
+    Resolved initial guess object.
+  """
+  initial_guess = edge_params.initial_guess
+
+  # Check if we have valid previous outputs for warm start
+  has_previous = previous_edge_outputs is not None
+  if has_previous:
+    assert isinstance(
+        previous_edge_outputs,
+        extended_lengyel_standalone.ExtendedLengyelOutputs,
+    )
+
+  # Warm start logic
+  use_previous = initial_guess.use_previous_step_as_guess and has_previous
+
+  # Defaults
+  alpha_t_default = jnp.array(
+      extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
+      dtype=jax_utils.get_dtype(),
+  )
+  kappa_e_default = jnp.array(
+      extended_lengyel_defaults.KAPPA_E_0, dtype=jax_utils.get_dtype()
+  )
+  T_e_separatrix_default = jnp.array(
+      extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
+      dtype=jax_utils.get_dtype(),
+  )
+  T_e_target_default = jnp.array(
+      extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
+      dtype=jax_utils.get_dtype(),
+  )
+  c_z_default = jnp.array(
+      extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
+      dtype=jax_utils.get_dtype(),
+  )
+
+  # Helper for priority resolution: Previous > Config > Default
+  # When previous_val is None (no previous outputs), we use 0.0 as a safe
+  # placeholder. This value is never selected because use_previous is False
+  # when there are no previous outputs.
+  def _resolve(previous_val, config_val, config_provided, default_val):
+    safe_previous = previous_val if previous_val is not None else 0.0
+    val_config_or_default = jnp.where(config_provided, config_val, default_val)
+    return jnp.where(use_previous, safe_previous, val_config_or_default)
+
+  # Resolve common variables
+  alpha_t = _resolve(
+      previous_edge_outputs.alpha_t if has_previous else None,
+      initial_guess.alpha_t,
+      initial_guess.alpha_t_provided,
+      alpha_t_default,
+  )
+  kappa_e = _resolve(
+      previous_edge_outputs.kappa_e if has_previous else None,
+      initial_guess.kappa_e,
+      initial_guess.kappa_e_provided,
+      kappa_e_default,
+  )
+
+  # T_e_separatrix: convert previous value from keV to eV
+  T_e_separatrix = _resolve(
+      previous_edge_outputs.T_e_separatrix * 1e3 if has_previous else None,
+      initial_guess.T_e_separatrix,
+      initial_guess.T_e_separatrix_provided,
+      T_e_separatrix_default,
+  )
+
+  # Resolve mode-specific variables
+  if (
+      edge_params.computation_mode
+      == extended_lengyel_enums.ComputationMode.FORWARD
+  ):
+    T_e_target = _resolve(
+        previous_edge_outputs.T_e_target if has_previous else None,
+        initial_guess.T_e_target,
+        initial_guess.T_e_target_provided,
+        T_e_target_default,
+    )
+    return divertor_sol_1d_lib.ForwardInitialGuess(
+        alpha_t=alpha_t,
+        kappa_e=kappa_e,
+        T_e_separatrix=T_e_separatrix,
+        T_e_target=T_e_target,
+    )
+  else:
+    c_z_prefactor = _resolve(
+        previous_edge_outputs.c_z_prefactor if has_previous else None,
+        initial_guess.c_z_prefactor,
+        initial_guess.c_z_prefactor_provided,
+        c_z_default,
+    )
+    return divertor_sol_1d_lib.InverseInitialGuess(
+        alpha_t=alpha_t,
+        kappa_e=kappa_e,
+        T_e_separatrix=T_e_separatrix,
+        c_z_prefactor=c_z_prefactor,
+    )
