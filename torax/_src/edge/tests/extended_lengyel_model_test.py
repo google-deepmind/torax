@@ -34,6 +34,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
+from torax._src.solver import jax_root_finding
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import source_profiles
 from torax._src.test_utils import sim_test_case
@@ -478,6 +479,147 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         passed_initial_guess.T_e_target,
         previous_T_e_target,
         err_msg='T_e_target was not taken from previous_edge_outputs.',
+    )
+
+  @parameterized.named_parameters(
+      (
+          'nr_not_converged',
+          1,  # error code: 1 = not converged
+          extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+      ),
+      (
+          'bad_physics_outcome',
+          0,  # error code: 0 = converged
+          extended_lengyel_solvers.PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
+      ),
+  )
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_initial_guess_skips_bad_previous_outputs(
+      self,
+      nr_error_code,
+      physics_outcome,
+      mock_run_standalone,
+  ):
+    """Tests that initial guess falls back to defaults when previous solver failed."""
+    # Create RootMetadata inside the test to avoid JAX calls at module load.
+    numerics_outcome = jax_root_finding.RootMetadata(
+        iterations=jnp.array(30),
+        residual=jnp.array(1.0),
+        last_tau=jnp.array(0.01),
+        error=jnp.array(nr_error_code),
+    )
+    n_rho = 10
+
+    mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
+    mock_geo.geometry_type = geometry.GeometryType.CHEASE
+    mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))
+    mock_geo.rho_norm = np.linspace(0, 1, n_rho)
+    mock_geo.drho_norm = np.ones(n_rho) / n_rho
+    mock_geo.connection_length_target = None
+    mock_geo.connection_length_divertor = None
+    mock_geo.angle_of_incidence_target = None
+    mock_geo.R_target = None
+    mock_geo.R_OMP = None
+    mock_geo.B_pol_OMP = None
+    mock_geo.diverted = None
+    mock_geo.R_major = np.array(1.65)
+    mock_geo.a_minor = np.array(0.5)
+    mock_geo.B_0 = np.array(2.5)
+    mock_geo.elongation_face = np.array([1.6] * (n_rho + 1))
+    mock_geo.delta_face = np.array([0.3] * (n_rho + 1))
+    mock_geo.vpr = np.ones(n_rho)
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1)
+      setattr(mock_core_profiles, attr, m)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1)
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.zeros(n_rho)
+
+    bad_previous_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        q_parallel=jnp.array(1e8),
+        q_perpendicular_target=jnp.array(1e6),
+        T_e_separatrix=jnp.array(0.1),
+        T_e_target=jnp.array(0.001),  # Very low - should be skipped
+        pressure_neutral_divertor=jnp.array(1.0),
+        alpha_t=jnp.array(0.99),  # Different from defaults
+        kappa_e=jnp.array(9999.0),  # Different from defaults
+        c_z_prefactor=jnp.array(0.0),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations={},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=physics_outcome,
+            numerics_outcome=numerics_outcome,
+        ),
+        calculated_enrichment={},
+    )
+
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        fixed_impurity_concentrations={'He': 0.05},
+        seed_impurity_weights={},
+        connection_length_target=10.0,
+        connection_length_divertor=5.0,
+        angle_of_incidence_target=1.0,
+        toroidal_flux_expansion=1.0,
+        ratio_bpol_omp_to_bpol_avg=1.0,
+        use_enrichment_model=False,
+        enrichment_factor={'He': 1.0},
+        diverted=True,
+        initial_guess=pydantic_model.InitialGuessConfig(
+            use_previous_step_as_guess=True,
+        ),
+    )
+    edge_params = edge_config.build_runtime_params(t=0.0)
+
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    mock_runtime_params.edge = edge_params
+    impurity_params = electron_density_ratios.RuntimeParams(
+        n_e_ratios={},
+        n_e_ratios_face={'He': np.ones(n_rho + 1) * 0.01},
+        A_avg=mock.MagicMock(),
+        A_avg_face=mock.MagicMock(),
+        Z_override=None,
+    )
+    mock_plasma_composition = mock.MagicMock(
+        spec=plasma_composition_lib.RuntimeParams
+    )
+    mock_plasma_composition.impurity = impurity_params
+    mock_runtime_params.plasma_composition = mock_plasma_composition
+
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(
+        mock_runtime_params,
+        mock_geo,
+        mock_core_profiles,
+        mock_core_sources,
+        previous_edge_outputs=bad_previous_outputs,
+    )
+
+    _, kwargs = mock_run_standalone.call_args
+    passed_initial_guess = kwargs['initial_guess']
+
+    # These should NOT be the bad previous values (0.99 and 9999.0)
+    # but should be the defaults (0.1 and 2390.0)
+    np.testing.assert_allclose(
+        passed_initial_guess.alpha_t,
+        0.1,  # DEFAULT_ALPHA_T_INIT
+        err_msg='alpha_t should have fallen back to default, not bad previous.',
+    )
+    np.testing.assert_allclose(
+        passed_initial_guess.kappa_e,
+        2390.0,  # KAPPA_E_0
+        err_msg='kappa_e should have fallen back to default, not bad previous.',
     )
 
   @parameterized.named_parameters(

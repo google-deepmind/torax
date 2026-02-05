@@ -31,11 +31,13 @@ from torax._src.edge import base
 from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import extended_lengyel_solvers
 from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations
+from torax._src.solver import jax_root_finding
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
@@ -461,9 +463,15 @@ def _get_initial_guess(
   """Resolves the initial guess for the solver state variables.
 
   Priorities:
-  1. Previous simulation state (warm start), if available and enabled.
+  1. Previous simulation state (warm start), if available, enabled, and the
+     previous solver had a good outcome (converged and no physics errors).
   2. Configuration overrides (if provided).
   3. Physics-based defaults.
+
+  Note: If the previous solver had a bad outcome (Newton-Raphson error=1, or
+  physics_outcome != SUCCESS), the previous outputs are NOT used as a warm
+  start. This prevents the solver from inheriting a bad state that can drag
+  it into cold root basins in subsequent time steps.
 
   Args:
     edge_params: Runtime parameters for the edge model.
@@ -474,16 +482,46 @@ def _get_initial_guess(
   """
   initial_guess = edge_params.initial_guess
 
-  # Check if we have valid previous outputs for warm start
+  # Check if we have valid previous outputs for warm start.
+  # `has_previous` is a Python bool for attribute access safety.
+  # `viable_previous` is a JAX bool for solver status, used in jnp.where.
   has_previous = previous_edge_outputs is not None
+
+  # Default: usable if exists.
+  viable_previous = jnp.array(True, dtype=jnp.bool_)
   if has_previous:
     assert isinstance(
         previous_edge_outputs,
         extended_lengyel_standalone.ExtendedLengyelOutputs,
     )
+    # Check if previous solver had a "bad" Physics outcome. If so, do not use
+    # it. Note that a "bad" PhysicsOutcome is not necessarily an error; it can
+    # be a valid physical state (e.g., detachment). However, if reattaching,
+    # then it's better not to start from such a cold state.
+    bad_physics = (
+        previous_edge_outputs.solver_status.physics_outcome
+        != extended_lengyel_solvers.PhysicsOutcome.SUCCESS
+    )
+    # Numerics outcome: for NR solver, error=1 means not converged.
+    # For fixed-point solver, it's always SUCCESS.
+    numerics_outcome = previous_edge_outputs.solver_status.numerics_outcome
+    if isinstance(numerics_outcome, jax_root_finding.RootMetadata):
+      # NR error code: 0=fine, 1=not converged, 2=coarse (acceptable).
+      bad_numerics = numerics_outcome.error == 1
+    else:
+      # Fixed-point always succeeds
+      bad_numerics = False
+    viable_previous = jnp.logical_not(
+        jnp.logical_or(bad_physics, bad_numerics)
+    )
 
-  # Warm start logic
-  use_previous = initial_guess.use_previous_step_as_guess and has_previous
+  # Warm start logic: use previous only if enabled AND we have previous outputs
+  # AND those previous outputs are usable (good solver outcome).
+  use_previous = (
+      initial_guess.use_previous_step_as_guess
+      and has_previous
+      and viable_previous
+  )
 
   # Defaults
   alpha_t_default = jnp.array(

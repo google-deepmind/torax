@@ -276,6 +276,12 @@ warm-start the solver (``use_previous_step_as_guess=True``), improving
 convergence speed and stability in time-dependent simulations. Provided initial
 guess values are always used for the first time step.
 
+**Note**: If the previous solver had a bad outcome (Newton-Raphson did not
+converge, or a physics error occurred such as negative heat flux), the previous
+outputs are automatically skipped and the solver falls back to the configured
+initial guess or defaults. This prevents the solver from inheriting a bad state
+that can lead to cold root convergence in subsequent time steps.
+
 ``initial_guess.use_previous_step_as_guess`` (bool [default = True])
   If True, use the converged state from the previous time step as the initial
   guess for the current step. This enables warm-starting and is recommended for
@@ -287,11 +293,11 @@ guess values are always used for the first time step.
 ``initial_guess.kappa_e`` (**time-varying-scalar**) [default = 2390]
   Electron heat conductivity prefactor [W/(m·eV\ :sup:`3.5`)].
 
-``initial_guess.T_e_separatrix`` (**time-varying-scalar**) [default = 100.0]
+``initial_guess.T_e_separatrix`` (**time-varying-scalar**) [default = 200.0]
   Electron temperature at the separatrix [eV]. Used to calculate the initial
   parallel heat flux.
 
-``initial_guess.T_e_target`` (**time-varying-scalar**) [default = 300.0]
+``initial_guess.T_e_target`` (**time-varying-scalar**) [default = 100.0]
   Electron temperature at the target [eV]. Only used in Forward computation
   mode.
 

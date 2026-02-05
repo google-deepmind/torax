@@ -33,8 +33,12 @@ _DENSITY_SCALE_FACTOR = 1e-20
 # _LINT_SCALE_FACTOR * _DENSITY_SCALE_FACTOR**2
 _LINT_K_INVERSE_SCALE_FACTOR = 1e-10
 
-# kappa scale factor for residuals
+# scale factors for residuals
 _KAPPA_SCALE_FACTOR = 1e-3
+_C_Z_SCALE_FACTOR = 1e2
+
+# Safety catch for hybrid solver
+_T_E_LOWER_BOUND = 1.0e-2  # in eV
 
 
 class PhysicsOutcome(enum.IntEnum):
@@ -241,6 +245,7 @@ def forward_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     maxiter: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the forward mode.
 
@@ -252,6 +257,9 @@ def forward_mode_newton_solver(
       parameters and fixed impurity concentrations.
     maxiter: Maximum number of iterations for the Newton-Raphson solver.
     tol: Tolerance for convergence of the Newton-Raphson solver.
+    tau_min: Minimum step size (tau) allowed before checking termination.
+      Smaller values allow the solver to take smaller steps through difficult
+      regions.
 
   Returns:
     final_sol_model: The updated DivertorSOL1D object with the solved state
@@ -259,6 +267,7 @@ def forward_mode_newton_solver(
     metadata: Metadata from the root-finding process, including convergence
       status and number of iterations.
   """
+
   # 1. Create initial guess state vector.
   # Uses log space and softplus for strictly positive variables and to improve
   # conditioning. alpha_t, kappa_e, and T_e_target are strictly positive, but is
@@ -282,7 +291,12 @@ def forward_mode_newton_solver(
 
   # 3. Run Newton-Raphson.
   x_root, metadata = jax_root_finding.root_newton_raphson(
-      residual_fun, x0, maxiter=maxiter, tol=tol, use_jax_custom_root=True
+      residual_fun,
+      x0,
+      maxiter=maxiter,
+      tol=tol,
+      use_jax_custom_root=True,
+      tau_min=tau_min,
   )
 
   # 4. Construct final model.
@@ -312,6 +326,7 @@ def inverse_mode_newton_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     maxiter: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the Newton-Raphson solver for the inverse mode.
 
@@ -323,6 +338,9 @@ def inverse_mode_newton_solver(
       parameters and a fixed target electron temperature.
     maxiter: Maximum number of iterations for the Newton-Raphson solver.
     tol: Tolerance for convergence of the Newton-Raphson solver.
+    tau_min: Minimum step size (tau) allowed before checking termination.
+      Smaller values allow the solver to take smaller steps through difficult
+      regions.
 
   Returns:
     final_sol_model: The updated DivertorSOL1D object with the solved state
@@ -354,7 +372,12 @@ def inverse_mode_newton_solver(
 
   # 3. Run Newton-Raphson.
   x_root, metadata = jax_root_finding.root_newton_raphson(
-      residual_fun, x0, maxiter=maxiter, tol=tol, use_jax_custom_root=True
+      residual_fun,
+      x0,
+      maxiter=maxiter,
+      tol=tol,
+      use_jax_custom_root=True,
+      tau_min=tau_min,
   )
 
   # 4. Construct final model.
@@ -390,17 +413,31 @@ def forward_mode_hybrid_solver(
     fixed_point_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    newton_raphson_tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the forward mode."""
+
   intermediate_sol_model, _ = forward_mode_fixed_point_solver(
       initial_sol_model=initial_sol_model,
       iterations=fixed_point_iterations,
   )
 
+  # Safety Catch: Detect if fixed-point "sabotaged" the initial guess.
+  # If fixed-point collapsed T_e_target below threshold but initial was above,
+  # revert.
+  fp_collapsed = intermediate_sol_model.state.T_e_target < _T_E_LOWER_BOUND
+  initial_was_hot = initial_sol_model.state.T_e_target > _T_E_LOWER_BOUND
+  start_sol_model = jax.lax.cond(
+      fp_collapsed & initial_was_hot,
+      lambda: initial_sol_model,  # Revert to safe hot start
+      lambda: intermediate_sol_model,  # Continue with warm start
+  )
+
   final_sol_model, solver_status = forward_mode_newton_solver(
-      initial_sol_model=intermediate_sol_model,
+      initial_sol_model=start_sol_model,
       maxiter=newton_raphson_iterations,
       tol=newton_raphson_tol,
+      tau_min=newton_raphson_tau_min,
   )
   return final_sol_model, solver_status
 
@@ -410,6 +447,7 @@ def inverse_mode_hybrid_solver(
     fixed_point_iterations: int = extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    newton_raphson_tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the inverse mode."""
   intermediate_sol_model, _ = inverse_mode_fixed_point_solver(
@@ -420,6 +458,7 @@ def inverse_mode_hybrid_solver(
       initial_sol_model=intermediate_sol_model,
       maxiter=newton_raphson_iterations,
       tol=newton_raphson_tol,
+      tau_min=newton_raphson_tau_min,
   )
   return final_sol_model, solver_status
 
@@ -468,15 +507,24 @@ def _forward_residual(
       parallel_heat_flux_at_cc_interface=q_cc_calc,
   )
 
-  # 3. Compute residuals in solver space for conditioning.
-  # q_parallel assumes a log mapping.
-  # kappa is scaled (1e3), the others O(1)
+  # 3. Compute conditioned residuals.
+  # q_parallel has a log mapping since it is on order 1e8.
+  # kappa is scaled by 1e-3 to be on order O(1).
+  # alpha_t is already on order O(1).
+  # T_e_target uses unconstrained-space residual: we compare
+  # inverse_softplus(calculated) - x_vec[3]. This ensures ∂r/∂x always has
+  # a -1 term, preventing vanishing gradients when T_e ~ 0 (the "cold root
+  # trap").
   qp_calc_safe = jnp.maximum(qp_calc, constants.CONSTANTS.eps)
+  # Use a larger floor for T_e to avoid extreme values in inverse_softplus.
+  Tt_calc_safe = jnp.maximum(Tt_calc, 1e-3)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
   r_at = at_calc - current_state.alpha_t
   r_ke = (ke_calc - current_state.kappa_e) * _KAPPA_SCALE_FACTOR
-  r_Tt = Tt_calc - current_state.T_e_target
+  # Unconstrained-space residual for T_e: ensures Jacobian diagonal ≠ 0.
+  x_Tt_physics = math_utils.inverse_softplus(Tt_calc_safe)
+  r_Tt = x_Tt_physics - x_vec[3]
 
   return jnp.stack([r_qp, r_at, r_ke, r_Tt])
 
@@ -527,7 +575,11 @@ def _inverse_residual(
   cz_calc, _ = _solve_for_c_z_prefactor(sol_model=temp_model)
 
   # 3. Compute residuals in solver space for conditioning.
-  # q_parallel assumes a log mapping.
+  # q_parallel has a log mapping since it is on order 1e8.
+  # kappa is scaled by 1e-3 to be on order O(1).
+  # alpha_t is already on order O(1).
+  # c_z_prefactor is on order O(1e-2). We scale it to order O(1), but do
+  # *not* take log since we allow it to be negative.
   qp_calc_safe = jnp.maximum(qp_calc, constants.CONSTANTS.eps)
 
   r_qp = jnp.log(qp_calc_safe) - x_vec[0]
@@ -536,7 +588,7 @@ def _inverse_residual(
   # Residual for c_z compares the calculated required c_z against the
   # *raw* solver guess x_vec[3], not the clipped state value.
   # This provides a gradient signal even when x_vec[3] is negative.
-  r_cz = cz_calc - x_vec[3]
+  r_cz = (cz_calc - x_vec[3]) * _C_Z_SCALE_FACTOR
 
   return jnp.stack([r_qp, r_at, r_ke, r_cz])
 

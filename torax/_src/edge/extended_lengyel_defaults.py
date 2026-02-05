@@ -39,15 +39,17 @@ N_E_N_I_RATIO_TARGET: Final[float] = 1.0
 MACH_TARGET: Final[float] = 1.0
 TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
 FIXED_POINT_ITERATIONS: Final[int] = 25
-NEWTON_RAPHSON_ITERATIONS: Final[int] = 30
+NEWTON_RAPHSON_ITERATIONS: Final[int] = 50
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
+NEWTON_RAPHSON_TAU_MIN: Final[float] = 1e-4
 
-# Physics defaults for initialization
+# Physics defaults for initialization. Found by experimentation to be
+# robust for a variety of scenarios.
 DEFAULT_ALPHA_T_INIT: Final[float] = 0.1
 DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
-DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 100.0  # eV
-DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 300.0  # eV
+DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 200.0  # eV
+DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 100.0  # eV
 
 
 @dataclasses.dataclass(frozen=True)
