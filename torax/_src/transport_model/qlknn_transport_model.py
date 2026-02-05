@@ -230,8 +230,9 @@ def _maybe_apply_rotation_rule(
       updated_model_output[flux] = scaling_factor * updated_model_output[flux]
 
       # Make tiny flux values exactly zero.
-      # This prevents numerical instabilities in the solver.
-      # TODO(b/479917564): Investigate source of numerical instabilities.
+      # This effectively clamps gradients in the stability region. This
+      # prevents the solver from "waking up" zero-flux modes with spurious or
+      # unstable gradients.
       updated_model_output[flux] = jnp.where(
           jnp.abs(updated_model_output[flux]) < constants.CONSTANTS.eps,
           0.0,
