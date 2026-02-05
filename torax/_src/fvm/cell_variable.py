@@ -67,9 +67,12 @@ def _compute_inner_grad(
     d1, d2, d3 = d
     v1, v2, v3 = v
     c1 = (d2 + d3)/ (-1*d1**2 + d1*d2 + d1*d3 - d2*d3)
-    c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
+    # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
     c3 = (-d1 - d2) / (d1*d2 - d1*d3 - d2*d3 + d3**2)
-    return c1*v1 + c2*v2 + c3*v3
+    # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
+    # because c1+c2+c3 = 0 analytically, but not numerically.
+    # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
+    return c1 * (v1 - v2) + c3 * (v3 - v2)
 
   d_left = cell_centers[:-2] - face_centers[1:-2]
   d_right = cell_centers[1:-1] - face_centers[1:-2]

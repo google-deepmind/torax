@@ -119,6 +119,25 @@ class CellVariableTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
+          testcase_name='_uniform',
+          face_centers=_make_face_centers(0.1, 4),
+      ),
+      dict(
+          testcase_name='_non_uniform',
+          face_centers=np.array([0.0, 0.1, 0.3, 0.6, 1.0]),
+      ),
+  )
+  def test_constant_profile_gradient_is_exactly_zero(self, face_centers):
+    value = jnp.full((len(face_centers) - 1,), 5.0)
+    var = cell_variable.CellVariable(
+        value=value,
+        face_centers=face_centers,
+    )
+    grad = var.face_grad()
+    np.testing.assert_array_equal(grad, jnp.zeros_like(grad))
+
+  @parameterized.named_parameters(
+      dict(
           testcase_name='_unconstrained',
           value=[1.0, 2.0, 5.0, 3.0],
           dr=0.1,
