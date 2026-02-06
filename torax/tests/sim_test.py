@@ -258,6 +258,13 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
       ),
+      # Predictor-corrector solver with TGLFNNukaea transport with rotation
+      (
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea_rotation',
+          'test_iterhybrid_predictor_corrector_tglfnn_ukaea_rotation.py',
+          _ALL_PROFILES,
+          1e-6,
+      ),
       # Predictor-corrector solver with rotation
       (
           'test_iterhybrid_predictor_corrector_rotation',

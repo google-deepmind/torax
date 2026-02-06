@@ -32,3 +32,7 @@ CONFIG['profile_conditions']['toroidal_angular_velocity'] = {
     0.0: 1.8 * _omega_ref,
     1.0: 0.0,
 }
+
+# Reduce the final time since numerical difference across platforms can
+# cause significant divergences over time.
+CONFIG['numerics']['t_final'] = 1.0
