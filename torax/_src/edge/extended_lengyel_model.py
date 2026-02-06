@@ -101,7 +101,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
       metadata={'static': True}
   )
   impurity_sot: FixedImpuritySourceOfTruth = dataclasses.field(
-      metadata={'static': FixedImpuritySourceOfTruth.CORE}
+      metadata={'static': True}
   )
   # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
