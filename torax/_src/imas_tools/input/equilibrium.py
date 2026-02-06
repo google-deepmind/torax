@@ -83,6 +83,11 @@ def geometry_from_IMAS(
     raise ValueError(
         "equilibrium_object must be a string (file path) or an IDS"
     )
+
+  if equilibrium.metadata.name != "equilibrium":
+    raise TypeError(
+        f"Expected equilibrium IDS, got {equilibrium.metadata.name} IDS."
+    )
   # TODO(b/431977390): Currently only a single time slice is used, extend to
   # support multiple time slices.
   # Convert time to index
