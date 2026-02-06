@@ -325,7 +325,7 @@ class SimulationStepFn:
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
 
-    _, output_state, post_processed_outputs = jax.lax.while_loop(
+    remaining_dt, output_state, post_processed_outputs = jax.lax.while_loop(
         cond,
         body,
         (remaining_dt, input_state, previous_post_processed_outputs),
@@ -334,10 +334,12 @@ class SimulationStepFn:
     # crashes, and solver error states etc.
     # Set the dt to the original dt passed to the function, and the t to the
     # final time.
+    # In case we exited early return the actual elapsed dt.
+    elapsed_dt = dt - remaining_dt
     output_state = dataclasses.replace(
         output_state,
-        t=input_state.t + dt,
-        dt=dt,
+        t=input_state.t + elapsed_dt,
+        dt=elapsed_dt,
     )
     return output_state, post_processed_outputs
 
