@@ -18,9 +18,59 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy.testing as npt
+from torax._src.geometry import geometry
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qlknn_transport_model
+from torax._src.transport_model import qualikiz_based_transport_model
+
+
+def _make_mock_qualikiz_inputs(n_rho: int = 10):
+  """Create mock QualikizInputs for testing."""
+  return qualikiz_based_transport_model.QualikizInputs(
+      Z_eff_face=jnp.ones(n_rho),
+      lref_over_lti=jnp.ones(n_rho),
+      lref_over_lte=jnp.ones(n_rho),
+      lref_over_lne=jnp.ones(n_rho),
+      lref_over_lni0=jnp.ones(n_rho),
+      lref_over_lni1=jnp.ones(n_rho),
+      q=jnp.linspace(1.0, 4.0, n_rho),
+      smag=jnp.linspace(0.1, 2.0, n_rho),
+      x=jnp.linspace(0.0, 1.0, n_rho),
+      Ti_Te=jnp.ones(n_rho),
+      log_nu_star_face=jnp.zeros(n_rho),
+      normni=jnp.ones(n_rho),
+      chiGB=jnp.ones(n_rho),
+      Rmaj=jnp.array(6.2),
+      Rmin=jnp.array(2.0),
+      alpha=jnp.zeros(n_rho),
+      epsilon=jnp.linspace(0.0, 0.3, n_rho),
+      gamma_E_GB=jnp.ones(n_rho) * 0.5,
+      gamma_E_QLK=jnp.ones(n_rho) * 0.5,
+      mach_toroidal=jnp.zeros(n_rho),
+  )
+
+
+def _make_mock_model_output(n_rho: int = 10):
+  """Create mock model output for testing."""
+  return {
+      'qi_itg': jnp.ones((n_rho, 1)),
+      'qe_itg': jnp.ones((n_rho, 1)),
+      'pfe_itg': jnp.ones((n_rho, 1)),
+      'qi_tem': jnp.ones((n_rho, 1)),
+      'qe_tem': jnp.ones((n_rho, 1)),
+      'pfe_tem': jnp.ones((n_rho, 1)),
+      'qe_etg': jnp.ones((n_rho, 1)),
+      'gamma_max': jnp.ones((n_rho, 1)) * 0.5,
+  }
+
+
+def _make_mock_geometry(n_rho: int = 10):
+  """Create a simple mock geometry for testing."""
+  return mock.MagicMock(
+      spec=geometry.Geometry,
+      rho_face_norm=jnp.linspace(0.0, 1.0, n_rho),
+  )
 
 
 class QlknnTransportModelTest(parameterized.TestCase):
@@ -153,6 +203,221 @@ class QlknnTransportModelTest(parameterized.TestCase):
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
+
+
+class ShearSuppressionModelTest(parameterized.TestCase):
+  """Tests for the shear suppression models in QLKNN transport."""
+
+  def test_rotation_mode_off_returns_unchanged_output(self):
+    """Tests that rotation mode OFF returns unchanged model output."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    result = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.OFF,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=1.0,
+        geo=geo,
+    )
+
+    for key in model_output:
+      npt.assert_array_equal(result[key], model_output[key])
+
+  @parameterized.named_parameters(
+      ('alpha_0.5', 0.5),
+      ('alpha_1.0', 1.0),
+      ('alpha_2.0', 2.0),
+  )
+  def test_waltz_rule_suppresses_itg_and_tem_fluxes(self, alpha):
+    """Tests that Waltz rule suppresses ITG and TEM fluxes."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    result = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=alpha,
+        geo=geo,
+    )
+
+    for key in ['qi_itg', 'qe_itg', 'pfe_itg', 'qi_tem', 'qe_tem', 'pfe_tem']:
+      self.assertTrue(
+          bool(jnp.all(result[key][1:] <= model_output[key][1:])),
+          f'Waltz rule should suppress {key} flux',
+      )
+    npt.assert_array_equal(result['qe_etg'][1:], model_output['qe_etg'][1:])
+
+  def test_waltz_rule_larger_alpha_gives_more_suppression(self):
+    """Tests that larger alpha gives more suppression in Waltz rule."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    result_small_alpha = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=0.5,
+        geo=geo,
+    )
+
+    result_large_alpha = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=2.0,
+        geo=geo,
+    )
+
+    for key in ['qi_itg', 'qe_itg', 'pfe_itg', 'qi_tem', 'qe_tem', 'pfe_tem']:
+      self.assertTrue(
+          bool(
+              jnp.all(
+                  result_large_alpha[key][1:] <= result_small_alpha[key][1:]
+              )
+          ),
+          f'Larger alpha should give more suppression for {key}',
+      )
+
+  def test_vandeplassche_rule_applies_rotation(self):
+    """Tests that Van de Plassche 2020 rule applies rotation correction."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    result = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.VANDEPLASSCHE2020,
+        shear_suppression_alpha=1.0,
+        geo=geo,
+    )
+
+    for key in ['qi_itg', 'qe_itg', 'pfe_itg', 'qi_tem', 'qe_tem', 'pfe_tem']:
+      self.assertFalse(
+          bool(jnp.array_equal(result[key][1:], model_output[key][1:])),
+          f'Van de Plassche rule should modify {key} flux',
+      )
+    npt.assert_array_equal(result['qe_etg'][1:], model_output['qe_etg'][1:])
+
+  def test_half_radius_mode_only_affects_outer_region(self):
+    """Tests that half_radius mode only applies rotation to outer region."""
+    n_rho = 20
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    result = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.HALF_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=1.0,
+        geo=geo,
+    )
+
+    rho = geo.rho_face_norm
+    inner_idx = (rho > 0.05) & (rho < 0.4)
+    outer_idx = rho > 0.6
+
+    for key in ['qi_itg', 'qe_itg', 'pfe_itg', 'qi_tem', 'qe_tem', 'pfe_tem']:
+      npt.assert_allclose(
+          result[key][inner_idx],
+          model_output[key][inner_idx],
+          rtol=1e-5,
+          err_msg=f'Inner region should be unchanged for {key}',
+      )
+      self.assertTrue(
+          bool(jnp.all(result[key][outer_idx] < model_output[key][outer_idx])),
+          f'Outer region should be suppressed for {key}',
+      )
+
+  def test_etg_flux_unchanged_by_rotation_rule(self):
+    """Tests that ETG flux is never modified by rotation rule."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    geo = _make_mock_geometry(n_rho)
+
+    for shear_model in qlknn_transport_model.ShearSuppressionModel:
+      for rotation_mode in [
+          qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+          qualikiz_based_transport_model.RotationMode.HALF_RADIUS,
+      ]:
+        result = qlknn_transport_model._maybe_apply_rotation_rule(
+            model_output=model_output,
+            qualikiz_inputs=qualikiz_inputs,
+            rotation_mode=rotation_mode,
+            shear_suppression_model=shear_model,
+            shear_suppression_alpha=1.0,
+            geo=geo,
+        )
+        npt.assert_array_equal(
+            result['qe_etg'],
+            model_output['qe_etg'],
+            err_msg=(
+                f'ETG flux should be unchanged for  {shear_model},'
+                f' {rotation_mode}'
+            ),
+        )
+
+  def test_zero_gamma_e_gives_no_suppression(self):
+    """Tests that zero gamma_E_GB gives no suppression."""
+    n_rho = 10
+    model_output = _make_mock_model_output(n_rho)
+    qualikiz_inputs = qualikiz_based_transport_model.QualikizInputs(
+        Z_eff_face=jnp.ones(n_rho),
+        lref_over_lti=jnp.ones(n_rho),
+        lref_over_lte=jnp.ones(n_rho),
+        lref_over_lne=jnp.ones(n_rho),
+        lref_over_lni0=jnp.ones(n_rho),
+        lref_over_lni1=jnp.ones(n_rho),
+        q=jnp.linspace(1.0, 4.0, n_rho),
+        smag=jnp.linspace(0.1, 2.0, n_rho),
+        x=jnp.linspace(0.0, 1.0, n_rho),
+        Ti_Te=jnp.ones(n_rho),
+        log_nu_star_face=jnp.zeros(n_rho),
+        normni=jnp.ones(n_rho),
+        chiGB=jnp.ones(n_rho),
+        Rmaj=jnp.array(6.2),
+        Rmin=jnp.array(2.0),
+        alpha=jnp.zeros(n_rho),
+        epsilon=jnp.linspace(0.0, 0.3, n_rho),
+        gamma_E_GB=jnp.zeros(n_rho),
+        gamma_E_QLK=jnp.zeros(n_rho),
+        mach_toroidal=jnp.zeros(n_rho),
+    )
+    geo = _make_mock_geometry(n_rho)
+
+    result = qlknn_transport_model._maybe_apply_rotation_rule(
+        model_output=model_output,
+        qualikiz_inputs=qualikiz_inputs,
+        rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
+        shear_suppression_alpha=1.0,
+        geo=geo,
+    )
+
+    for key in ['qi_itg', 'qe_itg', 'pfe_itg', 'qi_tem', 'qe_tem', 'pfe_tem']:
+      npt.assert_allclose(
+          result[key][1:],
+          model_output[key][1:],
+          rtol=1e-5,
+          err_msg=f'Zero gamma_E_GB should give no suppression for {key}',
+      )
 
 
 if __name__ == '__main__':

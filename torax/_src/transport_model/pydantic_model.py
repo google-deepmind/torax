@@ -108,6 +108,13 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
       D.
     rotation_multiplier: Multiplier for rotation.
     rotation_mode: Mode for rotation, either HALF_RADIUS, FULL_RADIUS or OFF.
+    shear_suppression_model: Shear suppression model for rotation effects.
+      Either WALTZ_RULE [Waltz et al., PoP
+      1998](https://doi.org/10.1063/1.872847) or VANDEPLASSCHE2020 [Van de
+      Plassche et al. PoP 2020](https://doi.org/10.1063/1.5134126).
+    shear_suppression_alpha: Alpha parameter for Waltz rule. Larger values
+      increase the suppression effect. Only used when shear_suppression_model =
+      WALTZ_RULE.
   """
 
   model_name: Annotated[Literal['qlknn'], torax_pydantic.JAX_STATIC] = 'qlknn'
@@ -130,6 +137,10 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.OFF
+  shear_suppression_model: Annotated[
+      qlknn_transport_model.ShearSuppressionModel, torax_pydantic.JAX_STATIC
+  ] = qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE
+  shear_suppression_alpha: pydantic.NonNegativeFloat = 1.0
   output_mode_contributions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @pydantic.model_validator(mode='before')
@@ -184,6 +195,8 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         An_min=self.An_min,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
+        shear_suppression_model=self.shear_suppression_model,
+        shear_suppression_alpha=self.shear_suppression_alpha,
         output_mode_contributions=self.output_mode_contributions,
         **base_kwargs,
     )

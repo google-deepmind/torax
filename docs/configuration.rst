@@ -1365,6 +1365,24 @@ It is recommended to not set ``qlknn_model_name``,  or
 
   * ``full_radius``: The rotation correction is applied everywhere.
 
+``shear_suppression_model`` (str [default = 'waltz_rule'])
+  Selects the shear suppression model used for rotation effects on transport.
+  Options are:
+
+  * ``waltz_rule``: Simple model from Waltz et al., PoP 1998
+    (https://doi.org/10.1063/1.872847): :math:`f_{rot} = -\alpha`.
+
+  * ``vandeplassche2020``: Fitted rotation rule from Van de Plassche et al.,
+    PoP 2020 (https://doi.org/10.1063/1.5134126).
+
+``shear_suppression_alpha`` (float [default = 1.0])
+  Alpha parameter for the Waltz rule shear suppression model. Only used when
+  ``shear_suppression_model`` is ``'waltz_rule'``.
+
+``output_mode_contributions`` (bool [default = False])
+  If ``True``, output individual ITG/TEM/ETG contributions to transport
+  coefficients in addition to the total values.
+
 tglfnn-ukaea
 ^^^^^^^^^^^^
 

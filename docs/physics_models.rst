@@ -395,11 +395,26 @@ be enabled through the transport model configuration.
     .. math::
       f_{rot} = 1 + f_{rule} \frac{\gamma_{E \times B}}{\gamma_{max}}
 
-    Here, :math:`f_{rule}` is a factor derived from experimental observations,
-    depending on the safety factor, magnetic shear, and inverse aspect ratio.
-    This rule effectively suppresses turbulent transport when :math:`E \times B`
-    shear is strong. The application of this rule is controlled by the
-    `rotation_mode` configuration parameter. Options for `rotation_mode` are:
+    The factor :math:`f_{rule}` determines the strength of shear suppression
+    and can be computed using one of two models, controlled by the
+    ``shear_suppression_model`` configuration parameter:
+
+    * ``waltz_rule``: Simple model from Waltz et al., PoP 1998:
+      :math:`f_{rule} = -\alpha`, where :math:`\alpha` is set by the
+      ``shear_suppression_alpha`` parameter (default 1.0). This model provides
+      pure suppression of turbulent transport.
+
+    * ``vandeplassche2020``: Fitted rotation rule from Van de Plassche et al.,
+      PoP 2020. This model calculates :math:`f_{rule}` based on the safety
+      factor, magnetic shear, and inverse aspect ratio. Note that this model
+      can produce both suppression and enhancement of transport depending on
+      local plasma parameters. This is because it was fitted for purely
+      toroidal rotation, which has both stabilizing (ExB shear) and
+      destabilizing (parallel velocity shear) effects, with a geometry
+      dependence setting the relative impact.
+
+    The application of the rotation rule is controlled by the
+    ``rotation_mode`` configuration parameter. Options for ``rotation_mode`` are:
 
   * ``off``: No rotation correction is applied.
 
@@ -413,9 +428,9 @@ be enabled through the transport model configuration.
 Two parameters are available to fine-tune the impact of rotation, both of them
 default to 1.0:
 
-*   `rotation_multiplier`: Located in the transport model configs, this
+*   ``rotation_multiplier``: Located in the transport model configs, this
     parameter scales the :math:`E \times B` shear term.
-*   `poloidal_velocity_multiplier`: Found under the `neoclassical`
+*   ``poloidal_velocity_multiplier``: Found under the ``neoclassical``
     configuration, this parameter directly scales the poloidal velocity term.
 
 Edge models

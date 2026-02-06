@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ITER hybrid scenario with rotation."""
+"""ITER hybrid scenario with rotation using vandeplassche2020 shear suppression."""
 
 import copy
 
@@ -33,6 +33,7 @@ CONFIG['profile_conditions']['toroidal_angular_velocity'] = {
 
 # Modify this if you want to scale up or down the effect of rotation.
 CONFIG['transport']['rotation_multiplier'] = 1.0
+CONFIG['transport']['shear_suppression_model'] = 'vandeplassche2020'
 # Modify this if you want to scale up or down the poloidal velocity
 # contribution to the rotation.
 CONFIG['neoclassical']['poloidal_velocity_multiplier'] = 1.0

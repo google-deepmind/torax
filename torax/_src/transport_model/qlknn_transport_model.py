@@ -14,6 +14,7 @@
 
 """A transport model that uses a QLKNN model."""
 import dataclasses
+import enum
 import functools
 import logging
 import os
@@ -37,9 +38,26 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
+class ShearSuppressionModel(enum.StrEnum):
+  """Shear suppression model for rotation effects on transport.
+
+  WALTZ_RULE: Simple model from Waltz et al., PoP 1998
+  (https://doi.org/10.1063/1.872847): f_rot_rule = -alpha.
+  VANDEPLASSCHE2020: Fitted rotation rule from Van de Plassche et al., PoP 2020
+  (https://doi.org/10.1063/1.5134126). It was fitted for purely toroidal
+  transport, so has both stabilizing (ExB shear) and destabilizing (parallel
+  velocity shear) effects, with a geometry dependence setting the relative
+  impact.
+  """
+
+  WALTZ_RULE = 'waltz_rule'
+  VANDEPLASSCHE2020 = 'vandeplassche2020'
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
+  """Runtime parameters for QLKNN transport model."""
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
@@ -47,6 +65,10 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
+  shear_suppression_model: ShearSuppressionModel = dataclasses.field(
+      metadata={'static': True}
+  )
+  shear_suppression_alpha: float
   output_mode_contributions: bool = dataclasses.field(metadata={'static': True})
 
 
@@ -174,27 +196,27 @@ def clip_inputs(
   return feature_scan
 
 
-def _calculate_rotation_rule_factor(
-    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
-) -> jax.Array:
-  """Calculate the rotation scaling factor."""
-  # TODO(b/456456279): The rotation rule has been calibrated for QLKNN10D.
-  # We should validate if this formula makes sense for QLKNN_7_11.
-  return (
-      _C1 * qualikiz_inputs.q
-      + _C2 * qualikiz_inputs.smag
-      + _C3 / (_EPSILON_NN * qualikiz_inputs.x)
-      - _C4
-  )
-
-
 def _maybe_apply_rotation_rule(
     model_output: base_qlknn_model.ModelOutput,
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
     rotation_mode: qualikiz_based_transport_model.RotationMode,
+    shear_suppression_model: ShearSuppressionModel,
+    shear_suppression_alpha: float,
     geo: geometry.Geometry,
 ) -> base_qlknn_model.ModelOutput:
-  """Apply the rotation scaling factor to the model output (Victor rule)."""
+  """Apply the rotation scaling factor to the model output.
+
+  Args:
+    model_output: The raw model output from QLKNN.
+    qualikiz_inputs: Prepared inputs for the quasilinear model.
+    rotation_mode: Controls where the rotation rule is applied.
+    shear_suppression_model: Which shear suppression model to use.
+    shear_suppression_alpha: Alpha parameter for Waltz rule.
+    geo: Geometry of the torus.
+
+  Returns:
+    Model output with rotation scaling applied to ITG and TEM modes.
+  """
   if rotation_mode == qualikiz_based_transport_model.RotationMode.OFF:
     # Rotation is disabled. Do not apply the rotation rule.
     return model_output
@@ -212,7 +234,21 @@ def _maybe_apply_rotation_rule(
     )
     gamma_E_GB = gamma_E_GB * scaling
 
-  f_rot_rule = _calculate_rotation_rule_factor(qualikiz_inputs)
+  if shear_suppression_model == ShearSuppressionModel.WALTZ_RULE:
+    c1, c2, c3, c4 = 0.0, 0.0, 0.0, shear_suppression_alpha
+  elif shear_suppression_model == ShearSuppressionModel.VANDEPLASSCHE2020:
+    c1, c2, c3, c4 = _C1, _C2, _C3, _C4
+  else:
+    raise ValueError(
+        f'Unknown shear suppression model: {shear_suppression_model}'
+    )
+
+  f_rot_rule = (
+      c1 * qualikiz_inputs.q
+      + c2 * qualikiz_inputs.smag
+      + c3 / (_EPSILON_NN * qualikiz_inputs.x)
+      - c4
+  )
 
   lower_bound = 1e-4
   gamma_max = jnp.maximum(model_output['gamma_max'].squeeze(), lower_bound)
@@ -347,6 +383,8 @@ class QLKNNTransportModel(
         model_output,
         qualikiz_inputs,
         runtime_config_inputs.transport.rotation_mode,
+        runtime_config_inputs.transport.shear_suppression_model,
+        runtime_config_inputs.transport.shear_suppression_alpha,
         geo,
     )
 
