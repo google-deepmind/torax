@@ -26,6 +26,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import adaptive_source
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -295,17 +296,6 @@ def _calc_coeffs_full(
       runtime_params, geo, core_profiles
   )
 
-  # Boolean mask for enforcing internal temperature boundary conditions to
-  # model the pedestal.
-  # If rho_norm_ped_top_idx is outside of bounds of the mesh, the pedestal is
-  # not present and the mask is all False. This is what is used in the case that
-  # set_pedestal is False.
-  mask = (
-      jnp.zeros_like(geo.rho, dtype=bool)
-      .at[pedestal_model_output.rho_norm_ped_top_idx]
-      .set(True)
-  )
-
   conductivity = (
       physics_models.neoclassical_models.conductivity.calculate_conductivity(
           geo, core_profiles
@@ -400,13 +390,6 @@ def _calc_coeffs_full(
   # density source vector based both on original and updated core profiles
   source_n_e = merged_source_profiles.total_sources('n_e', geo)
 
-  source_n_e += (
-      mask
-      * runtime_params.numerics.adaptive_n_source_prefactor
-      * pedestal_model_output.n_e_ped
-  )
-  source_mat_nn += -(mask * runtime_params.numerics.adaptive_n_source_prefactor)
-
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
   # TODO(b/311653933) this forces us to include value 0
@@ -477,22 +460,6 @@ def _calc_coeffs_full(
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
 
-  # Pedestal
-  source_i += (
-      mask
-      * runtime_params.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.T_i_ped
-  )
-  source_e += (
-      mask
-      * runtime_params.numerics.adaptive_T_source_prefactor
-      * pedestal_model_output.T_e_ped
-  )
-
-  source_mat_ii -= mask * runtime_params.numerics.adaptive_T_source_prefactor
-
-  source_mat_ee -= mask * runtime_params.numerics.adaptive_T_source_prefactor
-
   # Add effective Phi_b_dot heat source terms
 
   d_vpr53_rhon_n_e_drhon = jnp.gradient(
@@ -549,6 +516,26 @@ def _calc_coeffs_full(
       * conductivity.sigma
       / geo.F**2
       * core_profiles.psi.grad()
+  )
+
+  # Add pedestal source terms
+  (
+      source_i,
+      source_e,
+      source_n_e,
+      source_mat_ii,
+      source_mat_ee,
+      source_mat_nn,
+  ) = adaptive_source.apply_adaptive_source(
+      source_T_i=source_i,
+      source_T_e=source_e,
+      source_n_e=source_n_e,
+      source_mat_ii=source_mat_ii,
+      source_mat_ee=source_mat_ee,
+      source_mat_nn=source_mat_nn,
+      runtime_params=runtime_params,
+      pedestal_model_output=pedestal_model_output,
+      geo=geo,
   )
 
   # Build arguments to solver based on which variables are evolving
