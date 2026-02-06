@@ -258,6 +258,13 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
       ),
+      # Predictor-corrector solver with rotation
+      (
+          'test_iterhybrid_predictor_corrector_rotation',
+          'test_iterhybrid_predictor_corrector_rotation.py',
+          _ALL_PROFILES,
+          1e-6,
+      ),
       # L-mode iterhybrid variant with combined transport model and overwrites
       (
           'test_iterhybrid_predictor_corrector_Lmode_combined',
