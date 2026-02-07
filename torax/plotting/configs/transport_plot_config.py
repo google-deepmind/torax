@@ -19,11 +19,11 @@ from torax._src.plotting import plotruns_lib
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
     cols=3,
-    tick_fontsize=10,
-    axes_fontsize=10,
-    default_legend_fontsize=9,
-    figure_size_factor=8,
-    title_fontsize=12,
+    tick_size=8,
+    subplot_title_size=12,
+    height=None,
+    font_family='Arial, sans-serif',
+    title_size=16,
     axes=(
         plotruns_lib.PlotProperties(
             attrs=(

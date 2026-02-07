@@ -18,9 +18,8 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from matplotlib import figure
-import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
@@ -75,9 +74,8 @@ class PlotrunsLibTest(parameterized.TestCase):
         plot_config, str(test_data_path), interactive=False
     )
     self.assertIsInstance(
-        fig, figure.Figure, msg=f'Plotting of {test_data_path.name} failed'
+        fig, go.Figure, msg=f'Plotting of {test_data_path.name} failed'
     )
-    plt.close(fig)
 
 
 class FigurePropertiesTest(absltest.TestCase):
@@ -93,6 +91,11 @@ class FigurePropertiesTest(absltest.TestCase):
       plotruns_lib.FigureProperties(
           rows=1,
           cols=1,
+          font_family='Arial',
+          title_size=16,
+          subplot_title_size=12,
+          tick_size=8,
+          height=None,
           # 2 plots for a 1x1 grid
           axes=(dummy_plot_properties, dummy_plot_properties),
       )
@@ -112,12 +115,26 @@ class FigurePropertiesTest(absltest.TestCase):
     )
 
     config_spatial = plotruns_lib.FigureProperties(
-        rows=1, cols=1, axes=(spatial_plot,)
+        rows=1,
+        cols=1,
+        font_family='Arial',
+        title_size=16,
+        subplot_title_size=12,
+        tick_size=8,
+        height=None,
+        axes=(spatial_plot,),
     )
     self.assertTrue(config_spatial.contains_spatial_plot_type)
 
     config_time = plotruns_lib.FigureProperties(
-        rows=1, cols=1, axes=(time_plot,)
+        rows=1,
+        cols=1,
+        font_family='Arial',
+        title_size=16,
+        subplot_title_size=12,
+        tick_size=8,
+        height=None,
+        axes=(time_plot,),
     )
     self.assertFalse(config_time.contains_spatial_plot_type)
 
