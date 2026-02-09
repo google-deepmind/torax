@@ -26,6 +26,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -46,6 +47,22 @@ class PedestalModelOutput:
   T_e_ped: array_typing.FloatScalar
   # The electron density at the pedestal in units 10^-3.
   n_e_ped: array_typing.FloatScalar
+
+  def to_internal_boundary_conditions(
+      self,
+      geo: geometry.Geometry,
+  ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+    """Convert the pedestal model output to internal boundary conditions."""
+    pedestal_mask = (
+        jnp.zeros_like(geo.rho, dtype=bool)
+        .at[self.rho_norm_ped_top_idx]
+        .set(True)
+    )
+    return internal_boundary_conditions_lib.InternalBoundaryConditions(
+        T_i=jnp.where(pedestal_mask, self.T_i_ped, 0.0),
+        T_e=jnp.where(pedestal_mask, self.T_e_ped, 0.0),
+        n_e=jnp.where(pedestal_mask, self.n_e_ped, 0.0),
+    )
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

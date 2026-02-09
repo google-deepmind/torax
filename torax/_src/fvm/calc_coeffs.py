@@ -26,7 +26,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import adaptive_source
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -165,13 +165,16 @@ def _calculate_pereverzev_flux(
 
   # remove Pereverzev flux from boundary region if pedestal model is on
   # (for PDE stability)
+  pedestal_mask_face = (
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+  )
   chi_face_per_ion = jnp.where(
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
+      pedestal_mask_face,
       0.0,
       chi_face_per_ion,
   )
   chi_face_per_el = jnp.where(
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
+      pedestal_mask_face,
       0.0,
       chi_face_per_el,
   )
@@ -189,13 +192,13 @@ def _calculate_pereverzev_flux(
   )
 
   d_face_per_el = jnp.where(
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
+      pedestal_mask_face,
       0.0,
       d_face_per_el * geo.g1_over_vpr_face,
   )
 
   v_face_per_el = jnp.where(
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
+      pedestal_mask_face,
       0.0,
       v_face_per_el * geo.g0_face,
   )
@@ -518,7 +521,7 @@ def _calc_coeffs_full(
       * core_profiles.psi.grad()
   )
 
-  # Add pedestal source terms
+  # Add internal boundary condition source terms
   (
       source_i,
       source_e,
@@ -526,7 +529,7 @@ def _calc_coeffs_full(
       source_mat_ii,
       source_mat_ee,
       source_mat_nn,
-  ) = adaptive_source.apply_adaptive_source(
+  ) = internal_boundary_conditions_lib.apply_adaptive_source(
       source_T_i=source_i,
       source_T_e=source_e,
       source_n_e=source_n_e,
@@ -534,8 +537,11 @@ def _calc_coeffs_full(
       source_mat_ee=source_mat_ee,
       source_mat_nn=source_mat_nn,
       runtime_params=runtime_params,
-      pedestal_model_output=pedestal_model_output,
-      geo=geo,
+      # Pedestal contributes an internal boundary condition to the source
+      # terms at the pedestal top.
+      internal_boundary_conditions=pedestal_model_output.to_internal_boundary_conditions(
+          geo
+      ),
   )
 
   # Build arguments to solver based on which variables are evolving

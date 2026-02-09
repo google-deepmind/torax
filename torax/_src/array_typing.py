@@ -36,6 +36,8 @@ FloatVectorCell: TypeAlias = jt.Float[Array, "rhon"]
 FloatVectorCellPlusBoundaries: TypeAlias = jt.Float[Array, "rhon+2"]
 FloatMatrixCell: TypeAlias = jt.Float[Array, "rhon rhon"]
 FloatVectorFace: TypeAlias = jt.Float[Array, "rhon+1"]
+BoolVectorCell: TypeAlias = jt.Bool[Array, "rhon"]
+BoolVectorFace: TypeAlias = jt.Bool[Array, "rhon+1"]
 
 
 def jaxtyped(fn: T) -> T:
