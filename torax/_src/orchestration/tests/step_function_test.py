@@ -266,34 +266,6 @@ class StepFunctionTest(parameterized.TestCase):
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 
-  def test_fixed_step_with_high_density_errors_and_does_not_hang(self):
-    # This test checks that when min_dt is reached, we exit the fixed step
-    # function early. If we don't do this then we risk hanging for a very long
-    # time as taking min_dt steps will take a long time to reach the final
-    # time.
-    # We force the min_dt to be reached in the substeps by 1) selecting a case
-    # with fast dynamics, and 2) choosing a large min dt.
-    # We don't compare the results to a reference solution, because the purpose
-    # of this test is to check that the code does not hang and the numerics mean
-    # that we can't get consistent behaviour.
-    test_data_dir = paths.test_data_dir()
-    torax_config = config_loader.build_torax_config_from_file(
-        os.path.join(test_data_dir, 'test_iterhybrid_radiation_collapse.py')
-    )
-    torax_config.update_fields({'numerics.min_dt': 0.01})
-
-    sim_state, post_processed_outputs, step_fn = (
-        run_simulation.prepare_simulation(torax_config)
-    )
-    # The test errors out before reaching t=2.0
-    sim_state, post_processed_outputs = step_fn.fixed_time_step(
-        np.array(2.0), sim_state, post_processed_outputs
-    )
-    self.assertLess(sim_state.t, 2.0)
-    sim_error = step_fn.check_for_errors(sim_state, post_processed_outputs)
-    # TODO(b/482387965): Re-enable stricter check after investigating flakiness.
-    self.assertNotEqual(sim_error, state.SimError.NO_ERROR)
-
   def test_call_with_sawtooth_solver_smoke_test(self):
     """Smoke test for the boolean logic around the sawtooth solver.
 
@@ -365,6 +337,31 @@ class StepFunctionTest(parameterized.TestCase):
         post_processed_outputs,
     )
     np.testing.assert_allclose(output_state.dt, 0.01, atol=1e-7)
+
+  def test_fixed_time_step_exits_if_min_dt_reached(self):
+    torax_config = config_loader.build_torax_config_from_file(
+        os.path.join(
+            paths.test_data_dir(), 'test_iterhybrid_predictor_corrector.py'
+        )
+    )
+    torax_config.update_fields(
+        {'numerics.min_dt': 0.1, 'numerics.adaptive_dt': True}
+    )
+
+    requested_t = 1.0
+    sim_state, post_processed_outputs, step_fn = (
+        run_simulation.prepare_simulation(torax_config)
+    )
+    sim_state, post_processed_outputs = step_fn.fixed_time_step(
+        np.array(requested_t), sim_state, post_processed_outputs
+    )
+
+    # Check we exited early
+    self.assertLess(sim_state.t, requested_t)
+
+    # Check that the MIN_DT error is reported.
+    sim_error = step_fn.check_for_errors(sim_state, post_processed_outputs)
+    self.assertEqual(sim_error, state.SimError.REACHED_MIN_DT)
 
   def test_step_function_overrides(self):
     original_ip = 15e6
