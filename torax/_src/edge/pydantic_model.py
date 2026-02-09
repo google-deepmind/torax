@@ -86,6 +86,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   newton_raphson_tol: pydantic.PositiveFloat = (
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
+  multistart_num_guesses: Annotated[
+      pydantic.conint(ge=2), torax_pydantic.JAX_STATIC
+  ] = extended_lengyel_defaults.MULTISTART_NUM_GUESSES
 
   # Optional boolean to specify if the geometry is diverted.
   # Required for non-FBT geometries. Not allowed for FBT geometries.
@@ -404,6 +407,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         fixed_point_iterations=self.fixed_point_iterations,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
+        multistart_num_guesses=self.multistart_num_guesses,
         ne_tau=self.ne_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(

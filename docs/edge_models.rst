@@ -63,6 +63,33 @@ Set ``computation_mode`` to ``'inverse'``.
     the core impurity density profile for the seeded species to match the
     required concentration.
 
+Forward Mode: Multistart and Multiple Roots
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In Forward Mode, the extended Lengyel model can exhibit multiple valid solutions
+(roots) for the same input parameters (e.g., a high-temperature attached
+solution and a low-temperature detached solution), particularly at lower
+densities less than :math:`10^{20} \mathrm{m^{-3}}`.
+
+To address this, the solver employs a **multistart strategy**:
+
+*   **Parallel Execution:** The solver runs multiple instances in parallel
+    starting from a grid of initial guesses (spanning low to high temperatures)
+    plus the nominal guess (either default, user-provided, or from the previous
+    time-step).
+
+*   **Nominal Solution Selection:** The model selects the *closest valid root*
+    to the nominal initial guess as the primary output. This ensures solution
+    continuity and stability during time-dependent simulations.
+
+*   **Multiple Roots Detection:** If multiple distinct valid roots are found,
+    the ``multiple_roots_found`` flag is set to ``True``.
+
+*   **Full Output:** The full set of found roots (from all initial guesses) is
+    available in the ``roots`` child node of the output structure (e.g.
+    ``output.edge.children['roots']``) for detailed analysis. These only include
+    distinct roots, and for which the numerics converged (i.e.
+   `` numerics_outcome.error == 0``).
+
 Impurity Handling
 -----------------
 

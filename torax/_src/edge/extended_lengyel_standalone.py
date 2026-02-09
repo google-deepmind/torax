@@ -14,9 +14,12 @@
 
 """Standalone implementation of extended Lengyel from Body et al. NF 2025."""
 
+from __future__ import annotations
+
 import dataclasses
 import functools
 from typing import Mapping
+
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -28,8 +31,51 @@ from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_formulas
 from torax._src.edge import extended_lengyel_solvers
+from torax._src.solver import jax_root_finding
 
 # pylint: disable=invalid-name
+
+
+def _roots_are_distinct(
+    diffs: array_typing.FloatVector,
+    ref_values: array_typing.FloatVector,
+) -> jax.Array:
+  """Returns a boolean array indicating if roots are distinct.
+
+  Args:
+    diffs: Differences between consecutive sorted roots.
+    ref_values: The sorted roots themselves, used for relative tolerance check.
+
+  Returns:
+    A boolean array indicating if roots are distinct.
+  """
+  threshold = (
+      extended_lengyel_defaults.MULTISTART_ROOT_ATOL
+      + extended_lengyel_defaults.MULTISTART_ROOT_RTOL * jnp.abs(ref_values)
+  )
+  return diffs > threshold
+
+
+def _extract_solver_metrics(
+    status: extended_lengyel_solvers.ExtendedLengyelSolverStatus,
+) -> tuple[
+    array_typing.IntVector, array_typing.FloatVector, array_typing.IntVector
+]:
+  """Extracts solver metrics from status, handling different solver types."""
+  numerics = status.numerics_outcome
+
+  # Default values
+  iterations = jnp.array(-1, dtype=jax_utils.get_int_dtype())
+  residual = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  error = jnp.array(0, dtype=jax_utils.get_int_dtype())
+
+  if isinstance(numerics, jax_root_finding.RootMetadata):
+    iterations = numerics.iterations
+    # Keep full residual for detailed analysis
+    residual = numerics.residual
+    error = numerics.error
+
+  return iterations, residual, error
 
 
 @jax.tree_util.register_dataclass
@@ -46,6 +92,14 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     solver_status: Status of the solver.
     calculated_enrichment: A mapping from ion symbol to its enrichment factor as
       calculated by the Kallenbach model.
+    roots: The full batch of results from all initial guesses in forward mode.
+      This is a pytree of the same structure as ExtendedLengyelOutputs, where
+      each leaf has an additional leading dimension of size `num_guesses`. This
+      field can be None if multistart is not used or not supported (e.g. inverse
+      mode).
+    multiple_roots_found: Boolean flag indicating if multiple distinct, valid
+      roots were found in forward mode. This field is None for Inverse Mode,
+      which only has a single solution.
   """
 
   alpha_t: jax.Array
@@ -55,6 +109,190 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   seed_impurity_concentrations: Mapping[str, jax.Array]
   solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus
   calculated_enrichment: Mapping[str, jax.Array]
+  roots: ExtendedLengyelOutputs | None = None
+  multiple_roots_found: jax.Array | None = None
+
+  # TODO(b/323504363): b/446608829 - Simplify this function where viable.
+  def get_unique_roots(self) -> ExtendedLengyelOutputs | None:
+    """Identifies and returns unique valid roots from solver results.
+
+    Returns:
+      ExtendedLengyelOutputs containing unique valid roots, or None if no roots
+      are available (e.g. inverse mode).
+      Leaves have shape (time, n_roots, ...) or (n_roots, ...) if time is
+      absent.
+      Roots are sorted by T_e_target value. Padding (nan/inf) is added if
+      fewer than max_roots are found.
+    """
+    if self.roots is None:
+      return None
+    roots = self.roots
+
+    # Collect all array fields from `roots` to be processed.
+    # This ensures all relevant output fields are handled.
+    fields_to_compress = {}
+    for field in dataclasses.fields(roots):
+      if field.name in ['roots', 'multiple_roots_found', 'solver_status']:
+        continue  # Skip recursive field and internal flags
+      value = getattr(roots, field.name)
+      if isinstance(value, array_typing.Array):
+        fields_to_compress[field.name] = jnp.asarray(value)
+      elif isinstance(value, Mapping):
+        for k, v in value.items():
+          if isinstance(v, array_typing.Array):
+            fields_to_compress[f'{field.name}_{k}'] = jnp.asarray(v)
+
+    ref_shape = jnp.asarray(roots.T_e_target).shape
+
+    iterations, residual, error = _extract_solver_metrics(roots.solver_status)
+    if isinstance(
+        roots.solver_status.numerics_outcome, jax_root_finding.RootMetadata
+    ):
+      fields_to_compress['solver_iterations'] = iterations
+      fields_to_compress['solver_residual'] = residual
+      fields_to_compress['solver_error'] = error
+      fields_to_compress['solver_last_tau'] = (
+          roots.solver_status.numerics_outcome.last_tau
+      )
+    else:
+      # Fixed-point solver. Only error is relevant.
+      fields_to_compress['solver_error'] = jnp.broadcast_to(error, ref_shape)
+    fields_to_compress['solver_physics_outcome'] = jnp.broadcast_to(
+        jnp.asarray(roots.solver_status.physics_outcome), ref_shape
+    )
+
+    # Determine shapes and axes. Input could be (time, n_roots) or (n_roots,),
+    # depending on whether we are processing a stacked or unstacked case.
+    # An unstacked case may be generated if using this method on a standalone
+    # ExtendedLengyelOutputs instance. The stacked case is generated when
+    # processing time-dependent outputs.
+    T_e = jnp.asarray(roots.T_e_target)
+    has_time = T_e.ndim > 1
+
+    T_e_prepared = fields_to_compress['T_e_target']
+
+    # Analyze along roots axis
+    # If we stacked, T is axis 0, G is axis 1. Roots axis is 1.
+    # If we didn't stack (1D), G is axis 0. Roots axis is 0.
+    roots_axis = 1 if has_time else 0
+
+    # Sort indices
+    # Move NaNs to inf for sorting
+    T_e_for_sorting = jnp.where(jnp.isnan(T_e_prepared), jnp.inf, T_e_prepared)
+    sorted_indices = jnp.argsort(T_e_for_sorting, axis=roots_axis)
+
+    # Compress Logic
+    sorted_T_e = jnp.take_along_axis(
+        T_e_for_sorting, sorted_indices, axis=roots_axis
+    )
+
+    # Difference along roots axis to find duplicates
+    diff = jnp.diff(sorted_T_e, axis=roots_axis, prepend=-jnp.inf)
+
+    is_unique = jnp.logical_and(
+        _roots_are_distinct(diff, sorted_T_e),
+        sorted_T_e != jnp.inf,
+    )
+
+    # Pack unique roots to the start
+    # argsort sorts ascending, so invert the is_unique mask before sorting to
+    # get the unique roots at the start
+    packing_indices = jnp.argsort(~is_unique, axis=roots_axis, stable=True)
+
+    # Final indices into the VALID/SORTED array
+    final_indices = jnp.take_along_axis(
+        sorted_indices, packing_indices, axis=roots_axis
+    )
+
+    # Final Mask (reordered)
+    final_valid_mask = jnp.take_along_axis(
+        is_unique, packing_indices, axis=roots_axis
+    )
+
+    result_dict = {}
+
+    for name, data in fields_to_compress.items():
+      # Expand final_indices to match data dimensions for broadcasting
+
+      current_indices = final_indices
+      current_mask = final_valid_mask
+
+      extra_dims = data.ndim - final_indices.ndim
+      if extra_dims > 0:
+        # Append singleton dimensions to indices and mask
+        expand_axes = tuple(range(data.ndim - extra_dims, data.ndim))
+        current_indices = jnp.expand_dims(current_indices, axis=expand_axes)
+        current_mask = jnp.expand_dims(current_mask, axis=expand_axes)
+
+      # Reorder
+      packed = jnp.take_along_axis(data, current_indices, axis=roots_axis)
+
+      # Apply mask
+      if jnp.issubdtype(packed.dtype, jnp.floating):
+        nan_value = jnp.nan
+      else:
+        # Use -1 for integer types (iterations, error, physics_outcome)
+        nan_value = -1
+
+      masked = jnp.where(current_mask, packed, nan_value)
+      result_dict[name] = masked
+
+    n_unique_per_time = jnp.sum(final_valid_mask, axis=roots_axis)
+    max_unique = int(jnp.max(n_unique_per_time))
+    max_unique = max(max_unique, 1)
+    trim_slice = [slice(None)] * final_valid_mask.ndim
+    trim_slice[roots_axis] = slice(0, max_unique)
+    trim_slice = tuple(trim_slice)
+    result_dict = {k: v[trim_slice] for k, v in result_dict.items()}
+
+    if 'solver_iterations' in result_dict:
+      last_tau = result_dict.get('solver_last_tau')
+      if last_tau is None:
+        last_tau = jnp.zeros_like(
+            result_dict['solver_iterations'], dtype=jnp.float32
+        )
+      new_numerics_outcome = jax_root_finding.RootMetadata(
+          iterations=result_dict['solver_iterations'].astype(jnp.int32),
+          residual=result_dict['solver_residual'],
+          error=result_dict['solver_error'].astype(jnp.int32),
+          last_tau=last_tau,
+      )
+    else:
+      new_numerics_outcome = roots.solver_status.numerics_outcome
+    new_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+        physics_outcome=result_dict['solver_physics_outcome'],  # pytype: disable=wrong-arg-types
+        numerics_outcome=new_numerics_outcome,
+    )
+
+    # Reconstruct seed_impurity_concentrations and calculated_enrichment
+    new_seed_impurity_concentrations = {
+        k: result_dict[f'seed_impurity_concentrations_{k}']
+        for k in roots.seed_impurity_concentrations or {}
+    }
+
+    new_calculated_enrichment = {
+        k: result_dict[f'calculated_enrichment_{k}']
+        for k in roots.calculated_enrichment or {}
+    }
+
+    # Create the new ExtendedLengyelOutputs instance
+    # We populate it with the compressed arrays.
+    # Use dynamic construction to satisfy Pytype and handle all fields.
+    output_args = {}
+    valid_fields = {f.name for f in dataclasses.fields(self)}
+    for name, val in result_dict.items():
+      if name in valid_fields:
+        output_args[name] = val
+
+    output_args['solver_status'] = new_solver_status
+    output_args['seed_impurity_concentrations'] = (
+        new_seed_impurity_concentrations
+    )
+    output_args['calculated_enrichment'] = new_calculated_enrichment
+    output_args['roots'] = None
+    output_args['multiple_roots_found'] = None
+
+    return self.__class__(**output_args)
 
 
 @functools.partial(
@@ -62,6 +300,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     static_argnames=[
         'computation_mode',
         'solver_mode',
+        'multistart_num_guesses',
     ],
 )
 def run_extended_lengyel_standalone(
@@ -117,6 +356,7 @@ def run_extended_lengyel_standalone(
     fixed_point_iterations: int | None = None,
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
+    multistart_num_guesses: int = extended_lengyel_defaults.MULTISTART_NUM_GUESSES,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
     diverted: bool = True,
     initial_guess: (
@@ -177,6 +417,8 @@ def run_extended_lengyel_standalone(
       ignored and remains None if inputted as None.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
+    multistart_num_guesses: Number of initial guesses for multistart solver.
+      Only used in forward mode.
     enrichment_model_multiplier: Multiplier for the Kallenbach enrichment model.
     diverted: Whether we are in diverted geometry or not.
     initial_guess: Initial guess for the iterative solver state variables.
@@ -186,10 +428,7 @@ def run_extended_lengyel_standalone(
     status.
   """
 
-  # --------------------------------------- #
-  # ---------- 1. Pre-processing ---------- #
-  # --------------------------------------- #
-
+  # 1. Pre-processing
   if seed_impurity_weights is None:
     seed_impurity_weights = {}
 
@@ -197,6 +436,48 @@ def run_extended_lengyel_standalone(
       computation_mode, T_e_target, seed_impurity_weights
   )
 
+  params = _construct_parameters(
+      power_crossing_separatrix=power_crossing_separatrix,
+      separatrix_electron_density=separatrix_electron_density,
+      fixed_impurity_concentrations=fixed_impurity_concentrations,
+      main_ion_charge=main_ion_charge,
+      magnetic_field_on_axis=magnetic_field_on_axis,
+      plasma_current=plasma_current,
+      connection_length_target=connection_length_target,
+      connection_length_divertor=connection_length_divertor,
+      major_radius=major_radius,
+      minor_radius=minor_radius,
+      elongation_psi95=elongation_psi95,
+      triangularity_psi95=triangularity_psi95,
+      average_ion_mass=average_ion_mass,
+      mean_ion_charge_state=mean_ion_charge_state,
+      seed_impurity_weights=seed_impurity_weights,
+      divertor_broadening_factor=divertor_broadening_factor,
+      ratio_bpol_omp_to_bpol_avg=ratio_bpol_omp_to_bpol_avg,
+      ne_tau=ne_tau,
+      sheath_heat_transmission_factor=sheath_heat_transmission_factor,
+      angle_of_incidence_target=angle_of_incidence_target,
+      fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
+      SOL_conduction_fraction=SOL_conduction_fraction,
+      ratio_of_molecular_to_ion_mass=ratio_of_molecular_to_ion_mass,
+      T_wall=T_wall,
+      mach_separatrix=mach_separatrix,
+      T_i_T_e_ratio_separatrix=T_i_T_e_ratio_separatrix,
+      n_e_n_i_ratio_separatrix=n_e_n_i_ratio_separatrix,
+      T_i_T_e_ratio_target=T_i_T_e_ratio_target,
+      n_e_n_i_ratio_target=n_e_n_i_ratio_target,
+      mach_target=mach_target,
+      toroidal_flux_expansion=toroidal_flux_expansion,
+  )
+
+  initial_sol_model = _get_initial_sol_model(
+      params=params,
+      initial_guess=initial_guess,
+      computation_mode=computation_mode,
+      T_e_target_input=T_e_target,
+  )
+
+  # Resolve default iterations if needed
   if fixed_point_iterations is None:
     if solver_mode == extended_lengyel_enums.SolverMode.HYBRID:
       fixed_point_iterations = (
@@ -205,6 +486,70 @@ def run_extended_lengyel_standalone(
     else:
       fixed_point_iterations = extended_lengyel_defaults.FIXED_POINT_ITERATIONS
 
+  # 2. Solver Execution
+  if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
+    # Forward mode may have multiple solutions, so we use multistart.
+    return _run_forward_mode_multistart(
+        initial_sol_model=initial_sol_model,
+        solver_mode=solver_mode,
+        fixed_point_iterations=fixed_point_iterations,
+        newton_raphson_iterations=newton_raphson_iterations,
+        newton_raphson_tol=newton_raphson_tol,
+        diverted=diverted,
+        enrichment_model_multiplier=enrichment_model_multiplier,
+        multistart_num_guesses=multistart_num_guesses,
+    )
+  else:
+    # Inverse mode always has a single solution so we use a single solver call.
+    return _run_single_solver(
+        initial_sol_model=initial_sol_model,
+        computation_mode=computation_mode,
+        solver_mode=solver_mode,
+        fixed_point_iterations=fixed_point_iterations,
+        newton_raphson_iterations=newton_raphson_iterations,
+        newton_raphson_tol=newton_raphson_tol,
+        diverted=diverted,
+        enrichment_model_multiplier=enrichment_model_multiplier,
+    )
+
+
+# TODO(b/323504363): b/446608829 - Restructure functions and flow in this module for
+# readability.
+def _construct_parameters(
+    *,
+    power_crossing_separatrix: array_typing.FloatScalar,
+    separatrix_electron_density: array_typing.FloatScalar,
+    fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
+    main_ion_charge: array_typing.FloatScalar,
+    magnetic_field_on_axis: array_typing.FloatScalar,
+    plasma_current: array_typing.FloatScalar,
+    connection_length_target: array_typing.FloatScalar,
+    connection_length_divertor: array_typing.FloatScalar,
+    major_radius: array_typing.FloatScalar,
+    minor_radius: array_typing.FloatScalar,
+    elongation_psi95: array_typing.FloatScalar,
+    triangularity_psi95: array_typing.FloatScalar,
+    average_ion_mass: array_typing.FloatScalar,
+    mean_ion_charge_state: array_typing.FloatScalar,
+    seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
+    divertor_broadening_factor: array_typing.FloatScalar,
+    ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar,
+    ne_tau: array_typing.FloatScalar,
+    sheath_heat_transmission_factor: array_typing.FloatScalar,
+    angle_of_incidence_target: array_typing.FloatScalar,
+    fraction_of_P_SOL_to_divertor: array_typing.FloatScalar,
+    SOL_conduction_fraction: array_typing.FloatScalar,
+    ratio_of_molecular_to_ion_mass: array_typing.FloatScalar,
+    T_wall: array_typing.FloatScalar,
+    mach_separatrix: array_typing.FloatScalar,
+    T_i_T_e_ratio_separatrix: array_typing.FloatScalar,
+    n_e_n_i_ratio_separatrix: array_typing.FloatScalar,
+    T_i_T_e_ratio_target: array_typing.FloatScalar,
+    n_e_n_i_ratio_target: array_typing.FloatScalar,
+    mach_target: array_typing.FloatScalar,
+    toroidal_flux_expansion: array_typing.FloatScalar,
+) -> divertor_sol_1d_lib.ExtendedLengyelParameters:
+  """Constructs ExtendedLengyelParameters with derived physics values."""
   shaping_factor = extended_lengyel_formulas.calc_shaping_factor(
       elongation_psi95=elongation_psi95,
       triangularity_psi95=triangularity_psi95,
@@ -237,7 +582,7 @@ def run_extended_lengyel_standalone(
       )
   )
 
-  params = divertor_sol_1d_lib.ExtendedLengyelParameters(
+  return divertor_sol_1d_lib.ExtendedLengyelParameters(
       major_radius=major_radius,
       minor_radius=minor_radius,
       separatrix_average_poloidal_field=separatrix_average_poloidal_field,
@@ -270,7 +615,14 @@ def run_extended_lengyel_standalone(
       toroidal_flux_expansion=toroidal_flux_expansion,
   )
 
-  # Initialize values for iterative solver.
+
+def _get_initial_sol_model(
+    params: divertor_sol_1d_lib.ExtendedLengyelParameters,
+    initial_guess: divertor_sol_1d_lib.ExtendedLengyelInitialGuess | None,
+    computation_mode: extended_lengyel_enums.ComputationMode,
+    T_e_target_input: array_typing.FloatScalar | None,
+) -> divertor_sol_1d_lib.DivertorSOL1D:
+  """Constructs the initial DivertorSOL1D model from params and guess."""
   if initial_guess is not None:
     alpha_t_init = initial_guess.alpha_t
     kappa_e_init = initial_guess.kappa_e
@@ -283,13 +635,12 @@ def run_extended_lengyel_standalone(
     )
 
     if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-      T_e_target_init = T_e_target  # from input
+      T_e_target_init = T_e_target_input
       assert isinstance(initial_guess, divertor_sol_1d_lib.InverseInitialGuess)
       c_z_prefactor_init = initial_guess.c_z_prefactor
     elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
       assert isinstance(initial_guess, divertor_sol_1d_lib.ForwardInitialGuess)
       T_e_target_init = initial_guess.T_e_target
-      # Not used as an evolved variable in forward mode.
       c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
     else:
       raise ValueError(f'Unknown computation mode: {computation_mode}')
@@ -297,10 +648,8 @@ def run_extended_lengyel_standalone(
   else:
     alpha_t_init = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
     c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
-    kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
-    T_e_separatrix_init = (
-        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
-    )  # [eV]
+    kappa_e_init = extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT
+    T_e_separatrix_init = extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
     q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
         params=params,
         T_e_separatrix=T_e_separatrix_init,
@@ -308,11 +657,11 @@ def run_extended_lengyel_standalone(
     )
 
     if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-      T_e_target_init = T_e_target  # from input
+      T_e_target_init = T_e_target_input
     elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
       T_e_target_init = (
           extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
-      )  # eV.
+      )
     else:
       raise ValueError(f'Unknown computation mode: {computation_mode}')
 
@@ -324,84 +673,78 @@ def run_extended_lengyel_standalone(
       T_e_target=T_e_target_init,
   )
 
-  initial_sol_model = divertor_sol_1d_lib.DivertorSOL1D(
+  return divertor_sol_1d_lib.DivertorSOL1D(
       params=params,
       state=initial_state,
   )
 
-  # --------------------------------------- #
-  # -------- 2. Iterative Solver----------- #
-  # --------------------------------------- #
 
-  solver_key = (computation_mode, solver_mode)
-
-  # ComputationMode enum is a static variable so can use standard flow.
-  match solver_key:
+def _execute_solver(
+    sol_model_input: divertor_sol_1d_lib.DivertorSOL1D,
+    computation_mode: extended_lengyel_enums.ComputationMode,
+    solver_mode: extended_lengyel_enums.SolverMode,
+    fixed_point_iterations: int,
+    newton_raphson_iterations: int,
+    newton_raphson_tol: float,
+) -> tuple[
+    divertor_sol_1d_lib.DivertorSOL1D,
+    extended_lengyel_solvers.ExtendedLengyelSolverStatus,
+]:
+  """Executes the appropriate solver based on modes."""
+  match (computation_mode, solver_mode):
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
         extended_lengyel_enums.SolverMode.FIXED_POINT,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.inverse_mode_fixed_point_solver(
-              initial_sol_model=initial_sol_model,
-              iterations=fixed_point_iterations,
-          )
+      return extended_lengyel_solvers.inverse_mode_fixed_point_solver(
+          initial_sol_model=sol_model_input,
+          iterations=fixed_point_iterations,
       )
     case (
         extended_lengyel_enums.ComputationMode.FORWARD,
         extended_lengyel_enums.SolverMode.FIXED_POINT,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.forward_mode_fixed_point_solver(
-              initial_sol_model=initial_sol_model,
-              iterations=fixed_point_iterations,
-          )
+      return extended_lengyel_solvers.forward_mode_fixed_point_solver(
+          initial_sol_model=sol_model_input,
+          iterations=fixed_point_iterations,
       )
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
         extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.inverse_mode_newton_solver(
-              initial_sol_model=initial_sol_model,
-              maxiter=newton_raphson_iterations,
-              tol=newton_raphson_tol,
-          )
+      return extended_lengyel_solvers.inverse_mode_newton_solver(
+          initial_sol_model=sol_model_input,
+          maxiter=newton_raphson_iterations,
+          tol=newton_raphson_tol,
       )
     case (
         extended_lengyel_enums.ComputationMode.FORWARD,
         extended_lengyel_enums.SolverMode.NEWTON_RAPHSON,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.forward_mode_newton_solver(
-              initial_sol_model=initial_sol_model,
-              maxiter=newton_raphson_iterations,
-              tol=newton_raphson_tol,
-          )
+      return extended_lengyel_solvers.forward_mode_newton_solver(
+          initial_sol_model=sol_model_input,
+          maxiter=newton_raphson_iterations,
+          tol=newton_raphson_tol,
       )
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
         extended_lengyel_enums.SolverMode.HYBRID,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.inverse_mode_hybrid_solver(
-              initial_sol_model=initial_sol_model,
-              fixed_point_iterations=fixed_point_iterations,
-              newton_raphson_iterations=newton_raphson_iterations,
-              newton_raphson_tol=newton_raphson_tol,
-          )
+      return extended_lengyel_solvers.inverse_mode_hybrid_solver(
+          initial_sol_model=sol_model_input,
+          fixed_point_iterations=fixed_point_iterations,
+          newton_raphson_iterations=newton_raphson_iterations,
+          newton_raphson_tol=newton_raphson_tol,
       )
     case (
         extended_lengyel_enums.ComputationMode.FORWARD,
         extended_lengyel_enums.SolverMode.HYBRID,
     ):
-      output_sol_model, solver_status = (
-          extended_lengyel_solvers.forward_mode_hybrid_solver(
-              initial_sol_model=initial_sol_model,
-              fixed_point_iterations=fixed_point_iterations,
-              newton_raphson_iterations=newton_raphson_iterations,
-              newton_raphson_tol=newton_raphson_tol,
-          )
+      return extended_lengyel_solvers.forward_mode_hybrid_solver(
+          initial_sol_model=sol_model_input,
+          fixed_point_iterations=fixed_point_iterations,
+          newton_raphson_iterations=newton_raphson_iterations,
+          newton_raphson_tol=newton_raphson_tol,
       )
     case _:
       raise ValueError(
@@ -409,19 +752,169 @@ def run_extended_lengyel_standalone(
           f' {computation_mode}, {solver_mode}'
       )
 
-  # --------------------------------------- #
-  # -------- 3. Post-processing ----------- #
-  # --------------------------------------- #
 
-  pressure_neutral_divertor, q_perpendicular_target = (
-      _calc_post_processed_outputs(
-          sol_model=output_sol_model,
-      )
+def _run_forward_mode_multistart(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    solver_mode: extended_lengyel_enums.SolverMode,
+    fixed_point_iterations: int,
+    newton_raphson_iterations: int,
+    newton_raphson_tol: float,
+    diverted: bool,
+    enrichment_model_multiplier: array_typing.FloatScalar,
+    multistart_num_guesses: int,
+) -> ExtendedLengyelOutputs:
+  """Runs the forward mode solver with multi-start logic."""
+
+  # 1. Generate grid of guesses
+  T_grid = jnp.logspace(
+      jnp.log10(extended_lengyel_defaults.MULTISTART_T_E_TARGET_MIN),
+      jnp.log10(extended_lengyel_defaults.MULTISTART_T_E_TARGET_MAX),
+      num=multistart_num_guesses - 1,
+  )
+  # Alternate alpha_t between MIN and MAX
+  alpha_grid = jnp.where(
+      jnp.arange(multistart_num_guesses - 1) % 2 == 0,
+      extended_lengyel_defaults.MULTISTART_ALPHA_T_VALUES[0],
+      extended_lengyel_defaults.MULTISTART_ALPHA_T_VALUES[1],
   )
 
+  initial_state = initial_sol_model.state
+
+  all_T_target_guesses = jnp.concatenate(
+      [jnp.asarray([initial_state.T_e_target]), T_grid]
+  )
+  all_alpha_t_guesses = jnp.concatenate(
+      [jnp.asarray([initial_state.alpha_t]), alpha_grid]
+  )
+
+  def _process_single_guess(T_e_target, alpha_t):
+    # a. Make guess
+    state_guess = dataclasses.replace(
+        initial_state, T_e_target=T_e_target, alpha_t=alpha_t
+    )
+    model = dataclasses.replace(initial_sol_model, state=state_guess)
+
+    # b. Execute solver
+    model_out, status = _execute_solver(
+        model,
+        extended_lengyel_enums.ComputationMode.FORWARD,
+        solver_mode,
+        fixed_point_iterations,
+        newton_raphson_iterations,
+        newton_raphson_tol,
+    )
+
+    # c. Post-process output
+    pressure_neutral_divertor, q_perpendicular_target = (
+        _calc_post_processed_outputs(sol_model=model_out)
+    )
+    calculated_enrichment = {}
+    params = model_out.params
+    all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
+        params.seed_impurity_weights.keys()
+    )
+    for impurity in all_impurities:
+      calculated_enrichment[impurity] = jnp.where(
+          diverted,
+          extended_lengyel_formulas.calc_enrichment_kallenbach(
+              pressure_neutral_divertor=pressure_neutral_divertor,
+              ion_symbol=impurity,
+              enrichment_multiplier=enrichment_model_multiplier,
+          ),
+          jnp.array(1.0, dtype=jax_utils.get_dtype()),
+      )
+
+    is_valid = (
+        status.numerics_outcome.error != 1
+        if isinstance(status.numerics_outcome, jax_root_finding.RootMetadata)
+        else jnp.array(True)
+    )
+
+    output = ExtendedLengyelOutputs(
+        T_e_target=model_out.state.T_e_target,
+        pressure_neutral_divertor=pressure_neutral_divertor,
+        alpha_t=model_out.state.alpha_t,
+        kappa_e=model_out.state.kappa_e,
+        c_z_prefactor=model_out.state.c_z_prefactor,
+        q_parallel=model_out.state.q_parallel,
+        q_perpendicular_target=q_perpendicular_target,
+        T_e_separatrix=model_out.T_e_separatrix / 1e3,
+        Z_eff_separatrix=model_out.Z_eff_separatrix,
+        seed_impurity_concentrations=model_out.seed_impurity_concentrations,
+        solver_status=status,
+        calculated_enrichment=calculated_enrichment,
+        roots=None,
+        multiple_roots_found=jnp.array(False),
+    )
+    return output, is_valid
+
+  batch_outputs, valid_mask = jax.vmap(_process_single_guess)(
+      all_T_target_guesses, all_alpha_t_guesses
+  )
+
+  # 4. Selection Logic. Find viable solutions.
+  nominal_valid = valid_mask[0]
+
+  # 5. Set nominal solution (index 0) if valid, else argmin of distance.
+  def _distance_squared(T_e):
+    return (jnp.log(T_e) - jnp.log(initial_state.T_e_target)) ** 2
+
+  distances = jax.vmap(_distance_squared)(batch_outputs.T_e_target)
+  distances = jnp.where(valid_mask, distances, jnp.inf)
+
+  nominal_idx = jax.lax.cond(
+      nominal_valid,
+      lambda: 0,
+      lambda: jnp.argmin(distances),
+  )
+
+  nominal_output = jax.tree_util.tree_map(
+      lambda x: x[nominal_idx], batch_outputs
+  )
+
+  # 6. Identify Multiple distinct and valid Roots
+  valid_Ts = jnp.where(valid_mask, batch_outputs.T_e_target, jnp.nan)
+  sorted_valid_Ts = jnp.sort(valid_Ts)
+  diffs = jnp.diff(sorted_valid_Ts)
+  is_gap = _roots_are_distinct(diffs, sorted_valid_Ts[:-1])
+  num_valid = jnp.sum(valid_mask)
+  has_gaps = jnp.sum(is_gap, where=jnp.isfinite(diffs)) > 0
+  multiple_roots_found = jnp.logical_and(has_gaps, num_valid > 1)
+
+  return dataclasses.replace(
+      nominal_output,
+      roots=batch_outputs,
+      multiple_roots_found=multiple_roots_found,
+  )
+
+
+def _run_single_solver(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    computation_mode: extended_lengyel_enums.ComputationMode,
+    solver_mode: extended_lengyel_enums.SolverMode,
+    fixed_point_iterations: int,
+    newton_raphson_iterations: int,
+    newton_raphson_tol: float,
+    diverted: bool,
+    enrichment_model_multiplier: array_typing.FloatScalar,
+) -> ExtendedLengyelOutputs:
+  """Runs a single solver instance (e.g. for Inverse mode)."""
+  output_sol_model, solver_status = _execute_solver(
+      initial_sol_model,
+      computation_mode,
+      solver_mode,
+      fixed_point_iterations,
+      newton_raphson_iterations,
+      newton_raphson_tol,
+  )
+
+  pressure_neutral_divertor, q_perpendicular_target = (
+      _calc_post_processed_outputs(sol_model=output_sol_model)
+  )
   calculated_enrichment = {}
-  all_impurities = set(fixed_impurity_concentrations.keys()) | set(
-      seed_impurity_weights.keys()
+  params = output_sol_model.params
+  all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
+      params.seed_impurity_weights.keys()
   )
   for species in all_impurities:
     # For limited geometry, enrichment factor is 1.0.
@@ -448,6 +941,10 @@ def run_extended_lengyel_standalone(
       seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,
       solver_status=solver_status,
       calculated_enrichment=calculated_enrichment,
+      roots=None,
+      multiple_roots_found=jnp.array(False)
+      if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD
+      else None,
   )
 
 

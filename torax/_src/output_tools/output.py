@@ -13,11 +13,12 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import dataclasses
 import functools
 import inspect
 import itertools
+from typing import cast
 
 import os
 
@@ -465,7 +466,7 @@ class StateHistory:
         SCALARS: xr.DataTree(dataset=scalars),
     }
     if self._stacked_edge_outputs is not None:
-      children[EDGE] = xr.DataTree(dataset=self._save_edge_outputs())
+      children[EDGE] = self._save_edge_outputs()
     data_tree = xr.DataTree(
         children=children,
         dataset=xr.Dataset(
@@ -886,9 +887,10 @@ class StateHistory:
 
     return xr_dict
 
-  def _save_edge_outputs(self) -> xr.Dataset:
-    """Saves the edge outputs to a dataset."""
+  def _save_edge_outputs(self) -> xr.DataTree:
+    """Saves the edge outputs to a DataTree."""
     xr_dict = {}
+    children = {}
     outputs = self._stacked_edge_outputs
 
     # Fields from ExtendedLengyelOutputs
@@ -896,8 +898,8 @@ class StateHistory:
     if not isinstance(
         outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
     ):
-      # Return empty dataset for non-extended-lengyel edge outputs.
-      return xr.Dataset(xr_dict)
+      # Return empty DataTree for non-extended-lengyel edge outputs.
+      return xr.DataTree(dataset=xr.Dataset(xr_dict))
 
     standard_output_fields = [
         "q_parallel",
@@ -907,6 +909,7 @@ class StateHistory:
         "pressure_neutral_divertor",
         "alpha_t",
         "Z_eff_separatrix",
+        "multiple_roots_found",
     ]
 
     edge_output_fields = dataclasses.fields(outputs)
@@ -914,7 +917,9 @@ class StateHistory:
       name = field.name
       value = getattr(outputs, name)
       if field.name in standard_output_fields:
-        xr_dict[name] = self._pack_into_data_array(name, value)
+        packed = self._pack_into_data_array(name, value)
+        if packed is not None:
+          xr_dict[name] = packed
         continue
       # Special handling for seed_impurity_concentrations
       if name == SEED_IMPURITY_CONCENTRATIONS and value:
@@ -944,6 +949,12 @@ class StateHistory:
             name=name,
         )
         continue
+
+      if name == "roots" and value is not None:
+        roots_dict = self._process_roots_output(outputs)
+        if roots_dict:
+          children["roots"] = xr.DataTree(dataset=xr.Dataset(roots_dict))
+
     # Fields from SolverStatus which depend on the solver type
     xr_dict["solver_physics_outcome"] = self._pack_into_data_array(
         "solver_physics_outcome", outputs.solver_status.physics_outcome
@@ -972,4 +983,65 @@ class StateHistory:
           "fixed_point_outcome", numerics
       )
 
-    return xr.Dataset(xr_dict)
+    return xr.DataTree(dataset=xr.Dataset(xr_dict), children=children)
+
+  def _process_roots_output(
+      self, roots: extended_lengyel_standalone.ExtendedLengyelOutputs
+  ) -> Mapping[str, xr.DataArray]:
+    """Processes roots output to identify unique valid roots."""
+    unique_roots_obj = roots.get_unique_roots()
+    if unique_roots_obj is None:
+      return {}
+
+    xr_dict = {}
+    default_dims = [TIME, "n_roots"]
+
+    # Helper to add data to xr_dict with correct dims
+    def _add_to_xr(name: str, data: jax.Array):
+      if data.ndim == len(default_dims):
+        dims = default_dims
+      elif data.ndim > len(default_dims):
+        # Handle extra dimensions (e.g. vector residual)
+        extra_dims = [
+            f"{name}_dim_{i}" for i in range(data.ndim - len(default_dims))
+        ]
+        dims = default_dims + extra_dims
+      else:
+        dims = default_dims[: data.ndim]
+
+      xr_dict[name] = xr.DataArray(data, dims=dims, name=name)
+
+    # Iterate over fields of the returned object
+    # Cast to concrete type for Pytype
+    unique_roots_obj = cast(
+        extended_lengyel_standalone.ExtendedLengyelOutputs, unique_roots_obj
+    )
+    for field in dataclasses.fields(unique_roots_obj):
+      name = field.name
+      # Skip internal fields or recursion or solver_status (handled explicitly)
+      if name in ("roots", "multiple_roots_found", "solver_status"):
+        continue
+
+      value = getattr(unique_roots_obj, name)
+
+      if isinstance(value, (jax.Array, np.ndarray)):
+        _add_to_xr(name, value)
+      elif isinstance(value, Mapping):
+        for k, v in value.items():
+          # Flatten dict fields -> name_key
+          _add_to_xr(f"{name}_{k}", v)
+
+    # Handle solver_status explicitly to flatten metrics
+    status = unique_roots_obj.solver_status
+    if status.physics_outcome is not None:
+      _add_to_xr(
+          "solver_physics_outcome", jax.numpy.asarray(status.physics_outcome)
+      )
+
+    numerics = status.numerics_outcome
+    if isinstance(numerics, jax_root_finding.RootMetadata):
+      _add_to_xr("solver_iterations", numerics.iterations)
+      _add_to_xr("solver_residual", numerics.residual)
+      _add_to_xr("solver_error", numerics.error)
+
+    return xr_dict

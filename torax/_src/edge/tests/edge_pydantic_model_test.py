@@ -484,6 +484,13 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       else:
         np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)
 
+  def test_multistart_num_guesses_validation(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'greater than or equal to 2',
+    ):
+      pydantic_model.ExtendedLengyelConfig(multistart_num_guesses=1)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -44,9 +44,23 @@ NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
 NEWTON_RAPHSON_TAU_MIN: Final[float] = 1e-4
 
+# Multistart Solver
+# Number of guesses to use for the multistart solver in forward mode.
+MULTISTART_NUM_GUESSES: Final[int] = 10
+# Range for the grid of T_e_target guesses [eV]
+MULTISTART_T_E_TARGET_MIN: Final[float] = 1.0
+MULTISTART_T_E_TARGET_MAX: Final[float] = 500.0
+# Values for alpha_t grid
+MULTISTART_ALPHA_T_VALUES: Final[tuple[float, float]] = (0.1, 0.6)
+# Tolerances for T_e_target difference for establishing unique roots.
+MULTISTART_ROOT_ATOL: Final[float] = 0.01  # eV
+MULTISTART_ROOT_RTOL: Final[float] = 0.01
+
+
 # Physics defaults for initialization. Found by experimentation to be
 # robust for a variety of scenarios.
 DEFAULT_ALPHA_T_INIT: Final[float] = 0.1
+DEFAULT_KAPPA_E_INIT: Final[float] = 1800.0
 DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
 DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 200.0  # eV
 DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 100.0  # eV

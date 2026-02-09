@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_model
 from torax._src.edge import extended_lengyel_solvers
@@ -618,7 +619,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         passed_initial_guess.kappa_e,
-        2390.0,  # KAPPA_E_0
+        extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
         err_msg='kappa_e should have fallen back to default, not bad previous.',
     )
 
@@ -771,6 +772,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'fixed_point_iterations': 1,
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
+        'multistart_num_guesses': 10,
         'ne_tau': 0.0,
         'divertor_broadening_factor': 1.0,
         'ratio_bpol_omp_to_bpol_avg': 1.0,

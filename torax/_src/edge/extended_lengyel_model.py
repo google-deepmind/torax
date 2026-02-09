@@ -109,6 +109,8 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   fixed_point_iterations: int
   newton_raphson_iterations: int
   newton_raphson_tol: float
+  # Number of guesses for forward mode multistart solver.
+  multistart_num_guesses: int = dataclasses.field(metadata={'static': True})
 
   # --- Physical Parameters ---
   # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
@@ -303,6 +305,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         fixed_point_iterations=edge_params.fixed_point_iterations,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
+        multistart_num_guesses=edge_params.multistart_num_guesses,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
         diverted=diverted,
         initial_guess=initial_guess,
@@ -511,9 +514,7 @@ def _get_initial_guess(
     else:
       # Fixed-point always succeeds
       bad_numerics = False
-    viable_previous = jnp.logical_not(
-        jnp.logical_or(bad_physics, bad_numerics)
-    )
+    viable_previous = jnp.logical_not(jnp.logical_or(bad_physics, bad_numerics))
 
   # Warm start logic: use previous only if enabled AND we have previous outputs
   # AND those previous outputs are usable (good solver outcome).
@@ -529,7 +530,8 @@ def _get_initial_guess(
       dtype=jax_utils.get_dtype(),
   )
   kappa_e_default = jnp.array(
-      extended_lengyel_defaults.KAPPA_E_0, dtype=jax_utils.get_dtype()
+      extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
+      dtype=jax_utils.get_dtype(),
   )
   T_e_separatrix_default = jnp.array(
       extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
