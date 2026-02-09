@@ -27,6 +27,8 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
@@ -394,32 +396,38 @@ def _calc_coeffs_full(
   )
 
   # 5. Add internal boundary condition source terms
-  # TODO(b/323504363): Currently pedestal model is called twice, once in
-  # calculate_total_transport_coeffs and once here.
-  pedestal_model_output = physics_models.pedestal_model(
-      runtime_params, geo, core_profiles
-  )
-  (
-      source_i,
-      source_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
-      source_T_i=source_i,
-      source_T_e=source_e,
-      source_n_e=source_n_e,
-      source_mat_ii=source_mat_ii,
-      source_mat_ee=source_mat_ee,
-      source_mat_nn=source_mat_nn,
-      runtime_params=runtime_params,
-      # Pedestal contributes an internal boundary condition to the source
-      # terms at the pedestal top.
-      internal_boundary_conditions=pedestal_model_output.to_internal_boundary_conditions(
-          geo
-      ),
-  )
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+  ):
+    # TODO(b/323504363): Currently pedestal model is called twice, once in
+    # calculate_total_transport_coeffs and once here.
+    pedestal_model_output = physics_models.pedestal_model(
+        runtime_params, geo, core_profiles
+    )
+    assert isinstance(
+        pedestal_model_output,
+        pedestal_model_lib.AdaptiveSourcePedestalModelOutput,
+    )
+    (
+        source_i,
+        source_e,
+        source_n_e,
+        source_mat_ii,
+        source_mat_ee,
+        source_mat_nn,
+    ) = internal_boundary_conditions_lib.apply_adaptive_source(
+        source_T_i=source_i,
+        source_T_e=source_e,
+        source_n_e=source_n_e,
+        source_mat_ii=source_mat_ii,
+        source_mat_ee=source_mat_ee,
+        source_mat_nn=source_mat_nn,
+        runtime_params=runtime_params,
+        internal_boundary_conditions=(
+            pedestal_model_output.to_internal_boundary_conditions(geo)
+        ),
+    )
 
   # --- Build arguments to solver  --- #
   # Selects only necessary coefficients based on which variables are evolving
