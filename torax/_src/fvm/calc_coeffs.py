@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Calculates Block1DCoeffs for a time step."""
+
 import functools
 
 import jax
@@ -26,7 +27,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.internal_boundary_conditions import adaptive_source
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -298,6 +299,9 @@ def _calc_coeffs_full(
   pedestal_model_output = physics_models.pedestal_model(
       runtime_params, geo, core_profiles
   )
+  internal_boundary_conditions_from_config = (
+      runtime_params.profile_conditions.internal_boundary_conditions
+  )
 
   conductivity = (
       physics_models.neoclassical_models.conductivity.calculate_conductivity(
@@ -521,7 +525,15 @@ def _calc_coeffs_full(
       * core_profiles.psi.grad()
   )
 
-  # Add internal boundary condition source terms
+  # Add internal boundary condition source terms, combining user-specified
+  # boundary conditions with pedestal model output.
+  # Note that the pedestal model will overwrite any user-specified boundary
+  # conditions, since the pedestal model is applied last.
+  combined_internal_boundary_conditions = (
+      internal_boundary_conditions_from_config.update(
+          pedestal_model_output.to_internal_boundary_conditions(geo)
+      )
+  )
   (
       source_i,
       source_e,
@@ -529,7 +541,7 @@ def _calc_coeffs_full(
       source_mat_ii,
       source_mat_ee,
       source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
+  ) = adaptive_source.apply_adaptive_source(
       source_T_i=source_i,
       source_T_e=source_e,
       source_n_e=source_n_e,
@@ -537,11 +549,7 @@ def _calc_coeffs_full(
       source_mat_ee=source_mat_ee,
       source_mat_nn=source_mat_nn,
       runtime_params=runtime_params,
-      # Pedestal contributes an internal boundary condition to the source
-      # terms at the pedestal top.
-      internal_boundary_conditions=pedestal_model_output.to_internal_boundary_conditions(
-          geo
-      ),
+      internal_boundary_conditions=combined_internal_boundary_conditions,
   )
 
   # Build arguments to solver based on which variables are evolving

@@ -16,13 +16,13 @@
 
 import dataclasses
 
+import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-
+from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
@@ -72,64 +72,18 @@ class InternalBoundaryConditions:
     )
 
 
-def apply_adaptive_source(
-    *,
-    source_T_i: array_typing.FloatVectorCell,
-    source_T_e: array_typing.FloatVectorCell,
-    source_n_e: array_typing.FloatVectorCell,
-    source_mat_ii: array_typing.FloatVectorCell,
-    source_mat_ee: array_typing.FloatVectorCell,
-    source_mat_nn: array_typing.FloatVectorCell,
-    runtime_params: runtime_params_lib.RuntimeParams,
-    internal_boundary_conditions: InternalBoundaryConditions,
-) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-]:
-  """Applies an adaptive source to the source profiles to set internal boundary conditions."""
+class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for internal boundary conditions."""
 
-  # Ion temperature
-  source_T_i += (
-      runtime_params.numerics.adaptive_T_source_prefactor
-      * internal_boundary_conditions.T_i
-  )
-  source_mat_ii -= jnp.where(
-      internal_boundary_conditions.T_i != 0.0,
-      runtime_params.numerics.adaptive_T_source_prefactor,
-      0.0,
-  )
+  # Set to zero by default, which is ignored by the adaptive source.
+  T_i: torax_pydantic.TimeVaryingPoints = torax_pydantic.ValidatedDefault(0.0)
+  T_e: torax_pydantic.TimeVaryingPoints = torax_pydantic.ValidatedDefault(0.0)
+  n_e: torax_pydantic.TimeVaryingPoints = torax_pydantic.ValidatedDefault(0.0)
 
-  # Electron temperature
-  source_T_e += (
-      runtime_params.numerics.adaptive_T_source_prefactor
-      * internal_boundary_conditions.T_e
-  )
-  source_mat_ee -= jnp.where(
-      internal_boundary_conditions.T_e != 0.0,
-      runtime_params.numerics.adaptive_T_source_prefactor,
-      0.0,
-  )
-
-  # Density
-  source_n_e += (
-      runtime_params.numerics.adaptive_n_source_prefactor
-      * internal_boundary_conditions.n_e
-  )
-  source_mat_nn -= jnp.where(
-      internal_boundary_conditions.n_e != 0.0,
-      runtime_params.numerics.adaptive_n_source_prefactor,
-      0.0,
-  )
-
-  return (
-      source_T_i,
-      source_T_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  )
+  def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
+    """Builds the runtime params for the internal boundary conditions."""
+    kwargs = {
+        field.name: getattr(self, field.name).get_value(t)
+        for field in dataclasses.fields(InternalBoundaryConditions)
+    }
+    return InternalBoundaryConditions(**kwargs)

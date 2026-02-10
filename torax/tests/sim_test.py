@@ -238,6 +238,11 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_z_eff',
           'test_iterhybrid_predictor_corrector_mavrin_n_e_ratios_z_eff.py',
       ),
+      # Tests time dependent internal boundary conditions.
+      (
+          'test_iterhybrid_predictor_corrector_internal_boundary',
+          'test_iterhybrid_predictor_corrector_internal_boundary.py',
+      ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
           'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
