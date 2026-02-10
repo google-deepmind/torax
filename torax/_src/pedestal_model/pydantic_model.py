@@ -17,6 +17,8 @@ import abc
 from typing import Annotated, Literal
 
 import chex
+import pydantic
+from torax._src.pedestal_model import dynamic_pedestal
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
@@ -33,10 +35,16 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   Attributes:
     set_pedestal: Whether to use the pedestal model and set the pedestal. Can be
       time varying.
+    mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
+      set the pedestal by modifying the transport coefficients. Set to
+      ADAPTIVE_SOURCE to set the pedestal by adding a source/sink term.
   """
 
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
+  )
+  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params.Mode.ADAPTIVE_SOURCE
   )
 
   @abc.abstractmethod
@@ -78,6 +86,13 @@ class SetPpedTpedRatioNped(BasePedestal):
       torax_pydantic.ValidatedDefault(0.91)
   )
 
+  @pydantic.field_validator('mode')
+  @classmethod
+  def _validate_mode(cls, v: runtime_params.Mode) -> runtime_params.Mode:
+    if v != runtime_params.Mode.ADAPTIVE_SOURCE:
+      raise ValueError(f'mode must be {runtime_params.Mode.ADAPTIVE_SOURCE}')
+    return v
+
   def build_pedestal_model(
       self,
   ) -> (
@@ -92,6 +107,7 @@ class SetPpedTpedRatioNped(BasePedestal):
   ) -> set_pped_tpedratio_nped.RuntimeParams:
     return set_pped_tpedratio_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -115,6 +131,7 @@ class SetTpedNped(BasePedestal):
   model_name: Annotated[
       Literal['set_T_ped_n_ped'], torax_pydantic.JAX_STATIC
   ] = 'set_T_ped_n_ped'
+  # This pedestal model only supports ADAPTIVE_SOURCE mode.
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
   )
@@ -129,6 +146,13 @@ class SetTpedNped(BasePedestal):
       torax_pydantic.ValidatedDefault(0.91)
   )
 
+  @pydantic.field_validator('mode')
+  @classmethod
+  def _validate_mode(cls, v: runtime_params.Mode) -> runtime_params.Mode:
+    if v != runtime_params.Mode.ADAPTIVE_SOURCE:
+      raise ValueError(f'mode must be {runtime_params.Mode.ADAPTIVE_SOURCE}')
+    return v
+
   def build_pedestal_model(
       self,
   ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
@@ -139,6 +163,7 @@ class SetTpedNped(BasePedestal):
   ) -> set_tped_nped.RuntimeParams:
     return set_tped_nped.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -168,7 +193,62 @@ class NoPedestal(BasePedestal):
   ) -> runtime_params.RuntimeParams:
     return runtime_params.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
     )
 
 
-PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+class DynamicPedestal(BasePedestal):
+  """A pedestal that forms dynamically based on the LH threshold and critical ballooning parameter."""
+
+  model_name: Annotated[
+      Literal['dynamic_pedestal'], torax_pydantic.JAX_STATIC
+  ] = 'dynamic_pedestal'
+  suppression_factor: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e-3)
+  )
+  suppression_rate: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.1)
+  )
+  augmentation_factor: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e3)
+  )
+  augmentation_rate: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.1)
+  )
+  alpha_crit: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(3.0)
+  )
+  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+
+  @pydantic.field_validator('mode')
+  @classmethod
+  def _validate_mode(cls, v: runtime_params.Mode) -> runtime_params.Mode:
+    if v != runtime_params.Mode.ADAPTIVE_TRANSPORT:
+      raise ValueError(f'mode must be {runtime_params.Mode.ADAPTIVE_TRANSPORT}')
+    return v
+
+  def build_pedestal_model(
+      self,
+  ) -> dynamic_pedestal.DynamicPedestal:
+    return dynamic_pedestal.DynamicPedestal()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> dynamic_pedestal.RuntimeParams:
+    return dynamic_pedestal.RuntimeParams(
+        set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
+        suppression_factor=self.suppression_factor.get_value(t),
+        suppression_rate=self.suppression_rate.get_value(t),
+        augmentation_factor=self.augmentation_factor.get_value(t),
+        augmentation_rate=self.augmentation_rate.get_value(t),
+        alpha_crit=self.alpha_crit.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
+
+
+PedestalConfig = (
+    SetPpedTpedRatioNped | SetTpedNped | NoPedestal | DynamicPedestal
+)

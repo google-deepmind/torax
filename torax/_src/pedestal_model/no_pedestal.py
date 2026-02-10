@@ -18,6 +18,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -37,10 +38,30 @@ class NoPedestal(pedestal_model.PedestalModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_model.PedestalModelOutput:
-    return pedestal_model.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf,
-        T_i_ped=0.0,
-        T_e_ped=0.0,
-        n_e_ped=0.0,
-        rho_norm_ped_top_idx=geo.torax_mesh.nx,
-    )
+    if (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+    ):
+      return pedestal_model.AdaptiveSourcePedestalModelOutput(
+          rho_norm_ped_top=jnp.inf,
+          T_i_ped=0.0,
+          T_e_ped=0.0,
+          n_e_ped=0.0,
+          rho_norm_ped_top_idx=geo.torax_mesh.nx,
+      )
+    elif (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+    ):
+      return pedestal_model.AdaptiveTransportPedestalModelOutput(
+          rho_norm_ped_top=jnp.inf,
+          rho_norm_ped_top_idx=geo.torax_mesh.nx,
+          chi_e_multiplier=1.0,
+          chi_i_multiplier=1.0,
+          D_e_multiplier=1.0,
+          v_e_multiplier=1.0,
+      )
+    else:
+      raise ValueError(
+          f'Unsupported pedestal model mode: {runtime_params.pedestal.mode}'
+      )

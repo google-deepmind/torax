@@ -32,8 +32,11 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import turbulent_transport
 
 # pylint: disable=invalid-name
+
+TurbulentTransport = turbulent_transport.TurbulentTransport
 
 # Map main channels to their sub-channels (if any) and disable flags
 # TODO(b/434175938): Upgrade TransportModel to encapsulate this structure.
@@ -68,53 +71,6 @@ CHANNEL_CONFIG_STRUCT: Final[Mapping[str, dict[str, Sequence[str] | str]]] = (
         },
     })
 )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass
-class TurbulentTransport:
-  """Turbulent transport coefficients calculated by a transport model.
-
-  Attributes:
-    chi_face_ion: Ion heat conductivity, on the face grid.
-    chi_face_el: Electron heat conductivity, on the face grid.
-    d_face_el: Diffusivity of electron density, on the face grid.
-    v_face_el: Convection strength of electron density, on the face grid.
-    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
-      conductivity.
-    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
-      conductivity.
-    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
-    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
-      conductivity.
-    chi_face_ion_itg: (Optional) ITG contribution for ion heat conductivity.
-    chi_face_ion_tem: (Optional) TEM contribution for ion heat conductivity.
-    chi_face_el_itg: (Optional) ITG contribution for electron heat conductivity.
-    chi_face_el_tem: (Optional) TEM contribution for electron heat conductivity.
-    chi_face_el_etg: (Optional) ETG contribution for electron heat conductivity.
-    d_face_el_itg: (Optional) ITG contribution for electron diffusivity.
-    d_face_el_tem: (Optional) TEM contribution for electron diffusivity.
-    v_face_el_itg: (Optional) ITG contribution for electron convection.
-    v_face_el_tem: (Optional) TEM contribution for electron convection.
-  """
-
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
