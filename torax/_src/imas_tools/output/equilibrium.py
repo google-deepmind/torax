@@ -120,9 +120,7 @@ def torax_state_to_imas_equilibrium(
   eq.profiles_1d.gm2 = gm2
 
   # Quantities useful for coupling with equilibrium code
-  eq.profiles_1d.pressure = (
-      sim_state.core_profiles.pressure_thermal_total.face_value()
-  )
+  eq.profiles_1d.pressure = sim_state.core_profiles.pressure_total.face_value()
   eq.profiles_1d.dpressure_dpsi = post_processed_outputs.pprime
 
   # <j.B>/B_0, could be useful to calculate and use instead of FF'

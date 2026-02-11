@@ -53,6 +53,7 @@ class RuntimeParams:
   evolve_density: bool = dataclasses.field(metadata={'static': True})
   exact_t_final: bool = dataclasses.field(metadata={'static': True})
   adaptive_dt: bool = dataclasses.field(metadata={'static': True})
+  enable_fast_ions: bool = dataclasses.field(metadata={'static': True})
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
@@ -128,6 +129,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   evolve_density: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  enable_fast_ions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -188,4 +190,5 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         evolve_density=self.evolve_density,
         exact_t_final=self.exact_t_final,
         adaptive_dt=self.adaptive_dt,
+        enable_fast_ions=self.enable_fast_ions,
     )
