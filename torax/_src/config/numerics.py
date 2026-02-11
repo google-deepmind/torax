@@ -129,7 +129,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   evolve_density: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  enable_fast_ions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  enable_fast_ions: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
