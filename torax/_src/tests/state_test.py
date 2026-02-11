@@ -29,6 +29,7 @@ from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
+from torax._src.physics import fast_ions as fast_ions_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -354,6 +355,40 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         self.core_profiles.pressure_thermal_total.value,
         8.75e20 * constants.CONSTANTS.keV_to_J,
+    )
+
+  def test_thermal_densities_with_fast_ions(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+
+    fast_ion_he3 = fast_ions_lib.FastIon(
+        species='He3',
+        source='ICRH',
+        n=core_profile_helpers.make_constant_core_profile(geo, 0.05e20),
+        T=core_profile_helpers.make_constant_core_profile(geo, 100.0),
+    )
+
+    core_profiles = dataclasses.replace(
+        base_core_profiles,
+        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 2.0),
+        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e20),
+        n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
+        n_impurity=core_profile_helpers.make_constant_core_profile(
+            geo, 0.25e20
+        ),
+        fast_ions=(fast_ion_he3,),
+        main_ion_fractions={'D': 1.0},
+        impurity_fractions={'He3': jnp.ones(10)},
+    )
+
+    np.testing.assert_allclose(
+        core_profiles.n_impurity_thermal.value,
+        0.20e20,
+    )
+    np.testing.assert_allclose(
+        core_profiles.pressure_thermal_i.value,
+        2.7e20 * constants.CONSTANTS.keV_to_J,
     )
 
   def test_cached_properties_with_jit(self):
