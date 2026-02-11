@@ -964,7 +964,7 @@ def make_post_processed_outputs(
       Z_eff_face=sim_state.core_profiles.Z_eff_face,
       Z_i_face=sim_state.core_profiles.Z_i_face,
       toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
-      pressure_thermal_i=sim_state.core_profiles.pressure_thermal_i,
+      pressure_total_i=sim_state.core_profiles.pressure_total_i,
       geo=sim_state.geometry,
       poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )

@@ -191,6 +191,8 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         n_e=_get_cell_variable(1.0e20),
         n_i=_get_cell_variable(1.0e20),
         n_impurity=_get_cell_variable(1.0e20),
+        fast_ions=(),
+        pressure_fast_i=_get_cell_variable(0.0),
     )
 
     normalized_logarithmic_gradients = (
@@ -200,6 +202,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
             lref_over_lne=np.array([0.0, 3.0]),
             lref_over_lni0=np.array([0.0, 4.0]),
             lref_over_lni1=np.array([0.0, 5.0]),
+            fast_ion_gradients={},
         )
     )
     alpha = quasilinear_transport_model.calculate_alpha(
