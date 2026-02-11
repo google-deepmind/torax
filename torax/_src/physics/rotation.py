@@ -25,7 +25,7 @@ from torax._src.physics import psi_calculations
 
 # pylint: disable=invalid-name
 def _calculate_radial_electric_field(
-    pressure_thermal_i: cell_variable.CellVariable,
+    pressure_total_i: cell_variable.CellVariable,
     toroidal_angular_velocity: cell_variable.CellVariable,
     poloidal_velocity: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
@@ -39,7 +39,7 @@ def _calculate_radial_electric_field(
   Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
 
   Args:
-    pressure_thermal_i: Pressure profile as a cell variable.
+    pressure_total_i: Ion pressure profile (thermal + fast) as a cell variable.
     toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
     poloidal_velocity: Poloidal velocity profile as a cell variable.
     n_i: Main ion density profile as a cell variable.
@@ -52,7 +52,7 @@ def _calculate_radial_electric_field(
     Er: Radial electric field [V/m] on the cell grid.
   """
   # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
-  dpi_dr = pressure_thermal_i.face_grad(
+  dpi_dr = pressure_total_i.face_grad(
       x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
   )
 
@@ -90,7 +90,7 @@ def calculate_rotation(
     Z_eff_face: array_typing.FloatVectorFace,
     Z_i_face: array_typing.FloatVector,
     toroidal_angular_velocity: cell_variable.CellVariable,
-    pressure_thermal_i: cell_variable.CellVariable,
+    pressure_total_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
     poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
 ) -> tuple[
@@ -108,7 +108,7 @@ def calculate_rotation(
     Z_eff_face: Effective charge on the face grid.
     Z_i_face: Main ion charge on the face grid.
     toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
-    pressure_thermal_i: Pressure profile as a cell variable.
+    pressure_total_i: Total ion pressure (thermal + fast) as a cell variable.
     geo: Geometry object.
     poloidal_velocity_multiplier: A multiplier to apply to the poloidal
       velocity.
@@ -143,7 +143,7 @@ def calculate_rotation(
   )
 
   Er = _calculate_radial_electric_field(
-      pressure_thermal_i=pressure_thermal_i,
+      pressure_total_i=pressure_total_i,
       toroidal_angular_velocity=toroidal_angular_velocity,
       poloidal_velocity=poloidal_velocity,
       n_i=n_i,

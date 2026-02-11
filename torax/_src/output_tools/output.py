@@ -568,11 +568,12 @@ class StateHistory:
       if attr_name == "impurity_fractions":
         continue
 
-      # Skip charge_state_info since it is not needed in the output.
+      # Skip attributes that are not needed in the output.
       if attr_name in (
           "charge_state_info",
           "charge_state_info_face",
           "impurity_density_scaling",
+          "fast_ions",
       ):
         continue
 
@@ -647,6 +648,22 @@ class StateHistory:
         coords={MAIN_ION: main_ions, TIME: self.times},
         name="main_ion_fractions",
     )
+    # Handle fast ions
+    first_fast_ions = self.core_profiles[0].fast_ions
+    for i, first_fi in enumerate(first_fast_ions):
+      source_key = f"{first_fi.source}_{first_fi.species}"
+      n_data = np.stack([
+          cp.fast_ions[i].n.cell_plus_boundaries() for cp in self.core_profiles
+      ])
+      T_data = np.stack([
+          cp.fast_ions[i].T.cell_plus_boundaries() for cp in self.core_profiles
+      ])
+      xr_dict[f"n_fast_ion_{source_key}"] = self._pack_into_data_array(
+          f"n_fast_ion_{source_key}", n_data
+      )
+      xr_dict[f"T_fast_ion_{source_key}"] = self._pack_into_data_array(
+          f"T_fast_ion_{source_key}", T_data
+      )
 
     return xr_dict
 

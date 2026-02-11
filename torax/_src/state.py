@@ -28,6 +28,7 @@ from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import charge_states
+from torax._src.physics import fast_ions as fast_ions_lib
 import typing_extensions
 
 
@@ -78,6 +79,11 @@ class CoreProfiles:
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Face grid.
+      fast_ions: A tuple of `fast_ions_lib.FastIon` objects. Fast ions are
+        particles that have kinetic energy above the thermal equilibrium
+        distribution of the bulk plasma. Each `FastIon` object contains density
+        and temperature profiles as well as species and source information for a
+        population of fast ions.
   """
 
   T_i: cell_variable.CellVariable
@@ -109,6 +115,7 @@ class CoreProfiles:
   toroidal_angular_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
+  fast_ions: tuple[fast_ions_lib.FastIon, ...]
 
   @functools.cached_property
   def impurity_density_scaling(self) -> jax.Array:
@@ -152,6 +159,58 @@ class CoreProfiles:
         face_centers=self.pressure_thermal_e.face_centers,
         right_face_constraint=self.pressure_thermal_e.right_face_constraint
         + self.pressure_thermal_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_fast_i(self) -> cell_variable.CellVariable:
+    """Fast ion pressure [Pa].
+
+    Sum over all fast ion species: n * T * keV_to_J.
+    """
+    p_fast = jnp.zeros_like(self.n_e.value)
+    p_fast_right = jnp.array(0.0)
+    for fi in self.fast_ions:
+      p_fast = p_fast + fi.n.value * fi.T.value * constants.CONSTANTS.keV_to_J
+      if (
+          fi.n.right_face_constraint is None
+          or fi.T.right_face_constraint is None
+      ):
+        raise ValueError(
+            "Both fast ion n and T must have a right_face_constraint."
+        )
+      p_fast_right = (
+          p_fast_right
+          + fi.n.right_face_constraint
+          * fi.T.right_face_constraint
+          * constants.CONSTANTS.keV_to_J
+      )
+    return cell_variable.CellVariable(
+        value=p_fast,
+        face_centers=self.n_e.face_centers,
+        right_face_constraint=p_fast_right,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_total_i(self) -> cell_variable.CellVariable:
+    """Total ion pressure (thermal + fast) [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_i.value + self.pressure_fast_i.value,
+        face_centers=self.pressure_thermal_i.face_centers,
+        right_face_constraint=self.pressure_thermal_i.right_face_constraint
+        + self.pressure_fast_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_total(self) -> cell_variable.CellVariable:
+    """Total pressure (thermal + fast) [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_total.value + self.pressure_fast_i.value,
+        face_centers=self.pressure_thermal_total.face_centers,
+        right_face_constraint=self.pressure_thermal_total.right_face_constraint
+        + self.pressure_fast_i.right_face_constraint,
         right_face_grad_constraint=None,
     )
 
