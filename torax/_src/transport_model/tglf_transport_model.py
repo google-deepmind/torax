@@ -35,7 +35,7 @@ import pydantic
 from torax._src import jax_utils
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params_slice
+from torax._src.config import runtime_params
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -77,7 +77,7 @@ class TGLFTransportModel(
   def _call_implementation(
       self,
       transport_runtime_params: runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params_slice.RuntimeParams,
+      runtime_params: runtime_params.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
