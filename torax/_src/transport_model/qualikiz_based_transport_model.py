@@ -241,6 +241,12 @@ class QualikizBasedTransportModel(
     gamma_E_SI = rmid_face / q * cv.face_grad(
         x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1]
     )
+    # Smooth the profile near the axis to avoid numerical instabilities.
+    axis_ramp = jnp.minimum(
+        (geo.rho_face_norm / 0.1) ** 2,
+        1.0,
+    )
+    gamma_E_SI = gamma_E_SI * axis_ramp
     gamma_E_SI = gamma_E_SI * transport.rotation_multiplier
 
     # We need different normalizations for QuaLiKiz and QLKNN models.

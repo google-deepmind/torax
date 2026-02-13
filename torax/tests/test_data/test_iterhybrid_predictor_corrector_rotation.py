@@ -31,10 +31,6 @@ CONFIG['profile_conditions']['toroidal_angular_velocity'] = {
     1.0: 0.0,
 }
 
-# Reduce the final time since numerical difference across platforms can
-# cause significant divergences over time.
-CONFIG['numerics']['t_final'] = 3.0
-
 
 # Modify this if you want to scale up or down the effect of rotation.
 CONFIG['transport']['rotation_multiplier'] = 1.0

@@ -263,7 +263,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_rotation',
           'test_iterhybrid_predictor_corrector_rotation.py',
           _ALL_PROFILES,
-          1e-6,
+          5e-6,
       ),
       # L-mode iterhybrid variant with combined transport model and overwrites
       (
